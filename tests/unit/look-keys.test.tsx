@@ -396,6 +396,68 @@ describe('Dialog keys', () => {
     expect(dlg()).toBeNull();
   });
 
+  it('the key that opened a dialog does not answer it: key repeat presses nothing, the opening letter doubled neither (stage 60 review)', async () => {
+    const log: string[] = [];
+    let nav!: ReturnType<typeof useNav>;
+    const Out = lookFrame(function Out() {
+      const n = useNav();
+      const done = (s: string) => {
+        log.push(s);
+        n.pop();
+      };
+      return (
+        <Dialog
+          title="Log out"
+          dlg="out"
+          onCancel={() => done('cancel')}
+          buttons={[
+            { id: 'CANCEL', label: 'Cancel', letter: 'c', run: () => done('cancel') },
+            { id: 'OUT', label: 'Log out', letter: 'l', primary: true, run: () => done('out') },
+          ]}
+        >
+          Log out?
+        </Dialog>
+      );
+    });
+    function Page() {
+      nav = useNav();
+      // The page's letter opens the dialog, as the Account page's L does.
+      useKeys((e) => {
+        if (e.key === 'l' && !e.repeat) nav.push(<Out />, { overlay: true });
+        return true;
+      });
+      return <div />;
+    }
+    await act(async () => {
+      render(<FrameStack root={<Page />} active />, document.body);
+    });
+    const dlg = () => document.querySelector('.wc-lk-dialog[data-dlg="out"]');
+    const key = (k: string, init: KeyboardEventInit = {}) => act(async () => void winKey(k, { code: k === 'l' ? 'KeyL' : k === 'c' ? 'KeyC' : k, ...init }));
+
+    // L held: the dialog opens, and the repeats of L, Enter and Space do not press its buttons.
+    await key('l');
+    expect(dlg()).not.toBeNull();
+    for (const k of ['l', 'l', 'Enter', ' ']) await key(k, { repeat: true });
+    expect(log).toEqual([]);
+    expect(dlg()).not.toBeNull();
+    // L doubled (let go and pressed again at once): not the answer either.
+    await key('l');
+    expect(log).toEqual([]);
+    // Another key answers at once.
+    await key('c');
+    expect(log).toEqual(['cancel']);
+    // And Enter after the letter is not held up (typed ahead).
+    await key('l');
+    await key('Enter');
+    expect(log).toEqual(['cancel', 'out']);
+    // The letter itself answers once a moment has passed.
+    await key('l');
+    await new Promise((r) => setTimeout(r, 400));
+    await key('l');
+    expect(log).toEqual(['cancel', 'out', 'out']);
+    expect(dlg()).toBeNull();
+  });
+
   it('a field in a dialog keeps its letters; Enter presses the primary, Esc cancels', async () => {
     const log: string[] = [];
     let nav!: ReturnType<typeof useNav>;

@@ -32,8 +32,14 @@ class MemoryStorage {
   }
 }
 
+/** What a test does to one device's requests: `after` runs when the server has answered and before the client hears; `tamper` rewrites a JSON answer. */
+interface Wire {
+  after?: ((req: FakeRequest) => Promise<void> | void) | null;
+  tamper?: ((req: FakeRequest, body: unknown) => unknown) | null;
+}
+
 /** A fetch that is the fake server as one browser sees it (the browser adds `Origin` to what is not a GET). */
-function fetchOf(browser: FakeBrowser): AccountFetch {
+function fetchOf(browser: FakeBrowser, wire: Wire = {}): AccountFetch {
   return async (url, init) => {
     const u = new URL(url, ORIGIN);
     const headers: Record<string, string> = {};
@@ -42,12 +48,16 @@ function fetchOf(browser: FakeBrowser): AccountFetch {
     if (method !== 'GET') headers.origin = ORIGIN;
     const req: FakeRequest = { method, path: u.pathname, search: u.search, headers, body: (init.body as string | undefined) ?? null, origin: ORIGIN };
     const res = browser.request(req);
+    await wire.after?.(req);
     if (res === 'offline') throw new TypeError('Failed to fetch');
+    if (res === 'hang') return new Promise<never>(() => {});
     return {
       status: res.status,
       json: async () => {
+        if (res.bodyLost) throw new TypeError('network error');
         if (res.body === undefined) throw new SyntaxError('no body');
-        return structuredClone(res.body);
+        const body = structuredClone(res.body);
+        return wire.tamper ? wire.tamper(req, body) : body;
       },
     };
   };
@@ -61,17 +71,20 @@ interface Device {
   /** Password derivations run on this device. */
   kdfRuns: () => number;
   kdf: { fail: 'worker' | 'always' | null; inline: number };
+  wire: Wire;
 }
 
 let server: FakeAccountServer;
 let storage: MemoryStorage;
 
 /** A device: a browser on the server, an IndexedDB of its own, the flows over both. (All devices of a test share one localStorage.) */
-function device(o: { enabled?: boolean; works?: boolean } = {}): Device {
-  const browser = server.browser();
-  const factory = new IDBFactory();
+function device(o: { enabled?: boolean; works?: boolean; tabOf?: Device; store?: (base: AccountStore) => AccountStore; timeoutMs?: number } = {}): Device {
+  // `tabOf`: another tab of the same browser (its cookie jar and its IndexedDB).
+  const browser = o.tabOf?.browser ?? server.browser();
+  const factory = o.tabOf?.factory ?? new IDBFactory();
   const base = createAccountStore(factory);
-  const store: AccountStore = o.works === false ? { ...base, works: async () => false } : base;
+  const store: AccountStore = o.store ? o.store(base) : o.works === false ? { ...base, works: async () => false } : base;
+  const wire: Wire = {};
   let runs = 0;
   const kdf: Device['kdf'] = { fail: null, inline: 0 };
   const derive: PasswordKdf = async (name, password, salt, _kdf, opts) => {
@@ -83,7 +96,7 @@ function device(o: { enabled?: boolean; works?: boolean } = {}): Device {
   };
   const enabled = async () => o.enabled !== false;
   const flows = createAccountFlows({
-    api: createAccountApi({ fetch: fetchOf(browser), enabled }),
+    api: createAccountApi({ fetch: fetchOf(browser, wire), enabled, ...(o.timeoutMs ? { timeoutMs: o.timeoutMs } : {}) }),
     store,
     crypto: () => import('../../src/cloud/crypto'),
     derive,
@@ -91,7 +104,7 @@ function device(o: { enabled?: boolean; works?: boolean } = {}): Device {
     label: () => 'Firefox on Linux',
     now: () => server.now(),
   });
-  return { flows, browser, store, factory, kdfRuns: () => runs, kdf };
+  return { flows, browser, store, factory, kdfRuns: () => runs, kdf, wire };
 }
 
 async function registered(d: Device, name = 'Olev', password = PASSWORD): Promise<{ account: Account; recoveryCode: string }> {
@@ -656,5 +669,269 @@ describe('the start page\'s state', () => {
     off();
     await d.flows.logout();
     expect(seen).toEqual(['Olev', null, 'Olev']);
+  });
+});
+
+// The findings of the independent review of the client (stage 60 part B; ADR 0145 "After the review of the client").
+describe('after the review: lost answers of a registration (finding 3)', () => {
+  it('3a: the own-key login of a retry fails with anything but invalid_login: the flow stays, the login\'s failure is the answer, the code is not lost', async () => {
+    const d = device();
+    const flow = d.flows.startRegister('Olev', PASSWORD);
+    server.dropNextAnswer = true;
+    expect(await flow.submit({ turnstile: 'a' })).toEqual({ ok: false, code: 'offline' });
+    // The retry: register answers name_taken, and the login that asks "is it ours" does not get through.
+    server.fail = 'offline';
+    server.failWhen = (req) => req.path === '/api/auth/login';
+    expect(await flow.submit({ turnstile: 'b' })).toEqual({ ok: false, code: 'offline' });
+    expect(flow.finished).toBe(false);
+    server.fail = null;
+    const r = await flow.submit({ turnstile: 'c' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(d.kdfRuns()).toBe(1);
+    const rec = await device().flows.startRecover('Olev', r.value.recoveryCode, 'another password 1').submit({ turnstile: 'd' });
+    expect(rec.ok).toBe(true);
+  });
+
+  it('3a: the server wants a check before any login to the name: the next submit spends its token on the login and finds the account', async () => {
+    const d = device();
+    const flow = d.flows.startRegister('Olev', PASSWORD);
+    server.dropNextAnswer = true;
+    expect(await flow.submit({ turnstile: 'a' })).toEqual({ ok: false, code: 'offline' });
+    // Somebody guesses at the new name meanwhile: from the fourth try the server asks for Turnstile.
+    const guesser = device();
+    for (let i = 0; i < 3; i++) expect(await guesser.flows.startLogin('Olev', `wrong password ${i}`).submit()).toEqual({ ok: false, code: 'invalid_login' });
+    expect(await flow.submit({ turnstile: 'b' })).toEqual({ ok: false, code: 'turnstile_required' });
+    expect(flow.finished).toBe(false);
+    const r = await flow.submit({ turnstile: 'c' });
+    expect(r.ok && r.value.stored).toBe(true);
+    expect(d.kdfRuns()).toBe(1);
+  });
+
+  it('3a: the name really is somebody else\'s: name_taken, and the flow is over', async () => {
+    const d = device();
+    const flow = d.flows.startRegister('Olev', PASSWORD);
+    server.fail = 'offline';
+    expect(await flow.submit({ turnstile: 'a' })).toEqual({ ok: false, code: 'offline' });
+    server.fail = null;
+    await registered(device(), 'olev', 'somebody else entirely');
+    expect(await flow.submit({ turnstile: 'b' })).toEqual({ ok: false, code: 'name_taken' });
+    expect(flow.finished).toBe(true);
+    expect(await d.flows.storedAccount()).toBeNull();
+  });
+
+  it('3d: a 2xx whose account is not the one asked for: bad_answer, and the retry still finds the account', async () => {
+    const d = device();
+    const flow = d.flows.startRegister('Olev', PASSWORD);
+    d.wire.tamper = (req, body) => (req.path === '/api/auth/register' ? { account: { ...(body as { account: Account }).account, name: 'Mallory' } } : body);
+    expect(await flow.submit({ turnstile: 'a' })).toEqual({ ok: false, code: 'bad_answer' });
+    expect(server.hasAccount('Olev')).toBe(true);
+    expect(flow.finished).toBe(false);
+    d.wire.tamper = null;
+    const r = await flow.submit({ turnstile: 'b' });
+    expect(r.ok && r.value.account.name).toBe('Olev');
+  });
+
+  it('the fake loses answers three ways: the connection (offline), no answer (timeout), the body (bad_answer); each retry finds the account', async () => {
+    for (const [lose, code] of [
+      ['connection', 'offline'],
+      ['hang', 'timeout'],
+      ['body', 'bad_answer'],
+    ] as const) {
+      server = new FakeAccountServer();
+      const d = device({ timeoutMs: 40 });
+      const flow = d.flows.startRegister('Olev', PASSWORD);
+      server.loseNextAnswer = lose;
+      expect(await flow.submit({ turnstile: 'a' }), lose).toEqual({ ok: false, code });
+      expect(server.hasAccount('Olev')).toBe(true);
+      const r = await flow.submit({ turnstile: 'b' });
+      expect(r.ok, lose).toBe(true);
+      await d.store.remove();
+    }
+  });
+});
+
+describe('after the review: the hint is not the truth (finding 4)', () => {
+  it('a hint that cannot be written: the login holds in this tab, the start page is told, and log out works', async () => {
+    const d = device();
+    await registered(d);
+    await d.flows.logout();
+    storage.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError');
+    };
+    const changes: (string | null)[] = [];
+    onAccountState((s) => changes.push(s.name));
+    expect((await d.flows.startLogin('Olev', PASSWORD).submit()).ok).toBe(true);
+    expect(storage.getItem(ACCOUNT_HINT_KEY)).toBeNull();
+    expect(accountState().name).toBe('Olev');
+    expect(changes).toEqual(['Olev']);
+    const r = await d.flows.loadAccount();
+    expect(r.ok && r.value.name).toBe('Olev');
+    expect((await d.flows.logout()).ok).toBe(true);
+    expect(accountState().name).toBeNull();
+    expect(await d.store.read()).toBeNull();
+    expect(server.sessionLabels('Olev')).toEqual([]);
+  });
+
+  it('a hint that cannot be written and a new page (nothing in memory): the account pages find the keys', async () => {
+    const d = device();
+    storage.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError');
+    };
+    await registered(d);
+    resetAccountStateForTest(); // a reload
+    expect(accountState().name).toBeNull();
+    expect((await d.flows.storedAccount())?.name).toBe('Olev');
+    expect(accountState().name).toBe('Olev');
+  });
+
+  it('the hint is gone and the keys are here (localStorage was cleared): repaired, nobody is logged out', async () => {
+    const d = device();
+    await registered(d);
+    storage.removeItem(ACCOUNT_HINT_KEY);
+    storage.removeItem(ACCOUNT_LAST_KEY);
+    expect(accountState().name).toBeNull();
+    const r = await d.flows.loadAccount();
+    expect(r.ok && r.value.name).toBe('Olev');
+    expect(storage.getItem(ACCOUNT_HINT_KEY)).toBe('{"name":"Olev"}');
+    expect(accountState()).toMatchObject({ name: 'Olev', lastName: 'Olev' });
+    expect(await d.flows.accountKeys()).not.toBeNull();
+  });
+});
+
+describe('after the review: whose session it is (finding 5)', () => {
+  it('the session is another account\'s than the stored one: that session is ended, the device logged out, wrong_account', async () => {
+    const d = device();
+    await registered(d);
+    const other = device();
+    await registered(other, 'Bera', 'bera has a password too');
+    // Two tabs logging in to different accounts at once, or a cookie set from elsewhere: Olev's keys, Bera's session.
+    d.browser.cookie = other.browser.cookie;
+    expect(await d.flows.loadAccount()).toEqual({ ok: false, code: 'wrong_account' });
+    expect(await d.store.read()).toBeNull();
+    expect(accountState()).toMatchObject({ name: null });
+    expect(server.sessionLabels('Bera')).toEqual([]);
+  });
+
+  it('the password questions check it before anything is derived or changed', async () => {
+    for (const run of [
+      (d: Device) => d.flows.changePassword(PASSWORD, 'a new password 123'),
+      (d: Device) => d.flows.newRecoveryCode(PASSWORD),
+      (d: Device) => d.flows.deleteAccount(PASSWORD),
+    ]) {
+      server = new FakeAccountServer();
+      const d = device();
+      await registered(d);
+      const other = device();
+      await registered(other, 'Bera', PASSWORD);
+      d.browser.cookie = other.browser.cookie;
+      const runs = d.kdfRuns();
+      expect(await run(d)).toEqual({ ok: false, code: 'wrong_account' });
+      expect(d.kdfRuns()).toBe(runs);
+      expect(server.hasAccount('Bera')).toBe(true);
+      expect(server.requests('POST /api/u/account/password')).toEqual([]);
+      expect(server.requests('POST /api/u/account/recovery')).toEqual([]);
+      expect(server.requests('DELETE /api/u/account')).toEqual([]);
+    }
+  });
+
+  it('the name is compared as the server compares it', async () => {
+    const d = device();
+    await registered(d);
+    d.wire.tamper = (req, body) =>
+      req.path === '/api/u/account' ? { ...(body as object), account: { ...(body as { account: Account }).account, name: 'OLEV' } } : body;
+    expect((await d.flows.loadAccount()).ok).toBe(true);
+  });
+});
+
+describe('after the review: "End all others" and a 404 (finding 6)', () => {
+  it('not_found is "already ended" for one session id only', async () => {
+    const d = device();
+    await registered(d);
+    const one = server.addSession('Olev', 'Chrome on Android');
+    server.flags = { accounts: false }; // every account endpoint answers 404 not_found
+    expect(await d.flows.endOtherSessions()).toEqual({ ok: false, code: 'not_found' });
+    server.flags = { accounts: true };
+    expect(server.sessionLabels('Olev').sort()).toEqual(['Chrome on Android', 'Firefox on Linux']);
+    expect(await d.flows.endSession(one)).toEqual({ ok: true, value: null });
+    expect(await d.flows.endSession(one)).toEqual({ ok: true, value: null });
+  });
+});
+
+describe('after the review: the local login is not destroyed on weak evidence (finding 8)', () => {
+  it('a store that cannot be read is not "nobody is logged in": storage_unreadable, and nothing is removed', async () => {
+    let broken = false;
+    const d = device({
+      store: (base) => ({
+        ...base,
+        read: async () => {
+          if (broken) throw new DOMException('the backing store failed', 'UnknownError');
+          return base.read();
+        },
+      }),
+    });
+    await registered(d);
+    broken = true;
+    expect(await d.flows.loadAccount()).toEqual({ ok: false, code: 'storage_unreadable' });
+    expect(await d.flows.changePassword(PASSWORD, 'a new password 123')).toEqual({ ok: false, code: 'storage_unreadable' });
+    expect(await d.flows.storedAccount()).toBeNull();
+    expect(accountState().name).toBe('Olev');
+    expect(server.requests('GET /api/u/account')).toEqual([]);
+    broken = false;
+    expect((await d.flows.loadAccount()).ok).toBe(true);
+    expect(await d.store.read()).not.toBeNull();
+  });
+
+  it('a stale 401 across tabs: another tab logged in again before the answer came: login_changed, and the new login stays', async () => {
+    const a = device();
+    await registered(a);
+    const b = device({ tabOf: a });
+    server.endSessions('Olev');
+    let once = true;
+    a.wire.after = async (req) => {
+      if (!once || req.path !== '/api/u/account') return;
+      once = false;
+      // The 401 is on its way to tab A; tab B logs in meanwhile (a new cookie, a new record).
+      server.advance(1000);
+      expect((await b.flows.startLogin('Olev', PASSWORD).submit()).ok).toBe(true);
+    };
+    expect(await a.flows.loadAccount()).toEqual({ ok: false, code: 'login_changed' });
+    expect(await a.store.read()).not.toBeNull();
+    expect(accountState().name).toBe('Olev');
+    const r = await a.flows.loadAccount();
+    expect(r.ok && r.value.sessions.length).toBe(1);
+  });
+
+  it('a 401 for the login that is still the device\'s logs it out, as before', async () => {
+    const a = device();
+    await registered(a);
+    server.endSessions('Olev');
+    expect(await a.flows.endOtherSessions()).toEqual({ ok: false, code: 'unauthorized' });
+    expect(await a.store.read()).toBeNull();
+    expect(accountState().name).toBeNull();
+  });
+});
+
+describe('after the review: the fake honours "the password changed meanwhile" as worker/auth.ts does', () => {
+  it('change password, new recovery code and delete write only where the proven password is still the account\'s', async () => {
+    for (const run of [
+      (d: Device) => d.flows.changePassword(PASSWORD, 'a new password 123'),
+      (d: Device) => d.flows.newRecoveryCode(PASSWORD),
+      (d: Device) => d.flows.deleteAccount(PASSWORD),
+    ]) {
+      server = new FakeAccountServer();
+      const d = device();
+      const { recoveryCode } = await registered(d);
+      const before = server.stored('Olev')!;
+      // Another session changes the password between the proof and the write.
+      const elsewhere = { ...before, authKey: before.authKey.slice(0, -4) + (before.authKey.endsWith('AAAA') ? 'BBBB' : 'AAAA') };
+      server.meanwhile = () => server.seed('Olev', elsewhere);
+      expect(await run(d)).toEqual({ ok: false, code: 'invalid_login' });
+      expect(server.hasAccount('Olev')).toBe(true);
+      expect(server.stored('Olev')).toMatchObject({ authKey: elsewhere.authKey, wrapPw: before.wrapPw, recoveryAuth: before.recoveryAuth });
+      expect(server.failures('Olev')).toBe(1);
+      // The recovery code is the old one still.
+      expect((await device().flows.startRecover('Olev', recoveryCode, 'recovered password 1').submit({ turnstile: 'r' })).ok).toBe(true);
+    }
   });
 });

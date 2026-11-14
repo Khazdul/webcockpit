@@ -88,7 +88,18 @@ export interface FakeResponse {
   /** JSON; undefined: no body (204). */
   body?: unknown;
   headers?: Record<string, string>;
+  /** The status and the headers arrived, the body did not (`loseNextAnswer = 'body'`). */
+  bodyLost?: boolean;
 }
+
+/**
+ * How an answer is lost after the server has done the request's work:
+ * `connection` the connection drops (the client: `offline`), `hang` no
+ * answer ever comes (the client: `timeout`, after its 15 s), `body` the
+ * status and the headers arrive (the cookie with them) and the body is
+ * cut off (the client: `bad_answer`).
+ */
+export type LostAnswer = 'connection' | 'hang' | 'body';
 
 /** A request as the server saw it. */
 export interface SeenRequest {
@@ -219,8 +230,19 @@ export class FakeAccountServer {
   fail: FakeFailure | null = null;
   /** Limits `fail` to the requests it returns true for. */
   failWhen: ((req: FakeRequest) => boolean) | null = null;
-  /** Carry the request out and then drop the answer (what a timeout after the server's work looks like): the next request only. */
-  dropNextAnswer = false;
+  /** Carry the request out and then lose the answer in this way: the next request only. */
+  loseNextAnswer: LostAnswer | null = null;
+  /** `loseNextAnswer = 'connection'`. */
+  set dropNextAnswer(on: boolean) {
+    this.loseNextAnswer = on ? 'connection' : null;
+  }
+  /**
+   * Called once between "the password is proven" and the write in the
+   * three password questions (change password, new recovery code,
+   * delete): what another session did meanwhile. worker/auth.ts writes
+   * only where the password is still the proven one, and so does this.
+   */
+  meanwhile: (() => void) | null = null;
   /** Turnstile's own service is down: 503 `unavailable` where a token would be checked. */
   turnstileDown = false;
   /** Registrations left before 429 `rate_limited` (the address limit; one counter for everybody). */
@@ -330,13 +352,13 @@ export class FakeAccountServer {
   }
 
   /** One account request. `cookie` is the browser's session token; the answer may set or clear it. */
-  handle(req: FakeRequest, cookie: string | null): { res: FakeResponse | 'offline'; cookie: string | null } {
+  handle(req: FakeRequest, cookie: string | null): { res: FakeResponse | 'offline' | 'hang'; cookie: string | null } {
     let jar = cookie;
     const setCookie = (token: string | null): void => {
       jar = token;
     };
     const failing = this.fail !== null && (this.failWhen === null || this.failWhen(req));
-    let res: FakeResponse | 'offline';
+    let res: FakeResponse | 'offline' | 'hang';
     if (failing && this.fail === 'offline') res = 'offline';
     else if (failing && this.fail === 'garbage') res = { status: 200, body: { hello: 'world' } };
     else res = this.answer(req, cookie, setCookie, failing ? this.fail : null);
@@ -357,9 +379,12 @@ export class FakeAccountServer {
       cookie: cookie !== null,
       status: res === 'offline' ? 0 : res.status,
     });
-    if (this.dropNextAnswer && res !== 'offline') {
-      this.dropNextAnswer = false;
-      res = 'offline';
+    const lose = this.loseNextAnswer;
+    if (lose !== null && res !== 'offline') {
+      this.loseNextAnswer = null;
+      if (lose === 'connection') res = 'offline';
+      else if (lose === 'hang') res = 'hang';
+      else res = { ...res, bodyLost: true };
     }
     return { res, cookie: jar };
   }
@@ -620,6 +645,20 @@ export class FakeAccountServer {
     return () => this.takeBack(counter, n);
   }
 
+  /**
+   * After the proof, before the write: another session may have changed
+   * the password or deleted the account meanwhile (`meanwhile`). True
+   * when the proven password is still the account's (worker/auth.ts: the
+   * write's `WHERE … AND auth_hash = ?`; otherwise 401 `invalid_login`,
+   * the try stays counted).
+   */
+  private stillProven(account: AccountRow, authKey: unknown): boolean {
+    const between = this.meanwhile;
+    this.meanwhile = null;
+    between?.();
+    return this.accounts.get(account.key) === account && account.authKey === authKey;
+  }
+
   private password(req: FakeRequest, account: AccountRow, session: SessionRow): FakeResponse {
     const b = this.body(req, ['authKey', 'set']);
     if (!b) return err('bad_request', 400);
@@ -627,6 +666,7 @@ export class FakeAccountServer {
     if (!next) return err('bad_request', 400);
     const proven = this.passwordAgain(account, b.authKey);
     if (typeof proven !== 'function') return proven;
+    if (!this.stillProven(account, b.authKey)) return err('invalid_login', 401);
     Object.assign(account, next);
     for (const s of this.sessionsOf(account.key)) if (s.token !== session.token) this.sessions.delete(s.token);
     proven();
@@ -639,6 +679,7 @@ export class FakeAccountServer {
     if (!isKey(b.recoveryAuth) || !isWrap(b.wrapRc)) return err('bad_request', 400);
     const proven = this.passwordAgain(account, b.authKey);
     if (typeof proven !== 'function') return proven;
+    if (!this.stillProven(account, b.authKey)) return err('invalid_login', 401);
     account.recoveryAuth = b.recoveryAuth;
     account.wrapRc = b.wrapRc;
     proven();
@@ -670,6 +711,7 @@ export class FakeAccountServer {
     if (!b) return err('bad_request', 400);
     const proven = this.passwordAgain(account, b.authKey);
     if (typeof proven !== 'function') return proven;
+    if (!this.stillProven(account, b.authKey)) return err('invalid_login', 401);
     this.reserved.add(account.key);
     this.endSessions(account.key);
     this.accounts.delete(account.key);
@@ -689,11 +731,11 @@ export class FakeBrowser {
     this.server = server;
   }
 
-  /** One request from this browser. `offline`: the connection failed. */
-  request(req: FakeRequest): FakeResponse | 'offline' {
+  /** One request from this browser. `offline`: the connection failed. `hang`: no answer ever comes. */
+  request(req: FakeRequest): FakeResponse | 'offline' | 'hang' {
     const { res, cookie } = this.server.handle(req, this.cookie);
-    // An answer that never arrived sets no cookie either.
-    if (res !== 'offline') this.cookie = cookie;
+    // An answer that never arrived sets no cookie either (one whose body was lost does: the cookie is a header).
+    if (res !== 'offline' && res !== 'hang') this.cookie = cookie;
     return res;
   }
 
@@ -718,6 +760,12 @@ export async function seedAccount(server: FakeAccountServer, name: string, passw
 export interface FakeAccountApi {
   server: FakeAccountServer;
   browser: FakeBrowser;
+  /**
+   * Holds the answer of the next request to `path` (e.g.
+   * `/api/auth/register`): the server does its work, `arrived` resolves,
+   * and the page gets the answer only after `release()`.
+   */
+  holdNext(path: string): { arrived: Promise<void>; release(): void };
 }
 
 /**
@@ -729,6 +777,15 @@ export interface FakeAccountApi {
 export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer } = {}): Promise<FakeAccountApi> {
   const server = o.server ?? new FakeAccountServer();
   const browser = server.browser();
+  let hold: { path: string; arrived: () => void; released: Promise<void> } | null = null;
+  const holdNext = (path: string): { arrived: Promise<void>; release(): void } => {
+    let arrivedNow = (): void => {};
+    let release = (): void => {};
+    const arrived = new Promise<void>((r) => (arrivedNow = r));
+    const released = new Promise<void>((r) => (release = r));
+    hold = { path, arrived: arrivedNow, released };
+    return { arrived, release };
+  };
   await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -745,9 +802,18 @@ export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer
       body: req.postData(),
       origin: url.origin,
     });
+    if (hold && hold.path === url.pathname) {
+      const h = hold;
+      hold = null;
+      h.arrived();
+      await h.released;
+    }
     if (res === 'offline') return route.abort('connectionrefused');
+    // No answer: the request stays open until the page gives up (its 15 s) or goes.
+    if (res === 'hang') return;
+    if (res.bodyLost) return route.fulfill({ status: res.status, contentType: 'application/json', headers: res.headers ?? {}, body: '{"acc' });
     if (res.body === undefined) return route.fulfill({ status: res.status, headers: res.headers ?? {} });
     return json(res.status, res.body, res.headers);
   });
-  return { server, browser };
+  return { server, browser, holdNext };
 }

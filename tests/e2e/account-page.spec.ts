@@ -644,7 +644,8 @@ test('a log out wins over the page\'s own question to the server', async ({ page
   await expect(pageOf(page, 'account')).toBeVisible();
   await page.keyboard.press('l');
   await expect(dialog(page, 'ac-logout')).toBeVisible();
-  await page.keyboard.press('l');
+  // (Enter: the opening letter pressed again at once is not an answer.)
+  await page.keyboard.press('Enter');
   // The menu and "Logged out.", not Log in with "you were logged out".
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   await expect(menuFlash(page)).toHaveText('Logged out.');
@@ -771,5 +772,220 @@ test('the keyboard alone: the page\'s buttons, a dialog with fields, and Enter n
   await page.keyboard.press('Enter');
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   await expect(menuFlash(page)).toHaveText('Logged out.');
+  expect(errors).toEqual([]);
+});
+
+// ------------------------------------------------------------ after the review of the client (ADR 0145)
+
+test('review 3c: a password change or a delete whose answer is lost says "may or may not", never "not reached"', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  await fakeAccountApi(page, { server });
+  await logIn(page);
+  const loseOnce = async (path: string, lose: 'connection' | 'body' | 'none'): Promise<void> => {
+    await page.unroute('**/api/u/account/password');
+    await page.unroute('**/api/u/account');
+    let once = true;
+    await page.route(path, async (route) => {
+      // (`GET /api/u/account` is the page's own question: only the request that changes something is lost.)
+      if (once && route.request().method() !== 'GET' && lose !== 'none') {
+        once = false;
+        server.loseNextAnswer = lose;
+      }
+      await route.fallback();
+    });
+  };
+
+  // Change password: the connection drops after the request left. The server has changed it.
+  await loseOnce('**/api/u/account/password', 'connection');
+  await btn(page, 'PASSWORD').click();
+  await field(page, 'current').fill(PASSWORD);
+  await field(page, 'password').fill(PASSWORD_2);
+  await field(page, 'again').fill(PASSWORD_2);
+  await btn(page, 'CHANGE').click();
+  await expect(dialogError(page)).toContainText('The change may or may not have been made.');
+  await expect(dialogError(page)).toContainText('try the new password first');
+  await expect(dialogError(page)).not.toContainText('was not reached');
+  await page.keyboard.press('Escape');
+  await expect(dialog(page, 'ac-password')).toHaveCount(0);
+
+  // Delete account, the same (and the page's own question after it does not get through either, so the
+  // dialog is still there to be read: with the server back, that question finds the session gone).
+  await loseOnce('**/api/u/account', 'connection');
+  await btn(page, 'DELETE').click();
+  await field(page, 'password').fill(PASSWORD_2);
+  await field(page, 'confirm').fill(NAME);
+  server.fail = 'offline';
+  server.failWhen = (req) => req.method === 'GET' && req.path === '/api/u/account' && !server.hasAccount(NAME);
+  await btn(page, 'DELETE').last().click();
+  await expect(dialogError(page)).toContainText('The account may or may not have been deleted');
+  await expect(dialogError(page)).not.toContainText('was not reached');
+  expect(server.hasAccount(NAME)).toBe(false);
+  // Trying again finds the session gone: Log in says so.
+  server.fail = null;
+  await field(page, 'password').fill(PASSWORD_2);
+  await btn(page, 'DELETE').last().click();
+  await expect(pageOf(page, 'login')).toBeVisible();
+});
+
+test('review 4: the hint is gone and the keys are here (localStorage cleared): not a log out; the hint is put back', async ({ context, page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  const api = await fakeAccountApi(page, { server });
+  await logIn(page);
+  // Another tab of the same browser clears the storage: this tab hears a storage event with no key.
+  const other = await context.newPage();
+  const api2 = await fakeAccountApi(other, { server });
+  api2.browser.cookie = api.browser.cookie;
+  await other.goto(page.url());
+  await other.evaluate(() => localStorage.clear());
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('wc.account'))).toBe(`{"name":"${NAME}"}`);
+  await expect(pageOf(page, 'account')).toBeVisible();
+  // The keys and the session are as they were.
+  await reopen(page);
+  expect(server.sessionLabels(NAME)).toHaveLength(1);
+
+  // The hint removed with no event at all, and a reload: the row says "log in", the account pages know better.
+  await page.evaluate(() => localStorage.removeItem('wc.account'));
+  await openAccount(page);
+  await expect(pageOf(page, 'account')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+});
+
+test('review 5: the session is another account\'s than the keys on this device: logged out, and Log in says why', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  await seedAccount(server, 'Bera', PASSWORD_2);
+  const api = await fakeAccountApi(page, { server });
+  await logIn(page);
+  // Bera's session in this browser's cookie (two tabs that logged in at once, or a cookie from elsewhere).
+  const other = server.browser();
+  const origin = new URL(page.url()).origin;
+  other.request({
+    method: 'POST',
+    path: '/api/auth/login',
+    search: '',
+    headers: { 'x-wc': '1', origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'Bera', authKey: server.stored('Bera')!.authKey, label: 'Other tab' }),
+    origin,
+  });
+  expect(other.cookie).not.toBeNull();
+  api.browser.cookie = other.cookie;
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('u');
+  await expect(pageOf(page, 'login')).toBeVisible();
+  await expect(frame(page).locator('.wc-ac-notice, [data-notice]').first()).toContainText('another account');
+  await page.keyboard.press('Escape');
+  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  // That session was ended too: nothing of Bera's is left open from here.
+  expect(server.sessionLabels('Bera')).toEqual([]);
+});
+
+test('review 6: "End all others" with accounts switched off on the server fails honestly; it is not "ended"', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  server.addSession(NAME, 'Safari on iPhone');
+  await fakeAccountApi(page, { server });
+  await logIn(page);
+  await btn(page, 'ENDALL').click();
+  await expect(dialog(page, 'ac-endall')).toBeVisible();
+  // (The page's config is in already: the flag only changes what the account endpoints answer, 404 `not_found`.)
+  server.flags = { accounts: false };
+  await btn(page, 'END').last().click();
+  await expect(dialogError(page)).toHaveText('Accounts are switched off right now. Try again later.');
+  await expect(dialog(page, 'ac-endall')).toBeVisible();
+  await expect(flash(page)).toHaveCount(0);
+  server.flags = { accounts: true };
+  expect(server.sessionLabels(NAME)).toHaveLength(2);
+});
+
+test('review 7: a held or doubled letter does not answer the dialog it opened', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  server.addSession(NAME, 'Safari on iPhone');
+  await fakeAccountApi(page, { server });
+  await logIn(page);
+  await expect(rows(page)).toHaveCount(2);
+
+  // L held: Log out opens, and the repeats do not confirm it.
+  await page.keyboard.down('l');
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  for (let i = 0; i < 5; i++) await page.keyboard.down('l');
+  await page.keyboard.up('l');
+  await page.waitForTimeout(150);
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  expect(server.sessionLabels(NAME)).toHaveLength(2);
+  await page.keyboard.press('Escape');
+  await expect(dialog(page, 'ac-logout')).toHaveCount(0);
+
+  // L doubled (two quick presses): the second one is not the answer either.
+  await page.keyboard.press('l');
+  await page.keyboard.press('l');
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  await page.waitForTimeout(150);
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  expect(server.sessionLabels(NAME)).toHaveLength(2);
+  await page.keyboard.press('Escape');
+
+  // E for End session, the same.
+  await page.keyboard.press('e');
+  await page.keyboard.press('e');
+  await expect(dialog(page, 'ac-end')).toBeVisible();
+  await page.waitForTimeout(150);
+  await expect(dialog(page, 'ac-end')).toBeVisible();
+  expect(server.sessionLabels(NAME)).toHaveLength(2);
+  // Another key answers at once (C: Cancel), and the letter itself does after a moment.
+  await page.keyboard.press('c');
+  await expect(dialog(page, 'ac-end')).toHaveCount(0);
+  await page.keyboard.press('e');
+  await expect(dialog(page, 'ac-end')).toBeVisible();
+  await page.waitForTimeout(450);
+  await page.keyboard.press('e');
+  await expect(dialog(page, 'ac-end')).toHaveCount(0);
+  await expect(rows(page)).toHaveCount(1);
+
+  // Enter held on a button: the dialog opens once and is not answered.
+  for (const _ of [0, 1, 2]) await page.keyboard.press('Tab');
+  await expect(btn(page, 'LOGOUT')).toHaveClass(selected);
+  await page.keyboard.down('Enter');
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  for (let i = 0; i < 4; i++) await page.keyboard.down('Enter');
+  await page.keyboard.up('Enter');
+  await page.waitForTimeout(150);
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
+  expect(server.sessionLabels(NAME)).toHaveLength(1);
+});
+
+test('review 9: a new recovery code on screen is not closed by a log out in another tab; once its last group is typed the page follows', async ({ context, page }) => {
+  const errors = watchErrors(page);
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  const api = await fakeAccountApi(page, { server });
+  await logIn(page);
+  await btn(page, 'RECOVERY').click();
+  await field(page, 'password').fill(PASSWORD);
+  await btn(page, 'MAKE').click();
+  await expect(dialog(page, 'ac-newcode-shown')).toBeVisible();
+  const code = await shownCode(page);
+
+  const other = await context.newPage();
+  const api2 = await fakeAccountApi(other, { server });
+  api2.browser.cookie = api.browser.cookie;
+  await other.goto(page.url());
+  await accountRow(other).click();
+  await expect(pageOf(other, 'account')).toBeVisible();
+  await logOut(other);
+  await expect(accountRow(other).locator('.wc-sm-note')).toHaveText('(log in)');
+
+  // This tab heard of it (the hint is gone here too) and the code is still up.
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('wc.account'))).toBeNull();
+  await page.waitForTimeout(300);
+  await expect(dialog(page, 'ac-newcode-shown')).toBeVisible();
+  expect(await shownCode(page)).toBe(code);
+  // The last group typed: now the page leaves, and says why.
+  await field(page, 'last').fill(code.slice(-4));
+  await expect(menuFlash(page)).toHaveText('Logged out in another tab.');
+  await expect(page.locator('.wc-start [data-dlg]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

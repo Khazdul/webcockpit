@@ -864,3 +864,143 @@ was decided while building:
   the page's own; it does not poll. A session ended elsewhere shows at
   the next visit, or as "the session is gone" when it is this one.
 - `stored: false`, WebKit and iOS: as before, not covered.
+
+## After the review of the client (stage 60 part B, 2026-11-14)
+
+An independent review of `src/cloud/account/` and
+`src/chrome/frames/account/` gave nine findings, three "plausible, not
+confirmed" items and two notes. What changed, by finding; the guide in
+`src/cloud/account/index.ts` and the header of `flows.ts` say the same
+for whoever builds on them.
+
+1. **A new account's recovery code could be lost when Create account
+   was left while the request was on its way.** Two things. While a page
+   or a dialog works, its own ways out (the box's back arrow, Esc, a
+   dialog's Cancel) are the Working state's Cancel, and from `sending`
+   on nothing (`work.orCancel`, `working.tsx`): on Create account,
+   Recovery, Log in and the three dialogs with a password. And the code
+   is **held** in memory from the moment the registration answers until
+   the player has typed its last group and gone on (`holdCode`,
+   `form.tsx`): if the page that asked is gone, or the recovery code
+   page is taken down early, every other account page shows the code in
+   its own place and the Account row opens on it; the browser asks
+   before a reload while a code is held.
+2. **The CSP is report-only** (the main session's, not part of this
+   change): the policy is enforced on staging before the owner's test;
+   the accounts flag is not turned on in production while the policy is
+   report-only.
+3. **Lost answers were handled unevenly.** One rule now: `lostAnswer`
+   (`timeout`, `offline`, `bad_answer`) after `sending` means the change
+   may have been made, and every place says "may or may not"
+   (`work.doubtful`, `lostWords`).
+   - 3a. A registration's retry that is told `name_taken` asks with its
+     own password key whose the name is. When that login fails with
+     anything but `invalid_login` the flow is kept and the login's
+     failure is the answer (before: `name_taken`, the flow ended and
+     its code gone). When the login is told `turnstile_required`, the
+     next submit spends its token on the login instead of on a
+     registration that would only say `name_taken` again.
+   - 3b. Create account keeps the flow while the name and the password
+     are what it was started with (an edit that ends where it began
+     loses nothing) and remembers the name of a try whose answer was
+     lost. A new try for that name with another password cannot prove
+     the account is its own, so "taken" is then said as "perhaps by
+     your own earlier try … try logging in"; another name gets a line
+     that the first may have been made. Not repaired: the code of that
+     first account was never shown; the way to one is Log in with the
+     first password and New recovery code.
+   - 3c. Change password and Delete account treat every lost answer as
+     doubtful, as New recovery code did.
+   - 3d. A 2xx registration answer that fails the account check leaves
+     the flow unsure, so the retry finds the account.
+4. **The hint decided more than display.** Inside the lazy chunk the
+   IndexedDB record is the truth (`storedAccount`): keys without a hint
+   put the hint back, a hint without keys is cleared (nothing is deleted
+   on that path: another tab may be storing a login). Where localStorage
+   cannot be written, `state.ts` keeps the flows' word in memory, so the
+   login holds in the tab and the start row follows; after a reload the
+   row says "log in" and the Log in page, finding the keys, gives way to
+   the Account page. **"Hint gone, record present" (localStorage
+   cleared) is repaired, not a logout**: the record and the cookie are
+   still valid, and the Account page asks the store before it says
+   "Logged out in another tab".
+5. **Whose session it is.** `loadAccount` and the password questions
+   (which now all ask `GET /api/u/account` first, Delete account
+   included) compare the answer's name with the record's, as the server
+   compares names. On a mismatch that session is ended, the device
+   logged out, and the flow answers `wrong_account` with words of its
+   own; the pages treat it as `unauthorized`.
+6. **`not_found` is "already ended" for one session id only.** "End all
+   others" reports a 404 as the failure it is.
+7. **A held or doubled letter answered its own dialog.** Fixed in the
+   kit's `Dialog` for every dialog: key repeat never presses a button,
+   and the opening letter pressed again within 350 ms of the dialog's
+   mount does not either. The Account page's letters, Enter and Space,
+   and the forms' Enter, ignore key repeat too. No letters were changed.
+   Left as it is on purpose: Enter doubled (typed ahead through a row
+   and its question) still answers; no dialog that Enter opens destroys
+   anything on its primary button (Delete account rests on Cancel).
+8. **The local login was destroyed on weak evidence.** The store's
+   `read()` rejects when the database cannot be read, and the flows
+   answer `storage_unreadable` and log nobody out. After a 401 the local
+   login is removed only when the record is still the one the request
+   started with (`savedAt` and the name); another login in its place
+   answers `login_changed` and removes nothing.
+9. **A new recovery code on screen could be closed from another tab.**
+   The dialog pins the page (`host.pin`) from the moment the code is
+   asked for until its last group is typed: another tab's log out, a
+   changed hint and the page's own question coming back 401 wait, and
+   are acted on when the pin is let go.
+
+The three "plausible, not confirmed" items:
+
+- **Can anything outside tear the code page or dialog down?** Traced:
+  the account pages are hosted only by the start surface's stack, which
+  has no close request, no remount while a page is up, no `popstate` or
+  `hashchange` handling and no reload of its own; the phone's menu and
+  gestures act only in the cockpit. The page was safe; the dialog was
+  not, through the Account page's own leave functions (finding 9 and
+  three more paths of the same kind, all behind the pin now).
+- **Our own on-screen keyboard and password fields.** Read: nothing of
+  it shows a typed character outside the field (the readout prints the
+  focused element's kind, never a value, only with `?kbd=debug` in the
+  game layout; there are no key-cap popups). No change.
+- **`store.read()` deleting a fresh database while another tab writes.**
+  Real (a test reproduces the lost write). A read no longer creates the
+  database: its open aborts the upgrade that would.
+
+The notes: the fake loses answers three ways now (`connection`, `hang`,
+`body`) and its three password questions honour "the password changed
+meanwhile" as `worker/auth.ts` does. Turnstile: the script and
+`window.turnstile` stay loaded after the account pages are left, on
+purpose. A script cannot be unloaded, loading it twice is what
+Cloudflare warns against, and with explicit rendering it makes no frame
+until `render`; what must hold is that no widget outlives its page
+(`dispose()` → `turnstile.remove`; a widget disposed before the script
+arrives is never rendered). A script that arrives after the 15 s
+timeout still runs and only defines the global.
+
+### Known limits (after the review)
+
+- **What Cloudflare's script does between widgets** (a timer, a message
+  listener) was not measured against the real script: the e2e uses a
+  stub. To look at on staging: no `challenges.cloudflare.com` frame in
+  the page after an account page is left.
+- **Removing the local login is not one atomic step with the check
+  before it** (`stillMine`, then the database is deleted): a login
+  stored by another tab in the few milliseconds between is removed with
+  it. The player logs in again; nothing is lost on the server.
+- **A hint without a record does not end a session** that may still be
+  alive on the server (IndexedDB cleared by the browser, the cookie
+  kept): ending it there would also end a login another tab is storing
+  just then. It runs out, or is ended from the device list.
+- **A lost answer to a single-session "End"** on a server with accounts
+  switched off reads as "ended" (a 404 for an id cannot be told from a
+  session that is gone). The list is asked again after every change.
+- **The hint in memory is per tab.** With localStorage unwritable,
+  other tabs do not hear of a login or a log out until they open an
+  account page.
+- **The phone's hardware Back** on the recovery code page is the
+  browser's own navigation; `beforeunload` is the only guard, and
+  mobile browsers do not always honour it. The code can be made anew
+  on the Account page.

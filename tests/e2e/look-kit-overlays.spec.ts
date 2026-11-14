@@ -273,3 +273,24 @@ test('the grid cursor walks the grid in two dimensions', async ({ page }) => {
   await page.keyboard.press('ArrowLeft');
   await expect(grid.locator('.wc-lk-row.is-on')).toHaveAttribute('data-i', '0');
 });
+
+test('a dialog’s buttons are not pressed by key repeat; another key than the one that opened it answers at once', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press('q');
+  const dlg = dialog(page, 'question');
+  await expect(dlg).toBeVisible();
+  // A held key's repeats (letter, Enter, Space) press nothing.
+  for (const [key, code] of [
+    ['y', 'KeyY'],
+    ['Enter', 'Enter'],
+    [' ', 'Space'],
+  ] as const) {
+    await page.evaluate(([k, c]) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: c, repeat: true, bubbles: true, cancelable: true })), [key, code] as const);
+  }
+  await page.waitForTimeout(100);
+  await expect(dlg).toBeVisible();
+  // A real press of another key than the opening one: at once.
+  await page.keyboard.press('y');
+  await expect(dlg).toHaveCount(0);
+  await expect(kitOut(page)).toHaveText('question: yes');
+});

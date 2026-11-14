@@ -17,8 +17,13 @@
 // step for free. It is a hint, not the truth: the keys live in IndexedDB
 // and the session in a cookie the page cannot read. The flows reconcile
 // (a hint without stored keys, or a session the server no longer knows,
-// ends as "logged out on this device"). The name is public; nothing
-// secret is ever written here.
+// ends as "logged out on this device"; keys without a hint put the hint
+// back). The name is public; nothing secret is ever written here.
+//
+// Where localStorage cannot be written (full, blocked) the flows' word is
+// kept in memory instead (`held`), so the account works in this tab and
+// the start page's row follows it; after a reload the account pages find
+// the keys and say so again (stage 60 review, finding 4).
 //
 // Nothing here makes a request by itself: `watchAccountState` asks for the
 // flags (`/api/config`, fetched once per page load and shared with the
@@ -84,9 +89,12 @@ function readLast(): string | null {
   }
 }
 
+/** What the flows said when localStorage would not take it: `[name]`; null: localStorage is right. */
+let held: [string | null] | null = null;
+
 /** The state now. Cheap and synchronous (two localStorage reads). */
 export function accountState(): AccountState {
-  return { enabled, name: readHint(), lastName: readLast() };
+  return { enabled, name: held ? held[0] : readHint(), lastName: readLast() };
 }
 
 /** What the listeners were last told, so that a change of nothing (two storage events of one login) is not told twice. */
@@ -139,7 +147,10 @@ export function watchAccountState(): Promise<AccountState> {
       globalThis.addEventListener?.('storage', (e) => {
         const key = (e as StorageEvent).key;
         // null: the whole storage was cleared.
-        if (key === null || key === ACCOUNT_HINT_KEY || key === ACCOUNT_LAST_KEY) emit();
+        if (key !== null && key !== ACCOUNT_HINT_KEY && key !== ACCOUNT_LAST_KEY) return;
+        // Another tab wrote: localStorage speaks again.
+        held = null;
+        emit();
       });
     } catch {
       /* no window */
@@ -159,8 +170,9 @@ export function noteLoggedIn(name: string): void {
     s?.setItem(ACCOUNT_LAST_KEY, name);
     s?.setItem(ACCOUNT_HINT_KEY, JSON.stringify({ name }));
   } catch {
-    /* storage full or blocked: the start page will say "log in" */
+    /* storage full or blocked: kept in memory below */
   }
+  held = readHint() === name ? null : [name];
   emit();
 }
 
@@ -174,14 +186,16 @@ export function noteLoggedOut(o: { forgetName?: boolean } = {}): void {
     s?.removeItem(ACCOUNT_HINT_KEY);
     if (o.forgetName) s?.removeItem(ACCOUNT_LAST_KEY);
   } catch {
-    /* storage blocked */
+    /* storage blocked: kept in memory below */
   }
+  held = readHint() === null ? null : [null];
   emit();
 }
 
 /** Tests: forget the flag and the listeners. */
 export function resetAccountStateForTest(): void {
   listeners.clear();
+  held = null;
   told = null;
   enabled = null;
   watching = null;

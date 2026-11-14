@@ -112,6 +112,12 @@ export function failureWords(code: FlowErrorCode, where: FlowPlace): string {
         : 'This browser cannot keep the account’s keys (a private window, or storage is blocked), so nobody can be logged in here.';
     case 'not_logged_in':
       return 'Nobody is logged in on this device.';
+    case 'storage_unreadable':
+      return 'The account’s keys on this device could not be read just now. Nobody was logged out. Reload the page and try again.';
+    case 'wrong_account':
+      return 'You were logged out here: the server knew this browser as another account than the one on this device (two logins at once, perhaps). Log in again.';
+    case 'login_changed':
+      return 'The login on this device changed in another tab while this was being done. Nothing was changed. Try again.';
     case 'bad_input':
       return 'Something in the form cannot be used. Check the fields.';
     case 'busy':
@@ -139,6 +145,36 @@ export function nameWords(problem: NameProblem | null): string | null {
 }
 
 export const takenWords = (name: string): string => `The name ${name} is taken. Try another.`;
+
+/**
+ * The name is taken after an earlier try for the same name whose answer
+ * was lost, and this try cannot tell whose it is (the password was
+ * changed since): the account may be the player's own.
+ */
+export const maybeTakenWords = (name: string): string =>
+  `The name ${name} is taken, perhaps by your own earlier try: its answer was lost, so the account may have been made. Try logging in as ${name} with the password you typed then. If that is refused, the name is someone else’s: choose another.`;
+
+/** Another name is typed now, after a try whose answer was lost: the first name may be an account already. */
+export const maybeMadeWords = (name: string): string =>
+  `The earlier try may have made the account ${name}: its answer was lost. To find out, log in as ${name} with the password you typed then.`;
+
+/**
+ * What a page says when a request that changes something left and its
+ * answer did not come (`lostAnswer` after `sending`): the change may or
+ * may not have been made. One sentence per place, whatever the code.
+ */
+export function lostWords(where: FlowPlace): string {
+  switch (where) {
+    case 'register':
+      return 'The server’s answer did not arrive. The account may or may not have been made: press Create account again and it will be found.';
+    case 'recover':
+      return 'The server’s answer did not arrive. The password may or may not have been set: press Set new password again.';
+    case 'account':
+      return 'The server’s answer did not arrive. The change may or may not have been made.';
+    default:
+      return 'The server’s answer did not arrive. Try again.';
+  }
+}
 
 /** A strength's step on the four-part meter (0: too short, nothing lit) and its word. */
 export function strengthMark(s: PasswordStrength): { step: 0 | 1 | 2 | 3 | 4; word: string } {

@@ -36,9 +36,11 @@
 //
 // The page has no Back and takes Esc itself, and it stands in the place
 // of the Create account page (`go` replaces), so nothing in the frame
-// stack leads back to it or pops it. A reload loses the code (the browser
-// asks first, while the last group is not typed); a new code can be made
-// on the Account page.
+// stack leads back to it or pops it. Should the page be taken down all
+// the same before the last group is typed, the code is still held
+// (form.tsx `holdCode`) and the next account page shows it again. A
+// reload loses the code (the browser asks first, while it is held); a new
+// code can be made on the Account page.
 
 import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -46,7 +48,7 @@ import { lastGroupMatches } from '../../../cloud/account';
 import { downloadBlob } from '../../kit/download';
 import { Box, Field, GlassButton, LookFlash, Plate, Well, lookFrame, useLocalFlash } from '../../kit/look';
 import { type Flash, useNav } from '../../kit/stack';
-import { type PageProps, SmallNote, go, useFormKeys } from './form';
+import { type PageProps, SmallNote, go, holdCode, releaseCode, useFormKeys } from './form';
 import { recoveryFile } from './words';
 
 export interface RecoveryCodeHandle {
@@ -186,23 +188,17 @@ export const RecoveryCodeFrame = lookFrame(function RecoveryCodeFrame(p: PagePro
   const rc = useRecoveryCode(p.name, p.code);
   const toLogin = p.next === 'login';
 
+  // Held from here (too) until the player goes on: a page that is taken down early loses nothing.
+  useEffect(() => holdCode({ name: p.name, code: p.code, next: p.next }), []);
+
   const on = (): void => {
     if (!rc.confirmed) return;
+    releaseCode();
     if (toLogin) go(nav, 'login', { name: p.name, notice: 'The account is made. Log in to use it on this device.' });
     else go(nav, 'account');
   };
 
-  // A reload or a closed tab loses the code: the browser asks first, until the last group is typed.
-  const confirmed = rc.confirmed;
-  useEffect(() => {
-    if (confirmed) return;
-    const ask = (e: BeforeUnloadEvent): void => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', ask);
-    return () => window.removeEventListener('beforeunload', ask);
-  }, [confirmed]);
+  // (A reload or a closed tab loses the code: the browser asks first while it is held, form.tsx.)
 
   const keys = useFormKeys({
     stops: [

@@ -25,7 +25,7 @@ import { h } from 'preact';
 import type { VNode } from 'preact';
 import { AccountFrame } from './account-page';
 import { CreateFrame } from './create';
-import { registerPages } from './form';
+import { heldCode, registerPages } from './form';
 import { LoginFrame } from './login';
 import { RecoverFrame } from './recover';
 import { RecoveryCodeFrame } from './recovery-code';
@@ -35,7 +35,13 @@ registerPages({ login: LoginFrame, create: CreateFrame, recover: RecoverFrame, c
 
 export { AccountFrame, CreateFrame, LoginFrame, RecoverFrame, RecoveryCodeFrame };
 
-/** The page the Account row opens: the Account page when somebody is logged in here, else Log in. */
+/**
+ * The page the Account row opens: the Account page when somebody is
+ * logged in here, else Log in. First of all a new account's recovery code
+ * that was not confirmed yet (form.tsx `holdCode`).
+ */
 export function accountEntry(loggedIn: boolean): VNode {
+  const code = heldCode();
+  if (code) return h(RecoveryCodeFrame, code) as VNode;
   return loggedIn ? (h(AccountFrame, {}) as VNode) : (h(LoginFrame, {}) as VNode);
 }

@@ -17,8 +17,19 @@
 //   and resets the widget at once, so the next submit gets a new one;
 //   Turnstile renews an expired token by itself (`refresh-expired: auto`)
 //   and tells us through the callbacks.
-// - `dispose()` removes the widget (`turnstile.remove`) and makes every
-//   later callback a no-op. The script element stays for the next page.
+// - `dispose()` removes the widget (`turnstile.remove`, which takes
+//   Cloudflare's frame out of the page) and makes every later callback a
+//   no-op; a widget that was disposed before the script arrived is never
+//   rendered. The script element and `window.turnstile` stay for the next
+//   page, on purpose (stage 60 review): the script cannot be unloaded
+//   (removing the element or the global does not stop code that already
+//   ran, and loading api.js a second time is what Cloudflare warns
+//   against), and with explicit rendering it draws nothing and makes no
+//   frame until `render` is called. So what must hold is that no WIDGET
+//   outlives its page, and that is `dispose()`.
+// - A script that arrives after the load timeout still runs (a browser
+//   does not take back a fetch that has started). It only defines
+//   `window.turnstile`; the next `loadTurnstile` finds and uses it.
 //
 // Checked against Cloudflare's client-side documentation on 2026-11-14
 // (render, reset, remove; `callback`, `error-callback` whose truthy return

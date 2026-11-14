@@ -21,10 +21,18 @@
 // says nothing. `work.cancel()` is the same (Esc while working).
 // The hook aborts and forgets on unmount, so a page that leaves stops its
 // flow where it still can.
+//
+// While working, a page's own ways out (Back, Esc, a dialog's Cancel) are
+// Cancel and nothing else: `work.orCancel(back)` is the handler to give
+// them. From `sending` on Cancel does nothing, so the page stays until
+// the flow has answered (stage 60 review: a page that left then lost the
+// new account's recovery code). `work.sent()` is true once the request
+// that changes something has left: with `lostAnswer(code)` it is the rule
+// for "the change may have been made" (`doubtful`).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { FlowStep, StepInfo } from '../../../cloud/account';
+import { type FlowErrorCode, type FlowStep, type StepInfo, lostAnswer } from '../../../cloud/account';
 import { device } from '../../../core/device';
 import { TextLink, TimeBar } from '../../kit/look';
 import { workingWords } from './words';
@@ -49,6 +57,14 @@ export interface WorkHandle extends WorkState {
   /** Cancels where the flow still can be (`canCancel`); nothing otherwise. */
   cancel(): void;
   canCancel: boolean;
+  /** Working right now (read when called, not when drawn: a press in the same instant as the submit counts). */
+  busy(): boolean;
+  /** The flow reached `sending` in this run: its request may have changed something. */
+  sent(): boolean;
+  /** A way out of the page for Back and Esc: `back` when idle, Cancel while working. */
+  orCancel(back: () => void): () => void;
+  /** The flow ended with `code`: true when its change may have been made all the same (the request left, the answer did not come). */
+  doubtful(code: FlowErrorCode): boolean;
 }
 
 const IDLE: WorkState = { on: false, step: null, estimateMs: null, inline: false, run: 0 };
@@ -57,9 +73,12 @@ export function useWorking(): WorkHandle {
   const [s, setS] = useState<WorkState>(IDLE);
   const abort = useRef<AbortController | null>(null);
   const alive = useRef(true);
+  const busy = useRef(false);
+  const sent = useRef(false);
   useEffect(
     () => () => {
       alive.current = false;
+      busy.current = false;
       abort.current?.abort();
       abort.current = null;
     },
@@ -70,10 +89,13 @@ export function useWorking(): WorkHandle {
       abort.current?.abort();
       const c = new AbortController();
       abort.current = c;
+      busy.current = true;
+      sent.current = false;
       setS({ ...IDLE, on: true });
       return c.signal;
     },
     onStep(step: FlowStep, info: StepInfo): void {
+      if (step === 'sending') sent.current = true;
       if (!alive.current) return;
       setS((was) =>
         was.on
@@ -89,11 +111,19 @@ export function useWorking(): WorkHandle {
     },
     stop(): void {
       abort.current = null;
+      busy.current = false;
       if (alive.current) setS(IDLE);
     },
     cancel(): void {
-      abort.current?.abort();
+      // From `sending` on nothing is cancelled (the flow would not hear it anyway).
+      if (!sent.current) abort.current?.abort();
     },
+    busy: (): boolean => busy.current,
+    sent: (): boolean => sent.current,
+    orCancel(back: () => void): () => void {
+      return () => (busy.current ? api.cancel() : back());
+    },
+    doubtful: (code: FlowErrorCode): boolean => sent.current && lostAnswer(code),
   }).current;
   const canCancel = s.on && (s.step === null || s.step === 'checking' || s.step === 'deriving');
   return { ...s, ...api, canCancel };
