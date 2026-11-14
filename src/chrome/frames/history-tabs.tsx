@@ -22,8 +22,10 @@
 // Keys: 1, 2 and 3 change tab. They are free on all three pages (the
 // pages' letters and nav keys, ADR 0149's addendum); each page asks
 // `key(e)` itself, at the point where its own state allows a tab change
-// (not while a run log is opening, the Spotlights viewer plays or a native
-// select has the focus).
+// (not while the Spotlights viewer plays or a native select has the
+// focus). A page whose state can forbid a change gives `hold` (Sessions:
+// a run log is opening), the one gate for the keys and the strip's
+// clicks and taps alike.
 
 import { createContext, type VNode } from 'preact';
 import { useContext } from 'preact/hooks';
@@ -100,19 +102,32 @@ export interface HistoryTabsUse {
   key(e: KeyboardEvent): boolean;
 }
 
+export interface HistoryTabsOptions {
+  /**
+   * True while the page's state allows no tab change (Sessions: a run log
+   * is opening). The one gate for every way to change tab: the keys and a
+   * click or a tap on the strip.
+   */
+  hold?: () => boolean;
+}
+
 /** What a page needs to stand under History's tabs; `own`: its title outside them. */
-export function useHistoryTabs(own: string): HistoryTabsUse {
+export function useHistoryTabs(own: string, opts: HistoryTabsOptions = {}): HistoryTabsUse {
   const ctx = useContext(HistoryTabsCtx);
   if (!ctx) return { title: own, winClass: '', strip: null, key: () => false };
+  const go = (to: HistoryTab): void => {
+    if (to === ctx.tab || opts.hold?.()) return;
+    ctx.go(to);
+  };
   return {
     title: HISTORY_TITLE,
     winClass: ' wc-htabs-win',
-    strip: <HistoryTabStrip tab={ctx.tab} go={ctx.go} />,
+    strip: <HistoryTabStrip tab={ctx.tab} go={go} />,
     key(e) {
       if (inTextField(e.target)) return false;
       const to = tabOfKey(e);
       if (!to) return false;
-      if (to !== ctx.tab) ctx.go(to);
+      go(to);
       return true;
     },
   };

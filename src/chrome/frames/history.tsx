@@ -178,7 +178,6 @@ export function openHistory(nav: Nav, tab: HistoryTab = 'sessions'): void {
 
 /** The Sessions tab: the History page of stage 45, under History's tab strip. */
 export function SessionsPage(): VNode {
-  const tabs = useHistoryTabs('History');
   const { runs, openRunLog } = useServices();
   const nav = useNav();
   const isTop = useIsTop();
@@ -195,6 +194,8 @@ export function SessionsPage(): VNode {
   const busy = useRef(false);
   /** A run log is opening: the page's keys, Back and actions wait. */
   const opening = useRef(false);
+  // No tab change while a run log opens (the keys and the strip alike).
+  const tabs = useHistoryTabs('History', { hold: () => opening.current });
   const loaded = useRef(false);
   const top = useRef(isTop);
   top.current = isTop;

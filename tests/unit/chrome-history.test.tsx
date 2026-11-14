@@ -543,6 +543,14 @@ describe('History frame', () => {
     expect(hood(host)).toBe('History');
     await key('ArrowDown');
     expect(curRow(host)).toMatch(/^Rasta/);
+    // No tab change either: not by a key, not by a click on the strip (one gate for both).
+    const tab = (t: string) => frame(host).querySelector<HTMLElement>(`.wc-htab[data-tab="${t}"]`)!;
+    await key('3');
+    expect(hist(host)?.isConnected).toBe(true);
+    await act(() => tab('diary').click());
+    await act(() => tab('spotlights').click());
+    expect(hist(host)?.isConnected).toBe(true);
+    expect(tab('sessions').getAttribute('aria-selected')).toBe('true');
     await act(async () => settle({ ok: false, error: 'The run log is not stored.' }));
     await until(() => dlg('runlog-error') !== null, 'the error box');
     await key('Enter');
@@ -550,6 +558,10 @@ describe('History frame', () => {
     // The keys work again.
     await key('ArrowDown');
     expect(curRow(host)).toMatch(/Saved/);
+    // And the strip.
+    await act(() => tab('diary').click());
+    expect(host.querySelector('.wc-hist')).toBeNull();
+    expect(tab('diary').getAttribute('aria-selected')).toBe('true');
   });
 
   it('flashes when the player is not available', async () => {

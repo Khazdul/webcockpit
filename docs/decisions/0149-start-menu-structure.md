@@ -151,7 +151,10 @@ The owner picked from the mockups of round 8
 - **Keys.** Each page asks the tab keys itself, where its own state
   allows a change: not while a run log opens, the Spotlights viewer
   plays (the player owns the digits) or a select has the focus. A
-  modifier makes a digit no tab key. Sessions' `?` lists `1 2 3`.
+  modifier makes a digit no tab key. Sessions' `?` lists `1 2 3`. A
+  click or a tap on the strip passes the same gate: a page gives
+  `useHistoryTabs` its `hold` (Sessions: a run log is opening), and the
+  keys and the strip both change tab through it (review fix).
 - **The old rows.** Until the new menu was in, the Spotlights and
   Credits rows of `start-main.tsx` opened History on those tabs through
   two-line shims; the rows went with B2 and the shims in B3.
