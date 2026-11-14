@@ -64,7 +64,7 @@
 | 58 | Move to Cloudflare | Switched 2026-11-14, owner check fine; part D (retire Pages) two releases later | `docs/stages/58-cloudflare-move.md` |
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
 | 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
-| 61 | Sync of profiles and scripts, on the two spaces | Planned (spec §7.12; after 67) | |
+| 61 | Sync of profiles and scripts, on the two spaces | In progress: planned, mockups (part A) | `docs/stages/61-sync-profiles-scripts.md` |
 | 62 | Sync of settings, script data, Comm history and timers | Planned (spec §7.12) | |
 | 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
 | 64 | Share links | Planned (spec §7.12) | |
