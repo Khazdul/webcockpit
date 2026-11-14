@@ -289,3 +289,35 @@ in the cloud, the limits.
 - Other players' tells are stored in the cloud, encrypted. The
   registration's points and `/privacy` say so.
 - Accounts open in production after stage 63, in one step.
+
+## As built (stage 61 B2, the Worker, 2026-11-14)
+
+- **Tables** (migration `0003_sync.sql`, adds only): `item` as above
+  (a rowid table, PRIMARY KEY (account, kind, id), INDEX (account,
+  seq)); `account.item_count` and `account.item_bytes`, kept in the
+  same transaction as every write so no answer counts rows;
+  `session_end(id_hash, account, reason, at)`.
+- **A write** (`worker/sync.ts`) is one D1 batch: the item upsert takes
+  `account.seq + 1` only while its rev is still the `If-Match` and the
+  counters leave room; the account's seq and counters move only when
+  the item then holds exactly that write. So seq rises by one per write
+  of the account, strictly; a lost race is decided again from a fresh
+  read (three rounds, then 503).
+- **Limits:** tombstones count against neither `items` nor
+  `itemBytes`; a write that does not grow the usage (a shrink, a
+  delete) always goes through, even over a lowered limit. Bringing a
+  tombstone back counts as a new item. Tombstones themselves are not
+  capped (only by the rate limit): an open issue if abuse shows.
+- **`changes`** is one statement (one snapshot); it stops at `limit`
+  (≤ 500) items or before the blobs pass 4 MB, never before the first.
+- **Why a session ended:** every path that removes sessions writes the
+  reason first: `logout`; `password` (the others at a password
+  change); `recovered` (every older session); `ended` (one, or all the
+  others, from the Account page); `deleted` (account deleted); and
+  `expired` (a session past its end answers so at once; the daily cron
+  writes the row when it prunes it). A row is pruned SESSION_SECONDS
+  after `at`. A cookie the server never knew stays `401 unauthorized`.
+- **The flag `sync`** (`FLAG_SYNC`; on in staging's vars only): off,
+  the sync paths answer 404 `not_found`, as the flag `accounts` does.
+- Until part C reads the reason, the client takes `session_ended` for
+  `unauthorized` (`src/cloud/account/api.ts`).

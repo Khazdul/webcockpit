@@ -145,19 +145,19 @@ touches staging or production.
 
 #### B2. The Worker (worktree `stage61-worker`, port 5422)
 
-- [ ] Migration `0003`: `item` (spec §7.11) and what is needed to say
+- [x] Migration `0003`: `item` (spec §7.11) and what is needed to say
       why a session ended (kept at least as long as a session lives).
-- [ ] `GET /api/u/sync/changes?since=`, `PUT` and `DELETE
+- [x] `GET /api/u/sync/changes?since=`, `PUT` and `DELETE
       /api/u/sync/items/<kind>/<id>` with `If-Match`, `409` with the
       current item, tombstones; kinds `profile` and `script` accepted
       (the others refused until their stage); limits 1 MB per item,
       2 MB of small items, 2 000 items; usage in the answer.
-- [ ] A request on an ended session answers `401
+- [x] A request on an ended session answers `401
       {error:"session_ended", reason}` with `password`, `recovered`,
       `ended`, `expired` or `deleted`.
-- [ ] Delete account removes the items. The flag `sync` (off by
+- [x] Delete account removes the items. The flag `sync` (off by
       default; on in staging's `wrangler.jsonc`).
-- [ ] Worker tests for every path; shared types in `shared/cloud/`.
+- [x] Worker tests for every path; shared types in `shared/cloud/`.
 
 #### B3. The engine (worktree `stage61-engine`, port 5423)
 
