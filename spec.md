@@ -282,7 +282,7 @@ Mapped to Inv §3.
   zones and a foot row, the same form logged in and logged out.
   1. *Play:* Enter MUME (E).
   2. *Mine:* the **owner row** (U), which is a heading and a button:
-     "On this device · log in" for a guest, "<name> · synced" logged
+     "Guest · log in" for a guest, "<name> · synced" logged
      in, with the sync state in words (syncing, offline, needs
      attention, a locked copy; §7.4) and a mark for new reactions
      (§7.8). A press opens Log in for a guest and the Account page

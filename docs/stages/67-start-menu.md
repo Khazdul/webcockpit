@@ -1,7 +1,9 @@
 # Stage 67 — The start menu and History with tabs
 
-Status: **Next.** Planned 2026-11-14; nothing built. Starts with
-mockups; no code before the owner has picked.
+Status: **In progress.** Part A done 2026-11-14: the mockups of round
+8 and the owner's seven picks (Owner feedback below; ADR 0149,
+addendum). Part B is laid out as agent tasks and **waits for the
+owner's word** before it starts.
 
 Done before stage 61 though it has a higher number (spec §7.12: the
 order is 67, 61, 62, 63, then accounts open, then 64–66).
@@ -23,7 +25,8 @@ brainstorm is `notes/start-menu-brainstorm.md`, the decisions
   `gallery` off there is no Community zone. Each of the three forms
   looks finished.
 - The owner row replaces the row `ACCOUNT (log in)` of stage 60: a
-  guest sees "On this device · log in" and gets Log in; logged in it
+  guest sees "Guest · log in" (owner, 2026-11-14; first "On this
+  device · log in") and gets Log in; logged in it
   shows the account name and opens the Account page. Until stage 61
   nothing syncs, so on staging the row says the name and **not**
   "synced".
@@ -60,6 +63,8 @@ brainstorm is `notes/start-menu-brainstorm.md`, the decisions
 
 ## For the owner to pick from the mockups
 
+(Picked 2026-11-14; the answers are under Owner feedback.)
+
 1. **The zones' look:** how the three zones are parted (the rule with
    the diamond of the sketch, space only, or a frame per zone), and
    how much Community stands out against Enter MUME.
@@ -85,50 +90,109 @@ brainstorm is `notes/start-menu-brainstorm.md`, the decisions
 
 ### A. Mockups (one agent; the owner picks)
 
-- [ ] `notes/research/start-menu-mockups/round8/` in the manner of
+- [x] `notes/research/start-menu-mockups/round8/` in the manner of
       the account mockups (`notes/research/account-mockups/README.md`:
       the real DOM and styles captured from a running dev server, the
       new content in classes of its own, every state as a picture,
       one self-contained file for publishing).
-- [ ] The menu: two or three directions for the zones and the owner
+- [x] The menu: two or three directions for the zones and the owner
       row; each in its three forms (before accounts; with accounts;
       with the community and its counter) and every owner row state
       of point 2 above; desktop and phone.
-- [ ] History with the tab strip: Sessions, Spotlights and Diary,
+- [x] History with the tab strip: Sessions, Spotlights and Diary,
       each as it is today under the strip; two placements of the
       strip; desktop and phone.
-- [ ] A review page over the pictures; published for the owner as an
+- [x] A review page over the pictures; published for the owner as an
       artifact.
-- [ ] **The owner picks** (the seven points above); the choice is
+- [x] **The owner picks** (the seven points above); the choice is
       written under "Owner feedback" and, where it settles something
       ADR 0149 left to the mockups, as an addendum there.
 
-### B. Build (after the choice; agents in worktrees, own ports)
+### B. Build (agents in worktrees; **not started, waits for the owner's word**)
 
-- [ ] The menu's model and view (`src/chrome/frames/start-main.tsx`):
-      zones, the foot row, the owner row in place of the Account row
-      (flag `accounts`), the letters. The row comes in as stage 60's
-      did (no jump under a resting pointer).
-- [ ] The owner row's states as a pure function of the account state
-      (`src/cloud/account/state.ts`); the states that need sync
-      (synced, syncing, offline, needs attention, locked, reactions)
-      are drawn in the kit gallery and by tests but have no source
-      until stages 61 and 65.
-- [ ] History's frame with the tab strip; Spotlights and Diary moved
-      under it (their frames as they are); Back from the Spotlights
-      viewer and the run log player returns to the tab it left.
+What is built is the owner's picks (Owner feedback below) on the
+mockups of `notes/research/start-menu-mockups/round8/` (direction A,
+placement P1). The mockups are pictures to build towards, never code
+to copy.
+
+Rules for every agent (CLAUDE.md, "Tests and worktrees"): a worktree
+branched from `main` by name; `node_modules` linked from the main
+checkout and never `git add`ed; an own dev server port by
+`WC_E2E_PORT`, never 5173; only the agent's own spec files run in the
+worktree, the full e2e is run once, alone, in part C; nothing is
+deployed and nothing touches staging or production.
+
+Two agents side by side, merged in the order B1, B2, then B3 on
+`main`:
+
+#### B1. History with tabs and the word Diary (worktree `stage67-tabs`, port 5411)
+
+Owns the History, Spotlights and Credits frames, their texts and
+their specs. Does not touch `src/chrome/frames/start-main.tsx` (the
+old Spotlights and Credits rows stay until B2 is merged, and then
+open the new tabs).
+
+- [ ] History's frame with the tab strip in placement P1: a row of
+      its own under the hood, in Back's band, a rule under it; the
+      three pages' own heads untouched. The active tab marked more
+      clearly than in the mockups (owner told so).
+- [ ] Spotlights and Diary moved under it (their frames as they are);
+      H opens Sessions; Back from the Spotlights viewer and the run
+      log player returns to the tab it left.
+- [ ] Keys `1 2 3` change tab, shown as small digits in the tabs on a
+      desktop; the mouse and touch; no digits on a phone.
+- [ ] The strip on a phone (three equal tabs in a row under Back) and
+      on a tablet. The Diary book lays itself out for the lower
+      height.
 - [ ] Credits → Diary in every text: the page, About, both manuals,
       help texts, tests. (File and symbol names may keep `credits`;
-      an ADR addendum says so if they do.)
-- [ ] The phone's start menu and the tab strip on a phone and a
-      tablet.
+      an ADR 0149 addendum says so if they do.)
+- [ ] Tests: e2e for the tabs by key, mouse and touch, desktop and
+      phone; the existing History, Spotlights and Credits specs moved
+      to the new paths.
+
+#### B2. The menu (worktree `stage67-menu`, port 5412)
+
+Owns `src/chrome/frames/start-main.tsx`, the menu's model, the owner
+row and their specs. Reaches History's tabs only through what B1
+exposes (H opens Sessions).
+
+- [ ] The menu's model and view: three zones parted by the rule with
+      the diamond, About as the last quiet row in the panel, the
+      panel 360 px wide in its place. Three forms by the flags
+      (`accounts`, `gallery`), each finished. The Spotlights, Credits
+      and Account rows go. Community quiet: a row like the others,
+      the counter in gold italic (the row and the counter are drawn
+      for the kit gallery and tests; no source until stage 65).
+- [ ] The owner row in place of the Account row (flag `accounts`):
+      direction A's heading line (mark in the left margin, the name
+      in small capitals, the state in italic, a chevron at the right),
+      **larger on a desktop than in the mockups** and with a clearer
+      cursor; no visible U; the name gives way with an ellipsis, the
+      state never. Guest: "Guest · log in". The row comes in as stage
+      60's did (no jump under a resting pointer).
+- [ ] The owner row's states as a pure function of the account state
+      (`src/cloud/account/state.ts`): guest, name only, synced,
+      syncing, offline, needs attention, a locked copy, the reactions
+      mark. Those that need sync are drawn in the kit gallery and by
+      tests but have no source until stages 61 and 65.
+- [ ] The letters: E, U, P, S, H, A (C reserved for Community, live
+      only with `gallery`). L and the old C do nothing.
+- [ ] The phone's start menu, portrait and landscape, the same
+      structure. The in-game menu sheet unchanged.
+- [ ] The first paint and the morph into the big box (ADR 0126) with
+      the new rows; the entry chunk's size noted (30 201 bytes
+      today).
 - [ ] Tests: unit for the menu model in every flag combination and
-      for the owner row's states; e2e for the keys (E U P S H A, that
-      L and C do nothing), the tabs by key, mouse and touch, the
-      phone; the existing History, Spotlights, Credits and account
-      specs moved to the new paths.
+      for the owner row's states; e2e for the keys and the phone; the
+      account specs that used the Account row moved to the owner row.
+
+#### B3. After both are merged (main session)
+
+- [ ] A review of the merged diff (`/code-review`), findings fixed.
 - [ ] Spec §2.5 "Look": the letters line; the inventory reference if
       it names the rows.
+- [ ] The test guide below completed.
 
 ### C. Check and release
 
@@ -164,4 +228,30 @@ tab strip's place, anything that was a habit and is now a step longer
 
 ## Owner feedback
 
-(none yet)
+### 2026-11-14 — the picks from the mockups of round 8
+
+Mockups: `notes/research/start-menu-mockups/round8/` (README,
+`index.html` over 112 shots), published as
+<https://claude.ai/artifact/7GZV9w5UpC5xQBqsK5XkG8>.
+
+1. **The zones:** direction **A**, the rule with the diamond.
+   Community **quiet**: a row like the others, the counter in gold
+   italic is its only weight.
+2. **The owner row:** A's heading line, **made larger on a desktop**
+   than drawn (about as on the phone picture, against the other rows)
+   and with a clearer cursor; the owner sees it on staging. **No
+   visible U** (the row's texts hold no u; the key works unseen).
+3. **The words for a guest:** **"Guest · log in"** (the owner's own
+   wording; not "On this device").
+4. **The foot row:** About **inside the panel**, last and quiet.
+5. **The tab strip:** placement **P1**, a row of its own under the
+   hood. Keys **1 2 3**, shown as small digits in the tabs on a
+   desktop. Told to the owner: the active tab is marked more clearly
+   in the build than in the pictures.
+6. **The phone:** as drawn: the same structure in portrait and
+   landscape; three equal tabs under Back, no digits.
+7. **The size:** the panel **keeps 360 px and its place**. A long
+   name gets an ellipsis on the owner row; the state is never cut.
+
+Said to the owner about the pictures: Spotlights has only five cards;
+the Diary on the phone is not laid out again for the lower height.

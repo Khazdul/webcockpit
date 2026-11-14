@@ -102,3 +102,32 @@ decide the look.)
 - "· synced" is only true when sync exists, which is one reason the
   flag `accounts` stays off in production until stage 63 (ADR 0146,
   addendum).
+
+## Addendum 2026-11-14 — what the mockups settled
+
+The owner picked from the mockups of round 8
+(`notes/research/start-menu-mockups/round8/`; the full answers are in
+`docs/stages/67-start-menu.md`, Owner feedback).
+
+- **The guest's words are "Guest · log in",** not "On this device ·
+  log in" as in the sketch and in point 2 above (the owner's wording).
+- **The zones** are parted by a thin rule with a diamond (direction
+  A). Community is a row like the others; its counter is its only
+  weight.
+- **The owner row** is a heading line: a state mark in the left
+  margin, the name in small capitals, the state in italic, a chevron
+  at the right. Larger on a desktop than the mockup drew it. A long
+  name gives way with an ellipsis; the state is never cut. The names
+  allowed are up to 20 characters and the panel stays 360 px, so the
+  full name is only promised on the Account page.
+- **U is not shown.** The other rows mark their letter in the label;
+  the owner row's texts hold no u, and a key cap beside the chevron
+  was turned down. The key works.
+- **About** is the panel's last, quiet row, not a line under it.
+- **History's tab strip** is a row of its own under the hood, in
+  Back's band (placement P1); the three pages' heads are untouched.
+  **The keys are 1, 2 and 3.** The tabs' initials were not free (S
+  and D are Save and Delete on Sessions), nor Tab and the arrows; `[`
+  and `]` need AltGr on a Nordic keyboard.
+- **The phone** has the same menu in portrait and landscape, and the
+  strip as three equal tabs under Back.
