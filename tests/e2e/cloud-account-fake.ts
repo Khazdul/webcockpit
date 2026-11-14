@@ -267,9 +267,12 @@ export class FakeAccountServer {
     });
   }
 
-  /** A session for an account, as if another device had logged in. Returns its public id. */
-  addSession(name: string, label: string): string {
-    return this.newSession(name.toLowerCase(), label).id;
+  /** A session for an account, as if another device had logged in (`ago`: made and last used that many ms ago). Returns its public id. */
+  addSession(name: string, label: string, o: { madeAgo?: number; usedAgo?: number } = {}): string {
+    const s = this.newSession(name.toLowerCase(), label);
+    s.created = this.clock - (o.madeAgo ?? 0);
+    s.lastUsed = this.clock - (o.usedAgo ?? 0);
+    return s.id;
   }
 
   hasAccount(name: string): boolean {

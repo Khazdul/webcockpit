@@ -9,7 +9,7 @@
 // - The row comes in after the menu is drawn without moving anything
 //   under a resting pointer and without taking the cursor.
 // - A whole life: create → the code page (copy, download, the last
-//   group) → the Account placeholder → log out → log in.
+//   group) → the Account page → log out → log in.
 // - Every failure a page has words for that the fake can make.
 //
 // With `WC_ACCOUNT_SHOTS=1` the states are saved as pictures
@@ -23,12 +23,14 @@ import {
   PASSWORD_2,
   accountRow,
   btn,
+  dialog,
   field,
   fieldNote,
   fillCreate,
   formError,
   frame,
   link,
+  logOut,
   menuRows,
   openAccount,
   openStart,
@@ -265,8 +267,7 @@ test('a life: create account, the recovery code (copy, download, the last group)
   await expect(pageOf(page, 'account')).toBeVisible();
   await expect(frame(page).locator('[data-account-name]')).toHaveText(NAME);
   await expect(frame(page).locator('.wc-ac-head-since')).toContainText('Account since');
-  await shot(page, 'acct-placeholder', 'desktop');
-
+  
   // Back: the row carries the name. The code page is gone for good.
   await page.keyboard.press('Escape');
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
@@ -276,7 +277,7 @@ test('a life: create account, the recovery code (copy, download, the last group)
   await expect(pageOf(page, 'account')).toBeVisible();
 
   // Log out: back on the menu, the row says "log in" again.
-  await btn(page, 'LOGOUT').click();
+  await logOut(page);
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   await expect(page.locator('.wc-start .wc-sm-flash')).toHaveText('Logged out.');
   expect(api.server.sessionLabels(NAME)).toEqual([]);
@@ -344,7 +345,7 @@ test('log in: one message for a wrong name or password; Turnstile after three fa
   expect(server.requests('/api/auth/params').length).toBe(params);
 
   // Log out; another device makes ten wrong tries: the name is locked.
-  await btn(page, 'LOGOUT').click();
+  await logOut(page);
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   wrongLogins(server, NAME, 10, origin(page));
   await page.keyboard.press('u');
@@ -446,7 +447,7 @@ test('recovery: a wrong code, then the right one sets a new password, logs every
   expect(server.sessionLabels(NAME)).not.toContain('Another device');
 
   // The new password logs in, and the code is still the account's.
-  await btn(page, 'LOGOUT').click();
+  await logOut(page);
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   await page.keyboard.press('u');
   await expect(pageOf(page, 'login')).toBeVisible();
@@ -681,7 +682,9 @@ test('keyboard only: Tab walks the fields, the button and the links; Enter press
   await page.keyboard.type(code.slice(-4));
   await page.keyboard.press('Enter');
   await expect(pageOf(page, 'account')).toBeVisible();
-  // The Account page has no fields: its letter works. L logs out.
+  // The Account page has no fields: its letter works. L asks, L (or Enter) logs out.
+  await page.keyboard.press('l');
+  await expect(dialog(page, 'ac-logout')).toBeVisible();
   await page.keyboard.press('l');
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   // Esc from Log in is the start menu, the cursor on the Account row.
