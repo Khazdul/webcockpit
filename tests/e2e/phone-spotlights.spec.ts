@@ -67,11 +67,13 @@ for (const width of [390, 360]) {
     await pinDemoClock(page);
     await page.goto('/?phone=1');
     await restoreDemo(page);
-    // No Options on the start page (stage 32).
-    await expect(page.locator('.wc-start .wc-sm-item[data-key="spotlights"]')).toBeVisible();
+    // No Options on the start page (stage 32); Spotlights is History's second tab (stage 67).
+    await expect(page.locator('.wc-start .wc-sm-item[data-key="history"]')).toBeVisible();
     await expect(page.locator('.wc-start .wc-sm-item[data-key="options"]')).toHaveCount(0);
+    await expect(page.locator('.wc-start .wc-sm-item[data-key="spotlights"]')).toHaveCount(0);
 
-    await page.locator('.wc-start .wc-sm-item[data-key="spotlights"]').tap();
+    await page.locator('.wc-start .wc-sm-item[data-key="history"]').tap();
+    await page.locator('.wc-start .wc-frame:not([hidden]) .wc-htab[data-tab="spotlights"]').tap();
     const wall = page.locator('.wc-start .wc-frame:not([hidden]) .wc-spw');
     const cards = wall.locator('.wc-spw-card');
     await expect(cards).toHaveCount(5);
@@ -168,7 +170,7 @@ for (const width of [390, 360]) {
     await expect(viewer).toHaveCount(0);
     await expect(cards.nth(n - 1)).toHaveClass(/is-on/);
     await page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-back').first().tap();
-    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
+    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('History');
     expect(errors).toEqual([]);
   });
 }

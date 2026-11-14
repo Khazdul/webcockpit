@@ -113,7 +113,7 @@ describe('About text', () => {
   });
 
   it('states the facts the new pages changed (stage 47)', () => {
-    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
+    expect(ABOUT_TEXT).toContain('History on the start page looks back at your runs (Sessions, Spotlights and the Diary)');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toMatch(/Spotlights reel picks/);
   });
@@ -266,19 +266,23 @@ describe('start page', () => {
     expect(host.querySelector('.wc-frame:not([hidden]) .wc-about-ver')?.textContent).toBe('WebCockpit 9.9.9');
   });
 
-  it('Spotlights opens its wall (stage 46): with no recorded spotlight it says how they are made; Esc returns', async () => {
+  it("History's Spotlights tab opens its wall (stage 46, 67): with no recorded spotlight it says how they are made; Esc returns", async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    // The menu loads the reel itself and pushes the wall.
+    // The tab loads the reel itself and shows the wall.
     const embedPlayer = vi.fn(async () => null);
     const page = mountStartPage(host, { ...services(), embedPlayer }, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await act(() => host.querySelector<HTMLElement>('.wc-sm-item[data-key="spotlights"]')!.click());
+    await act(() => host.querySelector<HTMLElement>('.wc-sm-item[data-key="history"]')!.click());
+    const tab = () => host.querySelector<HTMLElement>('.wc-frame:not([hidden]) .wc-htab[data-tab="spotlights"]');
+    for (let i = 0; i < 20 && !tab(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
+    await act(() => tab()!.click());
     const wall = () => host.querySelector('.wc-frame:not([hidden]) .wc-spw');
     for (let i = 0; i < 20 && !wall(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
     expect(embedPlayer).not.toHaveBeenCalled();
-    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
+    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('History');
+    expect(wall()?.querySelector('.wc-htab.is-on')?.getAttribute('data-tab')).toBe('spotlights');
     expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');
     // No data: no filter row; Play all disabled.
     expect(wall()?.querySelector('.wc-spw-head')).toBeNull();
@@ -288,7 +292,7 @@ describe('start page', () => {
     expect(wall()).not.toBeNull();
     await key('Escape');
     for (let i = 0; i < 40 && !startSel(host); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
-    expect(startSel(host)).toBe('Spotlights');
+    expect(startSel(host)).toBe('History');
   });
 
   it('without a script library there is no Scripts row (only tests mount it so)', async () => {

@@ -65,6 +65,13 @@ async function open(page: Page, key: string, title: string): Promise<void> {
   await expect(hood(page)).toHaveText(title);
 }
 
+/** History from the start menu, then one of its tabs (stage 67: Spotlights and the Diary are History's tabs). */
+async function openTab(page: Page, tab: string): Promise<void> {
+  await open(page, 'history', 'History');
+  await top(page).locator(`.wc-htab[data-tab="${tab}"]`).click();
+  await expect(top(page).locator('.wc-htab.is-on')).toHaveAttribute('data-tab', tab);
+}
+
 /** History with the demo backup restored (the page's clock at the demo's time). */
 async function historyWithDemo(page: Page): Promise<void> {
   await open(page, 'history', 'History');
@@ -158,7 +165,7 @@ test('the start page and every page of its menu', async ({ page }) => {
   await expect(hood(page)).toHaveText('Profiles');
   await page.keyboard.press('Escape');
 
-  await open(page, 'credits', 'Credits');
+  await openTab(page, 'diary');
   await page.keyboard.press('Escape');
 
   await open(page, 'about', 'About');
@@ -232,7 +239,7 @@ test('History: restore, the log player, the export editor and its downloads, a b
   await expect(hood(page)).toHaveText('History');
   await page.keyboard.press('Escape');
 
-  await open(page, 'spotlights', 'Spotlights');
+  await openTab(page, 'spotlights');
   await top(page).locator('[data-btn="PLAY"]').click();
   await expect(page.locator('.wc-player')).toBeVisible();
   await page.waitForTimeout(1500);

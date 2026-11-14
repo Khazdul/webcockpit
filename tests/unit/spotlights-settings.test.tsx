@@ -116,6 +116,12 @@ describe('filtered empty pages (start page)', () => {
   const until = async (ok: () => boolean) => {
     for (let i = 0; i < 40 && !ok(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
   };
+  /** History from the menu, then its Spotlights tab (stage 67, ADR 0149: no Spotlights row any more). */
+  const openSpotlightsTab = async (host: HTMLElement) => {
+    await click(host.querySelector('.wc-sm-item[data-key="history"]'));
+    await until(() => frameEl(host).querySelector('.wc-htab[data-tab="spotlights"]') !== null);
+    await click(frameEl(host).querySelector('.wc-htab[data-tab="spotlights"]'));
+  };
 
   it('Spotlights: a filter that lets nothing through opens the wall with its filter row; a chip there brings the cards back', async () => {
     const host = document.createElement('div');
@@ -125,7 +131,7 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await openSpotlightsTab(host);
     await until(() => wall(host) !== null);
     // The wall, not a page of its own: no Settings…, no popup, no Options.
     expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights match your settings.');
@@ -144,7 +150,7 @@ describe('filtered empty pages (start page)', () => {
     // Esc: the menu.
     await keydown(document.activeElement, 'Escape');
     await until(() => startSel(host) !== undefined);
-    expect(startSel(host)).toBe('Spotlights');
+    expect(startSel(host)).toBe('History');
   });
 
   it('Spotlights: no data is a wall without the filter row', async () => {
@@ -153,7 +159,7 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, services(fakeLib([]), { embedPlayer: async () => null }), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await openSpotlightsTab(host);
     await until(() => wall(host) !== null);
     expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights yet.');
     expect(wall(host)!.querySelector('.wc-spw-head')).toBeNull();
@@ -166,12 +172,12 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, services(fakeLib([])), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await openSpotlightsTab(host);
     await flush();
     expect(wall(host)?.querySelector('.wc-spw-card')).toBeFalsy();
     expect(host.textContent).toContain('Spotlights are not available here.');
     await keydown(document.activeElement, 'Escape');
     await until(() => startSel(host) !== undefined);
-    expect(startSel(host)).toBe('Spotlights');
+    expect(startSel(host)).toBe('History');
   });
 });

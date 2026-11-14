@@ -322,12 +322,14 @@ for (const [name, viewport] of [
       expect(errors).toEqual([]);
     });
 
-    test('Spotlights, Credits and About', async ({ page }) => {
+    test("History's Spotlights and Diary tabs, and About", async ({ page }) => {
       const errors = watchErrors(page);
       await openStart(page);
       await seed(page);
       const f = start(page);
-      await menu(page, 'spotlights');
+      // Spotlights and the Diary are History's tabs (stage 67, ADR 0149).
+      await menu(page, 'history');
+      await f.locator('.wc-htab[data-tab="spotlights"]').tap();
       const wall = f.locator('.wc-spw');
       const cards = wall.locator('.wc-spw-card');
       await expect(cards).toHaveCount(5);
@@ -352,10 +354,10 @@ for (const [name, viewport] of [
       await page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-back').first().tap();
       await expect(viewer).toHaveCount(0);
       await page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-back').first().tap();
-      await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
-      // (The Spotlights and Credits rows open History on those tabs until the menu of stage 67 is in.)
+      await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('History');
 
-      await menu(page, 'credits');
+      await menu(page, 'history');
+      await f.locator('.wc-htab[data-tab="diary"]').tap();
       const cred = f.locator('.wc-cred');
       await expect(cred.locator('.wc-cred-ch').first()).toBeVisible();
       await guard(page, f, [f.locator('.wc-lk-back'), cred.locator('.wc-cred-pills .wc-lk-opt').first(), cred.locator('.wc-cred-pages')]);
