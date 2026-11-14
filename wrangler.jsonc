@@ -43,8 +43,8 @@
     // filled in after the owner has made the Access application. Empty:
     // /admin answers 503 admin_not_configured. The secret ADMIN_EMAILS is
     // set in the dashboard.
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_TEAM_DOMAIN": "flat-unit-c1f3.cloudflareaccess.com",
+    "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34"
   },
   "d1_databases": [
     {
@@ -75,8 +75,8 @@
       "workers_dev": true,
       "vars": {
         "FLAG_STATS": true,
-        "ACCESS_TEAM_DOMAIN": "",
-        "ACCESS_AUD": "",
+        "ACCESS_TEAM_DOMAIN": "flat-unit-c1f3.cloudflareaccess.com",
+        "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34",
         // Every answer of the Worker carries X-Robots-Tag: noindex; the
         // static files get it from the `_headers` rule that
         // `build:site --target staging` adds.
