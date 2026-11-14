@@ -441,7 +441,8 @@ export interface SyncChanges {
  *
  * Both (as built, stage 61 B2): no `If-Match` → `428 if_match_required`;
  * a base rev > 0 for an item the account does not have, or a delete of
- * one it never had → `404 not_found`; a kind not open yet → `403
+ * one it never had → `409` with a tombstone of rev 0 as `current`
+ * (stage 61 C); a conflict is answered before a `413`; a kind not open yet → `403
  * kind_closed`; an unknown kind, an id not of `SYNC_ID_PATTERN`, an
  * If-Match that is not a whole number, a PUT body that is empty or not
  * `application/octet-stream` → `400 bad_request`. The flag `sync` off →

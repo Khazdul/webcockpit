@@ -321,3 +321,16 @@ in the cloud, the limits.
   the sync paths answer 404 `not_found`, as the flag `accounts` does.
 - Until part C reads the reason, the client takes `session_ended` for
   `unauthorized` (`src/cloud/account/api.ts`).
+
+## As built (stage 61 C, 2026-11-14)
+
+- **A missing item is a conflict, not 404.** A `PUT` with `If-Match >
+  0` on an item the account does not have, and any `DELETE` of one,
+  answer `409 {error: "conflict", current}` with a tombstone of rev 0
+  (`{kind, id, rev: 0, seq: 0, deleted: true, size: 0, updated: 0}`),
+  as the engine and its model expect (ADR 0151, Consequences).
+- **A conflict comes before a 413:** a blob over `itemMaxBytes` on a
+  stale rev answers 409 (the client resolves first and may never send
+  it again).
+- The client reads the reason of `session_ended` (part C):
+  `src/cloud/account/api.ts` no longer maps it to `unauthorized`.
