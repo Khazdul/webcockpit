@@ -14,6 +14,12 @@ import { fillCspHashes } from './scripts/csp.ts';
 // Cloudflare Worker that takes over (ADR 0144) could but sends no COEP.
 // COEP does not apply to WebSocket connections, so the direct
 // wss://mume.org/ws-play/ socket (ADR 0002) is unaffected.
+// Turnstile on the account pages (`npm run dev:cloud`) works under
+// `require-corp` as it is: Cloudflare answers its script with CORP
+// `cross-origin` and its frame with COEP `require-corp` (measured
+// 2026-11-14, Chromium and Firefox; ADR 0144, "As built (stage 60):
+// the CSP"). Keep COEP here: an isolated page is also what keeps the
+// link probe, and so the e2e suite, off mume.org (src/net/link-probe.ts).
 const isolationHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
