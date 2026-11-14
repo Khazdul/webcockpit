@@ -215,7 +215,7 @@ describe('library', () => {
     expect(lib.list()).toHaveLength(1);
   });
 
-  it('database version 8 has the scripts and scriptData stores', async () => {
+  it('the database (since version 8) has the scripts and scriptData stores', async () => {
     const db = await openWebcockpitDb(new IDBFactory());
     expect(db.name).toBe(DB_NAME);
     expect(db.version).toBe(DB_VERSION);

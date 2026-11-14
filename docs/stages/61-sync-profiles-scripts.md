@@ -129,17 +129,17 @@ touches staging or production.
 
 #### B1. The spaces (worktree `stage61-spaces`, port 5421)
 
-- [ ] `src/core/space.ts` (current space, `openDeviceDb`, the reload
+- [x] `src/core/space.ts` (current space, `openDeviceDb`, the reload
       with a message, the per-space `localStorage` helper) and
       `openWebcockpitDb` opening the current space (ADR 0150).
-- [ ] Database version 9: profile `id` (filled at the upgrade, kept on
+- [x] Database version 9: profile `id` (filled at the upgrade, kept on
       rename: rename in the profile store stops being delete + create),
       stores `sync` and `syncMeta`. Upgrade tests from version 8.
-- [ ] The map, tilesets and locator ids always from `webcockpit`.
-- [ ] The automatic MUME login per space.
-- [ ] The game's Web Lock `webcockpit-game@<space>`; other tabs follow
+- [x] The map, tilesets and locator ids always from `webcockpit`.
+- [x] The automatic MUME login per space.
+- [x] The game's Web Lock `webcockpit-game@<space>`; other tabs follow
       `wc.space`.
-- [ ] A unit test that nothing in `src/` but `src/core/db.ts` opens
+- [x] A unit test that nothing in `src/` but `src/core/db.ts` opens
       IndexedDB, and e2e: a page in an account's space sees none of
       the device's profiles and scripts, and back.
 

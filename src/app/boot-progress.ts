@@ -112,8 +112,11 @@ function waitFor(win: Window, find: () => HTMLElement | null, frames: number): P
  * layout can start a face the gate did not wait for (a glyph from a
  * fallback family), so the reveal waits until the browser says no face is
  * loading.
+ *
+ * `instant` (a load after a change of space, ADR 0150): no fade, as with
+ * reduced motion.
  */
-export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS): Promise<void> {
+export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS, o: { instant?: boolean } = {}): Promise<void> {
   const doc = mount.ownerDocument;
   const win = doc.defaultView;
   const main = win ? await waitFor(win, () => mount.querySelector<HTMLElement>('.wc-start-main'), 60) : null;
@@ -122,7 +125,7 @@ export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS): Pr
     main.getBoundingClientRect();
     await gate(fonts.ready, fontMs);
   }
-  if (main && !reducedMotion(win)) {
+  if (main && !o.instant && !reducedMotion(win)) {
     // What the first paint did not show, not a sub-page opened meanwhile.
     const painted = !!doc.querySelector('#wc-first .wcf-sky');
     const parts = [

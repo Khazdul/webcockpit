@@ -1,5 +1,6 @@
 // The current map (ADR 0020 "Map files and storage"): an imported `.mm2`
-// kept in IndexedDB (`maps`, record `current`), else the bundled
+// kept in the device's database (`maps`, record `current`; `webcockpit` in
+// every space, ADR 0150: the shell opens it with `lazyDb(_, { device })`), else the bundled
 // public/map/arda.mm2. One `MapStore` per page (the shell's), shared by
 // the live App's map pane, the log player and Options → Mapper:
 //

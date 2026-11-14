@@ -8,11 +8,12 @@
 // - GMCP handlers only update model state and call `markDirty()`; the pane
 //   renders once in the next frame (`requestFrame`), never per message.
 // - `openDb()` is lazy and shared: the first call opens the `webcockpit`
-//   database, later calls get the same connection (reopened if it closed).
+//   current space's database (ADR 0150), later calls get the same
+//   connection (reopened if it closed).
 //   It rejects when IndexedDB is unavailable; the pane then works in memory.
 
 import { Bus } from '../core/bus';
-import { openWebcockpitDb } from '../core/db';
+import { openDeviceDb, openWebcockpitDb } from '../core/db';
 import type { ConnState, Sender } from '../core/types';
 import { GameState } from '../gmcp/state';
 import type { MapMarkHub } from '../map/marks';
@@ -115,14 +116,17 @@ export function defaultRequestFrame(cb: () => void): void {
  * A lazy, memoised database opener over `factory` (default
  * `globalThis.indexedDB`; null = none, always rejects). A connection that
  * closes (another tab upgrading the database) is reopened on the next call.
+ * `device`: the device's database whatever the space (the map, ADR 0150);
+ * otherwise the current space's.
  */
-export function lazyDb(factory?: IDBFactory | null): () => Promise<IDBDatabase> {
+export function lazyDb(factory?: IDBFactory | null, o: { device?: boolean } = {}): () => Promise<IDBDatabase> {
+  const open = o.device ? openDeviceDb : openWebcockpitDb;
   let p: Promise<IDBDatabase> | null = null;
   return () => {
     if (p) return p;
     const f = factory === undefined ? (globalThis.indexedDB ?? null) : factory;
     if (!f) return Promise.reject(new Error('IndexedDB unavailable'));
-    const opened = openWebcockpitDb(f).then(
+    const opened = open(f).then(
       (db) => {
         db.addEventListener('close', () => {
           if (p === opened) p = null;

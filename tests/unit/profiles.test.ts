@@ -148,11 +148,25 @@ for (const kind of ['indexeddb', 'memory'] as const) {
       expect(h?.text).toBe('text');
       expect(h?.created).toBe(r.created);
       expect(h!.modified).toBeGreaterThan(r.modified);
+      // The id goes with the record (ADR 0150): the sync sees a rename.
+      expect(r.id).toMatch(/\S{8,}/);
+      expect(h?.id).toBe(r.id);
       await s.rename('hunter', 'hunter');
       await expect(s.rename('hunter', 'default')).rejects.toThrow(/already exists/);
       await expect(s.rename('default', 'other')).rejects.toBeInstanceOf(ProfileError);
       await expect(s.rename('nobody', 'other')).rejects.toThrow(/No profile/);
       expect((await s.list()).map((x) => x.name)).toEqual(['default', 'hunter', 'khazdul']);
+    });
+
+    it('gives every profile its own id: seeds, creates and imports', async () => {
+      const s = fresh();
+      await s.init();
+      await s.create('ranger');
+      await s.importFile('My pvp.tin', 'x');
+      const ids = (await s.list()).map((x) => x.id);
+      expect(ids).toHaveLength(4);
+      expect(ids.every((id) => typeof id === 'string' && id.length >= 8)).toBe(true);
+      expect(new Set(ids).size).toBe(4);
     });
 
     it('deletes, but never default', async () => {

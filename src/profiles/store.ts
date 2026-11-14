@@ -11,16 +11,21 @@
 // selected lives in the settings (`settings.profile`), not here: callers
 // update it after a create, rename or import.
 //
+// Every record has an `id` (ADR 0150): random at create, import and seed,
+// kept by a rename (the record moves to its new name with its id).
+//
 // Without IndexedDB (private mode, blocked upgrade) the store keeps the
 // records in memory for the page's lifetime; `persistent` is false.
 
-import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
+import { STORE, idbDone, idbRequest, openWebcockpitDb, randomId } from '../core/db';
 import { stripSend } from './migrate';
 import { DEFAULT_PROFILE, nameError, nameFromFileName, uniqueName } from './names';
 import KHAZDUL from './khazdul.tin?raw';
 import TEMPLATE from './template.tin?raw';
 
 export interface ProfileRecord {
+  /** Random, kept on rename: the sync's item (ADR 0150; database version 9). */
+  id: string;
   name: string;
   /** tt++ text, verbatim. */
   text: string;
@@ -150,7 +155,8 @@ export class ProfileStore {
       if (!cur) throw new ProfileError(`No profile "${from}".`);
       const err = nameError(to, await st.names(), from);
       if (err) throw new ProfileError(err);
-      await st.put({ ...cur, name: to, modified: this.now() });
+      // The record is keyed by name, so it moves; its `id` goes with it (the sync sees a rename, not a delete and a create).
+      await st.put({ ...cur, id: cur.id || randomId(), name: to, modified: this.now() });
       await st.delete(from);
     });
   }
@@ -184,7 +190,7 @@ export class ProfileStore {
 
   private record(name: string, text: string): ProfileRecord {
     const t = this.now();
-    return { name, text, created: t, modified: t };
+    return { id: randomId(), name, text, created: t, modified: t };
   }
 
   /**
