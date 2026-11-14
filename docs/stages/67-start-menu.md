@@ -251,8 +251,14 @@ merge: this branch's version of its menu tests is the one to keep.
       stage 60 found; outside the start page and History the stage
       changed only comments. `bench/results/latest.md` left as it was.
       The entry chunk: 30 201 bytes, unchanged.
-- [ ] Staging: `test:prod`; the menu with the flag on (staging) and
-      off (a local production build).
+- [x] Staging: `test:prod`; the menu with the flag on (staging) and
+      off (a local production build). (2026-11-14: `main` e937b6f8
+      deployed to staging by `deploy.yml`, run 43643882994; `test:prod`
+      30/30 against staging; the owner row "Guest · log in" and the
+      Diary tab seen there in a browser with `webdriver` masked, since an
+      automated browser makes no API request and so never gets the
+      flag. Flag off: the local production build's `test:prod` CSP
+      spec, 8/8, and the e2e specs of the first form.)
 - [ ] Owner test on staging (test guide below). Stage 60's step 13
       done 2026-11-14.
 - [ ] Release to everybody: the new menu, `production: true` in
