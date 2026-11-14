@@ -21,9 +21,20 @@
   },
   "vars": {
     "FLAG_STATS": true,
+    "FLAG_ACCOUNTS": true,
+    // Test values of what are secrets on a real Worker; the Turnstile pair
+    // is Cloudflare's published test keys (the tests stub siteverify).
+    "AUTH_PEPPER": "test-pepper-not-a-secret-0123456789",
+    "TURNSTILE_SECRET": "1x0000000000000000000000000000000AA",
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": ""
   },
   "d1_databases": [{ "binding": "DB", "database_name": "webcockpit-test", "database_id": "00000000-0000-0000-0000-00000000test" }],
-  "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } }]
+  // The API limiter is high enough never to trip here: its 429 is tested
+  // with a stub limiter (auth.test.ts).
+  "ratelimits": [
+    { "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } },
+    { "name": "API_LIMITER", "namespace_id": "2", "simple": { "limit": 100000, "period": 60 } }
+  ]
 }

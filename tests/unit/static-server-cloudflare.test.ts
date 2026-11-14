@@ -139,7 +139,7 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
     expect(await health.json()).toEqual({ ok: true, version: '1.2.3', commit: 'abc1234' });
     expect(health.headers.get('cache-control')).toBe('no-store');
     expect(health.headers.get('referrer-policy')).toBeNull();
-    expect(await (await fetch(`${url}/api/config`)).json()).toEqual({ flags: { stats: false } });
+    expect(await (await fetch(`${url}/api/config`)).json()).toMatchObject({ flags: { stats: false, accounts: false }, turnstileSiteKey: '' });
     // No database here: the beat answers 503, the public numbers 404 (the flag is off).
     const beat = await fetch(`${url}/api/beat`, { method: 'POST', body: '{}' });
     expect(beat.status).toBe(503);

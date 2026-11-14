@@ -23,7 +23,7 @@ describe('the Worker API (spec §7.1, ADR 0144)', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('max-age=60');
     // The test Worker's default (FLAG_STATS = true, as on staging); stats.test.ts has the rest.
-    expect(await res.json()).toEqual({ flags: { stats: true } });
+    expect(await res.json()).toMatchObject({ flags: { stats: true, accounts: true } });
   });
 
   it('HEAD is GET without a body', async () => {

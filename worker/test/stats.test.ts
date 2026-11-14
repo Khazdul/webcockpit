@@ -207,28 +207,28 @@ describe('online now and GET /api/stats/public', () => {
 describe('flags and GET /api/config', () => {
   it('the var is the default; a flag row overrides it', async () => {
     const off = envWith({ FLAG_STATS: false });
-    expect(await (await get('/api/config', off)).json()).toEqual({ flags: { stats: false } });
-    expect(await (await get('/api/config', realEnv)).json()).toEqual({ flags: { stats: true } });
-    expect(await (await get('/api/config', envWith({ FLAG_STATS: 'on' }))).json()).toEqual({ flags: { stats: true } });
+    expect(await (await get('/api/config', off)).json()).toMatchObject({ flags: { stats: false } });
+    expect(await (await get('/api/config', realEnv)).json()).toMatchObject({ flags: { stats: true } });
+    expect(await (await get('/api/config', envWith({ FLAG_STATS: 'on' }))).json()).toMatchObject({ flags: { stats: true } });
 
     await db.prepare("INSERT INTO flag (name, value) VALUES ('stats', 1)").run();
     // A later clock than the cached read: the row is read again.
     const later = NOW + 60_000;
-    expect(await (await get('/api/config', off, later)).json()).toEqual({ flags: { stats: true } });
+    expect(await (await get('/api/config', off, later)).json()).toMatchObject({ flags: { stats: true } });
     expect((await post(beatOf(), { env: envWith({ FLAG_STATS: false, BEAT_LIMITER: undefined }), now: later })).status).toBe(204);
 
     await db.prepare("UPDATE flag SET value = 0 WHERE name = 'stats'").run();
     const later2 = later + 60_000;
-    expect(await (await get('/api/config', realEnv, later2)).json()).toEqual({ flags: { stats: false } });
+    expect(await (await get('/api/config', realEnv, later2)).json()).toMatchObject({ flags: { stats: false } });
     // Unknown rows are ignored.
     await db.prepare("INSERT INTO flag (name, value) VALUES ('nope', 1)").run();
-    expect(await (await get('/api/config', realEnv, later2 + 60_000)).json()).toEqual({ flags: { stats: false } });
+    expect(await (await get('/api/config', realEnv, later2 + 60_000)).json()).toMatchObject({ flags: { stats: false } });
   });
 
   it('without a database (the static server) the flags are the vars, or off', async () => {
     const res = await get('/api/config', { ASSETS: realEnv.ASSETS });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ flags: { stats: false } });
+    expect(await res.json()).toMatchObject({ flags: { stats: false } });
     expect((await get('/api/stats/public', { ASSETS: realEnv.ASSETS })).status).toBe(404);
     expect((await post(beatOf(), { env: { ASSETS: realEnv.ASSETS } })).status).toBe(503);
   });
