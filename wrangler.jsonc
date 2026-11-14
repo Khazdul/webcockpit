@@ -50,13 +50,17 @@
     {
       "binding": "DB",
       "database_name": "webcockpit",
-      // PROVISION: the id of D1 `webcockpit` from provision.yml's summary.
-      "database_id": "00000000-0000-0000-0000-000000000001",
+      // From provision.yml (run 43537875273, 2026-11-14).
+      "database_id": "c0cd2544-0e45-4782-9053-da20a9233d74",
       "migrations_dir": "worker/migrations"
     }
   ],
-  // R2 is made now and used from stage 63 (run bodies, shared payloads).
-  "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit", "jurisdiction": "eu" }],
+  // R2 (binding FILES, bucket `webcockpit`, jurisdiction eu) is used from
+  // stage 63. It is not enabled on the account yet (provision.yml,
+  // 2026-11-14), and a binding to a missing bucket fails the deploy, so
+  // both r2_buckets entries are left out until the owner enables R2 and
+  // provision.yml has made the buckets:
+  //   "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit", "jurisdiction": "eu" }],
   // POST /api/beat, keyed by address (ADR 0147). A page beats every 5
   // minutes and on a state change; 30 a minute leaves room for a
   // household or a school behind one address.
@@ -82,12 +86,12 @@
         {
           "binding": "DB",
           "database_name": "webcockpit-staging",
-          // PROVISION: the id of D1 `webcockpit-staging` from provision.yml's summary.
-          "database_id": "00000000-0000-0000-0000-000000000002",
+          // From provision.yml (run 43537875273, 2026-11-14).
+          "database_id": "7739f9cf-ee96-42fb-b6da-68797f69fd9a",
           "migrations_dir": "worker/migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-staging", "jurisdiction": "eu" }],
+      // "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-staging", "jurisdiction": "eu" }],
       "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } }],
       "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] }
     }

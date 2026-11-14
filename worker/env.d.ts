@@ -11,7 +11,7 @@ declare namespace Cloudflare {
     ASSETS: Fetcher;
     DB: D1Database;
     /** R2 `webcockpit` / `webcockpit-staging` (eu): used from stage 63. */
-    FILES: R2Bucket;
+    // FILES: R2Bucket; (from stage 63, once R2 is enabled; wrangler.jsonc)
     BEAT_LIMITER: RateLimit;
     FLAG_STATS: boolean;
     ACCESS_TEAM_DOMAIN: string;
