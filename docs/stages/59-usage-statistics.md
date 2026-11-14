@@ -1,6 +1,6 @@
 # Stage 59 — Usage statistics
 
-Status: **Released 0.10.0** (2026-11-14), dark in production until the owner turns `stats` on at `/admin`.
+Status: **Done.** Released 0.10.0 (2026-11-14); the owner turned `stats` on in production the same day.
 
 ## Goal
 
@@ -288,7 +288,7 @@ Online = seen in the last 6 minutes.
       admin page shows them. (Done but the admin page: it waits for
       part C.)
 - [x] Owner test on staging (test guide 1–5), release 0.10.0.
-- [ ] The flag on in production from `/admin` (the owner).
+- [x] The flag on in production from `/admin` (the owner, 2026-11-14).
 
 ## Test guide (owner)
 
