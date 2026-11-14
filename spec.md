@@ -1279,6 +1279,7 @@ ADR 0148, "The admin page".
 |---|---|
 | Registration | Turnstile; 3 an hour and 10 a day per address (hashed, daily pepper) |
 | Login | 10 failures per name in 15 min → 15 min wait; Turnstile after 3 |
+| Recovery | Turnstile on the first call; 10 failures per name in 15 min → 15 min wait (a counter of its own) |
 | API in general | the rate limiting binding, 120 requests a minute per session or address |
 | Small items | 1 MB each, 2 MB and 2 000 items per account |
 | Runs and shared payloads | 50 MB per account; 20 MB per run body; 5 MB per shared payload; 50 shared runs |
@@ -1295,7 +1296,8 @@ account(id, name, name_key UNIQUE, created, last_seen, state,
         salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc,
         limits, prefs, gallery_seen, seq)
 reserved_name(name_key)                      -- deleted accounts' names
-session(id_hash, account, label, created, last_used, expires)
+session(id_hash, id, account, label, created, last_used, expires)
+     INDEX (account)                         -- id: the public id of the Account page
 item(account, kind, id, rev, seq, deleted, size, updated, blob)
      PRIMARY KEY (account, kind, id); INDEX (account, seq)
 run_body(account, id, size, created)         -- body in R2 u/<account>/<id>
@@ -1311,7 +1313,8 @@ device_day(day, device)                      PRIMARY KEY (day, device)
 stat_sample(ts, online, playing)
 stat_daily(day, metric, key, value)          PRIMARY KEY (day, metric, key)
 flag(name, value)                            -- server flags set from /admin
-attempt(key, window, count)                  -- login and registration limits
+attempt(key, start, count, until)            -- login, recovery and registration
+                                             -- limits; key: a kind and an HMAC
 admin_log(ts, who, action, target, note)
 ```
 

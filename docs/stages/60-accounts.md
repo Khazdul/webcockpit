@@ -80,7 +80,7 @@ answer 404 `not_found` (flag off), 429 `rate_limited`, 503
 | `POST /api/auth/login` | `{name, authKey, label, turnstile?}` → `{account, wrapPw}` and the cookie. 401 `invalid_login`, 403 `turnstile_required`, 429 `locked` with `retryAfter` (s) |
 | `POST /api/auth/recover` | `{name, recoveryAuth, turnstile}` → `{wrapRc}`; with `set: {salt, kdf, authKey, wrapPw}` and `label` (no Turnstile) → `{account}`, the cookie, every older session ended. 401 `invalid_recovery`, 429 `locked` |
 | `POST /api/u/auth/logout` | 204, the cookie cleared |
-| `GET /api/u/account` | `{account}`: name, created, state, usage, limits, sessions (id, label, created, lastUsed, current), prefs |
+| `GET /api/u/account` | `{account, wrapPw}` (the current password wrap, for a password change or a new recovery code): name, created, state, usage, limits, sessions (id, label, created, lastUsed, current), prefs |
 | `POST /api/u/account/password` | `{authKey, set: {salt, kdf, authKey, wrapPw}}` → 204; other sessions ended. 401 `invalid_login` |
 | `POST /api/u/account/recovery` | `{authKey, recoveryAuth, wrapRc}` → 204 |
 | `DELETE /api/u/account/sessions/<id>` | 204; `<id>` = `others` ends all but this one |
@@ -96,20 +96,65 @@ from the fourth try; 120 requests a minute per session or address on
 
 ### A. Server (building agent, worktree `stage60-server`)
 
-- [ ] Migration 0002: `account`, `reserved_name`, `session`, `attempt`
+- [x] Migration 0002: `account`, `reserved_name`, `session`, `attempt`
       (spec §7.11; later stages' tables come with their stages).
-- [ ] The flag `accounts`; `/api/config` with the site key, limits and
+- [x] The flag `accounts`; `/api/config` with the site key, limits and
       time.
-- [ ] `params`, `register`, `login`, `recover`; sessions (cookie,
+- [x] `params`, `register`, `login`, `recover`; sessions (cookie,
       renewal, logout, list, end one, end others); `account`,
       `password`, `recovery`, `prefs`, delete.
-- [ ] Attempt limits (registration per address, login and recovery per
+- [x] Attempt limits (registration per address, login and recovery per
       name), the Turnstile check, the general rate limit, the daily
       pruning of attempts and expired sessions.
-- [ ] Tests in workerd for every endpoint and limit; the static
+- [x] Tests in workerd for every endpoint and limit; the static
       server's `cloudflare` profile keeps working.
-- [ ] `wrangler.jsonc` (flag, site key, limiter), `test:prod` checks
+- [x] `wrangler.jsonc` (flag, site key, limiter), `test:prod` checks
       that read only; docs "As built".
+
+  Built 2026-11-14 on branch `stage60-server` (ADR 0145 "As built (stage
+  60 part A)" has the details and the trade-offs). Checked in workerd
+  (44 tests in `worker/test/auth.test.ts`) and once by hand under
+  `wrangler dev` with Cloudflare's Turnstile test keys; not yet against
+  a deployed Worker. Differences from the plan and additions to the
+  contract:
+
+  - `attempt` is `(key, start, count, until)`, not `(key, window,
+    count)`; `session` has a public `id` beside `id_hash`; `account.id`
+    is random text (spec §7.11 updated).
+  - A login or recovery try is counted **before** it is looked at and
+    the counter is removed on success, so tries racing each other
+    cannot pass the limit. Seen from outside it is the contract: three
+    failures, then Turnstile; ten, then 15 minutes.
+  - The password questions under `/api/u/` (`password`, `recovery`,
+    delete) also answer 429 `locked` while the name is locked (they
+    count on the same counter, so they must honour it). They never ask
+    for Turnstile.
+  - 429 `locked` carries a `Retry-After` header beside `retryAfter`.
+  - Unknown fields in a body are 400 `bad_request` (as the flag route).
+  - `DELETE /api/u/account/sessions/<id>` answers 404 `not_found` for an
+    id that is not a session of the account. Ending the session one is
+    in clears the cookie.
+  - `PATCH /api/u/account/prefs` takes exactly `{galleryNotice}`.
+  - The second recover call also clears the name's login counter (a
+    lock on the login goes with the old password).
+  - `params` answers 400 only for a missing or over-long (> 64) `name`;
+    every other name, possible or not, gets an answer.
+  - A new optional var `TURNSTILE_HOSTNAMES` (the host names a passed
+    challenge may come from); unset while the test keys are in use.
+  - `AUTH_PEPPER` shorter than 16 characters counts as not set.
+  - The general limiter counts a request with a session cookie that
+    turns out to be unknown against the address as well.
+  - `Config` has the new fields as optional (the client's `parseConfig`
+    is untouched); `tests/unit/static-server-cloudflare.test.ts` and
+    three worker tests changed one expectation each for the new flag.
+  - For part B: `npm run dev:cloud` passes the Turnstile test keys and
+    a dev pepper to the local Worker; the flag needs a row
+    (`INSERT INTO flag VALUES ('accounts', 1)`). The Worker under
+    `wrangler dev` builds its URL from the `Host` header, so the CSRF
+    rule holds through Vite's proxy as long as the proxy keeps `Host`
+    (its default; checked with curl, not through Vite). Not checked:
+    whether each browser accepts the `Secure`, `__Secure-` cookie from
+    the dev server's plain `http://localhost`.
 
 ### Crypto (building agent, worktree `stage60-crypto`)
 

@@ -125,9 +125,42 @@ test('the API: health says the release, config has the flags, admin is closed, t
   expect(config.headers()['cache-control']).toBe('max-age=60');
   // On by default on staging, off in production and in the local stand-in
   // (no database): the value is the server's, only its shape is checked.
-  const { flags } = (await config.json()) as { flags: Record<string, unknown> };
-  expect(Object.keys(flags)).toEqual(['stats']);
-  expect(typeof flags.stats).toBe('boolean');
+  const body = (await config.json()) as { flags: Record<string, unknown>; turnstileSiteKey: unknown; limits: unknown; time: unknown };
+  const { flags } = body;
+  expect(Object.keys(flags)).toEqual(['stats', 'accounts']);
+  for (const v of Object.values(flags)) expect(typeof v).toBe('boolean');
+  // Stage 60: what the account pages need before a login.
+  expect(typeof body.turnstileSiteKey).toBe('string');
+  expect(body.limits).toMatchObject({ items: expect.any(Number), itemBytes: expect.any(Number), runBytes: expect.any(Number) });
+  expect(typeof body.time).toBe('number');
+
+  // The accounts (stage 60), read only: no test here makes an account. A
+  // name nobody has gets a salt of 16 bytes (a stable fake) when the flag
+  // is on and the Worker has its secrets; 503 when it has not; and the
+  // whole of /api/auth and /api/u is a 404 while the flag is off.
+  const nobody = `t-${Math.random().toString(36).slice(2, 12)}`;
+  const params = await request.get(`api/auth/params?name=${nobody}`);
+  expect(params.headers()['cache-control']).toBe('no-store');
+  if (flags.accounts === true) {
+    expect([200, 503]).toContain(params.status());
+    if (params.status() === 200) {
+      const p = (await params.json()) as { salt: string; kdf: { name: string; rounds: number } };
+      expect(p.salt).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(p.kdf.name).toBe('pbkdf2-sha256');
+      expect(p.kdf.rounds).toBeGreaterThanOrEqual(600_000);
+      // The same name again: the same answer.
+      expect(await (await request.get(`api/auth/params?name=${nobody}`)).json()).toEqual(p);
+    } else {
+      expect(await params.json()).toEqual({ error: 'accounts_not_configured' });
+    }
+    // Without a session nothing under /api/u answers (or 503, as above).
+    const account = await request.get('api/u/account');
+    expect([401, 503]).toContain(account.status());
+  } else {
+    expect(params.status()).toBe(404);
+    expect(await params.json()).toEqual({ error: 'not_found' });
+    expect((await request.get('api/u/account')).status()).toBe(404);
+  }
 
   // The admin's numbers are never answered without Access (503 before it
   // is set up, 403 or Access's own answer after).

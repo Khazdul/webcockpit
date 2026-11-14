@@ -193,7 +193,7 @@ describe('the admin page', () => {
     expect(s.usage.limits).toEqual({ requests: 100_000, rowsWritten: 100_000, rowsRead: 5_000_000 });
     expect(s.usage.requests).toBeGreaterThan(0);
     expect(s.usage.rowsWritten).toBeGreaterThan(0);
-    expect(s.flags).toEqual({ stats: { value: true, default: true, override: null } });
+    expect(s.flags).toEqual({ stats: { value: true, default: true, override: null }, accounts: { value: true, default: true, override: null } });
   });
 
   it('PUT /api/admin/flags/<name> sets the override, with X-WC and the same Origin', async () => {
@@ -211,7 +211,7 @@ describe('the admin page', () => {
     expect(res.status).toBe(200);
     expect((await res.json()) as AdminFlag).toEqual({ value: false, default: true, override: false });
     const config = await handle(new Request(`${ORIGIN}/api/config`), adminEnv(), at(NOW));
-    expect(await config.json()).toEqual({ flags: { stats: false } });
+    expect(await config.json()).toMatchObject({ flags: { stats: false, accounts: true } });
     expect(await db.prepare('SELECT name, value FROM flag').all().then((r) => r.results)).toEqual([{ name: 'stats', value: 0 }]);
   });
 

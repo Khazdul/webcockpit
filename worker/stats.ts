@@ -17,8 +17,10 @@ import {
   ONLINE_MINUTES,
   type PublicStats,
 } from '../shared/cloud/api.ts';
+import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { DAY_MS, type D1, type Env, dayStart, utcDay } from './runtime.ts';
+import { pruneSessions } from './sessions.ts';
 
 // --- The beat ---
 
@@ -269,15 +271,22 @@ export async function prune(db: D1, now: number): Promise<void> {
 
 /**
  * The Worker's `scheduled` handler: the sample every 5 minutes; at 00:10
- * UTC the roll-up of the previous day, then pruning. Nothing without a
- * database.
+ * UTC the roll-up of the previous day, then pruning, and the accounts'
+ * own pruning (stale attempt counters, expired sessions: spec §7.10),
+ * which runs whether or not the statistics' part failed. Nothing without
+ * a database.
  */
 export async function runCron(env: Env, cron: string, time: number): Promise<void> {
   const db = env.DB;
   if (!db) return;
   if (cron === DAILY_CRON) {
-    await rollUp(db, utcDay(time - DAY_MS));
-    await prune(db, time);
+    try {
+      await rollUp(db, utcDay(time - DAY_MS));
+      await prune(db, time);
+    } finally {
+      await pruneAttempts(db, time);
+      await pruneSessions(db, time);
+    }
   } else {
     await sample(db, time);
   }

@@ -63,17 +63,41 @@ export interface Env {
   ADMIN_EMAILS?: string;
   /** Staging: every answer of the Worker carries `X-Robots-Tag: noindex`. */
   NOINDEX?: boolean | string;
+  /** The default of the flag `accounts`. Off: `/api/auth/*` and `/api/u/*` answer 404. */
+  FLAG_ACCOUNTS?: boolean | string;
+  /** The limit on `/api/auth/*` and `/api/u/*`, keyed by session or address. Without it: no limit. */
+  API_LIMITER?: RateLimiter;
+  /**
+   * A secret (at least 16 characters): the fake salts, the attempt
+   * counters' keys and the day's address pepper are derived from it.
+   * Without it the account endpoints answer 503 `accounts_not_configured`.
+   */
+  AUTH_PEPPER?: string;
+  /** A secret: the Turnstile widget's secret key. Without it: 503 `accounts_not_configured`. */
+  TURNSTILE_SECRET?: string;
+  /** The Turnstile widget's site key, handed to the client by `/api/config`. */
+  TURNSTILE_SITE_KEY?: string;
+  /** Host names a passed Turnstile challenge may come from, comma separated. Unset: any (the test keys say `example.com`). */
+  TURNSTILE_HOSTNAMES?: string;
+}
+
+/** What the Worker's own requests set (worker/turnstile.ts). */
+export interface FetchInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  signal?: AbortSignal;
 }
 
 /** The clock and the network, replaceable by tests. */
 export interface Deps {
   now(): number;
-  fetch(input: string): Promise<Response>;
+  fetch(input: string, init?: FetchInit): Promise<Response>;
 }
 
 export const DEFAULT_DEPS: Deps = {
   now: () => Date.now(),
-  fetch: (input) => fetch(input),
+  fetch: (input, init) => fetch(input, init),
 };
 
 /** A var that means on: true, "true", "on", "1" (any case). */

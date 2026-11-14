@@ -19,6 +19,13 @@ declare namespace Cloudflare {
     /** A secret, set in the dashboard. */
     ADMIN_EMAILS?: string;
     NOINDEX?: boolean;
+    FLAG_ACCOUNTS: boolean;
+    API_LIMITER: RateLimit;
+    TURNSTILE_SITE_KEY: string;
+    TURNSTILE_HOSTNAMES?: string;
+    /** Secrets, set outside the repository (`wrangler secret put`, or the dashboard). */
+    AUTH_PEPPER?: string;
+    TURNSTILE_SECRET?: string;
     /** worker/test only: the migrations, read by vitest.config.ts. */
     TEST_MIGRATIONS?: import('cloudflare:test').D1Migration[];
   }

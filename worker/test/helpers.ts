@@ -28,7 +28,7 @@ export function at(now: number, fetch?: Deps['fetch']): Deps {
 export const T = (iso: string): number => Date.parse(iso);
 
 export async function emptyTables(): Promise<void> {
-  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt'].map((t) => db.prepare(`DELETE FROM ${t}`)));
   forgetFlags(db);
 }
 
