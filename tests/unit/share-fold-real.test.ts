@@ -18,6 +18,7 @@ import { defaultExportDoc, mergeRanges, type ExcludeRange } from '../../src/shar
 import { type FoldStats } from '../../src/share/fold';
 import { type ReplayPayload, buildReplayPayload } from '../../src/share/payload';
 import type { ChainRun } from '../../src/player/timeline';
+import { migrateSettings } from '../../src/settings/migrate';
 import { captureEntries } from '../../src/share/capture';
 import { checkpoints, digestEnd, keptPlays, openPayload, prefixPayload, sizesByKind, trackPayload } from './fold-helpers';
 
@@ -91,9 +92,9 @@ describe.skipIf(!FILE || !HAS_ARDA)('excluded-state fold on a real payload', () 
     for (const [name, excludes] of Object.entries(sets)) {
       const doc = { ...defaultExportDoc('real'), excludes };
       const stats: FoldStats = { segments: 0, fallbacks: 0, paces: 0 };
-      const base = buildReplayPayload(chain, [], doc, src.settings, { fold: false, dropRuns: false });
-      const folded = buildReplayPayload(chain, [], doc, src.settings, { dropRuns: false, foldStats: stats });
-      const full = buildReplayPayload(chain, [], doc, src.settings);
+      const base = buildReplayPayload(chain, [], doc, migrateSettings(src.settings), { fold: false, dropRuns: false });
+      const folded = buildReplayPayload(chain, [], doc, migrateSettings(src.settings), { dropRuns: false, foldStats: stats });
+      const full = buildReplayPayload(chain, [], doc, migrateSettings(src.settings));
       const r: Record<string, unknown> = { excludes, stats };
       const size = (p: ReplayPayload) => p.runs.reduce((n, x) => n + x.text.length, 0);
       r.size = { base: size(base), folded: size(folded), full: size(full), json: [JSON.stringify(base).length, JSON.stringify(full).length] };

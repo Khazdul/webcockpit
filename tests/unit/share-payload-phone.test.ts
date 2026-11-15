@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { migrateSettings } from '../../src/settings/migrate';
 import { defaultPhoneSettings, defaultSettings } from '../../src/settings/types';
-import { replaySettings } from '../../src/share/payload';
+import { REPLAY_SETTINGS_KEYS, replaySettings } from '../../src/share/payload';
 
 describe('replaySettings and the phone section', () => {
   it('leaves the phone section out, whatever it held', () => {
@@ -18,13 +18,12 @@ describe('replaySettings and the phone section', () => {
     expect(s.phone.hotkeys[0]!.command).toBe('say my secret plan');
   });
 
-  it('everything else is as before the section existed', () => {
+  it('the whitelisted sections are as the exporter had them (ADR 0154: only what the replay reads)', () => {
     const s = defaultSettings();
     const out = replaySettings(s) as unknown as Record<string, unknown>;
     const before = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
-    delete before.phone;
-    expect(Object.keys(out).sort()).toEqual(Object.keys(before).sort());
-    for (const k of Object.keys(before)) if (k !== 'mapper') expect(out[k]).toEqual(before[k]);
+    expect(Object.keys(out).sort()).toEqual([...REPLAY_SETTINGS_KEYS].sort());
+    for (const k of REPLAY_SETTINGS_KEYS) if (k !== 'mapper') expect(out[k]).toEqual(before[k]);
   });
 
   it('the replay reads it back with the defaults', () => {
