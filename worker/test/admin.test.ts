@@ -198,6 +198,7 @@ describe('the admin page', () => {
       accounts: { value: true, default: true, override: null },
       sync: { value: true, default: true, override: null },
       runs: { value: false, default: false, override: null },
+      share: { value: false, default: false, override: null },
     });
   });
 
