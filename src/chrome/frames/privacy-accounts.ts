@@ -29,10 +29,20 @@ export const PRIVACY_ACCOUNTS_NAV: LeafNav[number] = { id: 'accounts', head: 'AC
 
 const LATER = /\nCOMING LATER\n[^\n]*\n/;
 
+// Two sentences of the guest's page that an account makes untrue.
+const INTRO_LOCAL = 'is kept in this browser only.';
+const INTRO_ACCOUNTS = 'is kept in this browser only, unless you choose to have an account (see Accounts below).';
+const BEAT_NOTHING = 'Nothing you type, no character, profile or account name and no password is ever sent to the site. The heartbeat carries no cookie.';
+const BEAT_NOTHING_ACCOUNTS =
+  'The heartbeat holds nothing you type, no character, profile or account name and no password, and it carries no cookie. With an account, what is sent besides is said under Accounts.';
+
 /** The privacy page's text and rail with "COMING LATER" replaced by the account section. Pure. */
 export function withAccounts(text: string, nav: LeafNav): { text: string; nav: LeafNav } {
   return {
-    text: text.replace(LATER, `\n${PRIVACY_ACCOUNTS}\n`),
+    text: text
+      .replace(LATER, `\n${PRIVACY_ACCOUNTS}\n`)
+      .replace(INTRO_LOCAL, INTRO_ACCOUNTS)
+      .replace(BEAT_NOTHING, BEAT_NOTHING_ACCOUNTS),
     nav: nav.map((n) => (n.id === 'later' ? PRIVACY_ACCOUNTS_NAV : n)),
   };
 }

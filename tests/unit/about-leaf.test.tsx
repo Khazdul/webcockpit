@@ -414,10 +414,15 @@ describe("the privacy page's account section (flag `accounts`)", () => {
   const { text, nav } = withAccounts(PRIVACY_TEXT, PRIVACY_NAV);
   const secs = aboutSections(text, nav);
 
-  it('replaces Coming later, in its place, and nothing else', () => {
+  it('replaces Coming later in its place, and the two sentences an account makes untrue', () => {
     expect(secs.map((x) => x.id)).toEqual(PRIVACY_NAV.map((n) => (n.id === 'later' ? 'accounts' : n.id)));
     expect(text).not.toContain('COMING LATER');
-    expect(text.replace(`${PRIVACY_ACCOUNTS}\n`, '')).toBe(PRIVACY_TEXT.replace(/COMING LATER\n[^\n]*\n/, ''));
+    expect(text).toContain('unless you choose to have an account (see Accounts below).');
+    expect(text).not.toContain('is ever sent to the site');
+    const guest = PRIVACY_TEXT.replace(/COMING LATER\n[^\n]*\n/, '').split('\n');
+    const shown = text.replace(`${PRIVACY_ACCOUNTS}\n`, '').split('\n');
+    expect(shown.length).toBe(guest.length);
+    expect(shown.filter((l, i) => l !== guest[i]).length).toBe(2);
     expect(nav.find((n) => n.id === 'accounts')).toBe(PRIVACY_ACCOUNTS_NAV);
   });
 
