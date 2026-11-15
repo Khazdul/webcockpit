@@ -1,7 +1,13 @@
 // The watch page `<base>r/<id>` (stage 64 C2, spec §7.7, ADR 0154 "The
 // watch page"; round 12's pick 3a: a band over the frame, and 5: Report as
-// drawn). Its own chunk: src/main.ts imports it when the address is under
-// `<base>r/`, instead of the start page (no sky, no start page animation).
+// drawn). src/main.ts mounts it when the address is under `<base>r/`,
+// instead of the start page (no sky, no start page animation). It lives in
+// the chrome chunk (src/chrome/index.tsx `startWatch`), which is lazy: it
+// is made of the kit, and a chunk of its own split the kit, the account's
+// state and the font table out of the chunks the start page loads (ADR
+// 0154 "As built (C2)"); for the same reason it imports the exporter and
+// the frame host statically and writes two of the contract's values out
+// (model.ts).
 //
 // The band (the app's own DOM, every value as text): the title, then the
 // character and level, length, date, views and "shared by", the
@@ -26,20 +32,18 @@
 // Keys (outside the frame; a click in the replay gives it the keys):
 // R Report, D Download, B Back.
 
-import '../chrome/kit/kit.css';
-import '../chrome/kit/look.css';
 import './watch.css';
 import { type VNode, render } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { type PubMeta, REPORT_TEXT_MAX, type ReportReason } from '../../shared/cloud/api.ts';
-import { device } from '../core/device';
 import { Dialog, GlassButton, type IconDraw, LoadBar, LookFlash, TextArea, letterAction, lookFrame } from '../chrome/kit/look';
 import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
 import { downloadBlob } from '../chrome/kit/download';
 import { inTextField } from '../chrome/kit/look-keys';
 import { accountState, accountsEnabled } from '../cloud/account/state';
 import { apiAllowed, config } from '../cloud/config';
-import { deviceId } from '../cloud/beat';
+import type { PubMeta, ReportReason } from '../../shared/cloud/api.ts';
+import { device } from '../core/device';
+import { buildReplayHtml } from '../replay/export';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import {
@@ -49,6 +53,7 @@ import {
   FAILED_WORDS,
   OWNER_NOTE,
   REASONS,
+  REPORT_MAX,
   REFUSED_NOTE,
   type WatchEnd,
   downloadName,
@@ -57,6 +62,7 @@ import {
   metaLine,
   reportFailText,
   reportText,
+  watchDevice,
   watchIdOf,
 } from './model';
 import { noteLoginReturn } from './return';
@@ -182,7 +188,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
         // Once per page load, and only as anyone watches (not the sender's hidden run, not the admin).
         if (mode === 'public' && !viewed.current) {
           viewed.current = true;
-          void countView(meta.id, deviceId(storage()));
+          void countView(meta.id, watchDevice(storage()));
         }
       },
       onError: (text) => alive && setView({ k: 'failed', lines: [text, REFUSED_NOTE], retry: false }),
@@ -229,7 +235,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     setBusy(true);
     nav.flash('Building the file…', 'ok');
     try {
-      const { buildReplayHtml } = await import('../replay/export');
       const blob = await buildReplayHtml(h.payload, { base: siteBaseUrl() });
       const name = downloadName(meta.title);
       downloadBlob(blob, name);
@@ -532,9 +537,9 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
           label="More (optional)"
           value={text}
           rows={3}
-          maxLength={REPORT_TEXT_MAX}
+          maxLength={REPORT_MAX}
           onInput={setText}
-          hint={<span class="wc-watch-count">{`${n} / ${REPORT_TEXT_MAX}`}</span>}
+          hint={<span class="wc-watch-count">{`${n} / ${REPORT_MAX}`}</span>}
         />
         <p class="wc-lk-qn wc-watch-left wc-watch-small">The sender is not told who reported.</p>
       </div>
@@ -544,10 +549,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
 
 // ------------------------------------------------------------ mount
 
-/**
- * Mounts the watch page into `root` (src/main.ts, when the address is
- * under `<base>r/`). Resolves once the first render is in the page.
- */
+/** Mounts the watch page into `root` (src/main.ts, when the address is under `<base>r/`). */
 export function startWatch(root: HTMLElement, path: string = location.pathname, search: string = location.search): void {
   const at = watchIdOf(path, base()) ?? { id: '', valid: false };
   const admin = new URLSearchParams(search).has('admin');

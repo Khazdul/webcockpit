@@ -49,6 +49,9 @@ export { type StatsPaneHandle, type StatsPaneOptions, mountStatsPane } from './s
 // The look kit's controls the phone layer's settings page uses (ADR 0136 §10): handed to it by the
 // shell, so the phone chunk does not import the kit and split it out of this chunk.
 export { Seg, Toggle } from './kit/look-controls';
+// The watch page (stage 64 C2, src/watch/page.tsx) is part of this chunk: it is made of the kit, so
+// a chunk of its own would split the kit out of this one (src/main.ts loads this chunk for `<base>r/<id>`).
+export { startWatch } from '../watch/page';
 
 // ------------------------------------------------------------ start page
 

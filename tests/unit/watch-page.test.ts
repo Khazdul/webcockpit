@@ -2,7 +2,8 @@
 // words, a report's text, the meta read from the API, the requests' paths
 // and failures, and Report's way back after Log in (src/watch/return.ts).
 import { describe, expect, it } from 'vitest';
-import { REPORT_TEXT_MAX } from '../../shared/cloud/api.ts';
+import { PUB_ID_PATTERN, REPORT_TEXT_MAX } from '../../shared/cloud/api.ts';
+import { DEVICE_KEY } from '../../src/cloud/beat';
 import { countView, fetchMeta, fetchPayload, parseMeta, sendReport, type WatchFetch } from '../../src/watch/api';
 import {
   dateText,
@@ -13,7 +14,11 @@ import {
   metaLine,
   reportFailText,
   reportText,
+  REPORT_MAX,
+  WATCH_DEVICE_KEY,
+  WATCH_ID_PATTERN,
   viewsText,
+  watchDevice,
   watchIdOf,
 } from '../../src/watch/model';
 import { RETURN_KEY, RETURN_MAX_MS, noteLoginReturn, takeLoginReturn } from '../../src/watch/return';
@@ -30,6 +35,27 @@ const META = {
   views: 37,
   bytes: 1_200_000,
 };
+
+describe("the contract's values, written out", () => {
+  it('are the contract\'s and the beat\'s', () => {
+    expect(WATCH_ID_PATTERN.source).toBe(PUB_ID_PATTERN.source);
+    expect(REPORT_MAX).toBe(REPORT_TEXT_MAX);
+    expect(WATCH_DEVICE_KEY).toBe(DEVICE_KEY);
+  });
+
+  it('the device id: the kept one, else a new one kept (lowercase UUID)', () => {
+    const m = new Map<string, string>();
+    const st = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+    m.set('wc.device', 'ABCDEF01-2345-4678-89AB-CDEF01234567');
+    expect(watchDevice(st)).toBe('abcdef01-2345-4678-89ab-cdef01234567');
+    m.clear();
+    const made = watchDevice(st);
+    expect(made).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(m.get('wc.device')).toBe(made);
+    m.set('wc.device', 'not a uuid');
+    expect(watchDevice(st)).toBe(made);
+  });
+});
 
 describe('the address', () => {
   it('finds the id under <base>r/', () => {

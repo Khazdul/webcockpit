@@ -3,7 +3,14 @@
 // band's details, the report's reasons and the text a report may carry.
 // No DOM, no requests (src/watch/page.tsx draws, src/watch/api.ts asks).
 
-import { PUB_ID_PATTERN, type PubMeta, REPORT_TEXT_MAX, type ReportReason } from '../../shared/cloud/api.ts';
+import type { PubMeta, ReportReason } from '../../shared/cloud/api.ts';
+
+// The contract's PUB_ID_PATTERN and REPORT_TEXT_MAX (shared/cloud/api.ts), written out so the chrome
+// chunk, which holds this page, does not load that module for two values (a unit test holds them together).
+/** A publication's id. */
+export const WATCH_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
+/** A report's text, at most (code points). */
+export const REPORT_MAX = 500;
 
 /** Where reports go without an account (About, /privacy and the guest's Report). */
 export const ABUSE_ADDRESS = 'abuse@mumecockpit.com';
@@ -13,7 +20,7 @@ export function watchIdOf(path: string, base = '/'): { id: string; valid: boolea
   const b = base.endsWith('/') ? base : `${base}/`;
   if (!path.startsWith(`${b}r/`)) return null;
   const id = path.slice(b.length + 2).replace(/\/$/, '');
-  return { id, valid: PUB_ID_PATTERN.test(id) };
+  return { id, valid: WATCH_ID_PATTERN.test(id) };
 }
 
 /** A state that has no run to show: its two lines (round 12, "The words"). */
@@ -124,7 +131,7 @@ const NOT_IN_TEXT = /[\x00-\x09\x0b-\x1f\x7f-\x9f‪-‮⁦-⁩]/g;
 /**
  * A report's text as the Worker takes it: NFC, no control characters but
  * `\n` (a `\r\n` becomes `\n`), no bidi controls or lone surrogates,
- * trimmed, at most `REPORT_TEXT_MAX` code points. Empty: no text.
+ * trimmed, at most `REPORT_MAX` code points. Empty: no text.
  */
 export function reportText(raw: string): string {
   const s = raw
@@ -133,7 +140,7 @@ export function reportText(raw: string): string {
     .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')
     .normalize('NFC')
     .trim();
-  return [...s].slice(0, REPORT_TEXT_MAX).join('').trim();
+  return [...s].slice(0, REPORT_MAX).join('').trim();
 }
 
 /** What a failed report says (the server's code, or ours for the network). */
@@ -145,3 +152,41 @@ export function reportFailText(status: number, code: string): string {
   if (status === 0) return 'Offline: the report could not be sent. Try again when you are online.';
   return 'The report could not be sent. Try again later.';
 }
+
+/**
+ * The statistics' device id (src/cloud/beat.ts `deviceId`, ADR 0147: the
+ * same key and form, a lowercase UUID in `wc.device`), made and kept if
+ * there is none. Written out here so the watch chunk does not split the
+ * beat's module out of the cloud chunk (a unit test holds the two
+ * together). The page's own id when storage fails.
+ */
+export const WATCH_DEVICE_KEY = 'wc.device';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let pageDevice: string | null = null;
+
+function uuid4(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Not a secure context (an address over plain http): the same form from random bytes.
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6]! & 0x0f) | 0x40;
+  b[8] = (b[8]! & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+export function watchDevice(storage: Pick<Storage, 'getItem' | 'setItem'> | null, uuid: () => string = uuid4): string {
+  try {
+    const kept = storage?.getItem(WATCH_DEVICE_KEY);
+    if (kept && UUID.test(kept)) return kept.toLowerCase();
+  } catch {
+    // Storage blocked: the page's own id below.
+  }
+  const id = (pageDevice ??= uuid().toLowerCase());
+  try {
+    storage?.setItem(WATCH_DEVICE_KEY, id);
+  } catch {
+    // Not kept.
+  }
+  return id;
+}
+

@@ -34,8 +34,8 @@
 //
 // Paths: `<base>privacy` opens the privacy leaf over the start menu
 // (src/chrome/frames/about.tsx); `<base>r/<id>` is the watch page of a
-// shared run (stage 64, ADR 0154): its own chunk (src/watch/page.tsx)
-// instead of the start page, with `?admin` the admin's view of it.
+// shared run (stage 64, ADR 0154; src/watch/page.tsx, in the lazy chrome
+// chunk) instead of the start page, with `?admin` the admin's view of it.
 //
 // Start-up order: @font-face rules → settings from the localStorage mirror
 // → theme and font preload → settings from IndexedDB and the look-up of
@@ -59,7 +59,7 @@ import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
 import { Notices } from './app/notices';
 import { installNotices } from './app/notices-wiring';
-import { Shell } from './app/shell';
+import { Shell, importChrome } from './app/shell';
 import { initKeyLabels } from './script/keys';
 import { SettingsStore } from './settings';
 import { appearanceChanged, applyTheme } from './theme/apply';
@@ -117,10 +117,10 @@ preloadFont(settings.get().appearance.font);
 void cells.update(settings.get().appearance);
 bootStep(40, 'Loading interface');
 
-// The watch page (`<base>r/<id>`): no start page, no cockpit, its own chunk.
+// The watch page (`<base>r/<id>`): no start page, no cockpit; it is in the chrome chunk (ADR 0154).
 if (location.pathname.startsWith(`${import.meta.env.BASE_URL}r/`)) {
   try {
-    (await import('./watch/page')).startWatch(document.getElementById('app') ?? document.body);
+    (await importChrome()).startWatch(document.getElementById('app') ?? document.body);
   } finally {
     bootDone();
   }

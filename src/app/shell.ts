@@ -159,6 +159,15 @@ import type { BeatState } from '../../shared/cloud/api.ts';
 
 type ChromeModule = typeof import('../chrome');
 
+/**
+ * The chrome chunk: the Shell's, and the watch page's (`<base>r/<id>`,
+ * stage 64, src/main.ts), from this one place so the entry chunk holds
+ * its preload list once.
+ */
+export function importChrome(): Promise<ChromeModule> {
+  return import('../chrome');
+}
+
 /** Delay before the profile editor chunk is prefetched on the start page. */
 const EDITOR_PREFETCH_MS = 2000;
 
@@ -1140,7 +1149,7 @@ export class Shell {
   }
 
   private loadChrome(): Promise<ChromeModule> {
-    this.chromeP ??= import('../chrome');
+    this.chromeP ??= importChrome();
     return this.chromeP;
   }
 
