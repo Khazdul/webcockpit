@@ -347,6 +347,30 @@ describe('fetching runs', () => {
   });
 });
 
+describe('the check of the bodies', () => {
+  it('drops old orphans, keeps young bodies and named ones, and queues an up row whose body is gone', async () => {
+    const f = await fixture();
+    await f.save('a', 100);
+    await f.save('b', 200);
+    await f.queue.run();
+    const sa = f.space.cloud.get('a')!.serverId;
+    const sb = f.space.cloud.get('b')!.serverId;
+    // An orphan made long ago, a young one, and b's body gone.
+    f.server.bodies.set('O'.repeat(22), { bytes: new Uint8Array(5), size: 5, created: f.clock.t - ORPHAN_AGE_MS - 1 });
+    f.server.bodies.set('Y'.repeat(22), { bytes: new Uint8Array(5), size: 5, created: f.clock.t - 1000 });
+    f.server.runBytes += 10;
+    f.server.removeBody(sb);
+    // a is a live item; its body is old, and kept.
+    f.server.bodies.get(sa)!.created = 0;
+    expect(await f.queue.checkBodies(new Set([sa]))).toEqual({ orphans: 1, requeued: 1 });
+    expect([...f.server.bodies.keys()].sort()).toEqual([sa, 'Y'.repeat(22)].sort());
+    expect(state(f, 'b')).toBe('queued');
+    expect(f.queue.room?.usage.runBytes).toBe(f.server.runBytes);
+    expect(await f.queue.run()).toEqual({ type: 'done', uploaded: 1 });
+    expect(f.server.bodies.has(sb)).toBe(true);
+  });
+});
+
 describe('orphans', () => {
   it('are bodies older than a day that no live item or own up row names', () => {
     const now = 10 * ORPHAN_AGE_MS;

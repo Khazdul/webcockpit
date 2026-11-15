@@ -4,7 +4,8 @@
 //
 //   plaintext = {"type":"webcockpit-run-body","v":1}\n
 //               the run's lines as the runs backup writes them
-//               (src/runs/backup-format.ts: its meta, its events, its chunks)
+//               (src/runs/backup-format.ts: its meta, its events, its chunks;
+//               the meta without its rating, which lives in the `run` item)
 //   body      = encryptBody(dataKey, "run", serverId, gzip(plaintext))
 //
 // Reading goes the other way as a stream: decrypt (every segment
@@ -66,12 +67,24 @@ export function runBodyHeader(): string {
   return JSON.stringify({ type: RUN_BODY_TYPE, v: RUN_BODY_VERSION }) + '\n';
 }
 
+/**
+ * The rows a body holds: the run as it was sealed, without its rating. The
+ * rating is the one thing of a saved run that changes; it lives in the
+ * `run` item (whose meta wins when a run is fetched), so a body sealed
+ * again from the same run, here or on a device that fetched it, is the same
+ * plaintext and so the same size as the item says.
+ */
+export function bodyRows(rows: RunRows): RunRows {
+  const { rating: _r, ...meta } = rows.meta;
+  return { ...rows, meta };
+}
+
 /** The plaintext of a run's body as a stream of UTF-8, in pieces of about 64 KB. */
 export function runBodyPlaintext(rows: RunRows): ReadableStream<Uint8Array> {
   const enc = new TextEncoder();
   const lines = (function* () {
     yield runBodyHeader();
-    yield* runLines(rows);
+    yield* runLines(bodyRows(rows));
   })();
   return new ReadableStream<Uint8Array>({
     pull(controller) {

@@ -616,11 +616,12 @@ const clone = <T>(x: T): T => structuredClone(x);
  * kinds' side of `LocalItems` as the IndexedDB adapter must keep them
  * (ADR 0153, stage 63 C1):
  *
- * - `run`: a run here is listed once its row is `up`, or while the
- *   account already has its item (a live sync record: a run put back in
- *   the queue after an edit beat a delete); a `remote` or `fetching` row
- *   is listed with its meta. `put` of a run here takes the meta; of one
- *   not here makes a `remote` row. `remove` deletes the run, its row and
+ * - `run`: a run here is listed once its row is `up`, or while it is
+ *   `queued` and the account already has its item (a live sync record: a
+ *   run put back in the queue after an edit beat a delete; should that
+ *   upload end `full` or `tooLarge`, the item goes); a `remote` or `fetching` row
+ *   is listed with its meta. `put` of a run here takes the meta (and an
+ *   `up` row the item's size); of one not here makes a `remote` row. `remove` deletes the run, its row and
  *   the export doc of its session (one run per session in the model).
  * - `exportDoc`: listed for a session with a run (here or `remote`), or
  *   while the account has it.
@@ -629,6 +630,8 @@ export class MemoryRunSpace implements RunCloudStore {
   readonly runs = new Map<string, RunRows>();
   readonly cloud = new Map<string, RunCloudRow>();
   readonly docs = new Map<string, ExportDoc>();
+  /** Runs the player deleted whose body is to go once the tombstone is pushed: run id → server id. */
+  readonly bodyDeletes = new Map<string, string>();
 
   constructor(
     private readonly records: MemoryRecords,
@@ -678,7 +681,7 @@ export class MemoryRunSpace implements RunCloudStore {
       const out: LocalItem[] = [];
       for (const [id, r] of this.runs) {
         const row = this.cloud.get(id);
-        if (row && (row.state === 'up' || this.agreed('run', id))) out.push({ key: id, body: { runId: id, meta: clone(r.meta), size: row.size } as unknown as Body });
+        if (row && (row.state === 'up' || (row.state === 'queued' && this.agreed('run', id)))) out.push({ key: id, body: { runId: id, meta: clone(r.meta), size: row.size } as unknown as Body });
       }
       for (const row of this.cloud.values()) {
         if (this.runs.has(row.runId) || (row.state !== 'remote' && row.state !== 'fetching') || !row.meta) continue;
@@ -705,6 +708,8 @@ export class MemoryRunSpace implements RunCloudStore {
       const row = this.cloud.get(it.runId);
       if (here) {
         here.meta = clone(it.meta);
+        // The item's size is the account's (a body sealed again elsewhere may differ by a byte).
+        if (row && row.state === 'up') this.cloud.set(it.runId, { ...row, size: it.size });
         if (!row) this.cloud.set(it.runId, { runId: it.runId, state: 'up', serverId: await this.serverIdOf(it.runId), size: it.size, tries: 0, at: this.clock.now(), startedUs: it.meta.startedUs });
       } else {
         this.cloud.set(it.runId, {
@@ -718,6 +723,24 @@ export class MemoryRunSpace implements RunCloudStore {
           meta: clone(it.meta),
         });
       }
+    }
+  }
+
+  /** The player's Delete: as a tombstone's, and its body to go after the next sync (`bodyDeletes`). */
+  deleteByPlayer(runId: string, serverId: string): void {
+    this.deleteRun(runId);
+    this.bodyDeletes.set(runId, serverId);
+  }
+
+  /**
+   * After a sync that ended `synced`: the bodies of deleted runs whose
+   * tombstone went through go; a run that came back (an edit elsewhere
+   * beat the delete) keeps its body.
+   */
+  async afterSync(removeBody: (serverId: string) => Promise<boolean>): Promise<void> {
+    const listed = this.savedRuns();
+    for (const [runId, sid] of [...this.bodyDeletes]) {
+      if (listed.has(runId) || (await removeBody(sid))) this.bodyDeletes.delete(runId);
     }
   }
 

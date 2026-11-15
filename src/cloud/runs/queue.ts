@@ -24,6 +24,10 @@
 // `itemRefused`: the row goes `full` with the same event, and the stored
 // body is deleted at once rather than left as an orphan.
 //
+// `checkBodies(liveIds)` compares the account's bodies with what this
+// device knows: orphans go, an own `up` row whose body is gone is queued
+// again.
+//
 // `fetchRuns(runIds, onProgress)` fetches `remote` rows: per run a GET, the
 // body opened in the worker, written in one transaction with its row `up`;
 // back to `remote` on any failure. Progress is bytes over the rows' sizes.
@@ -276,13 +280,24 @@ export class RunQueue {
     await this.dropBody(row.serverId);
   }
 
-  /** Deletes a body, best effort (an orphan check finds what is left). */
-  private async dropBody(serverId: string): Promise<void> {
+  /**
+   * Deletes a body, best effort: false when the request failed (an orphan
+   * check finds what is left). The space deletes a deleted run's body
+   * only once a sync has pushed its tombstone and the run did not come
+   * back (an edit elsewhere beats the delete, and then the body is still
+   * needed).
+   */
+  async removeBody(serverId: string): Promise<boolean> {
     try {
       this.noteUsage((await this.remote.remove(serverId)).usage);
+      return true;
     } catch {
-      /* left for the orphan check */
+      return false;
     }
+  }
+
+  private async dropBody(serverId: string): Promise<void> {
+    await this.removeBody(serverId);
   }
 
   private noteUsage(usage: SyncUsage): void {
@@ -296,6 +311,34 @@ export class RunQueue {
     this.roomNow = r
       ? { usage: { ...r.usage, runBytes: used }, limits: { ...r.limits, runBytes: limit } }
       : { usage: { items: 0, itemBytes: 0, runBytes: used }, limits: { ...DEFAULT_ACCOUNT_LIMITS, runBytes: limit } };
+  }
+
+  /**
+   * The bodies against what this device knows (at load, and now and then
+   * after a sync; one list request): a body older than a day that neither
+   * a live `run` item (`liveIds`, the server ids of the sync records) nor
+   * an own `up` row names is deleted (an orphan: a body whose item push
+   * never came, a delete made offline); an own `up` row whose body is not
+   * there goes back to `queued` (its body was deleted while an edit here
+   * brought the run back), so the queue puts it back. Also takes the room
+   * from the list's answer. Throws the `RemoteError` of a failed list.
+   */
+  async checkBodies(liveIds: ReadonlySet<string>): Promise<{ orphans: number; requeued: number }> {
+    const list = await this.remote.list();
+    this.setRoom(list.usage, list.limits);
+    const there = new Set(list.bodies.map((b) => b.id));
+    const keep = new Set(liveIds);
+    let requeued = 0;
+    for (const row of await this.store.list()) {
+      if (row.state !== 'up') continue;
+      keep.add(row.serverId);
+      if (there.has(row.serverId)) continue;
+      await this.store.put({ ...row, state: 'queued', at: this.clock.now() });
+      requeued++;
+    }
+    let orphans = 0;
+    for (const id of orphanBodies(list.bodies, keep, this.clock.now())) if (await this.removeBody(id)) orphans++;
+    return { orphans, requeued };
   }
 
   /**

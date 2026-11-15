@@ -56,14 +56,22 @@ async function sealPlain(lines: string[], id = sid, kind = 'run'): Promise<Blob>
 
 const line = (o: unknown): string => JSON.stringify(o) + '\n';
 
+/** What a body gives back of `r`: all of it but the rating (the item's). */
+const back = (r: RunRows): RunRows => {
+  const { rating: _r, ...meta } = r.meta;
+  return { ...r, meta };
+};
+
 describe('a run body', () => {
   it('round-trips a run: meta, events and chunks as restore writes them', async () => {
     const r = rows();
     const blob = await encodeRunBody(keys.dataKey, sid, r);
     expect(blob.size).toBeGreaterThan(0);
-    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob)).toEqual(r);
+    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob)).toEqual(back(r));
     // From a stream too (the fetch's response).
-    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob.stream())).toEqual(r);
+    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob.stream())).toEqual(back(r));
+    // Another rating, the same plaintext: the same size.
+    expect((await encodeRunBody(keys.dataKey, sid, { ...r, meta: { ...r.meta, rating: 1 } })).size).toBe(blob.size);
   });
 
   it('is the header line and the backup lines, gzipped', async () => {
@@ -73,7 +81,7 @@ describe('a run body', () => {
     const ls = text.split('\n');
     expect(ls[0]).toBe(`{"type":"${RUN_BODY_TYPE}","v":1}`);
     expect(ls[0] + '\n').toBe(runBodyHeader());
-    expect(JSON.parse(ls[1]!)).toEqual({ type: 'run', run: r.meta });
+    expect(JSON.parse(ls[1]!)).toEqual({ type: 'run', run: back(r).meta });
     expect(JSON.parse(ls[2]!)).toMatchObject({ type: 'event', runId: 'r1', seq: 0 });
     expect(JSON.parse(ls[4]!)).toMatchObject({ type: 'chunk', runId: 'r1', seq: 0 });
     expect(ls.at(-1)).toBe('');
@@ -85,9 +93,9 @@ describe('a run body', () => {
     for (const c of big.chunks) c.text = Array.from({ length: 300 }, () => Math.random().toString(36).slice(2)).join(' ');
     const blob = await encodeRunBody(keys.dataKey, sid, big);
     expect(blob.size).toBeGreaterThan(1 << 20);
-    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob)).toEqual(big);
+    expect(await decodeRunBody(keys.dataKey, sid, 'r1', blob)).toEqual(back(big));
     const empty = { ...rows('r1', 0), events: [] };
-    expect(await decodeRunBody(keys.dataKey, sid, 'r1', await encodeRunBody(keys.dataKey, sid, empty))).toEqual(empty);
+    expect(await decodeRunBody(keys.dataKey, sid, 'r1', await encodeRunBody(keys.dataKey, sid, empty))).toEqual(back(empty));
   });
 
   it('seals an unsealed meta as restore does', async () => {
@@ -165,7 +173,7 @@ describe('a run body', () => {
     const codec = inlineRunBodyCodec();
     const r = rows();
     const blob = await codec.encode(keys.dataKey, sid, r);
-    expect(await codec.decode(keys.dataKey, sid, 'r1', blob)).toEqual(r);
+    expect(await codec.decode(keys.dataKey, sid, 'r1', blob)).toEqual(back(r));
     expect(await refusal(codec.decode(keys.dataKey, sid, 'r2', blob))).toBe('wrong_run');
   });
 });
