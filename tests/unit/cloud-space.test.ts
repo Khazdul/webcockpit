@@ -4,7 +4,7 @@
 // the hand-back and the words. IndexedDB is fake-indexeddb; the server is
 // the in-memory model of tests/unit/cloud-sync-model.ts behind a fetch.
 
-import { IDBFactory } from 'fake-indexeddb';
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncKind } from '../../shared/cloud/api';
 import { createAccountStore } from '../../src/cloud/account/store';
@@ -94,6 +94,7 @@ beforeEach(async () => {
   vi.stubGlobal('localStorage', local);
   vi.stubGlobal('sessionStorage', session);
   vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('IDBKeyRange', IDBKeyRange);
   resetSpaceForTests();
   resetSpaceConnsForTests();
   resetSyncViewForTests();

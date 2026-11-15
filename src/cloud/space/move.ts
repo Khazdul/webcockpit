@@ -71,7 +71,7 @@ const sum = (c: KindCounts): number => c.profiles + c.scripts;
  */
 export async function beginMove(name: string, deviceLabel: string, now = Date.now()): Promise<{ open: OpenDb; total: KindCounts }> {
   const own = await ownThings(deviceDb);
-  const open = await prepareAccountSpace(name, { fresh: true, deviceLabel });
+  const open = await prepareAccountSpace(name, { fresh: true, deviceLabel, copy: 'all' });
   const written = await writeThings(open, own, { keepIds: true, replaceSeeds: true });
   const source = new Map<string, ProfileRow | ScriptRow>([...own.profiles.map((p) => [`profile:${p.id}`, p] as const), ...own.scripts.map((s) => [`script:${s.id}`, s] as const)]);
   const entry = (kind: 'profile' | 'script', id: string, nm: string): MoveEntry => {
