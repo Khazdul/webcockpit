@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdminReports, RunesBoard } from '../../shared/cloud/api.ts';
 import { DAILY_CRON, runCron } from '../stats.ts';
 import { count, db, emptyTables } from './helpers.ts';
-import { AUTH_KEY, setLimits, signUp } from './share-helpers.ts';
+import { AUTH_KEY, setLimits, oldSignUp, signUp } from './share-helpers.ts';
 import { CENV, DAY, NOW, ccall, cenvOf, note, noted, ok } from './community-helpers.ts';
 import { adminCall } from './admin-call.ts';
 
@@ -95,7 +95,7 @@ describe('Random Runes', () => {
     const id = await noted(alice, 'Buy gold at my shop');
     expect((await report(alice, id)).status).toBe(403);
     const reporters: string[] = [];
-    for (let i = 0; i < 5; i++) reporters.push(await signUp(`reporter${i}`));
+    for (let i = 0; i < 5; i++) reporters.push(await oldSignUp(`reporter${i}`));
     await Promise.all(reporters.map((r) => report(r, id)));
     expect((await board()).notes).toEqual([]);
     const q = await ok<AdminReports>(await adminCall('/api/admin/reports'));

@@ -324,7 +324,7 @@ describe('views and metas', () => {
   const view = (id: string, dev: string, ip: string, now = NOW): Promise<Response> =>
     ccall('POST', `/api/pub/${id}/view`, { device: dev }, { ip, now, headers: { 'content-type': 'application/json' } });
 
-  it('a view counts once per device and once per address (an IPv6 /64 is one) a UTC day', async () => {
+  it('a view counts once per device and once per address (an IPv6 /56 is one: review fix S4) a UTC day', async () => {
     const alice = await signUp('alice');
     const id = await list(alice);
     // Many minted device ids from one address: one view.
@@ -333,10 +333,10 @@ describe('views and metas', () => {
     const d = device();
     await view(id, d, '198.51.100.10');
     await view(id, d, '198.51.100.11');
-    // Two addresses of one /64: one view; another /64: another.
+    // Two addresses of one /56: one view; another /56: another.
     await view(id, device(), '2001:db8:0:1::1');
-    await view(id, device(), '2001:db8:0:1::2');
-    await view(id, device(), '2001:db8:0:2::1');
+    await view(id, device(), '2001:db8:0:2::2');
+    await view(id, device(), '2001:db8:0:100::1');
     expect((await ok<PubMeta>(await ccall('GET', `/api/pub/${id}`))).views).toBe(4);
     // Tomorrow the address counts again.
     await view(id, device(), '198.51.100.9', NOW + DAY);

@@ -327,3 +327,15 @@ test('loading failed: offline with Try again; nothing listed: the empty page', a
   await btnIn(cm(page), 'RETRY').click();
   await expect(rows(page)).toHaveCount(1);
 });
+
+test('a note’s text is clipped to its row: a stored tower of marks paints over nothing (review fix S1)', async ({ page }) => {
+  const s = await setUp(page);
+  // An old row from before the rule (the fake stores what it is given).
+  s.server.addNote('brego', `x${'\u0310\u0311\u0312\u200d'.repeat(60)}`, { ago: 60_000 });
+  await openCommunity(page);
+  const text = notes(page).first().locator('.wc-cy-note-t');
+  expect(await text.evaluate((el) => getComputedStyle(el).overflow)).toBe('hidden');
+  const row = (await notes(page).first().boundingBox())!;
+  const next = (await notes(page).nth(1).boundingBox())!;
+  expect(row.y + row.height).toBeLessThanOrEqual(next.y + 1);
+});

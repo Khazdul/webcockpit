@@ -49,9 +49,9 @@ import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { DEFAULT_ACCOUNT_LIMITS, type AccountLimits, type MyPub, PUB_DESCRIPTION_MAX } from '../../../../shared/cloud/api.ts';
 import { loadAccount } from '../../../cloud/account';
-import { flagOn } from '../../../cloud/config';
 import { communityNews, markCommunitySeen, refreshCommunityNews } from '../../../cloud/community/news';
 import { type PubErrorCode, createPubApi, shareEnabled } from '../../../cloud/pub/api';
+import { communityAllowed } from '../../../cloud/community/allowed';
 import { cleanDescription, cleanTitle, codePointCount, linkPath, linkUrl, sizeWords, typedDescription, typedTitle } from '../../../share/link';
 import { copyText } from '../../kit/clipboard';
 import { Box, BoxBody, Dialog, Field, GlassButton, Icon, LookFlash, Rule, Stars, TextArea, Toggle, lookFrame } from '../../kit/look';
@@ -98,14 +98,6 @@ export interface PublishedView {
 
 const api = createPubApi();
 
-/** True when the community is on (the flag `gallery`; never rejects). */
-async function galleryOn(): Promise<boolean> {
-  try {
-    return await flagOn('gallery');
-  } catch {
-    return false;
-  }
-}
 
 /** New reactions on the runs, summed (each run's counts are capped at 99 by the server). */
 const newOf = (pubs: MyPub[]): number => pubs.reduce((n, p) => n + (p.news ? p.news.votes + p.news.comments : 0), 0);
@@ -137,7 +129,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
   };
 
   useEffect(() => {
-    void Promise.all([shareEnabled(), galleryOn()]).then(([on, g]) => {
+    void Promise.all([shareEnabled(), communityAllowed('read')]).then(([on, g]) => {
       if (!alive.current) return;
       setCommunity(g);
       setShown(on);
@@ -513,8 +505,10 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
   );
   const titleRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLTextAreaElement | null>(null);
-  const t = cleanTitle(title);
-  const d = cleanDescription(desc);
+  // A run listed after the save keeps its texts by the free public text rules (review fix S3).
+  const strict = p.community === true ? listed : p.pub.listed;
+  const t = cleanTitle(title, strict);
+  const d = cleanDescription(desc, strict);
   const changed = t !== p.pub.title || d !== p.pub.description || (p.community === true && listed !== p.pub.listed);
   const canSave = !busy && t !== '' && changed;
   const cancel = (): void => {
@@ -571,7 +565,7 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
     >
       <div class="wc-ac-dlg wc-ac-pubdlg">
         <form class="wc-ac-dform" noValidate {...keys.form}>
-          <Field id="title" label="Title" value={title} disabled={busy} autoFocus={!touchInteraction()} inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v))} />
+          <Field id="title" label="Title" value={title} disabled={busy} autoFocus={!touchInteraction()} inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v, strict))} />
           <TextArea
             id="desc"
             label="Description"
@@ -581,7 +575,7 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
             enterSubmits
             inputRef={descRef}
             hint={<span class="wc-ac-pub-count">{`${n} / ${PUB_DESCRIPTION_MAX}`}</span>}
-            onInput={(v) => setDesc(typedDescription(v))}
+            onInput={(v) => setDesc(typedDescription(v, strict))}
           />
         </form>
         {p.community && (

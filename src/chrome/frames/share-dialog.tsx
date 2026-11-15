@@ -59,7 +59,7 @@ import { DEFAULT_ACCOUNT_LIMITS, PUB_DESCRIPTION_MAX } from '../../../shared/clo
 import { type Account, loadAccount, setPrefs } from '../../cloud/account';
 import { type PubFailure, createPubApi } from '../../cloud/pub/api';
 import type { MyPub } from '../../../shared/cloud/api.ts';
-import { codePointCount, linkMeta, linkUrl, newLinkKey, sizeWords, typedDescription, typedTitle } from '../../share/link';
+import { cleanTitle, codePointCount, linkMeta, linkUrl, newLinkKey, sizeWords, typedDescription, typedTitle } from '../../share/link';
 import type { LinkPayload } from '../../share/link-payload';
 import { copyText } from '../kit/clipboard';
 import { Check, Dialog, Field, GlassButton, Icon, LoadBar, TextArea, lookFrame, useLookPlace } from '../kit/look';
@@ -110,7 +110,8 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const nav = useNav();
   const listed = p.listed === true;
   const onStart = useLookPlace() === 'start';
-  const [title, setTitle] = useState(p.title);
+  // The listed form keeps its texts by the free public text rules (review fix S3).
+  const [title, setTitle] = useState(() => typedTitle(p.title, listed));
   const [desc, setDesc] = useState('');
   const [tick, setTick] = useState(false);
   const [built, setBuilt] = useState<Built | null>(null);
@@ -161,7 +162,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const dayFull = failure?.code === 'too_many';
   const loggedOut = error === LOGGED_OUT;
   const canCreate =
-    phase === 'form' && built?.ok === true && acct !== null && !tooLarge && !suspended && !quota && !dayFull && !loggedOut && title.trim() !== '' && (!rulesShown || tick);
+    phase === 'form' && built?.ok === true && acct !== null && !tooLarge && !suspended && !quota && !dayFull && !loggedOut && cleanTitle(title, listed) !== '' && (!rulesShown || tick);
 
   const close = (): void => {
     abort.current?.abort();
@@ -322,7 +323,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
             autoFocus={!touchInteraction()}
             inputRef={titleRef}
             hint={p.titleIsDefault && title === p.title ? TITLE_HINT : undefined}
-            onInput={(v) => setTitle(typedTitle(v))}
+            onInput={(v) => setTitle(typedTitle(v, listed))}
           />
           <TextArea
             id="desc"
@@ -334,7 +335,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
             placeholder={DESC_PLACEHOLDER}
             inputRef={descRef}
             hint={<span class={'wc-sh-count' + (n >= PUB_DESCRIPTION_MAX ? ' is-full' : '')}>{`${n} / ${PUB_DESCRIPTION_MAX}`}</span>}
-            onInput={(v) => setDesc(typedDescription(v))}
+            onInput={(v) => setDesc(typedDescription(v, listed))}
           />
         </form>
         <p class={'wc-sh-size' + (tooLarge ? ' is-over' : '')} data-size={bytes ?? undefined}>

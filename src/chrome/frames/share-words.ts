@@ -53,6 +53,9 @@ export const RULES_NEEDED = 'Tick the rules first: the server has no tick from t
 export const LOGGED_OUT = 'You were logged out here. Log in again on the start page, then share.';
 export const NOT_BUILT = 'This run could not be made into a link: the replay could not be built.';
 
+/** A listed run's title, description or character name the Community cannot show (review fix S3: `400 bad_text`). */
+export const BAD_LISTED_TEXT = 'The title, description or character name has characters the Community does not show. Change them, or keep the run link only.';
+
 /** What a failed Create link says (none for a cancel). */
 export function createFailureWords(code: PubErrorCode, limit?: number): string {
   switch (code) {
@@ -77,6 +80,8 @@ export function createFailureWords(code: PubErrorCode, limit?: number): string {
       return 'Too many tries from this network. Wait a minute, then try again.';
     case 'too_many':
       return hofTooManyWords(limit ?? 10);
+    case 'bad_text':
+      return BAD_LISTED_TEXT;
     case 'unavailable':
       return 'The service is down just now. Try again later.';
     case 'cancelled':
@@ -121,11 +126,8 @@ export function pubViewHead(o: { count: number; limit: number; size: string; run
   return `${o.count} of ${o.limit} · ${o.size}, not counted against your ${o.runBytes}`;
 }
 
-/** A run's stars: "4.3" (the mean to a tenth), or null without votes. */
-export function meanWords(stars: { sum: number; count: number } | undefined): string | null {
-  if (!stars || stars.count <= 0) return null;
-  return (Math.round((stars.sum / stars.count) * 10) / 10).toFixed(1);
-}
+/** A run's stars: "4.3" (the mean to a tenth), or null without votes: the community's formatter (review fix CR6). */
+export { meanText as meanWords } from '../../cloud/community/format';
 export const PUB_HIDDEN = 'Hidden after reports. Only you can watch it until we have looked.';
 export const EDIT_NOTE = 'The run itself stays as it was cut.';
 export const REMOVE_NOTE = 'The link stops working; whoever opens it is told that the run was removed by its sender. This cannot be undone.';
@@ -157,6 +159,8 @@ export function pubFailureWords(code: PubErrorCode, what: 'list' | 'edit' | 'rem
       return 'You have listed as many runs as you may today. List it tomorrow; turn the switch off to save the rest now.';
     case 'hidden':
       return 'This run is hidden after reports: it cannot be changed until we have looked.';
+    case 'bad_text':
+      return BAD_LISTED_TEXT;
     case 'rate_limited':
       return 'Too many tries from this network. Wait a minute, then try again.';
     case 'unavailable':

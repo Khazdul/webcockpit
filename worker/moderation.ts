@@ -122,35 +122,26 @@ function guarded(h: (request: Request, env: Env, db: D1, url: URL, now: number, 
 // --- GET /api/admin/reports ---
 
 async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: number): Promise<Response> {
-  const [items, comments, notes, reasons, texts, totals, noteCount] = await db.batch<Record<string, unknown>>([
+  // The queue in one query (review fix CR8): runs, comments (with their
+  // run) and notes, each with the reported text, ordered and cut together.
+  const open = 'r.handled = 0 GROUP BY r.kind, r.target';
+  const counts = 'r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest';
+  const [queue, reasons, texts, totals, noteCount] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
-                p.title, p.state, p.hidden_reason, COALESCE(a.name, '') AS sender
-         FROM report r JOIN publication p ON r.kind = 'run' AND p.id = r.target
-         LEFT JOIN account a ON a.id = p.account
-         WHERE r.handled = 0 AND p.state IN ('active', 'hidden')
-         GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
-      )
-      .bind(QUEUE_MAX),
-    // Stage 65: comments (with their run) and notes, with the reported text.
-    db
-      .prepare(
-        `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
-                COALESCE(p.title, '') AS title, c.state, c.hidden_reason, COALESCE(a.name, '') AS sender, c.text AS content, c.publication AS pub
+        `SELECT ${counts}, p.title, p.state, p.hidden_reason, COALESCE(a.name, '') AS sender, NULL AS content, NULL AS pub
+         FROM report r JOIN publication p ON r.kind = 'run' AND p.id = r.target LEFT JOIN account a ON a.id = p.account
+         WHERE p.state IN ('active', 'hidden') AND ${open}
+         UNION ALL
+         SELECT ${counts}, COALESCE(p.title, '') AS title, c.state, c.hidden_reason, COALESCE(a.name, '') AS sender, c.text AS content, c.publication AS pub
          FROM report r JOIN comment c ON r.kind = 'comment' AND c.id = r.target
          LEFT JOIN publication p ON p.id = c.publication LEFT JOIN account a ON a.id = c.account
-         WHERE r.handled = 0 AND c.state IN ('active', 'hidden')
-         GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
-      )
-      .bind(QUEUE_MAX),
-    db
-      .prepare(
-        `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
-                '' AS title, n.state, n.hidden_reason, COALESCE(a.name, '') AS sender, n.text AS content
+         WHERE c.state IN ('active', 'hidden') AND ${open}
+         UNION ALL
+         SELECT ${counts}, '' AS title, n.state, n.hidden_reason, COALESCE(a.name, '') AS sender, n.text AS content, NULL AS pub
          FROM report r JOIN note n ON r.kind = 'note' AND n.id = r.target LEFT JOIN account a ON a.id = n.account
-         WHERE r.handled = 0 AND n.state IN ('active', 'hidden')
-         GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
+         WHERE n.state IN ('active', 'hidden') AND ${open}
+         ORDER BY reporters DESC, newest DESC LIMIT ?1`,
       )
       .bind(QUEUE_MAX),
     db.prepare('SELECT kind, target, reason, COUNT(*) AS n FROM report WHERE handled = 0 GROUP BY kind, target, reason'),
@@ -182,10 +173,7 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
   }
   const textOfItem = new Map<string, string>();
   for (const r of texts?.results ?? []) textOfItem.set(key(r), r.text as string);
-  const all = [...(items?.results ?? []), ...(comments?.results ?? []), ...(notes?.results ?? [])]
-    .sort((x, y) => Number(y.reporters) - Number(x.reporters) || Number(y.newest) - Number(x.newest))
-    .slice(0, QUEUE_MAX);
-  const out: AdminReportItem[] = all.map((r) => {
+  const out: AdminReportItem[] = (queue?.results ?? []).map((r) => {
     const item: AdminReportItem = {
       kind: r.kind as ReportKind,
       target: r.target as string,
@@ -335,7 +323,9 @@ async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env,
   // A comment's run counts its visible comments: the count moves with the state.
   const count = (sign: '+' | '-', from: string): void => {
     if (kind === 'comment') {
-      statements.push(db.prepare(`UPDATE publication SET comment_count = comment_count ${sign} 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = '${from}')`).bind(id));
+      // Only a comment whose writer is active counts (review fix S8).
+      const writer = `EXISTS (SELECT 1 FROM account w WHERE w.id = c.account AND w.state = 'active')`;
+      statements.push(db.prepare(`UPDATE publication SET comment_count = comment_count ${sign} 1 WHERE id = (SELECT c.publication FROM comment c WHERE c.id = ?1 AND c.state = '${from}' AND ${writer})`).bind(id));
     }
   };
   if (action === 'delete') {

@@ -5,7 +5,7 @@
 //   GET    /api/gallery?sort=&period=&page=&by=   the list (public, cached 60 s)
 //   GET    /api/community                     the Hall of Fame boxes (public, cached 60 s)
 //   GET    /api/runes                         the board (public, cached 60 s; `runes`)
-//   GET    /api/pub/<id>/comments?page=       a run's comments (public; reached through worker/pub.ts)
+//   GET    /api/pub/<id>/comments?before=     a run's comments, newest page first (public; reached through worker/pub.ts)
 //   GET|PUT|DELETE /api/u/pub/<id>/vote      one's vote
 //   POST   /api/u/pub/<id>/comments           a comment
 //   DELETE /api/u/comments/<id>               the writer's or the run's sender's
@@ -31,6 +31,7 @@ import {
   DAY_RUN_DESCRIPTION_MAX,
   type DayRun,
   type CommunitySeen,
+  COMMENT_CURSOR_PATTERN,
   COMMENT_MAX,
   COMMENT_NEWLINES_MAX,
   COMMENTS_PAGE_SIZE,
@@ -65,7 +66,7 @@ import {
 import { isPublicText } from '../shared/cloud/text.ts';
 import { hasKeys, limitsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
-import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
+import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
@@ -182,27 +183,21 @@ const ORDER: Record<GallerySort, string> = {
 
 /**
  * Listed active runs, listed at or after `since`, in `sort`'s order; only
- * the account whose `name_key` is `by` when it is given.
+ * the account `by` (its id) when it is given.
  */
-async function listRows(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): Promise<GalleryRow[]> {
+function listRowsQuery(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): D1Statement {
   const mean = sort === 'top' ? `, (SELECT ${MEAN} AS mean) m` : '';
-  const { results } = await db
+  return db
     .prepare(
       `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account${mean}
-       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR a.name_key = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
+       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
     )
-    .bind(since, limit, offset, by)
-    .all<ListRow>();
-  return results.map(galleryRow);
+    .bind(since, limit, offset, by);
 }
 
-/** How many runs `listRows` can reach (the pager's "of N"), at most GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX. */
-async function countRows(db: D1, since: number, by: string | null): Promise<number> {
-  const row = await db
-    .prepare(`SELECT COUNT(*) AS n FROM publication p JOIN account a ON a.id = p.account WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR a.name_key = ?2)`)
-    .bind(since, by)
-    .first<{ n: number }>();
-  return Math.min(row?.n ?? 0, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
+/** How many runs `listRows` can reach (the pager's "of N", cut to GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX by the caller). */
+function countRowsQuery(db: D1, since: number, by: string | null): D1Statement {
+  return db.prepare(`SELECT COUNT(*) AS n FROM publication p WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR p.account = ?2)`).bind(since, by);
 }
 
 // --- Public paths ---
@@ -263,14 +258,27 @@ export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPer
 async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Response> {
   const q = galleryParams(url);
   if (!q) return badRequest();
+  const empty = (): Response => json({ sort: q.sort, period: q.period, page: q.page, rows: [], more: false, total: 0, time: now } satisfies GalleryPage, 200, PUBLIC_CACHE);
+  // A sender's list (review fix S9): the name first, one indexed lookup; an
+  // unknown (or deleted) name is an empty page, without the list's queries
+  // and without a cache entry of its own, so made-up names cost little.
+  let by: string | null = null;
+  if (q.by !== undefined) {
+    const row = q.by === '' ? null : await db.prepare('SELECT id FROM account WHERE name_key = ?1').bind(q.by).first<{ id: string }>();
+    if (!row) return empty();
+    by = row.id;
+  }
   const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
   return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, async () => {
     const days = GALLERY_PERIOD_DAYS[q.period];
     const since = days === null ? 0 : now - days * DAY_MS;
-    const by = q.by ?? null;
-    const rows = by === '' ? [] : await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by);
+    const [list, count] = await db.batch<Record<string, unknown>>([
+      listRowsQuery(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by),
+      countRowsQuery(db, since, by),
+    ]);
+    const rows = ((list?.results ?? []) as unknown as ListRow[]).map(galleryRow);
     const more = rows.length > GALLERY_PAGE_SIZE && q.page < GALLERY_PAGES_MAX;
-    const total = by === '' ? 0 : await countRows(db, since, by);
+    const total = Math.min(Number(count?.results[0]?.n ?? 0), GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
     const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, time: now };
     return json(answer, 200, PUBLIC_CACHE);
   });
@@ -282,15 +290,15 @@ async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Respo
  * (fixed for the day, not guessable ahead). Without the secret (a host
  * without it) a SHA-256, which is only fixed.
  */
-async function runOfDay(env: Env, ids: { id: string; listed_at: number }[], day: string): Promise<string | null> {
-  const start = dayStart(day);
+async function runOfDay(env: Env, ids: { id: string }[], day: string): Promise<string | null> {
   const pepper = env.AUTH_PEPPER ?? '';
+  // The key once per request, not once per run (review fix CR5).
+  const key = pepper.length >= 16 ? await hmacKey(utf8(pepper)) : null;
   let best: string | null = null;
   let bestMac = '';
   for (const r of ids) {
-    if (r.listed_at >= start) continue;
     const text = `wc-day-run|${day}|${r.id}`;
-    const mac = toB64url(pepper.length >= 16 ? await hmac(utf8(pepper), text) : await sha256(utf8(text)));
+    const mac = toB64url(key ? await hmacWith(key, text) : await sha256(utf8(text)));
     if (best === null || mac < bestMac) {
       best = r.id;
       bestMac = mac;
@@ -310,13 +318,22 @@ async function dayRun(db: D1, id: string | null): Promise<DayRun | null> {
 }
 
 async function boxes(env: Env, db: D1, now: number): Promise<Response> {
-  const { results: ids } = await db.prepare(`SELECT p.id, p.listed_at FROM publication p WHERE ${LISTED}`).all<{ id: string; listed_at: number }>();
+  const day = utcDay(now);
+  // The independent reads in one batch (review fix CR5): the runs the run
+  // of the day is drawn from (listed before the day began) and the Hall of
+  // Fame; MUME's boxes beside it (readMume keeps its own failure apart).
+  const [[ids, hall], mume] = await Promise.all([
+    db.batch<Record<string, unknown>>([
+      db.prepare(`SELECT p.id FROM publication p WHERE ${LISTED} AND p.listed_at < ?1`).bind(dayStart(day)),
+      listRowsQuery(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
+    ]),
+    readMume(db, now),
+  ]);
   const answer: CommunityBoxes = {
-    hallOfFame: await listRows(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
-    today: await dayRun(db, await runOfDay(env, ids, utcDay(now))),
+    hallOfFame: ((hall?.results ?? []) as unknown as ListRow[]).map(galleryRow),
+    today: await dayRun(db, await runOfDay(env, (ids?.results ?? []) as { id: string }[], day)),
     time: now,
   };
-  const mume = await readMume(db, now);
   if (mume) answer.mume = mume;
   return json(answer, 200, PUBLIC_CACHE);
 }
@@ -325,31 +342,56 @@ async function runes(db: D1, now: number): Promise<Response> {
   const { results } = await db
     .prepare(
       `SELECT n.id, a.name AS writer, n.text, n.created FROM note n JOIN account a ON a.id = n.account
-       WHERE n.state = 'active' AND n.created > ?1 ORDER BY n.created DESC, n.id DESC LIMIT ?2`,
+       WHERE n.state = 'active' AND a.state = 'active' AND n.created > ?1 ORDER BY n.created DESC, n.id DESC LIMIT ?2`,
     )
     .bind(now - NOTE_DAYS * DAY_MS, RUNES_SHOWN)
     .all<{ id: string; writer: string; text: string; created: number }>();
   return json({ notes: results, time: now } satisfies RunesBoard, 200, PUBLIC_CACHE);
 }
 
-/** `GET /api/pub/<id>/comments?page=N|last` (worker/pub.ts has checked the flags, the limit and the id). */
+/**
+ * `GET /api/pub/<id>/comments[?before=<created>.<id>]`, or `?page=N|last`
+ * of clients before review fix CR1 (worker/pub.ts has checked the flags,
+ * the limit and the id).
+ */
 export async function commentsGet(db: D1, id: string, url: URL): Promise<Response> {
-  const p = url.searchParams.get('page') ?? 'last';
-  if (p !== 'last' && !/^[1-9]\d{0,5}$/.test(p)) return badRequest();
+  const p = url.searchParams.get('page');
+  const b = url.searchParams.get('before');
+  if (p !== null && b !== null) return badRequest();
+  if (p !== null && p !== 'last' && !/^[1-9]\d{0,5}$/.test(p)) return badRequest();
+  const cursor = b === null ? null : COMMENT_CURSOR_PATTERN.exec(b);
+  if (b !== null && !cursor) return badRequest();
   const row = await db.prepare('SELECT state, comment_count FROM publication WHERE id = ?1').bind(id).first<{ state: PubRowState; comment_count: number }>();
   const refused = stateAnswer(row);
   if (refused || !row) return refused ?? notFound();
   const total = row.comment_count;
   const pages = Math.max(1, Math.ceil(total / COMMENTS_PAGE_SIZE));
-  const page = p === 'last' ? pages : Number(p);
-  const { results } = await db
-    .prepare(
-      `SELECT c.id, a.name AS writer, c.text, c.created FROM comment c JOIN account a ON a.id = c.account
-       WHERE c.publication = ?1 AND c.state = 'active' ORDER BY c.created, c.id LIMIT ?2 OFFSET ?3`,
-    )
-    .bind(id, COMMENTS_PAGE_SIZE, (page - 1) * COMMENTS_PAGE_SIZE)
-    .all<{ id: string; writer: string; text: string; created: number }>();
-  return json({ comments: results, page, pages, total } satisfies CommentPage);
+  const page = p === null ? null : p === 'last' ? pages : Number(p);
+  // Newest first from the cursor (or from the newest end, `pages - page` pages
+  // in), one more than a page to know whether older ones are left.
+  const offset = page === null ? 0 : Math.max(0, pages - page) * COMMENTS_PAGE_SIZE;
+  const { results } =
+    page !== null && page > pages
+      ? { results: [] }
+      : await db
+          .prepare(
+            `SELECT c.id, a.name AS writer, c.text, c.created FROM comment c JOIN account a ON a.id = c.account
+             WHERE c.publication = ?1 AND c.state = 'active' AND a.state = 'active'
+             AND (?2 IS NULL OR c.created < ?2 OR (c.created = ?2 AND c.id < ?3))
+             ORDER BY c.created DESC, c.id DESC LIMIT ?4 OFFSET ?5`,
+          )
+          .bind(id, cursor ? Number(cursor[1]) : null, cursor ? cursor[2] : null, COMMENTS_PAGE_SIZE + 1, offset)
+          .all<{ id: string; writer: string; text: string; created: number }>();
+  const more = results.length > COMMENTS_PAGE_SIZE;
+  const comments = results.slice(0, COMMENTS_PAGE_SIZE).reverse();
+  const answer: CommentPage = { comments, total, more };
+  const oldest = comments[0];
+  if (more && oldest) answer.before = `${oldest.created}.${oldest.id}`;
+  if (page !== null) {
+    answer.page = page;
+    answer.pages = pages;
+  }
+  return json(answer);
 }
 
 // --- /api/u/* ---
@@ -515,11 +557,29 @@ export function moveVotes(db: D1, sign: '+' | '-', when: string, binds: unknown[
     .bind(...binds);
 }
 
-/** Suspend (`suspended`) or Restore (`active`): the votes move with the state, only on a change (moderation.ts). */
+/**
+ * A comment counts in its run's `comment_count` (and is shown) only while
+ * it is active and its writer is (review fix S8): the condition on a
+ * comment row `c`.
+ */
+export const COUNTED = `c.state = 'active' AND EXISTS (SELECT 1 FROM account w WHERE w.id = c.account AND w.state = 'active')`;
+
+/**
+ * Suspend (`suspended`) or Restore (`active`): the votes and the
+ * `comment_count` of the account's visible comments move with the state,
+ * only on a change (moderation.ts; review fix S8 for the comments).
+ */
 export function stateChange(db: D1, accountId: string, state: 'active' | 'suspended'): D1Statement[] {
   const from = state === 'suspended' ? 'active' : 'suspended';
+  const sign = state === 'suspended' ? '-' : '+';
   return [
-    moveVotes(db, state === 'suspended' ? '-' : '+', `(SELECT state FROM account WHERE id = ?1) = ?2`, [accountId, from]),
+    moveVotes(db, sign, `(SELECT state FROM account WHERE id = ?1) = ?2`, [accountId, from]),
+    db
+      .prepare(
+        `UPDATE publication SET comment_count = comment_count ${sign} (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.account = ?1 AND c.state = 'active')
+         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND (SELECT state FROM account WHERE id = ?1) = ?2`,
+      )
+      .bind(accountId, from),
     db.prepare('UPDATE account SET state = ?2 WHERE id = ?1').bind(accountId, state),
   ];
 }
@@ -539,7 +599,7 @@ export function deletionStatements(db: D1, still: string, accountId: string, has
     db
       .prepare(
         `UPDATE publication SET comment_count = comment_count - (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.account = ?1 AND c.state = 'active')
-         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND ${still}`,
+         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND ${still} AND (SELECT state FROM account WHERE id = ?1) <> 'suspended'`,
       )
       .bind(accountId, hash),
     db
@@ -615,6 +675,9 @@ async function commentDelete(c: PubCtx): Promise<Response> {
     .bind(id)
     .first<{ account: string; state: string; owner: string | null }>();
   if (!row || (row.account !== account.id && row.owner !== account.id)) return notFound();
+  // Hidden after reports or by the admin: it stays, with its reports open,
+  // until the admin has looked (review fix S7).
+  if (row.state === 'hidden') return error('hidden', 403);
   // Removed already: done (a retry after a lost answer).
   if (row.state !== 'removed') await c.db.batch(removeComment(c.db, id, c.now));
   return done();
@@ -624,12 +687,15 @@ async function commentDelete(c: PubCtx): Promise<Response> {
  * A comment removed by its writer or the run's sender: the count first
  * (only an active one counts), its reports handled, then the row without
  * its text (kept an hour for the hourly limit; the daily cron deletes it).
+ * Only while it is active: one hidden meanwhile keeps its text and its
+ * reports for the admin (review fix S7).
  */
 function removeComment(db: D1, id: string, now: number): D1Statement[] {
+  const active = `EXISTS (SELECT 1 FROM comment WHERE id = ?1 AND state = 'active')`;
   return [
-    db.prepare(`UPDATE publication SET comment_count = comment_count - 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = 'active')`).bind(id),
-    db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'comment' AND target = ?1`).bind(id, now),
-    db.prepare(`UPDATE comment SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state <> 'removed'`).bind(id),
+    db.prepare(`UPDATE publication SET comment_count = comment_count - 1 WHERE id = (SELECT c.publication FROM comment c WHERE c.id = ?1 AND ${COUNTED})`).bind(id),
+    db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'comment' AND target = ?1 AND ${active}`).bind(id, now),
+    db.prepare(`UPDATE comment SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
   ];
 }
 
@@ -668,11 +734,14 @@ async function noteDelete(c: PubCtx): Promise<Response> {
   if (!id) return notFound();
   const row = await c.db.prepare('SELECT state FROM note WHERE id = ?1 AND account = ?2').bind(id, account.id).first<{ state: string }>();
   if (!row) return notFound();
+  // Hidden: it stays for the admin with its reports open (review fix S7).
+  if (row.state === 'hidden') return error('hidden', 403);
   if (row.state !== 'removed') {
-    // The row stays, without its text, until the day's limit has passed (the daily cron).
+    // The row stays, without its text, until the day's limit has passed (the daily cron). Only while active (S7).
+    const active = `EXISTS (SELECT 1 FROM note WHERE id = ?1 AND state = 'active')`;
     await c.db.batch([
-      c.db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target = ?1`).bind(id, c.now),
-      c.db.prepare(`UPDATE note SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state <> 'removed'`).bind(id),
+      c.db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target = ?1 AND ${active}`).bind(id, c.now),
+      c.db.prepare(`UPDATE note SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
     ]);
   }
   return done();
@@ -684,12 +753,12 @@ async function news(c: PubCtx): Promise<Response> {
   const account = me(c);
   const runs = `FROM publication p WHERE ${LISTED} AND p.listed_at > ?2 AND p.account <> ?1`;
   const votes = `FROM vote v JOIN publication p ON p.id = v.publication WHERE p.account = ?1 AND p.state = 'active' AND v.updated > ?3 AND v.account <> ?1`;
-  const comments = `FROM comment k JOIN publication p ON p.id = k.publication WHERE p.account = ?1 AND p.state = 'active' AND k.state = 'active' AND k.created > ?3 AND k.account <> ?1`;
+  const comments = `FROM comment c JOIN publication p ON p.id = c.publication WHERE p.account = ?1 AND p.state = 'active' AND ${COUNTED} AND c.created > ?3 AND c.account <> ?1`;
   const row = await c.db
     .prepare(
       `SELECT (SELECT COUNT(*) FROM (SELECT 1 ${runs} LIMIT ?4)) AS runs, (SELECT MAX(p.listed_at) ${runs}) AS newest_run,
               (SELECT COUNT(*) FROM (SELECT 1 ${votes} LIMIT ?4)) AS votes, (SELECT MAX(v.updated) ${votes}) AS newest_vote,
-              (SELECT COUNT(*) FROM (SELECT 1 ${comments} LIMIT ?4)) AS comments, (SELECT MAX(k.created) ${comments}) AS newest_comment`,
+              (SELECT COUNT(*) FROM (SELECT 1 ${comments} LIMIT ?4)) AS comments, (SELECT MAX(c.created) ${comments}) AS newest_comment`,
     )
     .bind(account.id, account.gallery_seen, account.reactions_seen, NEWS_MAX)
     .first<{ runs: number; newest_run: number | null; votes: number; newest_vote: number | null; comments: number; newest_comment: number | null }>();

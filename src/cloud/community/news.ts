@@ -16,7 +16,9 @@
 //
 // `markCommunitySeen` posts `/api/u/community/seen` and clears the counts it
 // covers locally at once, so the rows lose their mark without waiting for
-// the next round.
+// the next round. An answer whose request started before a mark is cleared
+// the same way when it comes (review fix CR2: an epoch, as counter.ts has),
+// so it never brings back counts the mark has cleared.
 //
 // Small on purpose: the start page (the chrome chunk) imports it
 // statically, so it imports no value of shared/cloud/api.ts (`NEWS_MAX`
@@ -65,6 +67,9 @@ export async function newsEnabled(): Promise<boolean> {
 
 let deps: NewsDeps = {};
 let last: CommunityNews | null = null;
+/** Grows with every mark (CR2); the newest times marked here. */
+let epoch = 0;
+let marked: CommunitySeenRequest = {};
 const fns = new Set<(n: CommunityNews | null) => void>();
 let asking: Promise<CommunityNews | null> | null = null;
 
@@ -111,6 +116,7 @@ export function refreshCommunityNews(): Promise<CommunityNews | null> {
       const f = fetcher();
       if (!f) return last;
       const s = signal();
+      const was = epoch;
       const res = await f('/api/u/community/news', {
         credentials: 'same-origin',
         cache: 'no-store',
@@ -118,8 +124,10 @@ export function refreshCommunityNews(): Promise<CommunityNews | null> {
         ...(s ? { signal: s } : {}),
       });
       if (!res.ok) return last;
-      const n = parseCommunityNews(await res.json());
-      if (!n) return last;
+      const parsed = parseCommunityNews(await res.json());
+      if (!parsed) return last;
+      // Asked before a mark: what the mark covers stays cleared.
+      const n = was === epoch ? parsed : covered(parsed, marked);
       last = n;
       tell();
       return n;
@@ -130,6 +138,14 @@ export function refreshCommunityNews(): Promise<CommunityNews | null> {
     }
   })();
   return asking;
+}
+
+/** `n` with the counts that seen times `m` cover cleared (all of a count's items are as old as its time or older). */
+function covered(n: CommunityNews, m: CommunitySeenRequest): CommunityNews {
+  const out = { ...n };
+  if (m.gallery !== undefined && (out.newestRun === null || out.newestRun <= m.gallery)) out.runs = 0;
+  if (m.reactions !== undefined && (out.newestReaction === null || out.newestReaction <= m.reactions)) out.reactions = 0;
+  return out;
 }
 
 /**
@@ -143,10 +159,11 @@ export async function markCommunitySeen(req: CommunitySeenRequest): Promise<bool
   if (whole(req.gallery)) body.gallery = req.gallery;
   if (whole(req.reactions)) body.reactions = req.reactions;
   if (body.gallery === undefined && body.reactions === undefined) return false;
+  epoch++;
+  if (body.gallery !== undefined) marked.gallery = Math.max(marked.gallery ?? 0, body.gallery);
+  if (body.reactions !== undefined) marked.reactions = Math.max(marked.reactions ?? 0, body.reactions);
   if (last) {
-    const n = { ...last };
-    if (body.gallery !== undefined && (n.newestRun === null || n.newestRun <= body.gallery)) n.runs = 0;
-    if (body.reactions !== undefined && (n.newestReaction === null || n.newestReaction <= body.reactions)) n.reactions = 0;
+    const n = covered(last, body);
     if (n.runs !== last.runs || n.reactions !== last.reactions) {
       last = n;
       tell();
@@ -223,6 +240,8 @@ export function setNewsDepsForTest(d: NewsDeps): void {
   deps = d;
   last = null;
   asking = null;
+  epoch = 0;
+  marked = {};
   fns.clear();
   if (stopCadence) stopCadence();
   stopCadence = null;

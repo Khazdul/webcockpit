@@ -1146,21 +1146,36 @@ export interface Comment {
 export const COMMUNITY_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
 
 /**
- * `GET /api/pub/<id>/comments?page=N|last` (public, `no-store`) →
- * `CommentPage`: pages of `COMMENTS_PAGE_SIZE`, oldest first ("newest
- * last"); `page=last` (the default) is the last page. Hidden comments are
- * in no one's list. The run's states answer as its meta (`404`, `410`,
- * `451`). A page past the end is empty. `400 bad_request` for a page that
- * is not a whole number ≥ 1 or `last`.
+ * `GET /api/pub/<id>/comments[?before=<cursor>]` (public, `no-store`) →
+ * `CommentPage`: the newest `COMMENTS_PAGE_SIZE` comments (older than the
+ * cursor when given), oldest first ("newest last"). `more` when older ones
+ * are left; `before` is then the cursor that asks for them (review fix
+ * CR1: a cursor, so a comment removed meanwhile skips none). Hidden
+ * comments and those of a suspended writer are in no one's list. The
+ * run's states answer as its meta (`404`, `410`, `451`). `400
+ * bad_request` for a cursor that is not one.
+ *
+ * Kept for clients of before the fix: `?page=N|last` answers pages counted
+ * from the newest end (`last`, the same as `pages`, is the newest 50; page
+ * 1 the oldest, maybe short) with `page` and `pages` added. A page past the
+ * end is empty; `400` for a page that is not a whole number ≥ 1 or `last`.
  */
 export interface CommentPage {
   comments: Comment[];
-  page: number;
-  /** At least 1. */
-  pages: number;
   /** Visible comments of the run. */
   total: number;
+  /** Older comments are left (ask with `before`). */
+  more: boolean;
+  /** The cursor of the next older page (`<created>.<id>` of the oldest comment here); only with `more`. */
+  before?: string;
+  /** Only for `?page=`: the page answered. */
+  page?: number;
+  /** Only for `?page=`: the pages, at least 1. */
+  pages?: number;
 }
+
+/** A comments cursor (`CommentPage.before`): `<created>.<id>`. */
+export const COMMENT_CURSOR_PATTERN = /^(\d{1,15})\.([A-Za-z0-9]{12})$/;
 
 /**
  * `POST /api/u/pub/<id>/comments` `{text}` → `{comment: Comment}`. The text:

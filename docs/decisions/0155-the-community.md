@@ -780,3 +780,108 @@ look (round 13's pick 3a with the owner's change; branch `stage65-watch`).
   layout moved (Back above the title on a phone, the replay's height in a
   tablet window and its width on a phone).
 
+
+## As built (stage 65, review fixes)
+
+The findings of `notes/research/stage65-security-review.md` (S1–S9) and the
+code review (CR1–CR9 but CR4, not in this round), each with a test that failed
+before the fix. The Worker's tests are in `worker/test/review65.test.ts`,
+the client's in `tests/unit/review65.test.ts` unless named.
+
+- **S1 (marks with ZWJ between them).** `shared/cloud/text.ts` counts the
+  combining marks per base character: a ZWJ between marks no longer starts
+  a new count (≤ 3 per base). The note text (`.wc-cy-note-t`) and the
+  comment text (`.wc-watch-cm-t`) have `overflow: hidden` beside
+  `overflow-wrap: anywhere`, so a stored tower paints over nothing. Tests:
+  `public-text.test.ts` (the tower, U+206A–U+206F), the Worker refuses the
+  repro note, e2e `community-page.spec.ts` and `watch-community.spec.ts`
+  (the clipped boxes).
+- **S2 (invisible text).** Refused besides stage 64's list: every `\p{Cf}`
+  but ZWJ, `\p{Co}`, `\p{Cn}` (the noncharacters with them), U+2800,
+  U+FFFC; U+3164, U+115F, U+1160, U+FFA0 stay refused. ZWJ only right
+  after a visible non-mark character, or after one variation selector that
+  follows one (`U+2764 U+FE0F U+200D U+1F525`, `U+1F3F3 U+FE0F U+200D
+  U+1F308`: a strict "between two non-marks" would refuse those common
+  emoji, as FE0F is a mark), and right before a visible one: never two in
+  a row. A comment or note needs one visible character (`\p{L}\p{N}\p{P}\p{S}`).
+  The checks are a scan of the code points, not lookbehind regexes (older
+  Safari). The client sends `publicTextToSend` (cleaned, trimmed, '' with
+  nothing visible: Post stays off); the comment and note fields clean again
+  after their cut, so a cut cannot leave a ZWJ at the end. The fuzz in
+  `public-text.test.ts` now runs 20 000 inputs × 3 rule sets with the new
+  characters and checks that what the client sends always passes. The
+  shapes of `\p{Cn}` follow the engine's Unicode version; a character a
+  newer browser knows and the Worker does not is refused with `bad_text`.
+- **S3 (listed texts).** `worker/pub.ts` `listedTextOk`: a POST with
+  `listed: true`, a PATCH to listed, and a PATCH of the title or the
+  description of a listed run check the texts the run will have (the
+  stored ones where the PATCH does not change them) by `isPublicText`:
+  title and character on one line, the description with its breaks; an
+  empty description or character is allowed as before → `400 bad_text`.
+  The share dialog's listed form and Edit of a run that will be listed
+  clean by the same rules (`src/share/link.ts`, `cleanTitle(s, listed)`
+  and friends); `bad_text` has its words (`BAD_LISTED_TEXT`). Link-only
+  runs keep stage 64's rules.
+- **S4 (views per /56).** `worker/address.ts` `viewAddressKey`: the IPv6
+  /56 (IPv4 as before) keys a view's address row. Registration and the
+  limiters keep `addressKey`'s /64 (left as it is, as decided). Spec
+  §7.10 gains the row. `community.test.ts`'s view test moved to /56s.
+- **S5 (mail).** `worker/mail.ts`: the Admin and run links come first;
+  every line of user-written text (the run's title, the reported text,
+  the reporter's text) is quoted with `> `; the header comment says what
+  the subject carries. Test: `mail.test.ts` (a forged admin block stays
+  quoted and after the real link).
+- **S6 (reporters' age).** `worker/reports.ts`: only reporters whose
+  account is `RANKING_AGE_DAYS` (7) days old, still there and not
+  suspended count towards the five that hide, for runs, comments and
+  notes; younger ones still queue the item and start the mail. Spec §7.8
+  says so. The older report tests that expect hiding use `oldSignUp`.
+- **S7 + CR3 (removing a hidden item).** `DELETE /api/u/comments/<id>`
+  (writer or run sender) and `DELETE /api/u/runes/<id>` answer `403
+  hidden` for a hidden item; its reports stay open; the removal's batch
+  also holds only while the row is active. The watch page and the
+  Community page say "Hidden after reports; the admin will look at it."
+  (`HIDDEN_TEXT`). The fake does the same.
+- **S8 (suspended writers).** The comment list and the board leave out a
+  suspended writer's rows (`a.state = 'active'`). `comment_count` counts
+  active comments of active writers (`COUNTED`): Suspend and Restore move
+  it in the same batch as the votes (`stateChange`, only on a real
+  change); the writer's or sender's removal, the hiding by reports and
+  the admin's hide, restore and delete move it only for an active writer;
+  Delete account of a suspended writer moves nothing. The news counts
+  follow. The test recounts after each step.
+- **S9 (`by=`).** `gallery` looks the name up first (the UNIQUE index of
+  `name_key`); an unknown or deleted name answers an empty page without
+  the list's queries and is not kept in the cache. A known name's list
+  filters on the account id, list and count in one batch.
+- **CR1 (comment pages).** `GET /api/pub/<id>/comments[?before=<created>.<id>]`
+  answers the newest 50 (or those older than the cursor), oldest first,
+  with `total`, `more` and `before` (`COMMENT_CURSOR_PATTERN`). `page=N|last`
+  stays for cached clients, counted from the newest end (`last` = the
+  newest 50) and with `page`/`pages`. The watch page's Earlier comments
+  asks by cursor, so a comment removed meanwhile skips none (worker test,
+  e2e `watch-community.spec.ts` with a removal between the pages). The
+  contract, `comments.test.ts` and the fake follow.
+- **CR2 (news epoch).** `src/cloud/community/news.ts` counts its marks; an
+  answer whose request started before a mark has the marked counts
+  cleared as `markCommunitySeen` does (a count with newer items stays).
+- **CR5 (`/api/community`).** The HMAC key is imported once per request
+  (`bytes.ts` `hmacKey`/`hmacWith`); the runs listed before the day are
+  picked in SQL; their ids and the Hall of Fame are one `db.batch`;
+  MUME's boxes are read beside it (`readMume` keeps its own failure apart,
+  so it is not in the batch).
+- **CR6 (formatters).** `src/cloud/community/format.ts` (no imports):
+  `meanText` (half up: 4.35 → "4.4" on every page; the Community page said
+  4.3), `meanStars`, `ageText` (`ago` for the watch page) and `dateText`;
+  the community model, the watch model and `share-words.ts` re-export
+  them. `communityAllowed` moved to `src/cloud/community/allowed.ts`
+  (re-exported by the API module); the start menu and Published runs call
+  `communityAllowed('read')` instead of their `galleryOn()` (Published
+  runs now also needs `share` and an API the page may call). The entry
+  chunk stays at **31 382 bytes**.
+- **CR7 (phone).** The Community page's list waits for the first width
+  measure (`null` until then), so a kept Top view on a phone asks once,
+  as New. Test: e2e `phone-community-page.spec.ts` counts the requests.
+- **CR8 (queue).** The admin's queue is one `UNION ALL` statement over
+  runs, comments and notes, ordered and cut in SQL (it stays readable).
+- **CR9.** `worker/mume.ts`'s cache comment names the row key `war`.

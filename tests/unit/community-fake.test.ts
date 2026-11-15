@@ -35,7 +35,7 @@ describe('the community fake', () => {
     expect(call(alice, 'PUT', `/api/u/pub/${id}/vote`, { stars: 5 }).status).toBe(403);
     expect(call(bob, 'POST', `/api/u/pub/${id}/comments`, { text: 'Nice.' }).status).toBe(200);
     expect(call(bob, 'POST', `/api/u/pub/${id}/comments`, { text: ' padded' }).body).toEqual({ error: 'bad_text' });
-    expect(call(bob, 'GET', `/api/pub/${id}/comments`).body).toMatchObject({ comments: [{ writer: 'Bob', text: 'Nice.' }], page: 1, pages: 1, total: 1 });
+    expect(call(bob, 'GET', `/api/pub/${id}/comments`).body).toMatchObject({ comments: [{ writer: 'Bob', text: 'Nice.' }], total: 1, more: false });
     expect(call(bob, 'POST', '/api/u/runes', { text: 'Hello' }).status).toBe(200);
     expect(call(bob, 'GET', '/api/runes').body).toMatchObject({ notes: [{ writer: 'Bob', text: 'Hello' }] });
     expect(call(alice, 'GET', '/api/u/community/news').body).toMatchObject({ runs: 0, reactions: 2 });

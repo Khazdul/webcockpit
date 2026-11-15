@@ -51,12 +51,11 @@ import { type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { CommunityBoxes, GalleryPage, GalleryRow, GallerySort, Note, ReportReason, RunesBoard } from '../../../shared/cloud/api.ts';
 import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, NOTE_MAX } from '../../../shared/cloud/api.ts';
-import { cleanPublicText } from '../../../shared/cloud/text.ts';
 import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
 import { cloudTest, config } from '../../cloud/config';
-import { REASONS, REPORT_MAX, reportText } from '../../watch/model';
+import { HIDDEN_TEXT, REASONS, REPORT_MAX, reportText } from '../../watch/model';
 import {
   Box,
   BoxBody,
@@ -88,9 +87,11 @@ import {
   newestListed,
   noteAge,
   noteFailText,
+  noteField,
   noteHint,
   noteReportFailText,
   notesToday,
+  noteToSend,
   pagerText,
   pagesOf,
   parseView,
@@ -170,7 +171,9 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   const [boxes, setBoxes] = useState<CommunityBoxes | null | 'failed'>(null);
   const [board, setBoard] = useState<BoardState>({ k: 'loading' });
   const [cursor, setCursor] = useState(0);
-  const [narrow, setNarrow] = useState(false);
+  /** The phone's form; null until the width is measured (the list waits for it: review fix CR7, no second request on a phone). */
+  const [measured, setNarrow] = useState<boolean | null>(null);
+  const narrow = measured === true;
   const [account, setAccount] = useState(accountState);
   const [notesPerDay, setNotesPerDay] = useState(DEFAULT_ACCOUNT_LIMITS.notesPerDay);
   const [retry, setRetry] = useState(0);
@@ -193,11 +196,16 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   // The phone's form by the content's width (as History's).
   useLayoutEffect(() => {
     const el = bodyRef.current?.closest<HTMLElement>('.wc-lk-win') ?? bodyRef.current;
-    if (!el) return;
+    if (!el) {
+      setNarrow(false);
+      return;
+    }
     const check = (w: number): void => {
       if (w > 0) setNarrow(w < COMMUNITY_NARROW);
     };
-    check(el.clientWidth);
+    // The first measure always settles it (a width of 0, not laid out: the wide form until the observer says).
+    const w = el.clientWidth;
+    setNarrow(w > 0 ? w < COMMUNITY_NARROW : false);
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver((es) => {
       const e = es[es.length - 1];
@@ -212,6 +220,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   // The list.
   const asked = useRef(0);
   useEffect(() => {
+    if (measured === null) return;
     const n = ++asked.current;
     setList((l) => (l.k === 'ok' ? l : { k: 'loading' }));
     void api.list({ sort, page: view.page, ...(view.by ? { by: view.by } : {}) }).then((r) => {
@@ -221,7 +230,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         setCursor((c) => Math.min(c, Math.max(0, r.value.rows.length - 1)));
       } else setList({ k: 'failed', offline: r.code === 'offline' || r.code === 'timeout' });
     });
-  }, [api, sort, view.page, view.by, retry]);
+  }, [api, sort, view.page, view.by, retry, measured === null]);
 
   // The boxes and the board.
   useEffect(() => {
@@ -727,7 +736,7 @@ function RunesBox(p: RunesProps): VNode {
   const n = [...text].length;
 
   const post = async (): Promise<void> => {
-    const t = text.trim();
+    const t = noteToSend(text);
     if (!t || busy || full || !board) return;
     setBusy(true);
     setError(null);
@@ -759,7 +768,8 @@ function RunesBox(p: RunesProps): VNode {
     if (r.ok || r.code === 'not_found') {
       p.onBoard({ ...board, notes: board.notes.filter((x) => x.id !== id) });
       p.nav.flash('Your note is removed.');
-    } else p.nav.flash(r.code === 'offline' || r.code === 'timeout' ? 'Offline: the note was not removed.' : 'The note could not be removed. Try again later.', 'fail');
+    } else if (r.code === 'hidden') p.nav.flash(HIDDEN_TEXT, 'fail');
+    else p.nav.flash(r.code === 'offline' || r.code === 'timeout' ? 'Offline: the note was not removed.' : 'The note could not be removed. Try again later.', 'fail');
   };
   const report = (note: Note): void => {
     p.nav.push(<ReportNoteFrame note={note} api={p.api} />, { overlay: true });
@@ -791,13 +801,13 @@ function RunesBox(p: RunesProps): VNode {
           hint={focused || text ? <span class="wc-cy-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
           enterSubmits
           onInput={(v) => {
-            const clean = [...cleanPublicText(v, { newlines: 0 })].slice(0, NOTE_MAX).join('');
+            const clean = noteField(v, NOTE_MAX);
             setText(clean);
             if (clean !== v && p.fieldRef.current) p.fieldRef.current.value = clean;
             setError(null);
           }}
         />
-        <GlassButton id="POST" label="Post" small primary={!!text.trim() && !full} disabled={!text.trim() || full || busy} onClick={() => void post()} />
+        <GlassButton id="POST" label="Post" small primary={!!noteToSend(text) && !full} disabled={!noteToSend(text) || full || busy} onClick={() => void post()} />
       </div>
     );
   }

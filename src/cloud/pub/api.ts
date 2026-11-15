@@ -37,6 +37,7 @@ import { flagOn } from '../config';
  *   rules              the account has not ticked the rules
  *   too_many           listing: the account's `listingsPerDay` first listings today (stage 65)
  *   hidden             a hidden run cannot be edited or listed (stage 65 B: `403 hidden`)
+ *   bad_text           a listed run's title, description or character breaks the free public text rules (review fix S3)
  *   suspended          the account may not publish (or edit)
  *   unauthorized       the session is gone
  *   disabled           the flags or the page say no; nothing was sent
@@ -51,6 +52,7 @@ export type PubErrorCode =
   | 'rules'
   | 'too_many'
   | 'hidden'
+  | 'bad_text'
   | 'suspended'
   | 'unauthorized'
   | 'not_found'
@@ -64,7 +66,7 @@ export type PubErrorCode =
   | 'cancelled'
   | 'bad_answer';
 
-const SERVER_CODES: readonly PubErrorCode[] = ['payload_too_large', 'pub_quota', 'rules', 'too_many', 'hidden', 'suspended', 'unauthorized', 'not_found', 'bad_request', 'forbidden', 'rate_limited', 'unavailable'];
+const SERVER_CODES: readonly PubErrorCode[] = ['payload_too_large', 'pub_quota', 'rules', 'too_many', 'hidden', 'bad_text', 'suspended', 'unauthorized', 'not_found', 'bad_request', 'forbidden', 'rate_limited', 'unavailable'];
 
 export interface PubFailure {
   ok: false;

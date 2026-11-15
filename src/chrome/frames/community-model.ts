@@ -6,6 +6,8 @@
 // asks).
 
 import type { GalleryRow, GallerySort, Note } from '../../../shared/cloud/api.ts';
+import { cleanPublicText, publicTextToSend } from '../../../shared/cloud/text.ts';
+import { ageText } from '../../cloud/community/format';
 
 // ------------------------------------------------------------ the list
 
@@ -64,15 +66,8 @@ export function dateText(ms: number, now: number = Date.now()): string {
   return d.getFullYear() === new Date(now).getFullYear() ? day : `${day} ${d.getFullYear()}`;
 }
 
-/** The stars' mean with one decimal ("4.8"), null without votes. */
-export function meanText(s: { sum: number; count: number }): string | null {
-  return s.count > 0 ? (s.sum / s.count).toFixed(1) : null;
-}
-
-/** The whole stars drawn for a mean (0 without votes). */
-export function starsShown(s: { sum: number; count: number }): number {
-  return s.count > 0 ? Math.max(0, Math.min(5, Math.round(s.sum / s.count))) : 0;
-}
+/** The stars' mean ("4.8") and the whole stars drawn: the community's one formatter set (review fix CR6). */
+export { meanText, meanStars as starsShown } from '../../cloud/community/format';
 
 /** The newest `listedAt` among what the page has shown (the counter's seen time), null when nothing. */
 export function newestListed(...lists: ReadonlyArray<readonly Pick<GalleryRow, 'listedAt'>[] | null | undefined>): number | null {
@@ -83,17 +78,9 @@ export function newestListed(...lists: ReadonlyArray<readonly Pick<GalleryRow, '
 
 // ------------------------------------------------------------ the board
 
-/** The age of a note at the right: "just now", "2 min", "3 h", "yesterday", "4 days". */
+/** The age of a note at the right: "just now", "2 min", "3 h", "yesterday", "4 days" (the community's formatter, CR6). */
 export function noteAge(ms: number, now: number = Date.now()): string {
-  const d = Math.max(0, now - ms);
-  const min = 60_000;
-  const hour = 60 * min;
-  const day = 24 * hour;
-  if (d < min) return 'just now';
-  if (d < hour) return `${Math.floor(d / min)} min`;
-  if (d < day) return `${Math.floor(d / hour)} h`;
-  if (d < 2 * day) return 'yesterday';
-  return `${Math.floor(d / day)} days`;
+  return ageText(ms, now);
 }
 
 /** The start (ms) of the UTC day of `now`. */
@@ -107,6 +94,20 @@ export function notesToday(notes: readonly Note[], name: string | null, now: num
   const start = utcDayStart(now);
   const key = name.toLowerCase();
   return notes.filter((n) => n.writer.toLowerCase() === key && n.created >= start).length;
+}
+
+const ONE_LINE = { newlines: 0 };
+
+/** The note field's text as the player types: the free-text rules, one line, cut to `max` code points (cleaned again after the cut: no dangling ZWJ). Not trimmed. */
+export function noteField(raw: string, max: number): string {
+  const s = cleanPublicText(raw, ONE_LINE);
+  const cps = [...s];
+  return cps.length > max ? cleanPublicText(cps.slice(0, max).join(''), ONE_LINE) : s;
+}
+
+/** What a note sends: trimmed, '' when nothing visible is left (review fix S2). */
+export function noteToSend(field: string): string {
+  return publicTextToSend(field, ONE_LINE);
 }
 
 /** The field's hint: "41 / 250 · 4 left today". */

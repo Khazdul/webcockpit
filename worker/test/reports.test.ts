@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { REPORTS_PER_DAY } from '../../shared/cloud/api.ts';
 import { count, db, emptyTables } from './helpers.ts';
-import { DAY, NOW, call, pubRow, publish, reportOf, signUp } from './share-helpers.ts';
+import { DAY, NOW, call, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -11,7 +11,7 @@ beforeEach(async () => {
 
 async function reporters(n: number): Promise<string[]> {
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(await signUp(`reporter${i}`, { rules: false }));
+  for (let i = 0; i < n; i++) out.push(await oldSignUp(`reporter${i}`, { rules: false }));
   return out;
 }
 

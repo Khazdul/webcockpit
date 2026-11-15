@@ -77,6 +77,7 @@ import {
   COMMENT_MAX,
   COMMENT_NEWLINES_MAX,
   COMMENTS_PAGE_SIZE,
+  COMMENT_CURSOR_PATTERN,
   COMMENTS_PER_RUN,
   type Comment,
   type CommunityBoxes,
@@ -731,6 +732,7 @@ export class FakeAccountServer {
     return id;
   }
 
+  /** An active account: its votes count, its comments and notes show (review fix S8). */
   private liveVoter(key: string): boolean {
     return this.accounts.get(key)?.state === 'active';
   }
@@ -748,7 +750,7 @@ export class FakeAccountServer {
   }
 
   commentCount(id: string): number {
-    return [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').length;
+    return [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account)).length;
   }
 
   private seenOf(key: string): { gallery: number; reactions: number } {
@@ -758,7 +760,7 @@ export class FakeAccountServer {
   private withReactions(p: FakePub): MyPub {
     const seen = this.seenOf(p.account).reactions;
     const votes = [...(this.votes.get(p.pub.id) ?? [])].filter(([, v]) => v.updated > seen).length;
-    const comments = [...this.comments.values()].filter((c) => c.pub === p.pub.id && c.state === 'active' && c.created > seen && c.account !== p.account).length;
+    const comments = [...this.comments.values()].filter((c) => c.pub === p.pub.id && c.state === 'active' && this.liveVoter(c.account) && c.created > seen && c.account !== p.account).length;
     return { ...p.pub, stars: this.starsOf(p.pub.id), comments: this.commentCount(p.pub.id), news: { votes: Math.min(NEWS_MAX, votes), comments: Math.min(NEWS_MAX, comments) } };
   }
 
@@ -783,6 +785,11 @@ export class FakeAccountServer {
     const cid = this.communityId();
     this.comments.set(cid, { id: cid, pub: id, account: name.toLowerCase(), text, created: this.clock - (o.ago ?? 0), state: o.state ?? 'active' });
     return cid;
+  }
+
+  /** Its writer removes the comment on `id` with the text `text` (review fix CR1's test). */
+  removeComment(id: string, text: string): void {
+    for (const c of this.comments.values()) if (c.pub === id && c.text === text) this.comments.delete(c.id);
   }
 
   /** A note by `name`, `ago` ms ago. Returns its id. */
@@ -891,7 +898,7 @@ export class FakeAccountServer {
       }
       if (path === '/api/runes') {
         const notes: Note[] = [...this.notes.values()]
-          .filter((n) => n.state === 'active' && n.created > t - NOTE_DAYS * 86_400_000)
+          .filter((n) => n.state === 'active' && this.liveVoter(n.account) && n.created > t - NOTE_DAYS * 86_400_000)
           .sort((a, b) => b.created - a.created)
           .slice(0, RUNES_SHOWN)
           .map((n) => ({ id: n.id, writer: this.accountName(n.account) ?? '', text: n.text, created: n.created }));
@@ -902,15 +909,29 @@ export class FakeAccountServer {
       const p = this.pubs.get(id);
       if (!p) return err('not_found', 404);
       if (p.pub.state === 'hidden') return err('hidden', 451);
-      const pageText = q.get('page') ?? 'last';
-      if (pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
-      const all = [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').sort((a, b) => a.created - b.created);
+      // The newest page, or the one older than `before` (review fix CR1); `page=` as the Worker keeps it for old clients.
+      const pageText = q.get('page');
+      const before = q.get('before');
+      if (pageText !== null && pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
+      const cursor = before === null ? null : COMMENT_CURSOR_PATTERN.exec(before);
+      if ((before !== null && !cursor) || (before !== null && pageText !== null)) return err('bad_request', 400);
+      const all = [...this.comments.values()]
+        .filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account))
+        .sort((a, b) => b.created - a.created || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
       const pages = Math.max(1, Math.ceil(all.length / COMMENTS_PAGE_SIZE));
-      const page = pageText === 'last' ? pages : Number(pageText);
-      const comments: Comment[] = all
-        .slice((page - 1) * COMMENTS_PAGE_SIZE, page * COMMENTS_PAGE_SIZE)
+      const page = pageText === null ? null : pageText === 'last' ? pages : Number(pageText);
+      const older = cursor ? all.filter((c) => c.created < Number(cursor[1]) || (c.created === Number(cursor[1]) && c.id < cursor[2]!)) : all;
+      const from = page === null ? 0 : page > pages ? all.length : (pages - page) * COMMENTS_PAGE_SIZE;
+      const slice = older.slice(from, from + COMMENTS_PAGE_SIZE + 1);
+      const more = slice.length > COMMENTS_PAGE_SIZE;
+      const comments: Comment[] = slice
+        .slice(0, COMMENTS_PAGE_SIZE)
+        .reverse()
         .map((c) => ({ id: c.id, writer: this.accountName(c.account) ?? '', text: c.text, created: c.created }));
-      return { status: 200, body: { comments, page, pages, total: all.length } };
+      const body: Record<string, unknown> = { comments, total: all.length, more };
+      if (more && comments[0]) body.before = `${comments[0].created}.${comments[0].id}`;
+      if (page !== null) Object.assign(body, { page, pages });
+      return { status: 200, body };
     }
 
     if (this.flags.accounts !== true) return err('not_found', 404);
@@ -963,6 +984,8 @@ export class FakeAccountServer {
       if (req.method !== 'DELETE') return err('method_not_allowed', 405);
       const c = this.comments.get(m[1]!);
       if (!c || (c.account !== me && this.pubs.get(c.pub)?.account !== me)) return err('not_found', 404);
+      // A hidden one stays for the admin (review fix S7).
+      if (c.state === 'hidden') return err('hidden', 403);
       this.comments.delete(c.id);
       return { status: 204 };
     }
@@ -983,6 +1006,7 @@ export class FakeAccountServer {
       if (req.method !== 'DELETE') return err('method_not_allowed', 405);
       const n = this.notes.get(m[1]!);
       if (!n || n.account !== me) return err('not_found', 404);
+      if (n.state === 'hidden') return err('hidden', 403);
       this.notes.delete(n.id);
       return { status: 204 };
     }
@@ -993,7 +1017,7 @@ export class FakeAccountServer {
       const mine = new Set([...this.pubs.values()].filter((p) => p.account === me && p.pub.state === 'active').map((p) => p.pub.id));
       const times = [
         ...[...this.votes].filter(([id]) => mine.has(id)).flatMap(([, v]) => [...v].filter(([k, x]) => k !== me && x.updated > seen.reactions).map(([, x]) => x.updated)),
-        ...[...this.comments.values()].filter((c) => mine.has(c.pub) && c.account !== me && c.state === 'active' && c.created > seen.reactions).map((c) => c.created),
+        ...[...this.comments.values()].filter((c) => mine.has(c.pub) && c.account !== me && c.state === 'active' && this.liveVoter(c.account) && c.created > seen.reactions).map((c) => c.created),
       ];
       return {
         status: 200,

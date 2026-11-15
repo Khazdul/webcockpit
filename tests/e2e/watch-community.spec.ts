@@ -249,20 +249,23 @@ test('no comments yet; markup in a comment stays text', async ({ page }) => {
   expect(await page.evaluate(() => (window as { __pwned?: number }).__pwned)).toBeUndefined();
 });
 
-test('past 50: the newest page first, Earlier comments before it', async ({ page }) => {
+test('past 50: the newest 50 first, Earlier comments before them, none skipped when one goes meanwhile (review fix CR1)', async ({ page }) => {
   const s = await setUp(page, { gallery: true });
   await others(s, 'kuzzim');
   for (let i = 1; i <= 120; i++) s.api.server.addComment('kuzzim', ID, `Comment ${i}`, { ago: (200 - i) * 60_000 });
   await openWatch(page);
   await playing(page);
   const items = comments(page).locator('.wc-watch-cm');
-  await expect(items).toHaveCount(20);
-  await expect(items.first()).toContainText('Comment 101');
+  await expect(items).toHaveCount(50);
+  await expect(items.first()).toContainText('Comment 71');
   await expect(items.last()).toContainText('Comment 120');
   await expect(comments(page).locator('[data-watch="comments-count"]')).toHaveText('120');
+  // One of the shown ones is removed by its writer meanwhile: Earlier still brings 21–70.
+  s.api.server.removeComment(ID, 'Comment 100');
   await comments(page).locator('[data-btn="EARLIER"]').click();
-  await expect(items).toHaveCount(70);
-  await expect(items.first()).toContainText('Comment 51');
+  await expect(items).toHaveCount(100);
+  await expect(items.first()).toContainText('Comment 21');
+  await expect(items.nth(49)).toContainText('Comment 70');
   await comments(page).locator('[data-btn="EARLIER"]').click();
   await expect(items).toHaveCount(120);
   await expect(items.first()).toContainText('Comment 1');
@@ -285,4 +288,17 @@ test('the flag gallery off: stage 64\'s page in the frame, no stars, no comments
   expect(h[0]).toBeLessThanOrEqual(h[1]!);
   // No community request was made.
   expect(asked.filter((p) => /\/(comments|vote)$/.test(p))).toEqual([]);
+});
+
+test('a comment’s text is clipped to its box: a stored tower of marks paints over nothing (review fix S1)', async ({ page }) => {
+  const s = await setUp(page, { gallery: true });
+  await others(s, 'kuzzim');
+  // An old row from before the rule (the fake stores what it is given).
+  s.api.server.addComment('kuzzim', ID, `x${'\u0310\u0311\u0312\u200d'.repeat(60)}`, { ago: 120_000 });
+  s.api.server.addComment('kuzzim', ID, 'Below it', { ago: 60_000 });
+  await openWatch(page);
+  await playing(page);
+  const texts = comments(page).locator('[data-watch="comment-text"]');
+  await expect(texts).toHaveCount(2);
+  expect(await texts.first().evaluate((el) => getComputedStyle(el).overflow)).toBe('hidden');
 });

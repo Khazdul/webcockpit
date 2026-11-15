@@ -499,7 +499,7 @@ export async function probeMssp(connect: NonNullable<Deps['connect']>, o: { time
 
 // --- The cache (mume_cache, migration 0006) ---
 //
-// Rows: `warlords` (value: JSON Warlords) and `players` (value: JSON
+// Rows: `war` (value: JSON Warlords) and `players` (value: JSON
 // number), each with `fetched` the time of its last good answer; and
 // `attempt` (value 'null'), `fetched` the time of the last try, which
 // sets the cadence whether the try went well or not. A failure writes

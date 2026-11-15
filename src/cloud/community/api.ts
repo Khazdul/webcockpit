@@ -40,8 +40,7 @@ import {
   type RunesBoard,
   type Warlord,
 } from '../../../shared/cloud/api.ts';
-import { accountsEnabled } from '../account/state';
-import { apiAllowed, flagOn } from '../config';
+import { type CommunityNeed, communityAllowed } from './allowed';
 
 /**
  * Why a call did not succeed: the server's code, or ours.
@@ -52,6 +51,7 @@ import { apiAllowed, flagOn } from '../config';
  *   unauthorized      the session is gone
  *   own               one's own note (Report)
  *   already_reported  this account reported it before
+ *   hidden            a hidden note cannot be removed by its writer (review fix S7: `403 hidden`)
  *   not_found         gone (a removed note), or the flags off on the server
  *   disabled          the flags or the page say no; nothing was sent
  *   offline           the request did not reach the server
@@ -60,6 +60,7 @@ import { apiAllowed, flagOn } from '../config';
  */
 export type CommunityErrorCode =
   | 'too_many'
+  | 'hidden'
   | 'bad_text'
   | 'suspended'
   | 'unauthorized'
@@ -78,6 +79,7 @@ export type CommunityErrorCode =
 
 const SERVER_CODES: readonly CommunityErrorCode[] = [
   'too_many',
+  'hidden',
   'bad_text',
   'suspended',
   'own',
@@ -98,8 +100,8 @@ export interface CommunityFailure {
 
 export type CommunityResult<T> = { ok: true; value: T } | CommunityFailure;
 
-/** What a request needs allowed: `read` (share, gallery), `runes` (and runes), `user` (and accounts), `userRunes` (all four). */
-export type CommunityNeed = 'read' | 'runes' | 'user' | 'userRunes';
+export type { CommunityNeed };
+export { communityAllowed };
 
 /** One request as the transport makes it. */
 export interface CommunityRequest {
@@ -146,18 +148,6 @@ export interface CommunityApi {
   reportNote(id: string, reason: ReportReason, text?: string): Promise<CommunityResult<null>>;
 }
 
-/** The flags a request of `need` asks for (never rejects; false on any failure). */
-export async function communityAllowed(need: CommunityNeed): Promise<boolean> {
-  try {
-    if (!apiAllowed()) return false;
-    if (!(await flagOn('share')) || !(await flagOn('gallery'))) return false;
-    if ((need === 'runes' || need === 'userRunes') && !(await flagOn('runes'))) return false;
-    if ((need === 'user' || need === 'userRunes') && !(await accountsEnabled())) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 // --- Reading the answers ---
 

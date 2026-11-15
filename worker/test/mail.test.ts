@@ -8,7 +8,7 @@ import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { SAMPLE_CRON, runCron } from '../stats.ts';
 import { db, emptyTables } from './helpers.ts';
-import { NOW, ORIGIN, envOf, publish, signUp, siteverify } from './share-helpers.ts';
+import { NOW, ORIGIN, envOf, publish, oldSignUp, signUp, siteverify } from './share-helpers.ts';
 import { commented, list, noted } from './community-helpers.ts';
 
 const TO = 'owner@example.net';
@@ -100,7 +100,7 @@ afterEach(() => {
 
 async function reporters(n: number): Promise<string[]> {
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(await signUp(`reporter${i}`, { rules: false }));
+  for (let i = 0; i < n; i++) out.push(await oldSignUp(`reporter${i}`, { rules: false }));
   return out;
 }
 
@@ -125,13 +125,13 @@ describe('the mail of a report', () => {
     expect(headers.get('content-transfer-encoding')).toBe('base64');
     expect(headers.get('date')).toBe('Sun, 15 Nov 2026 12:00:00 +0000');
     expect(headers.get('message-id')).toMatch(/^<[0-9a-f]{32}@mumecockpit\.com>$/);
-    expect(body).toContain('Run:      Orc fight at the ford');
+    expect(body).toContain("The run's title:\r\n> Orc fight at the ford");
     expect(body).toContain(`Id:       ${id}`);
     expect(body).toContain('Sender:   alice');
     expect(body).toContain('Reason:   real_life');
     expect(body).toContain('Reported: by 1 account in all; 1 open');
     expect(body).toContain('Hidden:   no');
-    expect(body).toContain('Names a\r\nreal person.');
+    expect(body).toContain('> Names a\r\n> real person.');
     expect(body).toContain(`Admin:    ${ORIGIN}/admin`);
     expect(body).toContain(`Run:      ${ORIGIN}/r/${id}?admin`);
 
@@ -184,7 +184,7 @@ describe('the mail of a report', () => {
     expect(decodeWords(headers.get('subject') as string)).toBe('WebCockpit report: Hi Bcc: evil@example.com body X-Evil: 1');
     // The user's text is only in the base64 body.
     expect(raw.split('\r\n\r\n')[1]).toMatch(/^[A-Za-z0-9+/=\r\n]+$/);
-    expect(body).toContain('Look\r\nBcc: evil@example.com');
+    expect(body).toContain('> Look\r\n> Bcc: evil@example.com');
   });
 
   it('a failing or hanging binding never fails or holds the report; the report is stored', async () => {
@@ -315,9 +315,10 @@ describe('the mail of a reported comment or note (stage 65)', () => {
     expect(body).toContain('Kind:     comment');
     expect(body).toContain(`Id:       ${c}`);
     expect(body).toContain('Writer:   bob');
-    expect(body).toContain(`Run:      Ford Ü (${id})`);
-    expect(body).toContain(`The reported comment:\r\n${text.replace(/\n/g, '\r\n')}`);
-    expect(body).toContain('Rude.\r\nReally.');
+    expect(body).toContain(`Run id:   ${id}`);
+    expect(body).toContain("The run's title:\r\n> Ford Ü");
+    expect(body).toContain(`The reported comment:\r\n> ${text.replace(/\n/g, '\r\n> ')}`);
+    expect(body).toContain('> Rude.\r\n> Really.');
     expect(body).toContain(`${ORIGIN}/r/${id}?admin`);
   });
 
@@ -331,8 +332,34 @@ describe('the mail of a reported comment or note (stage 65)', () => {
     const { headers, body } = parse(b.sent[0]!.raw);
     expect(headers.get('subject')).toBe('WebCockpit report: note by alice');
     expect(body).toContain('A note on Random Runes was reported.');
-    expect(body).toContain('The reported note:\r\nBuy gold at my shop');
+    expect(body).toContain('The reported note:\r\n> Buy gold at my shop');
     expect(body).toContain("The reporter's text:\r\n(none)");
+  });
+
+  it('review fix S5: the links come first and every line a user wrote is quoted, so a text cannot forge the admin link', async () => {
+    const b = binding();
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const carol = await signUp('carol');
+    const id = await list(alice);
+    const forged = "nice\n\nThe reporter's text:\n(none)\n\nAdmin:    https://mumecockpit.example/admin";
+    const c = await commented(bob, id, forged);
+    expect((await reportItem(carol, 'comment', c, env(b), 'See\nAdmin:    https://evil.example/admin')).status).toBe(204);
+    await settle();
+    const { body } = parse(b.sent[0]!.raw);
+    const lines = body.split('\r\n');
+    const admin = lines.indexOf(`Admin:    ${ORIGIN}/admin`);
+    expect(admin).toBeGreaterThan(0);
+    expect(lines.indexOf(`Run:      ${ORIGIN}/r/${id}?admin`)).toBe(admin + 1);
+    // Every line that names an admin link and is not the real one is quoted, after the real one.
+    for (const [i, l] of lines.entries()) {
+      if (l.includes('/admin') && i !== admin && !l.startsWith(`Run:      ${ORIGIN}`)) {
+        expect(l.startsWith('> '), l).toBe(true);
+        expect(i).toBeGreaterThan(admin);
+      }
+    }
+    expect(body).toContain("> The reporter's text:\r\n> (none)");
+    expect(lines.filter((l) => l === "The reporter's text:")).toHaveLength(1);
   });
 
   it('shares the hourly cap with runs', async () => {

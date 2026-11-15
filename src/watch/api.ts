@@ -18,7 +18,7 @@
 //
 // Stage 65 (ADR 0155, the contract's "The community"): one's vote
 // (`GET|PUT|DELETE /api/u/pub/<id>/vote`), the comments (`GET
-// /api/pub/<id>/comments?page=N|last`, public; `POST
+// /api/pub/<id>/comments[?before=<cursor>]`, public; `POST
 // /api/u/pub/<id>/comments`, `DELETE /api/u/comments/<id>`).
 
 import type { Comment, CommentPage, PubMeta, ReportRequest, Stars, VoteAnswer } from '../../shared/cloud/api.ts';
@@ -249,19 +249,26 @@ export function parseComment(v: unknown): Comment | undefined {
   return { id: o.id, writer: o.writer, text: o.text, created: o.created };
 }
 
+/** `<created>.<id>` (the contract's COMMENT_CURSOR_PATTERN, written out: this chunk imports no value of shared/cloud/api.ts). */
+const CURSOR = /^\d{1,15}\.[A-Za-z0-9]{12}$/;
+
 function parseCommentPage(v: unknown): CommentPage | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
-  if (!Array.isArray(o.comments) || !num(o.page) || !num(o.pages) || !num(o.total)) return undefined;
+  if (!Array.isArray(o.comments) || !num(o.total) || typeof o.more !== 'boolean') return undefined;
+  if (o.before !== undefined && (typeof o.before !== 'string' || !CURSOR.test(o.before))) return undefined;
   // A comment the page cannot read is left out, not the page.
   const comments = o.comments.map(parseComment).filter((c): c is Comment => c !== undefined);
-  return { comments, page: o.page, pages: Math.max(1, o.pages), total: o.total };
+  // Older ones are asked for only with a cursor.
+  const page: CommentPage = { comments, total: o.total, more: o.more && o.before !== undefined };
+  if (page.more) page.before = o.before as string;
+  return page;
 }
 
-/** A page of the run's comments, oldest first (`'last'`: the newest page; the public path, no cookie). */
-export function fetchComments(id: string, page: number | 'last' = 'last', f: WatchFetch = defaultFetch): Promise<Got<CommentPage>> {
+/** The newest page of the run's comments, or the one older than `before` (a page's cursor), oldest first (the public path, no cookie; review fix CR1). */
+export function fetchComments(id: string, before: string | null = null, f: WatchFetch = defaultFetch): Promise<Got<CommentPage>> {
   return asked(
-    `${PREFIX.public}${encodeURIComponent(id)}/comments?page=${page}`,
+    `${PREFIX.public}${encodeURIComponent(id)}/comments${before === null ? '' : `?before=${encodeURIComponent(before)}`}`,
     init('public', WATCH_TIMEOUT_MS, { headers: { Accept: 'application/json' } }),
     parseCommentPage,
     f,
