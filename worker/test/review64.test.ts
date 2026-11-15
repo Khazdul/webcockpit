@@ -7,7 +7,7 @@ import type { MyPub, PubWritten } from '../../shared/cloud/api.ts';
 import { PENDING_STALE_MS } from '../pub.ts';
 import { DAILY_CRON, runCron } from '../stats.ts';
 import { bucket, db, device, emptyTables, r2Keys } from './helpers.ts';
-import { AUTH_KEY, ENV, META, NOW, ORIGIN, accountRow, call, ok, payload, post, pubRow, publish, reportOf, signUp } from './share-helpers.ts';
+import { AUTH_KEY, ENV, META, NOW, ORIGIN, accountRow, call, ok, payload, post, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -20,7 +20,7 @@ describe('S3: the five that hide count only reporters that still exist and are n
     const alice = await signUp('alice');
     const id = await publish(alice);
     for (let i = 0; i < 4; i++) {
-      const c = await signUp(`gone${i}`, { rules: false });
+      const c = await oldSignUp(`gone${i}`, { rules: false });
       expect((await reportOf(c, id)).status).toBe(204);
       expect((await deleteAccount(c)).status).toBe(204);
     }
@@ -32,14 +32,14 @@ describe('S3: the five that hide count only reporters that still exist and are n
     const alice = await signUp('alice');
     const id = await publish(alice);
     for (let i = 0; i < 4; i++) {
-      const c = await signUp(`sock${i}`, { rules: false });
+      const c = await oldSignUp(`sock${i}`, { rules: false });
       expect((await reportOf(c, id)).status).toBe(204);
       await db.prepare("UPDATE account SET state = 'suspended' WHERE name_key = ?1").bind(`sock${i}`).run();
     }
-    expect((await reportOf(await signUp('last', { rules: false }), id)).status).toBe(204);
+    expect((await reportOf(await oldSignUp('last', { rules: false }), id)).status).toBe(204);
     expect((await pubRow(id))?.state).toBe('active');
     // Five that are all still there and active do hide it.
-    for (let i = 0; i < 4; i++) expect((await reportOf(await signUp(`real${i}`, { rules: false }), id)).status).toBe(204);
+    for (let i = 0; i < 4; i++) expect((await reportOf(await oldSignUp(`real${i}`, { rules: false }), id)).status).toBe(204);
     expect(await pubRow(id)).toMatchObject({ state: 'hidden', hidden_reason: 'reports' });
   });
 
@@ -47,7 +47,7 @@ describe('S3: the five that hide count only reporters that still exist and are n
     const alice = await signUp('alice');
     const id = await publish(alice);
     await db.prepare('UPDATE publication SET reviewed = 1 WHERE id = ?1').bind(id).run();
-    for (let i = 0; i < 6; i++) expect((await reportOf(await signUp(`sock${i}`, { rules: false }), id)).status).toBe(204);
+    for (let i = 0; i < 6; i++) expect((await reportOf(await oldSignUp(`sock${i}`, { rules: false }), id)).status).toBe(204);
     expect((await pubRow(id))?.state).toBe('active');
     expect((await db.prepare('SELECT COUNT(*) AS n FROM report WHERE handled = 0 AND target = ?1').bind(id).first<{ n: number }>())?.n).toBe(6);
   });

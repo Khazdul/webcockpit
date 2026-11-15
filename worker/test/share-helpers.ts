@@ -68,6 +68,16 @@ export async function signUp(name: string, o: { rules?: boolean } = {}): Promise
   return cookie;
 }
 
+/**
+ * A new account `signUp` makes, RANKING_AGE_DAYS + 1 days old, so its
+ * reports count towards the five that hide (stage 65 review fix S6).
+ */
+export async function oldSignUp(name: string, o: { rules?: boolean } = {}): Promise<string> {
+  const cookie = await signUp(name, o);
+  await db.prepare('UPDATE account SET created = created - ?2 WHERE name_key = ?1').bind(name.toLowerCase(), 8 * DAY).run();
+  return cookie;
+}
+
 /** The key that proves the password of every account made by `signUp`. */
 export const AUTH_KEY = key(1);
 

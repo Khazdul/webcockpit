@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdminLogEntry, AdminReports, CommentPage, PubMeta } from '../../shared/cloud/api.ts';
 import { count, db, emptyTables } from './helpers.ts';
-import { AUTH_KEY, setLimits, signUp } from './share-helpers.ts';
+import { AUTH_KEY, setLimits, oldSignUp, signUp } from './share-helpers.ts';
 import { DAY, NOW, ccall, cenvOf, comment, commented, list, ok } from './community-helpers.ts';
 import { adminCall } from './admin-call.ts';
 
@@ -192,7 +192,7 @@ describe('reports of comments and the admin', () => {
     const id = await list(alice, { title: 'Ford' });
     const c = await commented(bob, id, 'You are a bad player.');
     const reporters: string[] = [];
-    for (let i = 0; i < 6; i++) reporters.push(await signUp(`reporter${i}`));
+    for (let i = 0; i < 6; i++) reporters.push(await oldSignUp(`reporter${i}`));
     return { alice, bob, id, c, reporters };
   }
 

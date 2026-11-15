@@ -5,8 +5,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { PubMeta, PubWritten } from '../../shared/cloud/api.ts';
 import { viewAddressKey, addressKey } from '../address.ts';
 import { db, device, emptyTables } from './helpers.ts';
-import { META, call, post, signUp } from './share-helpers.ts';
-import { DAY, NOW, ccall, cenvOf, list, ok, note } from './community-helpers.ts';
+import { META, call, oldSignUp, post, publish, reportOf, signUp } from './share-helpers.ts';
+import { DAY, NOW, ccall, cenvOf, commented, list, noted, ok, note } from './community-helpers.ts';
+import { adminCall } from './admin-call.ts';
+import type { AdminReports } from '../../shared/cloud/api.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -80,4 +82,35 @@ describe('S4: a view counts once a day per IPv6 /56', () => {
   });
 });
 
-export { DAY, NOW, call, db };
+describe('S6: only reporters RANKING_AGE_DAYS old count towards the five that hide', () => {
+  const report = (cookie: string, kind: string, target: string): Promise<Response> => ccall('POST', '/api/u/report', { kind, target, reason: 'rules' }, { cookie });
+  const stateOf = async (table: string, id: string): Promise<string | undefined> =>
+    (await db.prepare(`SELECT state FROM ${table} WHERE id = ?1`).bind(id).first<{ state: string }>())?.state;
+
+  it('five fresh accounts queue a run, a comment and a note for the admin but hide none; one more old one with four old ones does', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const run = await list(alice);
+    const c = await commented(bob, run, 'Nice fight.');
+    const n = await noted(bob, 'Orcs at the ford.');
+    const items: [string, string, string][] = [['run', 'publication', run], ['comment', 'comment', c], ['note', 'note', n]];
+    for (let i = 0; i < 5; i++) {
+      const fresh = await signUp(`fresh${i}`);
+      for (const [kind, , id] of items) expect((await report(fresh, kind, id)).status).toBe(204);
+    }
+    for (const [, table, id] of items) expect(await stateOf(table, id)).toBe('active');
+    const q = await ok<AdminReports>(await adminCall('/api/admin/reports'));
+    expect(q.items.map((i) => [i.kind, i.reporters]).sort()).toEqual([['comment', 5], ['note', 5], ['run', 5]]);
+    // Four old reporters with the five fresh: still not five that count.
+    for (let i = 0; i < 4; i++) {
+      const old = await oldSignUp(`old${i}`);
+      for (const [kind, , id] of items) expect((await report(old, kind, id)).status).toBe(204);
+    }
+    for (const [, table, id] of items) expect(await stateOf(table, id)).toBe('active');
+    const fifth = await oldSignUp('old4');
+    for (const [kind, , id] of items) expect((await report(fifth, kind, id)).status).toBe(204);
+    for (const [, table, id] of items) expect(await stateOf(table, id)).toBe('hidden');
+  });
+});
+
+export { DAY, NOW, call, db, publish, reportOf };

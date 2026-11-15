@@ -12,7 +12,10 @@
 // transaction as the report that makes the fifth. Only accounts that still
 // exist and are not suspended count, and a run the admin has restored or
 // whose reports were dismissed (`reviewed`) is never hidden by reports
-// again: they queue it for the admin (review fix S3).
+// again: they queue it for the admin (review fix S3). Stage 65 review fix
+// S6: only reporters whose account is RANKING_AGE_DAYS old count towards
+// the five (as only such votes move Top); a younger one's report still
+// queues the item for the admin and starts the mail.
 //
 // Stage 65 (ADR 0155): comments (flag `gallery`) and notes (flags
 // `gallery` and `runes`) are reported as runs are: the same five, the same
@@ -21,12 +24,12 @@
 //
 // Each stored report starts the owner's mail (worker/mail.ts) after the
 // answer: it never fails or delays the 204.
-import { COMMUNITY_ID_PATTERN, PUB_ID_PATTERN, REPORT_KINDS, REPORT_KINDS_OPEN, REPORT_REASONS, REPORT_TEXT_MAX, REPORTS_PER_DAY, REPORTS_TO_HIDE, type ReportKind, type ReportReason } from '../shared/cloud/api.ts';
+import { COMMUNITY_ID_PATTERN, PUB_ID_PATTERN, RANKING_AGE_DAYS, REPORT_KINDS, REPORT_KINDS_OPEN, REPORT_REASONS, REPORT_TEXT_MAX, REPORTS_PER_DAY, REPORTS_TO_HIDE, type ReportKind, type ReportReason } from '../shared/cloud/api.ts';
 import { hasKeys } from './accounts.ts';
 import { flags } from './flags.ts';
 import { mailReport } from './mail.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
-import { type D1, type D1Statement, dayStart, error, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type D1Statement, dayStart, error, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
@@ -86,12 +89,14 @@ const TABLE: Record<ReportKind, string> = { run: 'publication', comment: 'commen
 /**
  * The statements that hide the item when its open reports come from
  * REPORTS_TO_HIDE accounts (review fix S3: never an item the admin has
- * looked at, `reviewed`, and only reporters that still exist and are not
- * suspended count). A comment leaves its run's count first.
+ * looked at, `reviewed`, and only reporters that still exist, are not
+ * suspended and are RANKING_AGE_DAYS old count: review fix S6). A comment
+ * leaves its run's count first.
  */
 function hiding(db: D1, kind: ReportKind, target: string, now: number): D1Statement[] {
   const enough = `(SELECT COUNT(DISTINCT r.account) FROM report r JOIN account a ON a.id = r.account
-                   WHERE r.kind = ?4 AND r.target = ?1 AND r.handled = 0 AND a.state <> 'suspended') >= ?3`;
+                   WHERE r.kind = ?4 AND r.target = ?1 AND r.handled = 0 AND a.state <> 'suspended' AND a.created <= ?5) >= ?3`;
+  const old = now - RANKING_AGE_DAYS * DAY_MS;
   const out: D1Statement[] = [];
   if (kind === 'comment') {
     out.push(
@@ -100,7 +105,7 @@ function hiding(db: D1, kind: ReportKind, target: string, now: number): D1Statem
           `UPDATE publication SET comment_count = comment_count - 1
            WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = 'active' AND reviewed = 0) AND ${enough} AND ?2 IS NOT NULL`,
         )
-        .bind(target, now, REPORTS_TO_HIDE, kind),
+        .bind(target, now, REPORTS_TO_HIDE, kind, old),
     );
   }
   const updated = kind === 'run' ? ', updated = ?2' : '';
@@ -110,7 +115,7 @@ function hiding(db: D1, kind: ReportKind, target: string, now: number): D1Statem
         `UPDATE ${TABLE[kind]} SET state = 'hidden', hidden_reason = 'reports'${updated}
          WHERE id = ?1 AND state = 'active' AND reviewed = 0 AND ${enough} AND ?2 IS NOT NULL`,
       )
-      .bind(target, now, REPORTS_TO_HIDE, kind),
+      .bind(target, now, REPORTS_TO_HIDE, kind, old),
   );
   return out;
 }

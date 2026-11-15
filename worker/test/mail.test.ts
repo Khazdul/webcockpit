@@ -8,7 +8,7 @@ import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { SAMPLE_CRON, runCron } from '../stats.ts';
 import { db, emptyTables } from './helpers.ts';
-import { NOW, ORIGIN, envOf, publish, signUp, siteverify } from './share-helpers.ts';
+import { NOW, ORIGIN, envOf, publish, oldSignUp, signUp, siteverify } from './share-helpers.ts';
 import { commented, list, noted } from './community-helpers.ts';
 
 const TO = 'owner@example.net';
@@ -100,7 +100,7 @@ afterEach(() => {
 
 async function reporters(n: number): Promise<string[]> {
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(await signUp(`reporter${i}`, { rules: false }));
+  for (let i = 0; i < n; i++) out.push(await oldSignUp(`reporter${i}`, { rules: false }));
   return out;
 }
 

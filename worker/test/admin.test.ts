@@ -9,7 +9,7 @@ import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { recordBeat, rollUp } from '../stats.ts';
 import { T, at, count, db, device, emptyTables, envWith, faultyBucket, r2Keys, realEnv } from './helpers.ts';
-import { call as userCall, payload, post as userPost, pubRow, publish, reportOf, signUp } from './share-helpers.ts';
+import { call as userCall, payload, post as userPost, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
 
 const NOW = T('2026-11-14T12:00:00Z');
 const TEAM = 'webcockpit-test.cloudflareaccess.com';
@@ -278,7 +278,7 @@ describe('moderation (stage 64, ADR 0154)', () => {
     const id = await publish(alice, payload(321));
     const reporters: string[] = [];
     for (let i = 0; i < n; i++) {
-      const c = await signUp(`rep${i}`, { rules: false });
+      const c = await oldSignUp(`rep${i}`, { rules: false });
       reporters.push(c);
       expect((await reportOf(c, id, { reason: i % 2 ? 'rules' : 'harassment', ...(i === n - 1 ? { text: 'the newest' } : {}) }, { now: T('2026-11-15T12:00:00Z') + i })).status).toBe(204);
     }
@@ -455,7 +455,7 @@ describe('moderation (stage 64, ADR 0154)', () => {
   // Review fixes (ADR 0154 "As built (stage 64, review fixes)").
   describe('review fixes', () => {
     const fiveMore = async (id: string, from: number): Promise<void> => {
-      for (let i = from; i < from + 5; i++) expect((await reportOf(await signUp(`sock${i}`, { rules: false }), id)).status).toBe(204);
+      for (let i = from; i < from + 5; i++) expect((await reportOf(await oldSignUp(`sock${i}`, { rules: false }), id)).status).toBe(204);
     };
 
     it('S3: after Restore, five more throwaway accounts no longer hide the run; it queues for the admin', async () => {
