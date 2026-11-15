@@ -32,7 +32,7 @@ const MIB = 1024 * 1024;
 async function shot(page: Page, name: string): Promise<void> {
   if (!SHOTS) return;
   mkdirSync(SHOTS, { recursive: true });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(1200);
   await page.screenshot({ path: join(SHOTS, `${name}.desktop.jpg`), type: 'jpeg', quality: 80 });
 }
 
@@ -191,7 +191,7 @@ test('History on another device: tags, the card, the storage line, offline, the 
   await page.keyboard.press('Home');
   await watchFor(page, '.wc-hist-card .wc-lk-load');
   await hbtn(page, 'RUN LOG').click();
-  await expect(card(page).locator('.wc-lk-load-l')).toHaveText(/^Fetching from the cloud… [\d.]+ of [\d.]+ MB$/);
+  await expect(card(page).locator('.wc-lk-load-l')).toHaveText(/^Fetching from the cloud…( [\d.]+ of [\d.]+ [KM]B)?$/);
   await expect(hbtn(page, 'DELETE')).toHaveAttribute('aria-disabled', 'true');
   await shot(page, 'hist-b-fetch');
   await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1, { timeout: 20_000 });
@@ -212,7 +212,7 @@ test('History on another device: tags, the card, the storage line, offline, the 
   await shot(page, 'count-spot');
   await watchFor(page, '.wc-rc-count.is-busy');
   await count(page).locator('[data-btn="FETCHALL"]').click();
-  await expect(top(page).locator('.wc-rc-count.is-busy .wc-lk-load-l')).toHaveText(/^Fetching 1 session… [\d.]+ of [\d.]+ MB$/);
+  await expect(top(page).locator('.wc-rc-count.is-busy .wc-lk-load-l')).toHaveText(/^Fetching 1 session…( [\d.]+ of [\d.]+ [KM]B)?$/);
   await shot(page, 'count-spot-fetch');
   await expect.poll(() => states(page), { timeout: 20_000 }).toEqual(['up', 'up', 'up']);
   await expect(top(page).locator('.wc-spw-foot')).toBeVisible();

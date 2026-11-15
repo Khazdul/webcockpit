@@ -90,6 +90,8 @@ describe('History: the tag of a session (pick 2b)', () => {
     expect(logNote(2.4 * MIB, false)).toEqual({ line: 'In the cloud · 2.4 MB', sub: 'Fetched when opened' });
     expect(logNote(2.4 * MIB, true).sub).toBe('Needs the network to open');
     expect(fetchLine(1.3 * MIB, 2.4 * MIB)).toBe('Fetching from the cloud… 1.3 of 2.4 MB');
+    expect(fetchLine(3 * 1024, 8 * 1024)).toBe('Fetching from the cloud… 3 of 8 KB');
+    expect(fetchLine(0, 0)).toBe('Fetching from the cloud…');
     expect(OFFLINE_FLASH).toBe('Offline: sessions in the cloud cannot be opened.');
     expect(storageLine({ usage: 6_100_000 }, { used: 48 * MIB, limit: 50 * MIB }, fmtBytes)).toBe('This device 6.1 MB · Cloud 48 of 50 MB');
     expect(storageLine(null, { used: MIB, limit: 50 * MIB }, fmtBytes)).toBe('Cloud 1 of 50 MB');

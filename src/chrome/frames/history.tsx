@@ -131,7 +131,7 @@ import { RunLogFrame } from './run-log';
 import { DiaryPage } from './credits';
 import { type HistoryTab, HistoryTabsCtx, type HistoryTabsValue, useHistoryTabs } from './history-tabs';
 import { SpotlightsTab } from './spotlights';
-import { markHistoryOpen, useRunsOn } from './runs-cloud';
+import { useRunsOn } from './runs-cloud';
 import './history.css';
 
 export const NO_PLAYER = 'Log player not available.';
@@ -201,8 +201,6 @@ function useOffline(): boolean {
  */
 export const HistoryFrame = lookFrame(function HistoryFrame(p: { tab?: HistoryTab }): VNode {
   const [tab, setTab] = useState<HistoryTab>(p.tab ?? 'sessions');
-  // The "does not fit" dialog over History leaves out Open History.
-  useEffect(() => markHistoryOpen(), []);
   const value = useMemo((): HistoryTabsValue => ({ tab, go: setTab }), [tab]);
   return (
     <HistoryTabsCtx.Provider value={value}>
@@ -338,8 +336,16 @@ export function SessionsPage(): VNode {
   const curRemote = curMark?.kind === 'remote';
   // Offline with sessions in the cloud: the flash says why they cannot be opened.
   const anyRemote = [...marks.values()].some((m) => m?.kind === 'remote');
+  const saidOffline = useRef(false);
   useEffect(() => {
-    if (offline && anyRemote && isTop) nav.flash(OFFLINE_FLASH, 'fail', 60_000);
+    if (offline && anyRemote && isTop) {
+      saidOffline.current = true;
+      nav.flash(OFFLINE_FLASH, 'fail', 60_000);
+    } else if (!offline && saidOffline.current) {
+      // Online again: the line goes.
+      saidOffline.current = false;
+      nav.flash('', 'ok', 1);
+    }
   }, [offline, anyRemote]);
 
   const moveTo = (i: number): void => {

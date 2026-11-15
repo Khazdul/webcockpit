@@ -38,16 +38,10 @@ import './runs-cloud.css';
 
 // ------------------------------------------------------------ History open
 
-let historyOpen = 0;
-
-/** History is in the stack while the returned function is not called (the dialog then leaves out Open History). */
-export function markHistoryOpen(): () => void {
-  historyOpen++;
-  let done = false;
-  return () => {
-    if (!done) historyOpen--;
-    done = true;
-  };
+/** History is in the frame stack (not leaving): the dialog then leaves out Open History. */
+function historyInStack(): boolean {
+  const doc = globalThis.document;
+  return !!doc?.querySelector('.wc-stack > .wc-frame:not([data-held="pop"]) .wc-htabs');
 }
 
 // ------------------------------------------------------------ "does not fit"
@@ -155,7 +149,7 @@ export function useDoesNotFit(nav: Nav): void {
           const session = all.find((s) => s.id === fit.sessionId) ?? all.find((s) => s.runs.some((r) => r.runId === fit.runId)) ?? null;
           if (!alive) return;
           await new Promise<void>((resolve) => {
-            navRef.current.push(<DoesNotFitDialog fit={fit} session={session} overHistory={historyOpen > 0} onClose={resolve} />, { overlay: true });
+            navRef.current.push(<DoesNotFitDialog fit={fit} session={session} overHistory={historyInStack()} onClose={resolve} />, { overlay: true });
           });
         }
       } finally {

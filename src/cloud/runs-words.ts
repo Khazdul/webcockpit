@@ -28,6 +28,13 @@ function mbFigure(bytes: number): string {
   return mb < 10 ? String(Math.round(mb * 10) / 10) : String(Math.round(mb));
 }
 
+/** `1.3 of 2.4 MB`, or in KB when the whole is under 0.1 MB (`3 of 8 KB`). */
+function partOf(done: number, total: number): string {
+  const d = Math.max(0, Math.min(done, total));
+  if (total < 0.1 * MIB) return `${Math.round(d / 1024)} of ${Math.max(1, Math.round(total / 1024))} KB`;
+  return `${mbFigure(d)} of ${mbFigure(total)} MB`;
+}
+
 /** The account's run storage: `48 of 50 MB`. */
 export function cloudOf(used: number, limit: number): string {
   return `${mbFigure(used)} of ${mbFigure(limit)} MB`;
@@ -62,7 +69,7 @@ export function logNote(bytes: number, offline: boolean): { line: string; sub: s
 
 /** The bar's line while a session is fetched: `Fetching from the cloud… 1.3 of 2.4 MB`. */
 export function fetchLine(done: number, total: number): string {
-  return `Fetching from the cloud… ${mbFigure(Math.min(done, total))} of ${mbFigure(total)} MB`;
+  return total > 0 ? `Fetching from the cloud… ${partOf(done, total)}` : 'Fetching from the cloud…';
 }
 
 /** History's flash when a session in the cloud cannot be opened for want of a network. */
@@ -128,7 +135,7 @@ export function notCountedLine(n: number): string {
 
 /** The bar's line while Fetch all runs: `Fetching 3 sessions… 2.6 of 6.9 MB`. */
 export function fetchAllLine(sessions: number, done: number, total: number): string {
-  return `Fetching ${plural(sessions, 'session')}… ${mbFigure(Math.min(done, total))} of ${mbFigure(total)} MB`;
+  return `Fetching ${plural(sessions, 'session')}…${total > 0 ? ` ${partOf(done, total)}` : ''}`;
 }
 
 /** Why Fetch all stopped short. */
