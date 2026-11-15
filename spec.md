@@ -1414,7 +1414,8 @@ the counter, Random Runes). The flag keeps the name `gallery`.
 - **Rules** shown once per account before the first publication, with
   a tick.
 - **Reports** hide an item (a run, a comment, a note) at five from
-  different accounts.
+  different accounts at least 7 days old (younger accounts' reports
+  queue it for the admin; stage 65 review fix S6).
 
 | Endpoint | Does |
 |---|---|
@@ -1467,6 +1468,7 @@ ADR 0148, "The admin page".
 | Comments, votes | 20 and 60 an hour per account |
 | Notes on the board | 5 a day per account, 250 characters |
 | Reports | 30 a day per account |
+| Views of a run | once a UTC day per device and per address (an IPv6 /56 is one) |
 
 Limits live in `/api/config` and per account (`limits` column), so
 the owner changes them without a release.
