@@ -792,7 +792,13 @@ export class ScriptLibrary {
     } catch {
       // Closed by a versionchange in another tab: reopen once.
       this.db = null;
-      tx = (await this.open()).transaction([STORE.scripts, STORE.scriptData], 'readwrite');
+      const again = await this.open().catch(() => null);
+      if (!again) {
+        // Gone (the account's space deleted under this page: src/core/db.ts): memory from now on.
+        this.memory = true;
+        return;
+      }
+      tx = again.transaction([STORE.scripts, STORE.scriptData], 'readwrite');
     }
     for (const op of ops) {
       const os = tx.objectStore(op.store);

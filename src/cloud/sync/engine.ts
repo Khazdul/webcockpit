@@ -28,6 +28,7 @@ import type { AccountLimits, SyncItem, SyncKind, SyncUsage } from '../../../shar
 import { ItemCodec } from './codec';
 import { ITEM_SPECS, type KindSpec, copyKey, freeName, itemHashes, keepBothName } from './items';
 import { noLock } from './lock';
+import { listUnsynced } from './unsynced';
 import { INITIAL_STATUS, Observable, backoffMs } from './status';
 import {
   type Body,
@@ -175,27 +176,10 @@ export class SyncEngine {
    * network): what Log out lists and what decides a locked copy.
    */
   async unsynced(): Promise<Unsynced[]> {
-    const recs = await this.records.list();
-    const out: Unsynced[] = [];
-    for (const spec of this.specs) {
-      const mine = recs.filter((r) => r.kind === spec.kind);
-      const byId = new Map(mine.map((r) => [r.serverId, r]));
-      const seen = new Set<string>();
-      for (const li of await this.local.list(spec.kind)) {
-        const sid = await this.codec.serverId(spec.kind, li.key);
-        seen.add(sid);
-        const rec = byId.get(sid);
-        const name = spec.names?.get(li.body) ?? null;
-        if (!rec || rec.rev === 0) out.push({ kind: spec.kind, key: li.key, name, change: 'new' });
-        else if ((await itemHashes(spec, li.body)).hash !== rec.hash) out.push({ kind: spec.kind, key: li.key, name, change: 'edit' });
-      }
-      for (const rec of mine) {
-        if (!seen.has(rec.serverId) && rec.rev > 0 && rec.hash !== null && rec.key !== null) {
-          out.push({ kind: spec.kind, key: rec.key, name: rec.name, change: 'delete' });
-        }
-      }
-    }
-    return out;
+    return listUnsynced(this.specs, this.local, await this.records.list(), {
+      item: (spec, key) => this.codec.serverId(spec.kind, key),
+      record: (rec) => rec.serverId,
+    });
   }
 
   // --- One sync ---
@@ -358,7 +342,8 @@ export class SyncEngine {
     // Resolve.
     const copies: Entry[] = [];
     for (const e of [...entries.values()]) {
-      e.used = e.local !== null && inUse.has(e.key!);
+      // (Also an item that is not listed: an untouched seed in use is not replaced during play.)
+      e.used = e.key !== null && inUse.has(e.key);
       const copy = await this.decide(e, e.used, meta);
       if (copy && !entries.has(copy.sid)) {
         entries.set(copy.sid, copy);

@@ -3,8 +3,11 @@
 // when the start menu is first drawn; never on the game path.
 //
 // What it does at start:
+//   - every space: follows what the sync writes there from another tab
+//     (notify.ts);
 //   - the device's space: puts a login that did not change space into
-//     its space (`reconcile`), and draws a locked copy's notice;
+//     its space (`reconcile`), finishes a pending hand-back of a deleted
+//     account (`finishHandBacks`), and draws a locked copy's notice;
 //   - an account's space: when the keys are gone, the session is lost;
 //     else, with the flag `sync` on, the engine on the space's database.
 //
@@ -12,13 +15,15 @@
 // tab visible again, 5 s after a profile or script was stored, every 5
 // minutes while the start page shows, and at the `retryAt` of a failed
 // sync. Every call is fire-and-forget: nothing on the game path awaits it
-// (§7.0 rule 1). During play the active profile and the enabled scripts
-// are "in use" (the engine holds pulled changes to them until the start
-// page). After each sync the move goes on (move.ts), the events become
+// (§7.0 rule 1). While a game plays on the space, in this tab or another
+// (the game lock), the selected profile and the enabled scripts are "in
+// use" (the engine holds pulled changes to them until the game ends).
+// Log out and Delete account pause the sync; when they fail it goes on.
+// After each sync the move goes on (move.ts), the events become
 // messages, and the status feeds the owner row and the Account page.
 
 import type { SyncKind } from '../../../shared/cloud/api.ts';
-import { currentSpace } from '../../core/space';
+import { currentSpace, gameRunningElsewhere } from '../../core/space';
 import { onStored } from '../../core/store-events';
 import type { ProfileStore } from '../../profiles/store';
 import type { ScriptLibrary } from '../../scripts/library';
@@ -28,9 +33,10 @@ import { SyncEngine } from '../sync/engine';
 import { webSyncLock } from '../sync/lock';
 import type { InUse, SyncEvent, SyncOutcome, Unsynced } from '../sync/types';
 import { type SyncHost, isPlaying, markKeptBoth, onPlaying, patchSyncView, postSyncMessage } from '../sync-view';
-import { lockedNotice, onStopSync, reconcile, sessionLost, sessionLostLater, spacesOn, thisDeviceLabel } from './flows';
-import { idbLocalItems, idbSyncRecords } from './local';
+import { finishHandBacks, lockedNotice, onSyncControl, reconcile, sessionLost, sessionLostLater, spacesOn, thisDeviceLabel } from './flows';
+import { type ProfileChanges, idbLocalItems, idbSyncRecords } from './local';
 import { continueMove, moveState, unreachable } from './move';
+import { applyWritten, listenWritten, notifyWritten } from './notify';
 import { fetchRemote } from './remote';
 import { currentNameKey, spaceDb } from './spaces';
 import { eventWords, moveWaitWords, movedLine, movedWords, movingWords } from './words';
@@ -60,8 +66,11 @@ const NONE: Runtime = { syncNow: async () => null, unsynced: async () => null, s
 export async function startRuntime(h: SyncHost): Promise<Runtime> {
   const host = h as Host;
   try {
+    // Every tab follows what the sync (the move, the hand-back) writes into its space from another tab.
+    listenWritten(currentSpace(), (w) => void applyWritten(host, w));
     if (currentSpace().kind === 'device') {
       if (await reconcile()) return NONE;
+      for (const text of await finishHandBacks().catch(() => [])) postSyncMessage({ text, ms: MESSAGE_MS });
       patchSyncView({ locked: await lockedNotice().catch(() => null) });
       return NONE;
     }
@@ -82,10 +91,13 @@ export async function startRuntime(h: SyncHost): Promise<Runtime> {
   }
 }
 
-class PageSync implements Runtime {
+/** The sync of a page in an account's space (exported for the tests). */
+export class PageSync implements Runtime {
   private readonly engine: SyncEngine;
   private readonly open;
   private stopped = false;
+  /** A flow that may leave the space runs (Log out, Delete account): no sync until it ends or fails. */
+  private paused = false;
   private changeTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private periodTimer: ReturnType<typeof setInterval> | null = null;
@@ -101,7 +113,7 @@ class PageSync implements Runtime {
     this.open = spaceDb(nameKey);
     const inUse: InUse = { keys: (kind) => this.inUse(kind) };
     this.engine = new SyncEngine({
-      local: idbLocalItems(this.open, { written: (kind) => this.written(kind) }),
+      local: idbLocalItems(this.open, { written: (kind, profiles) => this.written(kind, profiles) }),
       records: idbSyncRecords(this.open, thisDeviceLabel),
       remote: fetchRemote(),
       keys,
@@ -112,7 +124,7 @@ class PageSync implements Runtime {
   }
 
   start(): Runtime {
-    onStopSync(() => this.stop());
+    onSyncControl({ stop: () => this.stop(), pause: () => this.pause(), resume: () => this.resume() });
     this.offs.push(this.engine.status.subscribe((status) => patchSyncView({ status })));
     patchSyncView({ status: this.engine.status.get() });
     this.offs.push(onStored(() => this.soon()));
@@ -148,6 +160,24 @@ class PageSync implements Runtime {
     if (this.periodTimer) clearInterval(this.periodTimer);
   }
 
+  /** Log out or Delete account runs: the timers stop, no new sync starts. */
+  pause(): void {
+    if (this.stopped) return;
+    this.paused = true;
+    if (this.changeTimer) clearTimeout(this.changeTimer);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.periodTimer) clearInterval(this.periodTimer);
+    this.changeTimer = this.retryTimer = this.periodTimer = null;
+  }
+
+  /** The flow failed and the page stays in the space: the sync goes on. */
+  resume(): void {
+    if (this.stopped || !this.paused) return;
+    this.paused = false;
+    this.period(!isPlaying());
+    this.run();
+  }
+
   syncNow(): Promise<SyncOutcome | null> {
     return this.sync();
   }
@@ -162,25 +192,25 @@ class PageSync implements Runtime {
   }
 
   private soon(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.paused) return;
     if (this.changeTimer) clearTimeout(this.changeTimer);
     this.changeTimer = setTimeout(() => this.run(), CHANGE_DELAY_MS);
   }
 
   private period(on: boolean): void {
     if (this.periodTimer) clearInterval(this.periodTimer);
-    this.periodTimer = on && !this.stopped ? setInterval(() => this.run(), PERIOD_MS) : null;
+    this.periodTimer = on && !this.stopped && !this.paused ? setInterval(() => this.run(), PERIOD_MS) : null;
   }
 
   private async sync(): Promise<SyncOutcome | null> {
-    if (this.stopped) return null;
+    if (this.stopped || this.paused) return null;
     let out: SyncOutcome | null = null;
     try {
       out = await this.engine.sync();
     } catch {
       out = null; // a local port failed: the status says offline; the next trigger tries again
     }
-    if (this.stopped) return out;
+    if (this.stopped || this.paused) return out;
     this.last = out;
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
@@ -216,8 +246,9 @@ class PageSync implements Runtime {
     });
   }
 
+  /** In use: what a game plays with, in this tab or in another tab of the space (the game lock). */
   private async inUse(kind: SyncKind): Promise<ReadonlySet<string>> {
-    if (!isPlaying()) return new Set();
+    if (!isPlaying() && !(await gameRunningElsewhere(currentSpace()))) return new Set();
     if (kind === 'profile') {
       const rec = await this.host.profiles.get(this.host.settings.get().profile).catch(() => null);
       return new Set(rec?.id ? [rec.id] : []);
@@ -233,8 +264,12 @@ class PageSync implements Runtime {
     return new Set();
   }
 
-  private written(kind: SyncKind): void {
-    if (kind === 'script') void this.host.scripts?.reload();
+  /** The sync wrote: this page's caches follow, and every other tab of the space is told. */
+  private written(kind: SyncKind, profiles?: ProfileChanges): void {
+    if (kind !== 'profile' && kind !== 'script') return;
+    const w = { kind, ...(profiles ? { profiles } : {}) };
+    void applyWritten(this.host, w);
+    notifyWritten(currentSpace(), w);
   }
 
   private event(e: SyncEvent): void {

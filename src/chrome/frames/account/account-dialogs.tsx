@@ -179,9 +179,18 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
     if (busy.current) return;
     busy.current = true;
     setWorking(true);
+    const inSpace = space.kind === 'account';
+    // A game may have started in another tab since the dialog opened: asked again at the last moment.
+    if (inSpace && (await gameRunningElsewhere(space))) {
+      busy.current = false;
+      if (alive.current) {
+        setWorking(false);
+        setPhase('refused');
+      }
+      return;
+    }
     const host = p.host();
     host.setLeaving(true);
-    const inSpace = space.kind === 'account';
     if (inSpace) setLeavingSpace(true);
     const r = await host.track(logout());
     if (!r.ok) {
@@ -804,7 +813,16 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
   const focusNext = useRef(false);
   const work = useWorking();
   const name = p.host().name;
-  const [inSpace] = useState(() => currentSpace().kind === 'account');
+  const [space] = useState(currentSpace);
+  const inSpace = space.kind === 'account';
+  // Refused while a game runs on the account's space in another tab (as Log out): asked at open and at the last moment.
+  const [refused, setRefused] = useState(false);
+  useEffect(() => {
+    if (!inSpace) return;
+    void gameRunningElsewhere(space).then((on) => {
+      if (on && alive.current) setRefused(true);
+    });
+  }, []);
 
   const waiting = wait !== null;
   useEffect(() => {
@@ -819,6 +837,10 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
   const remove = async (): Promise<void> => {
     if (!ready) return;
     setError(null);
+    if (inSpace && (await gameRunningElsewhere(space))) {
+      if (alive.current) setRefused(true);
+      return;
+    }
     const host = p.host();
     host.setLeaving(true);
     if (inSpace) setLeavingSpace(true);
@@ -871,6 +893,16 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
   });
 
   const off = work.on || waiting;
+  if (refused) {
+    return (
+      <Dialog title="Delete account" dlg="ac-delete" width={420} onCancel={cancel} buttons={[{ id: 'OK', label: 'OK', letter: 'o', primary: true, run: cancel }]}>
+        <p class="wc-lk-q" data-delete="refused">
+          A game is running in another tab.
+        </p>
+        <p class="wc-lk-qn">Delete the account when it has ended.</p>
+      </Dialog>
+    );
+  }
   return (
     <Dialog
       title="Delete account"
@@ -899,8 +931,8 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
           </p>
           {inSpace ? (
             <p class="wc-ac-dtxt" data-delete="handback">
-              <b>What happens on this device:</b> your profiles and scripts in <b>{name}</b> come back to this device as its own. A name that exists on both
-              sides keeps both.
+              <b>What happens on this device:</b> your profiles, scripts and runs in <b>{name}</b> come back to this device as its own. A name that exists on
+              both sides keeps both.
             </p>
           ) : (
             <p class="wc-ac-dtxt">

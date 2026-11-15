@@ -21,6 +21,7 @@ import { STORE, idbDone, idbRequest, openWebcockpitDb, randomId } from '../core/
 import { noteStored } from '../core/store-events';
 import { stripSend } from './migrate';
 import { DEFAULT_PROFILE, nameError, nameFromFileName, uniqueName } from './names';
+import { BUNDLED_PROFILE_NAMES, type BundledProfileName, SEEDED_META_KEY, seedId } from './seed-ids';
 import KHAZDUL from './khazdul.tin?raw';
 import TEMPLATE from './template.tin?raw';
 
@@ -47,9 +48,8 @@ export const PROFILE_TEMPLATE: string = TEMPLATE;
  * Bundled profiles a new user starts with besides `default` (ADR 0024):
  * the owner's PvP profile. Seeded once, on first run only.
  */
-export const BUNDLED_PROFILES: readonly { name: string; text: string }[] = [
-  { name: 'khazdul', text: KHAZDUL },
-];
+const BUNDLED_TEXT: Record<BundledProfileName, string> = { khazdul: KHAZDUL };
+export const BUNDLED_PROFILES: readonly { name: string; text: string }[] = BUNDLED_PROFILE_NAMES.map((name) => ({ name, text: BUNDLED_TEXT[name] }));
 
 /**
  * The seeds (`default` and the bundled profiles) have fixed ids and times
@@ -61,8 +61,7 @@ export const BUNDLED_PROFILES: readonly { name: string; text: string }[] = [
  */
 export const SEED_TIME = Date.UTC(2026, 8, 27);
 
-/** A seed's fixed id (`seed-default`, `seed-khazdul`). */
-export const seedId = (name: string): string => `seed-${name}`;
+export { seedId };
 
 /** The seed records, as a new device (or a new account's space) gets them. */
 export function seedProfiles(): ProfileRecord[] {
@@ -74,7 +73,6 @@ export function seedProfiles(): ProfileRecord[] {
     modified: SEED_TIME,
   }));
 }
-
 
 export interface ProfileStoreOptions {
   /** IndexedDB factory; null = memory only. Default: `globalThis.indexedDB`. */
@@ -89,6 +87,8 @@ export class ProfileStore {
   private db: Promise<IDBDatabase> | null = null;
   /** Memory fallback, used once IndexedDB has failed to open. */
   private mem: Map<string, ProfileRecord> | null = null;
+  /** The `seeded` mark of the memory fallback. */
+  private memSeeded = false;
   private readonly listeners = new Set<(name: string, text: string) => void>();
 
   constructor(opts: ProfileStoreOptions = {}) {
@@ -103,25 +103,41 @@ export class ProfileStore {
   }
 
   /**
-   * Seeds `default` from the template when it is missing. A missing
-   * `default` means a first run, so the bundled profiles are seeded too
-   * (unless a name is taken); a user who deletes one keeps it deleted.
+   * Seeds `default` from the template when it is missing. The first run of
+   * a database (no `seeded` mark, no `default`) seeds the bundled profiles
+   * too, each only where its name and its id are free; a user who deletes
+   * one keeps it deleted. Afterwards (the mark is set) a missing `default`
+   * (the move took the device's edited one into an account) brings back
+   * `default` alone.
    */
   async init(): Promise<void> {
-    await this.tx('readwrite', async (st) => {
-      const cur = await st.get(DEFAULT_PROFILE);
-      if (cur) {
-        // Profiles stored before `_send` was removed (ADR 0040).
-        for (const rec of await st.all()) {
-          const text = stripSend(rec.text);
-          if (text !== rec.text) await st.put({ ...rec, text, modified: this.now() });
+    await this.tx(
+      'readwrite',
+      async (st) => {
+        const cur = await st.get(DEFAULT_PROFILE);
+        const seeded = await st.seeded();
+        if (cur) {
+          if (!seeded) await st.markSeeded();
+          // Profiles stored before `_send` was removed (ADR 0040).
+          for (const rec of await st.all()) {
+            const text = stripSend(rec.text);
+            if (text !== rec.text) await st.put({ ...rec, text, modified: this.now() });
+          }
+          return;
         }
-        return;
-      }
-      for (const seed of seedProfiles()) {
-        if (seed.name === DEFAULT_PROFILE || !(await st.get(seed.name))) await st.put(seed);
-      }
-    });
+        const all = await st.all();
+        const ids = new Set(all.map((r) => r.id));
+        const names = new Set(all.map((r) => r.name));
+        for (const seed of seedProfiles()) {
+          const isDefault = seed.name === DEFAULT_PROFILE;
+          if (!isDefault && (seeded || names.has(seed.name) || ids.has(seed.id))) continue;
+          // `default` must be there; its seed id only when no other profile has it.
+          await st.put(ids.has(seed.id) ? { ...seed, id: randomId() } : seed);
+        }
+        if (!seeded) await st.markSeeded();
+      },
+      true,
+    );
   }
 
   /** Every profile, sorted by name (case-insensitive). */
@@ -152,6 +168,15 @@ export class ProfileStore {
       if (!cur) throw new ProfileError(`No profile "${name}".`);
       await st.put({ ...cur, text, modified: this.now() });
     });
+    this.announce(name, text);
+  }
+
+  /**
+   * Tells the listeners that `name` now holds `text`, written by someone
+   * else than this store (the sync, here or in another tab of the space:
+   * src/cloud/space/runtime.ts). An open editor lays its edits over it.
+   */
+  announce(name: string, text: string): void {
     for (const fn of [...this.listeners]) {
       try {
         fn(name, text);
@@ -181,7 +206,12 @@ export class ProfileStore {
       const err = nameError(to, await st.names(), from);
       if (err) throw new ProfileError(err);
       // The record is keyed by name, so it moves; its `id` goes with it (the sync sees a rename, not a delete and a create).
-      await st.put({ ...cur, id: cur.id || randomId(), name: to, modified: this.now() });
+      await st.put({
+        ...cur,
+        id: cur.id || randomId(),
+        name: to,
+        modified: this.now(),
+      });
       await st.delete(from);
     });
   }
@@ -222,7 +252,9 @@ export class ProfileStore {
    * Runs `fn` against one transaction (IndexedDB) or the memory map. Falls
    * back to memory if the database cannot be opened.
    */
-  private async tx<T>(mode: IDBTransactionMode, fn: (st: RecordStore) => Promise<T>): Promise<T> {
+  private async tx<T>(mode: IDBTransactionMode, fn: (st: RecordStore) => Promise<T>, meta = false): Promise<T> {
+    const stores = meta ? [STORE.profiles, STORE.syncMeta] : [STORE.profiles];
+    const wrote = { profiles: false };
     if (!this.mem) {
       let db: IDBDatabase | null = null;
       try {
@@ -231,36 +263,46 @@ export class ProfileStore {
         this.mem = new Map();
       }
       if (db) {
-        let t: IDBTransaction;
+        let t: IDBTransaction | null = null;
         try {
-          t = db.transaction(STORE.profiles, mode);
+          t = db.transaction(stores, mode);
         } catch {
           // Closed by a versionchange in another tab: reopen once.
           this.db = null;
-          t = (await this.open()).transaction(STORE.profiles, mode);
+          const again = await this.open().catch(() => null);
+          // Gone (the account's space deleted under this page: src/core/db.ts): memory from now on.
+          if (again) t = again.transaction(stores, mode);
+          else this.mem = new Map();
         }
-        const done = idbDone(t);
-        let result: T;
-        try {
-          result = await fn(idbStore(t.objectStore(STORE.profiles)));
-        } catch (err) {
-          done.catch(() => {});
+        if (t) {
+          const done = idbDone(t);
+          let result: T;
           try {
-            t.abort();
-          } catch {
-            /* already finished */
+            result = await fn(idbStore(t.objectStore(STORE.profiles), meta ? t.objectStore(STORE.syncMeta) : null, wrote));
+          } catch (err) {
+            done.catch(() => {});
+            try {
+              t.abort();
+            } catch {
+              /* already finished */
+            }
+            throw err;
           }
-          throw err;
+          await done;
+          // Only a transaction that put or deleted a profile is a change (the sync's trigger).
+          if (wrote.profiles) noteStored('profile');
+          return result;
         }
-        await done;
-        if (mode === 'readwrite') noteStored('profile');
-        return result;
       }
     }
     // Memory: apply to a copy so a thrown ProfileError leaves nothing half done.
     const copy = new Map(this.mem!);
-    const result = await fn(memStore(copy));
-    if (mode === 'readwrite') this.mem = copy;
+    const flag = { seeded: this.memSeeded };
+    const result = await fn(memStore(copy, flag));
+    if (mode === 'readwrite') {
+      this.mem = copy;
+      this.memSeeded = flag.seeded;
+    }
     return result;
   }
 
@@ -288,24 +330,37 @@ interface RecordStore {
   names(): Promise<string[]>;
   put(r: ProfileRecord): Promise<void>;
   delete(name: string): Promise<void>;
+  /** The database's `seeded` mark (`init` only: its transaction has `syncMeta`). */
+  seeded(): Promise<boolean>;
+  markSeeded(): Promise<void>;
 }
 
-function idbStore(os: IDBObjectStore): RecordStore {
+function idbStore(os: IDBObjectStore, meta: IDBObjectStore | null, wrote: { profiles: boolean }): RecordStore {
   return {
     get: (name) => idbRequest(os.get(name) as IDBRequest<ProfileRecord | undefined>),
     all: () => idbRequest(os.getAll() as IDBRequest<ProfileRecord[]>),
     names: async () => (await idbRequest(os.getAllKeys())).map(String),
     put: async (r) => {
+      wrote.profiles = true;
       await idbRequest(os.put(r));
     },
     delete: async (name) => {
+      wrote.profiles = true;
       await idbRequest(os.delete(name));
+    },
+    seeded: async () => (meta ? (await idbRequest(meta.get(SEEDED_META_KEY))) !== undefined : false),
+    markSeeded: async () => {
+      if (meta) await idbRequest(meta.put(true, SEEDED_META_KEY));
     },
   };
 }
 
-function memStore(m: Map<string, ProfileRecord>): RecordStore {
+function memStore(m: Map<string, ProfileRecord>, flag: { seeded: boolean }): RecordStore {
   return {
+    seeded: async () => flag.seeded,
+    markSeeded: async () => {
+      flag.seeded = true;
+    },
     get: async (name) => {
       const r = m.get(name);
       return r ? { ...r } : undefined;

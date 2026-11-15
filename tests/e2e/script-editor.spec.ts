@@ -420,3 +420,56 @@ test('MANUAL: from the editor (F1 at the name under the cursor, else where it wa
   await expect(pageManual).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+/** Writes `finder`'s stored source behind the library's back (as the sync does) and reloads the library. */
+async function outsideChange(page: Page, line: string): Promise<void> {
+  await page.evaluate(async (line) => {
+    await new Promise<void>((resolve, reject) => {
+      const r = indexedDB.open('webcockpit');
+      r.onsuccess = () => {
+        const t = r.result.transaction('scripts', 'readwrite');
+        const os = t.objectStore('scripts');
+        const all = os.getAll();
+        all.onsuccess = () => {
+          const rec = (all.result as { name: string; source: string }[]).find((s) => s.name === 'finder')!;
+          os.put({ ...rec, source: `${rec.source}${line}\n`, updated: Date.now() });
+        };
+        t.oncomplete = () => {
+          r.result.close();
+          resolve();
+        };
+        t.onerror = () => reject(t.error);
+      };
+      r.onerror = () => reject(r.error);
+    });
+    await window.__wc!.shell.scripts.reload();
+  }, line);
+}
+
+test('stage 61: a change from outside (the sync) shows in a clean buffer; over unsaved edits, Save keeps both', async ({ page }) => {
+  const errors = watchErrors(page);
+  const f = await scriptsPage(page);
+  await openEditor(page, f);
+  await outsideChange(page, '-- from another device');
+  await expect.poll(() => bufferText(page)).toContain('-- from another device');
+  // Unsaved edits, then another change from outside: Save keeps the edits as a new script.
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('-- mine');
+  await outsideChange(page, '-- again from there');
+  expect(await bufferText(page)).not.toContain('-- again from there');
+  await page.keyboard.press('Control+s');
+  await expect(flash(page)).toHaveText('finder was changed elsewhere while you edited. Your version is saved as finder_2.');
+  await expect(editor(page)).toHaveAttribute('data-script', 'finder_2');
+  const sources = await page.evaluate(() =>
+    window
+      .__wc!.shell.scripts.list()
+      .filter((s) => !s.bundled)
+      .map((s) => [s.name, s.source] as [string, string]),
+  );
+  const byName = new Map(sources);
+  expect(byName.get('finder')).toContain('-- again from there');
+  expect(byName.get('finder')).not.toContain('-- mine');
+  expect(byName.get('finder_2')).toContain('-- mine');
+  expect(byName.get('finder_2')).toContain('finder_2');
+  expect(errors).toEqual([]);
+});
