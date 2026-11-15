@@ -21,7 +21,7 @@ const account = () => ({
   usage: { items: 0, itemBytes: 0, runBytes: 0 },
   limits: { ...DEFAULT_ACCOUNT_LIMITS },
   sessions: [{ id: 'abcdefghijklmnop', label: 'Firefox on Linux', created: 1, lastUsed: 2, current: true }],
-  prefs: { galleryNotice: true },
+  prefs: { galleryNotice: true, rulesAccepted: false },
 });
 
 interface Call {
@@ -278,7 +278,9 @@ describe('answers are checked before they are used', () => {
     for (const body of [{ wrapRc: WRAP }, { wrapRc: WRAP, ticket: '' }, { wrapRc: WRAP, ticket: 'x'.repeat(101) }, { wrapRc: WRAP, ticket: 'a b' }, { ticket: 'abc' }]) {
       expect(await client(200, body).api.recover(rec)).toEqual({ ok: false, code: 'bad_answer', status: 200 });
     }
-    expect(await client(200, { prefs: { galleryNotice: false, x: 1 } }).api.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { prefs: { galleryNotice: false } } });
+    expect(await client(200, { prefs: { galleryNotice: false, x: 1 } }).api.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { prefs: { galleryNotice: false, rulesAccepted: false } } });
+    // The tick, as the Worker answers it since stage 64 (absent before: not ticked).
+    expect(await client(200, { prefs: { galleryNotice: true, rulesAccepted: true } }).api.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { prefs: { galleryNotice: true, rulesAccepted: true } } });
     expect(await client(200, { prefs: {} }).api.setPrefs({ galleryNotice: false })).toEqual({ ok: false, code: 'bad_answer', status: 200 });
   });
 

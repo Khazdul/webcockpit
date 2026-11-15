@@ -45,10 +45,13 @@ export interface AccountRow {
   item_bytes: number;
   /** The bytes of the account's run bodies, reserved before they are stored (worker/runs.ts; migration 0004). */
   run_bytes: number;
+  /** The account's live published runs and their payload bytes (worker/pub.ts; migration 0005). */
+  pub_count: number;
+  pub_bytes: number;
 }
 
 export const ACCOUNT_COLUMNS =
-  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes';
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes';
 
 /**
  * Names nobody can register, besides those of deleted accounts
@@ -184,7 +187,8 @@ export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BY
 }
 
 export function prefsOf(row: Pick<AccountRow, 'prefs'>): AccountPrefs {
-  return { galleryNotice: parsed(row.prefs).galleryNotice !== false };
+  const p = parsed(row.prefs);
+  return { galleryNotice: p.galleryNotice !== false, rulesAccepted: p.rulesAccepted === true };
 }
 
 /** The stored KDF parameters of an account. */

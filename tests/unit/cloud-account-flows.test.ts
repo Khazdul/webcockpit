@@ -536,8 +536,8 @@ describe('logged in', () => {
   it('set prefs', async () => {
     const d = device();
     await registered(d);
-    expect(await d.flows.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { galleryNotice: false } });
-    expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false });
+    expect(await d.flows.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { galleryNotice: false, rulesAccepted: false } });
+    expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false, rulesAccepted: false });
   });
 
   it('delete account: the password again; the account is gone, the name reserved, the device logged out and the name forgotten', async () => {

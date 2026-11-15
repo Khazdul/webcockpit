@@ -158,33 +158,33 @@ touches staging or production.
 
 #### B1. Worker (worktree `stage64-worker`, port 5462)
 
-- [ ] Migration `0005_share.sql`: `publication`, `pub_view`, `report`,
+- [x] Migration `0005_share.sql`: `publication`, `pub_view`, `report`,
       `admin_log`, `account.pub_count`, `account.pub_bytes`.
-- [ ] `worker/pub.ts`: `POST /api/u/pub` (the two-part body, checks,
+- [x] `worker/pub.ts`: `POST /api/u/pub` (the two-part body, checks,
       the count reserved before R2, given back on failure), `PATCH`,
       `DELETE`, `GET /api/u/pub`; `GET /api/pub/<id>`, `/payload`,
       `POST …/view`; the states 404 / 410 / 451 and the owner's view of a
       hidden run; the flag `share` (`FLAG_SHARE`: staging on, production
       off in `wrangler.jsonc`).
-- [ ] `worker/reports.ts`: `POST /api/u/report`, one per account and
+- [x] `worker/reports.ts`: `POST /api/u/report`, one per account and
       item, 30 a day, not one's own, five accounts hide.
-- [ ] `PATCH /api/u/account/prefs` takes `rulesAccepted: true`; `403
+- [x] `PATCH /api/u/account/prefs` takes `rulesAccepted: true`; `403
       rules` before it; `403 suspended` for a suspended account.
-- [ ] Admin API: `GET /api/admin/reports`, `POST /api/admin/pub/<id>`,
+- [x] Admin API: `GET /api/admin/reports`, `POST /api/admin/pub/<id>`,
       `POST /api/admin/account/<name>`, `GET /api/admin/log`,
       `/api/admin/pub/<id>` and its payload for a hidden run;
       `admin_log`.
-- [ ] Delete account (the player's and the admin's) removes its
+- [x] Delete account (the player's and the admin's) removes its
       publications: tombstones, R2 objects.
-- [ ] `run_worker_first` `/r/*`: `/r/<id>` answers `index.html` from
+- [x] `run_worker_first` `/r/*`: `/r/<id>` answers `index.html` from
       `ASSETS`; `/r/frame.html` is a static file (B2 builds it) and is
       not taken over.
-- [ ] The cron prunes `pub_view` older than two days.
-- [ ] Worker tests (parallel posts at 150, a too-large payload, not
+- [x] The cron prunes `pub_view` older than two days.
+- [x] Worker tests (parallel posts at 150, a too-large payload, not
       gzip, bad meta, states, views once a day, reports to five, the
       admin's actions and log, Delete account); the contract's comments
       ("As built").
-- [ ] ADR 0154 "As built (B1)".
+- [x] ADR 0154 "As built (B1)".
 
 #### B2. The replay runtime against hostile payloads (worktree `stage64-replay`, port 5463)
 
