@@ -435,6 +435,41 @@ details and deviations. The contract's comments in `shared/cloud/api.ts`
   without a release yet (the decision's "we stop at once" is a deploy
   that drops the call from `runCron`).
 
+## As built (stage 65 C4)
+
+The admin page's queue for comments and notes (`worker/admin/page.ts`,
+branch `stage65-admin`), round 13's point 7 as drawn, in the same three
+files under the same CSP, every text from the API by `textContent`:
+
+- **A kind tag on every card** (Run, Comment, Note). A comment's card:
+  `on "<run title>"`, its whole text as a quote (line breaks kept), `by
+  <writer> · <id> · on the run <run id>`, the state, the reasons with
+  counts, "Reported by N accounts" (the count only, as the owner picked:
+  never names) with the newest report's time, its text; **Open run** to
+  `/r/<run>?admin` in a new tab. A note's card the same with `on Random
+  Runes` and no link. No per-item meta read (a run's card still reads
+  `/api/admin/pub/<id>`).
+- **Actions**: Hide or Restore by state, Delete, Dismiss reports (the API's
+  own `dismiss` here, unlike a run's stage 64 card), Suspend <writer> (the
+  account action). Each asks in the page's modal with the text quoted,
+  the writer and run, what happens to the run's comment count, the
+  reports handled, and the optional log note; Delete needs no typed id.
+  Posts go to `/api/admin/comment|note/<id>` with `X-WC: 1`.
+- **The header** counts by kind: "13 open on 3 items · 1 run, 1 comment,
+  1 note" (one kind alone keeps stage 64's "8 open on 2 runs"). The log
+  names `comment <id>` and `note <id>`.
+- **Community figures**: `GET /api/admin/reports` adds `community`
+  (`listed`, `comments`, `notes`, `votes`; optional in the contract). Read
+  without scanning votes or comments: the sums of `comment_count` and
+  `vote_count` and the listed count in the same `publication` pass as
+  `pubs`, notes by `COUNT` on `note_state`. The section shows only when
+  the field is sent. Not built from the mockup: Hidden, the "Today" line,
+  a comment's time and the writer's account age (no API for them).
+- **Tests**: `tests/unit/admin-page.test.ts` (5 new: hostile texts and
+  names as text, the counts, every action's path and body, the Delete
+  modal, the log), `worker/test/admin.test.ts` (1 new: the totals, removed
+  runs and notes left out).
+
 ## Addendum (owner, round 13, 2026-11-15): the page as picked
 
 The owner's picks (`docs/stages/65-community.md`, "Owner's picks")
