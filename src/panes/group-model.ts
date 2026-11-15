@@ -34,6 +34,7 @@ import type { GroupSettings, Settings } from '../settings/types';
 import { type TimerCell, countdownText, exactText } from '../timers/entry';
 import { type IconName, positionIcon, STATUS_ICON } from './icons';
 import { type GroupColors, resolveColor, signalColors } from './palette';
+import { own } from '../core/own';
 
 // ------------------------------------------------------------------ layout
 
@@ -163,7 +164,7 @@ const POSITION_TITLE: Readonly<Record<string, string>> = {
 export function positionView(position: string | null, ride: boolean, c: Readonly<GroupColors>): IconView | null {
   if (position === null && !ride) return null;
   const icon = positionIcon(position, ride);
-  const pos = position === null ? null : (POSITION_TITLE[position] ?? capitalise(position));
+  const pos = position === null ? null : (own(POSITION_TITLE, position) ?? capitalise(position));
   const title = ride && (position === null || position === 'standing') ? 'Riding' : (pos ?? 'Riding');
   const tip = ride && title !== 'Riding' ? 'Mounted.' : ride ? 'Standing, mounted.' : position === 'fighting' ? 'In a fight.' : title + '.';
   const color = icon === 'fighting' ? c.fight : icon === 'sleeping' ? c.sleep : icon === 'riding' ? c.ride : c.posN;

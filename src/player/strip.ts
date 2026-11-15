@@ -10,6 +10,7 @@
 // `offsetToRow` over the track's slots groups them.
 
 import type { RunEvent } from '../runs/events';
+import { own } from '../core/own';
 
 /** The rail's width at the right edge, px (the stage ends left of it). */
 export const RAIL_W = 12;
@@ -135,7 +136,7 @@ export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, row
       tips: v.marks
         .slice()
         .sort((a, b) => a.offset - b.offset)
-        .map((m) => m.tip || LETTER_TIPS[m.letter]),
+        .map((m) => m.tip || (own(LETTER_TIPS, m.letter) ?? '')),
     }));
 }
 

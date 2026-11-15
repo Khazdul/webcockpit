@@ -5,7 +5,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { PAYLOAD_LIMITS, PayloadError, validMapFile, validatePayload } from '../../src/replay/validate';
+import { MAP_IMAGE_PX, PAYLOAD_LIMITS, PayloadError, imageSize, validMapFile, validatePayload } from '../../src/replay/validate';
+import { EMPTY_PNG } from '../../src/map/assets';
 import { defaultSettings } from '../../src/settings';
 import { migrateSettings } from '../../src/settings/migrate';
 import { REPLAY_SETTINGS_KEYS, type ReplayPayload, buildReplayPayload, replaySettings } from '../../src/share/payload';
@@ -53,7 +54,7 @@ describe('validatePayload: what the exporter makes', () => {
   });
 
   it('passes a payload with an embedded map in the exporter’s form (tiles png, map fonts .fnt as text/plain)', () => {
-    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    const png = EMPTY_PNG;
     const p = {
       ...base(),
       map: {
@@ -147,7 +148,7 @@ describe('validatePayload: refusals', () => {
   });
 
   it('refuses map files outside the whitelist', () => {
-    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    const png = EMPTY_PNG;
     const withFiles = (files: Record<string, string>) => ({ ...base(), map: { name: 'm', rooms: 1, visited: 1, mm2: 'AAAA', files } });
     for (const files of <Array<Record<string, string>>>[
       { 'pixmaps/../x.png': png },
@@ -173,7 +174,39 @@ describe('validatePayload: refusals', () => {
     for (let i = 0; i <= PAYLOAD_LIMITS.mapFiles; i++) many[`pixmaps/t${i}.png`] = png;
     refused(withFiles(many));
     expect(validMapFile('fonts/x.woff2', 'data:font/woff2;base64,AAAA')).toBe(true);
-    expect(validMapFile('pixmaps/x.webp', 'data:image/webp;base64,AAAA')).toBe(true);
+    expect(validMapFile('fonts/Cantarell18_0.png', png)).toBe(true);
+  });
+
+  it('refuses a map image whose header is not its type or whose size is past MAP_IMAGE_PX (a decode bomb)', () => {
+    const uri = (type: string, b: Uint8Array) => `data:image/${type};base64,${Buffer.from(b).toString('base64')}`;
+    const pngOf = (w: number, h: number) => {
+      const b = Buffer.from(EMPTY_PNG.slice(EMPTY_PNG.indexOf(',') + 1), 'base64');
+      b.writeUInt32BE(w, 16);
+      b.writeUInt32BE(h, 20);
+      return uri('png', b);
+    };
+    expect(validMapFile('pixmaps/a.png', pngOf(64, 64))).toBe(true);
+    expect(validMapFile('pixmaps/a.png', pngOf(MAP_IMAGE_PX, 1))).toBe(true);
+    expect(validMapFile('pixmaps/a.png', pngOf(MAP_IMAGE_PX + 1, 1))).toBe(false);
+    expect(validMapFile('pixmaps/a.png', pngOf(100_000, 100_000))).toBe(false);
+    expect(validMapFile('pixmaps/a.png', 'data:image/png;base64,AAAA')).toBe(false);
+    const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x10, 0x00, 0x20, 0x00]);
+    expect(imageSize('gif', gif)).toEqual({ w: 16, h: 32 });
+    expect(validMapFile('pixmaps/a.gif', uri('gif', gif))).toBe(true);
+    gif[7] = 0xff;
+    expect(validMapFile('pixmaps/a.gif', uri('gif', gif))).toBe(false);
+    // WebP VP8X: 24-bit sizes minus one.
+    const webp = new Uint8Array(30);
+    webp.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0);
+    webp.set([...'WEBPVP8X'].map((c) => c.charCodeAt(0)), 8);
+    webp.set([99, 0, 0, 49, 0, 0], 24);
+    expect(imageSize('webp', webp)).toEqual({ w: 100, h: 50 });
+    webp.set([0xff, 0xff, 0x0f], 24);
+    expect(validMapFile('pixmaps/a.webp', uri('webp', webp))).toBe(false);
+    // JPEG: an APP0 segment, then SOF0 with 8 × 4096+1.
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0, 0, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x08, 0x10, 0x01, 0x03]);
+    expect(imageSize('jpeg', jpg)).toEqual({ w: 4097, h: 8 });
+    expect(validMapFile('pixmaps/a.jpg', uri('jpeg', jpg))).toBe(false);
   });
 });
 

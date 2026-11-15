@@ -95,7 +95,8 @@ import { LEGACY_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { kindTokens } from '../player/icons';
-import { overlayView, parseView, playerFontSize } from '../player/fit';
+import { VIEW_KEYS, overlayView, parseView, playerFontSize } from '../player/fit';
+import { MAX_SCRIPT_PANES, migrateSettings } from '../settings/migrate';
 import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
 import { type DockRect, PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
@@ -520,6 +521,8 @@ export class PlayerHost {
       if (temp && this.tempHidden) return;
       const id = rec.id as ScriptPaneId;
       const cur = spanes.get(id);
+      // At most as many panes as the settings keep (a hostile log could name thousands, ADR 0154).
+      if (!cur && spanes.size >= MAX_SCRIPT_PANES) return;
       const snap = applyPaneRecord(cur?.snap ?? null, rec.json);
       if (!snap) return dropPane(id);
       // A temporary pane's place and on/off (the size of a new one if the record lacks it).
@@ -567,6 +570,13 @@ export class PlayerHost {
         const v = parseView(json);
         if (!v) return;
         overlayView(base, v as Partial<ViewSnapshot>);
+        // The recorded parts as the settings take them (ADR 0154, the review
+        // of stage 64 B2): `base` is read raw (the viewer's overrides on it,
+        // the Display popup's swatch), so a damaged or hostile part must not
+        // reach it as it came (a pane entry that is not an object, a colour
+        // that is a CSS url()).
+        const clean = migrateSettings(base, { recorded: true }) as unknown as Record<string, unknown>;
+        for (const k of VIEW_KEYS) (base as unknown as Record<string, unknown>)[k] = clean[k];
         // A VIEW recorded before the input colour was a setting (ADR 0035): it was Steel then,
         // whatever today's default is (Amber since 2026-11-12).
         const look = (v as { appearance?: Record<string, unknown> }).appearance;

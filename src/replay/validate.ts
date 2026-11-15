@@ -115,10 +115,72 @@ const FONT_URI = new RegExp(`^data:(font/woff2|text/plain);base64,${B64}$`);
 const MM2 = new RegExp(`^${B64}$`);
 const HEX = /^#[0-9a-f]{6}$/i;
 
+/** Widest and tallest map image (the bundled tiles and font pages are at most 313 px): a small file cannot decode to a huge bitmap. */
+export const MAP_IMAGE_PX = 4096;
+
+/** The bytes of a base64 text (no `atob` errors escape: null). */
+function b64Bytes(b64: string): Uint8Array | null {
+  try {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Width and height from an image file's header (PNG, GIF, WebP, JPEG), or
+ * null when the header is not one the type says.
+ */
+export function imageSize(type: string, b: Uint8Array): { w: number; h: number } | null {
+  const u16 = (i: number): number => (b[i]! << 8) | b[i + 1]!;
+  const u16le = (i: number): number => b[i]! | (b[i + 1]! << 8);
+  const u32 = (i: number): number => ((b[i]! << 24) >>> 0) + (b[i + 1]! << 16) + (b[i + 2]! << 8) + b[i + 3]!;
+  const tag = (i: number, t: string): boolean => [...t].every((c, k) => b[i + k] === c.charCodeAt(0));
+  if (type === 'png') return b.length >= 24 && b[0] === 0x89 && tag(1, 'PNG') && tag(12, 'IHDR') ? { w: u32(16), h: u32(20) } : null;
+  if (type === 'gif') return b.length >= 10 && tag(0, 'GIF8') ? { w: u16le(6), h: u16le(8) } : null;
+  if (type === 'webp') {
+    if (b.length < 30 || !tag(0, 'RIFF') || !tag(8, 'WEBP')) return null;
+    if (tag(12, 'VP8 ')) return { w: u16le(26) & 0x3fff, h: u16le(28) & 0x3fff };
+    if (tag(12, 'VP8L')) {
+      const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
+      return { w: (bits & 0x3fff) + 1, h: ((bits >>> 14) & 0x3fff) + 1 };
+    }
+    if (tag(12, 'VP8X')) return { w: 1 + (b[24]! | (b[25]! << 8) | (b[26]! << 16)), h: 1 + (b[27]! | (b[28]! << 8) | (b[29]! << 16)) };
+    return null;
+  }
+  if (type === 'jpeg') {
+    if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) return null;
+      const m = b[i + 1]!;
+      if (m === 0xff) {
+        i++;
+        continue;
+      }
+      // SOF0–SOF15 but DHT (C4), JPG (C8) and DAC (CC).
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { w: u16(i + 7), h: u16(i + 5) };
+      if (m === 0xd9 || m === 0xda) return null;
+      i += 2 + u16(i + 2);
+    }
+    return null;
+  }
+  return null;
+}
+
 /** True for a map asset value the replay may load under `key`. */
 export function validMapFile(key: string, value: unknown): value is string {
   if (typeof value !== 'string' || !MAP_FILE_KEY.test(key) || key.split('/').some((p) => p === '..' || p === '.' || p === '')) return false;
-  return IMAGE_URI.test(value) || (key.startsWith('fonts/') && FONT_URI.test(value));
+  const img = IMAGE_URI.exec(value);
+  if (img) {
+    const bytes = b64Bytes(value.slice(value.indexOf(',') + 1));
+    const size = bytes ? imageSize(img[1]!, bytes) : null;
+    return size !== null && size.w > 0 && size.h > 0 && size.w <= MAP_IMAGE_PX && size.h <= MAP_IMAGE_PX;
+  }
+  return key.startsWith('fonts/') && FONT_URI.test(value);
 }
 
 function map(v: unknown, path: string): ReplayMap {
