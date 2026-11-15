@@ -67,6 +67,7 @@ export interface Env {
   FLAG_ACCOUNTS?: boolean | string;
   /** The default of the flag `sync` (stage 61). Off: `/api/u/sync/*` answers 404. */
   FLAG_SYNC?: boolean | string;
+  FLAG_RUNS?: boolean | string;
   /** The limit on `/api/auth/*` and `/api/u/*`, keyed by address and by session. Without it: no limit. */
   API_LIMITER?: RateLimiter;
   /** The tight limit on `POST /api/auth/login`, `/recover` and `/register`, keyed by address. Without it: no limit. */

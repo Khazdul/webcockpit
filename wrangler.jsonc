@@ -41,6 +41,8 @@
     "FLAG_ACCOUNTS": false,
     // Sync of profiles and scripts (stage 61): staging only for now.
     "FLAG_SYNC": false,
+    // Runs in the cloud (stage 63, ADR 0153): staging only until the owner opens accounts.
+    "FLAG_RUNS": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -96,6 +98,7 @@
         "FLAG_STATS": true,
         "FLAG_ACCOUNTS": true,
         "FLAG_SYNC": true,
+        "FLAG_RUNS": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",

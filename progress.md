@@ -66,7 +66,7 @@
 | 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
 | 61 | Sync of profiles and scripts, on the two spaces | Done on staging (flag `sync` on there only); not released, accounts open after 63 | `docs/stages/61-sync-profiles-scripts.md` |
 | 62 | Sync of settings, script data, Comm history and timers | Done on staging (flags on there only); owner's test passed 2026-11-15; not released, accounts open after 63 | `docs/stages/62-sync-settings-comm.md` |
-| 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
+| 63 | Runs in the cloud; then accounts open | In progress | `docs/stages/63-runs-in-the-cloud.md` |
 | 64 | Share links | Planned (spec §7.12) | |
 | 65 | The community | Planned (spec §7.12) | |
 | 66 | The admin panel | Planned (spec §7.12) | |

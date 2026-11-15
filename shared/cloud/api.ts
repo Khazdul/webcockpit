@@ -8,7 +8,7 @@ export interface ApiError {
 }
 
 /** Server flags that open cloud features (spec §7.0 rule 5). A missing flag is off. */
-export type FlagName = 'stats' | 'accounts' | 'sync';
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -69,7 +69,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
@@ -420,6 +420,8 @@ export interface SyncItem {
 export interface SyncUsage {
   items: number;
   itemBytes: number;
+  /** Run bodies stored, bytes (stage 63; absent from a Worker before it). */
+  runBytes?: number;
 }
 
 /**
@@ -481,3 +483,57 @@ export interface SessionEnded {
   error: 'session_ended';
   reason: SessionEndReason;
 }
+
+// --- Runs in the cloud (stage 63, spec §7.5, ADR 0153) ---
+//
+// A run body is an encrypted, segmented blob (`encryptBody` of
+// src/cloud/crypto/segments.ts, kind "run", the item's server id), kept in
+// R2 under `u/<account id>/<id>`. The meta is the sync item of kind `run`
+// with the same id, pushed only once the body is stored. Behind the flag
+// `runs`: off, every path below answers `404 not_found`.
+
+/**
+ * `PUT /api/u/runs/<id>` (`<id>` of `SYNC_ID_PATTERN`): body = the blob,
+ * `application/octet-stream`, `Content-Length` required (`411
+ * length_required`), `X-WC: 1`. Replaces a body of the same id.
+ * `200` → `RunBodyWritten`. `413` → `RunTooLarge` (over `runMaxBytes`) or
+ * `RunQuota` (the account's run bodies would pass `runBytes`). The room is
+ * reserved before the body is stored, so two parallel PUTs never pass the
+ * limit together. A PUT that does not grow the usage is never refused.
+ *
+ * `GET /api/u/runs/<id>`: the blob (`Content-Length` set), `404
+ * not_found` when there is none.
+ *
+ * `DELETE /api/u/runs/<id>` (`X-WC: 1`): removes it; `200` →
+ * `RunBodyWritten` (also when there was none).
+ *
+ * `GET /api/u/runs`: `RunBodyList`, every body of the account.
+ */
+export interface RunBodyWritten {
+  size: number;
+  usage: SyncUsage;
+}
+
+export interface RunTooLarge {
+  error: 'run_too_large';
+  limit: number;
+}
+
+/** No room: `used` and `limit` are the account's run bytes and its `runBytes`. */
+export interface RunQuota {
+  error: 'quota';
+  used: number;
+  limit: number;
+  /** The size of the body that was refused. */
+  size: number;
+}
+
+export interface RunBodyList {
+  bodies: Array<{ id: string; size: number; created: number }>;
+  usage: SyncUsage;
+  limits: AccountLimits;
+}
+
+/** The header line of a run body's plaintext (ADR 0153, "The body"). */
+export const RUN_BODY_TYPE = 'webcockpit-run-body';
+export const RUN_BODY_VERSION = 1;
