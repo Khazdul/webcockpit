@@ -512,6 +512,8 @@
   min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Nothing a note holds paints over its neighbours (review fix S1). */
+  overflow: hidden;
 }
 
 .wc-cy-note-t b {

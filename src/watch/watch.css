@@ -551,6 +551,8 @@
   color: var(--lk-text);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  /* Nothing a comment holds paints over its neighbours (review fix S1). */
+  overflow: hidden;
 }
 
 .wc-watch-cnone {

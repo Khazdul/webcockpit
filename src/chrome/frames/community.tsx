@@ -51,7 +51,6 @@ import { type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { CommunityBoxes, GalleryPage, GalleryRow, GallerySort, Note, ReportReason, RunesBoard } from '../../../shared/cloud/api.ts';
 import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, NOTE_MAX } from '../../../shared/cloud/api.ts';
-import { cleanPublicText } from '../../../shared/cloud/text.ts';
 import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
@@ -88,9 +87,11 @@ import {
   newestListed,
   noteAge,
   noteFailText,
+  noteField,
   noteHint,
   noteReportFailText,
   notesToday,
+  noteToSend,
   pagerText,
   pagesOf,
   parseView,
@@ -727,7 +728,7 @@ function RunesBox(p: RunesProps): VNode {
   const n = [...text].length;
 
   const post = async (): Promise<void> => {
-    const t = text.trim();
+    const t = noteToSend(text);
     if (!t || busy || full || !board) return;
     setBusy(true);
     setError(null);
@@ -791,13 +792,13 @@ function RunesBox(p: RunesProps): VNode {
           hint={focused || text ? <span class="wc-cy-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
           enterSubmits
           onInput={(v) => {
-            const clean = [...cleanPublicText(v, { newlines: 0 })].slice(0, NOTE_MAX).join('');
+            const clean = noteField(v, NOTE_MAX);
             setText(clean);
             if (clean !== v && p.fieldRef.current) p.fieldRef.current.value = clean;
             setError(null);
           }}
         />
-        <GlassButton id="POST" label="Post" small primary={!!text.trim() && !full} disabled={!text.trim() || full || busy} onClick={() => void post()} />
+        <GlassButton id="POST" label="Post" small primary={!!noteToSend(text) && !full} disabled={!noteToSend(text) || full || busy} onClick={() => void post()} />
       </div>
     );
   }

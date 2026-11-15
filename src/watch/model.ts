@@ -4,7 +4,7 @@
 // No DOM, no requests (src/watch/page.tsx draws, src/watch/api.ts asks).
 
 import type { PubMeta, ReportKind, ReportReason, Stars } from '../../shared/cloud/api.ts';
-import { cleanPublicText, cleanText } from '../../shared/cloud/text.ts';
+import { cleanPublicText, cleanText, publicTextToSend } from '../../shared/cloud/text.ts';
 
 // The contract's PUB_ID_PATTERN and REPORT_TEXT_MAX (shared/cloud/api.ts), written out so the chrome
 // chunk, which holds this page, does not load that module for two values (a unit test holds them together).
@@ -214,14 +214,16 @@ export const COMMENTS_PER_PAGE = 50;
 
 /** The comment field's text as the player types: the free-text rules (shared/cloud/text.ts), cut to `COMMENT_LIMIT` code points. Not trimmed. */
 export function commentField(raw: string): string {
-  const s = cleanPublicText(raw, { newlines: COMMENT_BREAKS });
+  const rules = { newlines: COMMENT_BREAKS };
+  const s = cleanPublicText(raw, rules);
   const cps = [...s];
-  return cps.length > COMMENT_LIMIT ? cps.slice(0, COMMENT_LIMIT).join('') : s;
+  // Cut, then cleaned again: the cut may leave a ZWJ with nothing after it.
+  return cps.length > COMMENT_LIMIT ? cleanPublicText(cps.slice(0, COMMENT_LIMIT).join(''), rules) : s;
 }
 
-/** What is sent: the field's text cleaned and trimmed (empty: nothing to post). */
+/** What is sent: the field's text cleaned and trimmed (empty: nothing to post, also when nothing visible is left). */
 export function commentToSend(raw: string): string {
-  return commentField(raw).trim();
+  return publicTextToSend(commentField(raw), { newlines: COMMENT_BREAKS });
 }
 
 /** Code points of a text (the counter's figure). */

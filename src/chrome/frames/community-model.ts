@@ -6,6 +6,7 @@
 // asks).
 
 import type { GalleryRow, GallerySort, Note } from '../../../shared/cloud/api.ts';
+import { cleanPublicText, publicTextToSend } from '../../../shared/cloud/text.ts';
 
 // ------------------------------------------------------------ the list
 
@@ -107,6 +108,20 @@ export function notesToday(notes: readonly Note[], name: string | null, now: num
   const start = utcDayStart(now);
   const key = name.toLowerCase();
   return notes.filter((n) => n.writer.toLowerCase() === key && n.created >= start).length;
+}
+
+const ONE_LINE = { newlines: 0 };
+
+/** The note field's text as the player types: the free-text rules, one line, cut to `max` code points (cleaned again after the cut: no dangling ZWJ). Not trimmed. */
+export function noteField(raw: string, max: number): string {
+  const s = cleanPublicText(raw, ONE_LINE);
+  const cps = [...s];
+  return cps.length > max ? cleanPublicText(cps.slice(0, max).join(''), ONE_LINE) : s;
+}
+
+/** What a note sends: trimmed, '' when nothing visible is left (review fix S2). */
+export function noteToSend(field: string): string {
+  return publicTextToSend(field, ONE_LINE);
 }
 
 /** The field's hint: "41 / 250 · 4 left today". */
