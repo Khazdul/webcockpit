@@ -235,9 +235,20 @@ touches staging or production.
       (tests/unit/cloud-runs-fixes63.test.ts, worker/test/runs.test.ts);
       the generated runs check that no run is deleted that no player
       deleted. ADR 0153 "As built (stage 63, review fixes)".
-- [ ] Unit; the full e2e alone at 5 workers (a failure rerun alone
+- [x] Unit; the full e2e alone at 5 workers (a failure rerun alone
       before it is called one); the benchmark; the entry chunk; `npm run
       test:sync-worker`.
+
+Checks (2026-11-15): unit 4981 passed, 2 skipped; worker 161; full e2e
+alone at 5 workers (port 5450) 1647 passed, 5 failed under load, 1
+skipped: the five (Firefox look-kit-box:182, mercenaries:38,
+message:37, settings-popup:191; phone phone-own-keyboard-editors:660)
+passed alone, 10/10, none in this stage's code; the benchmark as stage
+62 (key → send playing 0.8 / 1.1 / 2.0 ms; burst 82 888 lines/s, no
+frame over 50 ms); entry chunk 31 119 (stage 62) → 31 192 bytes (+73,
+the preload map's names of the small runs chunks); `npm run
+test:sync-worker` 2/2 (a run uploaded, listed, fetched and deleted on
+the local Worker and R2).
 - [ ] Push `main`; `deploy.yml` to staging; migration 0004 there;
       `test:prod` against <https://staging.mumecockpit.com>. Nothing
       released, no tag, nothing to production.
