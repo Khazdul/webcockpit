@@ -207,3 +207,84 @@ behind the flag `sync`; the limits and the endpoints are unchanged.
 - Comm history of other players (their tells) is stored in the account,
   encrypted, for seven days. The registration's first point and
   `/privacy` say so (owner, 2026-11-15).
+
+## As built (stage 62 B1)
+
+Branch `stage62-engine`: the engine, the model and the Worker. The
+adapters (`src/cloud/space/local.ts`) are part C.
+
+- **Files.** `src/cloud/sync/types.ts` (`SettingsItem`, `ScriptDataItem`,
+  `TimersItem`, `CommItem`, `CommPieceRecord`), `items.ts` (the four
+  specs, `SYNC_SPECS`, gzip, `commIdentity`, `sortCommRecords`,
+  `utcDay`, `COMM_DAY_PATTERN`), `codec.ts` (async bodies), `engine.ts`
+  (merge, yields), `shared/cloud/api.ts` (`SYNC_KINDS_OPEN`).
+- **The bodies** (`v` 1 each, no names):
+  - `settings` `{type, record, from?}`, key `type`. **`from`** (added
+    on the coordinator's request) is the writing device's sync label
+    (`syncDeviceLabel`, `syncMeta.deviceLabel`), for "Settings from
+    desktop, Chrome."; the adapter sets it when it lists the item. It is
+    **not hashed**: `KindSpec.hashed(body)` (new) is what `itemHashes`
+    hashes, and settings drop `from`, so two devices with the same
+    settings are in step whoever wrote them. `record` must be an object
+    with an integer `version` ≥ 1; above `SETTINGS_VERSION` it decodes
+    as `newer`; nothing else of it is checked (the store migrates).
+  - `scriptData` `{name, enabled?, settings, store}`, key `name`;
+    `settings` and `store` objects, `enabled` a boolean or absent.
+  - `timers` `{character, savedAt, state}`, key `character`; `state`
+    any JSON (absent reads as null).
+  - `comm` `{day, records}`, key `day` (`YYYY-MM-DD`, or `.2`, `.3` …).
+    Each record is checked field by field (`character`, `ts`, `channel`,
+    `talker`, `text` strings or a time; `talkerType`, `destination` a
+    string or null); `seq` and unknown fields are dropped. Decode sorts
+    by `ts`, then identity (canonical JSON), and keeps each identity
+    once. Any bad record makes the piece unreadable.
+- **The order** is `SYNC_SPECS`: profile, script, settings, scriptData,
+  timers, comm. The engine's **default stays profile and script**: the
+  space's adapters do not store the new kinds yet, and a kind the
+  adapter lists as empty but whose pulls it drops would push deletes.
+  Part C passes `specs: SYNC_SPECS` with the adapters.
+- **Compression:** `compress: true` on `comm`; `encodeBody`/`decodeBody`
+  are async; a body that is not gzip, or opens to more than 32 MB
+  (`MAX_PLAIN_BYTES`, a gzip bomb), is unreadable.
+- **Merge** is one line in the table's "edited | edited" row:
+  `take(spec.merge(local, remote))`; the merged body is written locally
+  (when it differs from the local) and pushed on the remote rev (when it
+  differs from the remote). Comm emits no event for it.
+- **Yields:** `SyncEngineOptions.yieldToGame` (default `setTimeout(0)`,
+  `yieldMacrotask`) runs between kinds and between two pushes that send
+  something. The model passes a microtask: thousands of syncs at 1 ms
+  each took the generated runs from 6 s to 58 s.
+- **The names pass** was already skipped for a kind without `names`
+  (and `bare` equals `hash` there); unchanged.
+- **Seven days, whole days.** The model's adapter keeps a day while its
+  start (00:00 UTC) is within the last seven days (`commDayKept`), not
+  by each record's `ts`: a day listed with part of its records pruned
+  would shrink on one device and grow back from the others (an endless
+  push). **The IndexedDB adapter must do the same:** `list` leaves out a
+  day as soon as its start is older than seven days, and a `put` of such
+  a day is dropped.
+- **The adapter's comm contract** (as the model, tests/unit/cloud-sync-model.ts):
+  `list` gives `{day, records}` for every kept day (and piece), records
+  sorted by `ts` then identity; `put` adds the records the stored day
+  lacks by identity and removes none; `remove` deletes the day (its
+  piece); keys are the piece keys, so a split day is several items.
+- **Worker:** `SYNC_KINDS_OPEN` is profile, script, settings,
+  scriptData, comm, timers; `run` and `exportDoc` answer `403
+  kind_closed`. No other change.
+- **Tests.** Unit: `cloud-sync-items.test.ts` (28: decoders, newer
+  settings, unhashed `from`, gzip round trip and cap, merge),
+  `cloud-sync-engine.test.ts` (39: merge on both sides, a message
+  written during the engine's write, seven days, last writer, in use,
+  newer settings, yields). The generated runs cover all six kinds: 30 %
+  of the steps are small-kind writes, deletes and Comm messages (some
+  in a `.2` piece, some written while the engine writes); after the
+  passes the last-writer kinds are equal everywhere and on the server
+  and hold a version a player wrote, every message of a kept day is on
+  every device exactly once (counted in the raw store) and on the
+  server, and no day older than seven days is anywhere. 420 runs
+  (36 000 steps, about 10 000 syncs, some 4 600 Comm messages, 500
+  merges, 1 400 days aged out) in about 9 s; `SYNC_SCALE=10` (4 200
+  runs) in about 80 s. Comm as last writer, a replacing put, or a list
+  that keeps old days each fail them at once. Worker: a write, change
+  and delete of each new kind; `run` and `exportDoc` closed (118 worker
+  tests).
