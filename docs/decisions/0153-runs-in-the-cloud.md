@@ -524,3 +524,106 @@ e2e on the fake (tests/e2e/cloud-account-fake.ts grew `/api/u/runs`, the
 flag `runs`, the model's quota): tests/e2e/sync-runs.spec.ts and
 phone-sync-runs.spec.ts. `npm run test:sync-worker` turns `runs` on and
 uploads, lists, fetches and deletes a run against the local Worker and R2.
+
+## As built (stage 63 C2)
+
+The views, on branch `stage63-views`, after round 11's picks (1a, 2b,
+3a, 4 as drawn, 5 Spotlights and Diary only). Guests and the flag `runs`
+off see every view as before (e2e asserts it); the words are one pure
+module, src/cloud/runs-words.ts (unit tested), shared by the chrome and
+the locked copy's flow.
+
+**History (2b)** (src/chrome/frames/history.tsx): with `runsView().on`
+the page reads `cloudRows()` beside the list and gives each session a
+mark (`sessionMark`, runs-view.ts): `remote` (some run only in the
+cloud; the bytes to fetch), `local` (a saved run `full`, `tooLarge`, or
+`queued` after a failed upload or more than 10 minutes, `QUEUED_QUIET_MS`:
+a run queued just after its save says nothing), or none (in step,
+unsaved). The tag sits in the name's cell on a desktop and ends the first
+line of a phone's two-line row; offline it says "in the cloud · needs the
+network" (a phone "· offline"), the cloud-only rows go quieter, Run log,
+Stats and Export are off, and the flash says "Offline: sessions in the
+cloud cannot be opened." (cleared when the network is back). The card
+says it under Kept ("not in the cloud: the cloud is full" / "too large
+for the cloud" / "not uploaded yet") or Log ("In the cloud · 2.4 MB",
+"Fetched when opened" / "Needs the network to open"). The storage line
+reads "This device 6.1 MB · Cloud 48 of 50 MB" once the cloud's figures
+are known (else today's line). Run log, Stats and Export of a session in
+the cloud call `ensureLocal` first from History, with stage 24's bar in
+the card (the kit's new `LoadBar`, index.html's 2 px bar and italic line)
+and every action held; a failure flashes `notFetchedWords` (now one
+sentence per reason). A local session opens as before (no extra tick:
+Stats and Export push at once). The page reads the list again on each
+change of the view (a sync, the queue).
+
+**"Does not fit" (1a)** (src/chrome/frames/runs-cloud.tsx):
+`useDoesNotFit`, mounted once by the start menu (the stack's bottom
+frame), drains `takeDoesNotFit` at mount and on each `onDoesNotFit`,
+waits while `isPlaying()` (a game or a run log; `onPlaying(false)`
+drains again), and pushes the kit's dialog over the page on top, one at
+a time, at most once per session per page. "Cloud storage full", "Your
+cloud storage is full (49 of 50 MB).", "The run is saved on this
+device.", the run's line (name, day, length, body size); Download the
+run (the runs backup of that session's runs, `backup(now, {only})`),
+Open History (left out while a History frame is in the stack and not
+leaving), Keep on this device (primary: Enter; Esc too). Over the start
+menu the dialog centres in the screen (a CSS rule on the overlay's slot
+when the page under it is the start menu). Other reasons: `storage_full`
+"Your account’s storage is full.", `too_many_items` "Your account holds
+as many things as it can." (both titled "Cloud storage full"),
+`item_too_large` and `tooLarge` titled "Run too large" ("This run is too
+large for the cloud (23 MB; at most 20 MB)."). Sizes in the cloud are MiB
+written "MB", as the limit (50 MiB is "50 MB"); under 0.1 MB in KB.
+
+**The move's line**: `useMoveLine` flashes "N runs are not in the cloud:
+it is full." on the start menu when `notInCloudAfterMove` rises above
+the number told before; that number is kept per space in localStorage
+(`webcockpit-runs-move-told`), never set back on 0 (the view says 0 until
+the queue has looked after a load), so a reload does not say it again.
+
+**Log out (3a)**: `runCounts` also gives `why` ({full, tooLarge,
+waiting}) and `cloud` (the space has `runCloud` rows). With runs in the
+cloud on (or rows in the space) the runs row is "**N saved runs** not in
+the cloud" with "2 cloud full · 1 too large for the cloud · 1 not
+uploaded yet" in the changes row's quieter second line; otherwise
+today's "on this device only". Download is unchanged (exactly those
+runs). The locked copy's Remove list says "N saved runs not in the
+cloud" when the copy has `runCloud` rows (`notInAccount().runsCloud`).
+
+**Delete (4)**: `deleteWarning(saved, runsView().on)`: a saved session,
+logged in with runs on, "Delete this session? It is deleted on all your
+devices and in the cloud."; otherwise today's line.
+
+**The counts (5)**: `CloudCount` in Spotlights' foot (after the summary)
+and Diary's (between Previous and Next): the kit's new `cloud` icon,
+"N sessions in the cloud are not counted" (`cloudOnlySessions`, counted
+again on each view change), and on a desktop (`!device().phone`) a small
+Fetch all: `fetchAll` with the bar in the line's place, then the tab
+loads again. A phone and a tablet get the line without the button, on a
+line of its own. Hidden when N is 0 or runs are off. Nothing in
+Statistics. Fetch all has no letter: F is Spotlights' Filter.
+
+**The Exit's run (C1's gap)**: `CaptureStore.sealRun` notes
+`runSealed` (src/core/store-events.ts) when the sealed run is saved; the
+runtime's listener kicks the upload queue (not a sync). The Exit popup's
+run, saved before the game ended and sealed after the game's sync, goes
+up at once instead of at the next period sync (unit:
+cloud-space-runs.test.ts, which fails without the kick; e2e: the Exit
+popup's run is on the fake server within 8 s).
+
+**The kit**: `LoadBar` (look-controls.tsx/css) and the icons `cloud`
+and `cloudOff` (round 11's glyph, 16 × 16).
+
+**The entry chunk**: 31 188 → 31 192 bytes (`npx vite build`,
+`assets/index-*.js`): the preload map names the small runs-view and
+runs-words chunks; no code.
+
+**Tests.** Unit: tests/unit/runs-words.test.ts (every word, the tag's
+states, the seal's note), the icon list, cloud-space-runs (the seal).
+e2e on the fake: tests/e2e/runs-views.spec.ts (desktop: two devices'
+History, offline, the fetch's bar, the delete warning, Diary and
+Spotlights with Fetch all, Statistics without; "does not fit" over
+History and after an Exit; Log out; the move's line once; a guest and
+the flag off as before) and phone-runs-views.spec.ts (the phone's rows,
+offline, the counts without Fetch all, "does not fit", Log out, a guest).
+`WC_C2_SHOTS=<dir>` saves the pictures compared with round 11's.

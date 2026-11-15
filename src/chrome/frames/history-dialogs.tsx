@@ -29,6 +29,7 @@
 
 import type { VNode } from 'preact';
 import { useRef, useState } from 'preact/hooks';
+import { runsView } from '../../cloud/runs-view';
 import type { Session } from '../../runs/stitch';
 import { useServices } from '../kit/hooks';
 import { Dialog, GlassButton, KeyHelp, type KeyHelpRows, lookFrame } from '../kit/look';
@@ -230,10 +231,21 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { session: Sessio
           </>
         )}
       </dl>
-      <p class="wc-hd-warn">This will permanently delete the session's logs and run data. This cannot be undone.</p>
+      <p class="wc-hd-warn">{deleteWarning(s.saved, runsView().on)}</p>
     </Dialog>
   );
 });
+
+/**
+ * The delete dialog's warning: logged in with runs in the cloud, a saved
+ * session goes on every device and in the cloud (stage 63 C2, round 11's
+ * pick 4); otherwise (a guest, an unsaved session) today's words.
+ */
+export function deleteWarning(saved: boolean, cloud: boolean): string {
+  return saved && cloud
+    ? 'Delete this session? It is deleted on all your devices and in the cloud.'
+    : "This will permanently delete the session's logs and run data. This cannot be undone.";
+}
 
 // ------------------------------------------------------------- run-log error
 

@@ -58,6 +58,7 @@ import {
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
 import { useHistoryTabs } from './history-tabs';
+import { CloudCount } from './runs-cloud';
 
 /** The Diary's own texts (the states as pages of the book). */
 export const CREDITS_TEXT = {
@@ -179,8 +180,11 @@ export function DiaryPage(): VNode {
   const [view] = useState(() => ({ filters: settings.spotlights, nowUs: Date.now() * 1000 }));
   const [data, setData] = useState<ChronicleRun[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Fetch all (stage 63 C2) brought sessions from the cloud: the book is told again.
+  const [gen, setGen] = useState(0);
   useEffect(() => {
     let live = true;
+    if (gen > 0) setData(null);
     runs()
       .then(chronicleRuns)
       .then((r) => live && setData(r))
@@ -191,7 +195,7 @@ export function DiaryPage(): VNode {
     return () => {
       live = false;
     };
-  }, [runs]);
+  }, [runs, gen]);
   const state = useMemo((): CreditsState => {
     if (failed) return { kind: 'error' };
     if (!data) return { kind: 'loading' };
@@ -204,13 +208,13 @@ export function DiaryPage(): VNode {
   return (
     <Box title={tabs.title} size="large" onBack={() => nav.pop()} class="wc-cred" winClass={'wc-cred-win' + tabs.winClass}>
       {tabs.strip}
-      {state.kind === 'book' ? <Book book={state.book} /> : <NotePage state={state} />}
+      {state.kind === 'book' ? <Book key={gen} book={state.book} onCloudFetched={() => setGen((g) => g + 1)} /> : <NotePage state={state} onCloudFetched={() => setGen((g) => g + 1)} />}
     </Box>
   );
 }
 
 /** A state of the page as one page of the book (loading, error, no data, filtered). */
-function NotePage(p: { state: Exclude<CreditsState, { kind: 'book' }> }): VNode {
+function NotePage(p: { state: Exclude<CreditsState, { kind: 'book' }>; onCloudFetched?: () => void }): VNode {
   const kind = p.state.kind;
   const tabs = useHistoryTabs('Diary');
   // Esc leaves (the stack); the nav keys do nothing.
@@ -233,16 +237,17 @@ function NotePage(p: { state: Exclude<CreditsState, { kind: 'book' }> }): VNode 
         </div>
       </BoxBody>
       <BoxFoot class="wc-cred-foot">
-        <TurnButtons atStart atEnd onPrev={() => {}} onNext={() => {}} />
+        <TurnButtons atStart atEnd onPrev={() => {}} onNext={() => {}} count={<CloudCount onFetched={() => p.onCloudFetched?.()} />} />
       </BoxFoot>
     </>
   );
 }
 
-function TurnButtons(p: { atStart: boolean; atEnd: boolean; onPrev: () => void; onNext: () => void }): VNode {
+function TurnButtons(p: { atStart: boolean; atEnd: boolean; onPrev: () => void; onNext: () => void; count?: VNode }): VNode {
   return (
     <>
       <GlassButton id="prev" label="Previous" letter="p" icon="prev" disabled={p.atStart} onClick={p.onPrev} />
+      {p.count}
       <GlassButton id="next" label="Next" letter="n" icon="next" iconAfter disabled={p.atEnd} onClick={p.onNext} />
     </>
   );
@@ -264,7 +269,7 @@ function ChapterTitle(p: { pre: string; name: string; post: string }): VNode {
   );
 }
 
-function Book(p: { book: ChronicleBook }): VNode {
+function Book(p: { book: ChronicleBook; onCloudFetched?: () => void }): VNode {
   const { book } = p;
   const settled = useBoxSettled();
   const reduced = useReducedMotion();
@@ -550,7 +555,7 @@ function Book(p: { book: ChronicleBook }): VNode {
         </div>
       </BoxBody>
       <BoxFoot class="wc-cred-foot">
-        <TurnButtons atStart={spread === 0} atEnd={spread >= count - 1} onPrev={prev} onNext={next} />
+        <TurnButtons atStart={spread === 0} atEnd={spread >= count - 1} onPrev={prev} onNext={next} count={<CloudCount onFetched={() => p.onCloudFetched?.()} />} />
       </BoxFoot>
     </>
   );

@@ -55,6 +55,7 @@ import { useBrightBack, useDarkInk } from '../start-surface';
 import { AboutFrame, PrivacyFrame, atPrivacyPath } from './about';
 import { openHistory } from './history';
 import { ProfileFrame } from './profiles';
+import { useDoesNotFit, useMoveLine } from './runs-cloud';
 import { ScriptsFrame } from './scripts';
 import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 
@@ -118,6 +119,9 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const community = devCommunity();
   const entries = startMenu({ owner: account !== null, scripts: !!services.scripts, community });
   const sync = useSyncView(services, nav, isTop);
+  // Runs in the cloud (stage 63 C2): "does not fit" where the save was asked (after an Exit: here), the move's line.
+  useDoesNotFit(nav);
+  useMoveLine(nav, isTop);
   const lockedKey = account && account.name === null ? (sync.locked?.nameKey ?? lockedCopies()[0] ?? null) : null;
   const lockedName = lockedKey ? (sync.locked?.nameKey === lockedKey ? sync.locked.name : lockedKey) : null;
   const notice = lockedKey && sync.locked?.nameKey === lockedKey ? sync.locked : null;

@@ -1,0 +1,159 @@
+/* Runs in the cloud (stage 63 C2, ADR 0153; round 11's picks): the "does
+ * not fit" dialog, History's tags and card notes, the foot's count. Every
+ * colour a --lk-* token. */
+
+/* The cloud glyph (the kit's `cloud` / `cloudOff`) beside words. */
+.wc-rc-cloud {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  vertical-align: -2px;
+}
+
+/* 1. "Does not fit": over the start menu the dialog takes the screen (the
+ * menu panel is too small to hold it); over a page, the page's box. */
+.wc-frame[data-under]:has(.wc-start-main) ~ .wc-frame[data-overlay] .wc-lk-dslot:has(> .wc-lk-dialog[data-dlg="run-full"]) {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.wc-rf {
+  text-align: center;
+}
+
+.wc-rf-run {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-rf-run b {
+  font-style: normal;
+  color: var(--lk-text);
+}
+
+/* 2. History's tag beside the name (pick 2b). */
+.wc-hist-char:has(.wc-rc-tag) {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wc-rc-tag {
+  font: italic 500 14px/1.2 var(--lk-serif);
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant: normal;
+  color: var(--lk-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-rc-tag.is-local {
+  color: var(--lk-soon);
+}
+
+/* The phone's two-line rows: the tag ends the first line, before Expires. */
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-rc-tag {
+  grid-column: 2 / 5;
+  grid-row: 1;
+  justify-self: end;
+  max-width: 100%;
+  font-size: 14px;
+}
+
+/* Offline: the cloud-only rows quieter. */
+.wc-hist.is-offline .wc-lk-tr.is-remote:not(.is-on) > .wc-lk-td {
+  opacity: 0.55;
+}
+
+/* The card. */
+.wc-rc-kept {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font: italic 500 15px/1.25 var(--lk-serif);
+  color: var(--lk-soon);
+}
+
+.wc-rc-log {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wc-rc-logsub {
+  display: block;
+  font: italic 500 14.5px/1.25 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-rc-logsub.is-off {
+  color: var(--lk-soon);
+}
+
+.wc-rc-log .wc-rc-cloud.is-faint {
+  opacity: 0.45;
+}
+
+/* 5. The count in the foot (Spotlights, Diary). */
+.wc-rc-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  font: italic 500 15px/1.25 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-rc-count-t {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-rc-count > .wc-lk-btn {
+  margin-left: 4px;
+}
+
+.wc-rc-count.is-busy {
+  display: block;
+  width: min(300px, 100%);
+}
+
+.wc-cred-foot .wc-rc-count {
+  margin: 0 auto;
+}
+
+html.wc-phone .wc-rc-count {
+  font-size: 14px;
+  gap: 6px;
+}
+
+html.wc-phone .wc-spw-foot:has(.wc-rc-count) {
+  flex-wrap: wrap;
+}
+
+html.wc-phone .wc-spw-foot .wc-rc-count {
+  flex-basis: 100%;
+  order: 3;
+}
+
+html.wc-phone .wc-cred-foot:has(.wc-rc-count) {
+  flex-wrap: wrap;
+}
+
+html.wc-phone .wc-cred-foot .wc-rc-count {
+  flex-basis: 100%;
+  order: 3;
+  margin: 0;
+}

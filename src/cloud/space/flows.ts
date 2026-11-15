@@ -21,6 +21,7 @@ import type { Unsynced } from '../sync/types';
 import { type LockedNotice, isPlaying, patchSyncView } from '../sync-view';
 import { META, writeMeta } from './local';
 import { smallKindNames } from './unsynced-words';
+import { savedRunsLabel } from '../runs-words';
 import { beginMove, moveRuns } from './move';
 import { notifyWritten } from './notify';
 import {
@@ -341,10 +342,16 @@ export async function lockedNotice(): Promise<LockedNotice | null> {
   const kept = await notInAccount(nameKey).catch(() => null);
   if (!kept) return { nameKey, name, what: 'Some changes', lost: [] };
   const what = keptWords(kept.changes.length, kept.savedRuns) || 'Nothing';
-  const lost = [...unsyncedLines(kept.changes), ...smallKindNames(kept.changes, { timers: false }), ...(kept.savedRuns ? [`${kept.savedRuns} saved run${kept.savedRuns === 1 ? '' : 's'}`] : [])];
+  const lost = [...unsyncedLines(kept.changes), ...smallKindNames(kept.changes, { timers: false }), ...(kept.savedRuns ? [savedRunsLine(kept.savedRuns, kept.runsCloud)] : [])];
   return { nameKey, name, what, lost };
 }
 
+
+/** The Remove list's runs line: `3 saved runs`, with runs in the cloud on in the copy `3 saved runs not in the cloud` (stage 63 C2). */
+function savedRunsLine(n: number, cloud: boolean): string {
+  const l = savedRunsLabel(n);
+  return cloud ? `${l.count} ${l.rest}` : l.count;
+}
 
 /** The notice's sentence. */
 export const lockedText = (n: LockedNotice): string => lockedWords(n.name, n.what);
