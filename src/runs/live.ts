@@ -134,7 +134,7 @@ export class LiveRuns {
     const s = await this.chain();
     const lib = await this.library();
     if (!s || !lib) return;
-    if (rating > 0) await lib.save(s, rating, this.clock(), { where: 'exit' });
-    else if (s.saved) await lib.save(s, undefined, this.clock(), { where: 'exit' });
+    if (rating > 0) await lib.save(s, rating, this.clock());
+    else if (s.saved) await lib.save(s, undefined, this.clock());
   }
 }

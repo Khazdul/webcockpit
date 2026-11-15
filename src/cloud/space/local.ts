@@ -50,10 +50,14 @@
 // tests/unit/cloud-sync-model.ts is the reference):
 //
 //   run         a saved run here is an item once its `runCloud` row is `up`
-//               (its body is in the cloud), or while it is `queued` and the
-//               account has its item (an agreed record: put back in the
-//               queue after an edit beat a delete); a `remote` or
-//               `fetching` row is an item with its meta. The body is
+//               (its body is in the cloud), and, whatever its row's state,
+//               while the account has its item (an agreed record: put back
+//               in the queue after an edit beat a delete or after its body
+//               was found gone, and then perhaps refused for room, or
+//               restored from a backup over a `remote` row): a run in the
+//               account is never left out, or the engine would push its
+//               delete; a `remote` or `fetching` row is an item with its
+//               meta. The body is
 //               `{runId, meta, size}` (meta by `runItemMeta`). A put of a
 //               run here takes the item's meta (an `up` row its size; no
 //               row: an `up` one); of a run not here, a `remote` row. A
@@ -184,12 +188,16 @@ async function tx(open: OpenDb, stores: string[], mode: IDBTransactionMode): Pro
 const profileBody = (r: ProfileRow): Body => ({ id: r.id, name: r.name, text: r.text, created: r.created, modified: r.modified });
 const scriptBody = (r: ScriptRow): Body => ({ id: r.id, name: r.name, source: r.source, enabled: r.enabled, created: r.created, updated: r.updated });
 
-/** The local keys whose sync record has an agreed base (rev > 0, a hash), by kind. */
-async function agreedKeys(t: IDBTransaction, kind: SyncKind): Promise<Set<string>> {
-  const rows = (await idbRequest(t.objectStore(STORE.sync).getAll())) as SyncRow[];
+/** The local keys of `kind` among `sync` rows whose record has an agreed base (rev > 0, a hash). */
+export function agreedIn(rows: readonly { kind: string; rec?: SyncRecord }[], kind: SyncKind): Set<string> {
   const out = new Set<string>();
   for (const r of rows) if (r.kind === kind && r.rec?.key && r.rec.rev > 0 && r.rec.hash !== null) out.add(r.rec.key);
   return out;
+}
+
+/** The local keys whose sync record has an agreed base (rev > 0, a hash), by kind. */
+async function agreedKeys(t: IDBTransaction, kind: SyncKind): Promise<Set<string>> {
+  return agreedIn((await idbRequest(t.objectStore(STORE.sync).getAll())) as SyncRow[], kind);
 }
 
 /** Two profile rows with one id: refused (one would be pushed over the other). */
@@ -585,7 +593,8 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
 
 // ------------------------------------------------------------ runs (ADR 0153)
 
-const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
+/** The keys of a run's chunks or events (keyPath `[runId, seq]`). */
+export const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
 
 /** The `run` items of a space (see the file header). */
 async function listRunItems(open: OpenDb): Promise<LocalItem[]> {
@@ -600,7 +609,8 @@ async function listRunItems(open: OpenDb): Promise<LocalItem[]> {
     const here = metas[i];
     let meta: RunMeta | null = null;
     if (here) {
-      if (row.state === 'up' || (row.state === 'queued' && agreed.has(row.runId))) meta = runItemMeta(here);
+      // Up, or in the account already (a re-upload that ended full or too large leaves it there).
+      if (row.state === 'up' || agreed.has(row.runId)) meta = runItemMeta(here);
     } else if ((row.state === 'remote' || row.state === 'fetching') && row.meta) meta = runItemMeta(row.meta);
     if (!meta || meta.runId !== row.runId) return;
     const body: RunItem = { runId: row.runId, meta, size: row.size };
@@ -842,6 +852,17 @@ export async function readMeta(open: OpenDb, keys: readonly string[]): Promise<R
     if (vals[i] !== undefined) out[k] = vals[i];
   });
   return out;
+}
+
+/** Reads and writes one `syncMeta` entry in one transaction: `fn` gets its value (undefined when absent) and returns the new one (undefined deletes it). */
+export async function updateMeta(open: OpenDb, key: string, fn: (cur: unknown) => unknown): Promise<void> {
+  const t = await tx(open, [STORE.syncMeta], 'readwrite');
+  const done = idbDone(t);
+  const os = t.objectStore(STORE.syncMeta);
+  const next = fn(await idbRequest(os.get(key)));
+  if (next === undefined) os.delete(key);
+  else os.put(next, key);
+  await done;
 }
 
 /** Writes `syncMeta` entries in one transaction; a value of undefined deletes its key. */

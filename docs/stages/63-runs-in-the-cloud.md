@@ -228,9 +228,13 @@ touches staging or production.
 
 ### D. Checks and staging
 
-- [ ] A review of the runs' sync by a second agent with only the code and
+- [x] A review of the runs' sync by a second agent with only the code and
       ADR 0146, 0150, 0151, 0152, 0153; `/code-review` high of the stage;
-      fixes with tests.
+      fixes with tests. Findings 1–9 and CR1–CR9 fixed on `stage63-fixes`
+      (6–9 judged real), each with a test that failed before it
+      (tests/unit/cloud-runs-fixes63.test.ts, worker/test/runs.test.ts);
+      the generated runs check that no run is deleted that no player
+      deleted. ADR 0153 "As built (stage 63, review fixes)".
 - [ ] Unit; the full e2e alone at 5 workers (a failure rerun alone
       before it is called one); the benchmark; the entry chunk; `npm run
       test:sync-worker`.

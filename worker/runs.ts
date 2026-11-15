@@ -27,12 +27,21 @@
 //      written. So the counter ends exactly at the sum of `run_body`, also
 //      when two PUTs of one id raced.
 //
-// When step 2 fails the reservation is given back and the answer is 503.
-// When the account was deleted meanwhile, the object is removed again
-// (and the prefix's sweep row, worker/migrations/0004_runs.sql, catches
-// what that misses).
-import { type RunBodyList, type RunBodyWritten, type RunQuota, type RunTooLarge, SYNC_ID_PATTERN, type SyncUsage } from '../shared/cloud/api.ts';
-import { limitsOf } from './accounts.ts';
+// When step 2 fails before R2 stored anything, the reservation is given
+// back and the answer is 503. When R2 stored an object that cannot be
+// trusted (its size is not the declared one, or the put ended but the
+// request's stream failed), the object goes with its row and its bytes
+// (503 too: the client puts again). When the account was deleted
+// meanwhile, the object is removed again (and the prefix's sweep row,
+// worker/migrations/0004_runs.sql, catches what that misses).
+//
+// 4. A DELETE of the same id may have removed the object between steps 2
+//    and 3 (and its row before step 3 wrote it again): the object is
+//    looked for once more, and when it is gone its row and bytes go too
+//    (503: the client puts again). So `run_body` never names a body R2
+//    does not hold, and `run_bytes` stays their sum.
+import { type RunBodyList, type RunBodyWritten, type RunQuota, type RunTooLarge, SYNC_ID_PATTERN } from '../shared/cloud/api.ts';
+import { type AccountRow, limitsOf, usageOf } from './accounts.ts';
 import type { D1, Deps, Env, R2, R2Head } from './runtime.ts';
 import { API_HEADERS, DAY_MS, error, json } from './runtime.ts';
 import type { Authed } from './sessions.ts';
@@ -79,14 +88,9 @@ function idOf(c: RunsCtx): string | null {
   return SYNC_ID_PATTERN.test(id) ? id : null;
 }
 
-interface UsageRow {
-  item_count: number;
-  item_bytes: number;
-  run_bytes: number;
-}
+type UsageRow = Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes'>;
 
 const USAGE_SQL = 'SELECT item_count, item_bytes, run_bytes FROM account WHERE id = ?1';
-const usageOf = (r: UsageRow): SyncUsage => ({ items: r.item_count, itemBytes: r.item_bytes, runBytes: r.run_bytes });
 
 /** The FixedLengthStream of the Workers runtime (absent under Node, where the bytes are read first). */
 type FixedLength = new (length: number) => { readable: ReadableStream; writable: WritableStream };
@@ -136,16 +140,17 @@ async function put(c: RunsCtx): Promise<Response> {
 
   // 2. The body to R2.
   const key = keyOf(account.id, id);
-  let stored: { size: number } | null = null;
+  let stored: Stored;
   try {
     stored = await store(bucket, key, c.request, size);
   } catch {
     stored = null;
   }
-  if (stored === null || stored.size !== size) {
+  if (stored === null || stored === 'untrusted' || stored.size !== size) {
     // R2 put is atomic: a failed one leaves the old body (if any) as it
-    // was. A stored object of another size (it should never happen with
-    // a FixedLengthStream) is not trusted: it is removed with its row.
+    // was. An object stored that is not trusted (another size, which a
+    // FixedLengthStream should never let by, or a stream that failed after
+    // the put ended) replaced the old body: it is removed with its row.
     if (stored !== null) await dropBody(c, bucket, account.id, id, grow).catch(() => {});
     else await giveBack().catch(() => {});
     return error('unavailable', 503);
@@ -178,11 +183,27 @@ async function put(c: RunsCtx): Promise<Response> {
     await bucket.delete(key).catch(() => {});
     return error('unauthorized', 401);
   }
+
+  // 4. A DELETE that raced this PUT: the object gone, the row written again.
+  let there: R2Head | null;
+  try {
+    there = await bucket.head(key);
+  } catch {
+    // R2 cannot say: the row stays (the client's check of the bodies finds a body that is gone).
+    return json({ size, usage: usageOf(after) } satisfies RunBodyWritten);
+  }
+  if (!there) {
+    await dropRow(c, account.id, id).catch(() => {});
+    return error('unavailable', 503);
+  }
   return json({ size, usage: usageOf(after) } satisfies RunBodyWritten);
 }
 
-/** Streams the request's body to R2 as exactly `size` bytes; the stored head, or null. Throws when R2 or the stream fails. */
-async function store(bucket: R2, key: string, request: Request, size: number): Promise<{ size: number } | null> {
+/** What `store` came to: the stored head; null when nothing was stored; `untrusted` when R2 stored an object from a stream that failed. */
+type Stored = R2Head | { size: number } | 'untrusted' | null;
+
+/** Streams the request's body to R2 as exactly `size` bytes (see `Stored`). Throws when R2 fails, or the stream before R2 stored anything. */
+async function store(bucket: R2, key: string, request: Request, size: number): Promise<Stored> {
   const options = { httpMetadata: { contentType: 'application/octet-stream' } };
   if (FixedLengthStream && request.body) {
     const fixed = new FixedLengthStream(size);
@@ -201,8 +222,9 @@ async function store(bucket: R2, key: string, request: Request, size: number): P
       fixed.readable.cancel().catch(() => {});
       throw e;
     }
+    // R2 took the object, but the stream failed: what it holds cannot be trusted.
     const failed = await pump;
-    if (failed !== null) throw failed;
+    if (failed !== null) return head ? 'untrusted' : null;
     return head;
   }
   // No FixedLengthStream (a host that is not workerd): the bytes first.
@@ -214,6 +236,11 @@ async function store(bucket: R2, key: string, request: Request, size: number): P
 /** Removes a body: the object, then its row and its bytes (and `alsoBack`, a reservation still held). */
 async function dropBody(c: RunsCtx, bucket: R2, accountId: string, id: string, alsoBack = 0): Promise<UsageRow | null> {
   await bucket.delete(keyOf(accountId, id));
+  return dropRow(c, accountId, id, alsoBack);
+}
+
+/** Removes a body's row and its bytes (and `alsoBack`) in one batch; the usage after. */
+async function dropRow(c: RunsCtx, accountId: string, id: string, alsoBack = 0): Promise<UsageRow | null> {
   const results = await c.db.batch<UsageRow>([
     c.db
       .prepare('UPDATE account SET run_bytes = run_bytes - ?3 - COALESCE((SELECT size FROM run_body WHERE account = ?1 AND id = ?2), 0) WHERE id = ?1')

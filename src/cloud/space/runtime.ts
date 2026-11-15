@@ -38,11 +38,14 @@
 // id>`, one tab) after a save, after a sync that ends `synced` (its room
 // first), at load (rows left `fetching` recovered first) and after a
 // delete; never while a game plays here or in another tab of the space;
-// again at its `retryAt`. After a sync it also does what the engine's
-// events ask of the runs (`revived`: back in the queue; `full` of a new
-// run item: `itemRefused`), deletes the bodies of runs the player deleted
-// once their tombstones went (`RUN_BODY_DELETES`), and once per load
-// checks the bodies (orphans, lost bodies). It sets the run library's hook
+// again at its `retryAt`. After a sync it does what the engine's events
+// ask of the runs on this device (`revived`: back in the queue) before the
+// sync's caller goes on (Log out counts what is not in the account next);
+// what needs the network goes on behind it, one step after the other: a
+// `full` of a new run item (`itemRefused`, its body deleted), the bodies
+// of runs the player deleted once their tombstones went
+// (`RUN_BODY_DELETES`), once per load the check of the bodies (orphans,
+// lost bodies), and the queue. It sets the run library's hook
 // (src/runs/cloud-hook.ts) and feeds src/cloud/runs-view.ts.
 
 import type { SyncKind } from '../../../shared/cloud/api.ts';
@@ -51,7 +54,7 @@ import { STORE, idbDone, idbRequest } from '../../core/db';
 import { currentSpace, gameRunningElsewhere, holdingGameLock, spaceId } from '../../core/space';
 import { onStored } from '../../core/store-events';
 import type { ProfileStore } from '../../profiles/store';
-import { type SaveWhere, setRunCloudHook } from '../../runs/cloud-hook';
+import { setRunCloudHook } from '../../runs/cloud-hook';
 import { RUN_BODY_DELETES } from '../../runs/store';
 import { stitchChains } from '../../runs/stitch';
 import type { ScriptLibrary } from '../../scripts/library';
@@ -68,7 +71,7 @@ import { noLock, webSyncLock } from '../sync/lock';
 import type { FullReason, InUse, LocalItems, Remote, SyncEvent, SyncLock, SyncOutcome, SyncRecords, Unsynced } from '../sync/types';
 import { type SyncHost, isPlaying, markKeptBoth, onPlaying, patchSyncView, postSyncMessage } from '../sync-view';
 import { finishHandBacks, lockedNotice, onSyncControl, reconcile, sessionLost, sessionLostLater, spacesOn, thisDeviceLabel } from './flows';
-import { type OpenDb, type ProfileChanges, type SettingsWritten, idbLocalItems, idbRunCloudStore, idbSyncRecords, readMeta, settleSettingsSeed, thisDeviceType, writeMeta } from './local';
+import { type OpenDb, type ProfileChanges, type SettingsWritten, idbLocalItems, idbRunCloudStore, idbSyncRecords, readMeta, settleSettingsSeed, thisDeviceType, updateMeta } from './local';
 import { continueMove, moveRuns, moveState, unreachable } from './move';
 import { type SyncWrite, applyWritten, listenWritten, notifyWritten } from './notify';
 import { fetchRemote } from './remote';
@@ -346,7 +349,7 @@ export class PageSync implements Runtime {
       void sessionLost(out.reason);
       return out;
     }
-    // Runs in the cloud: what the sync's events ask, the deleted bodies, then the queue (not awaited).
+    // Runs in the cloud: what the sync's events ask of this device's rows; the network's part (bodies, the queue) is not awaited.
     if (this.runs && out) await this.runs.afterSync(out, this.engine.status.get()).catch(() => {});
     // The first full pull is done: a login's copy of the settings that met none of this type is the account's now.
     const settled = out?.type === 'synced' && (await settleSettingsSeed(this.open, this.type).catch(() => false));
@@ -487,15 +490,15 @@ export class PageRuns {
   readonly queue: RunQueue;
   private readonly store;
   private stopped = false;
-  private elsewhere = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private checked = false;
   /** Engine events of the sync in flight that concern runs. */
   private revived: string[] = [];
   private refused: { key: string; error: FullReason }[] = [];
-  /** Where each save of this page was asked (the "does not fit" dialog's place). */
-  private readonly where = new Map<string, SaveWhere>();
-  private offs: (() => void)[] = [];
+  /** The network's part after each sync, one after the other (`afterSync`). */
+  private behind: Promise<void> = Promise.resolve();
+  /** Runs this page was asked to save (a moved run saved again is told when it does not fit). */
+  private readonly savedHere = new Set<string>();
 
   constructor(private readonly o: PageRunsOptions) {
     this.store = idbRunCloudStore(o.open);
@@ -503,7 +506,8 @@ export class PageRuns {
       store: this.store,
       body: o.body ?? lazyBodyPort(o.dataKey),
       remote: o.remote,
-      isPlaying: () => inPlay() || this.elsewhere,
+      // Asked before each upload: a game started in another tab meanwhile stops the queue too.
+      isPlaying: async () => inPlay() || (await gameRunningElsewhere(currentSpace()).catch(() => false)),
       requestSync: () => o.requestSync(),
       lock: o.lock,
       events: { emit: (e) => void this.queueEvent(e) },
@@ -513,7 +517,7 @@ export class PageRuns {
   /** At load: rows left `fetching` go back to `remote`, then the queue. */
   async start(): Promise<void> {
     setRunCloudHook({
-      saved: (ids, where) => this.saved(ids, where),
+      saved: (ids) => this.saved(ids),
       removed: () => this.removed(),
       fetch: async (ids, onProgress) => {
         const r = await this.fetch(ids, onProgress);
@@ -530,17 +534,14 @@ export class PageRuns {
   stop(): void {
     this.stopped = true;
     if (this.retryTimer) clearTimeout(this.retryTimer);
-    for (const off of this.offs.splice(0)) off();
     setRunCloudHook(null);
     setRunsFetcher(null);
     patchRunsView({ on: false, cloud: null, queued: 0, notInCloudAfterMove: 0 });
   }
 
-  /** The library saved runs: the sealed ones are queued and go up (off play). */
-  private saved(ids: readonly string[], where: SaveWhere): void {
-    // An Exit saves during play: its upload (and any "does not fit") waits for the start page.
-    const at: SaveWhere = inPlay() || where === 'exit' ? 'start' : where;
-    for (const id of ids) this.where.set(id, at);
+  /** The library saved runs: the sealed ones are queued and go up (off play; an Exit's, and its "does not fit", wait for the start page). */
+  private saved(ids: readonly string[]): void {
+    for (const id of ids) this.savedHere.add(id);
     this.kick();
   }
 
@@ -556,7 +557,12 @@ export class PageRuns {
     if (e.type === 'full') this.refused.push({ key: e.key, error: e.error });
   }
 
-  /** After a sync (not on `session_ended`, which goes the lost session's way). */
+  /**
+   * After a sync (not on `session_ended`, which goes the lost session's
+   * way). Awaited by the sync's caller (Log out counts what is not in the
+   * account next): only this device's rows. The network's part (`later`)
+   * is not.
+   */
   async afterSync(out: SyncOutcome, status: ReturnType<SyncEngine['status']['get']>): Promise<void> {
     if (this.stopped) return;
     const revived = this.revived.splice(0);
@@ -568,24 +574,42 @@ export class PageRuns {
       if (await this.here(runId)) await this.store.put({ ...row, state: 'queued', at: Date.now() });
       else await this.store.remove(runId);
     }
-    // A run item refused for room: only one new to the account gives its body back.
+    // A run item refused for room: only one new to the account gives its body back (a request: behind the sync).
     if (refused.length) {
-      const recs = await this.o.records.list();
-      for (const { key, error } of refused) {
-        const rec = recs.find((r) => r.kind === 'run' && r.key === key);
-        if (!rec || rec.rev === 0) await this.queue.itemRefused(key, error);
-      }
+      this.later(async () => {
+        const recs = await this.o.records.list();
+        for (const { key, error } of refused) {
+          const rec = recs.find((r) => r.kind === 'run' && r.key === key);
+          if (!rec || rec.rev === 0) await this.queue.itemRefused(key, error);
+        }
+      });
     }
     if (out.type === 'synced') {
       if (status.usage && status.limits) this.queue.setRoom(status.usage, status.limits);
-      await this.deleteBodies();
-      if (!this.checked) {
-        this.checked = true;
-        await this.checkBodies().catch(() => (this.checked = false));
-      }
-      this.kick();
+      this.later(async () => {
+        await this.deleteBodies();
+        if (!this.checked) {
+          this.checked = true;
+          await this.checkBodies().catch(() => (this.checked = false));
+        }
+        this.kick();
+      });
     }
     await this.view();
+  }
+
+  /** Runs `fn` behind the sync (not awaited), after what was asked before; nothing once stopped or blocked. */
+  private later(fn: () => Promise<void>): void {
+    this.behind = this.behind.then(async () => {
+      if (this.stopped || this.o.blocked()) return;
+      await fn().catch(() => {});
+      await this.view().catch(() => {});
+    });
+  }
+
+  /** Tests: the network's part of the syncs so far has ended. */
+  idle(): Promise<void> {
+    return this.behind;
   }
 
   /** The bodies of runs the player deleted, once their tombstones went; a run listed again (an edit elsewhere beat the delete) keeps its body. */
@@ -593,16 +617,17 @@ export class PageRuns {
     const cur = (await readMeta(this.o.open, [RUN_BODY_DELETES]))[RUN_BODY_DELETES] as Record<string, string> | undefined;
     if (!cur || typeof cur !== 'object' || Object.keys(cur).length === 0) return;
     const listed = new Set((await this.o.local.list('run')).map((i) => i.key));
-    const done: string[] = [];
+    const done = new Map<string, string>();
     for (const [runId, serverId] of Object.entries(cur)) {
-      if (listed.has(runId) || (typeof serverId === 'string' && (await this.queue.removeBody(serverId)))) done.push(runId);
+      if (listed.has(runId) || (typeof serverId === 'string' && (await this.queue.removeBody(serverId)))) done.set(runId, serverId);
     }
-    if (!done.length) return;
-    // Read again: a Delete made meanwhile added to it.
-    const now = ((await readMeta(this.o.open, [RUN_BODY_DELETES]))[RUN_BODY_DELETES] as Record<string, string> | undefined) ?? {};
-    const next = { ...now };
-    for (const id of done) delete next[id];
-    await writeMeta(this.o.open, { [RUN_BODY_DELETES]: Object.keys(next).length ? next : undefined });
+    if (!done.size) return;
+    // In one transaction with what a Delete made meanwhile added: only the entries done go.
+    await updateMeta(this.o.open, RUN_BODY_DELETES, (now) => {
+      const next: Record<string, string> = { ...(now && typeof now === 'object' ? (now as Record<string, string>) : {}) };
+      for (const [id, sid] of done) if (next[id] === sid) delete next[id];
+      return Object.keys(next).length ? next : undefined;
+    });
   }
 
   private async checkBodies(): Promise<void> {
@@ -658,8 +683,7 @@ export class PageRuns {
     if (this.stopped || this.o.blocked()) return;
     await this.enqueue();
     if (inPlay()) return; // the game's end starts it again
-    this.elsewhere = await gameRunningElsewhere(currentSpace()).catch(() => false);
-    if (this.elsewhere) {
+    if (await gameRunningElsewhere(currentSpace()).catch(() => false)) {
       this.retry(Date.now() + PLAY_RECHECK_MS);
       return;
     }
@@ -683,27 +707,19 @@ export class PageRuns {
     }, Math.max(1000, at - Date.now()));
   }
 
-  /** A queue event: a run that does not fit is told where its save was asked (none for the move's: they are counted). */
+  /** A queue event: a run that does not fit is told (none for the move's that no save of this page asked for: they are counted). */
   private async queueEvent(e: RunQueueEvent): Promise<void> {
     if (e.type === 'uploaded') return;
     const moved = new Set((await moveState(this.o.open).catch(() => null))?.runs?.saved ?? []);
-    if (moved.has(e.runId) && !this.where.has(e.runId)) {
+    if (moved.has(e.runId) && !this.savedHere.has(e.runId)) {
       await this.view();
       return;
     }
     const room = this.queue.room;
     const ev: DoesNotFit =
       e.type === 'full'
-        ? { runId: e.runId, sessionId: await this.sessionOf(e.runId), used: e.used, limit: e.limit, size: e.size, reason: e.reason, where: this.where.get(e.runId) ?? 'start' }
-        : {
-            runId: e.runId,
-            sessionId: await this.sessionOf(e.runId),
-            used: room?.usage.runBytes ?? 0,
-            limit: e.limit,
-            size: e.size,
-            reason: 'tooLarge',
-            where: this.where.get(e.runId) ?? 'start',
-          };
+        ? { runId: e.runId, sessionId: await this.sessionOf(e.runId), used: e.used, limit: e.limit, size: e.size, reason: e.reason }
+        : { runId: e.runId, sessionId: await this.sessionOf(e.runId), used: room?.usage.runBytes ?? 0, limit: e.limit, size: e.size, reason: 'tooLarge' };
     emitDoesNotFit(ev);
   }
 

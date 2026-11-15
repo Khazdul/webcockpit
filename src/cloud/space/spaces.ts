@@ -22,7 +22,7 @@ import { type KindSpec, PROFILE_NAMES, SCRIPT_NAMES, SYNC_SPECS, freeName } from
 import type { LocalItems, SyncRecord, SyncRecords, Unsynced } from '../sync/types';
 import type { RunCloudRow } from '../runs/types';
 import { listUnsynced } from '../sync/unsynced';
-import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, settingsSeedHash, thisDeviceType, writeMeta } from './local';
+import { META, type OpenDb, type ProfileRow, type ScriptRow, agreedIn, idbLocalItems, idbSyncRecords, readMeta, runRange, settingsSeedHash, thisDeviceType, writeMeta } from './local';
 
 /** An account's name key (the server's `name_key`). */
 export const nameKeyOf = (name: string): string => name.toLowerCase();
@@ -272,7 +272,7 @@ export async function runCounts(open: OpenDb, nowMs = Date.now()): Promise<RunsL
   await done;
   const up = new Set(cloud.filter((r) => r.state === 'up').map((r) => r.runId));
   const state = new Map(cloud.map((r) => [r.runId, r.state]));
-  const agreed = new Set(sync.filter((r) => r.kind === 'run' && r.rec?.key && r.rec.rev > 0 && r.rec.hash !== null).map((r) => r.rec!.key!));
+  const agreed = agreedIn(sync, 'run');
   const cutoff = nowMs * 1000 - 14 * DAY_US;
   const out: RunsLeft = { saved: 0, unsaved: 0, savedIds: [], unsavedIds: [], why: { full: 0, tooLarge: 0, waiting: 0 }, cloud: cloud.length > 0 };
   for (const r of runs) {
@@ -472,8 +472,6 @@ interface RunRow {
   character?: string;
   startedUs?: number;
 }
-
-const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
 
 /**
  * The account's runs (with their chunks and events) and export edits

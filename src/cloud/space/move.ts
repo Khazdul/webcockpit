@@ -16,14 +16,16 @@
 // Untouched seeds and bundled scripts are not the device's own things and
 // stay where they are.
 //
-// Runs (stage 63 C1, ADR 0153 "The move at Create account"): every run of
-// the device (meta, chunks, events) moves into the account's space, one
-// transaction per run, and leaves the device at once (runs are moved
+// Runs (stage 63 C1, ADR 0153 "The move at Create account"): every sealed
+// run of the device (meta, chunks, events) moves into the account's space,
+// one transaction per run, and leaves the device at once (runs are moved
 // locally; the upload is the account space's: its queue takes the saved
-// ones, newest first). The fingerprint rule holds: a run whose meta
-// changed on the device after the copy (a guest game in another tab still
-// recording it) stays the device's, and its copy leaves the account's
-// space again. The export docs follow (a doc the account's space already
+// ones, newest first). A run not sealed stays the device's: a guest game
+// in another tab may be recording it (its next append would find no meta
+// on the device, and the account would hold it cut short), or it is an
+// orphan the device's sweep seals. The fingerprint rule holds too: a run
+// whose meta changed on the device after the copy stays the device's, and
+// its copy leaves the account's space again. The export docs follow (a doc the account's space already
 // has for a session is kept). `moveRuns` runs before the change of space;
 // one cut off goes on at the next load (`state.runs.pending`).
 
@@ -31,7 +33,7 @@ import { STORE, idbDone, idbRequest } from '../../core/db';
 import { DEVICE_SPACE } from '../../core/space';
 import type { RunMeta } from '../../capture/store';
 import type { SyncOutcome } from '../sync/types';
-import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, writeMeta } from './local';
+import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, runRange, writeMeta } from './local';
 import { notifyWritten } from './notify';
 import { deviceDb, ownThings, prepareAccountSpace, removeThings, thingHash, writeThings } from './spaces';
 import type { KindCounts } from './words';
@@ -106,8 +108,6 @@ export async function beginMove(name: string, deviceLabel: string, now = Date.no
   return { open, total };
 }
 
-const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
-
 /** A fingerprint of a stored value (FNV-1a of its JSON; equal values, equal prints: structured clone keeps key order). */
 function print(v: unknown): string {
   const s = JSON.stringify(v) ?? '';
@@ -117,8 +117,8 @@ function print(v: unknown): string {
 }
 
 /**
- * The runs' part of the move (see the file header): every run of the
- * device into the account's space, then out of the device. Safe to run
+ * The runs' part of the move (see the file header): every sealed run of
+ * the device into the account's space, then out of the device. Safe to run
  * again: a run the account's space already has (the same id, start and
  * character) is not copied twice, and the device's copy goes when it is
  * as the account's is. Returns how many runs moved; the move's state
@@ -146,7 +146,8 @@ export async function moveRuns(open: OpenDb, from: OpenDb = deviceDb, o: { after
       idbRequest(ct.objectStore(STORE.runEvents).getAll(runRange(run.runId))),
     ])) as [RunMeta | undefined, unknown[], unknown[]];
     await cdone;
-    if (!meta) continue;
+    // Not sealed: perhaps a game in another tab records it; it stays the device's.
+    if (!meta || !meta.sealed) continue;
     const copied = print(meta);
     // Into the account's space (one transaction), unless it is there already.
     const wt = dst.transaction([STORE.runs, STORE.runChunks, STORE.runEvents], 'readwrite');
@@ -264,10 +265,11 @@ export async function continueMove(open: OpenDb, now = Date.now()): Promise<Move
   const out = new Set([...gone, ...dropped]);
   const left = m.left.filter((e) => !out.has(e));
   const keptC = counts(kept);
-  const total = { profiles: m.total.profiles - keptC.profiles, scripts: m.total.scripts - keptC.scripts };
+  // The runs' part (their count, the saved ones, a move of runs still pending) is kept as it was.
+  const total: KindCounts = { ...m.total, profiles: m.total.profiles - keptC.profiles, scripts: m.total.scripts - keptC.scripts };
   const justDone = left.length === 0;
   if (out.size) {
-    const next: MoveState = { total, left, doneAt: justDone ? now : null, ...(m.kept || kept.length ? { kept: [...(m.kept ?? []), ...kept] } : {}) };
+    const next: MoveState = { ...m, total, left, doneAt: justDone ? now : null, ...(m.kept || kept.length ? { kept: [...(m.kept ?? []), ...kept] } : {}) };
     await writeMeta(open, { [META.move]: next });
   }
   return { total, moved: sum(total) - left.length, left: counts(left), justDone, done: justDone };

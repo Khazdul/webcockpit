@@ -223,22 +223,26 @@ describe('the library with runs in the cloud', () => {
     await put(open, STORE.runCloud, await row('loc', 'up'), await row('rem', 'remote', { meta: runRows('rem', 2_000).meta, size: 30 }));
     await put(open, STORE.exports, doc('rem'), doc('orphan'));
     expect((await lib.listSessions(5_000)).map((s) => s.id)).toEqual(['loc']);
+    // Without the hook (runs in the cloud off) the remote rows are not listed (stage 63 review, 9).
+    expect((await lib.listSessions(5_000, { remote: true })).map((s) => s.id)).toEqual(['loc']);
+    const fetch = vi.fn(async () => ({ ok: true as const }));
+    const saved = vi.fn();
+    const removed = vi.fn();
+    setRunCloudHook({ fetch, saved, removed });
     const sessions = await lib.listSessions(5_000, { remote: true });
     expect(sessions.map((s) => s.id)).toEqual(['rem', 'loc']);
     const rows = await lib.cloudRows();
     expect(sessionCloud(sessions[0]!, rows)).toMatchObject({ state: 'remote', remote: 1, cloudBytes: 30, cloudOnly: true });
     expect(sessionCloud(sessions[1]!, rows)).toMatchObject({ state: 'up', cloudOnly: false });
     // No hook (the flag off): a remote session cannot be fetched; a local one needs nothing.
+    setRunCloudHook(null);
     expect(await lib.ensureLocal(sessions[0]!)).toEqual({ ok: false, why: 'unavailable' });
     expect(await lib.ensureLocal(sessions[1]!)).toEqual({ ok: true });
-    const fetch = vi.fn(async () => ({ ok: true as const }));
-    const saved = vi.fn();
-    const removed = vi.fn();
     setRunCloudHook({ fetch, saved, removed });
     expect(await lib.ensureLocal(sessions[0]!)).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledWith(['rem'], undefined);
     await lib.save(sessions[1]!, 3);
-    expect(saved).toHaveBeenCalledWith(['loc'], 'history');
+    expect(saved).toHaveBeenCalledWith(['loc']);
     // Rating a session only in the cloud rates its row's meta (its item follows).
     await lib.save(sessions[0]!, 5);
     expect((await lib.cloudRows()).get('rem')!.meta!.rating).toBe(5);
@@ -389,14 +393,14 @@ describe('the page with the flag `runs` on two devices', () => {
     // Saved in play (an Exit): nothing goes until the game is left; then "does not fit" for the start page.
     setPlaying(true);
     const [s] = await a.lib.listSessions(2_000_000);
-    await a.lib.save(s!, 2, undefined, { where: 'exit' });
+    await a.lib.save(s!, 2);
     await until(async () => (await a.lib.cloudRows()).get('big')?.state === 'queued');
     await new Promise((r) => setTimeout(r, 200));
     expect((await a.lib.cloudRows()).get('big')?.state).toBe('queued');
     expect(fits).toEqual([]);
     setPlaying(false);
     await until(() => fits.length === 1);
-    expect(fits[0]).toMatchObject({ runId: 'big', sessionId: 'big', limit: 50, reason: 'quota', where: 'start' });
+    expect(fits[0]).toMatchObject({ runId: 'big', sessionId: 'big', limit: 50, reason: 'quota' });
     expect(fits[0]!.size).toBeGreaterThan(50);
     expect((await a.lib.cloudRows()).get('big')!.state).toBe('full');
     expect(server.bodies.size).toBe(0);
