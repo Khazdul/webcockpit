@@ -4,7 +4,7 @@
 // writes need `X-WC: 1` and the site's own `Origin`, as the flag switch.
 // Not behind the flag `share`: the admin can still clean up with it off.
 //
-//   GET  /api/admin/reports              open reports by item, and the published runs' totals
+//   GET  /api/admin/reports              open reports by item, the published runs' and the community's totals
 //   POST /api/admin/pub/<id>             {action: hide|restore|dismiss|delete, note?} → 204
 //   POST /api/admin/account/<name>       {action: suspend|restore|delete, confirm?, note?} → 204
 //   GET  /api/admin/log                  the newest 100 entries of admin_log
@@ -122,7 +122,7 @@ function guarded(h: (request: Request, env: Env, db: D1, url: URL, now: number, 
 // --- GET /api/admin/reports ---
 
 async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: number): Promise<Response> {
-  const [items, comments, notes, reasons, texts, totals] = await db.batch<Record<string, unknown>>([
+  const [items, comments, notes, reasons, texts, totals, noteCount] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
@@ -163,10 +163,15 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
       .prepare(
         `SELECT COALESCE(SUM(CASE WHEN state IN ('active', 'hidden') THEN 1 ELSE 0 END), 0) AS count,
                 COALESCE(SUM(CASE WHEN state IN ('active', 'hidden') THEN bytes ELSE 0 END), 0) AS bytes,
-                COALESCE(SUM(CASE WHEN state <> 'pending' AND created >= ?1 THEN 1 ELSE 0 END), 0) AS today
+                COALESCE(SUM(CASE WHEN state <> 'pending' AND created >= ?1 THEN 1 ELSE 0 END), 0) AS today,
+                COALESCE(SUM(CASE WHEN state = 'active' AND listed = 1 THEN 1 ELSE 0 END), 0) AS listed,
+                COALESCE(SUM(CASE WHEN state IN ('active', 'hidden') THEN comment_count ELSE 0 END), 0) AS comments,
+                COALESCE(SUM(CASE WHEN state IN ('active', 'hidden') THEN vote_count ELSE 0 END), 0) AS votes
          FROM publication`,
       )
       .bind(dayStart(utcDay(now))),
+    // Stage 65 C4: the active notes (the index note_state; notes live 30 days).
+    db.prepare(`SELECT COUNT(*) AS n FROM note WHERE state = 'active'`),
   ]);
   const key = (r: Record<string, unknown>): string => `${String(r.kind)}|${String(r.target)}`;
   const byItem = new Map<string, Partial<Record<ReportReason, number>>>();
@@ -199,7 +204,11 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
     return item;
   });
   const t = totals?.results[0] ?? {};
-  return json({ items: out, pubs: { count: Number(t.count ?? 0), bytes: Number(t.bytes ?? 0), today: Number(t.today ?? 0) } } satisfies AdminReports);
+  return json({
+    items: out,
+    pubs: { count: Number(t.count ?? 0), bytes: Number(t.bytes ?? 0), today: Number(t.today ?? 0) },
+    community: { listed: Number(t.listed ?? 0), comments: Number(t.comments ?? 0), notes: Number(noteCount?.results[0]?.n ?? 0), votes: Number(t.votes ?? 0) },
+  } satisfies AdminReports);
 }
 
 // --- GET /api/admin/log ---
