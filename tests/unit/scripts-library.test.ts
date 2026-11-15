@@ -197,6 +197,33 @@ describe('library', () => {
     await lib.close();
   });
 
+  it('reload drops a data record the sync deleted, keeps one with unflushed values', async () => {
+    const { lib, factory } = make();
+    await lib.init();
+    await lib.setEnabled('looter', true);
+    await lib.create('mine', '-- @api 1');
+    lib.storeSet('looter', 'n', 5);
+    lib.storeSet('mine', 'k', 1);
+    await new Promise((r) => setTimeout(r, 30));
+    // The sync deletes both records in the database; `mine` then gets a
+    // value not flushed yet.
+    const db = await openWebcockpitDb(factory!);
+    await new Promise<void>((res, rej) => {
+      const tx = db.transaction('scriptData', 'readwrite');
+      tx.objectStore('scriptData').delete('looter');
+      tx.objectStore('scriptData').delete('mine');
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+    lib.storeSet('mine', 'k', 2);
+    await lib.reload();
+    expect(lib.get('looter')!.enabled).toBe(false);
+    expect(lib.storeGet('looter', 'n')).toBe(undefined);
+    expect(lib.storeGet('mine', 'k')).toBe(2);
+    await lib.close();
+  });
+
   it('a user script whose name a new bundled script takes is renamed', async () => {
     const factory = new IDBFactory();
     const old = new ScriptLibrary({ factory, bundled: [] });

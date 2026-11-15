@@ -264,8 +264,9 @@ export class ScriptLibrary {
 
   /**
    * Reads the user scripts and the data records again from the database:
-   * the sync wrote them there (stage 61, ADR 0151). Bundled scripts and
-   * `store` values not flushed yet are kept.
+   * the sync wrote them there (stage 61, ADR 0151). A data record no
+   * longer stored is dropped. Bundled scripts and `store` values not
+   * flushed yet are kept.
    */
   reload(): Promise<void> {
     return this.serial(async () => {
@@ -286,6 +287,10 @@ export class ScriptLibrary {
         return;
       }
       for (const [name, e] of [...this.entries]) if (!e.bundled) this.entries.delete(name);
+      // A record the sync deleted goes too; one with unflushed `store`
+      // values is kept (the flush writes it back).
+      const stored = new Set(datas.map((d) => d.name));
+      for (const name of [...this.data.keys()]) if (!stored.has(name) && !this.dirtyData.has(name)) this.data.delete(name);
       for (const d of datas) if (!this.dirtyData.has(d.name)) this.data.set(d.name, d);
       await this.addUserScripts(recs);
       this.changed();
