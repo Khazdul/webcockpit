@@ -1,11 +1,20 @@
 # Stage 64 — Share links
 
-Status: **In progress (2026-11-15).** Planned; mockups round 12 for the
-owner; foundations being built.
+Status: **Owner testing (2026-11-15).** Built, reviewed and on staging
+(`share` on there); production unchanged (`share` off, no release).
 
 ## Waiting for the owner
 
-- Nothing now: round 12's picks are made; the views are being built.
+1. **The test on staging** (test guide below), desktop and phone.
+2. **The words of `/privacy`'s "Share links" section** (step 8): approve
+   or change.
+3. **The report rule after a review** (decided by me, ADR 0154 review
+   fixes S3): once you have restored a run or dismissed its reports, new
+   reports only queue it for you and never hide it again; only existing,
+   not suspended accounts count toward the five. Say if you want it
+   stricter (e.g. a minimum account age).
+4. **Then the yes or no to `share` in production** (part F: version,
+   tag, migration 0005, `FLAG_SHARE`), only on your explicit word.
 
 ## Goal
 
@@ -282,10 +291,17 @@ local Worker and R2, watched by a guest, counted once, removed).
 
 ### E. Staging
 
-- [ ] Push `main`; `deploy.yml` to staging with migration 0005;
+- [x] Push `main`; `deploy.yml` to staging with migration 0005;
       `test:prod` against <https://staging.mumecockpit.com> (grows: a
       watch page's state with `share` on); production's `/api/config`
       unchanged (`share` off). No tag, no release.
+      (Run 43746447651, commit 00a2af8f, `0005_share.sql` applied; the
+      first run, 43746008691, stopped in `build:site`'s smoke test, which
+      did not know the flag `share`: fixed, nothing had been deployed.
+      Staging's flags `stats`, `accounts`, `sync`, `runs`, `share` on;
+      `/r/frame` answers with its own policy ending `sandbox
+      allow-scripts`; `test:prod` 36/36 against staging; production's
+      `/api/config` is 0.12.0's, without `share`.)
 
 ### F. Share open in production (only on the owner's go-ahead)
 
@@ -322,7 +338,50 @@ fonts, ≈ 0.2 MB per cut.)
 
 ## Test guide (owner)
 
-(Written when part E is done.)
+On staging (<https://staging.mumecockpit.com>, not the `workers.dev`
+address), with your test account. A second account helps for Report;
+a private window is a guest.
+
+1. **Share a cut.** Log in, History → a session (one with the map on is
+   best) → Export. The format row has Link (L) after HTML replay and
+   Plain text. Choose it and EXPORT: the share dialog with the title
+   filled in, a description, the size against 5 MB, "Anyone with the
+   link can watch this." and, the first time only, the rules with a
+   tick. Create link → a bar, then the link with Copy.
+2. **Watch as a guest.** Open the link in a private window: no start
+   page animation; the band with title, character and level, length,
+   date, views, "shared by <you>"; the replay plays in its frame (keys,
+   fullscreen, the map). Download as HTML gives a file that plays.
+   Reload: the views went up once, not twice. Do the same on the phone.
+3. **Guest in the export editor.** Logged out, Export: Link is greyed;
+   pressing it says to log in.
+4. **Report.** As a guest on the link: Report says "Log in to report" and
+   gives `abuse@mumecockpit.com`. Logged in with another account: the
+   four reasons and a text; thanks; a second report says already
+   reported. On your own run there is no Report.
+5. **Published runs.** Account page → Published runs: the run with its
+   views, Copy, Edit (change the title; the watch page shows the new
+   one), Remove → the link says it was removed.
+6. **The admin.** `/admin` on staging: Reports lists the reported run
+   (reasons, how many accounts, the text). Watch opens it; Hide → the
+   guest's link says hidden, your own account sees it with "Hidden after
+   reports"/the admin note; Restore brings it back; Dismiss reports
+   clears the queue. The totals and the log at the right. Suspend your
+   second account: it can no longer share or report, its sync goes on;
+   Restore it.
+7. **Five reports** hiding a run needs five accounts: covered by the
+   tests; say if you want to see it live.
+8. **About and `/privacy`.** About names the abuse address. `/privacy`
+   has a "Share links" section (letter L): read it and say whether the
+   words are right.
+9. **Size and refusals** (optional): an uncut multi-hour session with
+   much travel may pass 5 MB; the dialog then says so before anything is
+   sent.
+
+**Feedback wanted:** does share → send → watch feel right on desktop
+and phone; the band and the dialog in real use; the `/privacy` words;
+anything that looked wrong. Then the yes or no to opening `share` in
+production.
 
 ## Owner feedback
 
