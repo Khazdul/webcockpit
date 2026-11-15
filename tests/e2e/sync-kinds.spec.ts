@@ -79,6 +79,20 @@ async function play(d: Device, name: string): Promise<void> {
   await expect(comm(d.page)).toHaveAttribute('data-active', '');
 }
 
+/** The tab hidden (or visible again) as far as the page knows: `visibilityState` and its event. */
+const setHidden = (page: Page, hidden: boolean): Promise<void> =>
+  page.evaluate((h) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+
+/** This type's settings record in the sync store: pulled and waiting for the game (stage 62 review). */
+const heldSettings = async (page: Page): Promise<boolean> =>
+  (await getIdb(page, DB, 'sync')).some((r) => {
+    const rec = (r as { rec?: { kind?: string; state?: string; waited?: boolean } }).rec;
+    return rec?.kind === 'settings' && rec.state === 'held' && rec.waited === true;
+  });
+
 /** Exit (the bar's popup, Y): back to the start page. */
 async function leave(d: Device): Promise<void> {
   await d.page.locator('.wc-mb[data-mb="exit"]').click();
@@ -151,11 +165,12 @@ test('during play: Comm and timers go on on the next desktop; pulled settings wa
   await setSize(b.page, before + 3);
   await expect.poll(() => lastSeq(server, 'settings'), { timeout: 30_000 }).toBeGreaterThan(mark);
   // A's tab is hidden (a sync of the play schedule): Comm goes, the pulled settings wait.
-  await a.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await setHidden(a.page, true);
   await expect.poll(() => kinds(server, 'comm'), { timeout: 30_000 }).toBe(1);
   await expect.poll(() => kinds(server, 'timers'), { timeout: 30_000 }).toBe(1);
   await a.page.waitForTimeout(1000);
   expect(await size(a.page)).toBe(before);
+  await setHidden(a.page, false);
 
   // The game is left: they apply, and the line says they waited.
   await leave(a);
@@ -169,6 +184,40 @@ test('during play: Comm and timers go on on the next desktop; pulled settings wa
   await b.page.keyboard.press('Escape');
   await play(b, 'Testchar');
   await expect(comm(b.page).locator('.wc-cm-ent[data-key="gibur"]')).toBeVisible();
+  expect(errors).toEqual([]);
+  for (const d of [a, b]) await d.ctx.close();
+});
+
+test('a game left before the start page has faded out: what was held for it comes in (stage 62 review, F7)', async ({ browser }) => {
+  const server = syncServer();
+  await seedAccount(server, NAME, PASSWORD);
+  const a = await device(browser, server);
+  const b = await device(browser, server);
+  const errors = [...watchErrors(a.page), ...watchErrors(b.page)];
+  for (const d of [a, b]) await logIn(d.page);
+  const before = await size(a.page);
+  await expect.poll(() => kinds(server, 'settings'), { timeout: 30_000 }).toBe(1);
+
+  // Enter MUME; the start page's leave never ends (as in a tab put away during the fade).
+  await a.page.bringToFront();
+  await a.page.mouse.move(1, 1);
+  await a.page.locator('.wc-start .wc-sm-item[data-key="enter"]').click();
+  await a.page.evaluate(() => document.getAnimations().forEach((x) => x.pause()));
+  await expect(a.page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+
+  // B changes the settings; A, in the game, pulls them when hidden and holds them.
+  const mark = lastSeq(server, 'settings');
+  await setSize(b.page, before + 2);
+  await expect.poll(() => lastSeq(server, 'settings'), { timeout: 30_000 }).toBeGreaterThan(mark);
+  await setHidden(a.page, true);
+  await expect.poll(() => heldSettings(a.page), { timeout: 30_000 }).toBe(true);
+  await setHidden(a.page, false);
+  expect(await size(a.page)).toBe(before);
+
+  // Back on the start page: the game was left for the sync too.
+  await leave(a);
+  await expect(menuFlash(a.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox), held until the game ended\.$/, { timeout: 30_000 });
+  expect(await size(a.page)).toBe(before + 2);
   expect(errors).toEqual([]);
   for (const d of [a, b]) await d.ctx.close();
 });
