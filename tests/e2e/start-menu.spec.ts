@@ -1,9 +1,8 @@
 // Stage 67 (spec §2.5, ADR 0149 and its addendum): the start menu in its
 // three forms on a desktop. Form 1 is the page with no API (production
 // today: no owner row, no Community); form 2 has the flag `accounts`
-// (the fake account API with `?cloudtest`); form 3 adds Community, which
-// has no flag in the client yet and is shown by the dev hook
-// `?community=<n>`.
+// (the fake account API with `?cloudtest`); form 3 adds Community (the
+// flags `share` and `gallery`, stage 65 C1).
 //
 // - The rows, the rules and the letters of each form; E P S H A by key,
 //   L and C doing nothing without Community, U nothing without accounts.
@@ -42,8 +41,13 @@ async function open(page: Page, query = ''): Promise<void> {
 }
 
 /** Form 2 or 3: accounts on (the fake API), the owner row in. `name`: somebody is logged in here. */
-async function openWithAccounts(page: Page, o: { name?: string; query?: string } = {}): Promise<void> {
-  await fakeAccountApi(page);
+async function openWithAccounts(page: Page, o: { name?: string; query?: string; community?: number } = {}): Promise<void> {
+  const api = await fakeAccountApi(page);
+  // Community (stage 65 C1): the flags, and `community` listed runs a guest has not seen.
+  if (o.community !== undefined) {
+    api.server.flags = { accounts: true, share: true, gallery: true };
+    for (let i = 0; i < o.community; i++) api.server.addPub('nobody', { listed: true, listedAt: api.server.now() - (i + 1) * 60_000 });
+  }
   if (o.name) await page.addInitScript((n) => localStorage.setItem('wc.account', JSON.stringify({ name: n })), o.name);
   await open(page, `&cloudtest${o.query ?? ''}`);
   await expect(accountRow(page)).toBeVisible();
@@ -216,11 +220,13 @@ test('the kit gallery draws every owner row state; a long name with a state give
   await shot(page, 'kit-owner-states-cursor.desktop');
 });
 
-test('form 3: a second rule parts Community; its counter in gold; C opens it (a later stage); the arrows walk all rows', async ({ page }) => {
-  await openWithAccounts(page, { name: 'Olev', query: '&community=3' });
+test('form 3: a second rule parts Community; its counter in gold; C opens it; the arrows walk all rows', async ({ page }) => {
+  await openWithAccounts(page, { community: 3 });
+  await expect(page.locator('.wc-start .wc-sm-item[data-key="community"]')).toBeVisible();
   expect(await entries(page)).toEqual(['enter', 'rule', 'owner', 'profile', 'scripts', 'history', 'rule', 'community', 'about']);
   const com = page.locator('.wc-start .wc-sm-item[data-key="community"]');
   await expect(com.locator('.wc-sm-label')).toHaveText('Community');
+  await expect(com).toBeVisible();
   await expect(com.locator('.wc-sm-count')).toHaveText('3 new');
   expect(await com.locator('.wc-sm-count').evaluate((e) => getComputedStyle(e).fontStyle)).toBe('italic');
   expect(await page.locator('.wc-start .wc-sm-item u.wc-sk').allTextContents()).toEqual(['E', 'P', 'S', 'H', 'C', 'A']);
@@ -229,7 +235,10 @@ test('form 3: a second rule parts Community; its counter in gold; C opens it (a 
   await shot(page, 'form3.desktop');
   await page.keyboard.press('c');
   await expect(selectedRow(page)).toHaveAttribute('data-key', 'community');
-  await expect(page.locator('.wc-start .wc-sm-flash')).toContainText('later stage');
+  await expect(frame(page).locator('.wc-cy')).toBeVisible();
+  await expect(frame(page).locator('.wc-cy-row')).toHaveCount(3);
+  await page.keyboard.press('Escape');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'community');
   await shot(page, 'form3-cursor-community.desktop');
   await page.keyboard.press('End');
   await page.keyboard.press('ArrowUp');
@@ -237,9 +246,12 @@ test('form 3: a second rule parts Community; its counter in gold; C opens it (a 
   await page.keyboard.press('ArrowUp');
   await expect(selectedRow(page)).toHaveAttribute('data-key', 'history');
 
-  // No news: no counter; the rows do not move.
-  await page.goto(`/?${SKY}&cloudtest&community=0`);
+  // Seen (the page was opened): no counter, after a reload too; the rows do not move.
+  await expect(com.locator('.wc-sm-count')).toHaveCount(0);
+  await page.goto(`/?${SKY}&cloudtest`);
   await expect(accountRow(page)).toBeVisible();
+  await expect(com).toBeVisible();
+  await page.waitForTimeout(500);
   await expect(com.locator('.wc-sm-count')).toHaveCount(0);
   const without = (await page.locator('.wc-start .wc-sm-item[data-key="profile"]').boundingBox())!;
   expect(without.x).toBe(withCount.x);

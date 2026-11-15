@@ -31,9 +31,15 @@
 // where it was. The pages are a lazy chunk (./account), loaded when the
 // row is activated.
 //
+// The reactions mark (stage 65 C3, round 13's pick 5): "<name> · synced ·
+// 2 new" in gold, new stars and comments on the account's published runs
+// (src/cloud/community/news.ts, with the sync's cadence; "99+ new" at the
+// cap). With it a press opens the Account page's Published runs view
+// straight away, which clears it.
+//
 // Community (stage 65 C1, ADR 0155): the row comes in with the flags
 // `share` and `gallery` (asked on idle time), C or a press opens the
-// Community page (./community, a lazy chunk), and its counter ("3 new",
+// Community page (in the account pages' lazy chunk), and its counter ("3 new",
 // "99+ new") is src/cloud/community/counter.ts's, asked with the sync's
 // cadence while the menu is the top frame (`useCommunityRow`). The address
 // `<base>?community` (the watch page's Back for a run opened from the
@@ -61,8 +67,10 @@ import { ProfileFrame } from './profiles';
 import { useDoesNotFit, useMoveLine } from './runs-cloud';
 import { ScriptsFrame } from './scripts';
 import { takeLoginReturn } from '../../watch/return';
-import { COUNTER_PERIOD_MS, communityCount as communityNews, onCommunityCount, refreshCommunityCount } from '../../cloud/community/counter';
+import { COUNTER_PERIOD_MS, communityCount as communityRuns, onCommunityCount, refreshCommunityCount } from '../../cloud/community/counter';
 import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
+import { communityNews, onCommunityNews, watchCommunityNews } from '../../cloud/community/news';
+import { takeStartRow } from './start-request';
 
 export interface StartMainProps {
   onEnter: () => void;
@@ -129,7 +137,9 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const lockedKey = account && account.name === null ? (sync.locked?.nameKey ?? lockedCopies()[0] ?? null) : null;
   const lockedName = lockedKey ? (sync.locked?.nameKey === lockedKey ? sync.locked.name : lockedKey) : null;
   const notice = lockedKey && sync.locked?.nameKey === lockedKey ? sync.locked : null;
-  const owner = account ? ownerRow({ name: account.name, sync: account.name ? ownerSyncOf(sync) : null, locked: lockedName }) : null;
+  // New stars and comments on the account's published runs (stage 65): the owner row's gold mark.
+  const reactions = useReactions(account?.name ?? null);
+  const owner = account ? ownerRow({ name: account.name, sync: account.name ? ownerSyncOf(sync) : null, locked: lockedName, news: reactions }) : null;
   const openLocked = useLockedActions(nav);
   const does: Record<StartRowKey, Partial<StartItem>> = {
     enter: { activate: p.onEnter },
@@ -147,6 +157,15 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   usePrivacyAddress(nav);
   useWatchReturn(openAccount);
   useCommunityAddress(openCommunityPage);
+  // A page asked for a row when it popped back here (the share dialog's Open Community, start-request.ts).
+  useEffect(() => {
+    if (!isTop) return;
+    const key = takeStartRow();
+    const i = key ? items.findIndex((it) => it.key === key) : -1;
+    if (i < 0) return;
+    setCursor(i);
+    items[i]!.activate?.();
+  }, [isTop]);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
     if (kit(e)) return true;
@@ -431,10 +450,31 @@ function useAccountRow(menu: { current: HTMLUListElement | null }, isTop: boolea
 }
 
 /**
+ * The owner row's reactions mark (stage 65, ADR 0155): new stars and
+ * comments on the account's published runs, from the community's news
+ * (src/cloud/community/news.ts, with the sync's cadence) while somebody is
+ * logged in here; 0 otherwise. The Published runs view clears it.
+ */
+function useReactions(name: string | null): number {
+  const [n, setN] = useState(() => communityNews()?.reactions ?? 0);
+  useEffect(() => {
+    if (name === null) return;
+    setN(communityNews()?.reactions ?? 0);
+    const off = onCommunityNews((v) => setN(v?.reactions ?? 0));
+    const stop = watchCommunityNews();
+    return () => {
+      off();
+      stop();
+    };
+  }, [name]);
+  return name === null ? 0 : n;
+}
+
+/**
  * Opens the account pages: the lazy chunk (./account), then the page the
- * owner row's model names (`OwnerView.opens`: the Account page, or Log
- * in). One load at a time; a page opened meanwhile (another key) keeps
- * the menu as it is.
+ * owner row's model names (`OwnerView.opens`: the Account page, its
+ * Published runs view when there are new reactions, or Log in). One load
+ * at a time; a page opened meanwhile (another key) keeps the menu as it is.
  */
 function useAccountPages(nav: ReturnType<typeof useNav>): (opens: OwnerView['opens']) => void {
   const loading = useRef(false);
@@ -444,7 +484,7 @@ function useAccountPages(nav: ReturnType<typeof useNav>): (opens: OwnerView['ope
     const depth = nav.depth();
     void import('./account')
       .then((m) => {
-        if (nav.depth() === depth) nav.push(m.accountEntry(opens === 'account'));
+        if (nav.depth() === depth) nav.push(m.accountEntry(opens !== 'login', opens === 'published' ? 'published' : undefined));
       })
       .catch(() => nav.flash('The account pages could not be loaded. Check the connection and try again.', 'fail'))
       .finally(() => {
@@ -506,7 +546,7 @@ async function galleryOn(): Promise<boolean> {
  */
 function useCommunityRow(isTop: boolean): { count: number } | null {
   const [on, setOn] = useState(false);
-  const [n, setN] = useState(communityNews);
+  const [n, setN] = useState(communityRuns);
   useEffect(() => {
     let live = true;
     const off = onCommunityCount(setN);

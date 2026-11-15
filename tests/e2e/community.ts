@@ -129,12 +129,12 @@ export async function logIn(page: Page, s: CommunitySetup, name: string = ME): P
 export const start = (page: Page): Locator => page.locator('.wc-start');
 export const communityRow = (page: Page): Locator => page.locator('.wc-start .wc-sm-item[data-key="community"]');
 /** The Community page's box. */
-export const cm = (page: Page): Locator => page.locator('.wc-start .wc-frame:not([hidden]) .wc-cm');
-export const rows = (page: Page): Locator => cm(page).locator('.wc-cm-row');
-export const head = (page: Page, sort: string): Locator => cm(page).locator(`.wc-cm-th[data-sort="${sort}"]`);
-export const pager = (page: Page): Locator => cm(page).locator('.wc-cm-paget');
-export const runes = (page: Page): Locator => cm(page).locator('.wc-cm-runes');
-export const notes = (page: Page): Locator => runes(page).locator('.wc-cm-note');
+export const cm = (page: Page): Locator => page.locator('.wc-start .wc-frame:not([hidden]) .wc-cy');
+export const rows = (page: Page): Locator => cm(page).locator('.wc-cy-row');
+export const head = (page: Page, sort: string): Locator => cm(page).locator(`.wc-cy-th[data-sort="${sort}"]`);
+export const pager = (page: Page): Locator => cm(page).locator('.wc-cy-paget');
+export const runes = (page: Page): Locator => cm(page).locator('.wc-cy-runes');
+export const notes = (page: Page): Locator => runes(page).locator('.wc-cy-note');
 export const noteField = (page: Page): Locator => runes(page).locator('[data-field="note"] textarea');
 export const box = (page: Page, name: string): Locator => cm(page).locator(`[data-box="${name}"]`);
 export const btnIn = (scope: Locator, id: string): Locator => scope.locator(`[data-btn="${id}"]`);
@@ -152,7 +152,7 @@ export async function openCommunity(page: Page, query = ''): Promise<void> {
   await expect(communityRow(page)).toBeVisible();
   await page.keyboard.press('c');
   await expect(cm(page)).toBeVisible();
-  await expect(cm(page).locator('.wc-cm-list')).not.toHaveAttribute('data-state', 'loading');
+  await expect(cm(page).locator('.wc-cy-list')).not.toHaveAttribute('data-state', 'loading');
 }
 
 /** A picture of the state (only with `WC_COMMUNITY_SHOTS=<dir>`). */

@@ -849,6 +849,14 @@ export interface AdminReports {
   items: AdminReportItem[];
   /** Published runs in total. */
   pubs: { count: number; bytes: number; today: number };
+  /**
+   * Stage 65 C4: the community's totals for the admin page, read from
+   * columns already kept (no scan of the vote or comment rows): `listed`
+   * the active listed runs, `comments` and `votes` the sums of
+   * `comment_count` (visible comments) and `vote_count` (live votes) over
+   * the active and hidden runs, `notes` the active notes on Random Runes.
+   */
+  community?: { listed: number; comments: number; notes: number; votes: number };
 }
 
 export interface AdminReportItem {

@@ -1,7 +1,7 @@
 // Stage 67 (spec §2.5, ADR 0149): the phone's start menu has the desktop's
 // structure in portrait and in landscape: Enter MUME, the rule, the owner
 // row (flag `accounts`), Profile, Scripts, History, the second rule and
-// Community (only with Community: the dev hook `?community=<n>`), About.
+// Community (only with the flags `share` and `gallery`, stage 65 C1), About.
 // The owner row has a chevron and no key cap; a tap opens Log in. The
 // desktop: start-menu.spec.ts. The game's menu sheet (unchanged, no
 // account row): phone-account-pages.spec.ts.
@@ -50,9 +50,12 @@ for (const [view, size] of [
 
   test(`${view}: forms 2 and 3, the owner row with its chevron and no key cap; a tap opens Log in`, async ({ page }) => {
     await page.setViewportSize(size);
-    await fakeAccountApi(page);
-    await open(page, '&cloudtest&community=3');
+    const api = await fakeAccountApi(page);
+    api.server.flags = { accounts: true, share: true, gallery: true };
+    for (let i = 0; i < 3; i++) api.server.addPub('nobody', { listed: true, listedAt: api.server.now() - (i + 1) * 60_000 });
+    await open(page, '&cloudtest');
     await expect(accountRow(page)).toBeVisible();
+    await expect(start(page).locator('.wc-sm-item[data-key="community"]')).toBeVisible();
     expect(await entries(page)).toEqual(['enter', 'rule', 'owner', 'profile', 'scripts', 'history', 'rule', 'community', 'about']);
     await expect(accountRow(page)).toHaveText(OWNER_GUEST);
     await expect(accountRow(page).locator('.wc-so-chev')).toBeVisible();

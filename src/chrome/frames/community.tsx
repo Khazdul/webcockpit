@@ -54,7 +54,7 @@ import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, NOTE_MAX } from '../../../sh
 import { cleanPublicText } from '../../../shared/cloud/text.ts';
 import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
-import { markCommunitySeen } from '../../cloud/community/counter';
+import { markCommunityPageSeen } from '../../cloud/community/counter';
 import { cloudTest, config } from '../../cloud/config';
 import { REASONS, REPORT_MAX, reportText } from '../../watch/model';
 import {
@@ -245,7 +245,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
     const newest = newestListed(listRows, boxRows?.hallOfFame, boxRows?.today ? [boxRows.today] : null);
     if (newest === null || (seen.current !== null && newest <= seen.current)) return;
     seen.current = newest;
-    void markCommunitySeen(newest);
+    void markCommunityPageSeen(newest);
   }, [listRows, boxRows]);
 
   const rows = listRows ?? [];
@@ -384,8 +384,8 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
     const shownTabs = TABS.filter((t) => t.tab !== 'runes' || board.k !== 'off');
     const at = shownTabs.some((t) => t.tab === tab) ? tab : 'runs';
     return (
-      <Box title="Community" size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cm is-narrow" winClass="wc-cm-win wc-htabs-win">
-        <div class="wc-htabs wc-cm-tabs" role="tablist" aria-label="Community">
+      <Box title="Community" size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cy is-narrow" winClass="wc-cy-win wc-htabs-win">
+        <div class="wc-htabs wc-cy-tabs" role="tablist" aria-label="Community">
           {shownTabs.map((t) => (
             <button
               key={t.tab}
@@ -409,26 +409,26 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
             </button>
           ))}
         </div>
-        <BoxBody class={'wc-cm-body is-narrow is-' + at} bodyRef={bodyRef} scroll={at !== 'runes'}>
+        <BoxBody class={'wc-cy-body is-narrow is-' + at} bodyRef={bodyRef} scroll={at !== 'runes'}>
           {at === 'runs' ? listPart : at === 'hof' ? col : runesPart}
         </BoxBody>
-        <BoxFoot class="wc-cm-foot">
-          <LookFlash class="wc-cm-flash" />
+        <BoxFoot class="wc-cy-foot">
+          <LookFlash class="wc-cy-flash" />
         </BoxFoot>
       </Box>
     );
   }
   return (
-    <Box title="Community" size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cm" winClass="wc-cm-win">
-      <BoxBody class="wc-cm-body" bodyRef={bodyRef} scroll={false}>
-        <div class="wc-cm-main">
+    <Box title="Community" size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cy" winClass="wc-cy-win">
+      <BoxBody class="wc-cy-body" bodyRef={bodyRef} scroll={false}>
+        <div class="wc-cy-main">
           {listPart}
           {runesPart}
         </div>
         {col}
       </BoxBody>
-      <BoxFoot class="wc-cm-foot">
-        <LookFlash class="wc-cm-flash" />
+      <BoxFoot class="wc-cy-foot">
+        <LookFlash class="wc-cy-flash" />
       </BoxFoot>
     </Box>
   );
@@ -461,7 +461,7 @@ function Head(p: { sort: GallerySort; current: GallerySort; onSort(s: GallerySor
   const on = p.sort === p.current;
   return (
     <span
-      class={'wc-lk-th is-sort wc-cm-th' + (p.end ? ' is-end' : '') + (on ? ' is-cur' : '')}
+      class={'wc-lk-th is-sort wc-cy-th' + (p.end ? ' is-end' : '') + (on ? ' is-cur' : '')}
       role="columnheader"
       data-sort={p.sort}
       data-dir={on ? '-1' : undefined}
@@ -481,8 +481,8 @@ function Head(p: { sort: GallerySort; current: GallerySort; onSort(s: GallerySor
 function RunList(p: RunListProps): VNode {
   const s = p.state;
   const bySender = p.by !== null && (
-    <div class="wc-cm-by">
-      <span class="wc-cm-by-t">
+    <div class="wc-cy-by">
+      <span class="wc-cy-by-t">
         Runs by <b>{p.by}</b>
       </span>
       <GlassButton id="ALL-RUNS" label="All runs" icon="back" small onClick={p.onLeaveBy} />
@@ -491,13 +491,13 @@ function RunList(p: RunListProps): VNode {
   let body: VNode | VNode[];
   if (s.k === 'loading') {
     body = (
-      <div class="wc-cm-wait">
-        <LoadBar class="wc-cm-load" done={2} total={5} line="Loading the Community…" />
+      <div class="wc-cy-wait">
+        <LoadBar class="wc-cy-load" done={2} total={5} line="Loading the Community…" />
       </div>
     );
   } else if (s.k === 'failed') {
     body = (
-      <div class="wc-cm-wait" data-state={s.offline ? 'offline' : 'failed'}>
+      <div class="wc-cy-wait" data-state={s.offline ? 'offline' : 'failed'}>
         <p class="wc-lk-q">{s.offline ? 'Offline: the Community could not be loaded.' : 'The Community could not be loaded.'}</p>
         <p class="wc-lk-qn">{s.offline ? 'Try again when you are online.' : 'Try again in a moment.'}</p>
         <GlassButton id="RETRY" label="Try again" letter="t" primary onClick={p.onRetry} />
@@ -505,7 +505,7 @@ function RunList(p: RunListProps): VNode {
     );
   } else if (p.rows.length === 0) {
     body = (
-      <div class="wc-cm-wait" data-state="empty">
+      <div class="wc-cy-wait" data-state="empty">
         {p.by !== null ? (
           <p class="wc-lk-q">No runs listed by {p.by}.</p>
         ) : (
@@ -521,20 +521,20 @@ function RunList(p: RunListProps): VNode {
   }
   const pager =
     s.k === 'ok' && p.rows.length > 0 ? (
-      <div class="wc-cm-pager">
+      <div class="wc-cy-pager">
         <GlassButton id="PREV" icon="prev" title="Previous page" small disabled={p.page <= 1} onClick={() => p.onPage(p.page - 1)} />
-        <span class="wc-cm-paget">{pagerText(p.page, p.pages)}</span>
+        <span class="wc-cy-paget">{pagerText(p.page, p.pages)}</span>
         <GlassButton id="NEXT" icon="next" title="Next page" small disabled={p.page >= p.pages} onClick={() => p.onPage(p.page + 1)} />
       </div>
     ) : null;
   return (
-    <section class={'wc-cm-list' + (p.narrow ? ' is-narrow' : '')} aria-label="Runs" data-sort={p.sort} data-state={s.k === 'ok' ? (p.rows.length ? 'list' : 'empty') : s.k}>
+    <section class={'wc-cy-list' + (p.narrow ? ' is-narrow' : '')} aria-label="Runs" data-sort={p.sort} data-state={s.k === 'ok' ? (p.rows.length ? 'list' : 'empty') : s.k}>
       {bySender}
-      <div class="wc-lk-tbl wc-cm-tbl" role="table">
+      <div class="wc-lk-tbl wc-cy-tbl" role="table">
         {!p.narrow && (
-          <div class="wc-lk-throw wc-cm-throw" role="row">
+          <div class="wc-lk-throw wc-cy-throw" role="row">
             <span class="wc-lk-th" role="columnheader" aria-label="Rank" />
-            <span class="wc-lk-th wc-cm-th-first" role="columnheader">
+            <span class="wc-lk-th wc-cy-th-first" role="columnheader">
               Title (character) · Sender · <Head sort="length" current={p.sort} onSort={p.onSort} /> · <Head sort="new" current={p.sort} onSort={p.onSort} />
             </span>
             <Head sort="top" current={p.sort} onSort={p.onSort} end />
@@ -542,7 +542,7 @@ function RunList(p: RunListProps): VNode {
             <Head sort="watched" current={p.sort} onSort={p.onSort} end />
           </div>
         )}
-        <div class="wc-lk-tbody wc-cm-rows" role="rowgroup">
+        <div class="wc-lk-tbody wc-cy-rows" role="rowgroup">
           {body}
         </div>
       </div>
@@ -558,7 +558,7 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
   const sender = (
     <button
       type="button"
-      class="wc-cm-sender"
+      class="wc-cy-sender"
       tabIndex={-1}
       title={`Runs by ${r.sender}`}
       onMouseDown={(e) => e.preventDefault()}
@@ -573,28 +573,28 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
   const stars = (
     <>
       <Stars n={starsShown(r.stars)} />
-      <span class="wc-cm-mean">
+      <span class="wc-cy-mean">
         {mean ?? '–'}
         <small> · {r.stars.count}</small>
       </span>
     </>
   );
-  const cls = 'wc-lk-tr wc-cm-row' + (p.cur ? ' is-cur is-on' : '') + (p.mine ? ' is-mine' : '');
+  const cls = 'wc-lk-tr wc-cy-row' + (p.cur ? ' is-cur is-on' : '') + (p.mine ? ' is-mine' : '');
   const open = (): void => openRun(r.id);
   if (p.narrow) {
     return (
       <div class={cls} role="row" data-id={r.id} onClick={open}>
-        <span class="wc-lk-td wc-cm-p1">{r.title}</span>
-        <span class="wc-lk-td wc-cm-p2">
-          <span class="wc-cm-char">{characterText(r)}</span> · {sender} · {lengthText(r.lengthS)} · {dateText(r.listedAt)}
+        <span class="wc-lk-td wc-cy-p1">{r.title}</span>
+        <span class="wc-lk-td wc-cy-p2">
+          <span class="wc-cy-char">{characterText(r)}</span> · {sender} · {lengthText(r.lengthS)} · {dateText(r.listedAt)}
         </span>
-        <span class="wc-lk-td wc-cm-p3">
-          <span class="wc-cm-stars">{stars}</span>
-          <span class="wc-cm-n" title="Comments">
-            <Icon name="comment" class="wc-cm-ic" />
+        <span class="wc-lk-td wc-cy-p3">
+          <span class="wc-cy-stars">{stars}</span>
+          <span class="wc-cy-n" title="Comments">
+            <Icon name="comment" class="wc-cy-ic" />
             {r.comments}
           </span>
-          <span class="wc-cm-n" title="Views">
+          <span class="wc-cy-n" title="Views">
             {r.views} views
           </span>
         </span>
@@ -603,21 +603,21 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
   }
   return (
     <div class={cls} role="row" data-id={r.id} onClick={open}>
-      <span class="wc-lk-td wc-cm-rank">{p.rank ?? ''}</span>
-      <span class="wc-lk-td wc-cm-title">
-        <span class="wc-cm-l1">
-          <b class="wc-cm-name">{r.title}</b> <span class="wc-cm-char">({characterText(r)})</span>
+      <span class="wc-lk-td wc-cy-rank">{p.rank ?? ''}</span>
+      <span class="wc-lk-td wc-cy-title">
+        <span class="wc-cy-l1">
+          <b class="wc-cy-name">{r.title}</b> <span class="wc-cy-char">({characterText(r)})</span>
         </span>
-        <span class="wc-cm-sub">
-          {sender} · <span class="wc-cm-len">{lengthText(r.lengthS)}</span> · <span class="wc-cm-date">{dateText(r.listedAt)}</span>
+        <span class="wc-cy-sub">
+          {sender} · <span class="wc-cy-len">{lengthText(r.lengthS)}</span> · <span class="wc-cy-date">{dateText(r.listedAt)}</span>
         </span>
       </span>
-      <span class="wc-lk-td is-end wc-cm-stars">{stars}</span>
-      <span class="wc-lk-td is-end wc-cm-num">
-        <Icon name="comment" class="wc-cm-ic" />
+      <span class="wc-lk-td is-end wc-cy-stars">{stars}</span>
+      <span class="wc-lk-td is-end wc-cy-num">
+        <Icon name="comment" class="wc-cy-ic" />
         {r.comments}
       </span>
-      <span class="wc-lk-td is-end wc-cm-num">{r.views}</span>
+      <span class="wc-lk-td is-end wc-cy-num">{r.views}</span>
     </div>
   );
 }
@@ -626,36 +626,36 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
 
 function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
   const b = p.boxes;
-  if (b === null) return <aside class="wc-cm-col is-loading" aria-busy="true" />;
-  if (b === 'failed') return <aside class="wc-cm-col is-failed" />;
+  if (b === null) return <aside class="wc-cy-col is-loading" aria-busy="true" />;
+  if (b === 'failed') return <aside class="wc-cy-col is-failed" />;
   const day = b.today;
   const mume = b.mume;
   return (
-    <aside class="wc-cm-col" aria-label="Hall of Fame">
+    <aside class="wc-cy-col" aria-label="Hall of Fame">
       {day && (
-        <section class="wc-cm-box wc-cm-day" data-box="day">
-          <h3 class="wc-cm-bh">Run of the day</h3>
-          <button type="button" class="wc-cm-day-r" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(day.id)}>
-            <b class="wc-cm-day-t">{day.title}</b>
-            <span class="wc-cm-day-d">
+        <section class="wc-cy-box wc-cy-day" data-box="day">
+          <h3 class="wc-cy-bh">Run of the day</h3>
+          <button type="button" class="wc-cy-day-r" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(day.id)}>
+            <b class="wc-cy-day-t">{day.title}</b>
+            <span class="wc-cy-day-d">
               {characterText(day)} · {day.sender} · {dateText(day.listedAt)}
             </span>
-            {day.description && <span class="wc-cm-day-x">{day.description}</span>}
+            {day.description && <span class="wc-cy-day-x">{day.description}</span>}
           </button>
         </section>
       )}
       {b.hallOfFame.length > 0 && (
-        <section class="wc-cm-box wc-cm-hof" data-box="hof">
-          <h3 class="wc-cm-bh">
-            <Icon name="star" class="wc-cm-bic" />
-            Hall of Fame<span class="wc-cm-bn">all time</span>
+        <section class="wc-cy-box wc-cy-hof" data-box="hof">
+          <h3 class="wc-cy-bh">
+            <Icon name="star" class="wc-cy-bic" />
+            Hall of Fame<span class="wc-cy-bn">all time</span>
           </h3>
-          <ol class="wc-cm-hofl">
+          <ol class="wc-cy-hofl">
             {b.hallOfFame.map((r) => (
               <li key={r.id}>
                 <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(r.id)} title={`${r.title} (${characterText(r)}) · ${r.sender}`}>
-                  <span class="wc-cm-hof-t">{r.title}</span>
-                  <span class="wc-cm-hof-m">{meanText(r.stars) ?? '–'}</span>
+                  <span class="wc-cy-hof-t">{r.title}</span>
+                  <span class="wc-cy-hof-m">{meanText(r.stars) ?? '–'}</span>
                 </button>
               </li>
             ))}
@@ -663,13 +663,13 @@ function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
         </section>
       )}
       {mume && (mume.west.length > 0 || mume.dark.length > 0) && (
-        <section class="wc-cm-box wc-cm-war" data-box="war">
-          <h3 class="wc-cm-bh">Warlords</h3>
-          <div class="wc-cm-war2">
+        <section class="wc-cy-box wc-cy-war" data-box="war">
+          <h3 class="wc-cy-bh">Warlords</h3>
+          <div class="wc-cy-war2">
             <WarSide title="White lords" cls="is-west" list={mume.west} />
             <WarSide title="Sauron’s minions" cls="is-dark" list={mume.dark} />
           </div>
-          {mume.players !== undefined && <p class="wc-cm-players">{mume.players} players on MUME</p>}
+          {mume.players !== undefined && <p class="wc-cy-players">{mume.players} players on MUME</p>}
         </section>
       )}
     </aside>
@@ -678,7 +678,7 @@ function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
 
 function WarSide(p: { title: string; cls: string; list: { name: string; race: string; class: string }[] }): VNode {
   return (
-    <div class={'wc-cm-wars ' + p.cls}>
+    <div class={'wc-cy-wars ' + p.cls}>
       <h4>{p.title}</h4>
       <ol>
         {p.list.slice(0, 5).map((w, i) => (
@@ -767,14 +767,14 @@ function RunesBox(p: RunesProps): VNode {
   let foot: VNode | null = null;
   if (p.me === null) {
     foot = p.accounts ? (
-      <div class="wc-cm-write is-guest">
+      <div class="wc-cy-write is-guest">
         <span>Notes come from accounts.</span>
         <GlassButton id="LOGIN" label="Log in to write" icon="person" small onClick={() => openLogin(p.nav)} />
       </div>
     ) : null;
   } else if (board) {
     foot = (
-      <div class={'wc-cm-write' + (focused || text ? ' is-open' : '')}>
+      <div class={'wc-cy-write' + (focused || text ? ' is-open' : '')}>
         <TextArea
           id="note"
           label="A note"
@@ -787,7 +787,7 @@ function RunesBox(p: RunesProps): VNode {
           disabled={full || busy}
           placeholder={full ? NOTE_LIMIT_TEXT : 'Write a note: everyone sees it with your name'}
           error={error}
-          hint={focused || text ? <span class="wc-cm-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
+          hint={focused || text ? <span class="wc-cy-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
           enterSubmits
           onInput={(v) => {
             const clean = [...cleanPublicText(v, { newlines: 0 })].slice(0, NOTE_MAX).join('');
@@ -802,33 +802,33 @@ function RunesBox(p: RunesProps): VNode {
   }
 
   return (
-    <section class={'wc-cm-box wc-cm-runes' + (p.whole ? ' is-whole' : '')} data-box="runes" aria-label="Random Runes">
-      <h3 class="wc-cm-bh">
-        Random Runes<span class="wc-cm-bn">the latest 50 · 30 days</span>
+    <section class={'wc-cy-box wc-cy-runes' + (p.whole ? ' is-whole' : '')} data-box="runes" aria-label="Random Runes">
+      <h3 class="wc-cy-bh">
+        Random Runes<span class="wc-cy-bn">the latest 50 · 30 days</span>
       </h3>
       {p.state.k === 'loading' ? (
-        <p class="wc-cm-none">Loading…</p>
+        <p class="wc-cy-none">Loading…</p>
       ) : p.state.k === 'failed' ? (
-        <p class="wc-cm-none">The board could not be loaded.</p>
+        <p class="wc-cy-none">The board could not be loaded.</p>
       ) : notes.length === 0 ? (
-        <p class="wc-cm-none">The board is empty. Say hello.</p>
+        <p class="wc-cy-none">The board is empty. Say hello.</p>
       ) : (
-        <ul class="wc-cm-notes">
+        <ul class="wc-cy-notes">
           {notes.map((note) => {
             const own = p.me !== null && note.writer.toLowerCase() === p.me.toLowerCase();
             return (
               <li
                 key={note.id}
-                class={'wc-cm-note' + (own ? ' is-own' : '') + (open === note.id ? ' is-open' : '')}
+                class={'wc-cy-note' + (own ? ' is-own' : '') + (open === note.id ? ' is-open' : '')}
                 data-id={note.id}
                 onClick={() => setOpen((o) => (o === note.id ? null : note.id))}
               >
-                <span class="wc-cm-note-t">
+                <span class="wc-cy-note-t">
                   <b>{note.writer}:</b> {note.text}
                 </span>
-                <time class="wc-cm-note-a">{noteAge(note.created)}</time>
+                <time class="wc-cy-note-a">{noteAge(note.created)}</time>
                 {p.me !== null && (
-                  <span class="wc-cm-note-acts" onClick={(e) => e.stopPropagation()}>
+                  <span class="wc-cy-note-acts" onClick={(e) => e.stopPropagation()}>
                     {own ? (
                       <GlassButton id="REMOVE" label="Remove" icon="trash" small danger onClick={() => void remove(note.id)} />
                     ) : (
@@ -915,18 +915,18 @@ export const ReportNoteFrame = lookFrame(function ReportNoteFrame(p: { note: Not
         { id: 'SEND', label: 'Send report', letter: 's', primary: true, disabled: !reason || step === 'sending', run: () => void send() },
       ]}
     >
-      <div class="wc-cm-report">
-        <p class="wc-lk-qn wc-cm-left">
+      <div class="wc-cy-report">
+        <p class="wc-lk-qn wc-cy-left">
           What is wrong with this note by <b>{p.note.writer}</b>?
         </p>
-        <p class="wc-cm-quote">{p.note.text}</p>
-        <div class="wc-cm-reasons" role="radiogroup" aria-label="Reason">
+        <p class="wc-cy-quote">{p.note.text}</p>
+        <div class="wc-cy-reasons" role="radiogroup" aria-label="Reason">
           {REASONS.map((r) => (
             <button
               key={r.id}
               type="button"
               role="radio"
-              class={'wc-lk-check wc-cm-radio' + (reason === r.id ? ' is-on is-cur' : '')}
+              class={'wc-lk-check wc-cy-radio' + (reason === r.id ? ' is-on is-cur' : '')}
               aria-checked={reason === r.id ? 'true' : 'false'}
               data-reason={r.id}
               tabIndex={-1}
@@ -941,8 +941,8 @@ export const ReportNoteFrame = lookFrame(function ReportNoteFrame(p: { note: Not
             </button>
           ))}
         </div>
-        <TextArea id="report-text" label="More (optional)" value={text} rows={3} maxLength={REPORT_MAX} onInput={setText} hint={<span class="wc-cm-count">{`${n} / ${REPORT_MAX}`}</span>} />
-        <p class="wc-lk-qn wc-cm-left wc-cm-small">The writer is not told who reported.</p>
+        <TextArea id="report-text" label="More (optional)" value={text} rows={3} maxLength={REPORT_MAX} onInput={setText} hint={<span class="wc-cy-count">{`${n} / ${REPORT_MAX}`}</span>} />
+        <p class="wc-lk-qn wc-cy-left wc-cy-small">The writer is not told who reported.</p>
       </div>
     </Dialog>
   );

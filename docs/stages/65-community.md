@@ -222,19 +222,23 @@ touches staging or production.
 #### C2. The watch page and the way in (worktree `stage65-watch`, port 5474)
 
 - [ ] Stars and comments (pick 3), guests' lines, Back to the Community.
-- [ ] Hall of Fame in the export editor and the share dialog (pick 4).
+- [x] Hall of Fame in the export editor and the share dialog (pick 4)
+      (built in C3, branch `stage65-published`; ADR 0155 "As built (stage 65 C3)").
 - [ ] e2e desktop and phone.
 
 #### C3. Published runs and the reactions mark (worktree `stage65-published`, port 5475)
 
-- [ ] Published runs as a view of its own (pick 6): stars, comments,
+- [x] Published runs as a view of its own (pick 6): stars, comments,
       listed, what is new, `seen`.
-- [ ] The owner row's mark (pick 5); `galleryNotice` out of the client.
-- [ ] e2e.
+- [x] The owner row's mark (pick 5); `galleryNotice` out of the client;
+      the shared news module `src/cloud/community/news.ts`.
+- [x] e2e (`hall-of-fame`, `published-runs`, `phone-hall-of-fame`); ADR
+      0155 "As built (stage 65 C3)".
 
 #### C4. Admin (worktree `stage65-admin`, port 5476)
 
-- [ ] The queue's comments and notes (pick 7) and their actions; tests.
+- [x] The queue's comments and notes (pick 7) and their actions; tests
+      (ADR 0155 "As built (C4)"; branch `stage65-admin`).
 
 #### C5. MUME's boxes (worktree `stage65-mume`, port 5477; owner 2026-11-15: no leave needed first)
 
