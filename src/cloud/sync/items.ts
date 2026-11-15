@@ -15,7 +15,7 @@ import { type Browser, DEVICE_TYPES, type DeviceType, type SyncKind } from '../.
 import { canonicalJson } from '../../core/canonical-json';
 import { commFields, sortCommRecords } from '../../gmcp/comm-records';
 import type { RunMeta } from '../../capture/store';
-import { runMetaProblem } from '../../runs/backup-format';
+import { runMetaProblem } from '../../runs/lines';
 import { SETTINGS_VERSION } from '../../settings/types';
 import { normalizeExportDoc } from '../../share/edits';
 import { toBase64Url } from '../crypto/base64url';
@@ -328,7 +328,7 @@ const whole = (x: unknown): x is number => typeof x === 'number' && Number.isSaf
 
 /**
  * A run's meta as an item carries it: the backup's rules (`runMetaProblem`,
- * src/runs/backup-format.ts), sealed and saved (only those are items), a
+ * src/runs/lines.ts), sealed and saved (only those are items), a
  * rating of 0–5, and only the fields `RunMeta` has (an unknown one would
  * be a newer body, which raises `v`). Null when it is not one.
  */

@@ -4,7 +4,7 @@
 //
 //   plaintext = {"type":"webcockpit-run-body","v":1}\n
 //               the run's lines as the runs backup writes them
-//               (src/runs/backup-format.ts: its meta, its events, its chunks;
+//               (src/runs/lines.ts: its meta, its events, its chunks;
 //               the meta without its rating, which lives in the `run` item)
 //   body      = encryptBody(dataKey, "run", serverId, gzip(plaintext))
 //
@@ -15,7 +15,7 @@
 // without an error says the body is whole: nothing is handed out before it.
 
 import { RUN_BODY_TYPE, RUN_BODY_VERSION } from '../../../shared/cloud/api.ts';
-import { BadBackupError, type Rec, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from '../../runs/backup-format';
+import { BadBackupError, type Rec, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from '../../runs/lines';
 import type { ByteSource } from '../crypto/segments';
 import { type BodyOptions, decryptBodyStream, encryptBody } from '../crypto/segments';
 import { isCryptoError } from '../crypto/errors';

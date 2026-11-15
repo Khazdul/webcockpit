@@ -27,7 +27,7 @@
 //   … the next run …
 //   {"type":"export","doc":{…ExportDoc}}                (after the runs, ADR 0019)
 //
-// The lines and their checks are src/runs/backup-format.ts, shared with a
+// The lines and their checks are src/runs/lines.ts, shared with a
 // run's body in the cloud (ADR 0153).
 // Export lines were added in stage 7 without a schema bump (additive): a
 // stage 6 reader rejects them as an unknown record, a stage 7 reader reads
@@ -40,12 +40,12 @@
 import type { RunMeta } from '../capture/store';
 import { type LockManagerLike, acquire, runLockName } from '../capture/recorder';
 import { type ExportDoc, defaultExportDoc, normalizeExportDoc } from '../share/edits';
-import { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from './backup-format';
+import { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from './lines';
 import type { RunEvent } from './events';
 import { RunStore } from './store';
 import { DAY_US, RETENTION_DAYS, type Session, stitchChains, stitchSessions, toSession } from './stitch';
 
-export { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError } from './backup-format';
+export { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError } from './lines';
 
 /** Web Lock held by the tab that sweeps. */
 export const SWEEP_LOCK = 'webcockpit-sweep';

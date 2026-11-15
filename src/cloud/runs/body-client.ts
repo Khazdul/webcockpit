@@ -8,7 +8,7 @@
 // loaded with `import()`) runs on the calling thread. This file is itself
 // loaded with `import()`: nothing of it is in the entry chunk.
 
-import type { RunRows } from '../../runs/backup-format';
+import type { RunRows } from '../../runs/lines';
 import { RunBodyError, type RunBodyErrorCode } from './body';
 import type { RunBodyPort } from './types';
 

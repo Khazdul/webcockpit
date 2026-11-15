@@ -6,9 +6,9 @@
 import type { FullReason } from '../sync/types';
 import type { AccountLimits, RunBodyList, RunBodyWritten, SessionEndReason, SyncUsage } from '../../../shared/cloud/api.ts';
 import type { RunMeta } from '../../capture/store';
-import type { RunRows } from '../../runs/backup-format';
+import type { RunRows } from '../../runs/lines';
 
-export type { RunRows } from '../../runs/backup-format';
+export type { RunRows } from '../../runs/lines';
 
 /**
  * Where a run stands with the cloud (ADR 0153, "Local state"):

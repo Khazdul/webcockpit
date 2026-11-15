@@ -7,7 +7,7 @@ import { deriveKeys, makeRoot, opaqueId } from '../../src/cloud/crypto';
 import { encryptBody, openBody } from '../../src/cloud/crypto/segments';
 import { type RunBodyErrorCode, decodeRunBody, encodeRunBody, isRunBodyError, runBodyHeader } from '../../src/cloud/runs/body';
 import { inlineRunBodyCodec } from '../../src/cloud/runs/body-client';
-import type { RunRows } from '../../src/runs/backup-format';
+import type { RunRows } from '../../src/runs/lines';
 import { gunzip, gzip } from '../../src/cloud/sync/items';
 
 const keys = await deriveKeys(makeRoot());
