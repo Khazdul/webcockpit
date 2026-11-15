@@ -8,12 +8,16 @@
 // Delete account handing the things back. Stage 62: a settings change
 // and a Comm message go across too. Stage 63 (ADR 0153, the flag `runs`):
 // a saved run uploads to the local R2, is listed, is fetched on the second
-// device, and a delete takes it off both and out of R2.
+// device, and a delete takes it off both and out of R2. Stage 64 (ADR
+// 0154, the flag `share`): a link made on A (the rules ticked, the payload
+// in the local R2) is watched by a guest on /r/<id>, counted once, and
+// says it was removed after A removes it.
 
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from '../e2e/account-pages';
 import { account, awayFromMenu, getIdb, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from '../e2e/sync-pages';
 import { stubTurnstile } from '../e2e/turnstile-stub';
+import { demoPayload } from '../e2e/cloud-pub-fake';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -114,6 +118,30 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   await syncNow(b.page);
   await expect.poll(() => stateOn(b.page), { timeout: 20_000 }).toBeUndefined();
   expect((await getIdb(b.page, DB, 'runs')).filter((r) => r.runId === RUN)).toEqual([]);
+
+  // Stage 64: a share link made on A, watched by a guest, removed.
+  const made = await a.page.evaluate(async (payload) => {
+    const gz = new Uint8Array(await new Response(new Blob([JSON.stringify(payload)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const h = { 'X-WC': '1', 'Content-Type': 'application/json' };
+    const prefs = await fetch('/api/u/account/prefs', { method: 'PATCH', headers: h, body: JSON.stringify({ rulesAccepted: true }), credentials: 'same-origin' });
+    const { pubBody } = await import('/src/cloud/pub/api.ts' as string);
+    const body = pubBody({ title: 'Clearing the ranger camp', description: 'A test link.', character: 'Rasta', level: 42, lengthS: 5, listed: false, key: 'syncworkerkey0001' }, gz);
+    const res = await fetch('/api/u/pub', { method: 'POST', headers: { 'X-WC': '1', 'Content-Type': 'application/octet-stream' }, body, credentials: 'same-origin' });
+    return { prefs: prefs.status, status: res.status, id: ((await res.json()) as { pub?: { id: string } }).pub?.id };
+  }, demoPayload());
+  expect(made).toMatchObject({ prefs: 200, status: 200 });
+  const g = await device(browser);
+  await g.page.goto(`/r/${made.id}?cloudtest`);
+  await expect(g.page.locator('[data-watch="title"]')).toHaveText('Clearing the ranger camp', { timeout: 30_000 });
+  await expect(g.page.locator('[data-watch="sender"]')).toHaveText(name);
+  await expect(g.page.locator('.wc-watch-page')).toHaveAttribute('data-watch', 'playing', { timeout: 30_000 });
+  const views = (): Promise<number> => g.page.evaluate(async (id) => ((await (await fetch(`/api/pub/${id}`)).json()) as { views: number }).views, made.id);
+  await expect.poll(views, { timeout: 15_000 }).toBe(1);
+  const removed = await a.page.evaluate(async (id) => (await fetch(`/api/u/pub/${id}`, { method: 'DELETE', headers: { 'X-WC': '1' }, credentials: 'same-origin' })).status, made.id);
+  expect(removed).toBe(204);
+  await g.page.reload();
+  await expect(g.page.locator('[data-watch="end"]')).toContainText('removed', { timeout: 30_000 });
+  await g.ctx.close();
 
   // The same profile changed on both: keep both.
   await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior', '#nop A again', 3000)]);

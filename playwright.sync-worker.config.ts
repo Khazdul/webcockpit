@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Stage 61 part C: the sync's flows on two browser contexts against a real
 // local Worker (`npm run test:sync-worker`). The dev server and `wrangler
 // dev` are started together by scripts/dev-cloud.ts, with the flags
-// `accounts`, `sync` and `runs` (stage 63; R2 is wrangler's local one) on and a local D1 of their own (made empty for every
+// `accounts`, `sync` and `runs` (stage 63; R2 is wrangler's local one) and `share` (stage 64) on and a local D1 of their own (made empty for every
 // run, the migrations applied). Turnstile is Cloudflare's always-pass test
 // pair (the Worker asks siteverify, so the run needs the network); the page
 // gets the widget's stub. Not part of `npm run test:e2e`.
@@ -26,7 +26,7 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${port}` },
   webServer: {
     command: `npm run dev:cloud -- --port ${port} --strictPort`,
-    env: { WC_API_PORT: String(apiPort), WC_DEV_FLAGS: 'accounts,sync,runs', WC_DEV_PERSIST: persist },
+    env: { WC_API_PORT: String(apiPort), WC_DEV_FLAGS: 'accounts,sync,runs,share', WC_DEV_PERSIST: persist },
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
     timeout: 180_000,
