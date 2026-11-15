@@ -385,4 +385,7 @@ production.
 
 ## Owner feedback
 
-(After the test.)
+- 2026-11-15: one e-mail to the owner per report (at most 20 an hour,
+  then one "N more reports"; "[staging]" in a staging mail's subject).
+  Built on `stage64-mail` (ADR 0154, "As built ... mail on reports");
+  waits for the secret `REPORT_MAIL_TO` on both Workers.
