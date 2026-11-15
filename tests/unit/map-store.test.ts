@@ -74,10 +74,12 @@ describe('MapStore', () => {
 describe('inline asset fallback', () => {
   it('answers a missing tile with the fallback, but not a missing font', async () => {
     const f = vi.fn(async (u: string) => new Response(u));
-    const r = assetResolver({ kind: 'inline', files: { 'pixmaps/a.png': 'data:x' }, fallback: EMPTY_PNG }, f as never);
-    await r('pixmaps/a.png');
-    await r('pixmaps/missing.png');
-    expect(f.mock.calls.map((c) => c[0])).toEqual(['data:x', EMPTY_PNG]);
+    const r = assetResolver({ kind: 'inline', files: { 'pixmaps/a.png': 'data:image/png;base64,eA==' }, fallback: EMPTY_PNG }, f as never);
+    expect(await (await r('pixmaps/a.png')).text()).toBe('x');
+    const empty = await r('pixmaps/missing.png');
+    expect([empty.type, empty.size]).toEqual(['image/png', 70]);
+    // Decoded, never fetched: the shared replay's frame has connect-src 'none' (ADR 0154).
+    expect(f).not.toHaveBeenCalled();
     await expect(r('fonts/Cantarell18.fnt')).rejects.toThrow(/not included/);
     const strict = assetResolver({ kind: 'inline', files: {} }, f as never);
     await expect(strict('pixmaps/missing.png')).rejects.toThrow(/not included/);

@@ -513,3 +513,17 @@ describe.skipIf(!existsSync(OLD_ARDA))('mm2 reader (v36 arda(1).mm2)', () => {
     expect(northUp).toBe(19057);
   });
 });
+
+describe('mapHash without crypto.subtle (the shared replay frame, ADR 0154)', () => {
+  it('is empty, so nothing is stored under it, instead of failing the load', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    expect(await mapHash(bytes)).toMatch(/^[0-9a-f]{32}$/);
+    const real = globalThis.crypto;
+    Object.defineProperty(globalThis, 'crypto', { value: { getRandomValues: real.getRandomValues.bind(real) }, configurable: true });
+    try {
+      expect(await mapHash(bytes)).toBe('');
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', { value: real, configurable: true });
+    }
+  });
+});

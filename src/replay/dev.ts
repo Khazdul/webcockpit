@@ -6,6 +6,14 @@
 //       are missing, builds the HTML replay of the session `id` (default:
 //       the newest session with more than one run, else the newest) with
 //       its stored export doc, and opens the file (a blob: URL)
+//   ?watchframe=<backup fixture>[&session=<id>]
+//       as ?replayhtml=, but plays the payload (with its map subset) in
+//       the shared replay's sandboxed frame (src/watch/frame-host.ts,
+//       ADR 0154) over the page, as the watch page will
+//   __wc.watchFrame({ ...DevReplayOptions, raw? }) → the frame's outcome
+//       the same from the console or a test; `raw` plays any JSON object
+//       as the payload (it must pass validatePayload on the page and in
+//       the frame)
 //   __wc.replayHtml({ session?, doc?, logs?, character? }) → HTML text
 //       `doc` overrides parts of the stored export doc (title, excludes,
 //       comments); `logs` builds from raw `.log` fixtures instead (not
@@ -18,8 +26,9 @@ import type { ChainRun } from '../player/timeline';
 import type { RunEvent } from '../runs/events';
 import type { SettingsStore } from '../settings';
 import { type ExportDoc, defaultExportDoc, normalizeExportDoc } from '../share/edits';
-import { buildReplayPayload } from '../share/payload';
+import { type ReplayPayload, buildReplayPayload } from '../share/payload';
 import { buildReplayHtml } from './export';
+import { openFrame, siteBaseUrl } from '../watch/frame-host';
 
 export interface DevReplayOptions {
   session?: string | null;
@@ -38,8 +47,8 @@ async function fixture(rel: string): Promise<Response> {
   return res;
 }
 
-/** The HTML replay as a Blob. */
-export async function devReplayBlob(shell: Shell, settings: SettingsStore, o: DevReplayOptions = {}): Promise<Blob> {
+/** The replay payload of the session or logs `o` names (without the map). */
+export async function devPayload(shell: Shell, settings: SettingsStore, o: DevReplayOptions = {}): Promise<ReplayPayload> {
   let chain: ChainRun[];
   let events: RunEvent[] = [];
   let doc: ExportDoc;
@@ -64,7 +73,12 @@ export async function devReplayBlob(shell: Shell, settings: SettingsStore, o: De
     [chain, events, doc] = await Promise.all([lib.chainLog(ids), lib.events(ids), lib.exportDoc(s.id)]);
   }
   if (o.doc) doc = normalizeExportDoc({ ...doc, ...o.doc }) ?? doc;
-  return buildReplayHtml(buildReplayPayload(chain, events, doc, settings.get()), {
+  return buildReplayPayload(chain, events, doc, settings.get());
+}
+
+/** The HTML replay as a Blob. */
+export async function devReplayBlob(shell: Shell, settings: SettingsStore, o: DevReplayOptions = {}): Promise<Blob> {
+  return buildReplayHtml(await devPayload(shell, settings, o), {
     map: await shell.maps.source(),
     // No tileset: a replay always draws MMapper's default tiles (ADR 0020
     // addendum 2026-10-10), much smaller than the community sets.
@@ -84,5 +98,52 @@ export async function openReplayFixture(shell: Shell, settings: SettingsStore, r
     location.replace(URL.createObjectURL(blob));
   } catch (err) {
     console.error(`WebCockpit: replay fixture ${rel} could not be built`, err);
+  }
+}
+
+/** What `devWatchFrame` resolves to: the frame played the payload, or its (or the page's) error text. */
+export type DevWatchResult = { ok: true } | { ok: false; text: string };
+
+export interface DevWatchOptions extends DevReplayOptions {
+  /** Plays this object as the payload instead of building one (tests: hostile payloads). */
+  raw?: unknown;
+}
+
+/**
+ * Plays a payload in the shared replay's frame (src/watch/frame-host.ts)
+ * over the whole page (`#wc-dev-watch`, replaced on a second call).
+ * Resolves when the frame has the payload or has refused it.
+ */
+export async function devWatchFrame(shell: Shell, settings: SettingsStore, o: DevWatchOptions = {}): Promise<DevWatchResult> {
+  let payload: unknown = o.raw;
+  if (payload === undefined) {
+    payload = await devPayload(shell, settings, o);
+    const source = await shell.maps.source();
+    if (source) {
+      const { embedReplayMap } = await import('./map-embed');
+      payload = await embedReplayMap(payload as ReplayPayload, source, { assetBase: new URL('map/', siteBaseUrl()).href });
+    }
+  }
+  const bytes = await new Response(new Blob([JSON.stringify(payload)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+  document.getElementById('wc-dev-watch')?.remove();
+  const box = document.createElement('div');
+  box.id = 'wc-dev-watch';
+  box.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#000';
+  document.body.appendChild(box);
+  return new Promise<DevWatchResult>((done) => {
+    openFrame({ container: box, bytes, base: siteBaseUrl(), onPlay: () => done({ ok: true }), onError: (text) => done({ ok: false, text }) }).catch(
+      (err: unknown) => done({ ok: false, text: err instanceof Error ? err.message : String(err) }),
+    );
+  });
+}
+
+/** `?watchframe=`: restores a backup fixture and plays the session in the frame. */
+export async function openWatchFixture(shell: Shell, settings: SettingsStore, rel: string, session: string | null): Promise<void> {
+  try {
+    await (await shell.runLibrary()).restore(await (await fixture(rel)).blob());
+    const r = await devWatchFrame(shell, settings, { session });
+    if (!r.ok) console.error(`WebCockpit: the frame refused the replay: ${r.text}`);
+  } catch (err) {
+    console.error(`WebCockpit: watch fixture ${rel} could not be played`, err);
   }
 }

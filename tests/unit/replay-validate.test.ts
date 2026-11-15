@@ -149,7 +149,7 @@ describe('validatePayload: refusals', () => {
   it('refuses map files outside the whitelist', () => {
     const png = 'data:image/png;base64,iVBORw0KGgo=';
     const withFiles = (files: Record<string, string>) => ({ ...base(), map: { name: 'm', rooms: 1, visited: 1, mm2: 'AAAA', files } });
-    for (const files of [
+    for (const files of <Array<Record<string, string>>>[
       { 'pixmaps/../x.png': png },
       { 'pixmaps/./x.png': png },
       { 'pixmaps//x.png': png },

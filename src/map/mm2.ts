@@ -462,9 +462,16 @@ export function parseMm2Payload(u: Uint8Array, version = MM2_VERSION): MapData {
   return map;
 }
 
-/** Hex SHA-256 prefix of the file bytes: the key learned server ids are stored under (DB `mapIds`). */
+/**
+ * Hex SHA-256 prefix of the file bytes: the key learned server ids are
+ * stored under (DB `mapIds`). `''` where there is no `crypto.subtle` (not a
+ * secure context: the shared replay's sandboxed frame has an opaque origin,
+ * ADR 0154): no key, so nothing is stored or loaded, as in any replay.
+ */
 export async function mapHash(bytes: Uint8Array): Promise<string> {
-  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return '';
+  const d = new Uint8Array(await subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
   let s = '';
   for (let i = 0; i < 16; i++) s += d[i]!.toString(16).padStart(2, '0');
   return s;

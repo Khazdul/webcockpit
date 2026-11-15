@@ -49,10 +49,12 @@ describe('asset resolver', () => {
     await assetResolver({ kind: 'base', url: '/map' }, fake)('pixmaps/a.png');
     expect(seen).toEqual(['/map/pixmaps/a.png']);
     const blob = new Blob(['y']);
-    const inline = assetResolver({ kind: 'inline', files: { 'fonts/a.fnt': blob, 'b.png': 'data:,z' } });
+    const inline = assetResolver({ kind: 'inline', files: { 'fonts/a.fnt': blob, 'b.png': 'data:text/plain;base64,eg==', 'c.png': 'data:,z' } });
     expect(await inline('fonts/a.fnt')).toBe(blob);
     expect(await (await inline('b.png')).text()).toBe('z');
     await expect(inline('nope.png')).rejects.toThrow(/not included/);
+    // Only base64 data: URIs (all the exporter writes; src/replay/validate.ts).
+    await expect(inline('c.png')).rejects.toThrow(/not a base64 data: URI/);
   });
 });
 

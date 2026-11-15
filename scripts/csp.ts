@@ -60,6 +60,44 @@ export function fillCspHashes(headers: string, pages: string[]): string {
   return hashes.length ? headers.replaceAll(CSP_SCRIPT_HASHES, hashes.join(' ')) : headers.replaceAll(` ${CSP_SCRIPT_HASHES}`, '');
 }
 
+/** `'sha256-…'` of every inline `<style>` in `html`, in document order, without repeats. */
+export function inlineStyleHashes(html: string): string[] {
+  const out: string[] = [];
+  for (const m of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
+    const hash = `'sha256-${createHash('sha256').update(m[1]!, 'utf8').digest('base64')}'`;
+    if (!out.includes(hash)) out.push(hash);
+  }
+  return out;
+}
+
+/** The placeholders of the frame document's policy (ADR 0154; the `/r/frame` rules of `public/_headers`). */
+export const CSP_FRAME_SCRIPT = "'sha256-FRAME-SCRIPT'";
+export const CSP_FRAME_STYLE = "'sha256-FRAME-STYLE'";
+
+/**
+ * `headers` with the frame document's placeholders replaced by the hashes
+ * of its one inline script and its one inline style (`html`, the built
+ * `r/frame.html`). Throws when a placeholder is missing or the document
+ * does not have exactly one of each: the frame's policy allows nothing
+ * else.
+ */
+export function fillFrameHashes(headers: string, html: string): string {
+  if (!headers.includes(CSP_FRAME_SCRIPT) || !headers.includes(CSP_FRAME_STYLE)) throw new Error('_headers: no frame hash placeholders to replace');
+  const scripts = inlineScriptHashes(html);
+  const styles = inlineStyleHashes(html);
+  if (scripts.length !== 1 || styles.length !== 1 || /<script\b[^>]*\bsrc\s*=/i.test(html)) {
+    throw new Error(`r/frame.html: ${scripts.length} inline scripts and ${styles.length} styles, not one of each`);
+  }
+  return headers.replaceAll(CSP_FRAME_SCRIPT, scripts[0]!).replaceAll(CSP_FRAME_STYLE, styles[0]!);
+}
+
+/** The frame document's policy in `headers` (its `/r/frame` rule's enforced line), or null. */
+export function framePolicy(headers: string): string | null {
+  const m = new RegExp(`^/r/frame[ \\t]*\\n((?:[ \\t]+.*\\n?)*)`, 'm').exec(headers);
+  const line = m ? new RegExp(`^[ \\t]+${CSP_ENFORCE}:[ \\t]*(.+)$`, 'm').exec(m[1]!) : null;
+  return line ? line[1]!.trim() : null;
+}
+
 /** The value of the report-only policy in `headers`, or null. */
 export function reportOnlyPolicy(headers: string): string | null {
   const m = new RegExp(`^[ \\t]+${CSP_REPORT_ONLY}:[ \\t]*(.+)$`, 'm').exec(headers);
@@ -78,6 +116,16 @@ export function enforceCsp(headers: string): string {
   const policy = reportOnlyPolicy(headers);
   if (!policy) throw new Error(`_headers: no ${CSP_REPORT_ONLY} line to enforce`);
   if (!/(^|;)\s*frame-ancestors\s/.test(policy)) throw new Error('_headers: the policy has no frame-ancestors');
-  const lines = headers.split('\n').filter((l) => !new RegExp(`^[ \\t]+${CSP_ENFORCE}:`).test(l));
-  return lines.map((l) => l.replace(new RegExp(`^([ \\t]+)${CSP_REPORT_ONLY}:`), `$1${CSP_ENFORCE}:`)).join('\n');
+  // Only in the rule that holds the report-only line (`/*`): another rule's
+  // own enforced policy (the frame document's, ADR 0154) stays as it is.
+  const lines = headers.split('\n');
+  const at = lines.findIndex((l) => new RegExp(`^[ \\t]+${CSP_REPORT_ONLY}:`).test(l));
+  let start = at;
+  while (start > 0 && /^[ \t]/.test(lines[start - 1]!)) start--;
+  let end = at;
+  while (end + 1 < lines.length && /^[ \t]/.test(lines[end + 1]!)) end++;
+  return lines
+    .filter((l, i) => i < start || i > end || !new RegExp(`^[ \\t]+${CSP_ENFORCE}:`).test(l))
+    .map((l) => l.replace(new RegExp(`^([ \\t]+)${CSP_REPORT_ONLY}:`), `$1${CSP_ENFORCE}:`))
+    .join('\n');
 }
