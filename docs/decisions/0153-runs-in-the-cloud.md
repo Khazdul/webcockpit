@@ -293,3 +293,122 @@ The Worker part, as decided above, with these additions and details:
   usage, Delete account and the cron sweep, `emptyPrefix` over 1003 keys.
   Miniflare's local R2 logs an uncaught "Network connection lost" of its
   own in the short-body test; the test passes.
+
+## As built (stage 63 B2)
+
+The client's core, on branch `stage63-core`; nothing of it is wired into
+the app yet (part C1) and nothing lands in the entry chunk.
+
+**Database version 10** (src/core/db.ts): `runCloud`, keyPath `runId`,
+index `state`, in every space's database. The row
+(src/cloud/runs/types.ts, `RunCloudRow`): `runId, state, serverId, size,
+tries, at`, plus `startedUs` (the queue goes newest first without
+reading `runs`), `meta` (remote and fetching rows) and `full` (`quota`,
+or the item's 413 code when the item was refused after the body).
+
+**The lines** of a run moved out of src/runs/library.ts into
+src/runs/lines.ts (`checkRecord`, `runMetaProblem`, `toRunMeta`,
+`toEvent`, `toChunk`, `runLines`, `streamLines`, `BadBackupError`), used
+by `backup()`/`restore()` and by the body alike.
+
+**The body** (src/cloud/runs/body.ts): `encodeRunBody(dataKey, serverId,
+rows) → Blob`, `decodeRunBody(dataKey, serverId, runId, Blob | stream)
+→ RunRows`, refusals as `RunBodyError` with `code` `newer` (segment
+version or header `v`), `unreadable` (does not open, cut, changed, not
+gzip, not a run body, an export or second run line), `too_large` (the
+plaintext passes `RUN_PLAIN_MAX_BYTES`, 256 MB: a gzip bomb stops there),
+`wrong_run`. **The body's meta leaves out `rating`**: the rating is the
+one thing of a saved run that changes and lives in the item (whose meta
+wins at a fetch), so a body sealed again from the same run is the same
+plaintext and the same size the item names (the generated runs found the
+item's size and a re-uploaded body's apart otherwise).
+src/cloud/runs/body.worker.ts and body-client.ts (`runBodyCodec()`, the
+worker with an inline fallback where there are no workers;
+`inlineRunBodyCodec()`; `runBodyPort(dataKey, codec)`;
+`stopRunBodyWorker()`), as the KDF worker: started on demand, ended 30 s
+after its last answer, five minutes without an answer is a dead worker.
+**A fetched body is collected into a Blob** on the page while it streams
+in (that is where the progress is counted) and opened in the worker from
+the Blob, rather than the response stream being handed to the worker
+(transferable streams are not in every browser).
+
+**The kinds** (src/cloud/sync/items.ts): `runSpec` (`{runId, meta,
+size}`, meta by `runItemMeta`: the backup's rules, sealed and saved,
+rating 0–5, only `RunMeta`'s fields) and `exportDocSpec`
+(`normalizeExportDoc`), both `v` 1, last writer. **`SYNC_SPECS` is left as
+it was**; `RUN_SPECS` and `SYNC_SPECS_WITH_RUNS` (the six, then run and
+exportDoc) are new. The runtime passes `SYNC_SPECS` today: with the run
+kinds in it before C1's adapter lists them, a pulled run item would be
+taken (a write the adapter ignores) and then pushed back as a delete.
+C1 passes `SYNC_SPECS_WITH_RUNS` when the flag `runs` is on and the
+adapters store the kinds.
+
+**The engine** says `{type: 'revived', kind, key}` when an edit here beat
+a delete pulled (the local version is pushed onto the tombstone); no
+words for the player. It is how the space learns that a run's body may
+be gone while its item is live again.
+
+**The queue** (src/cloud/runs/queue.ts), `new RunQueue({store, body,
+remote, isPlaying, requestSync, clock?, lock?, events?, random?})`:
+`run()` (coalescing like `sync()`), `setRoom(usage, limits)`, `room`,
+`fits(row)`, `itemRefused(runId, error)`, `removeBody(serverId)`,
+`checkBodies(liveIds)`, `recover()`, `fetchRuns(runIds, onProgress(done,
+total))`, `retryAt`; `orphanBodies(bodies, keep, now)`,
+`runsLockName(space)`. As decided, with these details:
+
+- A `full` row is retried only while the room *known* holds it (none
+  known: it waits); a row refused as an item also needs room for one more
+  item. A body over `runMaxBytes`, or one the known room cannot hold, is
+  settled without a request.
+- **The item refused after the body** (`413 too_many_items` /
+  `storage_full`, the addendum of c32c8868): the space calls
+  `itemRefused(runId, error)` on the engine's `full` event of a `run`
+  whose sync record has rev 0 (new to the account; a rating edit of a
+  live item never gives its body back). The row goes `full`, the same
+  `full` event (with `reason`), and the body is deleted at once.
+- A run deleted while its body went up has the body deleted again; a row
+  whose run is gone is dropped.
+- `checkBodies(liveIds)` (one list request): orphans go (older than a
+  day, named by no live item and no own `up` row), and **an own `up` row
+  whose body is not there goes back to `queued`**. The generated runs
+  found the case: an edit beat a delete on one device while the device
+  holding the body still had it as `up`.
+- `fetchRuns` writes with the item's meta, the row `up` with the body's
+  size; stops the rest on offline, server or a lost session; a `404` is
+  `missing`, a bad body `unreadable` or `newer`; a run deleted meanwhile
+  is not written.
+
+**The fetch adapter** (src/cloud/space/run-remote.ts, `fetchRunRemote(fetch?,
+timeoutMs?)`): PUT of the Blob (the browser sets `Content-Length`), GET
+read as a stream with `onBytes`, DELETE, list; errors as `fetchRemote`
+(a `404` is `refused` 404); 20 s for the small calls, a transfer
+20 s + its size at 50 kB/s.
+
+**What C1's adapters must do** (the model, `MemoryRunSpace` in
+tests/unit/cloud-sync-model.ts, is the reference):
+
+- `run` lists a run here once its row is `up`, or while it is `queued`
+  and the account has its item (a live sync record: put back in the queue
+  after `revived`); `remote`/`fetching` rows with their meta. A pulled
+  item for a run here takes the meta, and an `up` row the item's size; for
+  one not here, a `remote` row. A tombstone deletes the run, its row and
+  its session's doc.
+- On `revived` of a run: a run here goes back to `queued`; a row with no
+  run here (a remote one) is dropped, so the next sync deletes the item
+  again (nobody has its body).
+- `exportDoc` lists a doc whose session has a run (here or `remote`), or
+  that the account has.
+- **Delete's body goes after its tombstone**: the player's Delete removes
+  the run here and keeps its server id; after the next sync that ends
+  `synced`, the body is deleted unless the run is listed again (an edit
+  elsewhere beat the delete, and then the body is still needed). Deleting
+  the body at once lost bodies in the generated runs.
+
+**Tests.** tests/unit/cloud-runs-body.test.ts (round trip, sizes, the
+refusals, the bomb), cloud-runs-queue.test.ts (the queue and the fetch
+against the model grown with R2: reservation under two parallel PUTs, a
+lost R2 write, quota, too large, 401, the item refused, the check of the
+bodies), cloud-runs-remote.test.ts (the adapter against the contract and
+the model), cloud-runs-property.test.ts (the generated runs: two and
+three devices, 90 seeds, about 2 s; `RUNS_SEED`, `RUNS_SCALE`; 2 700
+seeds clean at `RUNS_SCALE=30`), the version 10 upgrade in spaces.test.ts.

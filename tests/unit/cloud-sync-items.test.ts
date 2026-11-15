@@ -6,7 +6,12 @@ import { ItemCodec } from '../../src/cloud/sync/codec';
 import {
   PROFILE_NAMES,
   SCRIPT_NAMES,
+  ITEM_SPECS,
+  RUN_SPECS,
   SYNC_SPECS,
+  SYNC_SPECS_WITH_RUNS,
+  exportDocSpec,
+  runSpec,
   canonicalJson,
   commIdentity,
   commSpec,
@@ -180,6 +185,88 @@ describe('the small kinds', () => {
     const [m1, m2, m3] = [msg(1, 'one'), msg(2, 'two', 'Frodo'), msg(3, 'three')];
     expect(commSpec.merge!({ day, records: [m1, m3] }, { day, records: [m2, m3] })).toEqual({ day, records: [m1, m2, m3] });
     expect(commSpec.merge!({ day, records: [] }, { day, records: [m1] })).toEqual({ day, records: [m1] });
+  });
+});
+
+// Stage 63 (ADR 0153): the kinds of runs in the cloud.
+describe('the run kinds', () => {
+  const j = (x: unknown) => enc.encode(JSON.stringify(x));
+  const meta = {
+    runId: 'r1',
+    character: 'Gandalf',
+    startedUs: 1_000,
+    endedUs: 9_000,
+    sealed: true,
+    bytes: 30,
+    lines: 3,
+    saved: true,
+    rating: 4,
+    savedUs: 9_500,
+    summary: { startUs: 1_000, lastEventUs: 8_000, kills: 1, pkills: 0, deaths: 0 },
+  };
+  const run = { runId: 'r1', meta, size: 1234 };
+  const doc = { sessionId: 'r1', schema: 1, title: 'A fight', format: 'text', excludes: [[5, 9]], comments: [{ beforeUs: 6, text: 'here' }] };
+
+  it('come after the others, last writer, v 1, no names; SYNC_SPECS is unchanged without the flag', () => {
+    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm']);
+    expect(RUN_SPECS).toEqual([runSpec, exportDocSpec]);
+    expect(SYNC_SPECS_WITH_RUNS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'run', 'exportDoc']);
+    expect(ITEM_SPECS.run).toBe(runSpec);
+    expect(ITEM_SPECS.exportDoc).toBe(exportDocSpec);
+    for (const sp of RUN_SPECS) {
+      expect(sp.version).toBe(1);
+      expect(sp.policy).toBe('lastWriter');
+      expect(sp.names).toBeUndefined();
+      expect(sp.compress).toBeUndefined();
+    }
+  });
+
+  it('run: keyed by runId; round-trips; an old meta without the optional fields too', async () => {
+    expect(runSpec.key(run)).toBe('r1');
+    expect(await decodeBody(runSpec, await encodeBody(runSpec, run))).toEqual({ ok: true, body: run });
+    const bare = { runId: 'r1', character: 'Gandalf', startedUs: 1, endedUs: 2, sealed: true, bytes: 0, lines: 0, saved: true };
+    expect(await decodeBody(runSpec, j({ v: 1, runId: 'r1', meta: bare, size: 0 }))).toEqual({ ok: true, body: { runId: 'r1', meta: bare, size: 0 } });
+    expect(await decodeBody(runSpec, j({ v: 1, runId: 'r1', meta: { ...meta, summary: null, savedUs: null }, size: 1 }))).toMatchObject({ ok: true });
+  });
+
+  it('run: refuses a newer v, another run inside, a meta that is not one, unsaved or unsealed, a bad size', async () => {
+    expect(await decodeBody(runSpec, j({ ...run, v: 2 }))).toEqual({ ok: false, why: 'newer' });
+    const bads: unknown[] = [
+      { ...run, runId: 'r2' },
+      { ...run, runId: '' },
+      { ...run, size: -1 },
+      { ...run, size: 1.5 },
+      { ...run, size: '5' },
+      { ...run, meta: null },
+      { ...run, meta: { ...meta, sealed: false } },
+      { ...run, meta: { ...meta, saved: false } },
+      { ...run, meta: { ...meta, saved: undefined } },
+      { ...run, meta: { ...meta, rating: 6 } },
+      { ...run, meta: { ...meta, rating: 2.5 } },
+      { ...run, meta: { ...meta, bytes: 'x' } },
+      { ...run, meta: { ...meta, savedUs: 'x' } },
+      { ...run, meta: { ...meta, summary: { kills: 1 } } },
+    ];
+    for (const bad of bads) expect(await decodeBody(runSpec, j({ ...(bad as object), v: 1 })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+  });
+
+  it('run: drops meta fields it does not know (a new one must raise v)', async () => {
+    expect(await decodeBody(runSpec, j({ ...run, v: 1, meta: { ...meta, extra: 1 }, other: 2 }))).toEqual({ ok: true, body: run });
+  });
+
+  it('exportDoc: keyed by the session; normalised as the store reads it', async () => {
+    expect(exportDocSpec.key(doc)).toBe('r1');
+    expect(await decodeBody(exportDocSpec, await encodeBody(exportDocSpec, doc))).toEqual({ ok: true, body: doc });
+    // Bad ranges and comments are dropped, ranges merged (normalizeExportDoc).
+    const messy = { ...doc, v: 1, excludes: [[5, 9], [8, 12], [3, 1], 'x'], comments: [{ beforeUs: 'x', text: 'a' }, { beforeUs: null, text: '  b  ' }] };
+    expect(await decodeBody(exportDocSpec, j(messy))).toEqual({
+      ok: true,
+      body: { ...doc, excludes: [[5, 12]], comments: [{ beforeUs: null, text: 'b' }] },
+    });
+    expect(await decodeBody(exportDocSpec, j({ ...doc, v: 2 }))).toEqual({ ok: false, why: 'newer' });
+    for (const bad of [{ sessionId: '' }, { sessionId: 5 }, { schema: 2 }]) {
+      expect(await decodeBody(exportDocSpec, j({ ...doc, v: 1, ...bad })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+    }
   });
 });
 

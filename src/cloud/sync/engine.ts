@@ -114,6 +114,8 @@ interface Entry {
   /** The name before the names pass (for its event). */
   renamedFrom?: string;
   restored?: boolean;
+  /** Deleted elsewhere, edited here: the edit is pushed back (an edit beats a delete). */
+  revived?: boolean;
   /** Its local body cannot be encoded (not JSON): left alone this round, record and all. */
   skipped?: boolean;
 }
@@ -482,7 +484,11 @@ export class SyncEngine {
       return null;
     };
     const decided = ((): 'copy' | null => {
-      if (R.deleted) return take(edited ? L!.body : null); // an edit beats a delete
+      if (R.deleted) {
+        // An edit beats a delete.
+        e.revived = edited && !!rec && rec.rev > 0;
+        return take(edited ? L!.body : null);
+      }
       const body = R.body!;
       if (!L) {
         // Deleted here: an edit there brings it back; a rename there does not.
@@ -505,6 +511,7 @@ export class SyncEngine {
       e.target = L?.body ?? null;
       e.base = recBase;
       e.restored = false;
+      e.revived = false;
       return null;
     }
     if (decided !== 'copy') return null;
@@ -586,6 +593,8 @@ export class SyncEngine {
       ev = { type: 'renamed', kind, key: e.key!, from: e.renamedFrom, to: nameOf(e.target) };
     } else if (e.restored) {
       ev = { type: 'restored', kind, key: e.key!, name: nameOf(e.target) };
+    } else if (e.revived) {
+      ev = { type: 'revived', kind, key: e.key! };
     }
     if (ev) this.events.emit(ev);
   }

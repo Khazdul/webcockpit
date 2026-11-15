@@ -160,6 +160,8 @@ describe('conflicts', () => {
     a!.local.set('profile', { ...p, text: 'kept', modified: 2 });
     await a!.sync();
     expect(server.all()[0]).toMatchObject({ deleted: false, rev: 3 });
+    // Said as `revived` (stage 63: a run's adapter puts its body back in the queue); no words for the player.
+    expect(a!.events).toEqual([{ type: 'revived', kind: 'profile', key: p.id }]);
     await b!.sync();
     expect(b!.list()).toEqual([{ ...p, text: 'kept', modified: 2 }]);
   });

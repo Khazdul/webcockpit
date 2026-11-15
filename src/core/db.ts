@@ -55,6 +55,12 @@
 //     syncMeta   out-of-line keys; account, cursor, device label (an
 //                account's space); `seeded` in every space's database
 //                (src/profiles/seed-ids.ts: the seeds were put there once)
+//   version 10 (stage 63, ADR 0153)
+//     runCloud   keyPath 'runId', index 'state'; per run the cloud knows or
+//                should know: { runId, state (queued | up | full |
+//                tooLarge | remote | fetching), serverId, size, tries, at,
+//                startedUs, meta? (remote rows) } (src/cloud/runs/types.ts;
+//                empty in the device's database)
 //
 // The upgrade handler is a chain of `if (oldVersion < N)` steps, so every
 // older database upgrades in order. Add a step (and bump DB_VERSION) for
@@ -81,7 +87,7 @@ import { ACCOUNT_SPACE_PREFIX, DEVICE_DB_NAME, currentSpace, spaceDbName } from 
 
 /** The device's database (the space of a guest). */
 export const DB_NAME = DEVICE_DB_NAME;
-export const DB_VERSION = 9;
+export const DB_VERSION = 10;
 
 /** Object store names, for callers outside this module. */
 export const STORE = {
@@ -99,6 +105,7 @@ export const STORE = {
   scriptData: 'scriptData',
   sync: 'sync',
   syncMeta: 'syncMeta',
+  runCloud: 'runCloud',
 } as const;
 
 /** A random id (profile ids, ADR 0150). */
@@ -267,6 +274,9 @@ export function openWebcockpitDb(
         };
         db.createObjectStore(STORE.sync, { keyPath: ['kind', 'key'] });
         db.createObjectStore(STORE.syncMeta);
+      }
+      if (ev.oldVersion < 10) {
+        db.createObjectStore(STORE.runCloud, { keyPath: 'runId' }).createIndex('state', 'state');
       }
     };
     r.onsuccess = () => {

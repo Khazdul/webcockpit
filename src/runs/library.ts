@@ -27,6 +27,8 @@
 //   … the next run …
 //   {"type":"export","doc":{…ExportDoc}}                (after the runs, ADR 0019)
 //
+// The lines and their checks are src/runs/lines.ts, shared with a
+// run's body in the cloud (ADR 0153).
 // Export lines were added in stage 7 without a schema bump (additive): a
 // stage 6 reader rejects them as an unknown record, a stage 7 reader reads
 // stage 6 files unchanged.
@@ -35,27 +37,23 @@
 // whose `runId` is not stored yet, one transaction per run, then each export
 // doc for which no doc is stored.
 
-import type { RunChunk, RunMeta } from '../capture/store';
+import type { RunMeta } from '../capture/store';
 import { type LockManagerLike, acquire, runLockName } from '../capture/recorder';
 import { type ExportDoc, defaultExportDoc, normalizeExportDoc } from '../share/edits';
+import { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from './lines';
 import type { RunEvent } from './events';
-import { type RunEventRecord, RunStore } from './store';
+import { RunStore } from './store';
 import { DAY_US, RETENTION_DAYS, type Session, stitchChains, stitchSessions, toSession } from './stitch';
+
+export { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError } from './lines';
 
 /** Web Lock held by the tab that sweeps. */
 export const SWEEP_LOCK = 'webcockpit-sweep';
-export const BACKUP_TYPE = 'webcockpit-runs';
-export const BACKUP_SCHEMA = 1;
 
 /** `webcockpit-runs-2026-09-27.jsonl.gz` (local date). */
 export function backupFileName(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `webcockpit-runs-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.jsonl.gz`;
-}
-
-/** Thrown by `restore` for a file that is not a readable backup. */
-export class BadBackupError extends Error {
-  override name = 'BadBackupError';
 }
 
 export interface RunLibraryOptions {
@@ -269,9 +267,7 @@ export class RunLibrary {
     for (const meta of await this.store.listRuns()) {
       if (!meta.sealed) continue;
       sealed.add(meta.runId);
-      parts.push(JSON.stringify({ type: 'run', run: meta }) + '\n');
-      for (const e of await this.store.getEvents(meta.runId)) parts.push(JSON.stringify({ type: 'event', ...e }) + '\n');
-      for (const c of await this.store.getChunks(meta.runId)) parts.push(JSON.stringify({ type: 'chunk', ...c }) + '\n');
+      for (const line of runLines({ meta, events: await this.store.getEvents(meta.runId), chunks: await this.store.getChunks(meta.runId) })) parts.push(line);
     }
     for (const doc of await this.store.listExports()) {
       if (sealed.has(doc.sessionId)) parts.push(JSON.stringify({ type: 'export', doc }) + '\n');
@@ -310,7 +306,7 @@ export class RunLibrary {
     const have = new Set((await this.store.listRuns()).map((r) => r.runId));
     let added = 0;
     let skipped = 0;
-    let run: { meta: RunMeta; events: RunEventRecord[]; chunks: RunChunk[] } | null = null;
+    let run: RunRows | null = null;
     const flush = async (): Promise<void> => {
       if (!run) return;
       const r = run;
@@ -334,25 +330,14 @@ export class RunLibrary {
       const o = JSON.parse(text) as Record<string, unknown>;
       if (o.type === 'run') {
         await flush();
-        const meta = { ...(o.run as RunMeta) };
-        if (!meta.sealed) {
-          meta.sealed = true;
-          meta.endedUs ??= meta.startedUs;
-        }
-        run = { meta, events: [], chunks: [] };
+        run = { meta: toRunMeta(o), events: [], chunks: [] };
       } else if (o.type === 'event') {
-        run!.events.push({ runId: o.runId as string, seq: o.seq as number, event: o.event as RunEvent });
+        run!.events.push(toEvent(o));
       } else if (o.type === 'export') {
         const doc = normalizeExportDoc(o.doc);
         if (doc) docs.push(doc);
       } else if (o.type === 'chunk') {
-        run!.chunks.push({
-          runId: o.runId as string,
-          seq: o.seq as number,
-          firstUs: o.firstUs as number,
-          lastUs: o.lastUs as number,
-          text: o.text as string,
-        });
+        run!.chunks.push(toChunk(o));
       }
     }
     await flush();
@@ -363,54 +348,6 @@ export class RunLibrary {
 
 // ------------------------------------------------------------ file helpers
 
-type Rec = Record<string, unknown>;
-const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-const isStr = (v: unknown): v is string => typeof v === 'string';
-
-function parseLine(text: string, n: number): Rec {
-  let o: unknown;
-  try {
-    o = JSON.parse(text);
-  } catch {
-    throw new BadBackupError(`Line ${n} is not JSON.`);
-  }
-  if (!isRec(o)) throw new BadBackupError(`Line ${n} is not a record.`);
-  return o;
-}
-
-/** Checks one record line; returns the run the following lines belong to. */
-function checkRecord(o: Rec, cur: string | null, n: number): string | null {
-  const bad = (what: string): never => {
-    throw new BadBackupError(`Line ${n}: ${what}.`);
-  };
-  switch (o.type) {
-    case 'run': {
-      const m = o.run;
-      if (!isRec(m)) return bad('run without meta');
-      if (!isStr(m.runId) || !m.runId || !isStr(m.character) || !isNum(m.startedUs)) return bad('bad run meta');
-      if (!(m.endedUs === null || isNum(m.endedUs)) || typeof m.sealed !== 'boolean') return bad('bad run meta');
-      if (!isNum(m.bytes) || !isNum(m.lines)) return bad('bad run meta');
-      if (m.summary !== undefined && m.summary !== null && !(isRec(m.summary) && isNum(m.summary.startUs) && isNum(m.summary.lastEventUs)))
-        return bad('bad run summary');
-      return m.runId;
-    }
-    case 'event':
-      if (o.runId !== cur || cur === null) return bad('event outside its run');
-      if (!isNum(o.seq) || !isRec(o.event) || !isStr(o.event.type) || !isNum(o.event.us)) return bad('bad event');
-      return cur;
-    case 'chunk':
-      if (o.runId !== cur || cur === null) return bad('chunk outside its run');
-      if (!isNum(o.seq) || !isNum(o.firstUs) || !isNum(o.lastUs) || !isStr(o.text)) return bad('bad chunk');
-      return cur;
-    case 'export':
-      if (!normalizeExportDoc(o.doc)) return bad('bad export doc');
-      return null;
-    default:
-      return bad('unknown record');
-  }
-}
-
 async function gzip(blob: Blob): Promise<Blob> {
   const stream = blob.stream().pipeThrough(new CompressionStream('gzip'));
   const out = await new Response(stream).blob();
@@ -418,27 +355,6 @@ async function gzip(blob: Blob): Promise<Blob> {
 }
 
 /** The lines of a gzip text file, without their `\n`. */
-async function* readLines(file: Blob): AsyncGenerator<string> {
-  const reader = file
-    .stream()
-    .pipeThrough(new DecompressionStream('gzip'))
-    .pipeThrough(new TextDecoderStream())
-    .getReader();
-  let rest = '';
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      rest += value;
-      let start = 0;
-      for (let i = rest.indexOf('\n'); i >= 0; i = rest.indexOf('\n', start)) {
-        yield rest.slice(start, i);
-        start = i + 1;
-      }
-      rest = rest.slice(start);
-    }
-    if (rest) yield rest;
-  } finally {
-    reader.cancel().catch(() => {});
-  }
+function readLines(file: Blob): AsyncGenerator<string> {
+  return streamLines(file.stream().pipeThrough(new DecompressionStream('gzip')).pipeThrough(new TextDecoderStream()));
 }
