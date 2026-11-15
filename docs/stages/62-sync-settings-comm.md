@@ -1,23 +1,11 @@
 # Stage 62 — Sync of settings, script data, Comm history and timers
 
-Status: **Built and on staging (night pass 2026-11-15/16); waiting for the owner's test.** Nothing released; the flags stay off in production.
+Status: **Done on staging (2026-11-15): the owner's test passed; his picks 2a and 3b built after it.** Nothing released; the flags stay off in production until stage 63 is done.
 
 ## Waiting for the owner
 
-1. **The test on staging** (<https://staging.mumecockpit.com>), the
-   test guide below: two desktops (or two browsers), a phone, a session
-   taken up on the next device.
-2. **Yes or a change** to the six points under "For the owner to
-   confirm" below, built as recommended this night. The mockups:
-   <https://claude.ai/artifact/G1zwjmFCu8v8qXkDj2k3xw>.
-3. **`/privacy`'s account section:** read it on staging (About →
-   Privacy, or `/privacy`), approve or say what to change. It shows only
-   with the flag `accounts` on, so nobody in production sees it.
-4. **Then:** stage 63 (runs in the cloud, then accounts open), when you
-   say so.
-
-Nothing here blocks anything else; no question came up that stopped the
-night pass.
+Nothing. The owner's answers are under "Owner feedback" at the end;
+stage 63 runs in a session of its own.
 
 ## Goal
 
@@ -88,6 +76,9 @@ another; and the Log out dialog in full. On staging only: the flags
   lock a copy, the Worker opens the kinds).
 
 ## For the owner to confirm (made without you this night)
+
+Answered 2026-11-15: 1a, **2a**, **3b**, 4–6 as built (see "Owner
+feedback").
 
 These are built as recommended; each is a small change if you want it
 otherwise. The mockups are round 10:
