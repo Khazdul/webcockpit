@@ -299,3 +299,16 @@ test('a tablet-sized window: the band in one row, the replay under it', async ({
   expect(f.height).toBeGreaterThan(600);
   await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download as HTML');
 });
+
+test('/privacy says what a share link makes public with the flag share on; About gives the abuse address', async ({ page }) => {
+  const s = await setUp(page);
+  await page.goto('/privacy?cloudtest');
+  await expect(page.locator('.wc-about-h', { hasText: 'SHARE LINKS' })).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator('.wc-about-rail [data-sec-link="share"]')).toHaveText('Share links');
+  await expect(page.locator('.wc-about-sec[data-sec="share"] a[href="mailto:abuse@mumecockpit.com"]')).toHaveCount(1);
+  // Off: not there.
+  s.api.server.flags = { accounts: true, share: false };
+  await page.reload();
+  await expect(page.locator('.wc-about-h', { hasText: 'ACCOUNTS' })).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator('.wc-about-h', { hasText: 'SHARE LINKS' })).toHaveCount(0);
+});
