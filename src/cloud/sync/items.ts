@@ -98,7 +98,21 @@ export async function contentHash(kind: SyncKind, body: Body): Promise<string> {
  * that moved nothing else (the engine's own, to keep names unique) from
  * an edit.
  */
-export async function itemHashes(spec: KindSpec, record: Body): Promise<{ hash: string; bare: string }> {
+export function itemHashes(spec: KindSpec, record: Body): Promise<{ hash: string; bare: string }> {
+  // A Comm day's piece is large and, while its day gets no message, the very object the adapter
+  // cached (stage 62 C1): its hashes are made once (bodies are never changed in place).
+  if (!spec.compress) return hashesOf(spec, record);
+  let p = hashCache.get(record);
+  if (!p) {
+    p = hashesOf(spec, record);
+    hashCache.set(record, p);
+  }
+  return p;
+}
+
+const hashCache = new WeakMap<Body, Promise<{ hash: string; bare: string }>>();
+
+async function hashesOf(spec: KindSpec, record: Body): Promise<{ hash: string; bare: string }> {
   const body = spec.hashed ? spec.hashed(record) : record;
   const hash = await contentHash(spec.kind, body);
   if (!spec.names) return { hash, bare: hash };

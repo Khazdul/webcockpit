@@ -18,10 +18,10 @@ import { isUntouchedSeed } from '../../profiles/seeds';
 import { SEEDED_META_KEY } from '../../profiles/seed-ids';
 import { seedProfiles } from '../../profiles/store';
 import { parseHeader, withHeaderName } from '../../scripts/header';
-import { ITEM_SPECS, PROFILE_NAMES, SCRIPT_NAMES, freeName } from '../sync/items';
+import { type KindSpec, PROFILE_NAMES, SCRIPT_NAMES, SYNC_SPECS, freeName } from '../sync/items';
 import type { LocalItems, SyncRecords, Unsynced } from '../sync/types';
 import { listUnsynced } from '../sync/unsynced';
-import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, writeMeta } from './local';
+import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, settingsSeedHash, thisDeviceType, writeMeta } from './local';
 
 /** An account's name key (the server's `name_key`). */
 export const nameKeyOf = (name: string): string => name.toLowerCase();
@@ -130,6 +130,9 @@ export async function accountNameOf(nameKey: string): Promise<string> {
   }
 }
 
+/** What `prepareAccountSpace` copies from the device besides its settings. */
+const COPIED = [STORE.scriptData, STORE.comm, STORE.timers] as const;
+
 /**
  * Makes an account's space ready (ADR 0150): the database (`fresh`: a
  * stale one of that name is deleted first, a login never reuses one it
@@ -137,8 +140,15 @@ export async function accountNameOf(nameKey: string): Promise<string> {
  * and the id are free; the `seeded` mark), the device's settings when the
  * space has none (spec §7.4, the one exception of a login), and in
  * `syncMeta` whose space it is and this device's label.
+ *
+ * ADR 0152: `copy` `'seed'` (a login, the default) marks the copied
+ * settings as a seed (`settingsSeed`): the account's settings of this
+ * device type win over it. `'all'` (Create account) copies the device's
+ * script data, Comm history and timers too, and the settings are the
+ * account's own (no seed): they are all pushed as its first items.
  */
-export async function prepareAccountSpace(name: string, o: { fresh: boolean; deviceLabel: string }): Promise<OpenDb> {
+export async function prepareAccountSpace(name: string, o: { fresh: boolean; deviceLabel: string; copy?: 'seed' | 'all' }): Promise<OpenDb> {
+  const copy = o.copy ?? 'seed';
   const nameKey = nameKeyOf(name);
   if (o.fresh) await dropSpace(nameKey);
   const open = spaceDb(nameKey);
@@ -152,19 +162,28 @@ export async function prepareAccountSpace(name: string, o: { fresh: boolean; dev
   }
   // Settings from the device, read first (another database, another transaction).
   let settings: { keys: IDBValidKey[]; values: unknown[] } | null = null;
+  const rows = new Map<string, unknown[]>();
   try {
     const dev = await openDeviceDb();
-    const t = dev.transaction(STORE.settings, 'readonly');
+    const stores = copy === 'all' ? [STORE.settings, ...COPIED] : [STORE.settings];
+    const t = dev.transaction(stores, 'readonly');
     const done = idbDone(t);
     const os = t.objectStore(STORE.settings);
-    const [keys, values] = await Promise.all([idbRequest(os.getAllKeys()), idbRequest(os.getAll())]);
+    const [keys, values, ...more] = await Promise.all([
+      idbRequest(os.getAllKeys()),
+      idbRequest(os.getAll()),
+      ...stores.slice(1).map((n) => idbRequest(t.objectStore(n).getAll()) as Promise<unknown[]>),
+    ]);
     await done;
     settings = { keys, values };
+    stores.slice(1).forEach((n, i) => rows.set(n, more[i] as unknown[]));
     dev.close();
   } catch {
     /* no settings to copy: the account's space starts with the defaults */
   }
-  const t = db.transaction([STORE.profiles, STORE.settings, STORE.syncMeta], 'readwrite');
+  const main = settings?.keys.indexOf('main') ?? -1;
+  const seed = copy === 'seed' && settings && main >= 0 ? await settingsSeedHash(thisDeviceType(), settings.values[main]).catch(() => null) : null;
+  const t = db.transaction([STORE.profiles, STORE.settings, STORE.syncMeta, ...(copy === 'all' ? COPIED : [])], 'readwrite');
   const done = idbDone(t);
   const profiles = t.objectStore(STORE.profiles);
   const meta = t.objectStore(STORE.syncMeta);
@@ -176,7 +195,21 @@ export async function prepareAccountSpace(name: string, o: { fresh: boolean; dev
     meta.put(true, SEEDED_META_KEY);
   }
   const st = t.objectStore(STORE.settings);
-  if (settings && (await idbRequest(st.count())) === 0) settings.keys.forEach((k, i) => st.put(settings!.values[i], k));
+  if (settings && (await idbRequest(st.count())) === 0) {
+    settings.keys.forEach((k, i) => st.put(settings!.values[i], k));
+    if (seed) meta.put(seed, META.settingsSeed);
+  }
+  // Create account: the device's script data, Comm history and timers, as the account's own (the device keeps its).
+  for (const [n, list] of rows) {
+    const os = t.objectStore(n);
+    if ((await idbRequest(os.count())) > 0) continue;
+    for (const r of list) {
+      if (n === STORE.comm) {
+        const { seq: _seq, ...rest } = r as { seq?: number };
+        os.add(rest);
+      } else os.put(r);
+    }
+  }
   meta.put({ name, nameKey }, META.account);
   if ((await idbRequest(meta.get(META.deviceLabel))) === undefined) meta.put(o.deviceLabel, META.deviceLabel);
   await done;
@@ -191,8 +224,8 @@ export async function prepareAccountSpace(name: string, o: { fresh: boolean; dev
  * server id (a lost session has no keys left). Same rules: new (no record
  * or rev 0), edited (hash differs), deleted (a live record without an item).
  */
-export async function pendingChanges(local: LocalItems, records: SyncRecords): Promise<Unsynced[]> {
-  return listUnsynced([ITEM_SPECS.profile, ITEM_SPECS.script], local, await records.list(), {
+export async function pendingChanges(local: LocalItems, records: SyncRecords, specs: readonly KindSpec[] = SYNC_SPECS): Promise<Unsynced[]> {
+  return listUnsynced(specs, local, await records.list(), {
     item: async (_spec, key) => key,
     record: (rec) => rec.key,
   });
@@ -217,10 +250,13 @@ export async function runCounts(open: OpenDb, nowMs = Date.now()): Promise<{ sav
   return { saved, unsaved };
 }
 
-/** What a copy holds that is not in the account: the changes and the saved runs (unsaved runs do not count; spec §7.4). */
+/** The kinds that keep a copy locked after a lost session: all but timers (ADR 0152: the game's state, stale within hours). */
+export const LOCKING_SPECS: readonly KindSpec[] = SYNC_SPECS.filter((s) => s.kind !== 'timers');
+
+/** What a copy holds that is not in the account: the changes and the saved runs (unsaved runs and timers do not count; spec §7.4, ADR 0152). */
 export async function notInAccount(nameKey: string, deviceLabel = 'device'): Promise<{ changes: Unsynced[]; savedRuns: number }> {
   const open = spaceDb(nameKey);
-  const changes = await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => deviceLabel));
+  const changes = await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => deviceLabel), LOCKING_SPECS);
   const { saved } = await runCounts(open);
   return { changes, savedRuns: saved };
 }

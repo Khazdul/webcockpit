@@ -93,6 +93,8 @@ export interface ChromeServices {
   scriptPanes?: ScriptPaneList;
   /** Client notices (ADR 0025): the ESC header and the start page show them. */
   notices?: Notices;
+  /** The character in play in this tab (`Char.Name`), or null: the sync holds its pulled timers (ADR 0152). */
+  playedCharacter?: () => string | null;
 }
 
 export const ServicesCtx = createContext<ChromeServices | null>(null);

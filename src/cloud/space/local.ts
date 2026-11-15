@@ -20,12 +20,35 @@
 // on a second device the seed would otherwise be a keep-both copy).
 // Two rows with one id are refused (`list` throws): one would be pushed
 // over the other. The seeding and the move never write such a pair.
+//
+// The small kinds (stage 62 C1, ADR 0152):
+//
+//   settings    `main` is this device type's item (`from`: syncMeta's
+//               deviceLabel); `device:<type>` holds the other types' items
+//               as pulled ({type, record, from}). A login's copy of the
+//               device's settings is a seed (`syncMeta.settingsSeed`, its
+//               hash): no item while it is unchanged and has no agreed
+//               record (`settleSettingsSeed` ends it after a full sync).
+//   scriptData  one row per script name.
+//   timers      one row per character.
+//   comm        one item per kept UTC day (`commDayKept`: the day's start is
+//               within seven days), read through the Comm archive's helpers
+//               and cached per day under (count, highest seq); a day over
+//               `COMM_PIECE_RAW` of JSON is split into `day`, `day.2` ….
+//               A put adds the records the day lacks, a remove deletes the
+//               day (or a split piece's records); a put of a day not kept
+//               is dropped.
 
-import type { SyncKind } from '../../../shared/cloud/api.ts';
+import { DEVICE_TYPES, type DeviceType, type SyncKind } from '../../../shared/cloud/api.ts';
 import { STORE, idbDone, idbRequest } from '../../core/db';
+import { device } from '../../core/device';
+import { CommArchive, commFields, commIdentity, dayBounds } from '../../gmcp/comm-archive';
 import { isUntouchedSeed } from '../../profiles/seeds';
 import { parseHeader, withHeaderName } from '../../scripts/header';
-import type { Body, LocalItem, LocalItems, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
+import { SETTINGS_KEY } from '../../settings/store';
+import { deviceType } from '../device-info';
+import { COMM_DAY_PATTERN, ITEM_SPECS, itemHashes } from '../sync/items';
+import type { Body, CommItem, CommPieceRecord, LocalItem, LocalItems, SettingsItem, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
 
 /** Opens the space's database (a cached connection; reopened when another tab's upgrade closed it). */
 export type OpenDb = () => Promise<IDBDatabase>;
@@ -66,7 +89,48 @@ export const META = {
   move: 'move',
   /** The seeds were put in this database once (src/profiles/seed-ids.ts). */
   seeded: 'seeded',
+  /** The hash of the device's settings as a login copied them (a seed, ADR 0152 "The first copy"). */
+  settingsSeed: 'settingsSeed',
 } as const;
+
+/** This device's type (the settings item `main` stands for). */
+export const thisDeviceType = (): DeviceType => deviceType(device());
+
+/** The `settings` store's key of another device type's item. */
+export const otherTypeKey = (t: DeviceType): string => `device:${t}`;
+
+/** The hash a settings seed is kept as: `main` as this type's item (`from` is not hashed). */
+export async function settingsSeedHash(type: DeviceType, record: unknown): Promise<string> {
+  return (await itemHashes(ITEM_SPECS.settings, { type, record } as unknown as Body)).hash;
+}
+
+/** A Comm day's piece larger than this (canonical JSON, about 450 KB of gzip) is split (ADR 0152, 1 MB per item). */
+export const COMM_PIECE_RAW = 4 * 1024 * 1024;
+
+/** The kept days' check (ADR 0152 as built, `commDayKept` of the model): the day's start is within seven days. */
+const KEEP_MS = 7 * 24 * 3600_000;
+export function commDayKept(day: string, now: number): boolean {
+  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - KEEP_MS;
+}
+
+/** A day's sorted records as its pieces: `day` alone, or `day`, `day.2` … when over `max` (newest in the last). */
+export function commPieces(day: string, records: readonly CommPieceRecord[], max = COMM_PIECE_RAW): CommItem[] {
+  const out: CommItem[] = [];
+  let cur: CommPieceRecord[] = [];
+  let size = 0;
+  for (const r of records) {
+    const n = JSON.stringify(r).length + 1;
+    if (cur.length && size + n > max) {
+      out.push({ day: out.length === 0 ? day : `${day}.${out.length + 1}`, records: cur });
+      cur = [];
+      size = 0;
+    }
+    cur.push(r);
+    size += n;
+  }
+  out.push({ day: out.length === 0 ? day : `${day}.${out.length + 1}`, records: cur });
+  return out;
+}
 
 /** A transaction over `stores`, retried once on a closed connection. */
 async function tx(open: OpenDb, stores: string[], mode: IDBTransactionMode): Promise<IDBTransaction> {
@@ -129,13 +193,185 @@ export interface ProfileChanges {
   removed: { id: string; name: string }[];
 }
 
-export interface LocalHooks {
-  /** After a batch was written (the page's caches: the script library reloads, the profile listeners hear). */
-  written?(kind: SyncKind, profiles?: ProfileChanges): void;
+/** What a batch of the sync wrote into this device type's settings (`main`). */
+export interface SettingsWritten {
+  /** The writing device's sync label, when the item said. */
+  from: string | null;
 }
 
-/** `LocalItems` on a space's database: profiles and user scripts. */
-export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}): LocalItems {
+export interface LocalHooks {
+  /**
+   * After a batch was written (the page's caches: the script library
+   * reloads, the profile listeners hear). `settings`: set when this device
+   * type's settings were written.
+   */
+  written?(kind: SyncKind, profiles?: ProfileChanges, settings?: SettingsWritten): void;
+}
+
+export interface LocalOptions {
+  /** This device's type (default `thisDeviceType()`). */
+  type?: DeviceType;
+  /** The clock of Comm's seven days (default `Date.now`). */
+  now?: () => number;
+}
+
+const isDeviceType = (t: unknown): t is DeviceType => typeof t === 'string' && (DEVICE_TYPES as readonly string[]).includes(t);
+
+/** The local keys of `kind` whose sync record has any base or remote (agreed or held). */
+async function recordedKeys(t: IDBTransaction, kind: SyncKind): Promise<Set<string>> {
+  const rows = (await idbRequest(t.objectStore(STORE.sync).getAll())) as SyncRow[];
+  const out = new Set<string>();
+  for (const r of rows) if (r.kind === kind && r.rec?.key) out.add(r.rec.key);
+  return out;
+}
+
+/** `LocalItems` on a space's database: profiles, user scripts and the small kinds. */
+export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOptions = {}): LocalItems {
+  const type = o.type ?? thisDeviceType();
+  const now = o.now ?? Date.now;
+  /** Comm: each day's pieces under its cache key (count, highest seq). */
+  const commCache = new Map<string, { key: string; pieces: LocalItem[] }>();
+  const archive = async (): Promise<CommArchive> => new CommArchive(await open(), { now });
+
+  const listSmall = async (kind: SyncKind): Promise<LocalItem[]> => {
+    if (kind === 'settings') {
+      const t = await tx(open, [STORE.settings, STORE.syncMeta, STORE.sync], 'readonly');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.settings);
+      const meta = t.objectStore(STORE.syncMeta);
+      const [keys, values, label, seed, agreed] = await Promise.all([
+        idbRequest(os.getAllKeys()),
+        idbRequest(os.getAll()),
+        idbRequest(meta.get(META.deviceLabel)),
+        idbRequest(meta.get(META.settingsSeed)),
+        agreedKeys(t, 'settings'),
+      ]);
+      await done;
+      const out: LocalItem[] = [];
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        const v = values[i] as Record<string, unknown> | undefined;
+        if (k === SETTINGS_KEY) {
+          if (!v || typeof v !== 'object') continue;
+          if (typeof seed === 'string' && !agreed.has(type) && (await settingsSeedHash(type, v)) === seed) continue;
+          const body: SettingsItem = { type, record: v as unknown as SettingsItem['record'], ...(typeof label === 'string' && label ? { from: label } : {}) };
+          out.push({ key: type, body: body as unknown as Body });
+        } else if (typeof k === 'string' && k.startsWith('device:')) {
+          const t2 = k.slice('device:'.length);
+          if (!isDeviceType(t2) || t2 === type || !v || typeof v !== 'object' || !v.record) continue;
+          const body: SettingsItem = { type: t2, record: v.record as SettingsItem['record'], ...(typeof v.from === 'string' ? { from: v.from } : {}) };
+          out.push({ key: t2, body: body as unknown as Body });
+        }
+      }
+      return out;
+    }
+    if (kind === 'scriptData') {
+      const t = await tx(open, [STORE.scriptData], 'readonly');
+      const done = idbDone(t);
+      const rows = (await idbRequest(t.objectStore(STORE.scriptData).getAll())) as Record<string, unknown>[];
+      await done;
+      return rows
+        .filter((r) => r && typeof r.name === 'string' && r.name !== '')
+        .map((r): LocalItem => ({ key: r.name as string, body: scriptDataBody(r) }));
+    }
+    if (kind === 'timers') {
+      const t = await tx(open, [STORE.timers], 'readonly');
+      const done = idbDone(t);
+      const rows = (await idbRequest(t.objectStore(STORE.timers).getAll())) as Record<string, unknown>[];
+      await done;
+      return rows
+        .filter((r) => r && typeof r.character === 'string' && r.character !== '')
+        .map((r): LocalItem => ({ key: r.character as string, body: { character: r.character, savedAt: typeof r.savedAt === 'number' ? r.savedAt : 0, state: r.state ?? null } }));
+    }
+    if (kind === 'comm') {
+      const a = await archive();
+      const at = now();
+      const out: LocalItem[] = [];
+      const seen = new Set<string>();
+      for (const d of await a.commDays(at)) {
+        if (!commDayKept(d.day, at)) continue;
+        seen.add(d.day);
+        const ck = `${d.count}:${d.maxSeq}`;
+        let c = commCache.get(d.day);
+        if (!c || c.key !== ck) {
+          const pieces = commPieces(d.day, await a.dayRecords(d.day));
+          c = { key: ck, pieces: pieces.map((p) => ({ key: p.day, body: p as unknown as Body })) };
+          commCache.set(d.day, c);
+        }
+        out.push(...c.pieces);
+      }
+      for (const day of [...commCache.keys()]) if (!seen.has(day)) commCache.delete(day);
+      return out;
+    }
+    return [];
+  };
+
+  const writeSmall = async (kind: SyncKind, batch: { put: Body[]; remove: string[] }): Promise<SettingsWritten | undefined> => {
+    if (kind === 'settings') {
+      const t = await tx(open, [STORE.settings], 'readwrite');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.settings);
+      let mine: SettingsWritten | undefined;
+      for (const key of batch.remove) {
+        if (!isDeviceType(key)) continue;
+        os.delete(key === type ? SETTINGS_KEY : otherTypeKey(key));
+      }
+      for (const b of batch.put) {
+        const it = b as unknown as SettingsItem;
+        if (!isDeviceType(it.type)) continue;
+        if (it.type === type) {
+          os.put(it.record, SETTINGS_KEY);
+          mine = { from: typeof it.from === 'string' ? it.from : null };
+        } else os.put({ type: it.type, record: it.record, ...(typeof it.from === 'string' ? { from: it.from } : {}) }, otherTypeKey(it.type));
+      }
+      await done;
+      return mine;
+    }
+    if (kind === 'scriptData') {
+      const t = await tx(open, [STORE.scriptData], 'readwrite');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.scriptData);
+      for (const key of batch.remove) os.delete(key);
+      for (const b of batch.put) os.put(scriptDataBody(b));
+      await done;
+      return undefined;
+    }
+    if (kind === 'timers') {
+      const t = await tx(open, [STORE.timers], 'readwrite');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.timers);
+      for (const key of batch.remove) os.delete(key);
+      for (const b of batch.put) os.put({ character: b.character, savedAt: b.savedAt, state: b.state ?? null });
+      await done;
+      return undefined;
+    }
+    if (kind === 'comm') {
+      const a = await archive();
+      const at = now();
+      for (const key of batch.remove) {
+        if (!COMM_DAY_PATTERN.test(key)) continue;
+        const day = key.slice(0, 10);
+        const pieces = commCache.get(day)?.pieces ?? [];
+        if (key === day && pieces.length <= 1) await a.removeDay(day);
+        else {
+          // One piece of a split day: only its records go.
+          const piece = pieces.find((p) => p.key === key)?.body as unknown as CommItem | undefined;
+          if (piece) await removeCommRecords(open, day, piece.records);
+        }
+        commCache.delete(day);
+      }
+      const add: CommPieceRecord[] = [];
+      for (const b of batch.put) {
+        const it = b as unknown as CommItem;
+        if (typeof it.day !== 'string' || !COMM_DAY_PATTERN.test(it.day) || !commDayKept(it.day, at)) continue;
+        for (const r of it.records ?? []) add.push(r);
+      }
+      if (add.length) await a.addDayRecords(add);
+      return undefined;
+    }
+    return undefined;
+  };
+
   return {
     async list(kind) {
       if (kind === 'profile') {
@@ -152,7 +388,7 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}): LocalItems 
         await done;
         return rows.map((r): LocalItem => ({ key: r.id, body: scriptBody(r) }));
       }
-      return [];
+      return listSmall(kind);
     },
 
     async write(kind, batch) {
@@ -200,11 +436,55 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}): LocalItems 
         }
         await done;
       } else {
+        const settings = await writeSmall(kind, batch);
+        hooks.written?.(kind, undefined, settings);
         return;
       }
       hooks.written?.(kind, changes);
     },
   };
+}
+
+/** A `scriptData` row as it is stored and travels. */
+function scriptDataBody(r: Readonly<Record<string, unknown>>): Body {
+  const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+  return { name: r.name, settings: obj(r.settings), store: obj(r.store), ...(typeof r.enabled === 'boolean' ? { enabled: r.enabled } : {}) };
+}
+
+/** Deletes the records of `day` whose identity is among `records` (a split day's piece). */
+async function removeCommRecords(open: OpenDb, day: string, records: readonly CommPieceRecord[]): Promise<void> {
+  const ids = new Set(records.map((r) => commIdentity(r)));
+  const [start, end] = dayBounds(day);
+  const t = await tx(open, [STORE.comm], 'readwrite');
+  const done = idbDone(t);
+  const req = t.objectStore(STORE.comm).index('ts').openCursor(IDBKeyRange.bound(start, end, false, true));
+  req.onsuccess = () => {
+    const c = req.result;
+    if (!c) return;
+    const f = commFields(c.value);
+    if (f && ids.has(commIdentity(f))) c.delete();
+    c.continue();
+  };
+  await done;
+}
+
+/**
+ * The settings seed after a sync that finished (`synced`): the full pull
+ * is done, so the copy gives way no longer. With no sync record of this
+ * type's settings (the account has none), or an agreed one, the seed mark
+ * goes and `main` is an item (pushed at the next sync); a record holding a
+ * pulled version (in use during play) keeps it. Returns true when the
+ * mark went and `main` is now an item to push.
+ */
+export async function settleSettingsSeed(open: OpenDb, type: DeviceType = thisDeviceType()): Promise<boolean> {
+  const t = await tx(open, [STORE.syncMeta, STORE.sync], 'readonly');
+  const done = idbDone(t);
+  const [seed, recorded, agreed] = await Promise.all([idbRequest(t.objectStore(STORE.syncMeta).get(META.settingsSeed)), recordedKeys(t, 'settings'), agreedKeys(t, 'settings')]);
+  await done;
+  if (seed === undefined) return false;
+  if (recorded.has(type) && !agreed.has(type)) return false;
+  await writeMeta(open, { [META.settingsSeed]: undefined });
+  return !recorded.has(type);
 }
 
 /** `SyncRecords` on a space's database. `deviceLabel` is the label to use when none is stored. */

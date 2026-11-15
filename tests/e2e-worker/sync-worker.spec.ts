@@ -5,11 +5,12 @@
 // things, a second device logs in and has them, an edit goes across, the
 // same profile changed on both keeps both, a lost session with and without
 // a change not in the account (locked, unlocked by a login), log out, and
-// Delete account handing the things back.
+// Delete account handing the things back. Stage 62: a settings change
+// and a Comm message go across too.
 
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from '../e2e/account-pages';
-import { account, awayFromMenu, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from '../e2e/sync-pages';
+import { account, awayFromMenu, getIdb, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from '../e2e/sync-pages';
 import { stubTurnstile } from '../e2e/turnstile-stub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -59,8 +60,27 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   await syncNow(a.page);
   await account(b.page);
   await syncNow(b.page);
-  const warriorOnB = async (): Promise<unknown> => (await (await import('../e2e/sync-pages')).getIdb(b.page, DB, 'profiles')).find((p) => p.name === 'warrior')?.text;
+  const warriorOnB = async (): Promise<unknown> => (await getIdb(b.page, DB, 'profiles')).find((p) => p.name === 'warrior')?.text;
   await expect.poll(warriorOnB).toBe('#nop edited on A');
+
+  // Stage 62: a settings change and a Comm message on A reach B (settings per device type, Comm per day, gzip).
+  await a.page.keyboard.press('Escape');
+  const size = (p: Page): Promise<number> => p.evaluate(() => window.__wc!.settings.get().appearance.size);
+  const want = (await size(a.page)) === 21 ? 22 : 21;
+  await a.page.evaluate((v) => window.__wc!.settings.update({ appearance: { size: v } }), want);
+  await expect.poll(async () => (await getIdb(a.page, DB, 'settings')).some((r) => (r as { appearance?: { size?: number } }).appearance?.size === want)).toBe(true);
+  const tell = { character: 'Testchar', ts: Date.now() - 1000, channel: 'tells', talker: 'Gibur', talkerType: 'player', destination: null, text: "Gibur tells you 'across'" };
+  await putIdb(a.page, DB, 'comm', [tell]);
+  await account(a.page);
+  await syncNow(a.page);
+  await b.page.keyboard.press('Escape');
+  await account(b.page);
+  await syncNow(b.page);
+  await expect.poll(() => size(b.page)).toBe(want);
+  await expect.poll(async () => (await getIdb(b.page, DB, 'comm')).map((r) => r.text)).toEqual([tell.text]);
+  await b.page.keyboard.press('Escape');
+  await expect(menuFlash(b.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox)\.$/);
+  await account(b.page);
 
   // The same profile changed on both: keep both.
   await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior', '#nop A again', 3000)]);

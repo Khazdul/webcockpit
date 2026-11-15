@@ -55,7 +55,8 @@ test('Create account moves the device’s things; a second device gets them; log
   // The page reloads to the start menu in the account's space; the move's line, then the owner row synced.
   await expect(menuFlash(a.page)).toHaveText(`Moved into ${NAME}: 1 profile, 1 script. This device is back at its starting set.`, { timeout: 30_000 });
   expect(await owner(a.page)).toMatch(/synced/);
-  expect(server.items(NAME).all()).toHaveLength(2);
+  // The profile and the script moved; the device's settings were copied as the account's own (stage 62, ADR 0152).
+  expect(server.items(NAME).all().filter((i) => i.kind === 'profile' || i.kind === 'script')).toHaveLength(2);
   expect(await names(a.page, 'webcockpit')).toEqual(['default', 'khazdul']);
   expect(await names(a.page, 'webcockpit', 'scripts')).toEqual([]);
   expect(await names(a.page, DB)).toEqual(['default', 'khazdul', 'warrior']);
@@ -166,7 +167,7 @@ test('a lost session: kept locked with a change (Remove asks), removed without o
   await expect(pageOf(a.page, 'login')).toBeVisible();
   await expect(field(a.page, 'name')).toHaveValue(NAME);
   await submitLogin(a.page);
-  await expect.poll(() => server.items(NAME).all().length).toBe(1);
+  await expect.poll(() => server.items(NAME).all().filter((i) => i.kind === 'profile').length).toBe(1);
 
   // Lost again, with everything in the account: removed, and said.
   server.endSessions(NAME, 'ended');

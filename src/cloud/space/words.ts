@@ -106,3 +106,13 @@ export function eventWords(e: SyncEvent): string | null {
       return null;
   }
 }
+
+/**
+ * Pulled settings of this device type applied on the start menu (round 10,
+ * the owner's pick 2b with 2c): "Settings from desktop, Chrome.", and
+ * "…, held until the game ended." when they waited for the game.
+ */
+export function settingsFromWords(from: string | null | undefined, held = false): string {
+  const who = from ? `Settings from ${from}` : 'Settings from another device';
+  return held ? `${who}, held until the game ended.` : `${who}.`;
+}
