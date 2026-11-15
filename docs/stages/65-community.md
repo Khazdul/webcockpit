@@ -1,11 +1,11 @@
 # Stage 65 — The community
 
-Status: **Planned (2026-11-15).** Mockups (round 13) first; nothing
-built.
+Status: **In progress (2026-11-15).** Round 13 picked; part B and C5
+merged; part C building.
 
 ## Waiting for the owner
 
-- The picks of round 13 (the mockups' artifact, below).
+- Nothing yet: part C is building.
 
 ## Goal
 
@@ -104,6 +104,35 @@ Mockups in round 9–12's manner (`notes/research/start-menu-mockups/
 round13/`), published as an artifact, the recommendation in its README.
 
 Artifact: https://claude.ai/artifact/RxKtoMqiLZrXtj9gRpuGaP
+
+**Owner's picks (2026-11-15):**
+
+- **1b, with changes** (the list on the left, a column on the right):
+  - no Published runs / Mine button on the Community page;
+  - the list opens newest first; no sort or period pills: a press on a
+    column heading sorts (desktop and tablet); the phone shows newest
+    only, without sorting;
+  - about 10 runs a page; the pager `‹ Page 1 of 3 ›` sits at the
+    list's bottom right, inside the list; no "71 runs this week";
+  - Run of the day: today only, with as much of its description as
+    fits; no Yesterday, no Show another; less height;
+  - a press on a sender's name opens a page with every run that
+    account has listed;
+  - no "Your runs: History → Export → Hall of Fame" line in the foot;
+  - Top posters goes;
+  - Random Runes moves under the list on the left; every note shown
+    whole (wrapped, not cut); while writing, the field grows so the
+    text can be seen; notes at most **250** characters (was 500);
+  - the right column (Run of the day, Hall of Fame, Warlords) shows
+    the Warlords without scrolling.
+- **3a, inside the start menu's frame:** the watch page (also the
+  stage 64 one, a link's page) shows the start page's sky and the
+  framed window around everything, so the player feels still inside
+  the client; Back at the top left, where the start menu's sub-pages
+  have it. The stars in the band, the comments under the replay.
+- **2, 4, 5, 6, 7 as drawn**, except what point 1 changes (Random
+  Runes' place and length).
+- **The admin queue shows the reporters' count only**, as in stage 64.
 
 1. **The Community page** (desktop and phone): the layout of the list,
    the Hall of Fame boxes and Random Runes (a: the reference's order,

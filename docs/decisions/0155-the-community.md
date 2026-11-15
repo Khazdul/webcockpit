@@ -434,3 +434,25 @@ details and deviations. The contract's comments in `shared/cloud/api.ts`
   (it needs none); there is no flag to stop the fetch or the probe
   without a release yet (the decision's "we stop at once" is a deploy
   that drops the call from `runCron`).
+
+## Addendum (owner, round 13, 2026-11-15): the page as picked
+
+The owner's picks (`docs/stages/65-community.md`, "Owner's picks")
+change the client and, in small ways, the Worker (built in part C1):
+
+- **The list** opens on New; sorting is by a press on a column heading
+  (desktop, tablet): New (listed), Top (stars), Most watched (views),
+  and also Comments and Length; the phone shows New only. No period
+  control (the API keeps `period`; the client sends `all`). **Pages of
+  10** (`GALLERY_PAGE` 10, `page` up to 100).
+- **A sender's runs:** `GET /api/gallery?by=<name>` (the same rows,
+  that account's listed active runs, New first, pages of 10; an
+  unknown or deleted name gives an empty list, never an error that tells
+  whether the name exists).
+- **`GET /api/community`** loses `topPosters` and `yesterday`; `today`
+  carries the run's description (cut to 300 code points). `GET
+  /api/gallery/random` goes.
+- **Notes** are at most **250** code points (`NOTE_MAX`); the board
+  shows each whole.
+- **The watch page** sits inside the start page's sky and frame, Back
+  at the top left (the stage 64 page too).
