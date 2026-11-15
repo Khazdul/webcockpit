@@ -12,9 +12,23 @@
 // 0154, the flag `share`): a link made on A (the rules ticked, the payload
 // in the local R2) is watched by a guest on /r/<id>, counted once, and
 // says it was removed after A removes it.
+//
+// Stage 65 (ADR 0155, the flags `gallery` and `runes`), a test of its own
+// with two new accounts and a guest: A publishes a cut to the Hall of
+// Fame from the export editor; the guest sees "1 new" on the Community
+// row and the run in the list, opens it, and the view counts; B rates it
+// and comments; A's owner row has the reactions mark and Published runs
+// the star and the comment, and opening it clears the mark; B writes a
+// Random Runes note and removes it; A removes the run and it leaves the
+// list. (Top's order is not asserted: B's vote ranks only from its
+// account's eighth day.)
 
-import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
-import { PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from '../e2e/account-pages';
+import { type Browser, type BrowserContext, type Page, type TestInfo, expect, test } from '@playwright/test';
+import { PASSWORD, accountRow, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from '../e2e/account-pages';
+import { btnIn, cm, communityRow, head, noteField, notes, openCommunity, rows, runes } from '../e2e/community';
+import { exp, openEditor, restoreDemo } from '../e2e/community-pub';
+import { pinDemoClock } from '../e2e/demo-clock';
+import { playing } from '../e2e/watch-page';
 import { account, awayFromMenu, getIdb, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from '../e2e/sync-pages';
 import { stubTurnstile } from '../e2e/turnstile-stub';
 import { demoPayload } from '../e2e/cloud-pub-fake';
@@ -27,18 +41,28 @@ test.use({ viewport: { width: 1440, height: 900 } });
 // A minute's rest between them; the limit itself is unchanged.
 // (A new project gets a new test worker, so the project's place in the
 // config, not a flag in this module, says which one is second.)
-test.beforeEach(async ({}, info) => {
-  if (info.config.projects.findIndex((p) => p.name === info.project.name) > 0) await new Promise((r) => setTimeout(r, 61_000));
-});
+// (Only the first test needs it: the community's test gives each of its
+// browsers an address of its own, below.)
+const projectIndex = (info: TestInfo): number => info.config.projects.findIndex((p) => p.name === info.project.name);
+async function restAfterFirstProject(info: TestInfo): Promise<void> {
+  if (projectIndex(info) > 0) await new Promise((r) => setTimeout(r, 61_000));
+}
 
-async function device(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+/**
+ * A browser context; with `address`, its requests say they come from it
+ * (`CF-Connecting-IP`, which `wrangler dev` passes to the Worker as it
+ * stands), so the API's limits per address (120 requests a minute, three
+ * registrations an hour) and the views per address count it on its own.
+ */
+async function device(browser: Browser, address?: string): Promise<{ ctx: BrowserContext; page: Page }> {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...(address ? { extraHTTPHeaders: { 'CF-Connecting-IP': address } } : {}) });
   const page = await ctx.newPage();
   await stubTurnstile(page, { auto: true });
   return { ctx, page };
 }
 
 test('two devices of one account on the real Worker: move, edit, keep both, lost session, log out, delete', async ({ browser }) => {
+  await restAfterFirstProject(test.info());
   const name = `sync${Date.now().toString(36).slice(-6)}`;
   const DB = spaceDbOf(name);
   const a = await device(browser);
@@ -217,4 +241,154 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   expect(errors).toEqual([]);
   await a.ctx.close();
   await b.ctx.close();
+});
+
+/** Create account from the start page (a device with nothing to move): the account's space, synced. */
+async function createAccount(page: Page, name: string): Promise<void> {
+  await openAccount(page);
+  await link(page, 'create').click();
+  await fillCreate(page, name);
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  await btn(page, 'CREATE').click();
+  await expect(pageOf(page, 'code')).toBeVisible({ timeout: 30_000 });
+  const code = await shownCode(page);
+  await field(page, 'last').fill(code.slice(-4));
+  await awayFromMenu(page);
+  await field(page, 'last').press('Enter');
+  await expect.poll(() => owner(page), { timeout: 30_000 }).toMatch(new RegExp(`${name}.*synced`, 'i'));
+}
+
+test('the community on the real Worker: Hall of Fame, the counter, a view, stars, a comment, the reactions mark, Random Runes, remove', async ({ browser }, info) => {
+  // Addresses of this test's own, per project (the limits per address, the views per address).
+  test.setTimeout(300_000); // three browsers, two accounts made through the pages
+  const ip = (n: number): string => `10.65.${projectIndex(info)}.${n}`;
+  const suffix = Date.now().toString(36).slice(-6);
+  const nameA = `hofa${suffix}`;
+  const nameB = `hofb${suffix}`;
+
+  // A: a new account with the demo runs (their clock: the day after them, so the retention sweep keeps them).
+  const a = await device(browser, ip(1));
+  const errorsA = watchErrors(a.page);
+  await pinDemoClock(a.page);
+  await createAccount(a.page, nameA);
+  await restoreDemo(a.page);
+
+  // The export editor's Hall of Fame: the rules' tick, a title, Publish; the link says the run's id.
+  await a.page.keyboard.press('Escape');
+  await expect(a.page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await openEditor(a.page);
+  await a.page.keyboard.press('f');
+  await expect(exp(a.page)).toHaveAttribute('data-format', 'hof');
+  await btn(a.page, 'EXPORT').click();
+  const share = dialog(a.page, 'share');
+  await expect(share.locator('.wc-lk-hood-t')).toHaveText('Publish to the Hall of Fame');
+  await share.locator('[data-field="title"] input').fill('The ford at dusk');
+  await share.locator('[data-field="rules"]').click();
+  await expect(btn(a.page, 'PUBLISH')).not.toHaveAttribute('aria-disabled', 'true');
+  await btn(a.page, 'PUBLISH').click();
+  const done = dialog(a.page, 'share-done');
+  await expect(done.locator('.wc-lk-hood-t')).toHaveText('Published', { timeout: 30_000 });
+  const shared = await done.locator('[data-field="link"] input').inputValue();
+  const id = /\/r\/([A-Za-z0-9_-]{12})$/.exec(shared)?.[1];
+  expect(id, shared).toBeDefined();
+  await btnIn(done, 'DONE').click();
+  await expect(done).toHaveCount(0);
+
+  // A guest: "1 new" on the Community row, the run in the list; opened, its view counts.
+  const g = await device(browser, ip(3));
+  const errorsG = watchErrors(g.page);
+  await openStart(g.page);
+  await expect(communityRow(g.page).locator('.wc-sm-count')).toHaveText('1 new', { timeout: 15_000 });
+  await g.page.keyboard.press('c');
+  await expect(cm(g.page)).toBeVisible();
+  await expect(cm(g.page).locator('.wc-cy-list')).toHaveAttribute('data-state', 'list', { timeout: 15_000 });
+  await expect(rows(g.page)).toHaveCount(1);
+  await expect(rows(g.page).first()).toHaveAttribute('data-id', id!);
+  await expect(rows(g.page).first().locator('.wc-cy-name')).toHaveText('The ford at dusk');
+  await rows(g.page).first().locator('.wc-cy-name').click();
+  await expect(g.page).toHaveURL(new RegExp(`/r/${id}\\?from=community`));
+  await playing(g.page);
+  await expect(g.page.locator('[data-watch="sender"]')).toHaveText(nameA);
+  const views = (): Promise<number> => g.page.evaluate(async (i) => ((await (await fetch(`/api/pub/${i}`)).json()) as { views: number }).views, id!);
+  await expect.poll(views, { timeout: 15_000 }).toBe(1);
+
+  // B, a second account: four stars and a comment on the watch page.
+  const b = await device(browser, ip(2));
+  const errorsB = watchErrors(b.page);
+  await createAccount(b.page, nameB);
+  await b.page.goto(`/r/${id}?cloudtest`);
+  await playing(b.page);
+  const stars = b.page.locator('.wc-watch [data-watch="stars"]');
+  await expect(stars).toHaveAttribute('data-role', 'voter');
+  await expect(stars.locator('[data-watch="stars-mine"]')).toHaveText('Rate this run');
+  await stars.locator('[data-v="4"]').click();
+  await expect(stars.locator('[data-watch="stars-mine"]')).toHaveText('Your stars: four');
+  await expect(stars.locator('[data-watch="stars-mean"]')).toHaveText('4.0 · 1 vote');
+  const comments = b.page.locator('.wc-watch [data-watch="comments"]');
+  const form = comments.locator('[data-watch="comment-form"]');
+  await form.locator('textarea').fill('Held the bank well.');
+  await form.locator('[data-btn="POST"]').click();
+  const mine = comments.locator('.wc-watch-cm').last();
+  await expect(mine).toContainText('Held the bank well.');
+  await expect(mine).toHaveClass(/is-own/);
+  await expect(mine.locator('[data-watch="writer"]')).toHaveText(nameB);
+  await expect(comments.locator('[data-watch="comments-count"]')).toHaveText('1');
+
+  // A: the owner row's mark; a press opens Published runs with the star and the comment, which clears it.
+  await openStart(a.page);
+  await expect(accountRow(a.page).locator('.wc-so-news')).toHaveText(' · 2 new', { timeout: 20_000 });
+  await awayFromMenu(a.page);
+  await accountRow(a.page).click();
+  await expect(pageOf(a.page, 'published')).toBeVisible();
+  const pubRow = frame(a.page).locator(`.wc-ac-pub[data-pub="${id}"]`);
+  await expect(pubRow.locator('[data-pub-title]')).toHaveText('The ford at dusk');
+  await expect(pubRow.locator('[data-pub-chip]')).toHaveText('Listed');
+  await expect(pubRow.locator('[data-pub-stars]')).toHaveText(/4\.0 · 1 vote$/);
+  await expect(pubRow.locator('[data-pub-comments]')).toHaveText('1');
+  await expect(pubRow.locator('[data-pub-new]')).toHaveText('1 vote · 1 comment new');
+  const news = (): Promise<number> =>
+    a.page.evaluate(async () => ((await (await fetch('/api/u/community/news', { credentials: 'same-origin' })).json()) as { reactions: number }).reactions);
+  await expect.poll(news, { timeout: 15_000 }).toBe(0);
+  await a.page.keyboard.press('Escape');
+  await expect(accountRow(a.page)).toBeVisible();
+  await expect(accountRow(a.page).locator('.wc-so-news')).toHaveCount(0);
+
+  // B: a Random Runes note on the board, then removed.
+  await openCommunity(b.page);
+  await expect(runes(b.page)).toBeVisible();
+  await b.page.keyboard.press('w');
+  await expect(noteField(b.page)).toBeFocused();
+  const note = `Anyone for the ford tonight? ${suffix}`;
+  await b.page.keyboard.type(note);
+  await b.page.keyboard.press('Enter');
+  const own = notes(b.page).filter({ hasText: note });
+  await expect(own).toHaveCount(1, { timeout: 15_000 });
+  await expect(own).toHaveClass(/is-own/);
+  await expect(noteField(b.page)).toHaveValue('');
+  await expect(cm(b.page)).toBeVisible();
+  await own.hover();
+  await btnIn(own, 'REMOVE').click();
+  await expect(own).toHaveCount(0, { timeout: 15_000 });
+
+  // A removes the run: out of Published runs, and out of the Community's list. (The list is
+  // cached 60 s per variant, ADR 0155: a sort nobody has asked for in the last minute is fresh.)
+  await account(a.page);
+  await btn(a.page, 'PUBLISHED').click();
+  await expect(pageOf(a.page, 'published')).toBeVisible();
+  await pubRow.locator('[data-btn="REMOVE"]').click();
+  await dialog(a.page, 'pub-remove').locator('[data-btn="REMOVE"]').click();
+  await expect(dialog(a.page, 'pub-remove')).toHaveCount(0, { timeout: 15_000 });
+  await expect(pubRow).toHaveCount(0);
+  await openCommunity(g.page);
+  await head(g.page, 'watched').click();
+  await expect(cm(g.page).locator('.wc-cy-list')).toHaveAttribute('data-sort', 'watched');
+  await expect(cm(g.page).locator('.wc-cy-list')).toHaveAttribute('data-state', 'empty', { timeout: 15_000 });
+  await expect(rows(g.page)).toHaveCount(0);
+
+  expect(errorsA).toEqual([]);
+  expect(errorsB).toEqual([]);
+  expect(errorsG).toEqual([]);
+  await a.ctx.close();
+  await b.ctx.close();
+  await g.ctx.close();
 });
