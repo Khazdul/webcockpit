@@ -136,6 +136,21 @@ test.describe('the states', () => {
     await playing(page);
   });
 
+  test('a failed /api/config is a failure with Try again, which asks for it again (review fix CR1)', async ({ page }) => {
+    await setUp(page);
+    let configs = 0;
+    await page.route('**/api/config', async (route) => {
+      configs++;
+      if (configs === 1) return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+      return route.fallback();
+    });
+    await openWatch(page);
+    await expectEnd(page, 'The run could not be loaded.', 'Check the connection and try again.');
+    await endBox(page).locator('[data-btn="RETRY"]').click();
+    await playing(page);
+    expect(configs).toBe(2);
+  });
+
   test('a payload the page refuses: its one line, no frame', async ({ page }) => {
     const s = await setUp(page);
     s.pubs.add({ id: 'Broken000000', owner: SENDER, payload: new Uint8Array([0x1f, 0x8b, 8, 0, 1, 2, 3, 4, 5, 6, 7]) });
