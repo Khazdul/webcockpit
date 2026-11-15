@@ -68,7 +68,7 @@ afterEach(() => {
 });
 
 function services(events: () => Promise<RunEvent[]>): ChromeServices {
-  return { runs: async () => ({ events: async () => events() }) } as unknown as ChromeServices;
+  return { runs: async () => ({ events: async () => events(), ensureLocal: async () => ({ ok: true }) }) } as unknown as ChromeServices;
 }
 
 let popped = 0;
