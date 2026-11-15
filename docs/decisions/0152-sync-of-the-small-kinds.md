@@ -323,3 +323,53 @@ adapters (`src/cloud/space/local.ts`) are part C.
 - **Measured** (stage file, "Measurements"): the owner's heaviest real
   day is 1 472 records, 267 KB of canonical JSON, 30 KB gzip; a heavy
   week is some 3 % of the 2 MB small-item limit.
+
+## As built (stage 62 C1)
+
+Branch `stage62-flows`: the adapters, the triggers and the flows.
+
+- **Adapters** (`src/cloud/space/local.ts`, `idbLocalItems(open, hooks,
+  {type, now})`): settings `main` ↔ `thisDeviceType()`, `from` =
+  `syncMeta.deviceLabel`; the others under `device:<type>` as
+  `{type, record, from?}`. scriptData by name, timers by character
+  (rows as stored). Comm through `CommArchive.commDays/dayRecords/
+  addDayRecords/removeDay`, days kept by their start (`commDayKept`, as
+  the model); a day's pieces cached under `count:maxSeq` and returned as
+  the same object while unchanged, and `itemHashes` caches the hashes of
+  a `compress` kind's body by object (a WeakMap), so an unchanged day is
+  neither read nor hashed again. A day over 4 MB of JSON
+  (`COMM_PIECE_RAW`, some 450 KB gzip) is split into `day`, `day.2` …;
+  a remove of one piece of a split day deletes only its records.
+- **The seed:** `prepareAccountSpace(…, {copy})`: `'seed'` (Log in)
+  stores `settingsSeed` = the hash of `{type, record: main}`; `main` is
+  no item while it hashes so and has no agreed record. After a sync that
+  ends `synced`, `settleSettingsSeed` drops the mark when there is no
+  record of this type (or an agreed one); `main` is then pushed at once.
+  A record holding a pulled version keeps it. `'all'` (Create account,
+  `beginMove`) copies settings (no seed), `scriptData`, `comm` (without
+  `seq`) and `timers`.
+- **In use** while this tab is in play (`isPlaying()` or the cockpit's
+  game lock, held from Enter MUME on, before the start page's leave
+  ends) or a game runs in another tab: settings `{thisType}`, scriptData
+  `scripts.enabledNames()`, timers the played character
+  (`ChromeServices.playedCharacter`, the hub's `characterName`); a game
+  in another tab holds every character's timers (its character is not
+  known here). Comm never.
+- **Triggers:** `profile`, `script`, `settings` writes note at 5 s;
+  `scriptData`, `comm`, `timers` only off play. The 5-minute period runs
+  on the start page and in play; `visibilitychange` (either way) syncs;
+  leaving the game syncs. Nothing is awaited on the game path.
+- **Applying:** the channel carries every kind; `settings` (this type
+  only) runs `SettingsStore.reload()` and, when `applied`, posts "Settings
+  from <from>." (or "…, held until the game ended." when the game was
+  left with this type's record `held`; "another device" without `from`)
+  to the start menu's line, in every tab of the space. `scriptData`
+  reloads the library; `timers` and `comm` need nothing.
+- **Unsynced:** `pendingChanges` (and so Log out's fallback) covers every
+  kind; `notInAccount` (the locked copy's decision) all but timers; the
+  locked notice's Remove list names settings, script data, Comm history.
+- **Tests:** unit `cloud-space-kinds.test.ts` (adapters, seed, copy,
+  three devices on the model server, the triggers); e2e
+  `sync-kinds.spec.ts` (two desktops share, a phone keeps its own, Comm
+  and timers across, held settings and the message);
+  `test:sync-worker` with a settings change and a Comm message.

@@ -170,28 +170,32 @@ touches staging or production.
 
 ### C. The flows (one agent, after A's pick and B merged; worktree `stage62-flows`, port 5434)
 
-- [ ] The IndexedDB adapters (`src/cloud/space/local.ts`) for the four
+- [x] The IndexedDB adapters (`src/cloud/space/local.ts`) for the four
       kinds: settings `main` ↔ this device type, `device:<type>` for the
       others; the settings seed (`syncMeta.settingsSeed`); script data by
       name; timers by character; Comm by day (cached, additive, seven
       days, a day over 1 MB split).
-- [ ] `InUse` for the new kinds; the BroadcastChannel and `applyWritten`
+- [x] `InUse` for the new kinds; the BroadcastChannel and `applyWritten`
       carry `settings` (reload), `scriptData` (library reload),
       `timers`, `comm`.
-- [ ] Triggers: during play the small kinds wait for the play schedule
+- [x] Triggers: during play the small kinds wait for the play schedule
       (5 minutes, hidden tab, leaving the game); `settings` notes at 5 s.
-- [ ] Create account copies the four kinds into the new space.
+- [x] Create account copies the four kinds into the new space.
 - [ ] Log out in full (round 10's pick for point 1); `unsynced()` names
-      per kind; the locked copy's decision without timers.
-- [ ] Round 10's picks for points 2 and 3.
+      per kind; the locked copy's decision without timers. (C1 done:
+      `unsynced()` and `pendingChanges` cover every kind, the locked
+      copy's decision leaves timers out; the dialog is C2's.)
+- [ ] Round 10's picks for points 2 and 3. (C1 done: point 2, 2b with
+      2c, the start menu's line; point 3 is C2's.)
 - [ ] The registration's first point; `/privacy`'s account section behind
       the flag `accounts` (the draft below, checked against the Worker).
 - [ ] e2e (fake API, two contexts): two desktops share a layout change;
       a phone context keeps its own; Comm from context A appears in B's
       Comm pane after A leaves the game; timers of a character go on;
       pulled settings wait during play and apply on the start page; Log
-      out lists a settings change made offline.
-- [ ] `npm run test:sync-worker` extended with a settings and a Comm item
+      out lists a settings change made offline. (C1 done:
+      tests/e2e/sync-kinds.spec.ts, all but Log out's list, which is C2's.)
+- [x] `npm run test:sync-worker` extended with a settings and a Comm item
       against the real local Worker.
 
 ### D. Checks and staging
