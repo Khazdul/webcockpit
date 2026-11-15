@@ -411,6 +411,25 @@ describe('the page with the flag `runs` on two devices', () => {
     a.ps.stop();
   });
 
+  it('a saved run sealed after the game’s sync (the Exit popup’s) goes up at once, not at the next sync (stage 63 C2)', async () => {
+    writeSpaceRecord({ nameKey: 'ole', state: 'open' });
+    resetSpaceForTests();
+    const server = new ServerModel().enableRuns();
+    const a = await page('ole', server);
+    // The Exit popup saved the live run; the game's end synced before the recorder sealed it.
+    await putRun(a.open, runRows('live', 1_000_000, { saved: true, sealed: false }));
+    a.ps.start();
+    await until(async () => runsView().on);
+    await a.ps.syncNow();
+    await new Promise((r) => setTimeout(r, 200));
+    expect(server.bodies.size).toBe(0);
+    // The recorder seals it: the queue takes it now.
+    await new RunStore(await a.open()).sealRun('live', 1_000_100);
+    await until(() => server.bodies.size === 1);
+    expect((await idbRunCloudStore(a.open).get('live'))?.state).toBe('up');
+    a.ps.stop();
+  });
+
   it('runs moved at Create account are queued and go up newest first; one that does not fit is counted, not told', async () => {
     writeSpaceRecord({ nameKey: 'ole', state: 'open' });
     resetSpaceForTests();

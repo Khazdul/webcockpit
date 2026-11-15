@@ -189,8 +189,7 @@ function readTold(): number {
 
 function writeTold(n: number): void {
   try {
-    if (n > 0) globalThis.localStorage?.setItem(spaceStorageKey(MOVE_TOLD), String(n));
-    else globalThis.localStorage?.removeItem(spaceStorageKey(MOVE_TOLD));
+    globalThis.localStorage?.setItem(spaceStorageKey(MOVE_TOLD), String(n));
   } catch {
     /* private mode */
   }
@@ -198,17 +197,15 @@ function writeTold(n: number): void {
 
 /**
  * After Create account: the saved runs moved in that do not fit get one
- * line on the start menu (no dialog), once (kept per space, so a reload
- * does not say it again; told again only when more do not fit).
+ * line on the start menu (no dialog), once (the number told is kept per
+ * space, so a reload does not say it again; told again only when more do
+ * not fit).
  */
 export function useMoveLine(nav: Nav, isTop: boolean): void {
   useEffect(() => {
     if (!isTop) return;
+    // (Never set back on 0: the view says 0 until the queue has looked at the rows after a load.)
     const check = (n: number): void => {
-      if (n === 0) {
-        if (readTold() !== 0) writeTold(0);
-        return;
-      }
       if (n <= readTold()) return;
       writeTold(n);
       nav.flash(notInCloudAfterMoveLine(n), 'ok', 12_000);
