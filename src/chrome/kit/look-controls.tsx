@@ -723,6 +723,26 @@ export function TimeBar(p: { ms: number; run?: string | number; class?: string }
   );
 }
 
+/**
+ * Stage 24's loading bar (index.html `.wcf-loader`) as a control (stage 63
+ * C2, ADR 0153: a session fetched from the cloud): a 2 px track filled to
+ * `done / total`, and an italic line under it (`role="status"`). `inline`
+ * puts the line left-aligned for a foot.
+ */
+export function LoadBar(p: { done: number; total: number; line: string; inline?: boolean; class?: string }): VNode {
+  const f = p.total > 0 ? Math.max(0, Math.min(1, p.done / p.total)) : 0;
+  return (
+    <div class={cx('wc-lk-load', p.inline && 'is-inline', p.class)}>
+      <div class="wc-lk-load-bar" aria-hidden="true">
+        <i style={{ transform: `scaleX(${f})` }} />
+      </div>
+      <div class="wc-lk-load-l" role="status">
+        {p.line}
+      </div>
+    </div>
+  );
+}
+
 /** A thin rule with an open diamond in the middle. */
 export function OrnRule(): VNode {
   return <div class="wc-lk-orn" role="separator" aria-hidden="true" />;

@@ -907,6 +907,57 @@ html.wc-phone .wc-lk-tbl.is-scroll > .wc-lk-throw {
   to { transform: scaleX(0.96); }
 }
 
+/* Stage 24's loading bar (index.html .wcf-loader), stage 63 C2: a 2 px track
+ * and its fill, an italic line under it. */
+.wc-lk-load {
+  margin: 6px 0 14px;
+}
+
+.wc-lk-load-bar {
+  position: relative;
+  height: 2px;
+  border-radius: 1px;
+  overflow: hidden;
+  background: rgba(222, 237, 241, 0.16);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.wc-lk-load-bar > i {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #4c777b, #a2c4c8 70%, #deedf1);
+  transition: transform 0.22s ease-out;
+}
+
+.wc-lk-load-l {
+  margin-top: 9px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: italic 14px/1.2 var(--lk-serif);
+  letter-spacing: 0.02em;
+  color: rgba(226, 236, 238, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-lk-load.is-inline {
+  width: min(300px, 100%);
+  margin: 0;
+}
+
+.wc-lk-load.is-inline .wc-lk-load-l {
+  margin-top: 6px;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-lk-load-bar > i {
+    transition: none;
+  }
+}
+
 /* Stars: gold, the rest faint. */
 .wc-lk-stars {
   white-space: nowrap;

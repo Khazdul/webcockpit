@@ -66,7 +66,10 @@ export type IconName =
   | 'folder'
   | 'drop'
   // Stage 60 (the start menu's Account row), 18 × 18.
-  | 'key';
+  | 'key'
+  // Stage 63 (runs in the cloud, round 11): a cloud, and one struck through ("not in the cloud").
+  | 'cloud'
+  | 'cloudOff';
 
 /** A page's own line icon: its drawing (paths, stroke: currentColor) and its viewBox side (default 16). */
 export type IconDraw = { draw: ComponentChildren; box?: number };
@@ -222,6 +225,14 @@ export const ICONS: Record<IconName, ComponentChildren> = {
     <>
       <circle cx="5.8" cy="12.2" r="3.3" />
       <path d="M8.2 9.8 15.6 2.4M12.4 5.6l2.2 2.2M14.4 3.6l1.6 1.6" />
+    </>
+  ),
+  // Stage 63 (round 11's glyph), 16 × 16.
+  cloud: <path d="M4.6 12.5h7.1a2.7 2.7 0 0 0 .4-5.4 3.9 3.9 0 0 0-7.5-.9 2.9 2.9 0 0 0 0 6.3z" />,
+  cloudOff: (
+    <>
+      <path d="M4.6 12.5h7.1a2.7 2.7 0 0 0 .4-5.4 3.9 3.9 0 0 0-7.5-.9 2.9 2.9 0 0 0 0 6.3z" />
+      <path d="M2.5 2.5l11 11" />
     </>
   ),
 };
