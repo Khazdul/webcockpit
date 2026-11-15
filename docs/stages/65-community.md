@@ -209,9 +209,12 @@ touches staging or production.
 
 #### C5. MUME's boxes (worktree `stage65-mume`, port 5477; owner 2026-11-15: no leave needed first)
 
-- [ ] The cron's fetch of `/news/war` and its parse, the MSSP probe
-      (tried on staging; off if `PLAYERS` is empty), `mume_cache`,
-      `GET /api/community`'s `mume`, the boxes without source or time.
+- [x] The cron's fetch of `/news/war` and its parse, the MSSP probe
+      (`PLAYERS` filled on the live probe of 2026-11-15; ADR 0155 "As
+      built (stage 65 C5)"), the `mume_cache` rows and `readMume`
+      (branch `stage65-mume`).
+- [ ] Tried on staging; `GET /api/community`'s `mume` from `readMume`
+      (after part B); the boxes without source or time (with C1).
 
 ### D. Checks
 

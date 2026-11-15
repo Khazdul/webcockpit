@@ -20,6 +20,7 @@ import {
 import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { flushReportMail } from './mail.ts';
+import { refreshMume } from './mume.ts';
 import { DAY_MS, type D1, type Deps, type Env, dayStart, utcDay } from './runtime.ts';
 import { sweepCommunity } from './community.ts';
 import { sweepPubs } from './pub.ts';
@@ -312,8 +313,14 @@ export async function runCron(env: Env, cron: string, time: number, deps?: Deps)
     try {
       await sample(db, time);
     } finally {
-      // The collected mail of an hour past the reports' mail cap (worker/mail.ts).
-      if (deps) await flushReportMail(env, deps, time);
+      try {
+        // The collected mail of an hour past the reports' mail cap (worker/mail.ts).
+        if (deps) await flushReportMail(env, deps, time);
+      } finally {
+        // MUME's lists and player count, every 15 minutes (worker/mume.ts;
+        // skips while mume_cache does not exist, never throws).
+        if (deps) await refreshMume(deps, db, time);
+      }
     }
   }
 }

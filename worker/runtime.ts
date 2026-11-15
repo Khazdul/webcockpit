@@ -144,6 +144,16 @@ export interface FetchInit {
   signal?: AbortSignal;
 }
 
+/**
+ * A TCP socket as `cloudflare:sockets`' `connect()` returns it, as far as
+ * worker/mume.ts uses it (the MSSP probe).
+ */
+export interface TcpSocket {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  close(): Promise<void>;
+}
+
 /** The clock and the network, replaceable by tests. */
 export interface Deps {
   now(): number;
@@ -160,6 +170,12 @@ export interface Deps {
    * no mail.
    */
   emailMessage?(from: string, to: string, raw: string): unknown;
+  /**
+   * Opens a plain TCP connection: worker/index.ts hands over
+   * `cloudflare:sockets`' `connect()` (the router does not import it, as
+   * with `emailMessage`). Without it: no MSSP probe (worker/mume.ts).
+   */
+  connect?(address: { hostname: string; port: number }): TcpSocket;
   /**
    * The Cache API's `caches.default` (worker/index.ts hands it over): the
    * public community answers are kept in it for 60 s (stage 65, ADR 0155).

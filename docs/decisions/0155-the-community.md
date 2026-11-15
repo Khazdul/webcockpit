@@ -385,3 +385,52 @@ details and deviations. The contract's comments in `shared/cloud/api.ts`
   `tests/unit/public-text.test.ts` (6), `tests/unit/community-fake.test.ts`
   (1); stage 64's tests adjusted (the new fields, views per address, the
   flags in `/api/config`). Worker 268, unit and worker together 5 220.
+
+## As built (stage 65 C5)
+
+- **The live probe (2026-11-15, once, from the developer's machine):**
+  mume.org:4242 sent `IAC WILL MSSP` in its greeting and, to one
+  `IAC DO MSSP`, a single subnegotiation with `NAME`, `PLAYERS` (34),
+  `PLAYERS WAR` (120), `UPTIME`, `CHARSET`, `CODEBASE`, `CRAWL DELAY` (-1),
+  `CREATED`, `DISCORD`, `HOSTNAME`, `ICON`, `IP`, `LANGUAGE`, `LOCATION`,
+  `PORT`, `SSL`, `WEBSOCKET`, `WEBSITE`, the genre and gameplay fields,
+  the counts (`AREAS`, `HELPFILES`, `MOBILES`, `OBJECTS`, `ROOMS`,
+  `CLASSES`, `LEVELS`, `RACES`, `SKILLS`), the protocol flags and the
+  game date. **MUME fills `PLAYERS`**, so the probe is on. `PLAYERS WAR`
+  is not used. The bytes up to `IAC SE` are the test fixture
+  (`worker/test/fixtures/mume-mssp.ts`, the login screen after them cut),
+  and a copy of the war page is `worker/test/fixtures/mume-war.html`.
+  The staging try of the decision still stands before production.
+- **The parse** (`worker/mume.ts`) is a small tokenizer of its own, not
+  HTMLRewriter: the router imports the cron's modules and also runs
+  under Node (`scripts/static-server.ts`), and one parser in both is
+  easier to trust. It drops comments, doctypes and the content of
+  `script`, `style` and the other raw text elements, finds the first
+  `table` whose class list holds `warlords`, and wants a header row of
+  eight `th` reading Rank, Name, Race, Class twice, then 1–20 rows of
+  eight cells with numeric ranks (an empty side is allowed; ten a side
+  are kept). Anything else, a nested table or a table that never ends
+  is `null`. Each value: entities decoded (the Latin-1 names, a few
+  more, numeric references; a bad one is U+FFFD), whitespace collapsed,
+  `cleanText`, `<` and `>` removed, trimmed, cut to 40 code points.
+- **The probe** sends `IAC DO MSSP` at once and nothing else (it does
+  not answer MUME's other telnet requests), reads until the first
+  complete `IAC SB MSSP … IAC SE` (8 KB, 5 s) and closes the socket in
+  every case. `connect()` of `cloudflare:sockets` reaches it as
+  `Deps.connect`, handed over by `worker/index.ts` like `emailMessage`.
+- **The cache:** rows `warlords` (JSON `{west, dark}`) and `players`
+  (JSON number) carry `fetched` = their last good answer; a third row
+  `attempt` carries the last try, which sets the 15-minute cadence
+  (a minute's slack for the 5-minute cron) whether the try went well or
+  not. A failure writes nothing else, so the last good answers stay.
+  `refreshMume` runs last in the 5-minute cron, skips while
+  `mume_cache` does not exist, and never throws.
+- **Reading:** `readMume(db, now)` gives `/api/community` its `mume`:
+  the lists while under 24 hours old (re-checked on the way out),
+  `players` beside them only while under **35 minutes** old (two missed
+  probes; a day-old count would mislead, the decision named no limit
+  for it), and nothing without good lists.
+- **Deviations:** `fetchWarlords(fetch, {timeoutMs})` takes no clock
+  (it needs none); there is no flag to stop the fetch or the probe
+  without a release yet (the decision's "we stop at once" is a deploy
+  that drops the call from `runCron`).
