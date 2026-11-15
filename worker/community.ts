@@ -65,7 +65,7 @@ import {
 import { isPublicText } from '../shared/cloud/text.ts';
 import { hasKeys, limitsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
-import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
+import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
@@ -182,27 +182,21 @@ const ORDER: Record<GallerySort, string> = {
 
 /**
  * Listed active runs, listed at or after `since`, in `sort`'s order; only
- * the account whose `name_key` is `by` when it is given.
+ * the account `by` (its id) when it is given.
  */
-async function listRows(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): Promise<GalleryRow[]> {
+function listRowsQuery(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): D1Statement {
   const mean = sort === 'top' ? `, (SELECT ${MEAN} AS mean) m` : '';
-  const { results } = await db
+  return db
     .prepare(
       `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account${mean}
-       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR a.name_key = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
+       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
     )
-    .bind(since, limit, offset, by)
-    .all<ListRow>();
-  return results.map(galleryRow);
+    .bind(since, limit, offset, by);
 }
 
-/** How many runs `listRows` can reach (the pager's "of N"), at most GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX. */
-async function countRows(db: D1, since: number, by: string | null): Promise<number> {
-  const row = await db
-    .prepare(`SELECT COUNT(*) AS n FROM publication p JOIN account a ON a.id = p.account WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR a.name_key = ?2)`)
-    .bind(since, by)
-    .first<{ n: number }>();
-  return Math.min(row?.n ?? 0, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
+/** How many runs `listRows` can reach (the pager's "of N", cut to GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX by the caller). */
+function countRowsQuery(db: D1, since: number, by: string | null): D1Statement {
+  return db.prepare(`SELECT COUNT(*) AS n FROM publication p WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR p.account = ?2)`).bind(since, by);
 }
 
 // --- Public paths ---
@@ -263,14 +257,27 @@ export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPer
 async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Response> {
   const q = galleryParams(url);
   if (!q) return badRequest();
+  const empty = (): Response => json({ sort: q.sort, period: q.period, page: q.page, rows: [], more: false, total: 0, time: now } satisfies GalleryPage, 200, PUBLIC_CACHE);
+  // A sender's list (review fix S9): the name first, one indexed lookup; an
+  // unknown (or deleted) name is an empty page, without the list's queries
+  // and without a cache entry of its own, so made-up names cost little.
+  let by: string | null = null;
+  if (q.by !== undefined) {
+    const row = q.by === '' ? null : await db.prepare('SELECT id FROM account WHERE name_key = ?1').bind(q.by).first<{ id: string }>();
+    if (!row) return empty();
+    by = row.id;
+  }
   const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
   return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, async () => {
     const days = GALLERY_PERIOD_DAYS[q.period];
     const since = days === null ? 0 : now - days * DAY_MS;
-    const by = q.by ?? null;
-    const rows = by === '' ? [] : await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by);
+    const [list, count] = await db.batch<Record<string, unknown>>([
+      listRowsQuery(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by),
+      countRowsQuery(db, since, by),
+    ]);
+    const rows = ((list?.results ?? []) as unknown as ListRow[]).map(galleryRow);
     const more = rows.length > GALLERY_PAGE_SIZE && q.page < GALLERY_PAGES_MAX;
-    const total = by === '' ? 0 : await countRows(db, since, by);
+    const total = Math.min(Number(count?.results[0]?.n ?? 0), GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
     const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, time: now };
     return json(answer, 200, PUBLIC_CACHE);
   });
@@ -282,15 +289,15 @@ async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Respo
  * (fixed for the day, not guessable ahead). Without the secret (a host
  * without it) a SHA-256, which is only fixed.
  */
-async function runOfDay(env: Env, ids: { id: string; listed_at: number }[], day: string): Promise<string | null> {
-  const start = dayStart(day);
+async function runOfDay(env: Env, ids: { id: string }[], day: string): Promise<string | null> {
   const pepper = env.AUTH_PEPPER ?? '';
+  // The key once per request, not once per run (review fix CR5).
+  const key = pepper.length >= 16 ? await hmacKey(utf8(pepper)) : null;
   let best: string | null = null;
   let bestMac = '';
   for (const r of ids) {
-    if (r.listed_at >= start) continue;
     const text = `wc-day-run|${day}|${r.id}`;
-    const mac = toB64url(pepper.length >= 16 ? await hmac(utf8(pepper), text) : await sha256(utf8(text)));
+    const mac = toB64url(key ? await hmacWith(key, text) : await sha256(utf8(text)));
     if (best === null || mac < bestMac) {
       best = r.id;
       bestMac = mac;
@@ -310,13 +317,22 @@ async function dayRun(db: D1, id: string | null): Promise<DayRun | null> {
 }
 
 async function boxes(env: Env, db: D1, now: number): Promise<Response> {
-  const { results: ids } = await db.prepare(`SELECT p.id, p.listed_at FROM publication p WHERE ${LISTED}`).all<{ id: string; listed_at: number }>();
+  const day = utcDay(now);
+  // The independent reads in one batch (review fix CR5): the runs the run
+  // of the day is drawn from (listed before the day began) and the Hall of
+  // Fame; MUME's boxes beside it (readMume keeps its own failure apart).
+  const [[ids, hall], mume] = await Promise.all([
+    db.batch<Record<string, unknown>>([
+      db.prepare(`SELECT p.id FROM publication p WHERE ${LISTED} AND p.listed_at < ?1`).bind(dayStart(day)),
+      listRowsQuery(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
+    ]),
+    readMume(db, now),
+  ]);
   const answer: CommunityBoxes = {
-    hallOfFame: await listRows(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
-    today: await dayRun(db, await runOfDay(env, ids, utcDay(now))),
+    hallOfFame: ((hall?.results ?? []) as unknown as ListRow[]).map(galleryRow),
+    today: await dayRun(db, await runOfDay(env, (ids?.results ?? []) as { id: string }[], day)),
     time: now,
   };
-  const mume = await readMume(db, now);
   if (mume) answer.mume = mume;
   return json(answer, 200, PUBLIC_CACHE);
 }

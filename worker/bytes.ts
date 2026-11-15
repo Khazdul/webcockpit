@@ -45,7 +45,16 @@ export async function sha256(bytes: Bytes): Promise<Bytes> {
 
 /** HMAC-SHA-256 of a text under a key of bytes. */
 export async function hmac(key: Bytes, text: string): Promise<Bytes> {
-  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hmacWith(await hmacKey(key), text);
+}
+
+/** An HMAC-SHA-256 key, imported once for many `hmacWith` (stage 65 review fix CR5). */
+export function hmacKey(key: Bytes): Promise<CryptoKey> {
+  return crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+}
+
+/** HMAC-SHA-256 of `text` under a key from `hmacKey`. */
+export async function hmacWith(k: CryptoKey, text: string): Promise<Bytes> {
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, utf8(text)));
 }
 

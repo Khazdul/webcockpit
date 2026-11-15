@@ -4,7 +4,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PubMeta, PubWritten } from '../../shared/cloud/api.ts';
 import { viewAddressKey, addressKey } from '../address.ts';
-import { db, device, emptyTables } from './helpers.ts';
+import { at, db, device, emptyTables } from './helpers.ts';
+import { handle } from '../router.ts';
+import type { CacheLike, D1, D1Statement } from '../runtime.ts';
+import { vi } from 'vitest';
 import { META, call, oldSignUp, post, publish, reportOf, signUp } from './share-helpers.ts';
 import { DAY, NOW, ccall, cenvOf, commented, list, noted, ok, note } from './community-helpers.ts';
 import { adminCall } from './admin-call.ts';
@@ -208,6 +211,82 @@ describe('S8: a suspended writer’s comments and notes are not shown; comment_c
     expect((await suspend('bob', 'suspend')).status).toBe(204);
     expect((await adminCall('/api/admin/account/bob', { action: 'delete', confirm: 'bob' })).status).toBe(204);
     expect(await expectCount(run)).toBe(1);
+  });
+});
+
+/** The database, with every round trip (a statement run on its own, or a batch) and every SQL text written down. */
+function countingDb(): { db: D1; trips: string[]; sql: string[] } {
+  const trips: string[] = [];
+  const sql: string[] = [];
+  const real = new WeakMap<object, D1Statement>();
+  const wrap = (st: D1Statement, text: string): D1Statement => {
+    const w: D1Statement = {
+      bind: (...v: unknown[]) => wrap(st.bind(...v), text),
+      first: <T,>() => (trips.push(text), st.first<T>()),
+      all: <T,>() => (trips.push(text), st.all<T>()),
+      run: <T,>() => (trips.push(text), st.run<T>()),
+    };
+    real.set(w, st);
+    return w;
+  };
+  return {
+    trips,
+    sql,
+    db: {
+      prepare: (text: string) => (sql.push(text), wrap(db.prepare(text), text)),
+      batch: <T,>(list: D1Statement[]) => (trips.push('batch'), db.batch<T>(list.map((x) => real.get(x) ?? x))),
+    },
+  };
+}
+
+describe('S9: by= resolves the name first; an unknown name costs one lookup and no cache entry', () => {
+  it('an unknown or deleted name: an empty page, no list query, nothing kept', async () => {
+    const alice = await signUp('alice');
+    await list(alice);
+    const store = new Map<string, Response>();
+    const cache: CacheLike = {
+      async match(r) {
+        return store.get(r.url)?.clone();
+      },
+      async put(r, res) {
+        store.set(r.url, res);
+      },
+    };
+    const counted = countingDb();
+    const env = cenvOf({ DB: counted.db });
+    const get = (q: string): Promise<Response> => handle(new Request(`https://example.test/api/gallery${q}`, { headers: { 'cf-connecting-ip': '203.0.113.1' } }), env, { ...at(NOW), cache });
+    for (const name of ['aaa1', 'aaa2', 'nobody']) {
+      const page = await ok<{ rows: unknown[]; total: number; more: boolean }>(await get(`?sort=top&by=${name}`));
+      expect(page).toMatchObject({ rows: [], total: 0, more: false });
+    }
+    expect(counted.sql.filter((q) => /FROM publication/.test(q))).toEqual([]);
+    expect(counted.trips.filter((t) => /FROM account WHERE name_key/.test(t))).toHaveLength(3);
+    expect(store.size).toBe(0);
+    // A known name: its runs, kept under the name.
+    expect((await ok<{ rows: unknown[] }>(await get('?sort=top&by=Alice'))).rows).toHaveLength(1);
+    expect([...store.keys()]).toEqual(['https://example.test/api/gallery?sort=top&period=all&page=1&by=alice']);
+  });
+});
+
+describe('CR5: GET /api/community imports the HMAC key once and batches its reads', () => {
+  it('one key import for many runs; the list reads in one batch', async () => {
+    const alice = await signUp('alice');
+    for (let i = 0; i < 6; i++) await list(alice, { now: NOW - 2 * DAY + i, seed: i + 1 });
+    const counted = countingDb();
+    const spy = vi.spyOn(crypto.subtle, 'importKey');
+    try {
+      const boxes = await ok<{ today: { id: string } | null; hallOfFame: unknown[] }>(
+        await handle(new Request('https://example.test/api/community', { headers: { 'cf-connecting-ip': '203.0.113.1' } }), cenvOf({ DB: counted.db }), at(NOW)),
+      );
+      expect(boxes.today).not.toBeNull();
+      expect(boxes.hallOfFame).toHaveLength(6);
+      expect(spy.mock.calls.filter((c) => (c[2] as { name?: string }).name === 'HMAC')).toHaveLength(1);
+    } finally {
+      spy.mockRestore();
+    }
+    // The run ids and the Hall of Fame in one batch; then the day's run and MUME's boxes.
+    expect(counted.trips.filter((t) => t === 'batch')).toHaveLength(1);
+    expect(counted.trips.filter((t) => /FROM publication/.test(t))).toHaveLength(1);
   });
 });
 
