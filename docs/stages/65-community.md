@@ -160,24 +160,24 @@ touches staging or production.
 
 ### B. Worker (worktree `stage65-worker`, port 5472; may start before the picks)
 
-- [ ] The contract in `shared/cloud/api.ts` ("The community"), first
+- [x] The contract in `shared/cloud/api.ts` ("The community"), first
       commit; `galleryNotice` out; flags `gallery` and `runes`.
-- [ ] Migration `0006_community.sql` (ADR 0155, "Data").
-- [ ] Listing in `POST`/`PATCH /api/u/pub` (10 a day, `listed_at` once).
-- [ ] `GET /api/gallery` (the three sorts, periods, pages, the Cache API),
+- [x] Migration `0006_community.sql` (ADR 0155, "Data").
+- [x] Listing in `POST`/`PATCH /api/u/pub` (10 a day, `listed_at` once).
+- [x] `GET /api/gallery` (the three sorts, periods, pages, the Cache API),
       `GET /api/community`, `GET /api/gallery/random`.
-- [ ] Votes (`PUT`/`DELETE`/`GET`), the two sums, the 7-day rule, 60 an
+- [x] Votes (`PUT`/`DELETE`/`GET`), the two sums, the 7-day rule, 60 an
       hour; suspension, restore and deletion move the sums.
-- [ ] Comments (`GET`, `POST`, `DELETE`), 20 an hour, 1 000 per run.
-- [ ] The text rules for free text in `shared/cloud/text.ts`.
-- [ ] Views: the address row beside the device row.
-- [ ] `GET /api/stats/public`'s `listed`; `GET /api/u/community/news`;
+- [x] Comments (`GET`, `POST`, `DELETE`), 20 an hour, 1 000 per run.
+- [x] The text rules for free text in `shared/cloud/text.ts`.
+- [x] Views: the address row beside the device row.
+- [x] `GET /api/stats/public`'s `listed`; `GET /api/u/community/news`;
       `POST /api/u/community/seen`.
-- [ ] Random Runes behind `runes`; the cron's 30 days.
-- [ ] Reports of `comment` and `note`; the admin's queue and actions for
+- [x] Random Runes behind `runes`; the cron's 30 days.
+- [x] Reports of `comment` and `note`; the admin's queue and actions for
       them; the mail for all three kinds.
-- [ ] Delete account: votes, comments, notes.
-- [ ] Worker tests (every limit under parallel requests, the sums
+- [x] Delete account: votes, comments, notes.
+- [x] Worker tests (every limit under parallel requests, the sums
       recounted, the states, flags off); ADR 0155 "As built (B)".
 
 ### C. Views (after round 13's picks and B merged)
