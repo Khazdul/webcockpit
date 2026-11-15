@@ -4,7 +4,9 @@
 //
 //   LogoutDialog     ac-logout     in an account's space (stage 61): refused,
 //                                  syncing first, all in the account, or
-//                                  the rows of what is not; else a plain confirm
+//                                  the rows of what is not (the changes'
+//                                  row names their kinds under it, stage
+//                                  62); else a plain confirm
 //   EndDialog        ac-end        one session, or every other one
 //                    ac-endall
 //   PasswordDialog   ac-password   current password, the new one twice
@@ -56,6 +58,7 @@ import {
 import { deleteHandBack, leaveAccount, setLeaving as setLeavingSpace } from '../../../cloud/space/flows';
 import { idbLocalItems, idbSyncRecords } from '../../../cloud/space/local';
 import { pendingChanges, runCounts, spaceDb } from '../../../cloud/space/spaces';
+import { unsyncedKindsWords } from '../../../cloud/space/unsynced-words';
 import { loggedOutAnywayWords, loggedOutWords } from '../../../cloud/space/words';
 import type { Unsynced } from '../../../cloud/sync/types';
 import { syncNow, syncView, unsyncedNow } from '../../../cloud/sync-view';
@@ -279,6 +282,7 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
   if (phase === 'ask' && left && (left.changes.length > 0 || left.saved > 0 || left.unsaved > 0)) {
     const onlyUnsaved = left.changes.length === 0 && left.saved === 0;
     const n = left.changes.length;
+    const kinds = unsyncedKindsWords(left.changes);
     return (
       <Dialog
         title="Log out"
@@ -303,13 +307,20 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
           </p>
           <ul class="wc-ac-dlist is-rows">
             {n > 0 && (
-              <li data-row="changes">
+              <li data-row="changes" class={kinds ? 'is-two' : undefined}>
                 <span class="wc-so-mark is-ring" aria-hidden="true" />
                 <span>
-                  <b>
-                    {n} change{n === 1 ? '' : 's'}
-                  </b>{' '}
-                  not synced{offline && <i> (the server could not be reached)</i>}
+                  <span>
+                    <b>
+                      {n} change{n === 1 ? '' : 's'}
+                    </b>{' '}
+                    not synced{offline && <i> (the server could not be reached)</i>}
+                  </span>
+                  {kinds && (
+                    <span class="wc-ac-dkinds" data-kinds="">
+                      {kinds}
+                    </span>
+                  )}
                 </span>
               </li>
             )}

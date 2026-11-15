@@ -790,6 +790,12 @@ html.wc-phone .wc-ac-win {
   margin-top: 7px;
 }
 
+/* What follows the account (stage 62, round 10 pick 3a). */
+.wc-ac-sync-follows {
+  margin-top: 8px;
+  text-wrap: pretty;
+}
+
 .wc-ac-sync-move {
   display: flex;
   align-items: baseline;
@@ -846,6 +852,28 @@ html.wc-phone .wc-ac-win {
   margin: 0 0 4px;
   border-radius: 3px;
   background: var(--lk-row);
+}
+
+/* Log out's changes row with its kinds on a quieter second line (stage 62, round 10 pick 1a): the mark stays on the first. */
+.wc-ac-dlist li.is-two {
+  align-items: flex-start;
+}
+
+.wc-ac-dlist li.is-two > .wc-so-mark {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.wc-ac-dlist li.is-two > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wc-ac-dkinds {
+  margin-top: 1px;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
 }
 
 .wc-ac-inlink.wc-lk-link {
