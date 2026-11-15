@@ -64,7 +64,7 @@
 | 58 | Move to Cloudflare | Switched 2026-11-14, owner check fine; part D (retire Pages) two releases later | `docs/stages/58-cloudflare-move.md` |
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
 | 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
-| 61 | Sync of profiles and scripts, on the two spaces | Owner testing: built, on staging (flag `sync` on there only), not released | `docs/stages/61-sync-profiles-scripts.md` |
+| 61 | Sync of profiles and scripts, on the two spaces | Done on staging (flag `sync` on there only); not released, accounts open after 63 | `docs/stages/61-sync-profiles-scripts.md` |
 | 62 | Sync of settings, script data, Comm history and timers | Planned (spec §7.12) | |
 | 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
 | 64 | Share links | Planned (spec §7.12) | |
@@ -94,8 +94,9 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 - **Checks:** unit 4783; full e2e alone at 5 workers 1614 passed, 1
   failed under load (passes alone); bench clean; entry chunk 30 201 →
   30 876 bytes. **Staging:** run 43662153802, `test:prod` 30/30.
-- **Next:** the owner's two-device test on staging (test guide in the
-  stage file); then stage 62. **Open:** the entry chunk's +675 bytes
+- **Owner's test:** steps 1–8 on staging, "looks OK" (2026-11-15).
+  Turnstile error 110200 on the `workers.dev` address is expected:
+  test on staging.mumecockpit.com. **Next:** stage 62. **Open:** the entry chunk's +675 bytes
   (chunk wiring); tombstones have no cap of their own; `session_end`
   keeps the account id up to 180 days; nothing released.
 - **Commits:** c0664be8…the staging fixes, merges 4143117b, 7853ed6a,

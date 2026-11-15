@@ -1,6 +1,6 @@
 # Stage 61 — Sync of profiles and scripts, on the two spaces
 
-Status: **Built and on staging (2026-11-15), owner testing.** Parts A–D done; the flag `sync` on on staging only; nothing released.
+Status: **Done on staging (2026-11-15).** The owner's test (steps 1–8) fine; the flag `sync` on on staging only; nothing released (accounts open after stage 63).
 
 Done after stage 67 (spec §7.12: the order is 67, 61, 62, 63, then
 accounts open in production, then 64–66). On staging only: the flag
@@ -225,7 +225,7 @@ wiring). Reviews: a second agent (seven confirmed findings) and
       migration 0003 applied to staging's D1; `test:prod` 30/30 against
       staging; two earlier runs stopped in the checks before any upload:
       the smoke test's flag list and a worker test's timeout, both fixed.)
-- [ ] Owner test with two devices on staging (test guide below).
+- [x] Owner test with two devices on staging (test guide below).
 
 ## Test guide (owner)
 
@@ -289,3 +289,13 @@ date). The notice may say "from phone, 14 Nov" in words.
 
 Follows from 1–3: the start menu's message line wraps to two or three
 lines and About moves down while it shows (round 9 README).
+
+### The owner's test on staging (2026-11-15)
+
+- Steps 1–8 of the test guide: "it looks OK".
+- First tried on the `workers.dev` address, where Create account fails
+  with Turnstile error 110200 (the widget allows only
+  `mumecockpit.com` and `staging.mumecockpit.com`): not a defect; the
+  session had given the wrong address. Test on
+  <https://staging.mumecockpit.com>.
+
