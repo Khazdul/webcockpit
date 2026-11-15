@@ -5,7 +5,7 @@ owner; foundations being built.
 
 ## Waiting for the owner
 
-- Round 12's picks (the mockups; link below once published).
+- Nothing now: round 12's picks are made; the views are being built.
 
 ## Goal
 
@@ -98,6 +98,12 @@ Mockups in round 9–11's manner (`notes/research/start-menu-mockups/
 round12/`), published as an artifact; the recommendation in its README.
 
 Artifact: https://claude.ai/artifact/BFgBssf8Qq4RFm5z5u9q11
+
+**Owner's picks (2026-11-15)**, all as recommended in round 12's README:
+**1a** a guest sees Link greyed with "Log in to share"; **2a** the rules'
+tick inside the share dialog the first time; **3a** a header band over
+the frame; **4a** Published runs as a section on the Account page (a view
+of its own in stage 65 with stars and comments); **5** and **6** as drawn.
 
 1. **Link in the export editor**: where Link sits in the format toggle,
    what a guest sees (Link greyed with "Log in to share", or Link hidden
