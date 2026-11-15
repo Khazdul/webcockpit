@@ -5,7 +5,7 @@
 //   GET    /api/gallery?sort=&period=&page=&by=   the list (public, cached 60 s)
 //   GET    /api/community                     the Hall of Fame boxes (public, cached 60 s)
 //   GET    /api/runes                         the board (public, cached 60 s; `runes`)
-//   GET    /api/pub/<id>/comments?page=       a run's comments (public; reached through worker/pub.ts)
+//   GET    /api/pub/<id>/comments?before=     a run's comments, newest page first (public; reached through worker/pub.ts)
 //   GET|PUT|DELETE /api/u/pub/<id>/vote      one's vote
 //   POST   /api/u/pub/<id>/comments           a comment
 //   DELETE /api/u/comments/<id>               the writer's or the run's sender's
@@ -31,6 +31,7 @@ import {
   DAY_RUN_DESCRIPTION_MAX,
   type DayRun,
   type CommunitySeen,
+  COMMENT_CURSOR_PATTERN,
   COMMENT_MAX,
   COMMENT_NEWLINES_MAX,
   COMMENTS_PAGE_SIZE,
@@ -348,24 +349,49 @@ async function runes(db: D1, now: number): Promise<Response> {
   return json({ notes: results, time: now } satisfies RunesBoard, 200, PUBLIC_CACHE);
 }
 
-/** `GET /api/pub/<id>/comments?page=N|last` (worker/pub.ts has checked the flags, the limit and the id). */
+/**
+ * `GET /api/pub/<id>/comments[?before=<created>.<id>]`, or `?page=N|last`
+ * of clients before review fix CR1 (worker/pub.ts has checked the flags,
+ * the limit and the id).
+ */
 export async function commentsGet(db: D1, id: string, url: URL): Promise<Response> {
-  const p = url.searchParams.get('page') ?? 'last';
-  if (p !== 'last' && !/^[1-9]\d{0,5}$/.test(p)) return badRequest();
+  const p = url.searchParams.get('page');
+  const b = url.searchParams.get('before');
+  if (p !== null && b !== null) return badRequest();
+  if (p !== null && p !== 'last' && !/^[1-9]\d{0,5}$/.test(p)) return badRequest();
+  const cursor = b === null ? null : COMMENT_CURSOR_PATTERN.exec(b);
+  if (b !== null && !cursor) return badRequest();
   const row = await db.prepare('SELECT state, comment_count FROM publication WHERE id = ?1').bind(id).first<{ state: PubRowState; comment_count: number }>();
   const refused = stateAnswer(row);
   if (refused || !row) return refused ?? notFound();
   const total = row.comment_count;
   const pages = Math.max(1, Math.ceil(total / COMMENTS_PAGE_SIZE));
-  const page = p === 'last' ? pages : Number(p);
-  const { results } = await db
-    .prepare(
-      `SELECT c.id, a.name AS writer, c.text, c.created FROM comment c JOIN account a ON a.id = c.account
-       WHERE c.publication = ?1 AND c.state = 'active' AND a.state = 'active' ORDER BY c.created, c.id LIMIT ?2 OFFSET ?3`,
-    )
-    .bind(id, COMMENTS_PAGE_SIZE, (page - 1) * COMMENTS_PAGE_SIZE)
-    .all<{ id: string; writer: string; text: string; created: number }>();
-  return json({ comments: results, page, pages, total } satisfies CommentPage);
+  const page = p === null ? null : p === 'last' ? pages : Number(p);
+  // Newest first from the cursor (or from the newest end, `pages - page` pages
+  // in), one more than a page to know whether older ones are left.
+  const offset = page === null ? 0 : Math.max(0, pages - page) * COMMENTS_PAGE_SIZE;
+  const { results } =
+    page !== null && page > pages
+      ? { results: [] }
+      : await db
+          .prepare(
+            `SELECT c.id, a.name AS writer, c.text, c.created FROM comment c JOIN account a ON a.id = c.account
+             WHERE c.publication = ?1 AND c.state = 'active' AND a.state = 'active'
+             AND (?2 IS NULL OR c.created < ?2 OR (c.created = ?2 AND c.id < ?3))
+             ORDER BY c.created DESC, c.id DESC LIMIT ?4 OFFSET ?5`,
+          )
+          .bind(id, cursor ? Number(cursor[1]) : null, cursor ? cursor[2] : null, COMMENTS_PAGE_SIZE + 1, offset)
+          .all<{ id: string; writer: string; text: string; created: number }>();
+  const more = results.length > COMMENTS_PAGE_SIZE;
+  const comments = results.slice(0, COMMENTS_PAGE_SIZE).reverse();
+  const answer: CommentPage = { comments, total, more };
+  const oldest = comments[0];
+  if (more && oldest) answer.before = `${oldest.created}.${oldest.id}`;
+  if (page !== null) {
+    answer.page = page;
+    answer.pages = pages;
+  }
+  return json(answer);
 }
 
 // --- /api/u/* ---

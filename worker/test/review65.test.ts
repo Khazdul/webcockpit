@@ -317,4 +317,30 @@ describe('CR8: the admin’s queue is one query over runs, comments and notes', 
   });
 });
 
+describe('CR1: comments by cursor, newest page first', () => {
+  it('page=last is the newest 50; a comment removed meanwhile skips none of the earlier ones', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const run = await list(alice);
+    await db.prepare('UPDATE account SET limits = ?1 WHERE name_key = ?2').bind(JSON.stringify({ commentsPerHour: 1000 }), 'bob').run();
+    const ids: string[] = [];
+    for (let i = 0; i < 120; i++) ids.push(await commented(bob, run, `c${i}`, { now: NOW + i }));
+    type Page = { comments: { id: string; text: string }[]; more: boolean; before?: string; page?: number };
+    const get = async (q: string): Promise<Page> => ok<Page>(await ccall('GET', `/api/pub/${run}/comments${q}`));
+    const texts = (p: Page): string[] => p.comments.map((c) => c.text);
+    const range = (a: number, b: number): string[] => Array.from({ length: b - a }, (_, i) => `c${a + i}`);
+    const newest = await get('');
+    expect(texts(newest)).toEqual(range(70, 120));
+    expect(texts(await get('?page=last'))).toEqual(range(70, 120));
+    // The writer removes one of the newest page while the reader looks: the next page still starts right before c70.
+    expect((await ccall('DELETE', `/api/u/comments/${ids[100]}`, undefined, { cookie: bob })).status).toBe(204);
+    const earlier = await get(`?before=${newest.before}`);
+    expect(texts(earlier)).toEqual(range(20, 70));
+    expect(earlier.more).toBe(true);
+    const oldest = await get(`?before=${earlier.before}`);
+    expect(texts(oldest)).toEqual(range(0, 20));
+    expect(oldest.more).toBe(false);
+  });
+});
+
 export { DAY, NOW, call, db, publish, reportOf };

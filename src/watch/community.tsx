@@ -193,7 +193,8 @@ type Load = { k: 'loading' } | { k: 'failed' } | { k: 'ok' };
 /** The comments under the replay. */
 export function Comments(p: CommentsProps): VNode {
   const [list, setList] = useState<Comment[]>([]);
-  const [first, setFirst] = useState(1);
+  /** The cursor of the comments older than the list (null: none left; review fix CR1). */
+  const [before, setBefore] = useState<string | null>(null);
   const [total, setTotal] = useState(p.total);
   const [load, setLoad] = useState<Load>({ k: 'loading' });
   const [earlier, setEarlier] = useState(false);
@@ -206,11 +207,11 @@ export function Comments(p: CommentsProps): VNode {
   useEffect(() => {
     let alive = true;
     setLoad({ k: 'loading' });
-    void fetchComments(p.id, 'last').then((g) => {
+    void fetchComments(p.id).then((g) => {
       if (!alive) return;
       if (!g.ok) return setLoad({ k: 'failed' });
       setList(g.value.comments);
-      setFirst(g.value.page);
+      setBefore(g.value.before ?? null);
       setTotal(g.value.total);
       p.onCount(g.value.total);
       setLoad({ k: 'ok' });
@@ -221,15 +222,15 @@ export function Comments(p: CommentsProps): VNode {
   }, [p.id, attempt]);
 
   const showEarlier = async (): Promise<void> => {
-    if (earlier || first <= 1) return;
+    if (earlier || before === null) return;
     setEarlier(true);
-    const g = await fetchComments(p.id, first - 1);
+    const g = await fetchComments(p.id, before);
     setEarlier(false);
     if (!g.ok) return setError(commentFailText(g.status, g.code));
     setError(null);
-    // A comment posted meanwhile may shift a page: keep each comment once.
+    // The cursor skips none and repeats none; each comment once all the same.
     setList((now) => [...g.value.comments.filter((c) => !now.some((x) => x.id === c.id)), ...now]);
-    setFirst(g.value.page);
+    setBefore(g.value.before ?? null);
   };
 
   const count = (n: number): void => {
@@ -279,7 +280,7 @@ export function Comments(p: CommentsProps): VNode {
           </h3>
         }
       />
-      {load.k === 'ok' && first > 1 && (
+      {load.k === 'ok' && before !== null && (
         <div class="wc-watch-earlier">
           <GlassButton id="EARLIER" label={earlier ? 'Loading…' : 'Earlier comments'} icon="up" small disabled={earlier} onClick={() => void showEarlier()} />
         </div>

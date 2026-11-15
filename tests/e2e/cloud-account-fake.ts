@@ -77,6 +77,7 @@ import {
   COMMENT_MAX,
   COMMENT_NEWLINES_MAX,
   COMMENTS_PAGE_SIZE,
+  COMMENT_CURSOR_PATTERN,
   COMMENTS_PER_RUN,
   type Comment,
   type CommunityBoxes,
@@ -786,6 +787,11 @@ export class FakeAccountServer {
     return cid;
   }
 
+  /** Its writer removes the comment on `id` with the text `text` (review fix CR1's test). */
+  removeComment(id: string, text: string): void {
+    for (const c of this.comments.values()) if (c.pub === id && c.text === text) this.comments.delete(c.id);
+  }
+
   /** A note by `name`, `ago` ms ago. Returns its id. */
   addNote(name: string, text: string, o: { ago?: number; state?: 'active' | 'hidden' } = {}): string {
     const id = this.communityId();
@@ -903,15 +909,29 @@ export class FakeAccountServer {
       const p = this.pubs.get(id);
       if (!p) return err('not_found', 404);
       if (p.pub.state === 'hidden') return err('hidden', 451);
-      const pageText = q.get('page') ?? 'last';
-      if (pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
-      const all = [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account)).sort((a, b) => a.created - b.created);
+      // The newest page, or the one older than `before` (review fix CR1); `page=` as the Worker keeps it for old clients.
+      const pageText = q.get('page');
+      const before = q.get('before');
+      if (pageText !== null && pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
+      const cursor = before === null ? null : COMMENT_CURSOR_PATTERN.exec(before);
+      if ((before !== null && !cursor) || (before !== null && pageText !== null)) return err('bad_request', 400);
+      const all = [...this.comments.values()]
+        .filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account))
+        .sort((a, b) => b.created - a.created || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
       const pages = Math.max(1, Math.ceil(all.length / COMMENTS_PAGE_SIZE));
-      const page = pageText === 'last' ? pages : Number(pageText);
-      const comments: Comment[] = all
-        .slice((page - 1) * COMMENTS_PAGE_SIZE, page * COMMENTS_PAGE_SIZE)
+      const page = pageText === null ? null : pageText === 'last' ? pages : Number(pageText);
+      const older = cursor ? all.filter((c) => c.created < Number(cursor[1]) || (c.created === Number(cursor[1]) && c.id < cursor[2]!)) : all;
+      const from = page === null ? 0 : page > pages ? all.length : (pages - page) * COMMENTS_PAGE_SIZE;
+      const slice = older.slice(from, from + COMMENTS_PAGE_SIZE + 1);
+      const more = slice.length > COMMENTS_PAGE_SIZE;
+      const comments: Comment[] = slice
+        .slice(0, COMMENTS_PAGE_SIZE)
+        .reverse()
         .map((c) => ({ id: c.id, writer: this.accountName(c.account) ?? '', text: c.text, created: c.created }));
-      return { status: 200, body: { comments, page, pages, total: all.length } };
+      const body: Record<string, unknown> = { comments, total: all.length, more };
+      if (more && comments[0]) body.before = `${comments[0].created}.${comments[0].id}`;
+      if (page !== null) Object.assign(body, { page, pages });
+      return { status: 200, body };
     }
 
     if (this.flags.accounts !== true) return err('not_found', 404);

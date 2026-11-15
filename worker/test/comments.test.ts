@@ -33,21 +33,26 @@ describe('comments', () => {
         { id: c.id, writer: 'bob', text: 'Two orcs!\nWell played.', created: NOW },
         { id: expect.any(String), writer: 'alice', text: 'Thanks.', created: NOW + 1 },
       ],
-      page: 1,
-      pages: 1,
       total: 2,
+      more: false,
     });
     expect((await ok<PubMeta>(await ccall('GET', `/api/pub/${id}`))).comments).toBe(2);
     await setLimits('bob', { commentsPerHour: 1000 });
     for (let i = 0; i < 60; i++) await commented(bob, id, `c${i}`, { now: NOW + 10 + i });
+    // The newest 50, oldest first, and the cursor of the older ones (review fix CR1).
     const last = await pageOf(id);
-    expect(last.page).toBe(2);
-    expect(last.pages).toBe(2);
     expect(last.total).toBe(62);
-    expect(last.comments.map((x) => x.text)).toEqual(Array.from({ length: 12 }, (_, i) => `c${48 + i}`));
-    expect((await pageOf(id, '?page=1')).comments).toHaveLength(50);
+    expect(last.more).toBe(true);
+    expect(last.comments.map((x) => x.text)).toEqual(Array.from({ length: 50 }, (_, i) => `c${10 + i}`));
+    const older = await pageOf(id, `?before=${last.before}`);
+    expect(older.comments.map((x) => x.text)).toEqual(['Two orcs!\nWell played.', 'Thanks.', ...Array.from({ length: 10 }, (_, i) => `c${i}`)]);
+    expect(older.more).toBe(false);
+    expect(older.before).toBeUndefined();
+    // Pages for clients of before the fix, counted from the newest end.
+    expect(await pageOf(id, '?page=last')).toEqual({ ...last, page: 2, pages: 2 });
+    expect((await pageOf(id, '?page=1')).comments).toEqual(older.comments);
     expect((await pageOf(id, '?page=3')).comments).toEqual([]);
-    for (const q of ['?page=0', '?page=x', '?page=-1']) expect((await ccall('GET', `/api/pub/${id}/comments${q}`)).status).toBe(400);
+    for (const q of ['?page=0', '?page=x', '?page=-1', '?before=x', '?before=1.short', `?before=${last.before}&page=1`]) expect((await ccall('GET', `/api/pub/${id}/comments${q}`)).status, q).toBe(400);
   });
 
   it('refuses a hidden or unknown run, a suspended account, bad bodies, and the flag off', async () => {

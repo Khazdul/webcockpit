@@ -98,23 +98,28 @@ describe('the requests (stage 65)', () => {
     expect(await fetchVote('x', () => Promise.reject(new Error('down')))).toEqual({ ok: false, status: 0, code: 'offline' });
   });
 
-  it('reads the comments publicly (no cookie), the last page by default; posts and removes with the session', async () => {
+  it('reads the comments publicly (no cookie), the newest page by default, older ones by cursor; posts and removes with the session', async () => {
     calls.length = 0;
     const c = { id: 'Cm3dE5fG7hJk', writer: 'Norsy', text: 'Hi', created: 5 };
-    const page = { comments: [c, { id: 1 }], page: 2, pages: 2, total: 51 };
-    expect(await fetchComments('Ab3dE5fG7hJk', 'last', answer(200, page))).toEqual({ ok: true, value: { ...page, comments: [c] } });
-    await fetchComments('Ab3dE5fG7hJk', 1, answer(200, page));
+    const page = { comments: [c, { id: 1 }], total: 51, more: true, before: '5.Cm3dE5fG7hJk' };
+    expect(await fetchComments('Ab3dE5fG7hJk', null, answer(200, page))).toEqual({ ok: true, value: { ...page, comments: [c] } });
+    await fetchComments('Ab3dE5fG7hJk', '5.Cm3dE5fG7hJk', answer(200, page));
+    // No cursor: nothing more to ask for; a bad cursor is a bad answer.
+    expect(await fetchComments('x', null, answer(200, { comments: [], total: 0, more: true }))).toEqual({ ok: true, value: { comments: [], total: 0, more: false } });
+    expect((await fetchComments('x', null, answer(200, { comments: [], total: 0, more: true, before: 'x' }))).ok).toBe(false);
     expect(await postComment('Ab3dE5fG7hJk', 'Hi', answer(200, { comment: c }))).toEqual({ ok: true, value: c });
     expect(await deleteComment('Cm3dE5fG7hJk', answer(204, null))).toEqual({ ok: true, value: null });
     expect(calls.map((x) => [x.url, x.init.method ?? 'GET', x.init.credentials])).toEqual([
-      ['/api/pub/Ab3dE5fG7hJk/comments?page=last', 'GET', 'omit'],
-      ['/api/pub/Ab3dE5fG7hJk/comments?page=1', 'GET', 'omit'],
+      ['/api/pub/Ab3dE5fG7hJk/comments', 'GET', 'omit'],
+      ['/api/pub/Ab3dE5fG7hJk/comments?before=5.Cm3dE5fG7hJk', 'GET', 'omit'],
+      ['/api/pub/x/comments', 'GET', 'omit'],
+      ['/api/pub/x/comments', 'GET', 'omit'],
       ['/api/u/pub/Ab3dE5fG7hJk/comments', 'POST', 'same-origin'],
       ['/api/u/comments/Cm3dE5fG7hJk', 'DELETE', 'same-origin'],
     ]);
-    expect(JSON.parse(calls[2]!.init.body as string)).toEqual({ text: 'Hi' });
-    expect(headers(2)['X-WC']).toBe('1');
-    expect(headers(3)['X-WC']).toBe('1');
+    expect(JSON.parse(calls[4]!.init.body as string)).toEqual({ text: 'Hi' });
+    expect(headers(4)['X-WC']).toBe('1');
+    expect(headers(5)['X-WC']).toBe('1');
     expect(await postComment('x', 'Hi', answer(429, { error: 'too_many' }))).toEqual({ ok: false, status: 429, code: 'too_many' });
     expect(await deleteComment('x', answer(404, { error: 'not_found' }))).toEqual({ ok: false, status: 404, code: 'not_found' });
   });
