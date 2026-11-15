@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_ACCOUNT_LIMITS } from '../../shared/cloud/api.ts';
 import { deriveKeys, makeRoot, opaqueId } from '../../src/cloud/crypto';
 import { inlineRunBodyCodec, runBodyPort } from '../../src/cloud/runs/body-client';
-import { ORPHAN_AGE_MS, RunQueue, orphanBodies, runsLockName } from '../../src/cloud/runs/queue';
+import { FETCH_STALE_MS, ORPHAN_AGE_MS, RunQueue, orphanBodies, runsLockName } from '../../src/cloud/runs/queue';
 import type { RunCloudRow, RunQueueEvent, RunRows } from '../../src/cloud/runs/types';
 import { RemoteError } from '../../src/cloud/sync/types';
 import { MemoryRecords, MemoryRunSpace, ServerModel, newLink, runRemoteFor, type Link, type RunLink } from './cloud-sync-model';
@@ -64,6 +64,7 @@ const state = (f: Fixture, id: string): RunCloudRow['state'] | undefined => f.sp
 describe('the upload queue', () => {
   it('uploads queued runs newest first, marks them up with their size, and asks for a sync', async () => {
     const f = await fixture();
+    f.queue.setRoom(f.server.usage(), f.server.limits);
     await f.save('a', 100);
     await f.save('b', 300);
     await f.save('c', 200);
@@ -227,6 +228,7 @@ describe('the upload queue', () => {
 
   it('the item refused after the body is up: full with the event, the body deleted, retried when items have room', async () => {
     const f = await fixture();
+    f.queue.setRoom(f.server.usage(), f.server.limits);
     await f.save('a', 100);
     await f.queue.run();
     const size = f.space.cloud.get('a')!.size;
@@ -332,7 +334,10 @@ describe('fetching runs', () => {
     expect(await q.fetchRuns(['r1'])).toEqual({ fetched: [], failed: [{ runId: 'r1', why: 'not_remote' }] });
     expect(b.space.runs.has('r1')).toBe(false);
     expect(b.space.cloud.has('r1')).toBe(false);
-    await b.space.put({ ...b.space.cloud.get('r2')!, state: 'fetching' });
+    await b.space.put({ ...b.space.cloud.get('r2')!, state: 'fetching', at: b.clock.now() });
+    // A young one may be another tab's fetch (stage 63 review, CR3): it stays.
+    expect(await b.queue.recover()).toBe(0);
+    b.clock.t += FETCH_STALE_MS;
     expect(await b.queue.recover()).toBe(1);
     expect(state(b, 'r2')).toBe('remote');
   });

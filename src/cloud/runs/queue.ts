@@ -7,11 +7,17 @@
 // one body at a time:
 //
 //   - every `queued` row, and every `full` row while the account has room
-//     for it (`limits.runBytes − usage.runBytes ≥ size`), newest first;
-//   - never while a game plays: `isPlaying()` is asked before each run, and
-//     the queue stops (an upload in flight finishes);
+//     for it (`limits.runBytes − usage.runBytes ≥ size`), newest first; a
+//     row refused as an item for its size (`item_too_large`) is never
+//     tried again, as `tooLarge`;
+//   - never while a game plays: `isPlaying()` is asked before each upload,
+//     and the queue stops (an upload in flight finishes);
 //   - a body over `runMaxBytes`, or one the room known cannot hold, is
-//     settled here without sending it; the server's `413` says the same;
+//     settled here without sending it; the server's `413` says the same.
+//     The room known is only ever the server's (a sync's `usage` and
+//     `limits`, the list's): without it the server decides. A queued row
+//     that had a body up before (its `size`) counts only what it grows,
+//     as the server does for a replace;
 //   - after a body is up, the row is `up` with its size and the queue asks
 //     for a sync (`requestSync`), which pushes the `run` item;
 //   - errors as the engine's table: offline, `5xx`, a refusal back off
@@ -25,12 +31,16 @@
 // body is deleted at once rather than left as an orphan.
 //
 // `checkBodies(liveIds)` compares the account's bodies with what this
-// device knows: orphans go, an own `up` row whose body is gone is queued
-// again.
+// device knows (under the lock, so no upload of another tab is half seen):
+// orphans go, an own `up` row whose body is gone is queued again.
 //
 // `fetchRuns(runIds, onProgress)` fetches `remote` rows: per run a GET, the
 // body opened in the worker, written in one transaction with its row `up`;
 // back to `remote` on any failure. Progress is bytes over the rows' sizes.
+// A run this tab is fetching already is waited for, not fetched twice; a
+// row found `up` meanwhile (another tab fetched it) counts as fetched.
+// `recover()` at load puts back only `fetching` rows older than
+// `FETCH_STALE_MS` (another tab's fetch may be going on).
 
 import { type AccountLimits, DEFAULT_ACCOUNT_LIMITS, type RunBodyList, type SyncUsage } from '../../../shared/cloud/api.ts';
 import { noLock } from '../sync/lock';
@@ -60,12 +70,19 @@ export const ORPHAN_AGE_MS = 24 * 3600_000;
 /** About what a `run` item takes of the item storage (its meta; the measurement says under 2 KB). */
 const RUN_ITEM_BYTES = 2048;
 
+/**
+ * A `fetching` row this old is left over by a page that closed mid-fetch
+ * (`recover`); younger, another tab may be fetching it. Longer than the
+ * longest transfer the fetch adapter allows (20 s plus 20 MB at 50 kB/s).
+ */
+export const FETCH_STALE_MS = 15 * 60_000;
+
 export interface RunQueueOptions {
   store: RunCloudStore;
   body: RunBodyPort;
   remote: RunRemote;
-  /** A game plays in this space (here, or the game lock held elsewhere). */
-  isPlaying(): boolean;
+  /** A game plays in this space (here, or the game lock held elsewhere); asked before each upload. */
+  isPlaying(): boolean | Promise<boolean>;
   /** Asked after a body is up: the sync pushes its item. */
   requestSync(): void;
   clock?: Clock;
@@ -83,7 +100,7 @@ export class RunQueue {
   private readonly store: RunCloudStore;
   private readonly body: RunBodyPort;
   private readonly remote: RunRemote;
-  private readonly isPlaying: () => boolean;
+  private readonly isPlaying: () => boolean | Promise<boolean>;
   private readonly requestSync: () => void;
   private readonly clock: Clock;
   private readonly lock: SyncLock;
@@ -94,6 +111,8 @@ export class RunQueue {
   private roomNow: RunRoom | null = null;
   private running: Promise<RunQueueOutcome> | null = null;
   private again = false;
+  /** The fetches going on in this tab, by run id. */
+  private readonly fetching = new Map<string, Promise<FetchFailure | null>>();
   /** When the queue wants to be run again after a failure, or null. */
   retryAt: number | null = null;
 
@@ -109,7 +128,11 @@ export class RunQueue {
     this.random = o.random ?? Math.random;
   }
 
-  /** The room as last heard (a sync's answer, an upload's, a `quota`), or null. */
+  /**
+   * The room as last heard (a sync's answer or the list's, then an
+   * upload's, a delete's, a `quota`), or null: the limits are only ever
+   * the server's, never assumed.
+   */
   get room(): RunRoom | null {
     return this.roomNow;
   }
@@ -127,6 +150,8 @@ export class RunQueue {
   fits(row: RunCloudRow): boolean {
     const r = this.roomNow;
     if (!r || r.usage.runBytes === undefined) return false;
+    // Refused as an item for its size: more room does not help (as `tooLarge`).
+    if (row.full === 'item_too_large') return false;
     if (r.limits.runBytes - r.usage.runBytes < row.size) return false;
     if (row.full && row.full !== 'quota') {
       // Refused as an item: room for one more item too.
@@ -161,11 +186,17 @@ export class RunQueue {
     return this.running;
   }
 
-  /** Rows left `fetching` by a page that closed mid-fetch go back to `remote` (at load). */
+  /**
+   * Rows left `fetching` by a page that closed mid-fetch go back to
+   * `remote` (at load): those older than `FETCH_STALE_MS`, as another tab
+   * may be fetching a younger one (a `fetching` row is fetched again when
+   * asked for anyway).
+   */
   async recover(): Promise<number> {
     let n = 0;
+    const now = this.clock.now();
     for (const row of await this.store.list()) {
-      if (row.state !== 'fetching') continue;
+      if (row.state !== 'fetching' || now - row.at < FETCH_STALE_MS || this.fetching.has(row.runId)) continue;
       await this.store.put({ ...row, state: 'remote', at: this.clock.now() });
       n++;
     }
@@ -197,7 +228,7 @@ export class RunQueue {
         this.retryAt = null;
         return { type: 'done', uploaded };
       }
-      if (this.isPlaying()) return { type: 'playing', uploaded };
+      if (await this.isPlaying()) return { type: 'playing', uploaded };
       tried.add(next.runId);
       try {
         if (await this.upload(next)) uploaded++;
@@ -225,9 +256,14 @@ export class RunQueue {
     const blob = await this.body.encode(row.serverId, rows);
     const size = blob.size;
     const room = this.roomNow;
+    // A queued row with a size had its body up before (put back after an
+    // edit beat a delete, or its body found gone): the server counts only
+    // what a replace grows, so the check here does too (and lets the server
+    // decide when that body is gone after all).
+    const grow = Math.max(size - (row.state === 'queued' ? row.size : 0), 0);
     let res: RunPutResult;
     if (room && size > room.limits.runMaxBytes) res = { status: 'tooLarge', limit: room.limits.runMaxBytes };
-    else if (room && room.usage.runBytes !== undefined && room.usage.runBytes + size > room.limits.runBytes)
+    else if (room && room.usage.runBytes !== undefined && grow > 0 && room.usage.runBytes + grow > room.limits.runBytes)
       res = { status: 'quota', used: room.usage.runBytes, limit: room.limits.runBytes, size };
     else res = await this.remote.put(row.serverId, blob);
 
@@ -237,7 +273,7 @@ export class RunQueue {
       this.noteUsage(res.written.usage);
       if (!cur || (cur.state !== 'queued' && cur.state !== 'full')) {
         // Deleted (or settled) while it went up: the body is nobody's.
-        await this.dropBody(row.serverId);
+        await this.removeBody(row.serverId);
         return false;
       }
       const { full: _f, ...rest } = cur;
@@ -277,7 +313,7 @@ export class RunQueue {
       size: row.size,
       reason: error,
     });
-    await this.dropBody(row.serverId);
+    await this.removeBody(row.serverId);
   }
 
   /**
@@ -296,21 +332,16 @@ export class RunQueue {
     }
   }
 
-  private async dropBody(serverId: string): Promise<void> {
-    await this.removeBody(serverId);
-  }
-
+  /** An answer's usage, into the room known (nothing while the limits are not known: they are never assumed). */
   private noteUsage(usage: SyncUsage): void {
-    if (usage.runBytes === undefined) return;
-    const limits = this.roomNow?.limits ?? DEFAULT_ACCOUNT_LIMITS;
-    this.roomNow = { usage: { ...usage }, limits };
+    if (usage.runBytes === undefined || !this.roomNow) return;
+    this.roomNow = { usage: { ...usage }, limits: this.roomNow.limits };
   }
 
+  /** A `quota` answer's numbers, into the room known (as `noteUsage`). */
   private noteRunBytes(used: number, limit: number): void {
     const r = this.roomNow;
-    this.roomNow = r
-      ? { usage: { ...r.usage, runBytes: used }, limits: { ...r.limits, runBytes: limit } }
-      : { usage: { items: 0, itemBytes: 0, runBytes: used }, limits: { ...DEFAULT_ACCOUNT_LIMITS, runBytes: limit } };
+    if (r) this.roomNow = { usage: { ...r.usage, runBytes: used }, limits: { ...r.limits, runBytes: limit } };
   }
 
   /**
@@ -321,9 +352,15 @@ export class RunQueue {
    * never came, a delete made offline); an own `up` row whose body is not
    * there goes back to `queued` (its body was deleted while an edit here
    * brought the run back), so the queue puts it back. Also takes the room
-   * from the list's answer. Throws the `RemoteError` of a failed list.
+   * from the list's answer. Under the queue's lock: an upload of another
+   * tab is never seen half done (its row `up` after the list was made
+   * without its body). Throws the `RemoteError` of a failed list.
    */
-  async checkBodies(liveIds: ReadonlySet<string>): Promise<{ orphans: number; requeued: number }> {
+  checkBodies(liveIds: ReadonlySet<string>): Promise<{ orphans: number; requeued: number }> {
+    return this.lock.run(() => this.checkBodiesLocked(liveIds));
+  }
+
+  private async checkBodiesLocked(liveIds: ReadonlySet<string>): Promise<{ orphans: number; requeued: number }> {
     const list = await this.remote.list();
     this.setRoom(list.usage, list.limits);
     const there = new Set(list.bodies.map((b) => b.id));
@@ -363,50 +400,62 @@ export class RunQueue {
     onProgress?.(0, total);
     for (let i = 0; i < todo.length; i++) {
       const row = todo[i]!;
-      await this.store.put({ ...row, state: 'fetching', at: this.clock.now() });
       const start = done;
-      let why: FetchFailure | null = null;
-      try {
-        const blob = await this.remote.get(row.serverId, {
-          size: row.size,
-          onBytes: (n) => {
-            done = Math.min(done + n, start + row.size);
-            onProgress?.(done, total);
-          },
-        });
-        const rows = await this.body.decode(row.serverId, row.runId, blob);
-        const cur = await this.store.get(row.runId);
-        if (!cur || cur.state !== 'fetching') {
-          // Deleted meanwhile (a tombstone pulled).
-          why = 'not_remote';
-        } else {
-          // The item's meta wins: a rating changed after the body went up is in it.
-          const meta = cur.meta && cur.meta.runId === row.runId ? cur.meta : rows.meta;
-          const { meta: _m, full: _f, ...rest } = cur;
-          await this.store.putFetched({ ...rows, meta }, { ...rest, state: 'up', size: blob.size, tries: 0, at: this.clock.now() });
-          fetched.push(row.runId);
-        }
-      } catch (e) {
-        if (e instanceof RemoteError) {
-          why = e.kind === 'offline' ? 'offline' : e.kind === 'server' ? 'server' : e.kind === 'refused' ? (e.status === 404 ? 'missing' : 'server') : 'session_ended';
-        } else if (isRunBodyError(e)) {
-          why = e.code === 'newer' ? 'newer' : 'unreadable';
-        } else {
-          await this.backToRemote(row.runId);
-          throw e;
-        }
+      // A fetch of this run going on in this tab (Fetch all, then the open of one of its sessions): its outcome.
+      let one = this.fetching.get(row.runId);
+      if (!one) {
+        one = this.fetchOne(row, (n) => {
+          done = Math.min(done + n, start + row.size);
+          onProgress?.(done, total);
+        }).finally(() => this.fetching.delete(row.runId));
+        this.fetching.set(row.runId, one);
       }
+      const why = await one;
       done = start + row.size;
       onProgress?.(done, total);
-      if (why === null) continue;
+      if (why === null) {
+        fetched.push(row.runId);
+        continue;
+      }
       failed.push({ runId: row.runId, why });
-      await this.backToRemote(row.runId);
       if (why === 'offline' || why === 'server' || why === 'session_ended') {
         for (const rest of todo.slice(i + 1)) failed.push({ runId: rest.runId, why });
         break;
       }
     }
     return { fetched, failed };
+  }
+
+  /** One run's fetch: null when it is here now; else why not (its row back to `remote`). Rethrows a local fault. */
+  private async fetchOne(row: RunCloudRow, onBytes: (n: number) => void): Promise<FetchFailure | null> {
+    await this.store.put({ ...row, state: 'fetching', at: this.clock.now() });
+    let why: FetchFailure | null = null;
+    try {
+      const blob = await this.remote.get(row.serverId, { size: row.size, onBytes });
+      const rows = await this.body.decode(row.serverId, row.runId, blob);
+      const cur = await this.store.get(row.runId);
+      if (!cur) {
+        // Deleted meanwhile (a tombstone pulled).
+        why = 'not_remote';
+      } else if (cur.state === 'remote' || cur.state === 'fetching') {
+        // The item's meta wins: a rating changed after the body went up is in it.
+        const meta = cur.meta && cur.meta.runId === row.runId ? cur.meta : rows.meta;
+        const { meta: _m, full: _f, ...rest } = cur;
+        await this.store.putFetched({ ...rows, meta }, { ...rest, state: 'up', size: blob.size, tries: 0, at: this.clock.now() });
+      }
+      // Any other state: the run is here already (another tab fetched it, a restore): fetched.
+    } catch (e) {
+      if (e instanceof RemoteError) {
+        why = e.kind === 'offline' ? 'offline' : e.kind === 'server' ? 'server' : e.kind === 'refused' ? (e.status === 404 ? 'missing' : 'server') : 'session_ended';
+      } else if (isRunBodyError(e)) {
+        why = e.code === 'newer' ? 'newer' : 'unreadable';
+      } else {
+        await this.backToRemote(row.runId);
+        throw e;
+      }
+    }
+    if (why !== null) await this.backToRemote(row.runId);
+    return why;
   }
 
   private async backToRemote(runId: string): Promise<void> {
