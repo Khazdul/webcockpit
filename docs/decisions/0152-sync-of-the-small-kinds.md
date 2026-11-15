@@ -476,3 +476,35 @@ Branch `stage62-fixes`; tests in `tests/unit/cloud-sync-fixes62.test.ts`
   (`SMALL_KIND_WORDS`, `smallKindNames` in unsynced-words.ts) for Log out
   and the locked copy's Remove; `settleSettingsSeed` reads the mark first
   and the sync store once.
+
+## Owner's picks (2026-11-15)
+
+Round 10 (`notes/research/start-menu-mockups/round10/README.md`) left two
+of stage 62's UI choices for the owner to confirm:
+
+- **2a, applied quietly.** Pulled settings of this device type still apply
+  on the start menu (and wait during play, as above), but no line says so:
+  "Settings from desktop, Chrome." and "…, held until the game ended." are
+  gone (`settingsFromWords`, its post in `applyWritten`,
+  `SETTINGS_MESSAGE_MS`).
+- **3b, as built.** The Account page's sync section has no "Follows the
+  account: …" line (`followsWords`, `.wc-ac-sync-follows`).
+
+The plumbing that only fed the message is removed:
+
+- The settings body's `from` (the writer's sync label). The adapter no
+  longer adds it to `main` or `device:<type>` bodies, and stores none.
+  `settingsSpec.decode` drops a `from` in an older body, whatever it holds
+  (a non-string one no longer makes it unreadable). The hash exclusion
+  (`KindSpec.hashed`) is removed with it: `canonicalJson` leaves out
+  `undefined` keys, so the old hashes (over `{...b, from: undefined}`)
+  equal the new ones over `{type, record}`. Stored records, the seed's
+  hash and bodies already in the account match as they are; no loop.
+- `LocalBatch.held`, `SyncRecord.waited` and the engine's `Entry.waits`
+  (a held version marked so that its later write could say it waited),
+  and `from`/`held` of `SettingsWritten` and `SyncWrite.settings`, which
+  keep only `seedRecord`. A stored record that still carries `waited` is
+  read as before; the field is ignored.
+
+Kept: the holding itself (in use during play, `state: 'held'`, the status
+count), the seed (`seedRecord`, F1) and the write hook.
