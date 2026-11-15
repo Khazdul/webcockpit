@@ -20,7 +20,13 @@
 // the names, the report's text) is only in the subject (encoded) and in
 // the base64 UTF-8 text/plain body. Stage 65 (ADR 0155): a reported
 // comment or note has a mail of its own kind, with its text in full in the
-// body (never in a header) and its writer's name in the subject (encoded).
+// body (never in a header); the subject carries a comment's run title or a
+// note's writer's name (encoded).
+//
+// Review fix S5: the body starts with the links (Admin, the run), before
+// anything a user wrote, and every line of user-written text (a title, the
+// reported text, the reporter's text) is quoted with "> ", so a text that
+// imitates the mail's own lines cannot pass for them.
 import { REPORTS_TO_HIDE, type ReportKind } from '../shared/cloud/api.ts';
 import { randomBytes } from './bytes.ts';
 import { type D1, type Deps, type Env, later, truthy } from './runtime.ts';
@@ -210,24 +216,31 @@ interface RunFacts {
   open: number;
 }
 
+/** User-written text quoted line by line ("> "; review fix S5); `none` when it is empty. */
+export function quoted(text: string, none = '(none)'): string[] {
+  return text === '' ? [none] : text.split(/\r\n|\r|\n|\u0085|\u2028|\u2029/).map((l) => `> ${l}`);
+}
+
 /** The text of a report's mail. */
 export function reportText(r: ReportFacts, run: RunFacts, origin: string): string {
   const hidden = run.state === 'hidden' ? `yes (${run.hidden_reason === 'reports' ? 'by reports' : 'by the admin'})` : 'no';
   return [
     'A run was reported.',
     '',
-    `Run:      ${run.title}`,
+    `Admin:    ${origin}/admin`,
+    `Run:      ${origin}/r/${r.target}?admin`,
+    '',
     `Id:       ${r.target}`,
     `Sender:   ${run.sender ?? '(account deleted)'}`,
     `Reason:   ${r.reason}`,
     `Reported: by ${run.accounts} ${run.accounts === 1 ? 'account' : 'accounts'} in all; ${run.open} open (${REPORTS_TO_HIDE} open hide a run)`,
     `Hidden:   ${hidden}`,
     '',
-    "The reporter's text:",
-    r.text === '' ? '(none)' : r.text,
+    "The run's title:",
+    ...quoted(run.title),
     '',
-    `Admin:    ${origin}/admin`,
-    `Run:      ${origin}/r/${r.target}?admin`,
+    "The reporter's text:",
+    ...quoted(r.text),
     '',
   ].join('\n');
 }
@@ -251,22 +264,23 @@ export function itemReportText(r: ReportFacts, kind: 'comment' | 'note', item: I
   return [
     kind === 'comment' ? 'A comment was reported.' : 'A note on Random Runes was reported.',
     '',
+    `Admin:    ${origin}/admin`,
+    ...(kind === 'comment' && item.pub ? [`Run:      ${origin}/r/${item.pub}?admin`] : []),
+    '',
     `Kind:     ${kind}`,
     `Id:       ${r.target}`,
     `Writer:   ${item.writer ?? '(account deleted)'}`,
-    ...(kind === 'comment' ? [`Run:      ${item.title ?? ''} (${item.pub ?? ''})`] : []),
+    ...(kind === 'comment' ? [`Run id:   ${item.pub ?? ''}`] : []),
     `Reason:   ${r.reason}`,
     `Reported: by ${item.accounts} ${item.accounts === 1 ? 'account' : 'accounts'} in all; ${item.open} open (${REPORTS_TO_HIDE} open hide it)`,
     `Hidden:   ${hidden}`,
     '',
+    ...(kind === 'comment' ? ["The run's title:", ...quoted(item.title ?? ''), ''] : []),
     `The reported ${kind}:`,
-    item.text,
+    ...quoted(item.text, '(removed)'),
     '',
     "The reporter's text:",
-    r.text === '' ? '(none)' : r.text,
-    '',
-    `Admin:    ${origin}/admin`,
-    ...(kind === 'comment' && item.pub ? [`Run:      ${origin}/r/${item.pub}?admin`] : []),
+    ...quoted(r.text),
     '',
   ].join('\n');
 }
