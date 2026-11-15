@@ -188,26 +188,26 @@ touches staging or production.
 
 #### B2. The replay runtime against hostile payloads (worktree `stage64-replay`, port 5463)
 
-- [ ] `src/replay/validate.ts` `validatePayload` (ADR 0154's bounds and
+- [x] `src/replay/validate.ts` `validatePayload` (ADR 0154's bounds and
       whitelists) with unit tests; the settings whitelist also used by
       `buildPayload` (what is uploaded is what the replay reads).
-- [ ] The frame document `r/frame.html` (Vite build, one inline script
+- [x] The frame document `r/frame.html` (Vite build, one inline script
       and style), its `_headers` rule with the hashes filled at build
       (as `cspHashesPlugin`), the frame's side of the handshake
       (`wc-ready`, `wc-play`, `wc-error`), the bounded decompression,
       `FontFace` from bytes, the map worker from a blob.
-- [ ] `src/watch/frame-host.ts`: the page's side (the iframe's
+- [x] `src/watch/frame-host.ts`: the page's side (the iframe's
       attributes, the checks on `source` and `origin`, the fonts, the
       transfer), with a dev route to play a local payload in it.
-- [ ] A review of every path from payload text to the DOM in the
+- [x] A review of every path from payload text to the DOM in the
       player (ADR 0154 "No HTML from the payload"), fixes with tests;
       the findings written in ADR 0154 "As built (B2)".
-- [ ] Fuzz tests (`tests/unit/replay-fuzz.test.ts`, fixed seeds).
-- [ ] e2e `watch-sandbox.spec.ts`: a hostile payload's script in the
+- [x] Fuzz tests (`tests/unit/replay-fuzz.test.ts`, fixed seeds).
+- [x] e2e `watch-sandbox.spec.ts`: a hostile payload's script in the
       frame cannot reach storage, cookies, the parent's DOM, the network
       or the top navigation; the frame's CSP header is the one in the
       ADR.
-- [ ] The main page's CSP gets `frame-src 'self'`; the CSP walk
+- [x] The main page's CSP gets `frame-src 'self'`; the CSP walk
       (tests/e2e-prod/csp.spec.ts) covers `/r/frame.html`.
 
 ### C. Flows and views (after B merged and round 12's picks)

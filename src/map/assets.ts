@@ -43,6 +43,21 @@ export function assetResolver(src: AssetSource, fetchFn: typeof fetch = fetch): 
     if (f === undefined && fallback !== undefined && path.startsWith('pixmaps/')) f = fallback;
     if (f === undefined) throw new Error(`map asset ${path}: not included`);
     if (typeof f !== 'string') return f;
-    return (await fetchFn(f)).blob(); // data: URI
+    return dataUriBlob(f);
   };
+}
+
+/**
+ * The Blob of a base64 `data:` URI, decoded here rather than fetched: the
+ * shared replay's frame has `connect-src 'none'` (ADR 0154), which a
+ * `fetch` of a data: URI is subject to, and nothing but a base64 data: URI
+ * is ever loaded (src/replay/validate.ts checks the payload's).
+ */
+export function dataUriBlob(uri: string): Blob {
+  const m = /^data:([a-z0-9.+/-]+);base64,/i.exec(uri);
+  if (!m) throw new Error('map asset: not a base64 data: URI');
+  const bin = atob(uri.slice(m[0].length));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1]!.toLowerCase() });
 }

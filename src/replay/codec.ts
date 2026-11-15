@@ -9,7 +9,7 @@ import type { ReplayPayload } from '../share/payload';
 /** Id of the `<script type="application/json">` holding the payload. */
 export const PAYLOAD_ELEMENT_ID = 'wc-replay-payload';
 
-async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
+export async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
   const out = new Blob([bytes as BlobPart]).stream().pipeThrough(stream);
   return new Uint8Array(await new Response(out).arrayBuffer());
 }
@@ -47,3 +47,4 @@ export async function decodePayload(b64: string): Promise<ReplayPayload> {
   }
   return p;
 }
+

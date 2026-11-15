@@ -64,17 +64,42 @@ export const MM2_SCHEMA = {
 const SUPPORTED: ReadonlySet<number> = new Set(Object.values(MM2_SCHEMA));
 const V = MM2_SCHEMA;
 
-/** Inflates a zlib (RFC 1950) stream. */
-export type Inflate = (zlib: Uint8Array) => Promise<Uint8Array>;
+/** Inflates a zlib (RFC 1950) stream, failing past `max` bytes of output when given. */
+export type Inflate = (zlib: Uint8Array, max?: number) => Promise<Uint8Array>;
+
+/**
+ * Most bytes a map may inflate to (MMapper's arda.mm2: 29 MB): a damaged
+ * or hostile file (a shared replay's map, ADR 0154) cannot make the
+ * worker allocate more. A qCompress file stops at its header's length.
+ */
+export const MM2_INFLATE_MAX = 256 * 1024 * 1024;
 
 export class Mm2Error extends Error {
   override name = 'Mm2Error';
 }
 
 /** Default inflate: `DecompressionStream('deflate')` (browsers, workers, Node ≥ 18). */
-export const inflateZlib: Inflate = async (zlib) => {
-  const stream = new Blob([zlib as Uint8Array<ArrayBuffer>]).stream().pipeThrough(new DecompressionStream('deflate'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+export const inflateZlib: Inflate = async (zlib, max = MM2_INFLATE_MAX) => {
+  const reader = new Blob([zlib as Uint8Array<ArrayBuffer>]).stream().pipeThrough(new DecompressionStream('deflate')).getReader();
+  const chunks: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.byteLength;
+    if (n > max) {
+      void reader.cancel().catch(() => {});
+      throw new Mm2Error(`more than ${max} bytes`);
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(n);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
 };
 
 /** How a schema version stores its payload after the 8-byte magic + version. */
@@ -123,7 +148,7 @@ export async function readMm2(bytes: Uint8Array, inflate: Inflate = inflateZlib)
     payload = bytes.subarray(offset);
   } else {
     try {
-      payload = await inflate(bytes.subarray(offset));
+      payload = await inflate(bytes.subarray(offset), Math.min(length ?? MM2_INFLATE_MAX, MM2_INFLATE_MAX));
     } catch (err) {
       throw new Mm2Error(`Damaged MMapper map: decompression failed (${err instanceof Error ? err.message : String(err)})`);
     }
@@ -462,9 +487,16 @@ export function parseMm2Payload(u: Uint8Array, version = MM2_VERSION): MapData {
   return map;
 }
 
-/** Hex SHA-256 prefix of the file bytes: the key learned server ids are stored under (DB `mapIds`). */
+/**
+ * Hex SHA-256 prefix of the file bytes: the key learned server ids are
+ * stored under (DB `mapIds`). `''` where there is no `crypto.subtle` (not a
+ * secure context: the shared replay's sandboxed frame has an opaque origin,
+ * ADR 0154): no key, so nothing is stored or loaded, as in any replay.
+ */
 export async function mapHash(bytes: Uint8Array): Promise<string> {
-  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return '';
+  const d = new Uint8Array(await subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
   let s = '';
   for (let i = 0; i < 16; i++) s += d[i]!.toString(16).padStart(2, '0');
   return s;

@@ -194,7 +194,7 @@ export function personInk(color: PersonColor, light: boolean, bg: string, self: 
 
 /** A channel's colour in the thread. */
 export function channelInk(name: string, light: boolean, bg: string): string {
-  return fitInk(CHANNEL_INKS[name] ?? channelColor(name), light, bg);
+  return fitInk((Object.hasOwn(CHANNEL_INKS, name) ? CHANNEL_INKS[name] : undefined) ?? channelColor(name), light, bg);
 }
 
 /** A channel's short word in a bubble's footer (`tell`, `say`, …). */
@@ -203,5 +203,5 @@ export function channelWord(name: string): string {
     tells: 'tell', says: 'say', whispers: 'whisper', emotes: 'emote', socials: 'social',
     tales: 'narrate', yells: 'yell', prayers: 'pray', songs: 'song', questions: 'ask',
   };
-  return words[name] ?? name;
+  return (Object.hasOwn(words, name) ? words[name] : undefined) ?? name;
 }

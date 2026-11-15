@@ -206,6 +206,46 @@ async function get(f: (url: string) => Promise<Response>, url: string): Promise<
   return res;
 }
 
+/**
+ * The font files a replay of `payload` needs (`replayFonts`' families with
+ * their glyph faces, and the pane title's face), fetched from `url(\`fonts/…\`)`
+ * once per file: what the exported file embeds and what the shared
+ * replay's frame host sends its frame (src/watch/frame-host.ts).
+ */
+export async function fetchReplayFonts(
+  payload: ReplayPayload,
+  f: (url: string) => Promise<Response>,
+  url: (rel: string) => string,
+): Promise<FontFile[]> {
+  const seen = new Set<string>();
+  // The pane title's face too: the replay shows the panes (ADR 0123).
+  const files = [TITLE_FACE, ...replayFonts(payload).flatMap((id) => familyFaces(id))].filter((x) => {
+    const key = `${x.family}|${x.weight}`;
+    if (!x.file || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  // One fetch per file: some faces share one (a fill face's weights, a
+  // family without a bold).
+  const bytes = new Map<string, Promise<Uint8Array>>();
+  const fetchFont = (file: string): Promise<Uint8Array> => {
+    let p = bytes.get(file);
+    if (!p) {
+      p = get(f, url(`fonts/${file}`)).then(async (r) => new Uint8Array(await r.arrayBuffer()));
+      bytes.set(file, p);
+    }
+    return p;
+  };
+  return Promise.all(
+    files.map(async (x) => ({
+      family: x.family,
+      weight: x.weight,
+      ...(x.unicodeRange ? { unicodeRange: x.unicodeRange } : {}),
+      data: await fetchFont(x.file!),
+    })),
+  );
+}
+
 /** Builds the self-contained HTML replay of `payload` as a Blob (`text/html`). */
 export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayOptions = {}): Promise<Blob> {
   const f = opts.fetch ?? ((url: string) => fetch(url));
@@ -221,36 +261,9 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
     });
   }
   const ids = replayFonts(payload);
-  const seen = new Set<string>();
-  // The pane title's face too: the replay shows the panes (ADR 0123).
-  const files = [TITLE_FACE, ...ids.flatMap((id) => familyFaces(id))]
-    .filter((x) => {
-      const key = `${x.family}|${x.weight}`;
-      if (!x.file || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  // One fetch per file: some faces share one (a fill face's weights, a
-  // family without a bold).
-  const bytes = new Map<string, Promise<Uint8Array>>();
-  const fetchFont = (file: string): Promise<Uint8Array> => {
-    let p = bytes.get(file);
-    if (!p) {
-      p = get(f, url(`fonts/${file}`)).then(async (r) => new Uint8Array(await r.arrayBuffer()));
-      bytes.set(file, p);
-    }
-    return p;
-  };
   const [script, fonts, encoded] = await Promise.all([
     get(f, url(REPLAY_BUNDLE_PATH)).then((r) => r.text()),
-    Promise.all(
-      files.map(async (x) => ({
-        family: x.family,
-        weight: x.weight,
-        ...(x.unicodeRange ? { unicodeRange: x.unicodeRange } : {}),
-        data: await fetchFont(x.file!),
-      })),
-    ),
+    fetchReplayFonts(payload, f, url),
     encodePayload(payload),
   ]);
   const a = payload.settings.appearance;

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import type { OutputBundle } from 'rolldown';
 import { type Plugin, defineConfig } from 'vite';
-import { fillCspHashes } from './scripts/csp.ts';
+import { fillCspHashes, fillFrameHashes, framePolicy } from './scripts/csp.ts';
+import { FRAME_FILE, FRAME_PATH, frameHtml } from './scripts/frame-html.ts';
 
 // Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
 // and `vite preview` send these headers. Production does not: GitHub Pages
@@ -187,7 +188,18 @@ const LICENCE_FILE = 'LICENSE.txt';
  * blob: URL) because a single file cannot load a worker by URL.
  */
 async function bundleReplay(): Promise<string> {
+  return (await bundleReplayRuntime('src/replay/main.ts', true)).code;
+}
+
+/**
+ * The replay runtime from `entry` as one IIFE (the map worker inline, as
+ * above) and its CSS: prepended to the code as a `<style>` it adds when it
+ * runs (`injectCss`, the HTML replay file), or returned apart (the frame
+ * document, whose CSP names its one inline style by hash).
+ */
+async function bundleReplayRuntime(entry: string, injectCss: boolean): Promise<{ code: string; css: string }> {
   const { build } = await import('vite');
+  let collected = '';
   const inlineCss: Plugin = {
     name: 'webcockpit-replay-inline-css',
     enforce: 'post',
@@ -199,8 +211,9 @@ async function bundleReplay(): Promise<string> {
           delete bundle[name];
         }
       }
+      collected = css;
       const entry = Object.values(bundle).find((f) => f.type === 'chunk' && f.isEntry);
-      if (entry?.type === 'chunk' && css) {
+      if (injectCss && entry?.type === 'chunk' && css) {
         entry.code =
           `(()=>{const s=document.createElement("style");s.textContent=${JSON.stringify(css)};document.head.appendChild(s)})();\n` +
           entry.code;
@@ -226,7 +239,7 @@ async function bundleReplay(): Promise<string> {
       copyPublicDir: false,
       emptyOutDir: false,
       lib: {
-        entry: resolve(ROOT, 'src/replay/main.ts'),
+        entry: resolve(ROOT, entry),
         formats: ['iife'],
         name: 'WebCockpitReplay',
         fileName: () => 'replay.js',
@@ -236,7 +249,7 @@ async function bundleReplay(): Promise<string> {
   const outputs = (Array.isArray(out) ? out : [out]) as Array<{ output?: Array<{ type: string; isEntry?: boolean; code?: string }> }>;
   for (const o of outputs) {
     const chunk = o.output?.find((f) => f.type === 'chunk' && f.isEntry);
-    if (chunk?.code) return chunk.code;
+    if (chunk?.code) return { code: chunk.code, css: collected };
   }
   throw new Error('replay bundle: no entry chunk');
 }
@@ -286,6 +299,70 @@ function replayBundlePlugin(): Plugin {
     async generateBundle() {
       if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
       this.emitFile({ type: 'asset', fileName: REPLAY_BUNDLE, source: await bundleReplay() });
+    },
+  };
+}
+
+/** The frame document's text (scripts/frame-html.ts) of a fresh runtime build. */
+async function buildFrameDocument(): Promise<string> {
+  const { code, css } = await bundleReplayRuntime('src/replay/frame-main.ts', false);
+  return frameHtml(code, css, pkg.version);
+}
+
+/**
+ * The shared replay's frame document (ADR 0154 "The watch page"):
+ * `vite build` emits `r/frame.html` (and `cspHashesPlugin` fills its
+ * policy's hashes into `_headers`); `vite` (dev) builds it on the first
+ * request of `<base>r/frame` or `<base>r/frame.html` and keeps it until a
+ * file under src/ changes, and sends it with the policy of
+ * `public/_headers` (hashes filled), so the dev server's frame is as
+ * tight as the host's.
+ */
+function frameDocumentPlugin(): Plugin {
+  let cached: Promise<string> | null = null;
+  return {
+    name: 'webcockpit-frame-document',
+    configureServer(server) {
+      const src = resolve(ROOT, 'src') + sep;
+      const drop = (file: string): void => {
+        if (resolve(file).startsWith(src)) cached = null;
+      };
+      server.watcher.on('change', drop);
+      server.watcher.on('add', drop);
+      server.watcher.on('unlink', drop);
+      const base = server.config.base.replace(/\/?$/, '/');
+      const paths = new Set([`${base}${FRAME_PATH}`, `${base}${FRAME_FILE}`]);
+      server.middlewares.use((req, res, next) => {
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || !paths.has(req.url?.split('?')[0] ?? '')) return next();
+        const r = res as ServerResponse;
+        const p = (cached ??= buildFrameDocument());
+        p.then(
+          (html) => {
+            const policy = framePolicy(readFileSync(resolve(ROOT, 'public/_headers'), 'utf8'));
+            r.statusCode = 200;
+            r.setHeader('Content-Type', 'text/html; charset=utf-8');
+            r.setHeader('Cache-Control', 'no-store');
+            // The dev page is cross-origin isolated (COEP): a sandboxed frame's
+            // document counts as cross-origin there, so Firefox wants CORP
+            // `cross-origin` on it (framing itself is ruled by frame-ancestors).
+            for (const [k, v] of Object.entries(isolationHeaders)) r.setHeader(k, v);
+            r.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            if (policy) r.setHeader('Content-Security-Policy', fillFrameHashes(policy, html));
+            r.end(req.method === 'HEAD' ? undefined : html);
+          },
+          (err: unknown) => {
+            if (cached === p) cached = null;
+            server.config.logger.error(`frame document: ${err instanceof Error ? err.message : String(err)}`);
+            r.statusCode = 500;
+            r.setHeader('Content-Type', 'text/plain');
+            r.end('frame document failed');
+          },
+        );
+      });
+    },
+    async generateBundle() {
+      if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
+      this.emitFile({ type: 'asset', fileName: FRAME_FILE, source: await buildFrameDocument() });
     },
   };
 }
@@ -481,7 +558,11 @@ function cspHashesPlugin(): Plugin {
         .filter((name) => name.endsWith('.html'))
         .map((name) => readFileSync(join(out, name), 'utf8'));
       try {
-        writeFileSync(headers, fillCspHashes(readFileSync(headers, 'utf8'), pages));
+        let text = fillCspHashes(readFileSync(headers, 'utf8'), pages);
+        // The frame document's policy (ADR 0154): its one script and one style.
+        const frame = join(out, FRAME_FILE);
+        if (existsSync(frame)) text = fillFrameHashes(text, readFileSync(frame, 'utf8'));
+        writeFileSync(headers, text);
       } catch (err) {
         this.error(err instanceof Error ? err.message : String(err));
       }
@@ -595,7 +676,7 @@ export default defineConfig(({ command }) => {
     base: siteBase(),
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin(), cspHashesPlugin()],
+    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), frameDocumentPlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin(), cspHashesPlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     // Agent worktrees live under `.claude/` in this checkout: an edit there

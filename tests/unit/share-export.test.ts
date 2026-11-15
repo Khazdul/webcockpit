@@ -6,6 +6,8 @@ import { adr0078Settings } from './legacy-defaults';
 import { captureEntries, stripAnsi } from '../../src/share/capture';
 import { type ExportDoc, defaultExportDoc } from '../../src/share/edits';
 import { buildReplayPayload, editRunText, payloadEdits, replaySettings } from '../../src/share/payload';
+import { pickReplaySettings } from '../../src/share/payload';
+import { migrateSettings } from '../../src/settings/migrate';
 import { ENTRY_COMMENT, buildTimeline } from '../../src/player/timeline';
 import { buildTextExport } from '../../src/share/text';
 import { formatPaneRecord } from '../../src/capture/format';
@@ -144,8 +146,8 @@ describe('buildReplayPayload', () => {
     ]);
     // The comment on a removed line moves to the next kept visible entry.
     expect(p.comments).toEqual([{ beforeUs: us(9), text: 'x'.repeat(90), holdMs: 4000 }]);
-    // (All of the exporter's settings but the phone's own section: tests/unit/share-payload-phone.test.ts.)
-    expect(p.settings).toEqual({ ...settings, phone: undefined });
+    // (The sections the replay reads, migrated as the replay reads them, ADR 0154: tests/unit/replay-validate.test.ts.)
+    expect(p.settings).toEqual(pickReplaySettings(migrateSettings(settings, { recorded: true })));
     expect(p.settings).not.toBe(settings);
     // It plays: the comment holds before `HP:Hurt>`, the cut is short.
     const tl = buildTimeline(p.runs, payloadEdits(p));

@@ -77,7 +77,7 @@ export const COMM_COLORS = {
 
 /** The colour of channel `name` (verb, header label). */
 export function channelColor(name: string): string {
-  return CHANNEL_COLORS[name] ?? COMM_COLORS.unknown;
+  return (Object.hasOwn(CHANNEL_COLORS, name) ? CHANNEL_COLORS[name] : undefined) ?? COMM_COLORS.unknown;
 }
 
 /** One advertised channel (`Comm.Channel.List` entry). */
@@ -107,7 +107,7 @@ export function parseChannelList(data: unknown): ChannelInfo[] | null {
 
 /** Header label: override, else caption, else the name title-cased. */
 export function channelLabel(ch: { name: string; caption?: string }): string {
-  const o = CHANNEL_DISPLAY[ch.name];
+  const o = Object.hasOwn(CHANNEL_DISPLAY, ch.name) ? CHANNEL_DISPLAY[ch.name] : undefined;
   if (o) return o;
   if (ch.caption) return ch.caption;
   return ch.name.charAt(0).toUpperCase() + ch.name.slice(1);
@@ -243,6 +243,11 @@ export const CHANNEL_VERBS: Readonly<Record<string, readonly [string, string]>> 
   questions: ['ask', 'asks'],
 };
 
+/** A channel's verbs, its own entry only (a log's `constructor` channel is unknown, ADR 0154). */
+function ownVerbs(channel: string): readonly [string, string] | undefined {
+  return Object.hasOwn(CHANNEL_VERBS, channel) ? CHANNEL_VERBS[channel] : undefined;
+}
+
 /** Words between the verb and the destination. */
 export const DESTINATION_PREPOSITIONS: Readonly<Record<string, string>> = { whispers: 'to' };
 
@@ -344,7 +349,7 @@ const TO_YOU_RE = /\byou\b/i;
  */
 export function isFramed(m: CommText): boolean {
   const talker = m.talker.trim().toLowerCase();
-  const verb = CHANNEL_VERBS[m.channel]?.[1];
+  const verb = ownVerbs(m.channel)?.[1];
   if (!talker || !verb) return false;
   const plain = stripAnsi(m.text).trimStart().toLowerCase();
   return plain.startsWith(`${talker} ${verb}`) && plain.includes("'");
@@ -394,7 +399,7 @@ export function quotedBody(text: string): string {
 export function formatComm(m: CommText): CommSegment[] {
   if (ACTION_CHANNELS.has(m.channel)) return formatAction(m);
   const self = isYou(m.talker);
-  const verbs = CHANNEL_VERBS[m.channel] ?? [m.channel, m.channel];
+  const verbs = ownVerbs(m.channel) ?? [m.channel, m.channel];
   const out: CommSegment[] = [];
   out.push({ role: self ? 'talkerYou' : 'talkerOther', text: self ? 'You' : cleanName(m.talker || 'Someone') });
   if (isGroupTell(m)) {
@@ -405,7 +410,7 @@ export function formatComm(m: CommText): CommSegment[] {
     out.push({ role: self ? 'messageSelf' : 'messageOther', text: ` '${body}'` });
     return out;
   }
-  const prep = DESTINATION_PREPOSITIONS[m.channel];
+  const prep = Object.hasOwn(DESTINATION_PREPOSITIONS, m.channel) ? DESTINATION_PREPOSITIONS[m.channel] : undefined;
   let dest = m.destination;
   if (!dest && !self && (m.channel === 'tells' || toYou(m))) dest = 'you';
   let verb = ' ' + (self ? verbs[0] : verbs[1]);

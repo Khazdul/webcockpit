@@ -399,7 +399,12 @@ async function remove(c: PubCtx): Promise<Response> {
 class BodyReader {
   private buf = new Uint8Array(0);
   private ended = false;
-  constructor(private readonly reader: ReadableStreamDefaultReader<Uint8Array>) {}
+  // A plain field, not a parameter property: scripts/static-server.ts runs
+  // the router under Node's type stripping, which has no parameter properties.
+  private readonly reader: ReadableStreamDefaultReader<Uint8Array>;
+  constructor(reader: ReadableStreamDefaultReader<Uint8Array>) {
+    this.reader = reader;
+  }
 
   private async fill(n: number): Promise<boolean> {
     while (this.buf.length < n && !this.ended) {

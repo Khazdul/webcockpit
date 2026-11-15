@@ -69,6 +69,10 @@ import { markersOf } from '../player/strip';
 import type { RunEvent } from '../runs/events';
 import { runStartUs } from '../runs/stitch';
 import type { Settings } from '../settings';
+import { type ReplaySettings, pickReplaySettings } from './replay-settings';
+
+export { REPLAY_SETTINGS_KEYS, type ReplaySettings, pickReplaySettings } from './replay-settings';
+import { migrateSettings } from '../settings/migrate';
 import { type CaptureEntry, captureEntries, isCommText, isVisible } from './capture';
 import { type ExcludeRange, type ExportDoc, commentHoldMs, isExcluded } from './edits';
 import { type FoldStats, foldExcludedState, pace, paceRecord } from './fold';
@@ -91,8 +95,11 @@ export interface ReplayPayload {
   level?: number;
   /** The first run's start, µs (the header date). */
   startUs: number;
-  /** The exporter's settings at export time (appearance, panes). */
-  settings: Settings;
+  /**
+   * The exporter's settings at export time, only the sections the replay
+   * reads (`pickReplaySettings`; older files carry them all).
+   */
+  settings: ReplaySettings;
   /**
    * Edited capture texts, oldest run first, with the run metadata the
    * player reads (older files carry the whole `RunMeta`).
@@ -408,13 +415,15 @@ export function buildReplayPayload(
  * MMapper's default tiles (ADR 0020 addendum 2026-10-10), so the tileset
  * is `default`, and a background a community set chose (ADR 0088) goes
  * back to the one the user had before it, as choosing the default
- * tileset in the options would do.
+ * tileset in the options would do. Only the whitelisted sections
+ * (`pickReplaySettings`) of the migrated settings; the phone's among
+ * those left out, as before.
  */
-export function replaySettings(settings: Settings): Settings {
-  const s = JSON.parse(JSON.stringify(settings)) as Settings;
+export function replaySettings(settings: Settings): ReplaySettings {
+  // Through the migration first: a field inside a section that `Settings`
+  // does not know (a damaged store, a future version) is dropped too.
+  const s = pickReplaySettings(migrateSettings(settings, { recorded: true }));
   s.mapper = { ...s.mapper, ...chooseTileset(s.mapper, 'default') };
-  // The phone's own settings (hot key labels and commands among them) are not a replay's: left out, as before they existed.
-  delete (s as Partial<Settings>).phone;
   return s;
 }
 

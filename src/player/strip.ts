@@ -135,7 +135,7 @@ export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, row
       tips: v.marks
         .slice()
         .sort((a, b) => a.offset - b.offset)
-        .map((m) => m.tip || LETTER_TIPS[m.letter]),
+        .map((m) => m.tip || (Object.hasOwn(LETTER_TIPS, m.letter) ? LETTER_TIPS[m.letter] : '')),
     }));
 }
 

@@ -15,6 +15,9 @@
 //                           dev server only: the same, but builds the HTML
 //                           replay of the session and opens the file
 //                           (src/replay/dev.ts)
+//   ?watchframe=<rel>[&session=<id>]
+//                           dev server only: the same, played in the shared
+//                           replay's sandboxed frame (ADR 0154)
 //   ?safe                   default appearance, not saved until changed
 //                           (a way back from a setting that breaks the page)
 //   ?touch=1, ?phone=1      force the touch / phone flags on (ADR 0075,
@@ -148,6 +151,7 @@ if (import.meta.env.DEV) {
     openPlayer: (id) => openPlayerSession(id),
     openPlayerLogs: (rels, character) => openPlayerLogs(rels, character),
     replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
+    watchFrame: async (o) => (await import('./replay/dev')).devWatchFrame(shell, settings, o),
     weather: async (o) => (await import('./weather/dev')).devWeather(shell.app!, settings, o),
   };
 }
@@ -170,6 +174,10 @@ if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('se
 const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;
 if (replayFixture !== null) {
   void import('./replay/dev').then((m) => m.openReplayFixture(shell, settings, replayFixture, params.get('session')));
+}
+const watchFixture = import.meta.env.DEV ? params.get('watchframe') : null;
+if (watchFixture !== null) {
+  void import('./replay/dev').then((m) => m.openWatchFixture(shell, settings, watchFixture, params.get('session')));
 }
 
 // Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`
@@ -271,6 +279,8 @@ declare global {
       openPlayerLogs: (rels: string[], character?: string) => Promise<number>;
       /** Builds an HTML replay (src/replay/dev.ts); resolves to the file's text. */
       replayHtml: (o?: import('./replay/dev').DevReplayOptions) => Promise<string>;
+      /** Plays a payload in the shared replay's sandboxed frame (src/replay/dev.ts, ADR 0154). */
+      watchFrame: (o?: import('./replay/dev').DevWatchOptions) => Promise<import('./replay/dev').DevWatchResult>;
       /** Turns the weather effects on (stage 28; `window.__weather`, src/weather/dev.ts). */
       weather: (o?: import('./weather').WeatherOptions) => Promise<import('./weather/dev').DevWeather | null>;
     };

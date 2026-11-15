@@ -424,9 +424,9 @@ export class MapWorkerCore {
         const inflate = this.host.inflate ?? inflateZlib;
         const tp = now();
         this.phase(req, 'unpack');
-        map = await readMm2(bytes, async (z) => {
+        map = await readMm2(bytes, async (z, max) => {
           const ti = now();
-          const out = await inflate(z);
+          const out = await inflate(z, max);
           stages.inflate = now() - ti;
           this.phase(req, 'parse');
           return out;

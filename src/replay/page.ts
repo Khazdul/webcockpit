@@ -26,12 +26,14 @@
 import { PlayerHost } from '../app/player-host';
 import { type Settings, SettingsStore, migrateSettings } from '../settings';
 import { playAtLogUs } from '../player/timeline';
+import type { Wall } from '../player/engine';
 import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
 import { applyTheme } from '../theme/apply';
 import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
+import { validatePayload } from './validate';
 import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
 
@@ -69,7 +71,7 @@ export interface ReplayPage {
 }
 
 /** Shows a one-line notice in place of the player (a damaged file). */
-function fail(root: HTMLElement, text: string): void {
+export function fail(root: HTMLElement, text: string): void {
   root.textContent = '';
   const p = root.ownerDocument.createElement('div');
   p.className = 'wc-replay-error';
@@ -84,7 +86,7 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
   try {
     const el = doc.getElementById(PAYLOAD_ELEMENT_ID);
     if (!el?.textContent) throw new Error('no payload');
-    payload = await decodePayload(el.textContent);
+    payload = validatePayload(await decodePayload(el.textContent));
   } catch (err) {
     fail(root, `This replay could not be read (${err instanceof Error ? err.message : String(err)}).`);
     return null;
@@ -92,8 +94,8 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
   return openReplay(doc, root, payload);
 }
 
-/** Plays `payload` in `root` (the page, and tests that skip the decoding). */
-export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload): ReplayPage {
+/** Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock). */
+export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall } = {}): ReplayPage {
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
@@ -102,7 +104,7 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map) });
+  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), ...(o.wall ? { wall: o.wall } : {}) });
   host.openChain(
     payload.runs,
     [],

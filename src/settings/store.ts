@@ -104,10 +104,13 @@ function clone<T>(v: T): T {
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** Keys a merge never writes: they would reach a prototype (a patch from parsed JSON may hold them as own keys). */
+const PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 /** Merges `patch` into `target` in place (plain objects recursively, the rest replaced). */
-function mergeInto(target: Obj, patch: Obj): void {
+export function mergeInto(target: Obj, patch: Obj): void {
   for (const [k, v] of Object.entries(patch)) {
-    if (v === undefined) continue;
+    if (v === undefined || PROTO_KEYS.has(k)) continue;
     const cur = target[k];
     if (isObj(v) && isObj(cur)) mergeInto(cur, v);
     else target[k] = clone(v);
