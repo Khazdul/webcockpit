@@ -210,7 +210,8 @@ export function SessionsPage(): VNode {
   const reload = async (): Promise<void> => {
     try {
       const lib = await runs();
-      setAll(await lib.listSessions(nowUs()));
+      // The account's cloud-only sessions too (ADR 0153; their marks are stage 63 C2's).
+      setAll(await lib.listSessions(nowUs(), { remote: true }));
       loaded.current = true;
       setReadFailed(false);
       setStorage(storageText(await lib.estimate()));

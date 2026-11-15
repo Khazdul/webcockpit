@@ -412,3 +412,115 @@ bodies), cloud-runs-remote.test.ts (the adapter against the contract and
 the model), cloud-runs-property.test.ts (the generated runs: two and
 three devices, 90 seeds, about 2 s; `RUNS_SEED`, `RUNS_SCALE`; 2 700
 seeds clean at `RUNS_SCALE=30`), the version 10 upgrade in spaces.test.ts.
+
+## As built (stage 63 C1)
+
+The flows, on branch `stage63-flows`. With the flag `runs` off nothing
+changes from stage 62 (the engine gets `SYNC_SPECS`, no queue, the runs
+stay in the space, Create account leaves them on the device).
+
+**The adapters** (src/cloud/space/local.ts), as `MemoryRunSpace`: `run`
+lists a run here whose row is `up` (or `queued` with an agreed record),
+and `remote`/`fetching` rows with their meta, the meta always through
+`runItemMeta`; a put takes the item's meta into a run here (an `up` row
+its size, no row an `up` one) or makes a `remote` row (a `fetching` one
+stays `fetching`); a remove deletes the run, its chunks, events, row and
+the export doc keyed by it (a session is deleted whole, so the doc of the
+session it began). `exportDoc` lists a doc whose session's first run is
+saved here or `remote`/`fetching`, or that has an agreed record. The run
+server ids are computed before the write's transaction (`runServerId`,
+the engine's `ItemCodec`). `idbRunCloudStore` is the queue's store;
+`putFetched` writes nothing when a tombstone took the row meanwhile.
+
+**The queue on the page** (src/cloud/space/runtime.ts, `PageRuns`):
+
+- **Queued rows are made by the page, not by `save`:** before each queue
+  run every saved, sealed run here without a `runCloud` row gets a
+  `queued` one (`enqueue`). So the Exit popup's save (the live run is
+  sealed only when the game ends), a restore, the move and a run saved
+  before the flag was on all queue the same way. `RunLibrary.save` tells
+  the hook (src/runs/cloud-hook.ts) which runs and where, and the hook
+  starts the queue.
+- Triggers: the hook's save and delete, every sync that ends `synced`
+  (the engine's `usage`/`limits` given to `setRoom` first), at load
+  (`recover()` then the queue), the queue's own `retryAt`, and a recheck a
+  minute later while a game runs in another tab. Never while
+  `isPlaying()`/`holdingGameLock()` or `gameRunningElsewhere()`; the game's
+  end starts a sync and with it the queue. `requestSync` is a sync 300 ms
+  later (one for a few uploads in a row). The body port is loaded with
+  `import()` on the first upload or fetch.
+- After each sync: `revived` runs back to `queued` (or the row of one not
+  here dropped), a `full` of a `run` whose record is missing or rev 0 →
+  `itemRefused`; on `synced` the bodies of runs the player deleted
+  (`syncMeta.runBodyDeletes`, run id → server id, written by
+  `RunStore.deleteSavedRuns` in the Delete's transaction) are deleted
+  unless the run is listed again, and once per page load `checkBodies`.
+- A `session_ended` of the queue or a fetch goes `sessionLost`.
+
+**The library** (src/runs/library.ts, store.ts): `listSessions(now,
+{remote: true})` (History) stitches the `remote`/`fetching` metas in;
+`cloudRows()`; `ensureLocal(session, onProgress)` fetches a session's
+cloud-only runs through the hook, called by the player host's `open`
+(History's Run log, the gallery), the export editor and History's
+Statistics before they read (`PlayerOpenOptions.onFetch` for C2's bar);
+a rating of a cloud-only session is written into its rows' meta (the item
+follows); `remove` deletes in one transaction with the rows; the sweep
+keeps the doc of a first run with a `runCloud` row; `backup(now, {only})`.
+`saveExportDoc` notes `exportDoc` (store-events), a sync 5 s later.
+
+**Runs not in the account** (spaces.ts `runCounts`): a saved run is in the
+cloud only when its row is `up` **and** its `run` record is agreed (rev >
+0, a hash): a body up whose item was never pushed is still lost at a Log
+out. `runCounts` gives the ids too; Log out's Download is the runs backup
+of exactly the saved runs not in the cloud and the unsaved runs.
+`PageSync.unsynced()` replaces the engine's `run`/`new` entries by one per
+saved run not in the cloud. The locked copy: `notInAccount` counts the
+same saved runs (unsaved ones and export docs do not lock; an export doc
+changed alone is not worth a locked copy). Delete account's hand-back is
+unchanged: `remote` rows are not runs, so nothing of them comes back.
+
+**The move** (move.ts `moveRuns`), only with the flag `runs`: after
+`beginMove`, before the change of space, each run is copied into the
+account's space in one transaction (skipped when it is there), then
+deleted on the device in one transaction if its meta's fingerprint is as
+copied; otherwise it stays the device's and its copy leaves the account's
+space again. The export docs follow (the account's own doc of a session
+wins). `MoveState.runs` keeps `pending` (finished at the next load if cut
+off) and the saved ids moved; `total.runs` names them in the move's line
+("Moved into X: 4 runs.") and the Account page's. A `full` or `tooLarge`
+of a moved run that no save of this page asked for fires no "does not
+fit"; `runsView().notInCloudAfterMove` counts them.
+
+**src/cloud/runs-view.ts** is C2's API (documented at its top): the view
+(`on`, `cloud` used/limit, `queued`, `notInCloudAfterMove`),
+`sessionCloud(session, rows)`, `storageFigures(lib)`,
+`cloudOnlySessions(lib)`, `fetchSession(id, p)`, `fetchAll(p)`,
+`onDoesNotFit` / `takeDoesNotFit` (`{runId, sessionId, used, limit, size,
+reason, where}`; `where` `history`, or `start` for a save asked in play or
+for a run no save of this page asked for). It imports only types; the
+runtime sets its fetcher.
+
+**Where it differs from the decision above**: the queued rows come from
+the page's scan, not from `save` (above); `where` is `start` also for a
+run that no save of this page asked for (a run saved before, queued at
+load); an export doc changed alone does not keep a copy locked; the move
+of runs happens only with the flag `runs` (off, runs stay on the device
+as in stage 62, where Log out keeps them).
+
+**The entry chunk**: 31 122 → 31 188 bytes, all of it the preload map's
+names of two more chunks (src/runs/cloud-hook.ts, shared by the library
+and the runtime, and a split of the run modules): no code. The runtime
+chunk (src/cloud/space/runtime.ts, lazy) grew from 19 to 36 kB with the
+queue and the fetch adapter; the body's codec is its own 2 kB chunk,
+loaded on the first upload or fetch.
+
+**Tests.** tests/unit/cloud-space-runs.test.ts (the adapters, the store,
+the library, runCounts and the backup of some runs, the move with a run
+changed between copy and removal, and `PageSync` with runs on two devices
+over the model: save, remote, fetch, delete everywhere; a run over the
+limit saved in play, told once at the game's end, retried with room; the
+moved runs newest first, the one that does not fit counted, not told).
+e2e on the fake (tests/e2e/cloud-account-fake.ts grew `/api/u/runs`, the
+flag `runs`, the model's quota): tests/e2e/sync-runs.spec.ts and
+phone-sync-runs.spec.ts. `npm run test:sync-worker` turns `runs` on and
+uploads, lists, fetches and deletes a run against the local Worker and R2.

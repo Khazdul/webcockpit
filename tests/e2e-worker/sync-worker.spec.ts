@@ -6,7 +6,9 @@
 // same profile changed on both keeps both, a lost session with and without
 // a change not in the account (locked, unlocked by a login), log out, and
 // Delete account handing the things back. Stage 62: a settings change
-// and a Comm message go across too.
+// and a Comm message go across too. Stage 63 (ADR 0153, the flag `runs`):
+// a saved run uploads to the local R2, is listed, is fetched on the second
+// device, and a delete takes it off both and out of R2.
 
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from '../e2e/account-pages';
@@ -81,6 +83,37 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   await b.page.keyboard.press('Escape');
   await expect(b.page.locator('.wc-start').getByText(/Settings from/)).toHaveCount(0); // applied quietly (pick 2a)
   await account(b.page);
+
+  // Stage 63: a saved run on A goes up (R2 of the local Worker), is listed, B fetches it; a delete takes it everywhere.
+  const RUN = 'Testchar/run-1';
+  const T = Date.now() * 1000 - 3_600_000_000;
+  await putIdb(a.page, DB, 'runChunks', [{ runId: RUN, seq: 0, firstUs: T, lastUs: T + 1000, text: 'You are in a dark room.\n' }]);
+  await putIdb(a.page, DB, 'runEvents', [{ runId: RUN, seq: 0, event: { type: 'run_start', us: T } }]);
+  await putIdb(a.page, DB, 'runs', [{ runId: RUN, character: 'Testchar', startedUs: T, endedUs: T + 2000, sealed: true, bytes: 24, lines: 1, saved: true, rating: 3, savedUs: T + 2000 }]);
+  const stateOn = async (p: Page): Promise<unknown> => (await getIdb(p, DB, 'runCloud')).find((r) => r.runId === RUN)?.state;
+  await syncNow(a.page); // a sync that ends synced starts the queue
+  await expect.poll(() => stateOn(a.page), { timeout: 20_000 }).toBe('up');
+  const listed = (p: Page): Promise<number> =>
+    p.evaluate(async () => ((await (await fetch('/api/u/runs', { credentials: 'same-origin' })).json()) as { bodies: unknown[] }).bodies.length);
+  await expect.poll(() => listed(a.page), { timeout: 20_000 }).toBe(1);
+  await syncNow(a.page); // the item (its push may be in flight already)
+  await b.page.keyboard.press('Escape');
+  await account(b.page);
+  await syncNow(b.page);
+  await expect.poll(() => stateOn(b.page), { timeout: 20_000 }).toBe('remote');
+  const got = await b.page.evaluate(async (id) => (await import('/src/cloud/runs-view.ts' as string)).fetchSession(id), RUN);
+  expect(got).toMatchObject({ ok: true, fetched: 1 });
+  expect(await stateOn(b.page)).toBe('up');
+  expect((await getIdb(b.page, DB, 'runChunks')).map((c) => c.text)).toEqual(['You are in a dark room.\n']);
+  expect((await getIdb(b.page, DB, 'runs')).find((r) => r.runId === RUN)).toMatchObject({ rating: 3, saved: true });
+  await a.page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    for (const s of await lib.listSessions(Date.now() * 1000)) if (s.character === 'Testchar') await lib.remove(s);
+  });
+  await expect.poll(() => listed(a.page), { timeout: 20_000 }).toBe(0);
+  await syncNow(b.page);
+  await expect.poll(() => stateOn(b.page), { timeout: 20_000 }).toBeUndefined();
+  expect((await getIdb(b.page, DB, 'runs')).filter((r) => r.runId === RUN)).toEqual([]);
 
   // The same profile changed on both: keep both.
   await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior', '#nop A again', 3000)]);

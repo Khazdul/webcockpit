@@ -191,25 +191,25 @@ touches staging or production.
 
 #### C1. Flows (worktree `stage63-flows`, port 5444)
 
-- [ ] The IndexedDB adapters for `run` and `exportDoc` (`local.ts`): a
+- [x] The IndexedDB adapters for `run` and `exportDoc` (`local.ts`): a
       run listed only when `up`; a pulled item → a `remote` row (or the
       meta of a run that is here); a tombstone deletes; an edit that
       beats a delete puts the run back in the queue.
-- [ ] The queue wired: triggers (after a save, after a sync, at load,
+- [x] The queue wired: triggers (after a save, after a sync, at load,
       after a delete), the lock `webcockpit-runs@<space>`, not while
       playing; orphans dropped.
-- [ ] `RunLibrary.save` / `remove` queue and delete; the sweep keeps
+- [x] `RunLibrary.save` / `remove` queue and delete; the sweep keeps
       export docs of cloud sessions; `listSessions` with `remote` rows.
-- [ ] The move of runs at Create account (with fingerprints); then the
+- [x] The move of runs at Create account (with fingerprints); then the
       uploads; the move's line.
-- [ ] `unsynced()` with runs; the locked copy; Delete account's
+- [x] `unsynced()` with runs; the locked copy; Delete account's
       hand-back of `remote` rows (none: they are the account's).
-- [ ] `src/cloud/runs-view.ts`: what the views read (a session's cloud
+- [x] `src/cloud/runs-view.ts`: what the views read (a session's cloud
       state, the storage figures, `fetchSession(id, onProgress)`,
       `fetchAll`, the "does not fit" event).
-- [ ] e2e (fake API, two contexts): save on A, open on B; Create account
+- [x] e2e (fake API, two contexts): save on A, open on B; Create account
       with runs; a run over the limit stays "not in the cloud".
-- [ ] `npm run test:sync-worker`: a run uploaded, listed and fetched
+- [x] `npm run test:sync-worker`: a run uploaded, listed and fetched
       against the local Worker.
 
 #### C2. Views (worktree `stage63-views`, port 5445)

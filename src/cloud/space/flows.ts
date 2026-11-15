@@ -21,7 +21,7 @@ import type { Unsynced } from '../sync/types';
 import { type LockedNotice, isPlaying, patchSyncView } from '../sync-view';
 import { META, writeMeta } from './local';
 import { smallKindNames } from './unsynced-words';
-import { beginMove } from './move';
+import { beginMove, moveRuns } from './move';
 import { notifyWritten } from './notify';
 import {
   accountNameOf,
@@ -36,7 +36,7 @@ import {
   recordWithout,
   spaceDb,
 } from './spaces';
-import { deletedElsewhereWords, deletedHereWords, handingBackWords, keptWords, lockedWords, lostWords, movingWords, unsyncedLines } from './words';
+import { deletedElsewhereWords, deletedHereWords, handingBackWords, keptWords, lockedWords, lostWords, movedWords, movingWords, unsyncedLines } from './words';
 
 /** True when logging in changes space (the flag `sync`). */
 export const spacesOn = (): Promise<boolean> => flagOn('sync');
@@ -130,11 +130,14 @@ export async function enterAccount(name: string, message?: string): Promise<bool
 export async function createAccountSpace(name: string): Promise<boolean> {
   const nameKey = nameKeyOf(name);
   // The mark goes only once the move's state is stored: a move that fails before is begun again at the next load.
-  const { total } = await beginMove(name, thisDeviceLabel());
+  const runsOn = await flagOn('runs').catch(() => false);
+  const { open, total } = await beginMove(name, thisDeviceLabel(), Date.now(), { runs: runsOn });
   forgetCreated();
+  // With the flag `runs`, the runs move now, locally (ADR 0153); one cut off goes on at the next load.
+  const runs = runsOn ? await moveRuns(open).catch(() => 0) : 0;
   await closeSpaceDb(nameKey);
   const n = total.profiles + total.scripts;
-  return switchSpace(recordOpening(nameKey), n > 0 ? movingWords(name, 0, n) : undefined);
+  return switchSpace(recordOpening(nameKey), n > 0 ? movingWords(name, 0, n) : runs > 0 ? movedWords(name, { ...total, runs }) : undefined);
 }
 
 /**

@@ -339,7 +339,7 @@ describe('player core: open', () => {
   type Lib = Parameters<PlayerHost['open']>[1];
   type Ses = Parameters<PlayerHost['open']>[0];
   const lib = (chain: Array<{ meta: ReturnType<typeof meta>; text: string }>): Lib =>
-    ({ chainLog: async () => chain, events: async () => [] }) as unknown as Lib;
+    ({ chainLog: async () => chain, events: async () => [], ensureLocal: async () => ({ ok: true }) }) as unknown as Lib;
   const session = { character: 'Rasta', runs: [{ runId: 'Rasta/x' }] } as unknown as Ses;
 
   it('rejects a session whose logs are not stored or empty, and passes the mode on', async () => {

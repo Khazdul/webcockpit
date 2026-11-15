@@ -35,6 +35,7 @@ import { xpForLevel } from '../../gmcp/levels';
 import type { PvpRow, KillRow, StatsModel, XpRuler } from '../../runs/stats';
 import { buildStats, rateSeries } from '../../runs/stats';
 import type { Session } from '../../runs/stitch';
+import { notFetchedWords } from '../../runs/cloud-hook';
 import { useServices } from '../kit/hooks';
 import { Box, BoxBody, BoxHead, Icon, type IconDraw, Stars, Table, TableRow, lookFrame } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
@@ -255,6 +256,9 @@ export const HistoryStatsFrame = lookFrame(function HistoryStatsFrame(p: { sessi
     void (async () => {
       try {
         const lib = await runs();
+        // A session in the cloud is fetched first (ADR 0153; the progress is stage 63 C2's).
+        const got = await lib.ensureLocal(s);
+        if (!got.ok) throw new Error(notFetchedWords(got.why));
         const events = await lib.events(s.runs.map((r) => r.runId));
         if (alive) setModel(buildStats(events, { character: s.character }));
       } catch (e) {

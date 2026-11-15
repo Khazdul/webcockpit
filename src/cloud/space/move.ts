@@ -15,8 +15,21 @@
 //
 // Untouched seeds and bundled scripts are not the device's own things and
 // stay where they are.
+//
+// Runs (stage 63 C1, ADR 0153 "The move at Create account"): every run of
+// the device (meta, chunks, events) moves into the account's space, one
+// transaction per run, and leaves the device at once (runs are moved
+// locally; the upload is the account space's: its queue takes the saved
+// ones, newest first). The fingerprint rule holds: a run whose meta
+// changed on the device after the copy (a guest game in another tab still
+// recording it) stays the device's, and its copy leaves the account's
+// space again. The export docs follow (a doc the account's space already
+// has for a session is kept). `moveRuns` runs before the change of space;
+// one cut off goes on at the next load (`state.runs.pending`).
 
+import { STORE, idbDone, idbRequest } from '../../core/db';
 import { DEVICE_SPACE } from '../../core/space';
+import type { RunMeta } from '../../capture/store';
 import type { SyncOutcome } from '../sync/types';
 import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, writeMeta } from './local';
 import { notifyWritten } from './notify';
@@ -44,6 +57,8 @@ export interface MoveState {
   kept?: MoveEntry[];
   /** When the last thing left the device, or null. */
   doneAt: number | null;
+  /** The runs' part (stage 63): the saved ones moved (their uploads end `full` without a dialog), and whether it is still to finish. */
+  runs?: { saved: string[]; pending: boolean };
 }
 
 export interface MoveProgress {
@@ -67,9 +82,11 @@ const sum = (c: KindCounts): number => c.profiles + c.scripts;
 /**
  * The move's first half, in the device's space, right after the account
  * is made: the account's space prepared (fresh), the device's own things
- * copied into it, the list kept. Returns what moves.
+ * copied into it, the list kept. Returns what moves. `runs` (the flag
+ * `runs` on): the runs move too (`moveRuns`, next); off, they stay on the
+ * device as in stage 62.
  */
-export async function beginMove(name: string, deviceLabel: string, now = Date.now()): Promise<{ open: OpenDb; total: KindCounts }> {
+export async function beginMove(name: string, deviceLabel: string, now = Date.now(), o: { runs?: boolean } = {}): Promise<{ open: OpenDb; total: KindCounts }> {
   const own = await ownThings(deviceDb);
   const open = await prepareAccountSpace(name, { fresh: true, deviceLabel, copy: 'all' });
   const written = await writeThings(open, own, { keepIds: true, replaceSeeds: true });
@@ -84,9 +101,116 @@ export async function beginMove(name: string, deviceLabel: string, now = Date.no
     ...written.scripts.map((s) => entry('script', s.id, s.name)),
   ];
   const total = counts(left);
-  const state: MoveState = { total, left, doneAt: left.length === 0 ? now : null };
+  const state: MoveState = { total, left, doneAt: left.length === 0 ? now : null, runs: { saved: [], pending: o.runs === true } };
   await writeMeta(open, { [META.move]: state });
   return { open, total };
+}
+
+const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
+
+/** A fingerprint of a stored value (FNV-1a of its JSON; equal values, equal prints: structured clone keeps key order). */
+function print(v: unknown): string {
+  const s = JSON.stringify(v) ?? '';
+  let a = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) a = Math.imul(a ^ s.charCodeAt(i), 0x01000193);
+  return `${(a >>> 0).toString(36)}.${s.length}`;
+}
+
+/**
+ * The runs' part of the move (see the file header): every run of the
+ * device into the account's space, then out of the device. Safe to run
+ * again: a run the account's space already has (the same id, start and
+ * character) is not copied twice, and the device's copy goes when it is
+ * as the account's is. Returns how many runs moved; the move's state
+ * keeps the count (`total.runs`) and the saved ones. `afterCopy`: tests
+ * (a write on the device between the copy and the removal).
+ */
+export async function moveRuns(open: OpenDb, from: OpenDb = deviceDb, o: { afterCopy?: (runId: string) => Promise<void> } = {}): Promise<number> {
+  const m = await moveState(open);
+  if (!m || !m.runs?.pending) return m?.total.runs ?? 0;
+  const src = await from();
+  const dst = await open();
+  const rt = src.transaction([STORE.runs, STORE.exports], 'readonly');
+  const rdone = idbDone(rt);
+  const [runs, docs] = (await Promise.all([idbRequest(rt.objectStore(STORE.runs).getAll()), idbRequest(rt.objectStore(STORE.exports).getAll())])) as [RunMeta[], { sessionId: string }[]];
+  await rdone;
+  let moved = 0;
+  const saved: string[] = [];
+  for (const run of runs) {
+    if (typeof run?.runId !== 'string') continue;
+    const ct = src.transaction([STORE.runs, STORE.runChunks, STORE.runEvents], 'readonly');
+    const cdone = idbDone(ct);
+    const [meta, chunks, events] = (await Promise.all([
+      idbRequest(ct.objectStore(STORE.runs).get(run.runId)),
+      idbRequest(ct.objectStore(STORE.runChunks).getAll(runRange(run.runId))),
+      idbRequest(ct.objectStore(STORE.runEvents).getAll(runRange(run.runId))),
+    ])) as [RunMeta | undefined, unknown[], unknown[]];
+    await cdone;
+    if (!meta) continue;
+    const copied = print(meta);
+    // Into the account's space (one transaction), unless it is there already.
+    const wt = dst.transaction([STORE.runs, STORE.runChunks, STORE.runEvents], 'readwrite');
+    const wdone = idbDone(wt);
+    const there = (await idbRequest(wt.objectStore(STORE.runs).get(meta.runId))) as RunMeta | undefined;
+    let ours = false;
+    if (!there) {
+      wt.objectStore(STORE.runs).put(meta);
+      for (const c of chunks) wt.objectStore(STORE.runChunks).put(c);
+      for (const e of events) wt.objectStore(STORE.runEvents).put(e);
+      ours = true;
+    }
+    await wdone;
+    await o.afterCopy?.(meta.runId);
+    // A run of the same id that is another run (random ids: all but impossible), or one the account's space changed since: both stay.
+    if (there && print(there) !== copied) continue;
+    // Out of the device, if it is still as it was copied (one transaction).
+    const dt = src.transaction([STORE.runs, STORE.runChunks, STORE.runEvents], 'readwrite');
+    const ddone = idbDone(dt);
+    const now = (await idbRequest(dt.objectStore(STORE.runs).get(meta.runId))) as RunMeta | undefined;
+    const same = !!now && print(now) === copied;
+    if (same) {
+      dt.objectStore(STORE.runs).delete(meta.runId);
+      dt.objectStore(STORE.runChunks).delete(runRange(meta.runId));
+      dt.objectStore(STORE.runEvents).delete(runRange(meta.runId));
+    }
+    await ddone;
+    if (!same) {
+      // Changed on the device after the copy (a game in another tab): it stays the device's, and its copy goes again.
+      if (ours) {
+        const xt = dst.transaction([STORE.runs, STORE.runChunks, STORE.runEvents], 'readwrite');
+        const xdone = idbDone(xt);
+        xt.objectStore(STORE.runs).delete(meta.runId);
+        xt.objectStore(STORE.runChunks).delete(runRange(meta.runId));
+        xt.objectStore(STORE.runEvents).delete(runRange(meta.runId));
+        await xdone;
+      }
+      continue;
+    }
+    moved++;
+    if (meta.saved) saved.push(meta.runId);
+  }
+  // The export docs: copied where the account's space has none for the session, then out of the device as they were.
+  for (const doc of docs) {
+    if (typeof doc?.sessionId !== 'string') continue;
+    const et = dst.transaction(STORE.exports, 'readwrite');
+    const edone = idbDone(et);
+    if ((await idbRequest(et.objectStore(STORE.exports).getKey(doc.sessionId))) === undefined) et.objectStore(STORE.exports).put(doc);
+    await edone;
+    const dt = src.transaction(STORE.exports, 'readwrite');
+    const ddone = idbDone(dt);
+    const now = await idbRequest(dt.objectStore(STORE.exports).get(doc.sessionId));
+    if (now !== undefined && print(now) === print(doc)) dt.objectStore(STORE.exports).delete(doc.sessionId);
+    await ddone;
+  }
+  const cur = (await moveState(open)) ?? m;
+  const runsTotal = (cur.total.runs ?? 0) + moved;
+  const next: MoveState = {
+    ...cur,
+    total: { ...cur.total, ...(runsTotal > 0 ? { runs: runsTotal } : {}) },
+    runs: { saved: [...(cur.runs?.saved ?? []), ...saved], pending: false },
+  };
+  await writeMeta(open, { [META.move]: next });
+  return runsTotal;
 }
 
 /** The move as it stands, or null when this space was not made by a move. */
