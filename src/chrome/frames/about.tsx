@@ -30,7 +30,9 @@
 // The privacy page (stage 59, ADR 0147) is the same leaf with its own text
 // (privacy-text.ts, letters P E Y K A C W R): `PrivacyFrame`, opened from
 // About's "privacy page" and at the address `<base>privacy`. About's
-// "What the site knows" is its short form.
+// "What the site knows" is its short form. With the server's flag
+// `accounts` on, "Coming later" (C) gives way to "Accounts" (O,
+// privacy-accounts.ts, stage 62), loaded only then.
 
 import './about.css';
 import type { VNode } from 'preact';
@@ -51,6 +53,7 @@ import {
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
 import { LookWordmark } from '../start-surface';
+import { accountsEnabled } from '../../cloud/account/state';
 import { PRIVACY_NAV, PRIVACY_TEXT, PRIVACY_UPDATED } from './privacy-text';
 
 export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server between you and the game, and your settings, profiles and runs kept only in this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
@@ -332,7 +335,20 @@ export const PrivacyFrame = lookFrame(function PrivacyFrame(): VNode {
     },
     [],
   );
-  return <Leaf title="Privacy" text={PRIVACY_TEXT} nav={PRIVACY_NAV} sub={PRIVACY_UPDATED} />;
+  const [page, setPage] = useState<{ text: string; nav: LeafNav; sub: string }>({ text: PRIVACY_TEXT, nav: PRIVACY_NAV, sub: PRIVACY_UPDATED });
+  // With the flag `accounts` on (stage 62, staging only for now) the account section replaces "Coming later".
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (!(await accountsEnabled())) return;
+      const m = await import('./privacy-accounts');
+      if (alive) setPage({ ...m.withAccounts(PRIVACY_TEXT, PRIVACY_NAV), sub: m.PRIVACY_ACCOUNTS_UPDATED });
+    })().catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return <Leaf title="Privacy" text={page.text} nav={page.nav} sub={page.sub} />;
 });
 
 /** True when the page was opened at the privacy page's address (`<base>privacy`). */
