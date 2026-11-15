@@ -52,12 +52,27 @@
 // cursor follows its session through sort, save and reload; after a delete
 // it stays at the same index.
 //
+// Runs in the cloud (stage 63 C2, ADR 0153; round 11's pick 2b): logged
+// in with the flag `runs`, the list holds the account's sessions that are
+// only in the cloud too. A quiet tag beside the name says "in the cloud ·
+// 2.4 MB" (opening fetches it) or "not in the cloud" (a saved run that is
+// full, too large, or not uploaded a while after its save); a run in step
+// and an unsaved run carry nothing. The card says it under Kept or Log;
+// the storage line gives the device's and the cloud's figures. Run log,
+// Stats and Export of a session in the cloud fetch it first, with stage
+// 24's bar in the card (the actions wait); offline they are off, the tag
+// says so and the flash says why. A guest, or the flag off: as before.
+//
 // Pure helpers (sort, cells, the card's words, the phone's sort list):
-// history-model.ts.
+// history-model.ts; the cloud's words: src/cloud/runs-words.ts.
 
 import { Component, type Ref, type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { nowUs } from '../../core/types';
+import { type SessionMark, onRunsView, runsView, sessionMark } from '../../cloud/runs-view';
+import type { RunCloudRow } from '../../cloud/runs/types';
+import { OFFLINE_FLASH, fetchLine, keptNote, logNote, markTag, storageLine } from '../../cloud/runs-words';
+import { notFetchedWords } from '../../runs/cloud-hook';
 import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
 import { downloadBlob } from '../kit/download';
@@ -72,6 +87,8 @@ import {
   LookFlash,
   Seg,
   Select,
+  Icon,
+  LoadBar,
   Stars as LookStars,
   Table,
   TableRow,
@@ -103,6 +120,7 @@ import {
   sessionDeeds,
   sortOptions,
   sortSessions,
+  fmtBytes,
   sortValue,
   storageText,
 } from './history-model';
@@ -113,6 +131,7 @@ import { RunLogFrame } from './run-log';
 import { DiaryPage } from './credits';
 import { type HistoryTab, HistoryTabsCtx, type HistoryTabsValue, useHistoryTabs } from './history-tabs';
 import { SpotlightsTab } from './spotlights';
+import { markHistoryOpen, useRunsOn } from './runs-cloud';
 import './history.css';
 
 export const NO_PLAYER = 'Log player not available.';
@@ -152,6 +171,25 @@ const COLS = 'var(--wc-hist-cols)';
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+const NO_ROWS: ReadonlyMap<string, RunCloudRow> = new Map();
+
+/** The browser's word on the network (`online` / `offline` events). */
+function useOffline(): boolean {
+  const [off, setOff] = useState(() => globalThis.navigator?.onLine === false);
+  useEffect(() => {
+    const w = globalThis.window;
+    if (!w) return;
+    const put = (): void => setOff(globalThis.navigator?.onLine === false);
+    w.addEventListener('online', put);
+    w.addEventListener('offline', put);
+    return () => {
+      w.removeEventListener('online', put);
+      w.removeEventListener('offline', put);
+    };
+  }, []);
+  return off;
+}
+
 /**
  * History (stage 67, ADR 0149): one frame with the tab strip over three
  * pages, Sessions (the page below), Spotlights (spotlights.tsx) and Diary
@@ -163,6 +201,8 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
  */
 export const HistoryFrame = lookFrame(function HistoryFrame(p: { tab?: HistoryTab }): VNode {
   const [tab, setTab] = useState<HistoryTab>(p.tab ?? 'sessions');
+  // The "does not fit" dialog over History leaves out Open History.
+  useEffect(() => markHistoryOpen(), []);
   const value = useMemo((): HistoryTabsValue => ({ tab, go: setTab }), [tab]);
   return (
     <HistoryTabsCtx.Provider value={value}>
@@ -183,7 +223,13 @@ export function SessionsPage(): VNode {
   const isTop = useIsTop();
   const [all, setAll] = useState<Session[] | null>(null);
   const [readFailed, setReadFailed] = useState(false);
-  const [storage, setStorage] = useState('');
+  const [est, setEst] = useState<{ usage: number; quota: number } | null>(null);
+  // Runs in the cloud (stage 63 C2): the rows, the cloud's figures, the network, a fetch in the card.
+  const runsOn = useRunsOn();
+  const [cloudRows, setCloudRows] = useState<ReadonlyMap<string, RunCloudRow>>(NO_ROWS);
+  const [cloudFig, setCloudFig] = useState(() => runsView().cloud);
+  const offline = useOffline();
+  const [fetching, setFetching] = useState<{ id: string; done: number; total: number } | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<HistorySort>(DEFAULT_HISTORY_SORT);
   const [cursorId, setCursorId] = useState<string | null>(null);
@@ -211,10 +257,12 @@ export function SessionsPage(): VNode {
     try {
       const lib = await runs();
       // The account's cloud-only sessions too (ADR 0153; their marks are stage 63 C2's).
-      setAll(await lib.listSessions(nowUs(), { remote: true }));
+      const [list, rows] = await Promise.all([lib.listSessions(nowUs(), { remote: true }), runsView().on ? lib.cloudRows() : Promise.resolve(NO_ROWS)]);
+      setAll(list);
+      setCloudRows(rows);
       loaded.current = true;
       setReadFailed(false);
-      setStorage(storageText(await lib.estimate()));
+      setEst(await lib.estimate());
     } catch (e) {
       // A failed first read leaves the page empty with its note; a later
       // one keeps the list it has.
@@ -226,6 +274,15 @@ export function SessionsPage(): VNode {
   useEffect(() => {
     if (isTop) void reload();
   }, [isTop]);
+  // The queue and the sync change where sessions are: read again (not under a dialog or a sub-page).
+  useEffect(
+    () =>
+      onRunsView((v) => {
+        setCloudFig(v.cloud);
+        if (top.current && alive.current) void reload();
+      }),
+    [],
+  );
 
   // The page's own width decides its form (never the device): measured
   // once at mount (the box is laid out at its final size at once) and on
@@ -266,6 +323,24 @@ export function SessionsPage(): VNode {
   let cursor = cursorId === null ? -1 : list.findIndex((s) => s.id === cursorId);
   if (cursor < 0) cursor = Math.max(0, Math.min(cursorIdx, list.length - 1));
   const cur = list[cursor];
+  // Each session's tag (null: none); only with runs in the cloud on.
+  const marks = useMemo(() => {
+    const m = new Map<string, SessionMark>();
+    if (!runsOn || cloudRows.size === 0) return m;
+    const now = Date.now();
+    for (const s of all ?? []) {
+      const k = sessionMark(s, cloudRows, now);
+      if (k) m.set(s.id, k);
+    }
+    return m;
+  }, [all, cloudRows, runsOn]);
+  const curMark = cur ? (marks.get(cur.id) ?? null) : null;
+  const curRemote = curMark?.kind === 'remote';
+  // Offline with sessions in the cloud: the flash says why they cannot be opened.
+  const anyRemote = [...marks.values()].some((m) => m?.kind === 'remote');
+  useEffect(() => {
+    if (offline && anyRemote && isTop) nav.flash(OFFLINE_FLASH, 'fail', 60_000);
+  }, [offline, anyRemote]);
 
   const moveTo = (i: number): void => {
     const n = Math.max(0, Math.min(list.length - 1, i));
@@ -280,11 +355,14 @@ export function SessionsPage(): VNode {
   };
 
   const disabled = (b: ActionId): boolean => {
+    // A fetch in the card: every action waits.
+    if (fetching) return true;
     switch (b) {
       case 'RUN LOG':
       case 'EXPORT':
-        return !cur?.hasLog;
+        return !cur?.hasLog || (curRemote && offline);
       case 'STATS':
+        return !cur || (curRemote && offline);
       case 'RATE':
       case 'DELETE':
         return !cur;
@@ -307,15 +385,69 @@ export function SessionsPage(): VNode {
     }
   };
 
+  /**
+   * A session in the cloud is fetched before it is read, with stage 24's
+   * bar in the card; false (and a flash) when it could not be.
+   */
+  const fetchFirst = async (s: Session): Promise<boolean> => {
+    if (marks.get(s.id)?.kind !== 'remote') return true;
+    if (globalThis.navigator?.onLine === false) {
+      nav.flash(OFFLINE_FLASH, 'fail');
+      return false;
+    }
+    setFetching({ id: s.id, done: 0, total: 0 });
+    try {
+      const got = await (await runs()).ensureLocal(s, (done, total) => {
+        if (alive.current) setFetching({ id: s.id, done, total });
+      });
+      if (!got.ok) {
+        if (alive.current) nav.flash(notFetchedWords(got.why), 'fail');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      if (alive.current) nav.flash(notFetchedWords(errText(e)), 'fail');
+      return false;
+    } finally {
+      if (alive.current) {
+        setFetching(null);
+        void reload();
+      }
+    }
+  };
+
+  /** Stats or Export of `s`, fetched first when it is in the cloud. */
+  const openAfterFetch = (s: Session, node: () => VNode): void => {
+    // On this device (a guest's always): at once, as before.
+    if (marks.get(s.id)?.kind !== 'remote') {
+      nav.push(node());
+      return;
+    }
+    void run(async () => {
+      opening.current = true;
+      try {
+        if (!(await fetchFirst(s))) return;
+        if (alive.current && top.current) nav.push(node());
+      } finally {
+        opening.current = false;
+      }
+    });
+  };
+
   const openLog = (s: Session | undefined): void => {
     if (!s?.hasLog) return;
     if (!openRunLog) {
       nav.flash(NO_PLAYER, 'fail');
       return;
     }
+    if (marks.get(s.id)?.kind === 'remote' && globalThis.navigator?.onLine === false) {
+      nav.flash(OFFLINE_FLASH, 'fail');
+      return;
+    }
     void run(async () => {
       opening.current = true;
       try {
+        if (!(await fetchFirst(s))) return;
         const r = await openRunLog(s);
         // Only over History: the page and the box belong to it, not to whatever is on top now.
         const here = alive.current && top.current;
@@ -379,7 +511,7 @@ export function SessionsPage(): VNode {
       case 'RUN LOG':
         return openLog(cur);
       case 'STATS':
-        return cur && nav.push(<HistoryStatsFrame session={cur} />);
+        return cur && openAfterFetch(cur, () => <HistoryStatsFrame session={cur} />);
       case 'RATE':
         return cur && nav.push(<RateDialog session={cur} done={reload} />, { overlay: true });
       case 'SAVE':
@@ -387,7 +519,7 @@ export function SessionsPage(): VNode {
         return;
       case 'EXPORT':
         // Every device: stage 43 builds the Export editor for the phone (ADR 0075 addendum).
-        return cur && nav.push(<ExportEditorFrame session={cur} />);
+        return cur && openAfterFetch(cur, () => <ExportEditorFrame session={cur} />);
       case 'DELETE':
         return cur && nav.push(<DeleteDialog session={cur} done={reload} />, { overlay: true });
       case 'BACKUP':
@@ -457,7 +589,10 @@ export function SessionsPage(): VNode {
     <aside key="card" class="wc-hist-card" aria-label="The chosen session" aria-live="polite">
       {cur ? (
         <div key={cur.id} class="wc-hist-card-in">
-          <SessionCard s={cur} />
+          <SessionCard s={cur} mark={curMark} offline={offline} />
+          {fetching && fetching.id === cur.id && (
+            <LoadBar class="wc-hist-load" done={fetching.done} total={fetching.total} line={fetchLine(fetching.done, fetching.total)} />
+          )}
           <div class="wc-lk-btncol wc-hist-acts">
             {btn('RUN LOG', { primary: true })}
             {btn('STATS')}
@@ -484,7 +619,18 @@ export function SessionsPage(): VNode {
   const rows: VNode[] = [];
   list.forEach((s, i) => {
     const on = i === cursor;
-    rows.push(<HistoryRow key={s.id} s={s} i={i} state={on ? (inRows ? 'cur' : 'idle') : null} />);
+    const m = marks.get(s.id) ?? null;
+    rows.push(
+      <HistoryRow
+        key={s.id}
+        s={s}
+        i={i}
+        state={on ? (inRows ? 'cur' : 'idle') : null}
+        tag={markTag(m, { offline, narrow })}
+        tagKind={m?.kind ?? null}
+        narrow={narrow}
+      />,
+    );
     if (narrow && on) rows.push(card);
   });
   // The rows' pointer handlers, delegated from their parent to the cursor's
@@ -509,7 +655,7 @@ export function SessionsPage(): VNode {
   return (
     <Box title={tabs.title} size="large" maxWidth={HISTORY_MAX_W} onBack={() => {
         if (!opening.current) nav.pop();
-      }} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '') + tabs.winClass}>
+      }} class={'wc-hist' + (offline && anyRemote ? ' is-offline' : '')} winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '') + tabs.winClass}>
       {tabs.strip}
       <BoxHead class="wc-hist-head">
         <div class="wc-hist-pills">
@@ -568,7 +714,7 @@ export function SessionsPage(): VNode {
           {btn('RESTORE', { small: true })}
         </div>
         <LookFlash class="wc-hist-flash" />
-        <span class="wc-hist-storage">{storage}</span>
+        <span class="wc-hist-storage">{storageLine(est, runsOn ? cloudFig : null, fmtBytes) ?? storageText(est)}</span>
       </BoxFoot>
       <input
         ref={fileRef}
@@ -590,6 +736,10 @@ interface HistoryRowProps {
   i: number;
   /** The chosen row: `cur` with the keyboard in the rows, `idle` while it is in the buttons. */
   state: 'cur' | 'idle' | null;
+  /** Runs in the cloud (stage 63 C2): the tag's words (empty: none) and kind. */
+  tag?: string;
+  tagKind?: 'remote' | 'local' | null;
+  narrow?: boolean;
 }
 
 /**
@@ -601,27 +751,34 @@ interface HistoryRowProps {
 class HistoryRow extends Component<HistoryRowProps> {
   override shouldComponentUpdate(n: HistoryRowProps): boolean {
     const p = this.props;
-    return n.s !== p.s || n.i !== p.i || n.state !== p.state;
+    return n.s !== p.s || n.i !== p.i || n.state !== p.state || n.tag !== p.tag || n.tagKind !== p.tagKind || n.narrow !== p.narrow;
   }
 
   override render(): VNode {
-    const { s, i, state } = this.props;
+    const { s, i, state, tag, tagKind, narrow } = this.props;
+    const cls = [state === null ? '' : `is-${state}`, tagKind === 'remote' ? 'is-remote' : ''].filter(Boolean).join(' ');
+    const tagEl = tag ? <span class={`wc-rc-tag is-${tagKind}`}>{tag}</span> : null;
     return (
-      <TableRow id={s.id} on={state !== null} class={state === null ? undefined : `is-${state}`} data-i={i}>
-        <span class="wc-lk-td wc-hist-char">{s.character}</span>
+      <TableRow id={s.id} on={state !== null} class={cls || undefined} data-i={i}>
+        <span class="wc-lk-td wc-hist-char">
+          {s.character}
+          {!narrow && tagEl}
+        </span>
         <span class="wc-lk-td wc-hist-date">{fmtDate(s.startUs)}</span>
         <span class="wc-lk-td wc-hist-time">{fmtTime(s.startUs)}</span>
         <span class="wc-lk-td wc-hist-dur">{fmtDur(s.endUs - s.startUs)}</span>
         <span class={`wc-lk-td wc-hist-exp is-${expiryTone(s)}`}>{expiresText(s)}</span>
         <span class="wc-lk-td wc-hist-rate">{s.saved && s.rating > 0 ? <LookStars n={s.rating} /> : ''}</span>
+        {narrow && tag && <span class={`wc-lk-td wc-rc-tag is-${tagKind}`}>{tag}</span>}
       </TableRow>
     );
   }
 }
 
 /** The chosen session's card: name, level, the long date, Duration, Deeds, Kept, Log. */
-function SessionCard(p: { s: Session }): VNode {
+function SessionCard(p: { s: Session; mark?: SessionMark; offline?: boolean }): VNode {
   const s = p.s;
+  const m = p.mark ?? null;
   const deeds = sessionDeeds(s);
   const d = deeds && deedsParts(deeds);
   const n = s.runs.length;
@@ -675,6 +832,12 @@ function SessionCard(p: { s: Session }): VNode {
                   <LookStars n={s.rating} />
                 </>
               )}
+              {m?.kind === 'local' && (
+                <span class="wc-rc-kept" data-note="local">
+                  <Icon name="cloudOff" class="wc-rc-cloud" />
+                  {keptNote(m.why)}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -686,8 +849,30 @@ function SessionCard(p: { s: Session }): VNode {
           )}
         </dd>
         <dt>Log</dt>
-        <dd>{s.hasLog ? 'Captured text' : <span class="wc-lk-faint">No text captured</span>}</dd>
+        <dd>
+          {m?.kind === 'remote' ? (
+            <CloudLog bytes={m.bytes} offline={!!p.offline} />
+          ) : s.hasLog ? (
+            'Captured text'
+          ) : (
+            <span class="wc-lk-faint">No text captured</span>
+          )}
+        </dd>
       </dl>
+    </>
+  );
+}
+
+/** The card's Log for a session in the cloud: `In the cloud · 2.4 MB`, then fetched when opened (or needs the network). */
+function CloudLog(p: { bytes: number; offline: boolean }): VNode {
+  const n = logNote(p.bytes, p.offline);
+  return (
+    <>
+      <span class="wc-rc-log" data-note="remote">
+        <Icon name="cloud" class={'wc-rc-cloud' + (p.offline ? ' is-faint' : '')} />
+        {n.line}
+      </span>
+      <span class={'wc-rc-logsub' + (p.offline ? ' is-off' : '')}>{n.sub}</span>
     </>
   );
 }
