@@ -6,22 +6,24 @@
 //                            plain line when the account is suspended)
 //   (Sync)                   stage 61's section, sync-ui.tsx
 //   (Published runs)         stage 64's section with the flag `share`,
-//                            published.tsx (round 12's pick 4a)
+//                            published.tsx (round 12's pick 4a); with
+//                            `gallery` one row whose Published runs (U)
+//                            opens the view of its own (stage 65)
 //   Devices                  the sessions, this device first; End on each
 //                            other row, End all others in the rule
 //   Password and recovery    Change password, New recovery code
 //   Leaving                  Log out; Delete account, last, small and red
 //
 // What the mockup also drew belongs to later stages and is not here: the
-// sync state and Sync now (61), the storage bars (61/63), the gallery
-// notice switch (65), "Your data on this device" (the safety copy is 61;
-// the exports stay on Profiles and History). The owner: do not show what
-// does not exist yet.
+// sync state and Sync now (61), the storage bars (61/63), "Your data on
+// this device" (the safety copy is 61; the exports stay on Profiles and
+// History). The gallery notice switch was dropped in stage 65 (no in-game
+// notice, ADR 0155). The owner: do not show what does not exist yet.
 //
 // The dialogs are account-dialogs.tsx, each an overlay frame over this
 // page. They reach the page through an `AccountHost` (below).
 //
-// Keys (the page has no text fields): P, R, L and O are the buttons'
+// Keys (the page has no text fields): P, R, L, O (and U, Published runs) are the buttons'
 // letters, E ends the session of the cursor's row (else the first other
 // one); Tab, Shift+Tab and the arrows walk every button in order (the
 // only way to Delete account, which has no letter); Enter or Space
@@ -298,6 +300,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
       e: eRow ? () => endOne(eRow) : undefined,
       t: error ? load : undefined,
       s: syncing ? sync : undefined,
+      u: published.open ?? undefined,
     };
     const l = letterOf(e);
     const run = l ? press[l] : undefined;
@@ -310,6 +313,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   useEffect(() => {
     if (at?.startsWith('END:')) rows.current?.querySelector('.is-cur')?.scrollIntoView({ block: 'nearest' });
     else if (at && /^(COPY|EDIT|REMOVE):/.test(at)) formRef.current?.querySelector('.wc-ac-pub .is-sel')?.scrollIntoView({ block: 'nearest' });
+    else if (at === 'PUBLISHED') formRef.current?.querySelector('.wc-ac-pubrow .is-sel')?.scrollIntoView({ block: 'nearest' });
   }, [at]);
 
   // The message line under Leaving takes no room while empty (account.css): one that shows is
