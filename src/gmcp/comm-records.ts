@@ -24,6 +24,26 @@ export interface NewCommRecord {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/**
+ * How long a Comm day is kept whole (stage 62 review, F9): while its start
+ * is within 8 days 6 hours, so a day is given up (and its tombstone
+ * pushed) only once all its records are past the pane's seven days, with
+ * six hours for clocks that differ between devices. The sync lists such
+ * a day and the archive's `prune` removes only days past it: a listed day
+ * never loses records to pruning (which would read as an edit and push).
+ */
+export const COMM_LIST_MS = (8 * 24 + 6) * 3600_000;
+
+/** The day (`YYYY-MM-DD`, or a piece key `YYYY-MM-DD.2`) is still kept at `now`. */
+export function commDayKept(day: string, now: number): boolean {
+  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - COMM_LIST_MS;
+}
+
+/** The start of the oldest day kept at `now`: every record before it is in a day past `COMM_LIST_MS`. */
+export function commKeptFrom(now: number): number {
+  return Math.ceil((now - COMM_LIST_MS) / DAY_MS) * DAY_MS;
+}
+
 /** The UTC day `YYYY-MM-DD` of a time in ms. */
 export function utcDay(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);

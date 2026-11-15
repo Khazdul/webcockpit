@@ -457,8 +457,10 @@ html.wc-phone .wc-ac-win {
   color: var(--lk-soon);
 }
 
+/* (18 px over each rule, not 22: with the sync section and two devices
+ * the page fits a 1440 × 900 window in its offline and full states too.) */
 .wc-ac-acct > .wc-lk-rule {
-  margin: 22px 0 8px;
+  margin: 18px 0 6px;
   min-height: 28px;
 }
 
@@ -553,6 +555,13 @@ html.wc-phone .wc-ac-win {
 
 .wc-ac-flash.wc-lk-flash {
   margin-top: 10px;
+}
+
+/* No message: the line takes no room (the page then fits without a
+ * scroll); one that shows is scrolled into view (account-page.tsx). */
+.wc-ac-flash.wc-lk-flash:empty {
+  min-height: 0;
+  margin-top: 0;
 }
 
 /* ------------------------------------------------------------ the Account page's dialogs */

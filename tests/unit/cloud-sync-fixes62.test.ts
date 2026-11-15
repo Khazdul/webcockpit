@@ -550,6 +550,52 @@ describe('F9: a Comm day is listed until all its records are past seven days, wi
   });
 });
 
+describe('Pruning a listed Comm day (2026-11-15 small fix)', () => {
+  it('prune keeps every record of a day the sync still lists, and removes whole days past it', async () => {
+    const open = await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'x' });
+    const start = Date.UTC(2026, 10, 7);
+    const now = start + 7 * DAY + 23 * 3600_000; // the last hours of 11-14: 11-07's first hours are past seven days
+    await new CommArchive(await open(), { now: () => start + DAY }).addDayRecords([
+      msg(start - 2 * 3600_000, 'older day'),
+      msg(start + 3600_000, 'early'),
+      msg(start + 22 * 3600_000, 'late'),
+    ]);
+    const li = idbLocalItems(open, {}, { type: 'desktop', now: () => now, yieldToGame: async () => {} });
+    const before = await li.list('comm');
+    expect(texts(before)).toEqual(['early', 'late']);
+    const arch = new CommArchive(await open(), { now: () => now });
+    expect(await arch.prune()).toBe(1); // 11-06, not listed
+    expect(await li.list('comm')).toEqual(before);
+    // Once the day is past COMM_LIST_MS it goes whole.
+    const later = new CommArchive(await open(), { now: () => start + COMM_LIST_MS + 1 });
+    expect(await later.prune()).toBe(2);
+  });
+
+  it('a device that prunes in a day\'s last hours pushes nothing, and both keep the day', async () => {
+    const server = new Server();
+    const start = Date.UTC(2026, 10, 7);
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start + 2 * DAY);
+    const aOpen = await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'a' });
+    await new CommArchive(await aOpen()).addDayRecords([msg(start + 3600_000, 'early'), msg(start + 22 * 3600_000, 'late')]);
+    const bOpen = deviceSpace(new IDBFactory());
+    const a = engineOn(server, aOpen);
+    const b = engineOn(server, bOpen);
+    await a.sync();
+    await b.sync();
+    expect(texts((await idbLocalItems(bOpen, {}, { type: 'desktop' }).list('comm')).filter((i) => i.key === '2026-11-07'))).toEqual(['early', 'late']);
+    clock.mockReturnValue(start + 7 * DAY + 23 * 3600_000);
+    await new CommArchive(await aOpen()).prune();
+    const seq = server.seq;
+    for (let i = 0; i < 3; i++) {
+      expect(await a.sync()).toEqual({ type: 'synced' });
+      expect(await b.sync()).toEqual({ type: 'synced' });
+      await new CommArchive(await aOpen()).prune();
+    }
+    expect(server.seq).toBe(seq);
+    for (const o of [aOpen, bOpen]) expect(texts(await idbLocalItems(o, {}, { type: 'desktop' }).list('comm'))).toEqual(['early', 'late']);
+  });
+});
+
 describe('F10: a change made between the scan and the write is kept (last writer)', () => {
   it('settings: the adapter skips a put over a value changed since the scan', async () => {
     const open = await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'x', copy: 'all' });

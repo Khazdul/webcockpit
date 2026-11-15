@@ -232,12 +232,12 @@ smaller in the fixes, 10 049 → 5 087, once the sync code was out of it); `npm 
       flags `stats`, `accounts`, `sync` on; production untouched,
       `accounts` off there.)
 
-Known small things, not fixed: the Account page at 1440 × 900 scrolls
-by 12 px (the empty message line under Leaving; more in the offline and
-full states, whose note adds a line); a device that prunes Comm in a
-day's last hours can cause one or two extra pushes of that day;
-`ScriptLibrary.reload()` keeps a script data record the sync deleted
-until the next load.
+Known small things, fixed 2026-11-15 (branch `fix/stage62-small`):
+- The Account page fits 1440 × 900 synced, offline and full (two devices):
+  the empty message line takes no room, rules 18 px apart (e2e `sync-flows`).
+- Comm `prune()` removes whole days past `commDayKept`, so a listed day no
+  longer shrinks and is pushed back and forth (ADR 0152, "Small fixes").
+- `ScriptLibrary.reload()` drops a script data record the sync deleted.
 
 ## Draft: `/privacy`'s account section (behind `accounts`)
 

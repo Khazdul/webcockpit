@@ -198,7 +198,7 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
   await account(a.page);
   // Synced, the page shows whole at 1440 × 900 (Leaving's buttons inside the body's view without a scroll;
-  // only the empty message line under them is not). No line of what follows the account (the owner's pick 3b).
+  // the next test measures the states). No line of what follows the account (the owner's pick 3b).
   await expect(frame(a.page).locator('[data-sync="synced"]')).toBeVisible();
   await expect(frame(a.page).locator('[data-follows]')).toHaveCount(0);
   const box = (await frame(a.page).locator('.wc-lk-box').boundingBox())!;
@@ -256,6 +256,60 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await expect(pageOf(a.page, 'account')).toBeVisible();
   // Offline is the state now.
   await expect(frame(a.page).locator('[data-sync="offline"]')).toContainText('1 change waits on this device.');
+  await a.ctx.close();
+});
+
+test('the Account page fits 1440 × 900 without a scroll: synced, offline and full', async ({ browser }) => {
+  const server = syncServer();
+  await seedAccount(server, NAME, PASSWORD);
+  // Two devices, as the owner tests it: this one and another desktop.
+  server.addSession(NAME, 'Firefox on Linux', { madeAgo: 86_400_000, usedAgo: 3_600_000 });
+  const a = await device(browser, server);
+  await openStart(a.page);
+  await logIn(a.page);
+  await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
+  await account(a.page);
+  const body = frame(a.page).locator('.wc-ac-body');
+  /** How far the body scrolls (0: it all fits), and the box inside the window. */
+  const fits = async (state: string): Promise<void> => {
+    await expect(frame(a.page).locator(`[data-sync="${state}"]`)).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => body.evaluate((el) => el.scrollHeight - el.clientHeight), { message: state }).toBeLessThanOrEqual(0);
+    const box = (await frame(a.page).locator('.wc-lk-box').boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(900);
+  };
+  await fits('synced');
+  // Offline with a change waiting: the note's line.
+  server.syncOffline = true;
+  await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior')]);
+  await btn(a.page, 'SYNCNOW').click();
+  await expect(frame(a.page).locator('[data-sync="offline"]')).toContainText('1 change waits on this device.', { timeout: 30_000 });
+  await fits('offline');
+  // Full: the account takes no more items; the note's line.
+  server.syncOffline = false;
+  server.items(NAME).limits.items = server.items(NAME).usage().items;
+  await putIdb(a.page, DB, 'profiles', [profile('w2', 'mage')]);
+  await btn(a.page, 'SYNCNOW').click();
+  await expect(frame(a.page).locator('[data-sync="full"]')).toContainText('kept on this device until there is room', { timeout: 30_000 });
+  await fits('full');
+  // A message under Leaving takes its line when it shows, scrolled into view: more devices, so the page scrolls.
+  server.addSession(NAME, 'Safari on macOS', { usedAgo: 60_000 });
+  server.addSession(NAME, 'Edge on Windows', { usedAgo: 120_000 });
+  await a.page.keyboard.press('Escape');
+  await account(a.page);
+  const devs = frame(a.page).locator('.wc-ac-dev');
+  await expect(devs).toHaveCount(4);
+  await expect(frame(a.page).locator('.wc-lk-flash')).toBeEmpty();
+  await devs.nth(1).locator('[data-btn="END"]').click();
+  await btn(a.page, 'END').click();
+  await expect(devs).toHaveCount(3);
+  const flash = frame(a.page).locator('.wc-ac-flash');
+  await expect(flash).toHaveText('The session is ended.');
+  await expect
+    .poll(async () => {
+      const [f, v] = await Promise.all([flash.boundingBox(), body.boundingBox()]);
+      return !!f && !!v && f.height > 0 && f.y >= v.y && f.y + f.height <= v.y + v.height;
+    })
+    .toBe(true);
   await a.ctx.close();
 });
 

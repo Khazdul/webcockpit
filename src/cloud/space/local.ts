@@ -51,7 +51,7 @@ import { jsonSafe } from '../../core/canonical-json';
 import { STORE, idbDone, idbRequest } from '../../core/db';
 import { device } from '../../core/device';
 import { CommArchive } from '../../gmcp/comm-archive';
-import { commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from '../../gmcp/comm-records';
+import { COMM_LIST_MS, commDayKept, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from '../../gmcp/comm-records';
 import { isUntouchedSeed } from '../../profiles/seeds';
 import { parseHeader, withHeaderName } from '../../scripts/header';
 import { SETTINGS_KEY } from '../../settings/store';
@@ -121,16 +121,7 @@ export async function settingsSeedHash(type: DeviceType, record: unknown): Promi
  */
 export const COMM_PIECE_RAW = 1024 * 1024;
 
-/**
- * How long a Comm day is listed (stage 62 review, F9): while its start is
- * within 8 days and 6 hours, so a day is given up (and its tombstone
- * pushed) only once all its records are past the archive's seven days,
- * with six hours for clocks that differ between devices.
- */
-export const COMM_LIST_MS = (8 * 24 + 6) * 3600_000;
-export function commDayKept(day: string, now: number): boolean {
-  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - COMM_LIST_MS;
-}
+export { COMM_LIST_MS, commDayKept } from '../../gmcp/comm-records';
 
 /**
  * A day's sorted records as its pieces: `day` alone, or `day`, `day.2` …

@@ -5,7 +5,7 @@
 //   database `webcockpit`, store `comm` (src/core/db.ts, version 3)
 //     keyPath 'seq' (autoIncrement: insertion order, filled on append)
 //     index 'character_ts' ['character', 'ts']   loadRecent
-//     index 'ts'                                 prune
+//     index 'ts'                                 prune (whole days), the sync
 //
 // Usage (the Comm pane, P2):
 //
@@ -33,7 +33,7 @@
 
 import { STORE, idbDone, idbRequest } from '../core/db';
 import { noteStored } from '../core/store-events';
-import { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
+import { type NewCommRecord, commFields, commIdentity, commKeptFrom, dayBounds, sortCommRecords, utcDay } from './comm-records';
 
 export { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
 
@@ -149,9 +149,15 @@ export class CommArchive {
     return out.reverse();
   }
 
-  /** Deletes every message (all characters) older than 7 days; resolves with the count. */
+  /**
+   * Deletes every message (all characters) of a day the sync no longer
+   * keeps (`commDayKept`: its start older than 8 days 6 hours); resolves
+   * with the count. Whole days only: a day the sync still lists keeps its
+   * records past the seven days the pane shows, so pruning never changes
+   * a listed day (and so never pushes it again).
+   */
   async prune(): Promise<number> {
-    const before = this.now() - COMM_RETENTION_MS;
+    const before = commKeptFrom(this.now());
     this.writeQueued();
     const tx = this.db.transaction(STORE.comm, 'readwrite');
     const done = idbDone(tx);
