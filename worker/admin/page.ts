@@ -392,7 +392,9 @@ export const ADMIN_JS = `'use strict';
     var art = el('article', null, 'rq' + (hidden ? ' is-hidden' : ''));
     art.dataset.id = it.target;
     var head = el('div', null, 'rq-head');
-    head.append(el('h3', it.title), el('span', hidden ? 'hidden' : 'shown', 'rq-state'));
+    // Why it is hidden (review fixes): the reports or the admin's Hide.
+    var why = !hidden ? 'shown' : it.hiddenReason === 'reports' ? 'Hidden after 5 reports' : it.hiddenReason === 'admin' ? 'Hidden by the admin' : 'hidden';
+    head.append(el('h3', it.title), el('span', why, 'rq-state'));
     var meta = el('span', '', 'rq-meta');
     var who = para(['by ', el('b', it.sender || '(no account)'), ' · ', el('code', it.target), meta], 'rq-who');
     var reasons = el('p', null, 'rq-reasons');
@@ -416,7 +418,7 @@ export const ADMIN_JS = `'use strict';
     if (hidden) acts.append(button('Restore', '', function () { pubAction(it, 'restore'); }));
     else acts.append(button('Hide', '', function () { pubAction(it, 'hide'); }));
     acts.append(button('Delete', 'danger', function () { pubAction(it, 'delete'); }), el('span', null, 'sep'));
-    if (!hidden) acts.append(button('Dismiss reports', '', function () { pubAction(it, 'dismiss'); }));
+    acts.append(button('Dismiss reports', '', function () { pubAction(it, 'dismiss'); }));
     if (it.sender) acts.append(button('Suspend ' + it.sender, '', function () { accountAction(it.sender, 'suspend'); }));
     art.append(acts);
 
@@ -543,7 +545,7 @@ export const ADMIN_JS = `'use strict';
     var spec = {
       hide: { title: 'Hide ' + quoted(it.title) + '?', what: ' stops playing for everyone but its sender; its link says it is hidden.', ok: 'Hide run', action: 'hide', done: 'Hidden: ' },
       restore: { title: 'Show ' + quoted(it.title) + ' again?', what: ' plays for everyone again.', ok: 'Restore run', action: 'restore', done: 'Shown again: ' },
-      dismiss: { title: 'Dismiss the reports on ' + quoted(it.title) + '?', what: ' stays as it is.', ok: 'Dismiss reports', action: 'restore', done: 'Reports dismissed: ' },
+      dismiss: { title: 'Dismiss the reports on ' + quoted(it.title) + '?', what: ' stays as it is' + (it.state === 'hidden' ? ', hidden' : '') + '; later reports queue it here but no longer hide it.', ok: 'Dismiss reports', action: 'dismiss', done: 'Reports dismissed: ' },
       delete: { title: 'Delete ' + quoted(it.title) + '?', what: ' is deleted from R2 and its link says it was removed. This cannot be undone.', ok: 'Delete run', action: 'delete', done: 'Deleted: ', danger: true },
     }[kind];
     return confirmModal({
