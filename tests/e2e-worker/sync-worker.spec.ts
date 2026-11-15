@@ -21,6 +21,16 @@ import { demoPayload } from '../e2e/cloud-pub-fake';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
+// The two projects run one after the other against one local Worker, from
+// one address: the second would meet the API's 120 requests a minute
+// (spec §7.10) left by the first (stage 64 added the share's requests).
+// A minute's rest between them; the limit itself is unchanged.
+// (A new project gets a new test worker, so the project's place in the
+// config, not a flag in this module, says which one is second.)
+test.beforeEach(async ({}, info) => {
+  if (info.config.projects.findIndex((p) => p.name === info.project.name) > 0) await new Promise((r) => setTimeout(r, 61_000));
+});
+
 async function device(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
