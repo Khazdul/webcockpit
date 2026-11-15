@@ -221,7 +221,9 @@ against the Worker in part C and approved by the owner.
       Limits            To stop guessing and abuse, failed logins are
                         counted per user name and registrations per
                         address; the address is kept only as a value that
-                        cannot be turned back, for one day.
+                        cannot be turned back, for one day. Create account
+                        asks Cloudflare Turnstile to check that you are a
+                        person.
       Deleting          Delete account removes the account and everything
                         stored in it at once. Its user name stays taken,
                         so nobody can pose as you.
