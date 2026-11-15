@@ -30,7 +30,6 @@ import { LookPlaceCtx, isLookFrame } from './kit/look';
 import { FrameStack } from './kit/stack';
 import { randomQuote } from './quotes';
 import { StartSurface } from './start-surface';
-import { setPlaying } from '../cloud/sync-view';
 import { type EnterRun, playEnter } from './enter-transition';
 
 export { StartNotices, type StartNoticeToken, TooSmall, startNoticeTokens } from './start-surface';
@@ -131,14 +130,11 @@ export function mountStartPage(host: HTMLElement, services: ChromeServices, opts
   return {
     show(o = {}) {
       visible = true;
-      // The sync (stage 61): nothing is in use now; held changes come in.
-      setPlaying(false);
       if (!o.keep) epoch++;
       redraw();
     },
     hide() {
       visible = false;
-      setPlaying(true);
       redraw();
     },
     leave() {
