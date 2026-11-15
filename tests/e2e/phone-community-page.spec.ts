@@ -69,3 +69,19 @@ test('runes off: two tabs; the guest’s counter on the menu clears when the pag
   await cm(page).locator('.wc-lk-back').tap();
   await expect(communityRow(page).locator('.wc-sm-count')).toHaveCount(0);
 });
+
+test('a kept view sorted by Top asks the list once, as New, on a phone (review fix CR7)', async ({ page }) => {
+  await setUp(page);
+  const asked: string[] = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url());
+    if (u.pathname === '/api/gallery') asked.push(u.search);
+  });
+  await page.addInitScript(() => sessionStorage.setItem('wc.community.view', JSON.stringify({ sort: 'top', page: 1 })));
+  await openStart(page, `${PHONE_Q}&community`);
+  await expect(cm(page).locator('.wc-cy-list')).toHaveAttribute('data-state', 'list');
+  await expect(cm(page).locator('.wc-cy-list')).toHaveAttribute('data-sort', 'new');
+  await page.waitForTimeout(300);
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toContain('sort=new');
+});

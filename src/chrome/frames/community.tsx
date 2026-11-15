@@ -171,7 +171,9 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   const [boxes, setBoxes] = useState<CommunityBoxes | null | 'failed'>(null);
   const [board, setBoard] = useState<BoardState>({ k: 'loading' });
   const [cursor, setCursor] = useState(0);
-  const [narrow, setNarrow] = useState(false);
+  /** The phone's form; null until the width is measured (the list waits for it: review fix CR7, no second request on a phone). */
+  const [measured, setNarrow] = useState<boolean | null>(null);
+  const narrow = measured === true;
   const [account, setAccount] = useState(accountState);
   const [notesPerDay, setNotesPerDay] = useState(DEFAULT_ACCOUNT_LIMITS.notesPerDay);
   const [retry, setRetry] = useState(0);
@@ -194,11 +196,16 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   // The phone's form by the content's width (as History's).
   useLayoutEffect(() => {
     const el = bodyRef.current?.closest<HTMLElement>('.wc-lk-win') ?? bodyRef.current;
-    if (!el) return;
+    if (!el) {
+      setNarrow(false);
+      return;
+    }
     const check = (w: number): void => {
       if (w > 0) setNarrow(w < COMMUNITY_NARROW);
     };
-    check(el.clientWidth);
+    // The first measure always settles it (a width of 0, not laid out: the wide form until the observer says).
+    const w = el.clientWidth;
+    setNarrow(w > 0 ? w < COMMUNITY_NARROW : false);
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver((es) => {
       const e = es[es.length - 1];
@@ -213,6 +220,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   // The list.
   const asked = useRef(0);
   useEffect(() => {
+    if (measured === null) return;
     const n = ++asked.current;
     setList((l) => (l.k === 'ok' ? l : { k: 'loading' }));
     void api.list({ sort, page: view.page, ...(view.by ? { by: view.by } : {}) }).then((r) => {
@@ -222,7 +230,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         setCursor((c) => Math.min(c, Math.max(0, r.value.rows.length - 1)));
       } else setList({ k: 'failed', offline: r.code === 'offline' || r.code === 'timeout' });
     });
-  }, [api, sort, view.page, view.by, retry]);
+  }, [api, sort, view.page, view.by, retry, measured === null]);
 
   // The boxes and the board.
   useEffect(() => {
