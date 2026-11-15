@@ -117,6 +117,10 @@ describe('the small words', () => {
     expect(POINTS.map((p) => p[0])).toEqual(['What is stored', 'What we can see', 'What is never stored', 'What is public', 'No e-mail', 'Yours to delete']);
   });
 
+  it("the first point names Comm history (owner, 2026-11-15)", () => {
+    expect(POINTS[0]![1]).toBe('Your profiles, scripts, settings, saved runs and Comm history, encrypted on this device before they are sent.');
+  });
+
   it('name problems: empty is not an error', () => {
     expect(nameWords(null)).toBeNull();
     expect(nameWords('empty')).toBeNull();
@@ -280,5 +284,18 @@ describe('the Turnstile widget', () => {
     expect(turnstileWords('waiting')).toBeNull();
     expect(turnstileWords('passed')).toBeNull();
     expect(turnstileWords('error', '300030')).toContain('(300030)');
+  });
+});
+
+describe("the Account page's line of what follows the account (stage 62, round 10 pick 3a)", () => {
+  it("names this device's type first", async () => {
+    const { followsWords } = await import('../../src/chrome/frames/account/sync-ui');
+    expect(followsWords('desktop')).toBe(
+      'Follows the account: profiles, scripts, settings for desktop (this device), tablet and phone, script data, Comm history (7 days), timers.',
+    );
+    expect(followsWords('phone')).toBe(
+      'Follows the account: profiles, scripts, settings for phone (this device), desktop and tablet, script data, Comm history (7 days), timers.',
+    );
+    expect(followsWords('tablet')).toContain('settings for tablet (this device), desktop and phone,');
   });
 });

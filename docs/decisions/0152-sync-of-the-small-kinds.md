@@ -323,3 +323,32 @@ adapters (`src/cloud/space/local.ts`) are part C.
 - **Measured** (stage file, "Measurements"): the owner's heaviest real
   day is 1 472 records, 267 KB of canonical JSON, 30 KB gzip; a heavy
   week is some 3 % of the 2 MB small-item limit.
+
+## As built (stage 62 C2)
+
+Branch `stage62-ui`: the words and pages of round 10's picks 1a and 3a,
+the registration's point and `/privacy`.
+
+- **Log out (1a).** The "N changes not synced" row gets a second line,
+  `unsyncedKindsWords` (src/cloud/space/unsynced-words.ts, beside C1's
+  words.ts; one of the two is kept at the merge): "2 profiles ·
+  settings · Comm history, today". Profiles and scripts counted, then
+  settings, script data, Comm history ("today" when its only day is
+  today's UTC day, else "N days"; a split piece counts as its day),
+  timers. N stays the number of items. The mark sits on the first line
+  (`li.is-two`). Download and the other states are as built.
+- **The Account page (3a).** `followsWords(type)` in sync-ui.tsx, this
+  device's type first (`deviceType(device())`), under the sync section.
+  Synced at 1440 × 900 everything shows; the body then scrolls by the
+  empty message line under Leaving (12 px), and more in the offline and
+  full states, which add their note (the page has had the scrolling form
+  since stage 61).
+- **The registration's first point** names Comm history (owner).
+- **`/privacy`.** With the flag `accounts` on, `PrivacyFrame` loads
+  src/chrome/frames/privacy-accounts.ts (`import()`, so guests' chunks
+  do not carry it) and puts "ACCOUNTS" (rail "Accounts", O) where
+  "COMING LATER" was, with the page's date of the draft; flag off, the
+  page is as before. The draft's corrections are listed in the stage
+  file. The intro and "What is sent" still say that no account name
+  is sent and that what you set up stays in this browser: true without
+  the flag, not with it; for the owner with the draft.

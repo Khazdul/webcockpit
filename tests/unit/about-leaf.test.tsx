@@ -17,6 +17,8 @@ import {
   aboutTokens,
   atPrivacyPath,
 } from '../../src/chrome/frames/about';
+import { LOGIN_TURNSTILE_AFTER, SESSION_SECONDS } from '../../shared/cloud/api';
+import { PRIVACY_ACCOUNTS, PRIVACY_ACCOUNTS_NAV, withAccounts } from '../../src/chrome/frames/privacy-accounts';
 import { PRIVACY_NAV, PRIVACY_TEXT } from '../../src/chrome/frames/privacy-text';
 import { BEAT_MINUTES, BEAT_STATES } from '../../shared/cloud/api';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
@@ -405,3 +407,41 @@ describe('the privacy page', () => {
     expect(popped).toBe(0);
   });
 });
+
+// ------------------------------------------------------------ the account section (stage 62)
+
+describe("the privacy page's account section (flag `accounts`)", () => {
+  const { text, nav } = withAccounts(PRIVACY_TEXT, PRIVACY_NAV);
+  const secs = aboutSections(text, nav);
+
+  it('replaces Coming later, in its place, and nothing else', () => {
+    expect(secs.map((x) => x.id)).toEqual(PRIVACY_NAV.map((n) => (n.id === 'later' ? 'accounts' : n.id)));
+    expect(text).not.toContain('COMING LATER');
+    expect(text.replace(`${PRIVACY_ACCOUNTS}\n`, '')).toBe(PRIVACY_TEXT.replace(/COMING LATER\n[^\n]*\n/, ''));
+    expect(nav.find((n) => n.id === 'accounts')).toBe(PRIVACY_ACCOUNTS_NAV);
+  });
+
+  it('its rail entry: Accounts, a letter of its own inside the label', () => {
+    const letters = nav.map((n) => n.letter);
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const n of nav) expect(n.nav.toLowerCase()).toContain(n.letter);
+    expect(PRIVACY_ACCOUNTS_NAV.nav).toBe('Accounts');
+  });
+
+  it('a paragraph and the five rows, each row one line', () => {
+    const sec = secs.find((x) => x.id === 'accounts')!;
+    expect(sec.title).toBe('ACCOUNTS');
+    expect(sec.blocks.filter((b) => 'p' in b)).toHaveLength(1);
+    const rows = sec.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
+    expect(rows).toEqual(['What is stored', 'Comm history', 'Sessions', 'Limits', 'Deleting']);
+  });
+
+  it('says the figures the Worker keeps to', () => {
+    expect(SESSION_SECONDS).toBe(180 * 86_400);
+    expect(LOGIN_TURNSTILE_AFTER).toBe(3);
+    expect(PRIVACY_ACCOUNTS).toContain('180 days');
+    expect(PRIVACY_ACCOUNTS).toContain('after three failed tries');
+    expect(PRIVACY_ACCOUNTS).toContain('seven days');
+  });
+});
+

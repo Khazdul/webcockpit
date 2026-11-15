@@ -181,11 +181,15 @@ touches staging or production.
 - [ ] Triggers: during play the small kinds wait for the play schedule
       (5 minutes, hidden tab, leaving the game); `settings` notes at 5 s.
 - [ ] Create account copies the four kinds into the new space.
-- [ ] Log out in full (round 10's pick for point 1); `unsynced()` names
-      per kind; the locked copy's decision without timers.
-- [ ] Round 10's picks for points 2 and 3.
-- [ ] The registration's first point; `/privacy`'s account section behind
-      the flag `accounts` (the draft below, checked against the Worker).
+- [x] Log out in full (round 10's pick for point 1): the changes' row
+      names the kinds under it (`unsyncedKindsWords`, C2).
+- [ ] `unsynced()` names per kind; the locked copy's decision without
+      timers.
+- [ ] Round 10's pick for point 2.
+- [x] Round 10's pick for point 3: the Account page's line (C2).
+- [x] The registration's first point; `/privacy`'s account section behind
+      the flag `accounts` (the draft below, checked against the Worker;
+      corrected as listed under the draft, C2).
 - [ ] e2e (fake API, two contexts): two desktops share a layout change;
       a phone context keeps its own; Comm from context A appears in B's
       Comm pane after A leaves the game; timers of a character go on;
@@ -209,6 +213,21 @@ touches staging or production.
 
 Replaces "COMING LATER" when the flag `accounts` is on. To be checked
 against the Worker in part C and approved by the owner.
+
+**As built (C2):** `src/chrome/frames/privacy-accounts.ts`, one line per
+paragraph and per row (About's format), rail "Accounts" (O), the page's
+date "Last changed 15 November 2026" only with the flag on. Corrected
+against worker/: the data key is locked by the password *or* the
+recovery code (not "made from your password"); settings are one set per
+kind of device; the server sees each piece's kind and keeps a mark of a
+deleted piece; the password and code never reach the site, and the key
+is kept locked with each; Comm's seven days are kept by the devices (an
+older day goes at the next sync of a device, the server cannot date
+it); recovery tries are counted per name too, and the counters
+(address as a one-way value) go after a day or two, not "one day";
+Turnstile also guards recovery and a login after three failed tries;
+Delete account leaves the sessions' end reasons for their 180 days. The
+draft below is the one sent for checking.
 
     ACCOUNTS
     An account is your own choice; the client works without one. With an
