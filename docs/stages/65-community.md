@@ -272,7 +272,7 @@ touches staging or production.
       news answer, the writer removing a hidden item, the run of the
       day's cost, duplicated formatters, a double request on the phone,
       the queue's three queries, a comment). All fixed (bcdd0d0c).
-- [ ] Unit; worker; the full e2e alone at 5 workers (a failure rerun
+- [x] Unit; worker; the full e2e alone at 5 workers (a failure rerun
       alone before it is called one); the benchmark; the entry chunk;
       `npm run test:sync-worker` (grows: list, vote, comment, a note).
 
@@ -284,7 +284,10 @@ editor at 320 × 568, code untouched by this stage) passed alone 17 of
 (key → send playing 0.8 / 1.6 / 3.2 ms; burst 76 801 lines/s measured
 right after a build at load 1.8, no frame over 50 ms; the game path
 unchanged); entry chunk 31 366 → 31 382 bytes (+16: the Community
-page's route); `test:sync-worker` 2/2 before it grew.
+page's route); `test:sync-worker` 2/2 before it grew, then grown with the community
+(a listed run, the guest's counter and view, a second account's stars
+and comment, the reactions mark cleared, a note written and removed,
+the run removed): 4/4, twice.
 
 ### E. Staging
 
