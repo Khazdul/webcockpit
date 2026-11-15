@@ -113,6 +113,22 @@ export class RunStore extends CaptureStore {
     await done(tx);
   }
 
+  /** Applies `fn` to the meta of each run's `remote` (or `fetching`) row: a rating of a session only in the cloud (its item follows). */
+  async updateRemoteMetas(runIds: readonly string[], fn: (meta: RunMeta) => void): Promise<void> {
+    const tx = this.db.transaction('runCloud', 'readwrite');
+    const os = tx.objectStore('runCloud');
+    for (const id of runIds) {
+      const r = os.get(id);
+      r.onsuccess = () => {
+        const row = r.result as RunCloudRow | undefined;
+        if (!row?.meta || (row.state !== 'remote' && row.state !== 'fetching')) return;
+        fn(row.meta);
+        os.put(row);
+      };
+    }
+    await done(tx);
+  }
+
   /** The `runCloud` rows (empty in the device's space and with the flag `runs` off). */
   listCloud(): Promise<RunCloudRow[]> {
     const tx = this.db.transaction('runCloud', 'readonly');

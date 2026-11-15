@@ -239,6 +239,9 @@ describe('the library with runs in the cloud', () => {
     expect(fetch).toHaveBeenCalledWith(['rem'], undefined);
     await lib.save(sessions[1]!, 3);
     expect(saved).toHaveBeenCalledWith(['loc'], 'history');
+    // Rating a session only in the cloud rates its row's meta (its item follows).
+    await lib.save(sessions[0]!, 5);
+    expect((await lib.cloudRows()).get('rem')!.meta!.rating).toBe(5);
     // The sweep keeps the doc of a session in the cloud.
     await lib.sweep(5_000);
     expect(((await all(open, STORE.exports)) as { sessionId: string }[]).map((d) => d.sessionId)).toEqual(['rem']);

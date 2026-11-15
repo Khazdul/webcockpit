@@ -225,12 +225,15 @@ export class RunLibrary {
   async save(session: Session, rating?: number, nowUs: number = Date.now() * 1000, o: { where?: SaveWhere } = {}): Promise<void> {
     const r = rating === undefined ? undefined : Math.max(0, Math.min(5, Math.round(rating)));
     const ids = session.runs.map((m) => m.runId);
-    await this.store.updateRuns(ids, (m) => {
+    const fn = (m: RunMeta): void => {
       m.saved = true;
       m.savedUs = nowUs;
       if (r !== undefined) m.rating = r;
       else m.rating ??= 0;
-    });
+    };
+    await this.store.updateRuns(ids, fn);
+    // A session only in the cloud is rated in its rows (the items follow at the next sync).
+    if (r !== undefined) await this.store.updateRemoteMetas(ids, fn).catch(() => {});
     // Logged in with runs in the cloud: the sealed ones are queued (the live run once it is sealed).
     runCloudHook()?.saved(ids, o.where ?? 'history');
   }
