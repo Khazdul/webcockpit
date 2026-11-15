@@ -375,7 +375,7 @@ describe('what is not in the account', () => {
     expect(await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => 'x'))).toEqual(await engine.unsynced());
     const now = Date.now();
     await put(db, STORE.runs, { runId: 'r1', saved: true, startedUs: 1 }, { runId: 'r2', startedUs: now * 1000 }, { runId: 'r3', startedUs: (now - 20 * 86_400_000) * 1000 });
-    expect(await runCounts(open, now)).toEqual({ saved: 1, unsaved: 1 });
+    expect(await runCounts(open, now)).toMatchObject({ saved: 1, unsaved: 1 });
     expect(await notInAccount('ole')).toMatchObject({ savedRuns: 1, changes: [{ name: 'warrior', change: 'edit' }] });
   });
 });

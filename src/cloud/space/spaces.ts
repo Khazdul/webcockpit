@@ -19,7 +19,8 @@ import { SEEDED_META_KEY } from '../../profiles/seed-ids';
 import { seedProfiles } from '../../profiles/store';
 import { parseHeader, withHeaderName } from '../../scripts/header';
 import { type KindSpec, PROFILE_NAMES, SCRIPT_NAMES, SYNC_SPECS, freeName } from '../sync/items';
-import type { LocalItems, SyncRecords, Unsynced } from '../sync/types';
+import type { LocalItems, SyncRecord, SyncRecords, Unsynced } from '../sync/types';
+import type { RunCloudRow } from '../runs/types';
 import { listUnsynced } from '../sync/unsynced';
 import { META, type OpenDb, type ProfileRow, type ScriptRow, idbLocalItems, idbSyncRecords, readMeta, settingsSeedHash, thisDeviceType, writeMeta } from './local';
 
@@ -233,27 +234,60 @@ export async function pendingChanges(local: LocalItems, records: SyncRecords, sp
 
 const DAY_US = 86_400_000_000;
 
-/** The runs of a space: saved ones (not in the cloud before stage 63) and unsaved ones of the last 14 days. */
-export async function runCounts(open: OpenDb, nowMs = Date.now()): Promise<{ saved: number; unsaved: number }> {
+/** The runs of a space a Log out would take from this device that are not in the account. */
+export interface RunsLeft {
+  /** Saved runs not in the cloud (ADR 0153): no `runCloud` row `up` with an agreed `run` record (every saved run with the flag `runs` off). */
+  saved: number;
+  /** Unsaved runs of the last 14 days (never in the cloud). */
+  unsaved: number;
+  /** Their ids, saved ones first (Log out's Download: the runs backup of exactly these). */
+  savedIds: string[];
+  unsavedIds: string[];
+}
+
+/**
+ * The runs of a space not in the account: saved ones whose body and item
+ * are not both up (queued, full, too large, or never queued), and unsaved
+ * ones of the last 14 days. A saved run in the cloud is not counted.
+ */
+export async function runCounts(open: OpenDb, nowMs = Date.now()): Promise<RunsLeft> {
   const db = await open();
-  const t = db.transaction(STORE.runs, 'readonly');
+  const stores = [STORE.runs, STORE.runCloud, STORE.sync].filter((n) => db.objectStoreNames.contains(n));
+  const t = db.transaction(stores, 'readonly');
   const done = idbDone(t);
-  const runs = (await idbRequest(t.objectStore(STORE.runs).getAll())) as { saved?: boolean; startedUs?: number }[];
+  const has = (n: string): boolean => stores.includes(n as (typeof stores)[number]);
+  const [runs, cloud, sync] = await Promise.all([
+    idbRequest(t.objectStore(STORE.runs).getAll()) as Promise<{ runId: string; saved?: boolean; startedUs?: number }[]>,
+    has(STORE.runCloud) ? (idbRequest(t.objectStore(STORE.runCloud).getAll()) as Promise<RunCloudRow[]>) : Promise.resolve([] as RunCloudRow[]),
+    has(STORE.sync) ? (idbRequest(t.objectStore(STORE.sync).getAll()) as Promise<{ kind: string; rec?: SyncRecord }[]>) : Promise.resolve([]),
+  ]);
   await done;
+  const up = new Set(cloud.filter((r) => r.state === 'up').map((r) => r.runId));
+  const agreed = new Set(sync.filter((r) => r.kind === 'run' && r.rec?.key && r.rec.rev > 0 && r.rec.hash !== null).map((r) => r.rec!.key!));
   const cutoff = nowMs * 1000 - 14 * DAY_US;
-  let saved = 0;
-  let unsaved = 0;
+  const out: RunsLeft = { saved: 0, unsaved: 0, savedIds: [], unsavedIds: [] };
   for (const r of runs) {
-    if (r.saved) saved++;
-    else if ((r.startedUs ?? 0) >= cutoff) unsaved++;
+    if (r.saved) {
+      if (up.has(r.runId) && agreed.has(r.runId)) continue;
+      out.saved++;
+      out.savedIds.push(r.runId);
+    } else if ((r.startedUs ?? 0) >= cutoff) {
+      out.unsaved++;
+      out.unsavedIds.push(r.runId);
+    }
   }
-  return { saved, unsaved };
+  return out;
 }
 
 /** The kinds that keep a copy locked after a lost session: all but timers (ADR 0152: the game's state, stale within hours). */
 export const LOCKING_SPECS: readonly KindSpec[] = SYNC_SPECS.filter((s) => s.kind !== 'timers');
 
-/** What a copy holds that is not in the account: the changes and the saved runs (unsaved runs and timers do not count; spec §7.4, ADR 0152). */
+/**
+ * What a copy holds that is not in the account: the changes and the saved
+ * runs not in the cloud (unsaved runs and timers do not count; spec §7.4,
+ * ADR 0152, ADR 0153). The run kinds are not among the changes: a saved
+ * run counts once, as a run, and an export doc edit alone does not lock.
+ */
 export async function notInAccount(nameKey: string, deviceLabel = 'device'): Promise<{ changes: Unsynced[]; savedRuns: number }> {
   const open = spaceDb(nameKey);
   const changes = await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => deviceLabel), LOCKING_SPECS);

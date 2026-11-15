@@ -10,19 +10,22 @@ const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n =
 export interface KindCounts {
   profiles: number;
   scripts: number;
+  /** Runs moved at Create account (stage 63, ADR 0153); absent: none. */
+  runs?: number;
 }
 
-/** "4 profiles, 2 scripts", "1 profile" (kinds with none are left out). */
+/** "4 profiles, 2 scripts", "1 profile", "1 profile, 3 runs" (kinds with none are left out). */
 export function countWords(c: KindCounts): string {
   const parts: string[] = [];
   if (c.profiles > 0) parts.push(plural(c.profiles, 'profile'));
   if (c.scripts > 0) parts.push(plural(c.scripts, 'script'));
+  if ((c.runs ?? 0) > 0) parts.push(plural(c.runs!, 'run'));
   return parts.join(', ');
 }
 
-/** "2 scripts", "1 profile and 2 scripts". */
+/** "2 scripts", "1 profile and 2 scripts" (the things still to move: never runs). */
 function countAnd(c: KindCounts): string {
-  return countWords(c).replace(', ', ' and ');
+  return countWords({ profiles: c.profiles, scripts: c.scripts }).replace(', ', ' and ');
 }
 
 /** The move is done (pick 1a). */

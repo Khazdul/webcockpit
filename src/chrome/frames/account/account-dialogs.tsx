@@ -119,8 +119,11 @@ function Body(p: { children?: ComponentChildren }): VNode {
 /** What Log out would remove that is not in the account (spec §7.4, Log out 3–4). */
 interface Left {
   changes: Unsynced[];
+  /** Saved runs not in the cloud (ADR 0153), and unsaved runs of the last 14 days. */
   saved: number;
   unsaved: number;
+  /** The ids of those runs: Download's runs backup holds exactly these. */
+  runIds: string[];
 }
 
 type LogoutPhase = 'plain' | 'checking' | 'refused' | 'syncing' | 'ask';
@@ -165,10 +168,12 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
         if (!alive.current) return;
         setOffline(!!outcome && outcome.type !== 'synced');
       }
-      const changes = (await unsyncedNow().catch(() => null)) ?? (await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => 'device')));
-      const runs = await runCounts(open).catch(() => ({ saved: 0, unsaved: 0 }));
+      const all = (await unsyncedNow().catch(() => null)) ?? (await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => 'device')));
+      // A saved run not in the cloud is counted once, as a run (ADR 0153).
+      const changes = all.filter((u) => u.kind !== 'run' || u.change !== 'new');
+      const runs = await runCounts(open).catch(() => ({ saved: 0, unsaved: 0, savedIds: [], unsavedIds: [] }));
       if (!alive.current) return;
-      setLeft({ changes, ...runs });
+      setLeft({ changes, saved: runs.saved, unsaved: runs.unsaved, runIds: [...runs.savedIds, ...runs.unsavedIds] });
       setPhase('ask');
     })().catch(() => {
       if (alive.current) setPhase('plain');
@@ -228,7 +233,7 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
     }
     if (l.saved + l.unsaved > 0) {
       try {
-        downloadBlob(await (await services.runs()).backup(), backupFileName(day));
+        downloadBlob(await (await services.runs()).backup(undefined, { only: new Set(l.runIds) }), backupFileName(day));
       } catch {
         /* History's own backup says why */
       }
