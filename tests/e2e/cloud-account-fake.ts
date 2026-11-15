@@ -293,7 +293,7 @@ export class FakeAccountServer {
       state: o.state ?? 'active',
       ...fields,
       limits: { ...DEFAULT_ACCOUNT_LIMITS },
-      prefs: { galleryNotice: true },
+      prefs: { galleryNotice: true, rulesAccepted: false },
     });
   }
 
@@ -802,9 +802,15 @@ export class FakeAccountServer {
   }
 
   private prefs(req: FakeRequest, account: AccountRow): FakeResponse {
-    const b = this.body(req, ['galleryNotice']);
-    if (!b || typeof b.galleryNotice !== 'boolean') return err('bad_request', 400);
-    account.prefs = { ...account.prefs, galleryNotice: b.galleryNotice };
+    const b = this.body(req, [], ['galleryNotice', 'rulesAccepted']);
+    if (!b || Object.keys(b).length === 0) return err('bad_request', 400);
+    if (b.galleryNotice !== undefined && typeof b.galleryNotice !== 'boolean') return err('bad_request', 400);
+    if (b.rulesAccepted !== undefined && b.rulesAccepted !== true) return err('bad_request', 400);
+    account.prefs = {
+      ...account.prefs,
+      ...(typeof b.galleryNotice === 'boolean' ? { galleryNotice: b.galleryNotice } : {}),
+      ...(b.rulesAccepted === true ? { rulesAccepted: true } : {}),
+    };
     return { status: 200, body: { prefs: { ...account.prefs } } satisfies PrefsAnswer };
   }
 

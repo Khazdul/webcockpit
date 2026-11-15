@@ -14,6 +14,14 @@
 //   PUT  /api/admin/flags/<n> { value } (Access, X-WC: 1, same Origin)
 //   GET  /admin               the admin page (Access); /admin/admin.css,
 //                             /admin/admin.js
+//   /api/admin/reports, /log, /pub/<id>[/payload], /account/<name>
+//                             moderation (worker/moderation.ts; Access, and
+//                             X-WC: 1 and the same Origin on writes)
+//   /api/pub/<id>[/payload|/view]
+//                             a published run, public (worker/pub.ts; flag `share`)
+//   /r/<id>                   the watch page: the site's index.html (the app
+//                             boots into it); a static file under /r/ (the
+//                             frame document) is served as it is
 //   other /api/*              404 { error: "not_found" }; a wrong method is
 //                             405 { error: "method_not_allowed" }
 //   anything else             the static assets (only reached when no file
@@ -26,13 +34,15 @@
 // here; on staging (`NOINDEX`) every answer of the Worker gets
 // `X-Robots-Tag: noindex`.
 
-import { type AdminFlag, type Config, type Health, type PublicStats } from '../shared/cloud/api.ts';
+import { type AdminFlag, type Config, type Health, PUB_ID_PATTERN, type PublicStats } from '../shared/cloud/api.ts';
 import { defaultLimits } from './accounts.ts';
 import { verifyAccess } from './access.ts';
 import { ADMIN_CSP, ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from './admin/page.ts';
 import { accountApi, isAccountPath, sameSite } from './auth.ts';
 import { adminFlags, flags, isFlagName, setFlag } from './flags.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
+import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
+import { isPublicPubPath, publicPub } from './pub.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
 
 export { API_HEADERS } from './runtime.ts';
@@ -57,7 +67,8 @@ export async function release(env: Env, origin: string): Promise<{ version: stri
   return { version: 'dev', commit: 'dev' };
 }
 
-type Handler = (request: Request, env: Env, url: URL, deps: Deps) => Response | Promise<Response>;
+/** `who`: on an admin path, the hash of the admin's Access e-mail (moderation.ts `whoOf`). */
+type Handler = (request: Request, env: Env, url: URL, deps: Deps, who: string) => Response | Promise<Response>;
 
 const MINUTE_CACHE = { 'Cache-Control': 'max-age=60' };
 const PUBLIC_MINUTE_CACHE = { 'Cache-Control': 'public, max-age=60' };
@@ -190,18 +201,19 @@ function isAdmin(path: string): boolean {
 
 function adminRoute(path: string): Record<string, Handler> | undefined {
   if (Object.hasOwn(ADMIN_ROUTES, path)) return ADMIN_ROUTES[path];
+  if (isModerationPath(path)) return moderationRoute(path);
   if (path.startsWith('/api/admin/flags/') && path.length > '/api/admin/flags/'.length) return ADMIN_ROUTES['/api/admin/flags/'];
   return undefined;
 }
 
-async function dispatch(request: Request, env: Env, url: URL, deps: Deps, route: Record<string, Handler> | undefined): Promise<Response> {
+async function dispatch(request: Request, env: Env, url: URL, deps: Deps, route: Record<string, Handler> | undefined, who = ''): Promise<Response> {
   if (!route) return error('not_found', 404);
   // HEAD is GET without the body, as for the static files.
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;
   if (!handler) return error('method_not_allowed', 405, { Allow: Object.keys(route).join(', ') });
-  const res = await handler(request, env, url, deps);
+  const res = await handler(request, env, url, deps, who);
   return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
 }
 
@@ -212,11 +224,38 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
     // Every admin path, known or not, answers only after the Access check.
     const access = await verifyAccess(request, env, deps);
     if (!access.ok) return access.response;
-    return dispatch(request, env, url, deps, adminRoute(path));
+    return dispatch(request, env, url, deps, adminRoute(path), await whoOf(env, access.email));
   }
+  if (path.startsWith('/r/')) return watchPage(request, env, url);
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
   if (isAccountPath(path)) return accountApi(request, env, url, deps);
+  if (isPublicPubPath(path)) return publicPub(request, env, url, deps);
   return dispatch(request, env, url, deps, Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined);
+}
+
+/**
+ * `/r/*` (run_worker_first, ADR 0154): `/r/<id>` answers the site's
+ * `index.html` (the root, fetched from the assets, so its `_headers`
+ * policy and ETag come along) and the app boots into the watch page. A
+ * path whose last part is not an id goes to the assets first, so a static
+ * file under `/r/` (the frame document `/r/frame.html`, and the redirect
+ * of `html_handling` to `/r/frame`) is served as it is; only what the
+ * assets do not have becomes `index.html` (the app shows the error).
+ */
+async function watchPage(request: Request, env: Env, url: URL): Promise<Response> {
+  const method = request.method;
+  if (method !== 'GET' && method !== 'HEAD') return env.ASSETS.fetch(request);
+  const id = url.pathname.slice('/r/'.length);
+  if (!PUB_ID_PATTERN.test(id)) {
+    const file = await env.ASSETS.fetch(request);
+    if (file.status !== 404) return file;
+  }
+  const headers = new Headers();
+  for (const name of ['if-none-match', 'if-modified-since', 'accept', 'accept-encoding']) {
+    const v = request.headers.get(name);
+    if (v !== null) headers.set(name, v);
+  }
+  return env.ASSETS.fetch(new Request(new URL('/', url), { method, headers }));
 }
 
 export async function handle(request: Request, env: Env, deps: Deps = DEFAULT_DEPS): Promise<Response> {

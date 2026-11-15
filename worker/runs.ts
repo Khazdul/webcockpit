@@ -99,7 +99,7 @@ const FixedLengthStream = (globalThis as { FixedLengthStream?: FixedLength }).Fi
 // --- PUT /api/u/runs/<id> ---
 
 /** `Content-Length` as a whole number, `null` when it is missing, NaN when it is not one. */
-function lengthOf(request: Request): number | null {
+export function lengthOf(request: Request): number | null {
   const v = request.headers.get('content-length');
   if (v === null) return null;
   return /^\d{1,15}$/.test(v.trim()) ? Number(v.trim()) : Number.NaN;
@@ -200,17 +200,26 @@ async function put(c: RunsCtx): Promise<Response> {
 }
 
 /** What `store` came to: the stored head; null when nothing was stored; `untrusted` when R2 stored an object from a stream that failed. */
-type Stored = R2Head | { size: number } | 'untrusted' | null;
+export type Stored = R2Head | { size: number } | 'untrusted' | null;
 
 /** Streams the request's body to R2 as exactly `size` bytes (see `Stored`). Throws when R2 fails, or the stream before R2 stored anything. */
-async function store(bucket: R2, key: string, request: Request, size: number): Promise<Stored> {
+function store(bucket: R2, key: string, request: Request, size: number): Promise<Stored> {
+  return request.body ? storeStream(bucket, key, request.body, size) : Promise.resolve(null);
+}
+
+/**
+ * Streams `body` to R2 as exactly `size` bytes (see `Stored`); also the
+ * published payloads' path (worker/pub.ts). Throws when R2 fails, or the
+ * stream before R2 stored anything.
+ */
+export async function storeStream(bucket: R2, key: string, body: ReadableStream<Uint8Array>, size: number): Promise<Stored> {
   const options = { httpMetadata: { contentType: 'application/octet-stream' } };
-  if (FixedLengthStream && request.body) {
+  if (FixedLengthStream) {
     const fixed = new FixedLengthStream(size);
     // A short (or long) body fails the pipe and with it the put. A put
     // that fails on its own stops the pipe (nothing reads it any more).
     const stop = new AbortController();
-    const pump = request.body.pipeTo(fixed.writable, { signal: stop.signal }).then(
+    const pump = body.pipeTo(fixed.writable, { signal: stop.signal }).then(
       () => null,
       (e: unknown) => e ?? new Error('pipe failed'),
     );
@@ -228,7 +237,7 @@ async function store(bucket: R2, key: string, request: Request, size: number): P
     return head;
   }
   // No FixedLengthStream (a host that is not workerd): the bytes first.
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const bytes = new Uint8Array(await new Response(body).arrayBuffer());
   if (bytes.length !== size) return null;
   return bucket.put(key, bytes, options);
 }
