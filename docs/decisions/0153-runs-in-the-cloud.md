@@ -33,7 +33,7 @@ bucket `FILES` (EU) bound in both environments, `runBytes` and
 ### The body
 
 - **One body per sealed run** (not per session): the backup's JSONL
-  lines of that run (`{"type":"run","meta"}`, its chunks, its events;
+  lines of that run (`{"type":"run","run":…}` as `backup()` writes it, its chunks, its events;
   src/runs/library.ts, `BACKUP_SCHEMA`), preceded by a header line
   `{"type":"webcockpit-run-body","v":1}`. Gzip (`CompressionStream`),
   then `encryptBody(dataKey, "run", serverId, …)`. An export doc is not

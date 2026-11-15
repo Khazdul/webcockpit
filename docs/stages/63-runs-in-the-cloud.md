@@ -236,7 +236,27 @@ touches staging or production.
 
 ## Measurements
 
-(Part A2.)
+Part A2, 2026-11-15; the full note is `notes/research/run-sizes.md`
+(no game text, no names). Material: 72 WebCockpit runs (11.8 h, 23
+saved) from the owner's own runs backups, and 12 Cockpit runs (10.6 h,
+two of 2.4 h and 5 h) converted to WebCockpit's form, their GMCP
+estimated from the WebCockpit runs (factor 1.42, upper bound 2.81).
+The encryption is the real code (`encryptBody`, `seal`): 21 bytes of
+header and 28 per started 1 MiB segment.
+
+| Figure | Value |
+|---|---|
+| Stored (encrypted) bytes per played hour, runs ≥ 0.25 h | median 149 KB, quartiles 46 / 388 KB; active play 270–445 KB/h; worst 820 KB/h |
+| All 84 runs, 22.5 h | raw 42 MB, stored 5.8 MB (8.2 MB at the upper bound) |
+| Largest body | 1.4 MB (5 h run; at most 2.7 MB): 7–14 % of the 20 MB per body |
+| A `run` item, sealed | 241–490 bytes |
+| 50 MiB holds | about 120–200 played hours (about 64 h at the worst rate), about 760 runs |
+| Their items | about 0.3 MiB and 760 of the 2 000 items |
+| R2 | 100 full accounts 5.2 GB, half the free 10 GB |
+
+**Proposal:** keep 50 MiB; the small-item limits (2 MB, 2 000) stand at
+that size and should rise with the run limit if it goes past about
+100 MiB (e.g. 5 000 items, 4 MB).
 
 ## Test guide (owner)
 
