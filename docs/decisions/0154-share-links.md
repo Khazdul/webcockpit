@@ -334,3 +334,157 @@ comments in `shared/cloud/api.ts` have the exact answers):
   `tests/unit/static-server-cloudflare.test.ts` (`/r/*`, 1 new). As in
   stage 63, Miniflare's local R2 logs an uncaught "Network connection
   lost" of its own in the short-body test; the test passes.
+
+## As built (stage 64 B2)
+
+The replay runtime against hostile payloads and the sandboxed frame
+(branch `stage64-replay`).
+
+- **`validatePayload`** (`src/replay/validate.ts`), pure, refuses a bad
+  payload whole (`PayloadError` with the first bad field's path) and copies
+  only known fields into new objects (own properties only; no payload key
+  is ever assigned, so `__proto__` and `constructor` stay data). Bounds as
+  decided, plus: title ≤ 1 000, character ≤ 200, a marker's tip ≤ 2 000
+  characters, `holdMs` 0–60 s (the exporter makes at most 10 s), `level`
+  0–10 000, every µs value finite within ±8.64e18 (what `Date` takes),
+  cuts ≤ 20 000, the map's `rooms`/`visited` 0–1e9, `hiddenSys` integers
+  below `runs.length`. A run's meta keeps `startedUs` and `summary`
+  (`startUs`, `level`) only. The capture texts are not parsed: the
+  player's reader skips any line that is not a record, and the review
+  below covers what a well-formed record can do.
+- **Map files**: keys as decided (and no `.`, `..` or empty segment);
+  images `data:image/(png|jpeg|gif|webp);base64` whose header says at most
+  4 096 × 4 096 px (`MAP_IMAGE_PX`; the bundled tiles are at most 313 px):
+  a small file cannot decode to a huge bitmap in the worker. **Deviation:**
+  under `fonts/` also `data:text/plain;base64,` besides woff2: the map's
+  bitmap font descriptions (`Cantarell18.fnt`) have always been embedded
+  so, and every schema-1 file must keep playing.
+- **Every schema-1 payload passes**: the tests build every session of the
+  runs demo backup (whole and cut with a comment), every `.log` fixture, the
+  first files' shape (whole `RunMeta`, no tips, all settings), an exported
+  map, and read the owner's 32 real exported files when present
+  (`$WEBCOCKPIT_REPLAYS`, default `~/Downloads`; skipped elsewhere). The
+  HTML replay file (`startReplay`) validates too.
+- **The settings whitelist** (`src/share/replay-settings.ts`
+  `REPLAY_SETTINGS_KEYS`): `version`, `appearance`, `panes`, `layout`,
+  `group`, `comm`, `timers`, `output`, `mapper`, `weather`. Left out:
+  `profile` (its name), `input`, `spotlights` (character names), `windows`,
+  `phone`. `replaySettings` (what `buildReplayPayload` writes) migrates the
+  exporter's settings first and then picks, so an unknown field inside a
+  kept section never travels either; `validatePayload` applies
+  `migrateSettings` and the same pick. A test puts a login, a password,
+  keys, a Comm history and a profile name into the settings and finds none
+  of them in the payload.
+- **The frame document** `r/frame.html` (`scripts/frame-html.ts`, built by
+  vite.config.ts `frameDocumentPlugin` from `src/replay/frame-main.ts`:
+  the replay runtime with the map worker inline, its CSS in the one
+  `<style>`, about 1.4 MB). `cspHashesPlugin` fills its policy's two
+  placeholders (`'sha256-FRAME-SCRIPT'`, `'sha256-FRAME-STYLE'`,
+  scripts/csp.ts `fillFrameHashes`, which refuses a document without
+  exactly one inline script and one style). **The `_headers` rule is
+  `/r/frame`**, the path Cloudflare serves the file at (`/r/frame.html`
+  307s there; B1 saw the assets binding match rules by that clean path),
+  and the iframe loads `<BASE_URL>r/frame` (no redirect; a subpath deploy
+  works; a page-relative `r/frame` would resolve under `/r/<id>`). The
+  rule removes the app's two policy lines first (`! Content-Security-
+  Policy`, `! …-Report-Only`), so the policies do not combine, and
+  `enforceCsp` now rewrites only the `/*` rule's lines. **The policy is
+  the one written above, unchanged**: with the document's own style by
+  hash, the player's run-time styles (CSSOM `style` properties) raised no
+  violation in Chromium or Firefox. The app's policy gets `frame-src
+  'self'`. The dev server serves `/r/frame` (and `/r/frame.html`) built
+  on demand with the same policy, hashes filled, and — because the dev
+  page is cross-origin isolated — COEP and `Cross-Origin-Resource-Policy:
+  cross-origin` (Firefox blocks a sandboxed frame's document under COEP
+  otherwise); production sends no COEP, so its rule needs neither.
+- **Minimal code changes the policy needed** (instead of loosening it):
+  the map worker read its data: URIs with `fetch`, which `connect-src
+  'none'` blocks; `src/map/assets.ts` now decodes base64 data: URIs
+  itself (`dataUriBlob`) and refuses anything else. `crypto.subtle` does
+  not exist in the opaque frame (not a secure context), which failed the
+  map's load (`mapHash`); it now returns `''` there, which stores and loads
+  no learned ids, as in any replay.
+- **The handshake** (`src/replay/frame.ts`, `src/watch/frame-host.ts`):
+  as decided. The frame accepts only `parent`'s first `wc-play` (`v: 1`);
+  fonts are checked (families of `FONTS` and the pane title's, weight,
+  `unicode-range` syntax, ≤ 64 fonts of ≤ 8 MiB) and registered with
+  `FontFace` from the bytes; the payload goes through `readSharedPayload`
+  (`src/replay/shared.ts`: streaming gunzip cancelled past 64 MiB, strict
+  UTF-8, JSON, `validatePayload`); errors are one of three fixed lines.
+  `prefs` is accepted and not used yet; `wc-size` is not sent (the frame
+  fills the box the page gives it). **Addition:** the page reads the
+  payload once itself (the same `readSharedPayload`) before it makes the
+  frame: it needs the payload's font families and Download as HTML needs
+  the validated payload; a payload the page refuses never reaches a frame.
+  The page takes messages only from the frame's window with origin
+  `'null'`; it posts with `'*'` (an opaque origin cannot be named; nothing
+  sent is private). Known limit: a sandboxed frame may still navigate
+  itself; it stays sandboxed, and only script could do it, which the
+  policy and the review keep out.
+- **The review of every path from payload text to the DOM** (an
+  independent read of the player, then fixes, each with a test that fails
+  without it, `tests/unit/replay-review.test.ts`). No HTML injection was
+  found: every `innerHTML` on the path takes constants; log lines, Comm,
+  the panes, script panes' records (text and colour numbers only, capped
+  by `sanitizeSnapshot`), marker tips, comments, the header, map room
+  names and notes all reach the DOM as `textContent`, `title`,
+  `aria-label` or `dataset`; no payload value reaches `src`, `href`,
+  `action` or a `url()` but the validated map data: URIs. Fixed:
+  1. A VIEW record's parts went into the player's raw `base` unmigrated:
+     a pane entry that is not an object (`{"panes":{"statistics":1}}`)
+     threw on every compose and froze playback, and an `appearance.bg` of
+     `url(…)` reached the Display popup's swatch as a CSS background (a
+     request when the popup opened). The parts are now migrated as they
+     enter `base` (`player-host.ts`).
+  2. The map worker fetched any string in `map.files` (closed by the
+     validator and by the resolver's own data:-only decoding).
+  3. The `.mm2` inflate had no ceiling (a deflate bomb in `map.mm2`): it
+     now stops at the qCompress header's length or 256 MiB
+     (`MM2_INFLATE_MAX`).
+  4. Script pane records with thousands of ids made as many panes: capped
+     at `MAX_SCRIPT_PANES` (200).
+  5. Map images that decode to huge bitmaps (the 4 096 px check above).
+  6. Names from the log used as table keys (`constructor`, `__proto__`
+     as a channel or position) read Object.prototype members into the
+     Comm and Group text: the lookups take own keys only.
+  7. `mergeInto` (the settings store) skips `__proto__`, `constructor`
+     and `prototype` (not reachable today; a guard).
+- **Fuzzing** (`tests/unit/replay-fuzz.test.ts`, fixed seeds, 100 per base
+  payload × 4 fixtures, plus the wire bytes): flipped types, huge numbers,
+  long strings, deep nesting, own `__proto__`/`constructor` keys
+  throughout, broken ANSI/OSC/DCS, broken and hostile GMCP, VIEW, SIZE and
+  SPANE records spliced into the runs, bad maps, cut-up and bit-flipped
+  gzip, a 200 MiB gzip bomb (refused at the ceiling in well under a
+  second), NaN/Infinity/cyclic objects: through `readSharedPayload` and
+  `openReplay` (now with an optional `wall`) on a fake wall in happy-dom.
+  No throw but the reader's own refusal, nothing added outside the root,
+  no markup element anywhere, no prototype polluted, every case bounded.
+- **e2e** (`tests/e2e/watch-sandbox.spec.ts`, Chromium and Firefox): the
+  map demo and the runs demo play in the frame (the map worker from a
+  blob draws the embedded subset; fonts registered; no CSP violation); a
+  hostile payload (markup in the title, character, game text, Comm, room
+  name, script pane title/text/hint, comment and tip, a url() colour)
+  stays text; script evaluated in the frame finds an opaque origin and is
+  refused `parent.document`, the parent's and its own `localStorage`,
+  `sessionStorage`, `document.cookie`, `indexedDB`, `fetch` to the origin,
+  an image from it, a top navigation and a popup, while the page keeps its
+  URL, title, storage, cookie and DOM; a second `wc-play` is ignored; a
+  payload the page refuses makes no frame; `/r/frame`'s policy names the
+  document's script and style. The prod CSP walk
+  (`tests/e2e-prod/csp.spec.ts`) checks the built site's `/r/frame` header
+  (and the 307 of `/r/frame.html`), the app's `frame-src 'self'`, and
+  plays a payload in the frame inside the app page without a violation,
+  report-only and enforced.
+- **For C2**: `openFrame({ container, bytes, onError, onPlay })` →
+  `{ frame, payload, dispose }` (a `PayloadReadError` with a showable
+  `text` when the page refuses the bytes). Download as HTML builds from
+  `payload` with `buildReplayHtml(payload, { base: siteBaseUrl() })`
+  (the default base, `document.baseURI`, is wrong under `/r/<id>`). Dev:
+  `__wc.watchFrame({ session? | logs? | texts? | raw? })` and
+  `?watchframe=<backup fixture>[&session=<id>]`.
+- **Also fixed**: `worker/pub.ts` used a TypeScript parameter property,
+  which Node's type stripping refuses, so `scripts/static-server.ts` (the
+  prod smoke and CSP walk) could not start; it is a plain field now.
+- **Entry chunk**: 31 193 bytes (31 192 before): the validator and the
+  whitelist live in modules of their own so the app's chunk graph is
+  unchanged.
