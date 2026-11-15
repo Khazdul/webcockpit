@@ -160,22 +160,22 @@ touches staging or production.
 
 #### B2. The client's core (worktree `stage63-core`, port 5443)
 
-- [ ] Database version 10: the `runCloud` store (both spaces); upgrade
+- [x] Database version 10: the `runCloud` store (both spaces); upgrade
       test from version 9.
-- [ ] `src/cloud/runs/body.ts` + `body.worker.ts`: encode a run's rows
+- [x] `src/cloud/runs/body.ts` + `body.worker.ts`: encode a run's rows
       to a sealed body (header line, JSONL, gzip, `encryptBody`) and
       decode a stream back to rows; Node round-trip tests; a body of
       another kind or id, a newer `v`, a gzip bomb are refused.
-- [ ] `src/cloud/sync/items.ts`: kinds `run` and `exportDoc` (bodies,
+- [x] `src/cloud/sync/items.ts`: kinds `run` and `exportDoc` (bodies,
       decode, `v` 1, last writer).
-- [ ] `src/cloud/runs/queue.ts` (pure, ports): newest first, `full`
+- [x] `src/cloud/runs/queue.ts` (pure, ports): newest first, `full`
       retried when there is room, stops when playing, back-off,
       `quota` / `run_too_large` / `401`; `fetchRuns` with progress.
-- [ ] The model (`tests/unit/cloud-sync-model.ts`) grows R2 and the
+- [x] The model (`tests/unit/cloud-sync-model.ts`) grows R2 and the
       generated runs grow `run` and `exportDoc` (ADR 0153, "Tests").
-- [ ] The remote adapter for the run endpoints (`src/cloud/space/
+- [x] The remote adapter for the run endpoints (`src/cloud/space/
       remote.ts`), against the contract.
-- [ ] ADR 0153 "As built (B2)".
+- [x] ADR 0153 "As built (B2)".
 
 ### C. Flows and views (after B merged; C2 also after round 11's picks)
 
