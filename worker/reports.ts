@@ -13,8 +13,12 @@
 // exist and are not suspended count, and a run the admin has restored or
 // whose reports were dismissed (`reviewed`) is never hidden by reports
 // again: they queue it for the admin (review fix S3).
+//
+// Each stored report starts the owner's mail (worker/mail.ts) after the
+// answer: it never fails or delays the 204.
 import { PUB_ID_PATTERN, REPORT_KINDS, REPORT_KINDS_OPEN, REPORT_REASONS, REPORT_TEXT_MAX, REPORTS_PER_DAY, REPORTS_TO_HIDE, type ReportKind, type ReportReason } from '../shared/cloud/api.ts';
 import { hasKeys } from './accounts.ts';
+import { mailReport } from './mail.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
 import { dayStart, error, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
@@ -73,5 +77,6 @@ export async function report(c: PubCtx): Promise<Response> {
       .bind(target, c.now, REPORTS_TO_HIDE),
   ]);
   if (inserted?.meta.changes !== 1) return (await dup()) ? error('already_reported', 409) : error('too_many', 429);
+  mailReport(c.env, c.deps, c.url.origin, { target, reason: b.reason, text: note });
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }

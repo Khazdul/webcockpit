@@ -19,7 +19,8 @@ import {
 } from '../shared/cloud/api.ts';
 import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
-import { DAY_MS, type D1, type Env, dayStart, utcDay } from './runtime.ts';
+import { flushReportMail } from './mail.ts';
+import { DAY_MS, type D1, type Deps, type Env, dayStart, utcDay } from './runtime.ts';
 import { sweepPubs } from './pub.ts';
 import { sweepPrefixes } from './runs.ts';
 import { pruneSessions } from './sessions.ts';
@@ -287,10 +288,12 @@ export async function prune(db: D1, now: number): Promise<void> {
  * own pruning (stale attempt counters, expired sessions: spec §7.10),
  * the deleted accounts' R2 prefixes, and the published runs' part (old
  * views, pending rows left behind, tombstones' objects: worker/pub.ts),
- * which runs whether or not the statistics' part failed. Nothing without
+ * which runs whether or not the statistics' part failed. Every 5 minutes
+ * also the reports' collected mail of an hour that has ended past the
+ * cap (worker/mail.ts; `deps` gives it the EmailMessage). Nothing without
  * a database.
  */
-export async function runCron(env: Env, cron: string, time: number): Promise<void> {
+export async function runCron(env: Env, cron: string, time: number, deps?: Deps): Promise<void> {
   const db = env.DB;
   if (!db) return;
   if (cron === DAILY_CRON) {
@@ -304,7 +307,12 @@ export async function runCron(env: Env, cron: string, time: number): Promise<voi
       await sweepPubs(env, time);
     }
   } else {
-    await sample(db, time);
+    try {
+      await sample(db, time);
+    } finally {
+      // The collected mail of an hour past the reports' mail cap (worker/mail.ts).
+      if (deps) await flushReportMail(env, deps, time);
+    }
   }
 }
 
