@@ -9,6 +9,7 @@
 //   store.subscribe((s) => applyTheme(s));
 //   store.update({ appearance: { size: 16 } });
 //   store.update((d) => { d.panes.ui.on = false; });
+//   await store.reload();              // the sync wrote `main`: read it again
 //
 // - `get()` returns a frozen snapshot. Every change makes a new object, so
 //   `next !== prev` means something changed; compare sub-objects by value.
@@ -26,6 +27,7 @@
 //   memory; `persistent` is false.
 
 import { STORE, openWebcockpitDb } from '../core/db';
+import { noteStored } from '../core/store-events';
 import { migrateAppearance, migrateSettings } from './migrate';
 import { type AppearanceSettings, type Settings, type SettingsPatch, defaultSettings, phoneDefaultSettings } from './types';
 
@@ -33,6 +35,14 @@ import { type AppearanceSettings, type Settings, type SettingsPatch, defaultSett
 export const MIRROR_KEY = 'webcockpit.appearance';
 /** IndexedDB key of the settings record. */
 export const SETTINGS_KEY = 'main';
+
+/**
+ * What `reload()` did: `applied` (the stored record differed and the
+ * subscribers were told), `same` (it matched what is shown, or there is
+ * none), `local` (a local change was not saved yet: it was saved instead
+ * and wins), `none` (no IndexedDB).
+ */
+export type SettingsReload = 'applied' | 'same' | 'local' | 'none';
 
 export type SettingsListener = (next: Readonly<Settings>, prev: Readonly<Settings>) => void;
 
@@ -241,6 +251,57 @@ export class SettingsStore {
     }
   }
 
+  /**
+   * Reads `main` from IndexedDB again (the sync wrote it, ADR 0152),
+   * migrates it as `load()` does and, when it differs from what is shown,
+   * tells the subscribers as a change made here would, and rewrites the
+   * appearance mirror. Nothing is written back to IndexedDB: the record is
+   * already there, and a migrated one is saved at the next change.
+   *
+   * A local change not saved yet wins: it is flushed (over the pulled
+   * record, so the sync pushes it at its next scan, last writer) and the
+   * result is `local`. So is a change made while the record is read. In
+   * safe mode, before the first change, the appearance stays the default.
+   * Never rejects.
+   */
+  async reload(): Promise<SettingsReload> {
+    await this.load();
+    if (!this.db) return 'none';
+    if (this.dirty) {
+      await this.flush();
+      return 'local';
+    }
+    // A write in flight is ours: read after it.
+    await this.writing;
+    let stored: unknown;
+    try {
+      const db = this.db;
+      if (!db) return 'none';
+      const tx = db.transaction(STORE.settings, 'readonly');
+      const r = tx.objectStore(STORE.settings).get(SETTINGS_KEY);
+      stored = await new Promise<unknown>((resolve, reject) => {
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+      });
+    } catch (err) {
+      this.warn('settings could not be read again', err);
+      return 'none';
+    }
+    if (this.dirty) {
+      await this.flush();
+      return 'local';
+    }
+    if (stored === undefined) return 'same';
+    const next = migrateSettings(stored, { phone: this.phone && !this.tablet });
+    if (this.holdWrites) next.appearance = this.defaults().appearance;
+    const prev = this.current;
+    if (same(prev, next)) return 'same';
+    this.current = freeze(next);
+    this.writeMirror(prev.appearance, true);
+    this.emit(prev);
+    return 'applied';
+  }
+
   /** Applies a change. No-op when nothing actually changes. */
   update(u: SettingsUpdate): void {
     if (!this.loaded) this.early.push(u);
@@ -339,7 +400,10 @@ export class SettingsStore {
     } catch (err) {
       p = Promise.reject(err);
     }
-    this.writing = p.catch((err: unknown) => this.warn('settings could not be saved', err));
+    this.writing = p.then(
+      () => noteStored('settings'),
+      (err: unknown) => this.warn('settings could not be saved', err),
+    );
     return this.writing;
   }
 

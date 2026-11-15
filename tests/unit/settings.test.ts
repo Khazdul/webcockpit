@@ -1022,3 +1022,117 @@ describe('mapper settings (ADR 0077)', () => {
     expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }).version).toBe(SETTINGS_VERSION);
   });
 });
+
+describe('SettingsStore.reload (ADR 0152)', () => {
+  /** Writes `value` as `main`, as the sync's adapter does. */
+  async function putMain(factory: IDBFactory, value: unknown): Promise<void> {
+    const db = await openWebcockpitDb(factory);
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      tx.objectStore('settings').put(value, 'main');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }
+
+  /** Counts the store's writes of `main`. */
+  function countPuts(store: SettingsStore): () => number {
+    let n = 0;
+    const db = (store as unknown as { db: IDBDatabase }).db;
+    const real = db.transaction.bind(db);
+    db.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+      if (mode === 'readwrite') n++;
+      return real(names, mode);
+    }) as typeof db.transaction;
+    return () => n;
+  }
+
+  it('a pulled appearance change reaches the subscribers and the mirror; nothing is written back', async () => {
+    const factory = new IDBFactory();
+    const storage = new MemStorage();
+    const s = make({ factory, storage });
+    await s.load();
+    s.update({ appearance: { size: 15 } });
+    await s.flush();
+    const puts = countPuts(s);
+    const seen: [number, number][] = [];
+    s.subscribe((next, prev) => seen.push([next.appearance.size, prev.appearance.size]));
+    const pulled = JSON.parse(JSON.stringify(s.get())) as ReturnType<typeof defaultSettings>;
+    pulled.appearance.size = 19;
+    pulled.panes.ui.on = !pulled.panes.ui.on;
+    await putMain(factory, pulled);
+    expect(await s.reload()).toBe('applied');
+    expect(seen).toEqual([[19, 15]]);
+    expect(s.get().appearance.size).toBe(19);
+    expect(s.get().panes.ui.on).toBe(pulled.panes.ui.on);
+    expect(readAppearanceMirror(storage)?.size).toBe(19);
+    // The same record again: nothing to tell.
+    expect(await s.reload()).toBe('same');
+    expect(seen).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(puts()).toBe(0);
+  });
+
+  it('an older record migrates and stays as stored until a change', async () => {
+    const factory = new IDBFactory();
+    const s = make({ factory });
+    await s.load();
+    const puts = countPuts(s);
+    const old = JSON.parse(JSON.stringify(defaultSettings())) as ReturnType<typeof defaultSettings>;
+    old.version = 5;
+    old.appearance.inputColor = 'steel';
+    old.appearance.size = 20;
+    await putMain(factory, old);
+    expect(await s.reload()).toBe('applied');
+    expect(s.get().appearance.size).toBe(20);
+    expect(s.get().version).toBe(SETTINGS_VERSION);
+    expect(s.get().appearance.inputColor).toBe('amber');
+    await new Promise((r) => setTimeout(r, 60));
+    expect(puts()).toBe(0);
+    expect((await stored(factory)) as { version: number }).toMatchObject({ version: 5 });
+  });
+
+  it('a local change not saved yet wins: it is flushed and nothing is told', async () => {
+    const factory = new IDBFactory();
+    const s = make({ factory });
+    await s.load();
+    const pulled = JSON.parse(JSON.stringify(s.get())) as ReturnType<typeof defaultSettings>;
+    pulled.appearance.size = 21;
+    await putMain(factory, pulled);
+    s.update({ appearance: { size: 13 } });
+    const seen = vi.fn();
+    s.subscribe(seen);
+    expect(await s.reload()).toBe('local');
+    expect(seen).not.toHaveBeenCalled();
+    expect(s.get().appearance.size).toBe(13);
+    expect((await stored(factory)) as { appearance: { size: number } }).toMatchObject({ appearance: { size: 13 } });
+  });
+
+  it('safe mode keeps the default appearance; no IndexedDB is none', async () => {
+    const factory = new IDBFactory();
+    const s = make({ factory, safe: true });
+    await s.load();
+    const pulled = JSON.parse(JSON.stringify(s.get())) as ReturnType<typeof defaultSettings>;
+    pulled.appearance.size = 22;
+    pulled.panes.ui.on = !pulled.panes.ui.on;
+    await putMain(factory, pulled);
+    expect(await s.reload()).toBe('applied');
+    expect(s.get().appearance).toEqual(s.defaults().appearance);
+    expect(s.get().panes.ui.on).toBe(pulled.panes.ui.on);
+    const mem = new SettingsStore({ factory: null, storage: null, win: null });
+    expect(await mem.reload()).toBe('none');
+  });
+
+  it('notes `settings` after each flush that committed', async () => {
+    const { onStored } = await import('../../src/core/store-events');
+    const kinds: string[] = [];
+    const off = onStored((k) => kinds.push(k));
+    const s = make({ factory: new IDBFactory() });
+    await s.load();
+    s.update({ appearance: { size: 18 } });
+    await s.flush();
+    off();
+    expect(kinds).toEqual(['settings']);
+  });
+});
