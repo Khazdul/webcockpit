@@ -1,0 +1,73 @@
+/* The mockups' own additions (mk-*), over the real look's CSS (stage 63,
+ * round 11). The values follow the kit's tokens (--lk-*), so a later build
+ * can take them over. */
+
+/* No entrance motion in a still mockup. */
+.wc-lk-veil, .wc-lk-dialog, .wc-alm-o, .wc-lk-flash > span { animation: none !important; }
+html, body { overflow: hidden; }
+
+/* The game as a picture under the captured Exit popup / exit sheet. */
+html, body { height: 100%; margin: 0; }
+.mk-gameapp { position: fixed; inset: 0; }
+.mk-gameapp div:not([class]), .mk-gameapp .wc-app, .mk-gameapp .wc-cockpit { position: absolute; inset: 0; background: transparent !important; }
+
+/* The cloud mark (the kit has none): a stroked glyph like the kit's icons. */
+.mk-cloud { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; vertical-align: -2px; }
+.mk-cloud.is-faint { opacity: 0.45; }
+
+/* 1. The dialog's run line, and the inline words of b. */
+.mk-fit-run { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font: italic 500 15px/1.3 var(--lk-serif); color: var(--lk-dim); }
+.mk-fit-run b { font-style: normal; color: var(--lk-text, inherit); }
+.mk-pop-full { max-width: none; }
+.wc-pop-exit .wc-pop-btn { white-space: nowrap; }
+.mk-ph-full { margin: 14px 0 0; font-size: 15px; line-height: 1.4; color: var(--lk-soon, #e0b070); text-wrap: pretty; text-align: center; }
+.mk-ph-dl { margin-top: 8px; }
+
+/* 2. History: the mark column (a). */
+.mk-hist-a .wc-lk-tr > .mk-td-mark, .mk-hist-a .mk-th-mark { display: flex; align-items: center; justify-content: center; padding-left: 0; padding-right: 0; position: relative; color: var(--lk-dim); }
+.mk-hist-a .mk-th-mark .mk-cloud { opacity: 0.6; }
+.mk-hist-a .wc-lk-tr .mk-cloud.is-off { color: var(--lk-soon); }
+.mk-td-size { font: 500 15px/1.2 var(--lk-serif); font-variant-numeric: lining-nums tabular-nums; color: var(--lk-dim); text-align: right; }
+.mk-th-size { text-align: right; justify-content: flex-end; }
+.mk-tip { position: absolute; transform: translateY(-50%); z-index: 5; white-space: nowrap; padding: 5px 9px; border-radius: 4px;
+  font: italic 500 14px/1.2 var(--lk-serif); color: var(--lk-text, #eee); background: rgba(12, 10, 8, 0.94); box-shadow: 0 0 0 1px var(--lk-rule), 0 6px 18px rgba(0, 0, 0, 0.5); pointer-events: none; }
+
+/* 2. History: the tag (b). */
+.wc-hist-char:has(.mk-tag) { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.mk-tag { font: italic 500 14px/1.2 var(--lk-serif); letter-spacing: 0; color: var(--lk-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-tag.is-local { color: var(--lk-soon); }
+
+/* 2. The phone's two-line rows: the mark and the tag end the first line (before Expires), the size the second. */
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .mk-td-mark { grid-column: 4; grid-row: 1; justify-self: end; display: block; }
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .mk-td-size { grid-column: 4; grid-row: 2; justify-self: end; font-size: 14px; }
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .mk-tag { grid-column: 2 / 5; grid-row: 1; justify-self: end; max-width: 100%; font-size: 14px; }
+.is-narrow .mk-tip { display: none; }
+
+/* 2. Offline: the cloud-only rows quieter. */
+.mk-offline .wc-lk-tr.mk-remote:not(.is-on) > .wc-lk-td { opacity: 0.55; }
+
+/* 2. The card. */
+.mk-kept-note { display: flex; align-items: center; gap: 6px; margin-top: 3px; font: italic 500 15px/1.25 var(--lk-serif); color: var(--lk-soon); }
+.mk-log-cloud { display: inline-flex; align-items: center; gap: 6px; }
+.mk-log-sub { display: block; font: italic 500 14.5px/1.25 var(--lk-serif); color: var(--lk-dim); }
+.mk-log-sub.is-off { color: var(--lk-soon); }
+
+/* Stage 24's bar (index.html .wcf-loader): a 2 px track and its fill, an italic line under it. */
+.mk-load { margin: 6px 0 14px; }
+.mk-load-bar { display: block; position: relative; height: 2px; border-radius: 1px; overflow: hidden; background: rgba(222, 237, 241, 0.16); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); }
+.mk-load-bar > i { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #4c777b, #a2c4c8 70%, #deedf1); }
+.mk-load-l { display: block; margin-top: 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: italic 14px/1.2 var(--lk-serif); letter-spacing: 0.02em; color: rgba(226, 236, 238, 0.78); font-variant-numeric: tabular-nums; }
+.mk-load.is-inline { display: block; width: 300px; margin: 0; }
+.mk-load.is-inline .mk-load-l { margin-top: 6px; text-align: left; }
+
+/* 5. The count line. */
+.mk-count { display: inline-flex; align-items: center; gap: 9px; min-width: 0; font: italic 500 15px/1.25 var(--lk-serif); color: var(--lk-dim); }
+.mk-count .mk-count-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-count > .wc-lk-btn { margin-left: 4px; }
+.wc-spw-foot .mk-count { margin-left: auto; }
+.wc-cred-foot .mk-count { margin: 0 auto; }
+.wc-hs-head .mk-count { flex-basis: 100%; margin-top: 6px; }
+.mk-touch .mk-count { font-size: 14px; gap: 6px; }
+.mk-touch .wc-spw-foot { flex-wrap: wrap; }
+.mk-touch .wc-spw-foot .mk-count { margin-left: 0; flex-basis: 100%; order: 3; }
