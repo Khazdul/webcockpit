@@ -237,11 +237,12 @@ touches staging or production.
 
 #### C3. Admin (worktree `stage64-admin`, port 5466)
 
-- [ ] `worker/admin/page.ts`: Reports (pick 6), the actions with their
+- [x] `worker/admin/page.ts`: Reports (pick 6), the actions with their
       confirmations, the totals, the log; text only, the page's CSP
       unchanged.
-- [ ] Watching a hidden run from the queue (`/r/<id>?admin`).
-- [ ] Tests (worker and the page's script in the unit DOM).
+- [x] Watching a hidden run from the queue (`/r/<id>?admin`): the link; the
+      watch page's side of `?admin` is C2's.
+- [x] Tests (worker and the page's script in the unit DOM).
 
 ### D. Checks
 

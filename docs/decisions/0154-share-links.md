@@ -334,3 +334,46 @@ comments in `shared/cloud/api.ts` have the exact answers):
   `tests/unit/static-server-cloudflare.test.ts` (`/r/*`, 1 new). As in
   stage 63, Miniflare's local R2 logs an uncaught "Network connection
   lost" of its own in the short-body test; the test passes.
+
+## As built (stage 64 C3)
+
+The admin page's moderation view (`worker/admin/page.ts`, branch
+`stage64-admin`), round 12's point 6 as drawn, in the same three files
+and under the same CSP (`script-src 'self'`, no inline code; every text
+from the API set with `textContent`):
+
+- **Two columns** (one under 900 px): Reports on the left; Published
+  runs, An account and the Admin log on the right; the stage 59 sections
+  follow under both. The page reads `/api/admin/reports` and
+  `/api/admin/log` at load, after every action and every 60 s with the
+  stats.
+- **A queue item**: title, `hidden` / `shown`, sender, id, then from
+  `GET /api/admin/pub/<id>` (one request per item, best effort) the
+  character and level, size, views and date; the reasons with counts in
+  a fixed order; "Reported by N accounts" and the newest report's time;
+  the newest text. Watch opens `/r/<id>?admin` in a new tab (`noopener
+  noreferrer`); the watch page's side of `?admin` is C2's.
+- **Actions**: a shown run has Hide, Delete, Dismiss reports and Suspend
+  <sender>; a hidden one Restore, Delete and Suspend. **Dismiss reports
+  is `restore`** on a shown run (no change to the run, its reports
+  handled, `pub.restore` in the log): the API has no dismiss of its own,
+  so on a hidden run Restore is the only way to clear the queue item
+  short of Delete. Each asks in a modal of the page with an optional
+  note for the log (≤ 500); Delete of a run wants the id typed exactly
+  (the page's own check; the API needs none), Delete of an account the
+  name in any case (sent as `confirm`). Errors stay in the modal as a
+  line of text (the API's code in words); success is one line under the
+  header.
+- **An account by name** (Suspend / Restore / Delete), with or without
+  reports: the owner's only account tool until stage 66.
+- **Not shown, since the API does not give them**: the reporters' names
+  (only their count), "hidden after reports" vs "by the admin" (only
+  `hidden`), the totals' Hidden and Views today, the largest run, and
+  the log's `who` (`GET /api/admin/log` leaves it out). Adding any of
+  them is a small Worker change if the owner wants it.
+- **Tests**: `tests/unit/admin-page.test.ts` (11, happy-dom, a faked
+  fetch: hostile titles, senders, characters, texts and notes as text;
+  the confirmations, the calls with `X-WC: 1`, the reload, the empty
+  state, errors, the log's 20 / all) and one more in
+  `worker/test/admin.test.ts` (the three files behind Access, the CSP
+  string unchanged, no HTML sinks in the script).
