@@ -5,11 +5,18 @@
 //   GET    /api/u/pub               the account's published runs
 //   GET    /api/u/pub/<id>          the sender's own run as PubMeta (also a hidden one)
 //   GET    /api/u/pub/<id>/payload  its payload (also a hidden one)
-//   PATCH  /api/u/pub/<id>          title, description
+//   PATCH  /api/u/pub/<id>          title, description, listed (stage 65)
 //   DELETE /api/u/pub/<id>          removes it (a tombstone; the link answers 410)
 //   GET    /api/pub/<id>            the public meta
 //   GET    /api/pub/<id>/payload    the public payload
-//   POST   /api/pub/<id>/view       counts a view, once per device and UTC day
+//   POST   /api/pub/<id>/view       counts a view, once per device and per hashed address a UTC day
+//   GET    /api/pub/<id>/comments   the comments (stage 65, worker/community.ts; flag `gallery`)
+//
+// Stage 65 (ADR 0155): listing (`listed`, `listed_at` set once, at most
+// `listingsPerDay` first listings a UTC day, held in the statement), the
+// stars and comments on the metas (with `gallery` on), what is new on the
+// sender's runs (`MyPub.news`), and a tombstone takes the run's votes and
+// comments with it.
 //
 // `/api/u/pub*` is reached through worker/auth.ts (the flag `accounts`, the
 // limits, the CSRF rule, the session); the flag `share` is checked there.
@@ -46,6 +53,7 @@
 // deletes what is left.
 import {
   type MyPub,
+  NEWS_MAX,
   type PayloadTooLarge,
   PUB_DESCRIPTION_MAX,
   PUB_ID_PATTERN,
@@ -60,10 +68,13 @@ import {
 import { isCleanText } from '../shared/cloud/text.ts';
 import { type AccountRow, hasKeys, limitsOf, prefsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
+import { addressHash } from './attempts.ts';
+import { utf8 } from './bytes.ts';
 import { randomBytes } from './bytes.ts';
+import { commentsGet } from './community.ts';
 import { flags } from './flags.ts';
 import { lengthOf, storeStream, type Stored } from './runs.ts';
-import { DAY_MS, type D1, type D1Statement, type Deps, type Env, type R2, type R2Body, error, json, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type D1Statement, type Deps, type Env, type R2, type R2Body, dayStart, error, json, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { UUID, readCapped } from './stats.ts';
 
@@ -110,19 +121,20 @@ export const titleOf = (v: unknown): string | null => textOf(v, 1, PUB_TITLE_MAX
 export const descriptionOf = (v: unknown): string | null => textOf(v, 0, PUB_DESCRIPTION_MAX, { newlines: true });
 
 /** The meta of a POST, checked, or null (400). */
-export function metaOf(v: unknown): PubMetaIn | null {
+export function metaOf(v: unknown, gallery = false): PubMetaIn | null {
   if (!hasKeys(v, ['title', 'description', 'character', 'lengthS', 'listed'], ['level', 'key'])) return null;
   const title = titleOf(v.title);
   const description = descriptionOf(v.description);
   const character = textOf(v.character, 0, CHARACTER_MAX, { trimmed: true });
   if (title === null || description === null || character === null) return null;
-  if (v.listed !== false) return null;
+  // Hall of Fame (stage 65): `true` only with the flag `gallery` on.
+  if (v.listed !== false && !(v.listed === true && gallery)) return null;
   const { lengthS, level } = v;
   // Whole seconds (review fix CR4: the client's reader wants a whole number).
   if (typeof lengthS !== 'number' || !Number.isInteger(lengthS) || lengthS < 0 || lengthS > LENGTH_MAX_S) return null;
   if (level !== undefined && (typeof level !== 'number' || !Number.isInteger(level) || level < 0 || level > LEVEL_MAX)) return null;
   if (v.key !== undefined && (typeof v.key !== 'string' || !PUB_KEY_PATTERN.test(v.key))) return null;
-  const meta: PubMetaIn = { title, description, character, lengthS, listed: false };
+  const meta: PubMetaIn = { title, description, character, lengthS, listed: v.listed === true };
   if (level !== undefined) meta.level = level;
   if (v.key !== undefined) meta.key = v.key;
   return meta;
@@ -147,9 +159,20 @@ export interface PubRow {
   created: number;
   updated: number;
   views: number;
+  listed_at: number | null;
+  vote_sum: number;
+  vote_count: number;
+  comment_count: number;
 }
 
-export const PUB_COLUMNS = 'id, account, title, description, character, level, length_s, bytes, listed, state, hidden_reason, created, updated, views';
+/** What is new on one of the sender's runs (`MyPub.news`), when the query asked for it. */
+export interface NewsCols {
+  new_votes?: number;
+  new_comments?: number;
+}
+
+export const PUB_COLUMNS =
+  'id, account, title, description, character, level, length_s, bytes, listed, state, hidden_reason, created, updated, views, listed_at, vote_sum, vote_count, comment_count';
 const P_COLUMNS = PUB_COLUMNS.split(', ')
   .map((c) => `p.${c}`)
   .join(', ');
@@ -158,13 +181,25 @@ const P_COLUMNS = PUB_COLUMNS.split(', ')
  * What a tombstone keeps: no text, no idempotency key (a POST with it makes
  * a new run). `bytes` stays until R2 confirms the object is gone.
  */
-export const TOMBSTONE_SET = "state = 'removed', title = '', description = '', character = '', level = NULL, hidden_reason = NULL, listed = 0, pub_key = NULL";
+export const TOMBSTONE_SET =
+  "state = 'removed', title = '', description = '', character = '', level = NULL, hidden_reason = NULL, listed = 0, pub_key = NULL, vote_sum = 0, vote_count = 0, top_sum = 0, top_count = 0, comment_count = 0";
 /** The states of a run that has its payload and counts against `sharedRuns` (besides `pending`). */
 export const LIVE = "('active', 'hidden')";
 
 export const keyOf = (id: string): string => `pub/${id}`;
 
-export function myPub(r: PubRow): MyPub {
+/**
+ * The columns of what is new on the sender's runs since its reactions
+ * time: `acc` and `seen` are the placeholders of the account's id and of
+ * that time. Votes by their last change, visible comments; never the
+ * sender's own (a sender cannot vote on its own run). Each capped.
+ */
+export function newsColumns(acc: string, seen: string): string {
+  return `MIN(${NEWS_MAX}, (SELECT COUNT(*) FROM vote v WHERE v.publication = publication.id AND v.updated > ${seen} AND v.account <> ${acc})) AS new_votes,
+          MIN(${NEWS_MAX}, (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.created > ${seen} AND c.account <> ${acc} AND c.state = 'active')) AS new_comments`;
+}
+
+export function myPub(r: PubRow & NewsCols): MyPub {
   const out: MyPub = {
     id: r.id,
     title: r.title,
@@ -177,12 +212,17 @@ export function myPub(r: PubRow): MyPub {
     updated: r.updated,
     views: r.views,
     bytes: r.bytes,
+    stars: { sum: r.vote_sum, count: r.vote_count },
+    comments: r.comment_count,
+    news: { votes: r.new_votes ?? 0, comments: r.new_comments ?? 0 },
   };
   if (r.level !== null) out.level = r.level;
+  if (r.listed_at !== null) out.listedAt = r.listed_at;
   return out;
 }
 
-export function pubMeta(r: PubRow, sender: string): PubMeta {
+/** The meta of a run; with `gallery` on it carries `listed`, the stars and the comments (stage 65). */
+export function pubMeta(r: PubRow, sender: string, gallery = false): PubMeta {
   const out: PubMeta = {
     id: r.id,
     title: r.title,
@@ -196,6 +236,11 @@ export function pubMeta(r: PubRow, sender: string): PubMeta {
   };
   if (r.level !== null) out.level = r.level;
   if (r.state === 'hidden') out.hidden = true;
+  if (gallery) {
+    out.listed = r.listed !== 0;
+    out.stars = { sum: r.vote_sum, count: r.vote_count };
+    out.comments = r.comment_count;
+  }
   return out;
 }
 
@@ -245,7 +290,8 @@ export function payloadResponse(obj: R2Body, cache: 'public' | 'none'): Response
  * `publication`'s columns, placeholders from ?2 with `binds`; ?1 is the
  * time) tombstones and give their count and bytes back to their accounts:
  * the account first (it reads the rows' bytes), then the rows. Also marks
- * their reports handled. For the caller's batch.
+ * their reports handled, and deletes their votes and comments (stage 65).
+ * For the caller's batch.
  */
 export function tombstones(db: D1, now: number, where: string, binds: unknown[]): D1Statement[] {
   const sel = `SELECT id FROM publication WHERE state IN ${LIVE} AND (${where})`;
@@ -259,6 +305,10 @@ export function tombstones(db: D1, now: number, where: string, binds: unknown[])
       )
       .bind(now, ...binds),
     db.prepare(`UPDATE report SET handled = ?1 WHERE handled = 0 AND kind = 'run' AND target IN (${sel})`).bind(now, ...binds),
+    // Stage 65: the run's votes and comments go with it (the comments' reports handled).
+    db.prepare(`DELETE FROM vote WHERE publication IN (${sel}) AND ?1 IS NOT NULL`).bind(now, ...binds),
+    db.prepare(`UPDATE report SET handled = ?1 WHERE handled = 0 AND kind = 'comment' AND target IN (SELECT id FROM comment WHERE publication IN (${sel}))`).bind(now, ...binds),
+    db.prepare(`DELETE FROM comment WHERE publication IN (${sel}) AND ?1 IS NOT NULL`).bind(now, ...binds),
     db.prepare(`UPDATE publication SET ${TOMBSTONE_SET}, updated = ?1 WHERE state IN ${LIVE} AND (${where})`).bind(now, ...binds),
   ];
 }
@@ -327,9 +377,9 @@ async function ownLive(c: PubCtx, id: string): Promise<PubRow | null> {
 async function list(c: PubCtx): Promise<Response> {
   const { account } = c.auth as Authed;
   const { results } = await c.db
-    .prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE account = ?1 AND state IN ${LIVE} ORDER BY created DESC, id`)
-    .bind(account.id)
-    .all<PubRow>();
+    .prepare(`SELECT ${PUB_COLUMNS}, ${newsColumns('?1', '?2')} FROM publication WHERE account = ?1 AND state IN ${LIVE} ORDER BY created DESC, id`)
+    .bind(account.id, account.reactions_seen)
+    .all<PubRow & NewsCols>();
   return json({ pubs: results.map(myPub) } satisfies { pubs: MyPub[] });
 }
 
@@ -338,7 +388,7 @@ async function mine(c: PubCtx): Promise<Response> {
   if (!id) return notFound();
   const row = await ownLive(c, id);
   if (!row) return notFound();
-  return json(pubMeta(row, (c.auth as Authed).account.name));
+  return json(pubMeta(row, (c.auth as Authed).account.name, (await flags(c.env, c.now)).gallery));
 }
 
 async function minePayload(c: PubCtx): Promise<Response> {
@@ -363,22 +413,37 @@ async function patch(c: PubCtx): Promise<Response> {
   } catch {
     b = null;
   }
-  // `listed` is refused until stage 65: an unknown key here.
-  if (!hasKeys(b, [], ['title', 'description']) || Object.keys(b).length === 0) return badRequest();
+  if (!hasKeys(b, [], ['title', 'description', 'listed']) || Object.keys(b).length === 0) return badRequest();
   const title = b.title === undefined ? undefined : titleOf(b.title);
   const description = b.description === undefined ? undefined : descriptionOf(b.description);
   if (title === null || description === null) return badRequest();
+  // Hall of Fame (stage 65): listing needs the flag `gallery`; unlisting is always allowed.
+  if (b.listed !== undefined && typeof b.listed !== 'boolean') return badRequest();
+  if (b.listed === true && !(await flags(c.env, c.now)).gallery) return badRequest();
+  const listed = b.listed === undefined ? null : b.listed ? 1 : 0;
+  const limits = limitsOf(account, c.env);
   // A hidden run keeps the words it was reported for until the admin has
   // looked (review fix S7): the queue shows what the reporters saw.
   const now = await ownLive(c, id);
   if (now?.state === 'hidden') return error('hidden', 403);
-  const [updated, read] = await c.db.batch<PubRow>([
+  // A first listing (no `listed_at` yet) only while the account's first
+  // listings today are under `listingsPerDay`: in the statement, so two at
+  // once cannot both be the eleventh. Listing again keeps `listed_at`.
+  const [updated, read] = await c.db.batch<PubRow & NewsCols>([
     c.db
-      .prepare(`UPDATE publication SET title = COALESCE(?3, title), description = COALESCE(?4, description), updated = ?5 WHERE id = ?1 AND account = ?2 AND state = 'active'`)
-      .bind(id, account.id, title ?? null, description ?? null, c.now),
-    c.db.prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE id = ?1 AND account = ?2 AND state IN ${LIVE}`).bind(id, account.id),
+      .prepare(
+        `UPDATE publication SET title = COALESCE(?3, title), description = COALESCE(?4, description),
+           listed = COALESCE(?6, listed), listed_at = CASE WHEN ?6 = 1 THEN COALESCE(listed_at, ?5) ELSE listed_at END, updated = ?5
+         WHERE id = ?1 AND account = ?2 AND state = 'active'
+         AND (?6 IS NOT 1 OR listed_at IS NOT NULL OR (SELECT COUNT(*) FROM publication q WHERE q.account = ?2 AND q.listed_at >= ?7) < ?8)`,
+      )
+      .bind(id, account.id, title ?? null, description ?? null, c.now, listed, dayStart(utcDay(c.now)), limits.listingsPerDay),
+    c.db
+      .prepare(`SELECT ${PUB_COLUMNS}, ${newsColumns('?2', '?3')} FROM publication WHERE id = ?1 AND account = ?2 AND state IN ${LIVE}`)
+      .bind(id, account.id, account.reactions_seen),
   ]);
   const row = read?.results[0];
+  if (updated?.meta.changes !== 1 && row?.state === 'active' && listed === 1) return error('too_many', 429);
   if (updated?.meta.changes !== 1 || !row) return notFound();
   return json({ pub: myPub(row) } satisfies PubWritten);
 }
@@ -494,9 +559,10 @@ async function create(c: PubCtx): Promise<Response> {
   if (metaLength === 0 || metaLength > META_MAX_BYTES || 4 + metaLength >= total) return fail(badRequest());
   const metaBytes = await body.take(metaLength);
   if (!metaBytes) return fail(badRequest());
+  const gallery = (await flags(c.env, c.now)).gallery;
   let meta: PubMetaIn | null;
   try {
-    meta = metaOf(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(metaBytes)));
+    meta = metaOf(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(metaBytes)), gallery);
   } catch {
     meta = null;
   }
@@ -511,7 +577,10 @@ async function create(c: PubCtx): Promise<Response> {
   // retry at the limit still gets its run.
   const byKey = async (): Promise<Response | null> => {
     if (meta.key === undefined) return null;
-    const row = await c.db.prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE account = ?1 AND pub_key = ?2`).bind(account.id, meta.key).first<PubRow>();
+    const row = await c.db
+      .prepare(`SELECT ${PUB_COLUMNS}, ${newsColumns('?1', '?3')} FROM publication WHERE account = ?1 AND pub_key = ?2`)
+      .bind(account.id, meta.key, account.reactions_seen)
+      .first<PubRow & NewsCols>();
     if (!row) return null;
     // Still on its way to R2 (the first request is running): no second copy.
     if (row.state === 'pending') return error('unavailable', 503);
@@ -520,7 +589,10 @@ async function create(c: PubCtx): Promise<Response> {
   const repeated = await byKey();
   if (repeated) return fail(repeated);
 
-  // 1. Reserve the count under a fresh id.
+  // 1. Reserve the count under a fresh id (and, for a listed run, one of
+  // the day's first listings: stage 65, held in the same insert).
+  const today = dayStart(utcDay(c.now));
+  const listed = meta.listed ? 1 : 0;
   let id = '';
   let made = false;
   for (let tries = 0; tries < ID_TRIES && !made; tries++) {
@@ -529,11 +601,12 @@ async function create(c: PubCtx): Promise<Response> {
       const results = await c.db.batch([
         c.db
           .prepare(
-            `INSERT INTO publication (id, account, title, description, character, level, length_s, bytes, listed, state, created, updated, pub_key)
-             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 'pending', ?9, ?9, ?11
-             WHERE (SELECT pub_count FROM account WHERE id = ?2) < ?10`,
+            `INSERT INTO publication (id, account, title, description, character, level, length_s, bytes, listed, listed_at, state, created, updated, pub_key)
+             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?12, CASE WHEN ?12 = 1 THEN ?9 END, 'pending', ?9, ?9, ?11
+             WHERE (SELECT pub_count FROM account WHERE id = ?2) < ?10
+             AND (?12 = 0 OR (SELECT COUNT(*) FROM publication WHERE account = ?2 AND listed_at >= ?13) < ?14)`,
           )
-          .bind(id, account.id, meta.title, meta.description, meta.character, meta.level ?? null, meta.lengthS, bytes, c.now, limits.sharedRuns, meta.key ?? null),
+          .bind(id, account.id, meta.title, meta.description, meta.character, meta.level ?? null, meta.lengthS, bytes, c.now, limits.sharedRuns, meta.key ?? null, listed, today, limits.listingsPerDay),
         c.db
           .prepare(
             `UPDATE account SET pub_count = pub_count + 1, pub_bytes = pub_bytes + ?3
@@ -542,10 +615,12 @@ async function create(c: PubCtx): Promise<Response> {
           .bind(account.id, id, bytes),
       ]);
       if (results[0]?.meta.changes !== 1) {
-        const still = await c.db.prepare('SELECT 1 AS x FROM account WHERE id = ?1').bind(account.id).first();
+        const still = await c.db.prepare('SELECT pub_count FROM account WHERE id = ?1').bind(account.id).first<{ pub_count: number }>();
         // The account was deleted while this request ran.
         if (!still) return fail(error('unauthorized', 401));
-        return fail(json({ error: 'pub_quota', limit: limits.sharedRuns } satisfies PubQuota, 413));
+        if (still.pub_count >= limits.sharedRuns) return fail(json({ error: 'pub_quota', limit: limits.sharedRuns } satisfies PubQuota, 413));
+        // Room for the run, so it was the day's listings.
+        return fail(error('too_many', 429));
       }
       made = true;
     } catch (e) {
@@ -591,9 +666,9 @@ async function create(c: PubCtx): Promise<Response> {
   }
 
   // 3. Live, only while still pending.
-  const [done, read] = await c.db.batch<PubRow>([
+  const [done, read] = await c.db.batch<PubRow & NewsCols>([
     c.db.prepare(`UPDATE publication SET state = 'active', updated = ?2 WHERE id = ?1 AND state = 'pending'`).bind(id, c.now),
-    c.db.prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE id = ?1`).bind(id),
+    c.db.prepare(`SELECT ${PUB_COLUMNS}, ${newsColumns('?2', '?3')} FROM publication WHERE id = ?1`).bind(id, account.id, account.reactions_seen),
   ]);
   const row = read?.results[0];
   if (done?.meta.changes !== 1 || !row || row.state !== 'active') {
@@ -617,11 +692,14 @@ const EMPTY_HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': '
 /** Every request under `/api/pub/`: the flag `share`, the general limit by address, the route, the database. */
 export async function publicPub(request: Request, env: Env, url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();
-  if (!(await flags(env, now)).share) return notFound();
+  const on = await flags(env, now);
+  if (!on.share) return notFound();
   const rest = url.pathname.slice(PUBLIC_PREFIX.length);
-  const m = /^([^/]+)(\/payload|\/view)?$/.exec(rest);
+  const m = /^([^/]+)(\/payload|\/view|\/comments)?$/.exec(rest);
   if (!m) return notFound();
   const part = m[2] ?? '';
+  // The comments (stage 65) are the flag `gallery`'s.
+  if (part === '/comments' && !on.gallery) return notFound();
   const allowed = part === '/view' ? 'POST' : 'GET';
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
@@ -634,14 +712,14 @@ export async function publicPub(request: Request, env: Env, url: URL, deps: Deps
   const db = env.DB;
   if (!db) return error('unavailable', 503);
   try {
-    const res = await publicAnswer(request, env, db, id, part, now);
+    const res = part === '/comments' ? await commentsGet(db, id, url) : await publicAnswer(request, env, db, id, part, now, on.gallery, address);
     return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
   } catch {
     return error('unavailable', 503);
   }
 }
 
-async function publicAnswer(request: Request, env: Env, db: D1, id: string, part: string, now: number): Promise<Response> {
+async function publicAnswer(request: Request, env: Env, db: D1, id: string, part: string, now: number, gallery: boolean, address: string): Promise<Response> {
   if (part === '/view') {
     // Only the watch page counts a view (review fix S5): JSON with `X-WC: 1`
     // and the site's own Origin, which a page of another site cannot send
@@ -662,25 +740,31 @@ async function publicAnswer(request: Request, env: Env, db: D1, id: string, part
     const refused = stateAnswer(row);
     if (refused) return refused;
     const day = utcDay(now);
-    // The count grows only with a new (pub, device, day) row: the check and
-    // the insert in one transaction.
+    // Stage 65 (ADR 0155): the device id is the client's own, so a view also
+    // needs the address (hashed under the day's pepper; an IPv6 /64 is one)
+    // not to have viewed the run today: a second row keyed `a:<hash>`.
+    // Without the pepper (a host without the secrets) the device alone counts.
+    const pepper = env.AUTH_PEPPER ?? '';
+    const byAddress = pepper.length >= 16 ? `a:${await addressHash(utf8(pepper), address, now)}` : b.device;
+    // The count grows only with new (pub, device, day) and (pub, address,
+    // day) rows: the check and the inserts in one transaction.
+    const live = `EXISTS (SELECT 1 FROM publication WHERE id = ?1 AND state = 'active')`;
     await db.batch([
       db
         .prepare(
           `UPDATE publication SET views = views + 1 WHERE id = ?1 AND state = 'active'
-           AND NOT EXISTS (SELECT 1 FROM pub_view WHERE pub = ?1 AND device = ?2 AND day = ?3)`,
+           AND NOT EXISTS (SELECT 1 FROM pub_view WHERE pub = ?1 AND day = ?3 AND device IN (?2, ?4))`,
         )
-        .bind(id, b.device, day),
-      db
-        .prepare(`INSERT OR IGNORE INTO pub_view (pub, device, day) SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM publication WHERE id = ?1 AND state = 'active')`)
-        .bind(id, b.device, day),
+        .bind(id, b.device, day, byAddress),
+      db.prepare(`INSERT OR IGNORE INTO pub_view (pub, device, day) SELECT ?1, ?2, ?3 WHERE ${live}`).bind(id, b.device, day),
+      db.prepare(`INSERT OR IGNORE INTO pub_view (pub, device, day) SELECT ?1, ?2, ?3 WHERE ${live}`).bind(id, byAddress, day),
     ]);
     return new Response(null, { status: 204, headers: EMPTY_HEADERS });
   }
   const row = await pubWithSender(db, id);
   const refused = stateAnswer(row);
   if (refused || !row) return refused ?? notFound();
-  if (part === '') return json(pubMeta(row, row.sender ?? ''));
+  if (part === '') return json(pubMeta(row, row.sender ?? '', gallery));
   const bucket = env.FILES;
   if (!bucket) return error('unavailable', 503);
   const obj = await bucket.get(keyOf(id));

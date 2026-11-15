@@ -536,11 +536,10 @@ describe('logged in', () => {
   it('set prefs', async () => {
     const d = device();
     await registered(d);
-    expect(await d.flows.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { galleryNotice: false, rulesAccepted: false } });
-    expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false, rulesAccepted: false });
-    // The sharing rules' tick (stage 64 C1): only that key is sent, and the notice stays as it was.
-    expect(await d.flows.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { galleryNotice: false, rulesAccepted: true } });
-    expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false, rulesAccepted: true });
+    expect(server.stored('Olev')!.prefs).toEqual({ rulesAccepted: false });
+    // The sharing rules' tick (stage 64 C1): only that key is sent.
+    expect(await d.flows.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { rulesAccepted: true } });
+    expect(server.stored('Olev')!.prefs).toEqual({ rulesAccepted: true });
     expect(server.requests('PATCH /api/u/account/prefs').at(-1)!.body).toEqual({ rulesAccepted: true });
   });
 
@@ -569,7 +568,7 @@ describe('logged in', () => {
   it('every logged-in flow answers not_logged_in on a device without an account, and sends nothing', async () => {
     const d = device();
     const f = d.flows;
-    const all = [f.loadAccount(), f.changePassword(PASSWORD, 'a brand new password'), f.newRecoveryCode(PASSWORD), f.endSession('abc'), f.endOtherSessions(), f.deleteAccount(PASSWORD), f.setPrefs({ galleryNotice: true })];
+    const all = [f.loadAccount(), f.changePassword(PASSWORD, 'a brand new password'), f.newRecoveryCode(PASSWORD), f.endSession('abc'), f.endOtherSessions(), f.deleteAccount(PASSWORD), f.setPrefs({ rulesAccepted: true })];
     for (const r of await Promise.all(all)) expect(r).toEqual({ ok: false, code: 'not_logged_in' });
     expect(server.seen).toEqual([]);
     expect(await f.accountKeys()).toBeNull();

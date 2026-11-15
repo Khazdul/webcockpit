@@ -10,7 +10,7 @@
 //   POST   /api/u/account/password         a new password (the old one proves it)
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
-//   PATCH  /api/u/account/prefs            the gallery notice switch; the sharing rules ticked (one way)
+//   PATCH  /api/u/account/prefs            the sharing rules ticked (one way); `galleryNotice` ignored (stage 65)
 //   DELETE /api/u/account                  removes the account, its items, run bodies and published runs; its name stays reserved
 //   GET    /api/u/sync/changes, PUT and DELETE /api/u/sync/items/<kind>/<id>
 //                                          the sync (worker/sync.ts; flag `sync` as well)
@@ -18,6 +18,9 @@
 //                                          the run bodies (worker/runs.ts; flag `runs` as well)
 //   /api/u/pub*, POST /api/u/report        published runs and reports (worker/pub.ts,
 //                                          worker/reports.ts; flag `share` as well)
+//   /api/u/pub/<id>/vote|comments, /api/u/comments/<id>, /api/u/runes[/<id>],
+//   /api/u/community/news|seen             the community (worker/community.ts; flags
+//                                          `share` and `gallery`, Random Runes `runes` too)
 //
 // The server never sees a password or a key that opens data. The browser
 // sends `authKey` (and `recoveryAuth`), derived from the password (the
@@ -72,6 +75,7 @@ import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
+import { communityUserRoute } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
 import { REPORT_PATH, isPubPath, pubRoute } from './pub.ts';
 import { report } from './reports.ts';
@@ -464,12 +468,13 @@ async function prefs(c: Ctx): Promise<Response> {
   if (b.galleryNotice !== undefined && typeof b.galleryNotice !== 'boolean') return badRequest();
   // One way: the rules are ticked once and stay ticked (ADR 0154).
   if (b.rulesAccepted !== undefined && b.rulesAccepted !== true) return badRequest();
+  // `galleryNotice` left the contract in stage 65 (ADR 0155): a cached old
+  // client may still send it; it is checked and ignored.
   // Each key set on its own in the stored JSON, so two changes at once do not undo each other.
   let sql = "CASE WHEN json_valid(prefs) AND json_type(prefs) = 'object' THEN prefs ELSE '{}' END";
-  if (b.galleryNotice !== undefined) sql = `json_set(${sql}, '$.galleryNotice', json(?2))`;
   if (b.rulesAccepted === true) sql = `json_set(${sql}, '$.rulesAccepted', json('true'))`;
   const [, read] = await c.db.batch<{ prefs: string }>([
-    c.db.prepare(`UPDATE account SET prefs = ${sql} WHERE id = ?1`).bind(...(b.galleryNotice === undefined ? [row.id] : [row.id, String(b.galleryNotice)])),
+    c.db.prepare(`UPDATE account SET prefs = ${sql} WHERE id = ?1`).bind(row.id),
     c.db.prepare('SELECT prefs FROM account WHERE id = ?1').bind(row.id),
   ]);
   const fresh = read?.results[0];
@@ -514,6 +519,8 @@ const ROUTES: Record<string, Record<string, Handler>> = {
 };
 
 function routeOf(path: string): Record<string, Handler> | undefined {
+  const community = communityUserRoute(path);
+  if (community) return community.route;
   if (isSyncPath(path)) return syncRoute(path);
   if (isRunsPath(path)) return runsRoute(path);
   if (isPubPath(path)) return pubRoute(path);
@@ -562,7 +569,11 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
   // The flags `sync` and `runs` close their paths as `accounts` closes them all.
   if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
   if (isRunsPath(path) && !(await flags(env, now)).runs) return error('not_found', 404);
-  if ((isPubPath(path) || path === REPORT_PATH) && !(await flags(env, now)).share) return error('not_found', 404);
+  const community = communityUserRoute(path);
+  if (community) {
+    const on = await flags(env, now);
+    if (!on.share || !on.gallery || (community.runes && !on.runes)) return error('not_found', 404);
+  } else if ((isPubPath(path) || path === REPORT_PATH) && !(await flags(env, now)).share) return error('not_found', 404);
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;

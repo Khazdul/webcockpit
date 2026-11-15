@@ -21,7 +21,7 @@ const account = () => ({
   usage: { items: 0, itemBytes: 0, runBytes: 0 },
   limits: { ...DEFAULT_ACCOUNT_LIMITS },
   sessions: [{ id: 'abcdefghijklmnop', label: 'Firefox on Linux', created: 1, lastUsed: 2, current: true }],
-  prefs: { galleryNotice: true, rulesAccepted: false },
+  prefs: { rulesAccepted: false },
 });
 
 interface Call {
@@ -62,7 +62,7 @@ describe('what is sent', () => {
     await api.recovery({ authKey: KEY, recoveryAuth: KEY, wrapRc: WRAP });
     await api.endSession('abcdefghijklmnop');
     await api.endSession(OTHER_SESSIONS);
-    await api.setPrefs({ galleryNotice: false });
+    await api.setPrefs({ rulesAccepted: true });
     await api.remove({ authKey: KEY });
     expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual([
       'GET /api/auth/params?name=Olev',
@@ -249,7 +249,7 @@ describe('answers are checked before they are used', () => {
       { ...a, usage: { items: 0, itemBytes: 0, runBytes: 1.5 } },
       { ...a, limits: { ...a.limits, sharedRuns: undefined } },
       { ...a, limits: null },
-      { ...a, prefs: { galleryNotice: 'yes' } },
+      { ...a, prefs: 'yes' },
       { ...a, prefs: undefined },
       { ...a, sessions: {} },
       { ...a, sessions: [null] },
@@ -278,10 +278,11 @@ describe('answers are checked before they are used', () => {
     for (const body of [{ wrapRc: WRAP }, { wrapRc: WRAP, ticket: '' }, { wrapRc: WRAP, ticket: 'x'.repeat(101) }, { wrapRc: WRAP, ticket: 'a b' }, { ticket: 'abc' }]) {
       expect(await client(200, body).api.recover(rec)).toEqual({ ok: false, code: 'bad_answer', status: 200 });
     }
-    expect(await client(200, { prefs: { galleryNotice: false, x: 1 } }).api.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { prefs: { galleryNotice: false, rulesAccepted: false } } });
+    // Unknown keys (the Worker's legacy `galleryNotice` among them, stage 65) are dropped.
+    expect(await client(200, { prefs: { galleryNotice: false, x: 1 } }).api.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { prefs: { rulesAccepted: false } } });
     // The tick, as the Worker answers it since stage 64 (absent before: not ticked).
-    expect(await client(200, { prefs: { galleryNotice: true, rulesAccepted: true } }).api.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { prefs: { galleryNotice: true, rulesAccepted: true } } });
-    expect(await client(200, { prefs: {} }).api.setPrefs({ galleryNotice: false })).toEqual({ ok: false, code: 'bad_answer', status: 200 });
+    expect(await client(200, { prefs: { galleryNotice: true, rulesAccepted: true } }).api.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { prefs: { rulesAccepted: true } } });
+    expect(await client(200, { prefs: null }).api.setPrefs({ rulesAccepted: true })).toEqual({ ok: false, code: 'bad_answer', status: 200 });
   });
 
   it('204 is an answer without a body', async () => {

@@ -28,7 +28,7 @@ export function isFlagName(name: string): name is FlagName {
 }
 
 function flagDefault(env: Env, name: FlagName): boolean {
-  const vars: Record<FlagName, unknown> = { stats: env.FLAG_STATS, accounts: env.FLAG_ACCOUNTS, sync: env.FLAG_SYNC, runs: env.FLAG_RUNS, share: env.FLAG_SHARE };
+  const vars: Record<FlagName, unknown> = { stats: env.FLAG_STATS, accounts: env.FLAG_ACCOUNTS, sync: env.FLAG_SYNC, runs: env.FLAG_RUNS, share: env.FLAG_SHARE, gallery: env.FLAG_GALLERY, runes: env.FLAG_RUNES };
   return truthy(vars[name]);
 }
 

@@ -146,7 +146,7 @@ describe('the flag, the secrets and GET /api/config', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('max-age=60');
     expect(await res.json()).toEqual({
-      flags: { stats: true, accounts: true, sync: true, runs: false, share: false },
+      flags: { stats: true, accounts: true, sync: true, runs: false, share: false, gallery: false, runes: false },
       turnstileSiteKey: '1x00000000000000000000AA',
       limits: DEFAULT_ACCOUNT_LIMITS,
       time: NOW,
@@ -803,13 +803,11 @@ describe('the account', () => {
     expect((await accountOf(cookie)).limits).toEqual(DEFAULT_ACCOUNT_LIMITS);
   });
 
-  it('PATCH prefs sets the gallery notice switch', async () => {
+  it('PATCH prefs accepts and ignores the old gallery notice switch (stage 65), and still sends it as true for 0.13 clients', async () => {
     const cookie = await signUp('alice');
     const res = await call('PATCH', '/api/u/account/prefs', { galleryNotice: false }, { cookie });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ prefs: { galleryNotice: false, rulesAccepted: false } });
-    expect((await accountOf(cookie)).prefs).toEqual({ galleryNotice: false, rulesAccepted: false });
-    await call('PATCH', '/api/u/account/prefs', { galleryNotice: true }, { cookie });
+    expect(await res.json()).toEqual({ prefs: { galleryNotice: true, rulesAccepted: false } });
     expect((await accountOf(cookie)).prefs).toEqual({ galleryNotice: true, rulesAccepted: false });
     for (const b of [{}, { galleryNotice: 'no' }, { galleryNotice: false, other: 1 }, { other: true }, { rulesAccepted: false }, { rulesAccepted: 'yes' }]) {
       expect((await call('PATCH', '/api/u/account/prefs', b, { cookie })).status).toBe(400);
@@ -821,14 +819,14 @@ describe('the account', () => {
     await call('PATCH', '/api/u/account/prefs', { galleryNotice: false }, { cookie });
     const res = await call('PATCH', '/api/u/account/prefs', { rulesAccepted: true }, { cookie });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ prefs: { galleryNotice: false, rulesAccepted: true } });
+    expect(await res.json()).toEqual({ prefs: { galleryNotice: true, rulesAccepted: true } });
     // The notice set again keeps the tick; a false tick is refused.
     expect(await (await call('PATCH', '/api/u/account/prefs', { galleryNotice: true }, { cookie })).json()).toEqual({ prefs: { galleryNotice: true, rulesAccepted: true } });
     expect((await call('PATCH', '/api/u/account/prefs', { rulesAccepted: false }, { cookie })).status).toBe(400);
     expect((await accountOf(cookie)).prefs).toEqual({ galleryNotice: true, rulesAccepted: true });
     // Both at once; a broken stored value is the defaults with the change.
     await db.prepare("UPDATE account SET prefs = 'not json'").run();
-    expect(await (await call('PATCH', '/api/u/account/prefs', { galleryNotice: false, rulesAccepted: true }, { cookie })).json()).toEqual({ prefs: { galleryNotice: false, rulesAccepted: true } });
+    expect(await (await call('PATCH', '/api/u/account/prefs', { galleryNotice: false, rulesAccepted: true }, { cookie })).json()).toEqual({ prefs: { galleryNotice: true, rulesAccepted: true } });
   });
 
   it('a new password: the old key no longer logs in, the new does, the other sessions are gone', async () => {

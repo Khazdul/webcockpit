@@ -9,6 +9,7 @@ import type { Deps, Env } from '../runtime.ts';
 import { SAMPLE_CRON, runCron } from '../stats.ts';
 import { db, emptyTables } from './helpers.ts';
 import { NOW, ORIGIN, envOf, publish, signUp, siteverify } from './share-helpers.ts';
+import { commented, list, noted } from './community-helpers.ts';
 
 const TO = 'owner@example.net';
 
@@ -282,5 +283,65 @@ describe('composeMail', () => {
     expect(encodeWords('Plain ASCII')).toBe('Plain ASCII');
     expect(headerSafe('a\r\n\tb\u0000c\u2029d')).toBe('a b c d');
     expect(decodeWords('=?UTF-8?B?w6U=?=')).toBe('å');
+  });
+});
+
+describe('the mail of a reported comment or note (stage 65)', () => {
+  const env = (b: ReturnType<typeof binding>): Env => mailEnv(b, { FLAG_GALLERY: true, FLAG_RUNES: true });
+  function reportItem(cookie: string, kind: string, target: string, e: Env, text?: string): Promise<Response> {
+    const req = new Request(`${ORIGIN}/api/u/report`, {
+      method: 'POST',
+      headers: { cookie, 'x-wc': '1', origin: ORIGIN, 'cf-connecting-ip': '203.0.113.7' },
+      body: JSON.stringify({ kind, target, reason: 'harassment', ...(text === undefined ? {} : { text }) }),
+    });
+    return handle(req, e, depsAt(NOW));
+  }
+
+  it('a comment: the subject names its run, the body has the kind, the text in full, the writer, the run and the links; nothing user-written reaches a header raw', async () => {
+    const b = binding();
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const carol = await signUp('carol');
+    const id = await list(alice, { title: 'Ford Ü' });
+    const text = 'Line one\nBcc: victim@example.org\nSubject: hacked';
+    const c = await commented(bob, id, text);
+    expect((await reportItem(carol, 'comment', c, env(b), 'Rude.\nReally.')).status).toBe(204);
+    await settle();
+    expect(b.sent).toHaveLength(1);
+    const { headers, lines, body } = parse(b.sent[0]!.raw);
+    expect(decodeWords(headers.get('subject')!)).toBe('WebCockpit report: comment on "Ford Ü"');
+    expect(lines.some((l) => /^bcc:/i.test(l))).toBe(false);
+    expect(lines.filter((l) => /^subject:/i.test(l))).toHaveLength(1);
+    expect(body).toContain('Kind:     comment');
+    expect(body).toContain(`Id:       ${c}`);
+    expect(body).toContain('Writer:   bob');
+    expect(body).toContain(`Run:      Ford Ü (${id})`);
+    expect(body).toContain(`The reported comment:\r\n${text.replace(/\n/g, '\r\n')}`);
+    expect(body).toContain('Rude.\r\nReally.');
+    expect(body).toContain(`${ORIGIN}/r/${id}?admin`);
+  });
+
+  it('a note: the subject names its writer, the body has its text', async () => {
+    const b = binding();
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const n = await noted(alice, 'Buy gold at my shop');
+    expect((await reportItem(bob, 'note', n, env(b))).status).toBe(204);
+    await settle();
+    const { headers, body } = parse(b.sent[0]!.raw);
+    expect(headers.get('subject')).toBe('WebCockpit report: note by alice');
+    expect(body).toContain('A note on Random Runes was reported.');
+    expect(body).toContain('The reported note:\r\nBuy gold at my shop');
+    expect(body).toContain("The reporter's text:\r\n(none)");
+  });
+
+  it('shares the hourly cap with runs', async () => {
+    const b = binding();
+    const alice = await signUp('alice');
+    const n = await noted(alice, 'x');
+    const all = await reporters(MAIL_PER_HOUR + 2);
+    for (const r of all) await reportItem(r, 'note', n, env(b));
+    await settle();
+    expect(b.sent).toHaveLength(MAIL_PER_HOUR);
   });
 });

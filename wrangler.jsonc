@@ -47,6 +47,11 @@
     // Share links (stage 64, ADR 0154): open in production on the
     // owner's go-ahead after his test on staging (2026-11-15, release 0.13.0).
     "FLAG_SHARE": true,
+    // The community (stage 65, ADR 0155): listing, the Community page,
+    // stars, comments and the counters (`gallery`), Random Runes (`runes`).
+    // Off in production until the owner's go-ahead after his test on staging.
+    "FLAG_GALLERY": false,
+    "FLAG_RUNES": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -116,6 +121,8 @@
         "FLAG_SYNC": true,
         "FLAG_RUNS": true,
         "FLAG_SHARE": true,
+        "FLAG_GALLERY": true,
+        "FLAG_RUNES": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",

@@ -7,8 +7,13 @@ export interface ApiError {
   error: string;
 }
 
-/** Server flags that open cloud features (spec §7.0 rule 5). A missing flag is off. */
-export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share';
+/**
+ * Server flags that open cloud features (spec §7.0 rule 5). A missing flag is off.
+ * Stage 65 (ADR 0155): `gallery` opens listing, the Community page, stars,
+ * comments, the counter and the reactions mark; `runes` opens Random Runes
+ * (and needs `gallery`: the board lives on its page).
+ */
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -64,12 +69,20 @@ export interface Beat {
 export interface PublicStats {
   online: number;
   playing: number;
+  /**
+   * Stage 65 (ADR 0155, the guests' counter): the `listed_at` (ms) of the
+   * `COUNTER_RUNS` newest active listed runs, newest first. Only with the
+   * flag `gallery` on (absent otherwise, and from an older Worker).
+   * As built (stage 65 B): the answer is also given with `stats` off when
+   * `gallery` is on; `online` and `playing` are 0 then.
+   */
+  listed?: number[];
 }
 
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
@@ -226,6 +239,14 @@ export interface AccountLimits {
   payloadMaxBytes: number;
   /** Published runs (links and listed together), count. */
   sharedRuns: number;
+  /** Stage 65 (ADR 0155): comments an account writes in a rolling hour. */
+  commentsPerHour: number;
+  /** Stage 65: votes an account casts or changes in a rolling hour (counted on the vote's last change). */
+  votesPerHour: number;
+  /** Stage 65: notes on Random Runes an account writes in a UTC day. */
+  notesPerDay: number;
+  /** Stage 65: runs an account lists for the first time in a UTC day (listing one again is free). */
+  listingsPerDay: number;
 }
 
 export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = {
@@ -236,6 +257,10 @@ export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = {
   runMaxBytes: 20 * 1024 * 1024,
   payloadMaxBytes: 5 * 1024 * 1024,
   sharedRuns: 150,
+  commentsPerHour: 20,
+  votesPerHour: 60,
+  notesPerDay: 5,
+  listingsPerDay: 10,
 };
 
 export interface AccountUsage {
@@ -255,9 +280,13 @@ export interface AccountSession {
   current: boolean;
 }
 
+/**
+ * Stage 65 (ADR 0155): `galleryNotice` is gone from the contract. As built
+ * (stage 65 B): the Worker still sends `galleryNotice: true` beside these
+ * keys, because the 0.13 client refuses prefs without it (a cached old
+ * client must keep working); a new client must not read it.
+ */
 export interface AccountPrefs {
-  /** The notice of new runs in the gallery (unused; removed in stage 65, ADR 0148 addendum). */
-  galleryNotice: boolean;
   /**
    * The sharing rules were ticked once (ADR 0154); `POST /api/u/pub` answers `403 rules` until then.
    * As built (stage 64 B1): always sent by the Worker (false until ticked); a client reads it as
@@ -354,9 +383,10 @@ export interface DeleteAccountRequest {
  * As built (stage 64 B1): at least one of the two keys, no others (else
  * `400 bad_request`); `rulesAccepted: false` is `400`; each key is set on
  * its own in the stored prefs, so two changes at once never undo each other.
+ * Stage 65: `galleryNotice` (a boolean) is still accepted from an old
+ * client and ignored; a body of only it answers the prefs unchanged.
  */
 export interface PrefsRequest {
-  galleryNotice?: boolean;
   /** One way: only `true` is accepted (ADR 0154). */
   rulesAccepted?: true;
 }
@@ -593,8 +623,13 @@ export interface PubMetaIn {
   level?: number;
   /** The cut's played length, whole seconds (review fix CR4: a fraction is `400`). */
   lengthS: number;
-  /** Stage 65; `true` is refused until then. */
-  listed: false;
+  /**
+   * Hall of Fame (stage 65, ADR 0155): `true` lists the run in the Community
+   * (only with the flag `gallery` on, else `400 bad_request`). The first
+   * listing of a run sets its `listedAt`; at most `listingsPerDay` first
+   * listings per account and UTC day (`429 too_many`, held in the insert).
+   */
+  listed: boolean;
   /**
    * The share dialog's idempotency key (review fix CR3), `PUB_KEY_PATTERN`,
    * drawn once per dialog: a POST whose key already made a run of this
@@ -672,18 +707,34 @@ export interface MyPub {
   views: number;
   /** The payload, bytes. */
   bytes: number;
+  /** Stage 65: the first time the run was listed (ms); absent when it never was. */
+  listedAt?: number;
+  /** Stage 65: every live vote (always sent by a stage 65 Worker; absent from an older one). */
+  stars?: Stars;
+  /** Stage 65: visible comments (always sent by a stage 65 Worker). */
+  comments?: number;
+  /**
+   * Stage 65: votes changed and comments written by other accounts after
+   * the account's `reactions` seen time (`POST /api/u/community/seen`):
+   * what is new on this run. Each capped at `NEWS_MAX`.
+   */
+  news?: { votes: number; comments: number };
 }
 
 /**
- * `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`. `listed` is refused until stage 65.
+ * `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`.
+ * Stage 65: `listed` lists (`true`, flag `gallery` on, else `400`) or unlists
+ * (`false`) the run; a first listing counts against `listingsPerDay` (`429
+ * too_many`); listing again keeps the first `listedAt`.
  * Review fix S7: a hidden run → `403 hidden` (its words stay what was reported).
- * As built (stage 64 B1): at least one key, no others (`listed` is `400`);
+ * As built (stage 64 B1): at least one key, no others;
  * the text rules of `POST`; `403 suspended`; another account's run, a
  * removed one or an unknown id → `404`. `updated` moves.
  */
 export interface PubPatch {
   title?: string;
   description?: string;
+  listed?: boolean;
 }
 
 /**
@@ -730,10 +781,18 @@ export interface PubMeta {
   bytes: number;
   /** Only for the sender of a hidden run. */
   hidden?: true;
+  /** Stage 65, only with the flag `gallery` on: listed in the Community. */
+  listed?: boolean;
+  /** Stage 65, only with `gallery` on: every live vote. */
+  stars?: Stars;
+  /** Stage 65, only with `gallery` on: visible comments. */
+  comments?: number;
 }
 
 /**
  * `POST /api/pub/<id>/view` → 204: counted once per device and UTC day.
+ * Stage 65 (ADR 0155): and once per hashed address (an IPv6 /64 is one)
+ * and UTC day: a view counts only when neither has viewed the run that day.
  * As built (stage 64 B1): no session; `device` is a lowercase
  * UUID (`400 bad_request` otherwise); the states answer as the meta does
  * and count nothing; `BEAT_LIMITER` and `API_LIMITER` key it by address.
@@ -748,8 +807,8 @@ export interface PubView {
 
 export const REPORT_KINDS = ['run', 'comment', 'note'] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
-/** Stage 64 accepts only `run`. */
-export const REPORT_KINDS_OPEN: readonly ReportKind[] = ['run'];
+/** Stage 65 opens all three (stage 64 accepted only `run`). */
+export const REPORT_KINDS_OPEN: readonly ReportKind[] = ['run', 'comment', 'note'];
 export const REPORT_REASONS = ['harassment', 'real_life', 'rules', 'other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
@@ -758,7 +817,10 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
  * too_many` (`REPORTS_PER_DAY`), `403 suspended`, `403 own` (one's own run),
  * `404 not_found`.
  *
- * As built (stage 64 B1): `comment` and `note` → `400 kind_closed`; a bad
+ * Stage 65: `comment` (a comment's id) and `note` (a note's id) as a run;
+ * one's own comment or note is `403 own`; a removed one `404`; the flag
+ * `gallery` off → `comment` is `400 kind_closed`, `runes` off → `note` too.
+ * As built (stage 64 B1): a bad
  * body (an unknown reason, a `text` over `REPORT_TEXT_MAX` or with control
  * characters but `\n`, other keys) → `400 bad_request`; a target that is
  * not an id, unknown, still uploading or removed → `404`; a hidden run can
@@ -792,9 +854,16 @@ export interface AdminReports {
 export interface AdminReportItem {
   kind: ReportKind;
   target: string;
+  /** A run's title; for a comment its run's title; '' for a note. */
   title: string;
+  /** A run's sender; the writer of a comment or a note ('' when the account is gone). */
   sender: string;
+  /** The item's state (a comment's and a note's are `active` or `hidden` too). */
   state: PubState;
+  /** Stage 65: the reported comment's or note's text, in full. */
+  content?: string;
+  /** Stage 65: a comment's run (its id). */
+  pub?: string;
   reasons: Partial<Record<ReportReason, number>>;
   /** Different accounts. */
   reporters: number;
@@ -814,6 +883,12 @@ export interface AdminReportItem {
  */
 export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'dismiss', 'delete'] as const;
 export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete'] as const;
+/**
+ * Stage 65: the actions on a comment and on a note, with a run's meaning:
+ * `hide` (by the admin), `restore` (shown and reviewed), `dismiss` (reports
+ * handled, reviewed, state kept), `delete` (the row goes).
+ */
+export const ADMIN_ITEM_ACTIONS = ['hide', 'restore', 'dismiss', 'delete'] as const;
 
 /**
  * `POST /api/admin/pub/<id>` → 204. Marks the item's reports handled; writes `admin_log`.
@@ -831,6 +906,10 @@ export interface AdminPubAction {
 }
 
 /**
+ * Stage 65: `suspend` also takes the account's votes out of both sums of
+ * every run it voted on; `restore` puts them back (each only on a change of
+ * state, so a repeat does nothing).
+ *
  * `POST /api/admin/account/<name>` → 204. `delete` needs `confirm` equal to the name.
  * As built (stage 64 B1): the name in any case; `confirm` compared without
  * regard to case (missing or another → `400 confirm_required`); an unknown
@@ -839,7 +918,11 @@ export interface AdminPubAction {
  * ended with the reason `deleted`, the name reserved), `409 conflict` when
  * the account's password changed between the read and the delete (nothing
  * done). `suspend` and `restore` set `Account.state`; no reports are marked
- * handled by them.
+ * handled by them. Stage 65: `delete` (and the player's own) also deletes
+ * the account's votes (both sums of their runs adjusted, unless the
+ * account was suspended: then they are out already), its comments
+ * (`comment_count` adjusted) and its notes, and marks the reports on them
+ * handled.
  */
 export interface AdminAccountAction {
   action: (typeof ADMIN_ACCOUNT_ACTIONS)[number];
@@ -853,4 +936,308 @@ export interface AdminLogEntry {
   action: string;
   target: string;
   note: string;
+}
+
+// --- The community (stage 65, spec §7.8, ADR 0155) ---
+//
+// Hall of Fame (listed runs), the Community page's list and boxes, stars,
+// comments, the counters and Random Runes. Behind the flag `gallery`
+// (Random Runes behind `runes` as well): off, every path below answers
+// `404 not_found`. Common answers of the `/api/u/` paths: `401` without a
+// live session, `403 forbidden` without `X-WC: 1` and the site's own
+// `Origin` on a write, `403 suspended` on a write that adds something
+// (a vote, a comment, a note) from a suspended account. The public paths
+// (`/api/gallery`, `/api/community`, `/api/runes`, `/api/pub/<id>/comments`)
+// need no session; `API_LIMITER` keys them by address (`429 rate_limited`).
+// Times are ms.
+
+/** Free public text (comments, notes): what `shared/cloud/text.ts` `isPublicText` checks. */
+export const COMMENT_MAX = 1000;
+/** Line breaks a comment may have. */
+export const COMMENT_NEWLINES_MAX = 20;
+export const NOTE_MAX = 500;
+/** Visible comments a run can have (`409 full`). */
+export const COMMENTS_PER_RUN = 1000;
+/** Comments per page of `GET /api/pub/<id>/comments`. */
+export const COMMENTS_PAGE_SIZE = 50;
+/** Notes the board shows. */
+export const RUNES_SHOWN = 50;
+/** A note goes after this many days (the daily cron). */
+export const NOTE_DAYS = 30;
+/** Rows per page of `GET /api/gallery`, and the deepest page. */
+export const GALLERY_PAGE_SIZE = 30;
+export const GALLERY_PAGES_MAX = 34;
+/** Top's prior (ADR 0148): `(C·m + top_sum) / (C + top_count)`. */
+export const TOP_PRIOR_VOTES = 5;
+/** Top's prior mean when no ranking vote exists. */
+export const TOP_PRIOR_MEAN = 3;
+/** A vote moves Top only when its account was this old when it was cast or last changed. */
+export const RANKING_AGE_DAYS = 7;
+/** The counters' cap: the client shows "99+" beyond it. */
+export const NEWS_MAX = 99;
+/** `PublicStats.listed` carries this many times. */
+export const COUNTER_RUNS = 99;
+/** The longest time `GET /api/gallery`, `/api/community` and `/api/runes` are cached (s). */
+export const COMMUNITY_CACHE_SECONDS = 60;
+
+export const GALLERY_SORTS = ['top', 'new', 'watched'] as const;
+export type GallerySort = (typeof GALLERY_SORTS)[number];
+export const GALLERY_PERIODS = ['week', 'month', 'all'] as const;
+export type GalleryPeriod = (typeof GALLERY_PERIODS)[number];
+/** The days of a period (`all`: no bound); the period filters on `listedAt`. */
+export const GALLERY_PERIOD_DAYS: Record<GalleryPeriod, number | null> = { week: 7, month: 30, all: null };
+
+/** A run's stars: every live vote (`sum` of 1–5 stars over `count` votes; the mean is `sum / count`). */
+export interface Stars {
+  sum: number;
+  count: number;
+}
+
+/** One row of the list and of the boxes. */
+export interface GalleryRow {
+  id: string;
+  title: string;
+  /** The sender's account name. */
+  sender: string;
+  character: string;
+  level?: number;
+  lengthS: number;
+  listedAt: number;
+  views: number;
+  stars: Stars;
+  comments: number;
+}
+
+/**
+ * `GET /api/gallery?sort=top|new|watched&period=week|month|all&page=N`
+ * (public) → `GalleryPage`. Defaults: `top`, `all`, `1`. Only active,
+ * listed runs. **Top**: `(C·m + top_sum) / (C + top_count)` with `C =
+ * TOP_PRIOR_VOTES` and `m` the mean of all ranking votes on listed active
+ * runs (`TOP_PRIOR_MEAN` without any), then more ranking votes, then the
+ * newer `listedAt`. **New**: `listedAt`, newest first. **Most watched**:
+ * `views`, then the newer `listedAt`. `period` keeps the runs listed in
+ * the last 7 or 30 days. A page past the end is empty (`more: false`).
+ *
+ * As built (stage 65 B): a value outside its list, or a `page` that is
+ * not a whole number 1–`GALLERY_PAGES_MAX` → `400 bad_request`; unknown
+ * parameters are ignored. `Cache-Control: public, max-age=60`; the Worker
+ * keeps each normalised variant in the Cache API for 60 s, so an answer can
+ * be up to a minute old (`time` is when it was made). Ties end on the id.
+ */
+export interface GalleryPage {
+  sort: GallerySort;
+  period: GalleryPeriod;
+  page: number;
+  rows: GalleryRow[];
+  /** Another page has rows (and `page < GALLERY_PAGES_MAX`). */
+  more: boolean;
+  time: number;
+}
+
+/**
+ * `GET /api/community` (public, cached 60 s as the list) → the Hall of
+ * Fame boxes. `today` and `yesterday`: the random run of that UTC day,
+ * fixed for the day (among the runs listed before the day began, the one
+ * whose id has the smallest HMAC-SHA-256 under the server's secret and the
+ * day); null when there is none. `mume` (ADR 0155, "MUME's lists and
+ * player count"; fetched by part C5's cron into `mume_cache`) is present
+ * only while the lists were fetched less than `MUME_KEEP_HOURS` ago;
+ * `players` only while that probe's row is as fresh.
+ */
+export interface CommunityBoxes {
+  /** The `TOP_POSTERS` accounts with most active listed runs, most first (ties: the name). */
+  topPosters: Array<{ name: string; runs: number }>;
+  /** Top's first `HALL_OF_FAME_SIZE` over all time. */
+  hallOfFame: GalleryRow[];
+  today: GalleryRow | null;
+  yesterday: GalleryRow | null;
+  mume?: MumeBoxes;
+  time: number;
+}
+
+/** One warlord of MUME's war page: plain text, each at most 40 code points. */
+export interface Warlord {
+  name: string;
+  race: string;
+  class: string;
+}
+
+/** MUME's war point lists (the west, the dark side) and the players online. */
+export interface MumeBoxes {
+  west: Warlord[];
+  dark: Warlord[];
+  players?: number;
+}
+
+/**
+ * `mume_cache` rows (migration 0006), written by part C5: key `war` with
+ * the value `{"west": Warlord[], "dark": Warlord[]}` (JSON), key `players`
+ * with a whole number (JSON); `fetched` the time of the last good fetch.
+ */
+export const MUME_CACHE_KEYS = ['war', 'players'] as const;
+/** A `mume_cache` row older than this is not shown. */
+export const MUME_KEEP_HOURS = 24;
+
+export const TOP_POSTERS = 5;
+export const HALL_OF_FAME_SIZE = 8;
+
+/** `GET /api/gallery/random` (public, `no-store`) → one random active listed run ("show another"); `id` null when there is none. */
+export interface GalleryRandom {
+  id: string | null;
+}
+
+/**
+ * `PUT /api/u/pub/<id>/vote` `{stars: 1–5}` → `VoteAnswer`; `DELETE` takes
+ * one's vote back (→ `VoteAnswer`, `mine: null`; also when there was none);
+ * `GET` → `VoteAnswer` (one's own, or null). `403 own` (one's own run),
+ * `404 not_found` (unknown, removed, hidden or still uploading; a DELETE
+ * also works on a hidden run), `403 suspended` (PUT and DELETE), `429
+ * too_many` (`votesPerHour`, counted on each of the account's votes' last
+ * change, held in the statement), `400 bad_request` (not a whole 1–5, other
+ * keys). A vote ranks (moves Top) only when the account is at least
+ * `RANKING_AGE_DAYS` old at the write; the player never sees the difference.
+ * A PUT of the same stars again changes nothing but the time.
+ */
+export interface VoteRequest {
+  stars: number;
+}
+
+export interface VoteAnswer {
+  /** The run's stars after this request. */
+  stars: Stars;
+  /** One's own vote, or null. */
+  mine: number | null;
+}
+
+/** A comment as everyone sees it. */
+export interface Comment {
+  id: string;
+  /** The writer's account name. */
+  writer: string;
+  text: string;
+  created: number;
+}
+
+/** A comment's (and a note's) id: 12 characters as a run's. */
+export const COMMUNITY_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
+
+/**
+ * `GET /api/pub/<id>/comments?page=N|last` (public, `no-store`) →
+ * `CommentPage`: pages of `COMMENTS_PAGE_SIZE`, oldest first ("newest
+ * last"); `page=last` (the default) is the last page. Hidden comments are
+ * in no one's list. The run's states answer as its meta (`404`, `410`,
+ * `451`). A page past the end is empty. `400 bad_request` for a page that
+ * is not a whole number ≥ 1 or `last`.
+ */
+export interface CommentPage {
+  comments: Comment[];
+  page: number;
+  /** At least 1. */
+  pages: number;
+  /** Visible comments of the run. */
+  total: number;
+}
+
+/**
+ * `POST /api/u/pub/<id>/comments` `{text}` → `{comment: Comment}`. The text:
+ * 1–`COMMENT_MAX` code points, already trimmed, at most
+ * `COMMENT_NEWLINES_MAX` line breaks, the rules of `isPublicText` (`400
+ * bad_text`; never changed by the Worker). `429 too_many`
+ * (`commentsPerHour`), `409 full` (`COMMENTS_PER_RUN` visible), `404` (not
+ * an active run: also a hidden one), `403 suspended`. One's own run is
+ * allowed; a link-only run too.
+ *
+ * `DELETE /api/u/comments/<id>` → 204: by the writer or the run's sender
+ * (else `404`); its text is gone at once (As built: a row without text
+ * stays an hour for the hourly limit, then the cron deletes it), its
+ * reports are handled, `comment_count` follows. A suspended account may
+ * remove.
+ */
+export interface CommentRequest {
+  text: string;
+}
+
+export interface CommentWritten {
+  comment: Comment;
+}
+
+/** A note on Random Runes. */
+export interface Note {
+  id: string;
+  writer: string;
+  text: string;
+  created: number;
+}
+
+/**
+ * `GET /api/runes` (public, flags `gallery` and `runes`, cached 60 s) →
+ * `RunesBoard`: the latest `RUNES_SHOWN` visible notes, newest first.
+ *
+ * `POST /api/u/runes` `{text}` → `{note: Note}`: one line, 1–`NOTE_MAX`
+ * code points, trimmed, `isPublicText` (`400 bad_text`); `429 too_many`
+ * (`notesPerDay`, a UTC day, held in the insert); `403 suspended`. The
+ * board's cache does not have it for up to a minute: the client puts the
+ * answer in at once.
+ *
+ * `DELETE /api/u/runes/<id>` → 204: the writer's own (else `404`); the text
+ * is gone at once (As built: a row without text stays until the day's limit
+ * has passed, then the cron deletes it). A note goes after `NOTE_DAYS` days
+ * (a hidden one still waiting for the admin stays until he acts).
+ */
+export interface RunesBoard {
+  notes: Note[];
+  time: number;
+}
+
+export interface NoteRequest {
+  text: string;
+}
+
+export interface NoteWritten {
+  note: Note;
+}
+
+/**
+ * `GET /api/u/community/news` → `CommunityNews` (`no-store`): `runs` are
+ * active listed runs of other accounts listed after the account's
+ * `gallery` seen time; `reactions` are votes (by their last change) and
+ * visible comments by other accounts on the account's own active runs after
+ * its `reactions` seen time. Each capped at `NEWS_MAX`; `newestRun` and
+ * `newestReaction` are the newest of those times (null when none). Asked
+ * with the sync's cadence, never in the game path.
+ */
+export interface CommunityNews {
+  runs: number;
+  reactions: number;
+  newestRun: number | null;
+  newestReaction: number | null;
+}
+
+/**
+ * `POST /api/u/community/seen` `{gallery?: t, reactions?: t}` (at least
+ * one, whole ms) → `CommunitySeen` with both times now stored: each is set
+ * to `max(old, min(t, now))`, so a time from the future or an older one
+ * never moves it wrongly. The client sends the newest time it showed.
+ * Allowed while suspended.
+ */
+export interface CommunitySeenRequest {
+  gallery?: number;
+  reactions?: number;
+}
+
+export interface CommunitySeen {
+  gallery: number;
+  reactions: number;
+}
+
+/**
+ * `POST /api/admin/comment/<id>` and `POST /api/admin/note/<id>` (Access,
+ * `X-WC: 1`, the same Origin) `AdminItemAction` → 204; marks the item's
+ * reports handled and writes `admin_log` (`comment.<action>` /
+ * `note.<action>`, the target the item's id). `404` for an unknown or
+ * removed item; `400` for an unknown action or key. Not behind the flags.
+ */
+export interface AdminItemAction {
+  action: (typeof ADMIN_ITEM_ACTIONS)[number];
+  note?: string;
 }

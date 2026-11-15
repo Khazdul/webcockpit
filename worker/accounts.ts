@@ -48,10 +48,13 @@ export interface AccountRow {
   /** The account's live published runs and their payload bytes (worker/pub.ts; migration 0005). */
   pub_count: number;
   pub_bytes: number;
+  /** The account's last looks at the Community page and at the reactions on its own runs (stage 65; migrations 0002, 0006). */
+  gallery_seen: number;
+  reactions_seen: number;
 }
 
 export const ACCOUNT_COLUMNS =
-  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes';
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes, gallery_seen, reactions_seen';
 
 /**
  * Names nobody can register, besides those of deleted accounts
@@ -188,7 +191,9 @@ export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BY
 
 export function prefsOf(row: Pick<AccountRow, 'prefs'>): AccountPrefs {
   const p = parsed(row.prefs);
-  return { galleryNotice: p.galleryNotice !== false, rulesAccepted: p.rulesAccepted === true };
+  // `galleryNotice` left the contract in stage 65 (ADR 0155); it is still
+  // sent, always true, because the 0.13 client refuses prefs without it.
+  return { galleryNotice: true, rulesAccepted: p.rulesAccepted === true } as AccountPrefs;
 }
 
 /** The stored KDF parameters of an account. */

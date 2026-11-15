@@ -17,8 +17,12 @@
 //   /api/admin/reports, /log, /pub/<id>[/payload], /account/<name>
 //                             moderation (worker/moderation.ts; Access, and
 //                             X-WC: 1 and the same Origin on writes)
-//   /api/pub/<id>[/payload|/view]
-//                             a published run, public (worker/pub.ts; flag `share`)
+//   /api/pub/<id>[/payload|/view|/comments]
+//                             a published run, public (worker/pub.ts; flag `share`;
+//                             the comments `gallery` too)
+//   GET  /api/gallery, /api/gallery/random, /api/community, /api/runes
+//                             the community, public (worker/community.ts; flags
+//                             `share` and `gallery`, the board `runes` too)
 //   /r/<id>                   the watch page: the site's index.html (the app
 //                             boots into it); a static file under /r/ (the
 //                             frame document) is served as it is
@@ -42,6 +46,7 @@ import { accountApi, isAccountPath, sameSite } from './auth.ts';
 import { adminFlags, flags, isFlagName, setFlag } from './flags.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
 import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
+import { communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
 import { isPublicPubPath, publicPub } from './pub.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
 
@@ -101,12 +106,22 @@ async function beat(request: Request, env: Env, _url: URL, deps: Deps): Promise<
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
+/**
+ * `GET /api/stats/public`: online now (flag `stats`) and, with `gallery`
+ * on, the times of the newest listed runs (the guests' counter, ADR 0155).
+ * With `stats` off and `gallery` on it answers 0 online (the client shows
+ * "N online" only with `stats` on).
+ */
 async function statsPublic(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();
-  if (!(await flags(env, now)).stats) return error('not_found', 404);
+  const on = await flags(env, now);
+  const gallery = on.gallery && on.share;
+  if (!on.stats && !gallery) return error('not_found', 404);
   if (!env.DB) return error('unavailable', 503);
   try {
-    return json((await publicStats(env.DB, now)) satisfies PublicStats, 200, PUBLIC_MINUTE_CACHE);
+    const answer: PublicStats = on.stats ? await publicStats(env.DB, now) : { online: 0, playing: 0 };
+    if (gallery) answer.listed = await listedTimes(env.DB);
+    return json(answer, 200, PUBLIC_MINUTE_CACHE);
   } catch {
     return error('unavailable', 503);
   }
@@ -230,6 +245,7 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
   if (isAccountPath(path)) return accountApi(request, env, url, deps);
   if (isPublicPubPath(path)) return publicPub(request, env, url, deps);
+  if (isCommunityPublicPath(path)) return communityPublic(request, env, url, deps);
   return dispatch(request, env, url, deps, Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined);
 }
 

@@ -31,9 +31,18 @@ export async function nameCounter(pepper: Bytes, kind: GuessKind, nameKey: strin
 
 /** The counter keys (hour, day) of an address's (address.ts: its key's) registrations on the UTC day of `now`. */
 export async function addressCounters(pepper: Bytes, address: string, now: number): Promise<{ hour: string; day: string }> {
-  const daily = await hmac(pepper, `wc-addr|${utcDay(now)}`);
-  const who = toB64url(await hmac(daily, address));
+  const who = await addressHash(pepper, address, now);
   return { hour: `reg-h|${who}`, day: `reg-d|${who}` };
+}
+
+/**
+ * An address's key (address.ts) hashed under the UTC day's pepper: what the
+ * registration counters and (stage 65, ADR 0155) the views per address are
+ * keyed by. Yesterday's cannot be tied to an address.
+ */
+export async function addressHash(pepper: Bytes, address: string, now: number): Promise<string> {
+  const daily = await hmac(pepper, `wc-addr|${utcDay(now)}`);
+  return toB64url(await hmac(daily, address));
 }
 
 export interface Counter {

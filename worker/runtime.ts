@@ -100,7 +100,12 @@ export interface Env {
   FLAG_SYNC?: boolean | string;
   /** The default of the flag `runs` (stage 63). Off: `/api/u/runs*` answers 404 and the kinds `run` and `exportDoc` stay closed. */
   FLAG_RUNS?: boolean | string;
+  /** The default of the flag `share` (stage 64). Off: the publication paths answer 404. */
   FLAG_SHARE?: boolean | string;
+  /** The default of the flag `gallery` (stage 65, ADR 0155): listing, the Community, stars, comments, the counters. */
+  FLAG_GALLERY?: boolean | string;
+  /** The default of the flag `runes` (stage 65): Random Runes (needs `gallery`). */
+  FLAG_RUNES?: boolean | string;
   /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
   FILES?: R2;
   /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */
@@ -155,6 +160,19 @@ export interface Deps {
    * no mail.
    */
   emailMessage?(from: string, to: string, raw: string): unknown;
+  /**
+   * The Cache API's `caches.default` (worker/index.ts hands it over): the
+   * public community answers are kept in it for 60 s (stage 65, ADR 0155).
+   * Without it (the static server under Node, the tests) every request
+   * reads the database.
+   */
+  cache?: CacheLike;
+}
+
+/** What the Worker uses of a Cache API cache. */
+export interface CacheLike {
+  match(request: Request): Promise<Response | undefined>;
+  put(request: Request, response: Response): Promise<void>;
 }
 
 export const DEFAULT_DEPS: Deps = {

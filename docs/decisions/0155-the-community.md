@@ -1,6 +1,6 @@
 # 0155 — The community: listing, votes, comments, the counters, Random Runes
 
-- Status: Accepted (planned 2026-11-15, stage 65; nothing built yet).
+- Status: Accepted (planned 2026-11-15, stage 65; part B built 2026-11-15).
 - Date: 2026-11-15
 - Related: spec §7.0, §7.7, §7.8, §7.9, §7.10, §7.11, §7.12 (65);
   ADR 0148 with its addenda (the gallery, the word Community, Hall of
@@ -275,3 +275,113 @@ others (new fields `commentsPerHour`, `votesPerHour`, `notesPerDay`,
   day.
 - The guest's counter reads 99 times from a cached public answer;
   beyond 99 it says "99+".
+
+## As built (stage 65 B)
+
+The Worker part (branch `stage65-worker`), as decided above, with these
+details and deviations. The contract's comments in `shared/cloud/api.ts`
+("The community") have the exact answers; the code is
+`worker/community.ts` beside the stage 64 files it extends.
+
+- **Flags.** Every community path needs `share` and `gallery`; Random
+  Runes `runes` as well (`share` too, since `gallery` needs it). The
+  moderation endpoints are behind none. `FLAG_GALLERY`/`FLAG_RUNES`:
+  staging true, production false.
+- **`galleryNotice`.** Out of the contract, but the Worker still sends
+  `galleryNotice: true` in `prefs`: the 0.13 client refuses prefs without
+  it, and a cached 0.13 client must keep working. A PATCH with it is
+  accepted and ignored. The client reads prefs without it (a minimal
+  change in `src/cloud/account/api.ts` and `flows.ts`, so the typecheck
+  holds); part C3 removes what is left.
+- **New limits** (`commentsPerHour` 20, `votesPerHour` 60, `notesPerDay`
+  5, `listingsPerDay` 10) are in `AccountLimits`; the client fills them
+  from the defaults when an older Worker leaves them out (`parseAccount`)
+  and `/api/config` passes them on when sent.
+- **Listing.** `listingsPerDay` counts *first* listings: runs of the
+  account whose `listed_at` falls in the UTC day (removed ones too, so
+  publish-and-remove does not reset it). Unlisting and listing again keep
+  `listed_at` and are free. Held in the POST's reservation insert and in
+  the PATCH's update (`429 too_many`). A pending row already carries
+  `listed`/`listed_at`; the lists show only `active` rows.
+- **The list.** `sort`, `period` and `page` outside their lists → `400`
+  (`page` must be 1–34 without leading zeros); unknown parameters are
+  ignored. Top: `(5·m + top_sum) / (5 + top_count)` with `m` one scalar
+  subquery per query, then `top_count`, then `listed_at`, then the id.
+  Ties everywhere end on the id.
+- **The cache.** `Deps.cache` (worker/index.ts hands over
+  `caches.default`); the static server and the tests have none, so every
+  request reads D1 there. Keys: `<origin>/api/gallery?sort=…&period=…&page=…`
+  (normalised), `<origin>/api/community`, `<origin>/api/runes`; only a 200
+  is kept, a cache that throws is no cache. `GET /api/stats/public` is not
+  in the Cache API (the browser's `max-age=60` as before).
+- **`GET /api/stats/public`** answers when `stats` **or** `gallery` is on:
+  with `stats` off, `online` and `playing` are 0 (the client shows "N
+  online" only with `stats` on), so the guests' counter works in
+  production even while `stats` is dark there. `listed` only with
+  `gallery`.
+- **The run of the day** is the smallest `HMAC-SHA-256(AUTH_PEPPER,
+  "wc-day-run|<day>|<id>")` among the active listed runs listed before
+  the day began (SHA-256 without the secret). `topPosters` ties on the
+  name. MUME: `mume_cache` rows `war` (`{west, dark}` JSON) and `players`
+  (a JSON number), each shown only while `fetched` is under 24 h old;
+  `players` only beside the lists; a row that does not parse is absent.
+- **Votes.** The three statements of a PUT (old share out, the upsert,
+  new share in) share one guard that none of them changes: the account
+  active, the run active and another's, and the account's *other* votes
+  with `updated` in the last hour under `votesPerHour`. So the limit is
+  per run voted on in the hour (changing one vote again is not a new
+  one), and a batch applies whole or not at all. `ranks` is the account's
+  age at the write (`account.created`). `DELETE` works on an active or
+  hidden run, and is `403 suspended` for a suspended account (its votes
+  are out of the sums already). Votes and comments are allowed on
+  link-only runs too. Index `vote_account` is `(account, updated)`
+  (serves deletion, suspension and the hourly count).
+- **Suspend/Restore** move the votes in the same batch as the state, each
+  only on a real change (`(SELECT state …) = from`), so a repeat does
+  nothing. Delete account takes the votes out only when the account is
+  not suspended, then deletes them; the sums are recounted in the tests.
+- **A removed comment or note keeps its row without text** (`state
+  'removed'`, `text ''`) for its limit: an hour for a comment, the rest of
+  the UTC day for a note; the daily cron deletes it then. Deleting the row
+  at once (as decided) would let a writer post, remove and post again
+  past the limit. No text is kept, as decided. The admin's Delete and
+  Delete account delete the rows.
+- **Comments.** `page` defaults to `last`; `pages` is at least 1; the
+  total is `comment_count`. A hidden run's comments answer `451`. The
+  1 000 a run is `comment_count` (visible ones) in the insert; a comment
+  hidden by reports or the admin leaves the count, Restore puts it back.
+- **Text rules** (`isPublicText`, `cleanPublicText` in
+  `shared/cloud/text.ts`): as decided, plus U+2028/U+2029 and U+FFF9–
+  U+FFFB refused; `\r` is a control character (the cleaner turns CRLF and
+  CR into `\n`); the Worker wants the text trimmed (refused, not trimmed)
+  and NFC; the cleaner does not trim (the player may be typing), cuts a
+  tower to three marks and turns the breaks past the limit into spaces.
+- **Views.** The address row is `a:` + the registration counters' hash
+  (`addressHash`, HMAC under the day's pepper of the address key; an IPv6
+  /64 is one). Without AUTH_PEPPER the device alone counts.
+- **Reports.** `comment` and `note` targets are 12-character ids; one's
+  own is `403 own`; removed ones `404`. With `gallery` off `comment` is
+  `kind_closed`, with `runes` off `note` too. The queue merges runs,
+  comments and notes (most reporters, then newest; 200 at most) and adds
+  `content` (the text) and, for a comment, `pub`; `title` is the run's
+  (`''` for a note), `sender` the writer. `POST /api/admin/comment|note/<id>`:
+  `hide` sets `hidden_reason 'admin'`; `delete` deletes the row; a removed
+  or unknown item `404`.
+- **The mail.** A comment: subject `WebCockpit report: comment on
+  "<title>"`, a note: `WebCockpit report: note by <name>`; the body has
+  the kind, the id, the writer, the run (title and id) for a comment, the
+  reason, the counts, whether hidden, the reported text in full, the
+  reporter's text, `/admin` and the run's `?admin` link. The same cap.
+- **The cron** (daily): notes past 30 days go (their reports handled)
+  unless hidden with open reports; removed rows as above.
+- **The e2e fake.** `tests/e2e/cloud-account-fake.ts` has a marked block
+  "The community (stage 65 B)": every new path, listing, `MyPub`'s new
+  fields, `listed` on `/api/stats/public` (with `gallery` on), seeds
+  (`addPub(name, {listed, listedAt})`, `addVote`, `addComment`,
+  `addNote`, `mume`), `communityOffline`. Not modelled: reports of
+  comments and notes (the pub fake answers run reports only).
+- **Tests:** `worker/test/community.test.ts` (16), `votes.test.ts` (10),
+  `comments.test.ts` (12), `runes.test.ts` (7), `mail.test.ts` (3 new),
+  `tests/unit/public-text.test.ts` (6), `tests/unit/community-fake.test.ts`
+  (1); stage 64's tests adjusted (the new fields, views per address, the
+  flags in `/api/config`). Worker 268, unit and worker together 5 220.

@@ -200,6 +200,8 @@ describe('the admin page', () => {
       sync: { value: true, default: true, override: null },
       runs: { value: false, default: false, override: null },
       share: { value: false, default: false, override: null },
+      gallery: { value: false, default: false, override: null },
+      runes: { value: false, default: false, override: null },
     });
   });
 
