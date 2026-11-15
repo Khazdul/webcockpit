@@ -167,3 +167,20 @@
     font-size: 15px;
   }
 }
+
+/* The listed form (stage 65 C3, round 13's pick 4): who can find it, in the
+ * text's colour with a gold star, and the note under it. */
+.wc-sh-anyone.is-listed {
+  color: var(--lk-text);
+  font-style: italic;
+}
+
+.wc-sh-anyone.is-listed .wc-lk-ic {
+  color: var(--lk-gold);
+}
+
+.wc-sh-listnote {
+  margin: 6px 0 0;
+  text-align: left;
+  font-size: 14px;
+}
