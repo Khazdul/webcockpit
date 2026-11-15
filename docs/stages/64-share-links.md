@@ -97,6 +97,8 @@ staging, off in production until the owner says yes.
 Mockups in round 9–11's manner (`notes/research/start-menu-mockups/
 round12/`), published as an artifact; the recommendation in its README.
 
+Artifact: https://claude.ai/artifact/BFgBssf8Qq4RFm5z5u9q11
+
 1. **Link in the export editor**: where Link sits in the format toggle,
    what a guest sees (Link greyed with "Log in to share", or Link hidden
    with a line under the toggle).
@@ -129,12 +131,12 @@ touches staging or production.
 
 #### A1. Mockups, round 12 (worktree `stage64-mockups`, port 5461)
 
-- [ ] `notes/research/start-menu-mockups/round12/` in round 11's manner
+- [x] `notes/research/start-menu-mockups/round12/` in round 11's manner
       (its README and `build/`): the real DOM captured from a dev server
       on its own port with the e2e fake (flags on), new content in
       `mk-*` classes, a picture per state, a review page, one
       self-contained file published as an artifact.
-- [ ] Points 1–6 above, desktop and phone (6 desktop only); the
+- [x] Points 1–6 above, desktop and phone (6 desktop only); the
       recommendation.
 
 #### A2. The measurement (no worktree; writes "Measurements" here)
