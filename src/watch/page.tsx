@@ -39,7 +39,8 @@
 // Back at its top left); in it the band, the replay and, with the flag
 // `gallery` (the meta carries `stars`), the stars in the band and the
 // comments under the replay (src/watch/community.tsx); the page scrolls.
-// Back goes to the start page's Community when the run was opened from it.
+// Back goes to the start page's Community when the run was opened from it
+// (`?from=community`; `communityBackHref` of the Community page's model).
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
@@ -57,10 +58,10 @@ import { buildReplayHtml } from '../replay/export';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import { Comments, type RaterRole, RunStars } from './community';
+import { communityBackHref } from '../chrome/frames/community-model';
 import {
   ABUSE_ADDRESS,
   ADMIN_WORDS,
-  COMMUNITY_QUERY,
   END_WORDS,
   FAILED_WORDS,
   OWNER_NOTE,
@@ -107,9 +108,9 @@ function goStart(): void {
 
 /** Back: the start page's Community when the run was opened from it, else the start page (stage 65). */
 function goBack(): void {
-  if (backTarget(history.state, location.search) !== 'community') return goStart();
-  const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest') ? 'cloudtest&' : '';
-  location.assign(`${base()}?${keep}${COMMUNITY_QUERY}`);
+  if (backTarget(location.search) !== 'community') return goStart();
+  const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest');
+  location.assign(communityBackHref(base(), keep));
 }
 
 /** Log in from the watch page (Report's, the stars' and the comments'): the start page's Log in, and back here after it. */

@@ -69,19 +69,17 @@ test('the frame: the still sky, the sub-page box with Back at its top left, the 
   expect(errors).toEqual([]);
 });
 
-test('Back goes to the Community when the run came from it (?from=community, or the history state)', async ({ page }) => {
+test('Back goes to the Community when the run came from it (?from=community); B too', async ({ page }) => {
   await setUp(page, { gallery: true });
-  await openWatch(page, ID, '&from=community');
+  await page.goto(`/r/${ID}?from=community&cloudtest`);
   await playing(page);
   await watchBtn(page, 'BACK').click();
-  await expect(page).toHaveURL(/\/\?cloudtest&open=community$/);
-  await openWatch(page);
+  await expect(page).toHaveURL(/\/\?community&cloudtest$/);
+  await page.goto(`/r/${ID}?from=community&cloudtest`);
   await playing(page);
-  await page.evaluate(() => history.replaceState({ from: 'community' }, ''));
-  // B does what Back does.
   await band(page).locator('[data-watch="title"]').click();
   await page.keyboard.press('b');
-  await expect(page).toHaveURL(/\/\?cloudtest&open=community$/);
+  await expect(page).toHaveURL(/\/\?community&cloudtest$/);
 });
 
 test('logged in: rate, change, take back; the vote is there again after a reload', async ({ page }) => {

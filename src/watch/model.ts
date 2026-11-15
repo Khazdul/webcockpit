@@ -291,14 +291,9 @@ export function commentFailText(status: number, code: string): string {
 
 /**
  * Where Back goes (stage 65): to the start page's Community when the run
- * was opened from it (`history.state.from === 'community'`, or
- * `?from=community` in the address), else to the start page.
+ * was opened from it (`?from=community`, which the Community page's
+ * `runHref` puts in the address), else to the start page.
  */
-export function backTarget(state: unknown, search: string): 'community' | 'start' {
-  const from = state && typeof state === 'object' ? (state as { from?: unknown }).from : undefined;
-  if (from === 'community') return 'community';
+export function backTarget(search: string): 'community' | 'start' {
   return new URLSearchParams(search).get('from') === 'community' ? 'community' : 'start';
 }
-
-/** The start page's Community: `<base>?open=community` (the start page opens it; part C1). */
-export const COMMUNITY_QUERY = 'open=community';
