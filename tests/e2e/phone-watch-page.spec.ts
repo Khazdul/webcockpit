@@ -1,5 +1,5 @@
 // Stage 64 C2 on a phone (round 12's pick 3a: the band stacks: title,
-// details, three buttons; no description): a guest watches a seeded run,
+// details, the buttons; no description; stage 65: Back at the frame's top left): a guest watches a seeded run,
 // one view; Report logged out and in; a state; Download; Back. The
 // desktop's are in watch-page.spec.ts.
 import { expect, test } from '@playwright/test';
@@ -33,13 +33,18 @@ test('phone: a guest watches; the band stacks; Report says log in; Back', async 
   await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download');
   const title = (await band(page).locator('[data-watch="title"]').boundingBox())!;
   const report = (await watchBtn(page, 'REPORT').boundingBox())!;
+  const download = (await watchBtn(page, 'DOWNLOAD').boundingBox())!;
   const back = (await watchBtn(page, 'BACK').boundingBox())!;
   expect(report.y).toBeGreaterThan(title.y + title.height);
-  expect(Math.abs(report.y - back.y)).toBeLessThan(2);
+  expect(Math.abs(report.y - download.y)).toBeLessThan(2);
+  // Stage 65: Back at the frame's top left, above the title (the start menu's sub-pages' place).
+  expect(back.y + back.height).toBeLessThanOrEqual(title.y + 1);
+  expect(back.x).toBeLessThan(60);
   await expect(band(page).locator('[data-watch="description"]')).toBeHidden();
   // The replay fills the width under the band.
   const slot = (await page.locator('.wc-watch-slot').boundingBox())!;
-  expect(slot.width).toBeGreaterThan(page.viewportSize()!.width - 2);
+  // Stage 65: inside the start page's frame, which fills the width.
+  expect(slot.width).toBeGreaterThan(page.viewportSize()!.width - 40);
   await watchBtn(page, 'REPORT').tap();
   await expect(dialog(page, 'report-guest').locator('.wc-lk-q')).toHaveText('Log in to report.');
   await dialog(page, 'report-guest').locator('[data-btn="CLOSE"]').tap();

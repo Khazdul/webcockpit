@@ -15,8 +15,13 @@
 //
 // A view is `POST /api/pub/<id>/view` with the statistics' device id
 // (ADR 0147), and a report `POST /api/u/report` (`X-WC: 1`).
+//
+// Stage 65 (ADR 0155, the contract's "The community"): one's vote
+// (`GET|PUT|DELETE /api/u/pub/<id>/vote`), the comments (`GET
+// /api/pub/<id>/comments?page=N|last`, public; `POST
+// /api/u/pub/<id>/comments`, `DELETE /api/u/comments/<id>`).
 
-import type { PubMeta, ReportRequest } from '../../shared/cloud/api.ts';
+import type { Comment, CommentPage, PubMeta, ReportRequest, Stars, VoteAnswer } from '../../shared/cloud/api.ts';
 
 export type WatchMode = 'public' | 'owner' | 'admin';
 
@@ -62,6 +67,14 @@ async function failure(res: Response): Promise<{ ok: false; status: number; code
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max;
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
+/** `Stars` (`sum`, `count` whole numbers ≥ 0, the mean at most 5); undefined when it is not. */
+export function parseStars(v: unknown): Stars | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  if (!num(o.sum) || !num(o.count) || !Number.isInteger(o.sum) || !Number.isInteger(o.count) || o.sum > o.count * 5) return undefined;
+  return { sum: o.sum, count: o.count };
+}
+
 /** `PubMeta` as the contract has it, only its fields; undefined when it is not. */
 export function parseMeta(v: unknown): PubMeta | undefined {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
@@ -81,6 +94,10 @@ export function parseMeta(v: unknown): PubMeta | undefined {
     views: o.views,
     bytes: o.bytes,
     ...(o.hidden === true ? { hidden: true as const } : {}),
+    // Stage 65: only with the flag `gallery` on; the stars and comments are drawn only when both are here.
+    ...(typeof o.listed === 'boolean' ? { listed: o.listed } : {}),
+    ...(parseStars(o.stars) ? { stars: parseStars(o.stars)! } : {}),
+    ...(num(o.comments) && Number.isInteger(o.comments) ? { comments: o.comments } : {}),
   };
 }
 
@@ -175,6 +192,96 @@ export async function sendReport(body: ReportRequest, f: WatchFetch = defaultFet
         body: JSON.stringify(body),
       }),
     );
+    if (res.status === 204 || res.ok) return { ok: true, value: null };
+    return failure(res);
+  } catch {
+    return { ok: false, status: 0, code: 'offline' };
+  }
+}
+
+// ------------------------------------------------------------ stars and comments (stage 65 C2)
+
+/** A write under `/api/u/` (the session cookie, `X-WC: 1`, JSON). */
+function write(method: string, body?: unknown): RequestInit {
+  return init('owner', WATCH_TIMEOUT_MS, {
+    method,
+    headers: { Accept: 'application/json', 'X-WC': '1', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+}
+
+function parseVote(v: unknown): VoteAnswer | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const stars = parseStars(o.stars);
+  const mine = o.mine === null ? null : typeof o.mine === 'number' && Number.isInteger(o.mine) && o.mine >= 1 && o.mine <= 5 ? o.mine : undefined;
+  return stars && mine !== undefined ? { stars, mine } : undefined;
+}
+
+async function asked<T>(url: string, ri: RequestInit, parse: (v: unknown) => T | undefined, f: WatchFetch): Promise<Got<T>> {
+  try {
+    const res = await f(url, ri);
+    if (!res.ok) return failure(res);
+    const v = parse(await res.json());
+    return v !== undefined ? { ok: true, value: v } : { ok: false, status: res.status, code: 'bad_answer' };
+  } catch {
+    return { ok: false, status: 0, code: 'offline' };
+  }
+}
+
+const voteUrl = (id: string): string => `/api/u/pub/${encodeURIComponent(id)}/vote`;
+
+/** One's own vote on the run and its stars (`GET /api/u/pub/<id>/vote`). */
+export function fetchVote(id: string, f: WatchFetch = defaultFetch): Promise<Got<VoteAnswer>> {
+  return asked(voteUrl(id), init('owner', WATCH_TIMEOUT_MS, { headers: { Accept: 'application/json' } }), parseVote, f);
+}
+
+/** Votes 1–5, or takes one's vote back (`null`: `DELETE`). */
+export function sendVote(id: string, stars: number | null, f: WatchFetch = defaultFetch): Promise<Got<VoteAnswer>> {
+  return asked(voteUrl(id), stars === null ? write('DELETE') : write('PUT', { stars }), parseVote, f);
+}
+
+/** A comment as the contract has it; undefined when it is not. */
+export function parseComment(v: unknown): Comment | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  if (!str(o.id, 40) || !str(o.writer, 40) || !str(o.text, 4000) || !num(o.created)) return undefined;
+  return { id: o.id, writer: o.writer, text: o.text, created: o.created };
+}
+
+function parseCommentPage(v: unknown): CommentPage | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  if (!Array.isArray(o.comments) || !num(o.page) || !num(o.pages) || !num(o.total)) return undefined;
+  // A comment the page cannot read is left out, not the page.
+  const comments = o.comments.map(parseComment).filter((c): c is Comment => c !== undefined);
+  return { comments, page: o.page, pages: Math.max(1, o.pages), total: o.total };
+}
+
+/** A page of the run's comments, oldest first (`'last'`: the newest page; the public path, no cookie). */
+export function fetchComments(id: string, page: number | 'last' = 'last', f: WatchFetch = defaultFetch): Promise<Got<CommentPage>> {
+  return asked(
+    `${PREFIX.public}${encodeURIComponent(id)}/comments?page=${page}`,
+    init('public', WATCH_TIMEOUT_MS, { headers: { Accept: 'application/json' } }),
+    parseCommentPage,
+    f,
+  );
+}
+
+/** Posts a comment (the text cleaned and trimmed by the caller). */
+export function postComment(id: string, text: string, f: WatchFetch = defaultFetch): Promise<Got<Comment>> {
+  return asked(
+    `/api/u/pub/${encodeURIComponent(id)}/comments`,
+    write('POST', { text }),
+    (v) => (v && typeof v === 'object' ? parseComment((v as { comment?: unknown }).comment) : undefined),
+    f,
+  );
+}
+
+/** Removes a comment (its writer, or the run's sender). */
+export async function deleteComment(cid: string, f: WatchFetch = defaultFetch): Promise<Got<null>> {
+  try {
+    const res = await f(`/api/u/comments/${encodeURIComponent(cid)}`, write('DELETE'));
     if (res.status === 204 || res.ok) return { ok: true, value: null };
     return failure(res);
   } catch {

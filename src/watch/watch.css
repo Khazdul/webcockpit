@@ -1,7 +1,13 @@
 /* The watch page (src/watch/page.tsx, stage 64 C2; round 12's pick 3a):
- * the theme's own dark, a band over the frame in the kit's tokens, the
- * replay below it. Re-derived from the mockup's `mk-w-*`
- * (notes/research/start-menu-mockups/round12/build/mock.css). */
+ * a band over the frame in the kit's tokens, the replay below it.
+ * Re-derived from the mockup's `mk-w-*`
+ * (notes/research/start-menu-mockups/round12/build/mock.css).
+ *
+ * Stage 65 C2 (round 13's pick 3a with the owner's change): the start
+ * page's still sky behind (painted on `.wc-watch` by the page), the start
+ * menu's large sub-page frame around everything (`.wc-watch-box`, the kit's
+ * `.wc-lk-box-large` in a scrolling page), the stars in the band, the
+ * comments under the replay (round13/build/mock.css `mk-rate`, `mk-cm*`). */
 
 .wc-watch {
   position: fixed;
@@ -27,6 +33,48 @@
   flex-direction: column;
 }
 
+/* ------------------------------------------------------------ the frame around everything */
+
+/* The page scrolls (the comments are under the replay); the frame sits
+ * `--lk-box-m` from the window's edges, as a large sub-page's. */
+.wc-watch-page:not(.is-end) {
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.wc-watch-outer {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--lk-box-m, clamp(12px, 1.9vw, 28px));
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-watch-box {
+  flex: 1 0 auto;
+}
+
+.wc-watch .wc-watch-box > .wc-watch-win {
+  flex: 1 0 auto;
+  padding: 40px 12px 12px;
+  /* Not a size container (the kit's `wc-page`): its layout containment
+   * would hold the replay's frame in when it goes fullscreen (Firefox sized
+   * the fullscreen frame to this window and then left fullscreen) or fills
+   * the window (the iPhone). Nothing in the page asks `@container wc-page`. */
+  container-type: normal;
+}
+
+/* The band and the replay fill the first view: the window's height less the
+ * frame (box 2 × 8, window border 2, window padding 40 + 12). */
+.wc-watch-screen {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 2 * var(--lk-box-m, clamp(12px, 1.9vw, 28px)) - 70px);
+  height: calc(100dvh - 2 * var(--lk-box-m, clamp(12px, 1.9vw, 28px)) - 70px);
+  min-height: 300px;
+}
+
 /* ------------------------------------------------------------ the band */
 
 .wc-watch-band {
@@ -36,11 +84,8 @@
   align-items: center;
   gap: 18px;
   box-sizing: border-box;
-  min-height: 104px;
-  padding: 10px 20px;
-  background: linear-gradient(180deg, #1b1612, #120f0c);
-  border-bottom: 1px solid #000;
-  box-shadow: inset 0 -1px 0 rgba(255, 207, 143, 0.14);
+  min-height: 92px;
+  padding: 2px 10px 12px;
 }
 
 .wc-watch-id {
@@ -133,6 +178,8 @@
   min-height: 0;
   background: #000;
   overflow: hidden;
+  border: 1px solid #000;
+  box-shadow: 0 0 0 1px rgba(255, 207, 143, 0.12);
 }
 
 .wc-watch-wait {
@@ -219,7 +266,27 @@
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 0 2px 10px;
+  }
+
+  .wc-watch .wc-watch-box > .wc-watch-win {
+    padding: 40px 4px 4px;
+  }
+
+  .wc-watch-outer {
+    padding: 4px;
+  }
+
+  .wc-watch-screen {
+    height: auto;
+    min-height: 0;
+  }
+
+  .wc-watch-screen .wc-watch-slot {
+    flex: none;
+    height: calc(100vh - 8px - 62px);
+    height: calc(100dvh - 8px - 62px);
+    min-height: 300px;
   }
 
   .wc-watch-title {
@@ -265,9 +332,322 @@
 }
 
 /* The frame fills the window where the browser has no element fullscreen
- * (the iPhone; src/watch/frame-host.ts): over the band. */
-.wc-watch-slot.is-filled {
+ * (the iPhone; src/watch/frame-host.ts): over the band. Stage 65: over the
+ * frame around it too; its window lets go of what would hold a fixed child
+ * in (the container query's containment, the clip, its stacking context)
+ * and the page stops scrolling while it is filled. */
+.wc-watch-slot.is-filled,
+.wc-watch-screen .wc-watch-slot.is-filled {
   position: fixed;
   inset: 0;
+  height: auto;
+  min-height: 0;
   z-index: 10;
+  border: 0;
+  box-shadow: none;
+}
+
+.wc-watch-page:has(.wc-watch-slot.is-filled) {
+  overflow: hidden;
+}
+
+.wc-watch-page:has(.wc-watch-slot.is-filled) .wc-watch-win {
+  overflow: visible;
+  isolation: auto;
+}
+
+/* ------------------------------------------------------------ the stars (stage 65 C2) */
+
+/* History's Rate control (history-dialogs.css `.wc-hd-stars`), smaller,
+ * in the band between the details and the buttons. */
+.wc-watch-rate {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 14px 0 12px;
+  border-left: 1px solid var(--lk-rule, rgba(255, 207, 143, 0.14));
+  border-right: 1px solid var(--lk-rule, rgba(255, 207, 143, 0.14));
+}
+
+.wc-watch-stars {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.wc-watch-stars > button {
+  all: unset;
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-watch-stars svg {
+  width: 24px;
+  height: 24px;
+  fill: rgba(255, 226, 186, 0.04);
+  stroke: #8b7a62;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transition:
+    fill calc(0.25s * var(--lk-ts, 1)),
+    stroke calc(0.25s * var(--lk-ts, 1)),
+    filter calc(0.25s * var(--lk-ts, 1));
+}
+
+.wc-watch-stars > button.is-peek svg {
+  stroke: #d6b678;
+}
+
+.wc-watch-stars > button.is-lit svg {
+  fill: var(--lk-gold, #e9c47c);
+  stroke: #fff0cc;
+  filter: drop-shadow(0 0 6px rgba(255, 190, 90, 0.35));
+}
+
+.wc-watch-rate-l {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font: italic 500 14.5px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+.wc-watch-rate-l b,
+.wc-watch-rate-static b {
+  color: var(--lk-text);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.wc-watch-rate-m {
+  color: var(--lk-faint);
+}
+
+.wc-watch-rate-static {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 600 18px/1.2 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-watch-rate-static .wc-lk-stars {
+  font-size: 20px;
+}
+
+.wc-watch-login {
+  all: unset;
+  cursor: pointer;
+  color: var(--lk-gold);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.wc-watch-login:hover {
+  color: var(--lk-head);
+}
+
+/* ------------------------------------------------------------ the comments (stage 65 C2) */
+
+.wc-watch-comments {
+  box-sizing: border-box;
+  width: min(860px, 100%);
+  margin: 22px auto 10px;
+  padding: 0 10px;
+}
+
+.wc-watch-comments .wc-lk-rule {
+  margin-bottom: 6px;
+}
+
+.wc-watch-cnum {
+  margin-left: 10px;
+  font: italic 500 14px/1 var(--lk-serif);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--lk-faint);
+}
+
+.wc-watch-earlier {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 4px;
+}
+
+.wc-watch-cms {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wc-watch-cm {
+  padding: 9px 2px 9px 10px;
+  border-bottom: 1px solid var(--lk-rule, rgba(255, 207, 143, 0.14));
+}
+
+.wc-watch-cm.is-own {
+  box-shadow: inset 2px 0 0 var(--lk-gold);
+}
+
+.wc-watch-cm-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  min-width: 0;
+}
+
+.wc-watch-cm-h b {
+  font: 600 16px/1.2 var(--lk-serif);
+  color: var(--lk-head);
+  overflow-wrap: anywhere;
+}
+
+.wc-watch-cm.is-own .wc-watch-cm-h b,
+.wc-watch-cm.is-sender .wc-watch-cm-h b {
+  color: var(--lk-gold);
+}
+
+.wc-watch-cm-tag {
+  margin-left: -6px;
+  font: italic 500 13.5px/1 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-watch-cm-tag::before {
+  content: "· ";
+}
+
+.wc-watch-cm-h time {
+  flex: none;
+  font: italic 500 13.5px/1 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-watch-sp {
+  flex: 1 1 auto;
+}
+
+.wc-watch-cm-h .wc-lk-btn.is-small {
+  flex: none;
+  height: 24px;
+  opacity: 0.85;
+}
+
+.wc-watch-cm-t {
+  margin: 3px 0 0;
+  font: 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.wc-watch-cnone {
+  margin: 10px 0;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-watch-cfail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wc-watch-cerr {
+  margin: 8px 0 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-danger, #e08a6a);
+}
+
+.wc-watch-cform {
+  margin-top: 12px;
+}
+
+.wc-watch-cform .wc-lk-input {
+  overflow-wrap: anywhere;
+}
+
+.wc-watch-cform-b {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.wc-watch-cform.is-guest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-watch-ccount {
+  display: block;
+  text-align: right;
+}
+
+/* A reported comment, quoted in the report dialog. */
+.wc-watch-quote {
+  margin: 6px 0 8px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--lk-gold);
+  font: italic 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+  background: rgba(0, 0, 0, 0.25);
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  max-height: 9.5em;
+  overflow-y: auto;
+}
+
+/* The phone (and a narrow window): the stars under the title and details,
+ * the mean at the left, the words at the right; the comments full width. */
+@media (max-width: 760px) {
+  .wc-watch-rate {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border: 0;
+    padding: 0;
+  }
+
+  .wc-watch-rate-l {
+    flex-direction: column;
+    gap: 1px;
+    align-items: flex-end;
+    font-size: 14px;
+  }
+
+  .wc-watch-stars > button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .wc-watch-stars svg {
+    width: 27px;
+    height: 27px;
+  }
+
+  .wc-watch-comments {
+    margin-top: 16px;
+    padding: 0 4px;
+  }
+
+  .wc-watch-cm-h {
+    flex-wrap: wrap;
+  }
 }

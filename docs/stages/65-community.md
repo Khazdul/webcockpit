@@ -226,10 +226,14 @@ touches staging or production.
 
 #### C2. The watch page and the way in (worktree `stage65-watch`, port 5474)
 
-- [ ] Stars and comments (pick 3), guests' lines, Back to the Community.
+- [x] Stars and comments (pick 3), guests' lines, Back to the Community;
+      the watch page inside the start page's sky and frame (the owner's
+      change); ADR 0155 "As built (stage 65 C2)" (branch `stage65-watch`).
 - [x] Hall of Fame in the export editor and the share dialog (pick 4)
       (built in C3, branch `stage65-published`; ADR 0155 "As built (stage 65 C3)").
-- [ ] e2e desktop and phone.
+- [x] e2e desktop and phone (`watch-community.spec.ts`,
+      `phone-watch-community.spec.ts`; stage 64's watch specs moved with
+      the layout).
 
 #### C3. Published runs and the reactions mark (worktree `stage65-published`, port 5475)
 

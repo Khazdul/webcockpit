@@ -114,6 +114,50 @@ describe('fullscreen', () => {
   });
 });
 
+describe('a late exit while a request is pending (stage 65 C2)', () => {
+  afterEach(() => {
+    delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+    resetFullscreenRefusal();
+    vi.useRealTimers();
+  });
+
+  it('is not a refusal: the entry after it settles the request', async () => {
+    vi.useFakeTimers();
+    const el = document.createElement('div');
+    document.body.append(el);
+    let fs: Element | null = null;
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fs });
+    Object.assign(el, {
+      requestFullscreen: vi.fn(() => {
+        // The earlier fullscreen's exit arrives first (Firefox), then the entry.
+        setTimeout(() => document.dispatchEvent(new Event('fullscreenchange')), 10);
+        setTimeout(() => {
+          fs = el;
+          document.dispatchEvent(new Event('fullscreenchange'));
+        }, 40);
+        return Promise.resolve();
+      }),
+    });
+    const ok = toggleFullscreen(document, el);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(await ok).toBe(true);
+  });
+
+  it('still a refusal when no entry comes within the settle time', async () => {
+    vi.useFakeTimers();
+    const el = document.createElement('div');
+    Object.assign(el, {
+      requestFullscreen: vi.fn(() => {
+        setTimeout(() => document.dispatchEvent(new Event('fullscreenchange')), 10);
+        return Promise.resolve();
+      }),
+    });
+    const ok = toggleFullscreen(document, el);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(await ok).toBe(false);
+  });
+});
+
 describe('Esc in fullscreen: Keyboard Lock (ADR 0103)', () => {
   it('asks for Escape and gives it back where the API exists; rejections are ignored', async () => {
     const lock = vi.fn(() => Promise.reject(new Error('not allowed')));

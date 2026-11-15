@@ -421,7 +421,8 @@ test('a tablet-sized window: the band in one row, the replay under it', async ({
   const f = (await page.locator('.wc-watch-slot').boundingBox())!;
   expect(b.height).toBeLessThan(130);
   expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-  expect(f.height).toBeGreaterThan(600);
+  // Stage 65: inside the start page's frame (its margin, hood and Back take about 80 px).
+  expect(f.height).toBeGreaterThan(540);
   await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download as HTML');
 });
 
