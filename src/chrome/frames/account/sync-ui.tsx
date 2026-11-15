@@ -3,7 +3,8 @@
 //
 //   SyncSection        the Account page's "Sync" rule (pick 7): the state
 //                      with the owner row's mark, Sync now (S), the counts,
-//                      the storage bar, what waits, the move's line (1c)
+//                      the storage bar, what waits, the move's line (1c),
+//                      what follows the account (stage 62, round 10 3a)
 //   RemoveCopyDialog   the locked copy's Remove (pick 2): "Remove copy",
 //                      what is lost, Keep the default
 //   intoAccount        after Log in, Recovery and Create account: into the
@@ -17,6 +18,9 @@ import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { createAccountSpace, enterAccount, forgetCreated, removeLocked, spacesOn } from '../../../cloud/space/flows';
 import { type LockedNotice, type SyncView, onSyncView, syncNow, syncView } from '../../../cloud/sync-view';
+import type { DeviceType } from '../../../../shared/cloud/api.ts';
+import { deviceType } from '../../../cloud/device-info';
+import { device } from '../../../core/device';
 import { currentSpace } from '../../../core/space';
 import { Dialog, GlassButton, Icon, Rule, lookFrame } from '../../kit/look';
 import type { Nav } from '../../kit/stack';
@@ -71,6 +75,15 @@ function agoWords(at: number, now: number): string {
   const m = Math.round(s / 60);
   if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
   return `at ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+/**
+ * What follows the account (round 10, pick 3a), this device's type first:
+ * "… settings for desktop (this device), tablet and phone, …".
+ */
+export function followsWords(type: DeviceType): string {
+  const others = (['desktop', 'tablet', 'phone'] as const).filter((t) => t !== type);
+  return `Follows the account: profiles, scripts, settings for ${type} (this device), ${others.join(' and ')}, script data, Comm history (7 days), timers.`;
 }
 
 const MARK = { synced: 'dot', syncing: 'pulse', offline: 'ring', full: 'diamond', update: 'diamond' } as const;
@@ -145,6 +158,9 @@ export function SyncSection(p: { at: string | null }): VNode | null {
             <span>{v.moved}</span>
           </p>
         )}
+        <p class="wc-ac-small wc-ac-sync-follows" data-follows="">
+          {followsWords(deviceType(device()))}
+        </p>
       </div>
     </>
   );
