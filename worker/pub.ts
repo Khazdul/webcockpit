@@ -67,7 +67,7 @@ import {
 } from '../shared/cloud/api.ts';
 import { isCleanText, isPublicText } from '../shared/cloud/text.ts';
 import { type AccountRow, hasKeys, limitsOf, prefsOf } from './accounts.ts';
-import { addressKey } from './address.ts';
+import { addressKey, viewAddressKey } from './address.ts';
 import { addressHash } from './attempts.ts';
 import { utf8 } from './bytes.ts';
 import { randomBytes } from './bytes.ts';
@@ -732,14 +732,14 @@ export async function publicPub(request: Request, env: Env, url: URL, deps: Deps
   const db = env.DB;
   if (!db) return error('unavailable', 503);
   try {
-    const res = part === '/comments' ? await commentsGet(db, id, url) : await publicAnswer(request, env, db, id, part, now, on.gallery, address);
+    const res = part === '/comments' ? await commentsGet(db, id, url) : await publicAnswer(request, env, db, id, part, now, on.gallery);
     return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
   } catch {
     return error('unavailable', 503);
   }
 }
 
-async function publicAnswer(request: Request, env: Env, db: D1, id: string, part: string, now: number, gallery: boolean, address: string): Promise<Response> {
+async function publicAnswer(request: Request, env: Env, db: D1, id: string, part: string, now: number, gallery: boolean): Promise<Response> {
   if (part === '/view') {
     // Only the watch page counts a view (review fix S5): JSON with `X-WC: 1`
     // and the site's own Origin, which a page of another site cannot send
@@ -761,11 +761,13 @@ async function publicAnswer(request: Request, env: Env, db: D1, id: string, part
     if (refused) return refused;
     const day = utcDay(now);
     // Stage 65 (ADR 0155): the device id is the client's own, so a view also
-    // needs the address (hashed under the day's pepper; an IPv6 /64 is one)
+    // needs the address (hashed under the day's pepper; an IPv6 /56 is one)
     // not to have viewed the run today: a second row keyed `a:<hash>`.
     // Without the pepper (a host without the secrets) the device alone counts.
     const pepper = env.AUTH_PEPPER ?? '';
-    const byAddress = pepper.length >= 16 ? `a:${await addressHash(utf8(pepper), address, now)}` : b.device;
+    // Review fix S4: the address as its IPv6 /56 here (one customer's), not the limiters' /64.
+    const viewer = viewAddressKey(request.headers.get('cf-connecting-ip'));
+    const byAddress = pepper.length >= 16 ? `a:${await addressHash(utf8(pepper), viewer, now)}` : b.device;
     // The count grows only with new (pub, device, day) and (pub, address,
     // day) rows: the check and the inserts in one transaction.
     const live = `EXISTS (SELECT 1 FROM publication WHERE id = ?1 AND state = 'active')`;

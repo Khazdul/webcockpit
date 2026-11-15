@@ -5,6 +5,11 @@
 // address counts as its /64 prefix; an IPv4 address as itself, also when
 // it arrives IPv4-mapped (`::ffff:192.0.2.1`). Anything that is not an
 // address is the one key `unknown`.
+//
+// Review fix S4 (stage 65): a view of a run counts once a UTC day per
+// IPv6 /56 (`viewAddressKey`), what a home ISP hands one customer, so
+// one customer cannot add a view per /64. Registration and the limiters
+// keep the /64 (`addressKey`).
 
 export const UNKNOWN_ADDRESS = 'unknown';
 
@@ -53,6 +58,15 @@ function ipv6(s: string): number[] | null {
  * the /64 of an IPv6 address (`2001:db8:0:1::/64`), or `unknown`.
  */
 export function addressKey(address: string | null | undefined): string {
+  return keyOf(address, 64);
+}
+
+/** The key a run's view counts under (review fix S4): as `addressKey`, but the /56 of an IPv6 address (`2001:db8:0:100::/56`). */
+export function viewAddressKey(address: string | null | undefined): string {
+  return keyOf(address, 56);
+}
+
+function keyOf(address: string | null | undefined, prefix: 56 | 64): string {
   let s = (address ?? '').trim();
   if (s.length === 0 || s.length > 64) return UNKNOWN_ADDRESS;
   if (s.startsWith('[') && s.endsWith(']')) s = s.slice(1, -1);
@@ -65,8 +79,7 @@ export function addressKey(address: string | null | undefined): string {
   if (!g) return UNKNOWN_ADDRESS;
   // IPv4-mapped (::ffff:a.b.c.d): the IPv4 address it stands for.
   if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return `${g[6]! >> 8}.${g[6]! & 255}.${g[7]! >> 8}.${g[7]! & 255}`;
-  return `${g
-    .slice(0, 4)
-    .map((x) => x.toString(16))
-    .join(':')}::/64`;
+  const head = g.slice(0, 4);
+  if (prefix === 56) head[3] = head[3]! & 0xff00;
+  return `${head.map((x) => x.toString(16)).join(':')}::/${prefix}`;
 }
