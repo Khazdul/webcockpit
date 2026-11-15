@@ -234,7 +234,8 @@ touches staging or production.
 
 #### C4. Admin (worktree `stage65-admin`, port 5476)
 
-- [ ] The queue's comments and notes (pick 7) and their actions; tests.
+- [x] The queue's comments and notes (pick 7) and their actions; tests
+      (ADR 0155 "As built (C4)"; branch `stage65-admin`).
 
 #### C5. MUME's boxes (worktree `stage65-mume`, port 5477; owner 2026-11-15: no leave needed first)
 

@@ -318,7 +318,27 @@ describe('moderation (stage 64, ADR 0154)', () => {
         },
       ],
       pubs: { count: 2, bytes: 1321, today: 2 },
+      community: { listed: 0, comments: 0, notes: 0, votes: 0 },
     } satisfies AdminReports);
+  });
+
+  it('GET /api/admin/reports (stage 65 C4): the community totals from the kept counts, without removed runs or notes', async () => {
+    const { id } = await reported(0);
+    const alice = await signUp('dora');
+    const other = await publish(alice, payload(500));
+    const gone = await publish(alice, payload(200));
+    await db.prepare('UPDATE publication SET listed = 1, comment_count = 3, vote_count = 4 WHERE id = ?1').bind(id).run();
+    await db.prepare("UPDATE publication SET state = 'hidden', listed = 1, comment_count = 2, vote_count = 1 WHERE id = ?1").bind(other).run();
+    await db.prepare("UPDATE publication SET state = 'removed', listed = 1, comment_count = 9, vote_count = 9 WHERE id = ?1").bind(gone).run();
+    const ins = (nid: string, state: string) =>
+      db.prepare('INSERT INTO note (id, account, text, created, state) VALUES (?1, ?2, ?3, ?4, ?5)').bind(nid, 'acct', 'x', NOW, state).run();
+    await ins('n1aaaaaaaaaa', 'active');
+    await ins('n2aaaaaaaaaa', 'active');
+    await ins('n3aaaaaaaaaa', 'hidden');
+    await ins('n4aaaaaaaaaa', 'removed');
+    const answer = await read<AdminReports>('/api/admin/reports');
+    // Listed: active only; comments and votes: active and hidden runs.
+    expect(answer.community).toEqual({ listed: 1, comments: 5, notes: 2, votes: 5 });
   });
 
   it('hide, restore and delete a run: each marks its reports handled and writes the log (who is a hash)', async () => {
