@@ -9,8 +9,8 @@ production untouched.
 1. **Round 11's picks** (the mockups, published as an artifact; points
    1–5 below under "For the owner to choose"). Part C2 (the views) waits
    for them.
-2. **The limit** of run storage per account, after the measurement
-   ("Measurements"; spec §7.5 says 50 MB to begin with).
+2. ~~The limit~~: **50 MB, decided by the owner 2026-11-15** after the
+   measurement.
 3. Later: **the test on staging** (test guide), and then, separately,
    **the go-ahead to open accounts in production** (part E).
 
@@ -124,22 +124,22 @@ touches staging or production.
 
 #### A1. Mockups, round 11 (worktree `stage63-mockups`, port 5441)
 
-- [ ] `notes/research/start-menu-mockups/round11/` in round 10's manner
+- [x] `notes/research/start-menu-mockups/round11/` in round 10's manner
       (its README and `build/`): the real DOM captured from a dev server
       on its own port with the e2e fake (flags `accounts`, `sync`, `runs`
       on), new content in `mk-*` classes, a picture per state, a review
       page, one self-contained file published as an artifact.
-- [ ] Points 1–5 above, desktop and phone; the recommendation.
+- [x] Points 1–5 above, desktop and phone; the recommendation (artifact <https://claude.ai/artifact/RTA5x1WwBouwWkSC8hWaZ6>).
 
 #### A2. The measurement (no worktree; writes "Measurements" here)
 
-- [ ] Stored size of real saved runs: Cockpit's session logs
+- [x] Stored size of real saved runs: Cockpit's session logs
       (`/home/ole/MUME/logs`, read only) turned into run bodies as ADR
       0153 says (JSONL of meta, chunks, events, gzip, segment overhead):
       bytes per played hour, the spread, the largest; the `run` item's
       size (meta with summary) against the 2 MB small-item limit and the
       2 000 items. No text or names kept.
-- [ ] A proposal for the limit with the reasons (R2's free 10 GB, a
+- [x] A proposal for the limit with the reasons (R2's free 10 GB, a
       hundred accounts).
 
 ### B. Foundations (two agents in worktrees side by side)
@@ -253,6 +253,8 @@ header and 28 per started 1 MiB segment.
 | 50 MiB holds | about 120–200 played hours (about 64 h at the worst rate), about 760 runs |
 | Their items | about 0.3 MiB and 760 of the 2 000 items |
 | R2 | 100 full accounts 5.2 GB, half the free 10 GB |
+
+**Owner (2026-11-15): 50 MB**, as proposed.
 
 **Proposal:** keep 50 MiB; the small-item limits (2 MB, 2 000) stand at
 that size and should rise with the run limit if it goes past about
