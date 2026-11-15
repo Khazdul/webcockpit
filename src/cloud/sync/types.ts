@@ -5,7 +5,11 @@
 // adapters on IndexedDB and fetch are part C of stage 61; the tests use
 // in-memory ones (tests/unit/sync/).
 
-import type { AccountLimits, SessionEndReason, SyncChanges, SyncItem, SyncKind, SyncUsage, SyncWritten } from '../../../shared/cloud/api.ts';
+import type { AccountLimits, DeviceType, SessionEndReason, SyncChanges, SyncItem, SyncKind, SyncUsage, SyncWritten } from '../../../shared/cloud/api.ts';
+import type { NewCommRecord } from '../../gmcp/comm-archive';
+import type { ScriptDataRecord } from '../../scripts/library';
+import type { Settings } from '../../settings/types';
+import type { TimersRecord } from '../../timers/archive';
 
 // --- Items ---
 
@@ -31,10 +35,52 @@ export interface ScriptItem {
   updated: number;
 }
 
+/**
+ * The settings of one device type (ADR 0152): the whole `Settings` record
+ * as the settings store keeps it. Local key: `type`. A record of a newer
+ * client (`record.version` above `SETTINGS_VERSION`) decodes as `newer`;
+ * an older one is taken as it is and migrated by the store when it loads.
+ */
+export interface SettingsItem {
+  type: DeviceType;
+  record: Settings;
+  /**
+   * The sync label of the device that wrote it (`syncDeviceLabel`, e.g.
+   * "desktop, Chrome"), for "Settings from desktop, Chrome."; absent when
+   * unknown. Not part of the hashes (`KindSpec.hashed`): two devices with
+   * the same settings are in step whoever wrote them.
+   */
+  from?: string;
+}
+
+/** A script's data (ADR 0152): the library's `scriptData` record. Local key: `name`. */
+export type ScriptDataItem = ScriptDataRecord;
+
+/** A character's timers (ADR 0152): the timers archive's record. Local key: `character`. */
+export type TimersItem = TimersRecord;
+
+/** One Comm message in a day's piece: the archive's record without `seq`. Its identity is its canonical JSON. */
+export type CommPieceRecord = NewCommRecord;
+
+/**
+ * Comm history of one UTC day (ADR 0152), all characters together. Local
+ * key: `day`, `YYYY-MM-DD`, or `YYYY-MM-DD.2`, `.3` … for the further
+ * pieces of a day over 1 MB. `records` sorted by `ts`, then identity, each
+ * identity once.
+ */
+export interface CommItem {
+  day: string;
+  records: CommPieceRecord[];
+}
+
 /** The record type of each kind the engine syncs today. */
 export interface ItemRecords {
   profile: ProfileItem;
   script: ScriptItem;
+  settings: SettingsItem;
+  scriptData: ScriptDataItem;
+  timers: TimersItem;
+  comm: CommItem;
 }
 
 /** The kinds with a body format in this client. */
@@ -56,7 +102,11 @@ export type Body = Readonly<Record<string, unknown>>;
  * engine never writes anything else of the player's.
  */
 export interface LocalItems {
-  /** Every item of `kind` (user scripts only: bundled ones are not items). */
+  /**
+   * Every item of `kind` (user scripts only: bundled ones are not items).
+   * `comm`: only the days of the last seven, each day's records sorted
+   * and once each (`CommItem`).
+   */
   list(kind: SyncKind): Promise<LocalItem[]>;
   /**
    * One batch for `kind`, applied atomically (one transaction): `put`
@@ -66,6 +116,10 @@ export interface LocalItems {
    * adapter must not refuse a batch whose single steps would collide on
    * the way (two items swapping names): it removes the old entries before
    * it writes the new ones.
+   *
+   * `comm` is additive (ADR 0152): a `put` of a day adds the records the
+   * store does not have (by identity) and removes none; a `remove` deletes
+   * the whole day. A day older than seven days is not stored.
    */
   write(kind: SyncKind, batch: { put: Body[]; remove: string[] }): Promise<void>;
 }

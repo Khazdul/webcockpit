@@ -47,28 +47,28 @@ describe('canonical encoding and hash', () => {
 });
 
 describe('bodies', () => {
-  it('carry v and read back as the record without it', () => {
-    const bytes = encodeBody(profileSpec, profile);
+  it('carry v and read back as the record without it', async () => {
+    const bytes = await encodeBody(profileSpec, profile);
     expect(new TextDecoder().decode(bytes)).toBe(canonicalJson({ ...profile, v: 1 }));
-    expect(decodeBody(profileSpec, bytes)).toEqual({ ok: true, body: profile });
-    expect(decodeBody(scriptSpec, encodeBody(scriptSpec, script))).toEqual({ ok: true, body: script });
+    expect(await decodeBody(profileSpec, bytes)).toEqual({ ok: true, body: profile });
+    expect(await decodeBody(scriptSpec, await encodeBody(scriptSpec, script))).toEqual({ ok: true, body: script });
   });
 
-  it('refuse a newer v and anything that is not a body', () => {
+  it('refuse a newer v and anything that is not a body', async () => {
     const j = (x: unknown) => enc.encode(JSON.stringify(x));
-    expect(decodeBody(profileSpec, j({ ...profile, v: 2 }))).toEqual({ ok: false, why: 'newer' });
-    expect(decodeBody(profileSpec, j({ ...profile, v: 0 }))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, j({ ...profile }))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, j({ ...profile, v: 1, text: 5 }))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, j({ ...profile, v: 1, id: '' }))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(scriptSpec, j({ ...script, v: 1, enabled: 'yes' }))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, j([1]))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, enc.encode('{nope'))).toEqual({ ok: false, why: 'unreadable' });
-    expect(decodeBody(profileSpec, Uint8Array.of(0xff, 0xfe))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, j({ ...profile, v: 2 }))).toEqual({ ok: false, why: 'newer' });
+    expect(await decodeBody(profileSpec, j({ ...profile, v: 0 }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, j({ ...profile }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, j({ ...profile, v: 1, text: 5 }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, j({ ...profile, v: 1, id: '' }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(scriptSpec, j({ ...script, v: 1, enabled: 'yes' }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, j([1]))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, enc.encode('{nope'))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(profileSpec, Uint8Array.of(0xff, 0xfe))).toEqual({ ok: false, why: 'unreadable' });
   });
 
-  it('drop fields they do not know at v1 (a new field must raise v)', () => {
-    expect(decodeBody(profileSpec, enc.encode(JSON.stringify({ ...profile, v: 1, extra: 1 })))).toEqual({ ok: true, body: profile });
+  it('drop fields they do not know at v1 (a new field must raise v)', async () => {
+    expect(await decodeBody(profileSpec, enc.encode(JSON.stringify({ ...profile, v: 1, extra: 1 })))).toEqual({ ok: true, body: profile });
   });
 });
 

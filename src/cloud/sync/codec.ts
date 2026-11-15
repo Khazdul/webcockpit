@@ -30,7 +30,7 @@ export class ItemCodec {
 
   /** The blob of a record. */
   async seal(spec: KindSpec, serverId: string, body: Body): Promise<Uint8Array<ArrayBuffer>> {
-    return seal(this.keys.dataKey, spec.kind, serverId, encodeBody(spec, body));
+    return seal(this.keys.dataKey, spec.kind, serverId, await encodeBody(spec, body));
   }
 
   /**
@@ -46,7 +46,7 @@ export class ItemCodec {
     } catch (e) {
       return { ok: false, why: isCryptoError(e, 'unknown_version') ? 'newer' : 'unreadable' };
     }
-    const d = decodeBody(spec, plain);
+    const d = await decodeBody(spec, plain);
     if (d.ok && (await this.serverId(spec.kind, spec.key(d.body))) !== serverId) return { ok: false, why: 'unreadable' };
     return d;
   }
