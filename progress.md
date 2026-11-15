@@ -96,7 +96,16 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   30 876 bytes. **Staging:** run 43662153802, `test:prod` 30/30.
 - **Owner's test:** steps 1–8 on staging, "looks OK" (2026-11-15).
   Turnstile error 110200 on the `workers.dev` address is expected:
-  test on staging.mumecockpit.com. **Next:** stage 62. **Open:** the entry chunk's +675 bytes
+  test on staging.mumecockpit.com. **Next:** stage 62.
+- **Decided for stage 62 (owner, 2026-11-15, before the night pass):**
+  registration point 1 becomes "Your profiles, scripts, settings,
+  saved runs and Comm history, encrypted on this device before they
+  are sent." (that tells are among it is said on /privacy); the cloud
+  keeps Comm history 7 days, as the device; the pass may push to
+  `main` and deploy to staging when every check is green (never
+  production, no release); /privacy's account section is drafted
+  behind the flag `accounts` for the owner's approval in the morning.
+- Agent worktrees and stage 61 branches removed (all merged). **Open:** the entry chunk's +675 bytes
   (chunk wiring); tombstones have no cap of their own; `session_end`
   keeps the account id up to 180 days; nothing released.
 - **Commits:** c0664be8…the staging fixes, merges 4143117b, 7853ed6a,
