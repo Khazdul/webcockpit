@@ -29,7 +29,7 @@
 // messages, and the status feeds the owner row and the Account page.
 
 import type { SyncKind } from '../../../shared/cloud/api.ts';
-import { currentSpace, gameRunningElsewhere } from '../../core/space';
+import { currentSpace, gameRunningElsewhere, holdingGameLock } from '../../core/space';
 import { onStored } from '../../core/store-events';
 import type { ProfileStore } from '../../profiles/store';
 import type { ScriptLibrary } from '../../scripts/library';
@@ -52,6 +52,9 @@ import { eventWords, moveWaitWords, movedLine, movedWords, movingWords } from '.
 export const CHANGE_DELAY_MS = 5000;
 /** On the start page and in play (the play schedule of the small kinds). */
 export const PERIOD_MS = 5 * 60_000;
+/** A game is this tab's view, or its cockpit holds the game lock (from Enter MUME on, before the start page's leave has ended). */
+const inPlay = (): boolean => isPlaying() || holdingGameLock();
+
 /** How long the start menu's messages of the sync stay. */
 const MESSAGE_MS = 12_000;
 
@@ -143,7 +146,7 @@ export class PageSync implements Runtime {
     // Called on the game path (a Comm append, a timers save): a flag test and at most a timer.
     this.offs.push(
       onStored((kind) => {
-        if (kind === 'profile' || kind === 'script' || kind === 'settings' || !isPlaying()) this.soon();
+        if (kind === 'profile' || kind === 'script' || kind === 'settings' || !inPlay()) this.soon();
       }),
     );
     this.offs.push(
@@ -236,13 +239,14 @@ export class PageSync implements Runtime {
       return out;
     }
     // The first full pull is done: a login's copy of the settings that met none of this type is the account's now.
-    if (out?.type === 'synced' && (await settleSettingsSeed(this.open, this.type).catch(() => false))) this.soon();
+    const settled = out?.type === 'synced' && (await settleSettingsSeed(this.open, this.type).catch(() => false));
     if (out && out.type !== 'synced') {
       // The engine stopped before it counted: what waits on this device, for the Account page and Log out.
       const waiting = (await this.engine.unsynced().catch(() => null))?.length;
       if (waiting !== undefined && !this.stopped) patchSyncView({ status: { ...this.engine.status.get(), waiting } });
     }
     await this.lines().catch(() => {});
+    if (settled) this.run(); // pushed now, not left waiting on this device
     return out;
   }
 
@@ -278,7 +282,7 @@ export class PageSync implements Runtime {
   /** In use: what a game plays with, in this tab or in another tab of the space (the game lock). */
   private async inUse(kind: SyncKind): Promise<ReadonlySet<string>> {
     if (kind === 'comm') return new Set();
-    const here = isPlaying();
+    const here = inPlay();
     const elsewhere = await gameRunningElsewhere(currentSpace());
     if (!here && !elsewhere) return new Set();
     if (kind === 'settings') return new Set([this.type]);
