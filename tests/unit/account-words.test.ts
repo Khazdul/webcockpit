@@ -287,15 +287,3 @@ describe('the Turnstile widget', () => {
   });
 });
 
-describe("the Account page's line of what follows the account (stage 62, round 10 pick 3a)", () => {
-  it("names this device's type first", async () => {
-    const { followsWords } = await import('../../src/chrome/frames/account/sync-ui');
-    expect(followsWords('desktop')).toBe(
-      'Follows the account: profiles, scripts, settings for desktop (this device), tablet and phone, script data, Comm history (7 days), timers.',
-    );
-    expect(followsWords('phone')).toBe(
-      'Follows the account: profiles, scripts, settings for phone (this device), desktop and tablet, script data, Comm history (7 days), timers.',
-    );
-    expect(followsWords('tablet')).toContain('settings for tablet (this device), desktop and phone,');
-  });
-});

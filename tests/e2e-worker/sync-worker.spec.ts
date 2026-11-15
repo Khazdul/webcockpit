@@ -79,7 +79,7 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   await expect.poll(() => size(b.page)).toBe(want);
   await expect.poll(async () => (await getIdb(b.page, DB, 'comm')).map((r) => r.text)).toEqual([tell.text]);
   await b.page.keyboard.press('Escape');
-  await expect(menuFlash(b.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox)\.$/);
+  await expect(b.page.locator('.wc-start').getByText(/Settings from/)).toHaveCount(0); // applied quietly (pick 2a)
   await account(b.page);
 
   // The same profile changed on both: keep both.

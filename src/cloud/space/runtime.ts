@@ -274,7 +274,7 @@ export class PageSync implements Runtime {
     });
   }
 
-  /** The game was left: a sync (what was held for it comes in; its write says it waited, round 10, 2c). */
+  /** The game was left: a sync (what was held for it comes in). */
   private async leftGame(): Promise<void> {
     if (this.stopped || this.paused) return;
     await this.sync();
@@ -316,9 +316,7 @@ export class PageSync implements Runtime {
     const w: SyncWrite = {
       kind,
       ...(profiles ? { profiles } : {}),
-      ...(settings
-        ? { settings: { from: settings.from, ...(settings.held ? { held: true } : {}), ...(settings.seedRecord !== undefined ? { seedRecord: settings.seedRecord } : {}) } }
-        : {}),
+      ...(settings ? { settings: settings.seedRecord !== undefined ? { seedRecord: settings.seedRecord } : {} } : {}),
     };
     void applyWritten(this.host, w);
     notifyWritten(currentSpace(), w);

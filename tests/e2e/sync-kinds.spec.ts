@@ -4,13 +4,13 @@
 // settings, a phone (`phone=1` kept on every load) keeps its own; Comm
 // written during a game on one desktop reaches the other's Comm pane after
 // the game is left; a character's timers follow; pulled settings wait
-// during play and apply on the start page with the message line's words
-// (round 10, the owner's pick 2b with 2c).
+// during play and apply on the start page, quietly (round 10, the owner's
+// pick 2a, 2026-11-15).
 
 import { type Browser, type BrowserContext, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 import { NAME, PASSWORD, watchErrors } from './account-pages';
 import { FakeAccountServer, fakeAccountApi, seedAccount } from './cloud-account-fake';
-import { account, getIdb, logIn, menuFlash, putIdb, spaceDbOf, syncNow } from './sync-pages';
+import { account, getIdb, logIn, putIdb, spaceDbOf, syncNow } from './sync-pages';
 import { stubTurnstile } from './turnstile-stub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -89,9 +89,15 @@ const setHidden = (page: Page, hidden: boolean): Promise<void> =>
 /** This type's settings record in the sync store: pulled and waiting for the game (stage 62 review). */
 const heldSettings = async (page: Page): Promise<boolean> =>
   (await getIdb(page, DB, 'sync')).some((r) => {
-    const rec = (r as { rec?: { kind?: string; state?: string; waited?: boolean } }).rec;
-    return rec?.kind === 'settings' && rec.state === 'held' && rec.waited === true;
+    const rec = (r as { rec?: { kind?: string; state?: string } }).rec;
+    return rec?.kind === 'settings' && rec.state === 'held';
   });
+
+/** No line on the start menu says where pulled settings came from (the owner's pick 2a: applied quietly). */
+async function noSettingsLine(page: Page): Promise<void> {
+  await page.waitForTimeout(1000);
+  await expect(page.locator('.wc-start').getByText(/Settings from/)).toHaveCount(0);
+}
 
 /** Exit (the bar's popup, Y): back to the start page. */
 async function leave(d: Device): Promise<void> {
@@ -100,7 +106,7 @@ async function leave(d: Device): Promise<void> {
   await expect(d.page.locator('.wc-start')).toBeVisible();
 }
 
-test('two desktops share settings, a phone keeps its own; pulled settings say where they came from', async ({ browser }) => {
+test('two desktops share settings, a phone keeps its own; pulled settings apply quietly', async ({ browser }) => {
   const server = syncServer();
   await seedAccount(server, NAME, PASSWORD);
   const a = await device(browser, server);
@@ -118,12 +124,13 @@ test('two desktops share settings, a phone keeps its own; pulled settings say wh
   let mark = lastSeq(server, 'settings');
   await setSize(a.page, want);
   await expect.poll(() => lastSeq(server, 'settings'), { timeout: 30_000 }).toBeGreaterThan(mark);
-  // The other desktop takes it at its next sync, on the start menu, and says from where.
+  // The other desktop takes it at its next sync, on the start menu, quietly.
   await account(b.page);
   await syncNow(b.page);
   await expect.poll(() => size(b.page)).toBe(want);
   await b.page.keyboard.press('Escape');
-  await expect(menuFlash(b.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox)\.$/);
+  await expect(b.page.locator('.wc-start .wc-sm-item[data-key="enter"]')).toBeVisible();
+  await noSettingsLine(b.page);
   // The phone keeps its own, and holds the desktops' in the account's store.
   await p.page.reload();
   await expect.poll(async () => (await getIdb(p.page, DB, 'settings')).length, { timeout: 30_000 }).toBeGreaterThan(0);
@@ -172,10 +179,10 @@ test('during play: Comm and timers go on on the next desktop; pulled settings wa
   expect(await size(a.page)).toBe(before);
   await setHidden(a.page, false);
 
-  // The game is left: they apply, and the line says they waited.
+  // The game is left: they apply, quietly.
   await leave(a);
-  await expect(menuFlash(a.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox), held until the game ended\.$/, { timeout: 30_000 });
-  expect(await size(a.page)).toBe(before + 3);
+  await expect.poll(() => size(a.page), { timeout: 30_000 }).toBe(before + 3);
+  await noSettingsLine(a.page);
 
   // B takes up the game: Testchar's Comm and timers are there.
   await account(b.page);
@@ -216,8 +223,8 @@ test('a game left before the start page has faded out: what was held for it come
 
   // Back on the start page: the game was left for the sync too.
   await leave(a);
-  await expect(menuFlash(a.page)).toHaveText(/^Settings from desktop, (Chrome|Firefox), held until the game ended\.$/, { timeout: 30_000 });
-  expect(await size(a.page)).toBe(before + 2);
+  await expect.poll(() => size(a.page), { timeout: 30_000 }).toBe(before + 2);
+  await noSettingsLine(a.page);
   expect(errors).toEqual([]);
   for (const d of [a, b]) await d.ctx.close();
 });

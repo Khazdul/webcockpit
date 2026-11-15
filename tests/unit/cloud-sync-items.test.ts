@@ -86,7 +86,7 @@ describe('bodies', () => {
 // Stage 62 (ADR 0152): the small kinds.
 describe('the small kinds', () => {
   const j = (x: unknown) => enc.encode(JSON.stringify(x));
-  const settings = { type: 'phone', record: { version: SETTINGS_VERSION, appearance: { font: 'x' } }, from: 'desktop, Chrome' };
+  const settings = { type: 'phone', record: { version: SETTINGS_VERSION, appearance: { font: 'x' } } };
   const data = { name: 'finder', enabled: true, settings: { range: 3 }, store: { seen: ['a'] } };
   const timers = { character: 'Gandalf', savedAt: 5, state: { v: 1, groups: [] } };
   const msg = (ts: number, text: string, character = 'Gandalf') => ({ character, ts, channel: 'tell', talker: 'Frodo', talkerType: null, destination: null, text });
@@ -103,21 +103,21 @@ describe('the small kinds', () => {
   it('settings: keyed by the device type; a newer settings version is newer, an older one is taken as it is', async () => {
     expect(settingsSpec.key(settings)).toBe('phone');
     expect(await decodeBody(settingsSpec, await encodeBody(settingsSpec, settings))).toEqual({ ok: true, body: settings });
-    const { from: _f, ...noFrom } = settings;
-    expect(await decodeBody(settingsSpec, j({ ...noFrom, v: 1 }))).toEqual({ ok: true, body: noFrom });
     expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, record: { version: SETTINGS_VERSION + 1 } }))).toEqual({ ok: false, why: 'newer' });
     expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, record: { version: 2, old: true } }))).toEqual({ ok: true, body: { ...settings, record: { version: 2, old: true } } });
     expect(await decodeBody(settingsSpec, j({ ...settings, v: 2 }))).toEqual({ ok: false, why: 'newer' });
-    for (const bad of [{ type: 'watch' }, { record: [] }, { record: { version: 'six' } }, { record: { version: 0 } }, { from: 3 }, { record: null }]) {
+    for (const bad of [{ type: 'watch' }, { record: [] }, { record: { version: 'six' } }, { record: { version: 0 } }, { record: null }]) {
       expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, ...bad })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
     }
   });
 
-  it('settings: `from` is not in the hashes (two devices with the same settings are in step)', async () => {
+  it('settings: an older body\'s `from` (the writer\'s label) is dropped on decode, whatever it holds; the hashes are as without it', async () => {
     const a = await itemHashes(settingsSpec, settings);
-    expect(await itemHashes(settingsSpec, { ...settings, from: 'phone' })).toEqual(a);
-    const { from: _f, ...noFrom } = settings;
-    expect(await itemHashes(settingsSpec, noFrom)).toEqual(a);
+    for (const from of ['desktop, Chrome', 3, null]) {
+      const d = await decodeBody(settingsSpec, j({ ...settings, from, v: 1 }));
+      expect(d, JSON.stringify(from)).toEqual({ ok: true, body: settings });
+      if (d.ok) expect(await itemHashes(settingsSpec, d.body)).toEqual(a);
+    }
     expect((await itemHashes(settingsSpec, { ...settings, record: { version: SETTINGS_VERSION, appearance: { font: 'y' } } })).hash).not.toBe(a.hash);
   });
 
