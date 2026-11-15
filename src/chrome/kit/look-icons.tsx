@@ -69,7 +69,10 @@ export type IconName =
   | 'key'
   // Stage 63 (runs in the cloud, round 11): a cloud, and one struck through ("not in the cloud").
   | 'cloud'
-  | 'cloudOff';
+  | 'cloudOff'
+  // Stage 64 C1 (round 12's glyphs): share links.
+  | 'link'
+  | 'flag';
 
 /** A page's own line icon: its drawing (paths, stroke: currentColor) and its viewBox side (default 16). */
 export type IconDraw = { draw: ComponentChildren; box?: number };
@@ -235,6 +238,9 @@ export const ICONS: Record<IconName, ComponentChildren> = {
       <path d="M2.5 2.5l11 11" />
     </>
   ),
+  // Stage 64 C1 (round 12's glyphs), 16 × 16: a chain link (share links), a flag (a hidden run; Report).
+  link: <path d="M6.6 9.4 9.4 6.6M7.3 4.6 8.5 3.4a2.7 2.7 0 0 1 3.8 3.8L11.1 8.4M8.7 11.4 7.5 12.6a2.7 2.7 0 0 1-3.8-3.8L4.9 7.6" />,
+  flag: <path d="M4 14V2.6M4 3.2h7.6L9.8 5.9l1.8 2.8H4" />,
 };
 
 /** The size of each icon's drawing (its viewBox side): the start menu's are 18 (door 22), the skip buttons 24, the rest 16. */

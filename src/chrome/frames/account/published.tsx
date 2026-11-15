@@ -18,6 +18,7 @@
 // The page's keyboard ring takes the rows' buttons (`COPY:<id>`,
 // `EDIT:<id>`, `REMOVE:<id>`) from `usePublished().stops`.
 
+import { touchInteraction } from '../../../core/device';
 import { h } from 'preact';
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -27,7 +28,6 @@ import { cleanDescription, cleanTitle, codePointCount, linkPath, linkUrl, sizeWo
 import { copyText } from '../../kit/clipboard';
 import { Dialog, Field, GlassButton, Icon, Rule, TextArea, lookFrame } from '../../kit/look';
 import { type Nav, useNav } from '../../kit/stack';
-import { FLAG_ICON } from '../share-glyphs';
 import { COPY_FAILED, EDIT_NOTE, PUB_EMPTY, PUB_HIDDEN, REMOVE_NOTE, pubFailureWords, pubFigures, pubFoot } from '../share-words';
 import type { AccountHost } from './account-page';
 import { madeWords } from './account-model';
@@ -135,7 +135,7 @@ export function usePublished(nav: Nav, host: Host): PublishedView {
                       </div>
                       {hidden && (
                         <div class="wc-ac-pub-hid" data-pub-hidden="">
-                          <Icon {...FLAG_ICON} />
+                          <Icon name="flag" />
                           <span>{PUB_HIDDEN}</span>
                         </div>
                       )}
@@ -245,7 +245,7 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
     >
       <div class="wc-ac-dlg wc-ac-pubdlg">
         <form class="wc-ac-dform" noValidate {...keys.form}>
-          <Field id="title" label="Title" value={title} disabled={busy} autoFocus inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v))} />
+          <Field id="title" label="Title" value={title} disabled={busy} autoFocus={!touchInteraction()} inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v))} />
           <TextArea
             id="desc"
             label="Description"

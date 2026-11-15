@@ -4,28 +4,40 @@
 // `withReplayMap`), its JSON checked with `validatePayload` (a payload the
 // watch page would refuse is never uploaded), then gzip: the wire form.
 //
+// Two halves: `prepareLinkPayload` (here: what the HTML export does) and
+// `sealLinkPayload` (link-seal.ts: the validator and gzip). Both run in the
+// export editor's chunk, with the modules the exporter already has there:
+// a share dialog chunk that shared them would split the app's chunks anew
+// and grow the entry chunk's preload lists.
+//
 // Only the cut leaves the device. The payload's settings are the
 // whitelisted sections (`replaySettings`); the doc itself, the run bodies,
-// the data key and any item stay here: nothing but this function's bytes
-// and the meta go into the POST (src/cloud/pub/api.ts `pubBody`).
+// the data key and any item stay here: nothing but the sealed bytes and
+// the meta go into the POST (src/cloud/pub/api.ts `pubBody`).
 
 import type { ChainRun } from '../player/timeline';
 import { buildTimeline } from '../player/timeline';
 import type { RunEvent } from '../runs/events';
 import type { Settings } from '../settings/types';
 import type { MapSource } from '../map/protocol';
-import { pipe } from '../replay/codec';
 import { withReplayMap } from '../replay/export';
-import { validatePayload } from '../replay/validate';
 import type { ExportDoc } from './edits';
 import { type ReplayPayload, buildReplayPayload, payloadEdits } from './payload';
 
-export interface LinkPayload {
-  /** The payload as uploaded (the validated copy's source). */
+/** A link's payload before it is sealed. */
+export interface PreparedLink {
   payload: ReplayPayload;
-  /** Its JSON, gzip: the bytes the POST carries after the meta. */
-  bytes: Uint8Array;
+  /** Its JSON: what is validated and compressed. */
+  json: string;
   /** The cut's played length, seconds (the meta's `lengthS`). */
+  lengthS: number;
+}
+
+/** A link's payload as uploaded. */
+export interface LinkPayload {
+  payload: ReplayPayload;
+  /** The JSON, gzip: the bytes the POST carries after the meta. */
+  bytes: Uint8Array;
   lengthS: number;
 }
 
@@ -38,23 +50,15 @@ export function playedSeconds(p: ReplayPayload): number {
   }
 }
 
-/**
- * Builds the payload of a link. `map` is what the HTML export passes (the
- * current map's source); null: no map. Throws a `PayloadError` when the
- * result would not pass `validatePayload`.
- */
-export async function buildLinkPayload(
+/** Builds the payload of a link as the HTML export does. `map` is what the HTML export passes; null: no map. */
+export async function prepareLinkPayload(
   chain: readonly ChainRun[],
   events: readonly RunEvent[],
   doc: ExportDoc,
   settings: Settings,
   map: MapSource | null,
   o: { base?: string; fetch?: (url: string) => Promise<Response> } = {},
-): Promise<LinkPayload> {
+): Promise<PreparedLink> {
   const payload = await withReplayMap(buildReplayPayload(chain, events, doc, settings), { map, ...o });
-  const json = JSON.stringify(payload);
-  // As the watch page will read it: from the JSON, whole or not at all.
-  validatePayload(JSON.parse(json));
-  const bytes = await pipe(new TextEncoder().encode(json), new CompressionStream('gzip'));
-  return { payload, bytes, lengthS: playedSeconds(payload) };
+  return { payload, json: JSON.stringify(payload), lengthS: playedSeconds(payload) };
 }

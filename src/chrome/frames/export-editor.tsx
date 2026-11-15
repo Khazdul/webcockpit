@@ -29,7 +29,7 @@
 // out it is greyed: a press (or L) says "Log in to share" in the flash, a
 // pointer over it says the same. Logged in it is chosen like the others,
 // the file row then says Title (a link has no file name), and Export opens
-// the share dialog (share-dialog.tsx, its own lazy chunk). Link is a
+// the share dialog (share-dialog.tsx, in the account pages' lazy chunk). Link is a
 // choice of this visit only: the doc's stored `format` stays HTML or
 // Plain text, so an older client (or this one with `share` off) reads the
 // doc as before.
@@ -94,6 +94,8 @@ import {
   setTitle,
 } from '../../share/edits';
 import { linkTitle } from '../../share/link';
+import { prepareLinkPayload } from '../../share/link-payload';
+import { sealLinkPayload } from '../../share/link-seal';
 import { buildReplayPayload } from '../../share/payload';
 import { buildTextExport } from '../../share/text';
 import { buildReplayHtml } from '../../replay/export';
@@ -155,7 +157,6 @@ import {
   selectionTitle,
 } from './export-model';
 import { fmtDate } from './history-model';
-import { LINK_ICON } from './share-glyphs';
 
 const END_TEXT = '── end of log ──';
 /** The padding above the first row and below the last (px). */
@@ -171,7 +172,7 @@ const FORMATS = [
   { value: 'html', label: 'HTML replay', letter: 'h', icon: 'html' as const, title: 'Player, map and comments', id: 'HTML' },
   { value: 'text', label: 'Plain text', letter: 'p', icon: 'text' as const, title: 'Plain text (.txt)', id: 'TEXT' },
 ];
-const LINK_FORMAT = { value: 'link', label: 'Link', letter: 'l', icon: LINK_ICON, title: 'A link anyone can watch', id: 'LINK' };
+const LINK_FORMAT = { value: 'link', label: 'Link', letter: 'l', icon: 'link' as const, title: 'A link anyone can watch', id: 'LINK' };
 
 /** What a guest is told about Link (round 12, pick 1a). */
 export const LINK_GUEST = 'Log in to share';
@@ -543,22 +544,19 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     setLinkOn(true);
   };
 
-  /** Export with Link: the share dialog over the editor, its chunk loaded now. */
+  /** Export with Link: the share dialog over the editor (the account pages' chunk, loaded now). */
   const openShare = (): void => {
     const d = docRef.current;
     if (!d || !data || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    void import('./share-dialog')
+    void import('./account')
       .then(async (m) => {
         nav.push(
           h(m.ShareDialog, {
             title: linkTitle(d, s.character, s.startUs),
             titleIsDefault: d.title.trim() === '',
-            build: async () => {
-              const { buildLinkPayload } = await import('../../share/link-payload');
-              return buildLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource());
-            },
+            build: async () => sealLinkPayload(await prepareLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource())),
           }) as VNode,
           { overlay: true },
         );

@@ -1,7 +1,9 @@
 // The share dialog (stage 64 C1, spec §7.7, ADR 0154; round 12's pick 2a:
 // the rules inside the dialog the first time). An overlay frame over the
-// export editor, its own lazy chunk (the editor imports it when Export is
-// pressed with Link chosen):
+// export editor, in the account pages' lazy chunk (account/index.tsx
+// exports it; the editor loads that chunk when Export is pressed with Link
+// chosen: a chunk of its own would share modules with it and the start
+// page and split the app's chunks anew, growing the entry chunk):
 //
 //   ┌──────── Share as a link ────────┐     ┌──────── Link created ─────────┐
 //   │ TITLE  [Rasta · 26 September…]  │     │      Clearing the ranger camp │
@@ -19,7 +21,7 @@
 //   └─────────────────────────────────┘
 //
 // When it opens it builds the payload (the editor's `build`: exactly as the
-// HTML export, validated, gzip) and asks the server for the account
+// HTML export, validated, gzip, in the editor's chunk) and asks the server for the account
 // (`loadAccount`: the rules' tick, the state, the limits), both at once.
 // The size line knows the bytes before Create link, so a payload over the
 // limit is refused here (the button off) and never sent. The rules' well is
@@ -40,6 +42,7 @@
 // presses the cursor's button); Esc cancels.
 
 import './share.css';
+import { touchInteraction } from '../../core/device';
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { DEFAULT_ACCOUNT_LIMITS, PUB_DESCRIPTION_MAX } from '../../../shared/cloud/api.ts';
@@ -52,7 +55,6 @@ import { copyText } from '../kit/clipboard';
 import { Check, Dialog, Field, GlassButton, Icon, LoadBar, TextArea, lookFrame } from '../kit/look';
 import { useNav } from '../kit/stack';
 import { useFormKeys } from './account/form';
-import { LINK_ICON } from './share-glyphs';
 import {
   ANYONE,
   COPIED,
@@ -76,7 +78,7 @@ export interface ShareDialogProps {
   title: string;
   /** The doc has no title of its own (the hint says where the proposal comes from). */
   titleIsDefault?: boolean;
-  /** Builds the payload (the editor's data, exactly as for HTML). */
+  /** Builds the payload (the editor's data, exactly as for HTML), validated and gzip. */
   build(): Promise<LinkPayload>;
 }
 
@@ -280,7 +282,8 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
             label="Title"
             value={title}
             disabled={up}
-            autoFocus
+            // (Not on a touch screen: the keyboard would cover the form and its buttons.)
+            autoFocus={!touchInteraction()}
             inputRef={titleRef}
             hint={p.titleIsDefault && title === p.title ? TITLE_HINT : undefined}
             onInput={(v) => setTitle(typedTitle(v))}
@@ -303,7 +306,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
           {sizeLine}
         </p>
         <p class="wc-sh-anyone">
-          <Icon {...LINK_ICON} />
+          <Icon name="link" />
           <span>{ANYONE}</span>
         </p>
         {rulesShown && (

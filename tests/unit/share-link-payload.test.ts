@@ -12,7 +12,10 @@ import { validatePayload } from '../../src/replay/validate';
 import { defaultSettings } from '../../src/settings';
 import { defaultExportDoc } from '../../src/share/edits';
 import { linkMeta } from '../../src/share/link';
-import { buildLinkPayload, playedSeconds } from '../../src/share/link-payload';
+import { type PreparedLink, prepareLinkPayload, playedSeconds } from '../../src/share/link-payload';
+import { sealLinkPayload } from '../../src/share/link-seal';
+
+const buildLinkPayload = async (...a: Parameters<typeof prepareLinkPayload>) => sealLinkPayload((await prepareLinkPayload(...a)) as PreparedLink);
 import { REPLAY_SETTINGS_KEYS, buildReplayPayload } from '../../src/share/payload';
 import type { ChainRun } from '../../src/player/timeline';
 
@@ -24,7 +27,7 @@ function chainOf(name: string): ChainRun[] {
   return [{ meta: { runId: `Rasta/${name}`, character: 'Rasta', startedUs: us, endedUs: null, sealed: true, bytes: text.length, lines: 0 }, text }];
 }
 
-describe('buildLinkPayload', () => {
+describe('prepareLinkPayload and sealLinkPayload', () => {
   it('is the export payload, gzip JSON, validated, settings whitelisted; the POST body is only the meta and it', async () => {
     const chain = chainOf('gmcp-demo.log');
     const s = defaultSettings() as unknown as Record<string, any>;
