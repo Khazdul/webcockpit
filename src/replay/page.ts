@@ -94,8 +94,30 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
   return openReplay(doc, root, payload);
 }
 
+/**
+ * What the Fullscreen button, `F` and Esc do. The file's own: the
+ * document's fullscreen. The shared replay's frame passes its own
+ * (src/replay/frame.ts `frameFullscreen`).
+ */
+export interface ReplayFullscreen {
+  is(): boolean;
+  toggle(): void;
+  exit(): void;
+  onChange(fn: () => void): void;
+}
+
+function docFullscreen(doc: Document): ReplayFullscreen {
+  return {
+    is: () => isFullscreen(doc),
+    toggle: () => void toggleFullscreen(doc),
+    exit: () => exitFullscreen(doc),
+    onChange: (fn) => void onFullscreenChange(fn, doc),
+  };
+}
+
 /** Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock). */
-export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall } = {}): ReplayPage {
+export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall; fullscreen?: ReplayFullscreen } = {}): ReplayPage {
+  const fs = o.fullscreen ?? docFullscreen(doc);
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
@@ -115,25 +137,25 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
       marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
       view: {
         header: () => replayHeader(payload),
-        onEsc: () => exitFullscreen(doc),
+        onEsc: () => fs.exit(),
         keys: (e) => {
           if (e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'f' && e.key !== 'F')) return false;
-          void toggleFullscreen(doc);
+          fs.toggle();
           return true;
         },
         railHoverTime: true,
         closeTitle: null,
         boxButtons: [
           {
-            label: () => (isFullscreen(doc) ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
-            icon: () => (isFullscreen(doc) ? 'fullscreenExit' : 'fullscreen'),
-            onClick: () => void toggleFullscreen(doc),
+            label: () => (fs.is() ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
+            icon: () => (fs.is() ? 'fullscreenExit' : 'fullscreen'),
+            onClick: () => fs.toggle(),
           },
         ],
       },
     },
   );
   const refresh = (): void => host.playerView?.refresh();
-  onFullscreenChange(refresh, doc);
+  fs.onChange(refresh);
   return { host, payload, settings };
 }

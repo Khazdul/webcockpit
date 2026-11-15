@@ -8,9 +8,21 @@
 //   parent → frame   {t: 'wc-play', v: 1, payload: ArrayBuffer (gzip JSON),
 //                     fonts: [{family, weight, range?, data: ArrayBuffer}], prefs?}
 //   frame → parent   {t: 'wc-error', v: 1, text}       when it cannot play
-// The frame takes messages only from `parent` and only the first
-// `wc-play`; anything else is ignored. The payload is decompressed with a
-// ceiling (src/replay/codec.ts `readSharedPayload`, 64 MiB of JSON),
+//   frame → parent   {t: 'wc-fullscreen', v: 1, on}    fill the window (below)
+//   parent → frame   {t: 'wc-fs-state', v: 1, on}      the frame fills it, or not
+// The frame takes messages only from `parent`, only the first `wc-play`,
+// and `wc-fs-state`; anything else is ignored.
+//
+// Fullscreen (owner's test of stage 64): the frame is allowed fullscreen
+// (`allow="fullscreen *"`), so the Fullscreen button, `F` and Esc put the
+// frame's own document in fullscreen, and the browser shows the frame
+// alone. Where the browser has no element fullscreen (the iPhone) or
+// refuses it, the frame asks the parent with `wc-fullscreen` to let it
+// fill the window instead (the band hidden), and shows the state the
+// parent answers with.
+//
+// The payload is decompressed with a ceiling (src/replay/codec.ts
+// `readSharedPayload`, 64 MiB of JSON),
 // checked by `validatePayload`, and only then played (`openReplay`). A
 // failure shows the replay's one-line notice and posts it as `wc-error`:
 // never a stack trace or payload text.
@@ -23,7 +35,8 @@
 import { FONTS, TITLE_FACE, familyFaces } from '../theme/fonts';
 import { FONT_IDS } from '../settings/types';
 import { PayloadReadError, readSharedPayload } from './shared';
-import { type ReplayPage, fail, openReplay } from './page';
+import { canFullscreen, exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
+import { type ReplayFullscreen, type ReplayPage, fail, openReplay } from './page';
 
 export const FRAME_PROTOCOL = 1;
 export const FRAME_FONTS_MAX = 64;
@@ -83,6 +96,39 @@ export async function registerFonts(doc: Document, fonts: readonly FrameFont[]):
   );
 }
 
+/**
+ * The frame's fullscreen: the document's own where the browser gives it,
+ * else filling the parent's window (`ask(on)` posts `wc-fullscreen`;
+ * `filled(on)` takes the parent's `wc-fs-state`).
+ */
+export function frameFullscreen(doc: Document, ask: (on: boolean) => void): ReplayFullscreen & { filled(on: boolean): void } {
+  let filled = false;
+  const fns: Array<() => void> = [];
+  return {
+    is: () => filled || isFullscreen(doc),
+    toggle: () => {
+      if (filled) ask(false);
+      else if (isFullscreen(doc)) exitFullscreen(doc);
+      else if (!canFullscreen(doc)) ask(true);
+      // Refused (Firefox on iPad offers the API but never enters): fill instead.
+      else void toggleFullscreen(doc).then((ok) => ok || ask(true));
+    },
+    exit: () => {
+      exitFullscreen(doc);
+      if (filled) ask(false);
+    },
+    onChange: (fn) => {
+      fns.push(fn);
+      onFullscreenChange(fn, doc);
+    },
+    filled: (on) => {
+      if (on === filled) return;
+      filled = on;
+      for (const fn of fns) fn();
+    },
+  };
+}
+
 export interface FrameOptions {
   /** The window the frame runs in (its `parent` is the only sender it trusts). */
   win: Window;
@@ -104,19 +150,21 @@ export function startFrame(o: FrameOptions): () => void {
     // The parent's origin is not known to an opaque frame; nothing posted is private.
     if (parent && parent !== win) parent.postMessage({ ...msg, v: FRAME_PROTOCOL }, '*');
   };
+  const fs = frameFullscreen(doc, (on) => post({ t: 'wc-fullscreen', on }));
   const onMessage = (e: MessageEvent): void => {
-    if (taken || e.source !== parent || parent === win) return;
+    if (e.source !== parent || parent === win) return;
     const d = e.data as Record<string, unknown> | null;
-    if (typeof d !== 'object' || d === null || d.t !== 'wc-play' || d.v !== FRAME_PROTOCOL) return;
+    if (typeof d !== 'object' || d === null || d.v !== FRAME_PROTOCOL) return;
+    if (d.t === 'wc-fs-state' && typeof d.on === 'boolean') return fs.filled(d.on);
+    if (taken || d.t !== 'wc-play') return;
     taken = true;
-    win.removeEventListener('message', onMessage);
     const payload = d.payload;
     const fonts = frameFonts(d.fonts);
     void (async () => {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
         const [p] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts)]);
-        const page = openReplay(doc, root, p);
+        const page = openReplay(doc, root, p, { fullscreen: fs });
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';

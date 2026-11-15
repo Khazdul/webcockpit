@@ -263,3 +263,11 @@
     max-width: none;
   }
 }
+
+/* The frame fills the window where the browser has no element fullscreen
+ * (the iPhone; src/watch/frame-host.ts): over the band. */
+.wc-watch-slot.is-filled {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}

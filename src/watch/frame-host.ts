@@ -1,7 +1,7 @@
 // The watch page's side of the shared replay's frame (ADR 0154 "The watch
 // page"; the frame's side is src/replay/frame.ts):
 //
-//   <iframe sandbox="allow-scripts" allow="fullscreen"
+//   <iframe sandbox="allow-scripts" allow="fullscreen *"
 //           src="<base>r/frame" referrerpolicy="no-referrer">
 //
 // No `allow-same-origin`: the frame's origin is opaque, so a hostile
@@ -20,7 +20,21 @@
 //
 // Messages are taken only from the frame's own window with the origin
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
-// `wc-play`, the payload's bytes and the fonts transferred) and `wc-error`.
+// `wc-play`, the payload's bytes and the fonts transferred), `wc-error`
+// and `wc-fullscreen`.
+//
+// Fullscreen: `allow="fullscreen *"`, not the attribute's default `'src'`
+// (the origin of the frame's URL): the sandbox makes the frame's origin
+// opaque, which Firefox does not take as the URL's origin, so it refused
+// the frame fullscreen ("denied because of FeaturePolicy directives");
+// Chromium let it through. The frame goes fullscreen itself, on the
+// user's click or key in it; the browser then shows the frame alone.
+// Where it cannot (the iPhone has no element fullscreen), it posts
+// `{t: 'wc-fullscreen', on}`: the page then lets the frame fill the
+// window over the band (`is-filled` on the container), only while the
+// page has transient user activation (a click or key in the frame gives
+// its ancestors activation too) when turning it on, and answers with
+// `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
 
 import { PayloadReadError, readSharedPayload } from '../replay/shared';
 import { fetchReplayFonts } from '../replay/export';
@@ -81,12 +95,19 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
 
   const frame = doc.createElement('iframe');
   frame.setAttribute('sandbox', 'allow-scripts');
-  frame.setAttribute('allow', 'fullscreen');
+  frame.setAttribute('allow', 'fullscreen *');
   frame.setAttribute('referrerpolicy', 'no-referrer');
   frame.setAttribute('title', 'Replay');
   frame.className = 'wc-watch-frame';
   frame.style.cssText = 'display:block;width:100%;height:100%;border:0';
   let played = false;
+  let filled = false;
+  const fill = (on: boolean): void => {
+    if (on === filled) return;
+    filled = on;
+    o.container.classList.toggle('is-filled', on);
+    frame.contentWindow?.postMessage({ t: 'wc-fs-state', v: FRAME_PROTOCOL, on }, '*');
+  };
   const onMessage = (e: MessageEvent): void => {
     if (e.source !== frame.contentWindow || e.origin !== 'null') return;
     const d = e.data as Record<string, unknown> | null;
@@ -103,6 +124,10 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     } else if (d.t === 'wc-error') {
       const text = typeof d.text === 'string' ? d.text.slice(0, ERROR_MAX) : 'This replay could not be played.';
       o.onError?.(text);
+    } else if (d.t === 'wc-fullscreen' && typeof d.on === 'boolean') {
+      const ua = (win.navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+      if (d.on && ua && !ua.isActive) return;
+      fill(d.on);
     }
   };
   win.addEventListener('message', onMessage);
@@ -113,6 +138,7 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     payload,
     dispose: () => {
       win.removeEventListener('message', onMessage);
+      o.container.classList.remove('is-filled');
       frame.remove();
     },
   };
