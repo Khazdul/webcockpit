@@ -57,6 +57,8 @@ import {
 } from '../../../cloud/account';
 import { deleteHandBack, leaveAccount, setLeaving as setLeavingSpace } from '../../../cloud/space/flows';
 import { idbLocalItems, idbSyncRecords } from '../../../cloud/space/local';
+import { runsView } from '../../../cloud/runs-view';
+import { savedRunsLabel, savedRunsWhy } from '../../../cloud/runs-words';
 import { pendingChanges, runCounts, spaceDb } from '../../../cloud/space/spaces';
 import { unsyncedKindsWords } from '../../../cloud/space/unsynced-words';
 import { loggedOutAnywayWords, loggedOutWords } from '../../../cloud/space/words';
@@ -124,6 +126,8 @@ interface Left {
   unsaved: number;
   /** The ids of those runs: Download's runs backup holds exactly these. */
   runIds: string[];
+  /** Runs in the cloud (stage 63 C2, pick 3a): the saved runs' row says "not in the cloud" and why; null: today's words. */
+  why: { full: number; tooLarge: number; waiting: number } | null;
 }
 
 type LogoutPhase = 'plain' | 'checking' | 'refused' | 'syncing' | 'ask';
@@ -171,9 +175,9 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
       const all = (await unsyncedNow().catch(() => null)) ?? (await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => 'device')));
       // A saved run not in the cloud is counted once, as a run (ADR 0153).
       const changes = all.filter((u) => u.kind !== 'run' || u.change !== 'new');
-      const runs = await runCounts(open).catch(() => ({ saved: 0, unsaved: 0, savedIds: [], unsavedIds: [] }));
+      const runs = await runCounts(open).catch(() => ({ saved: 0, unsaved: 0, savedIds: [], unsavedIds: [], why: { full: 0, tooLarge: 0, waiting: 0 }, cloud: false }));
       if (!alive.current) return;
-      setLeft({ changes, saved: runs.saved, unsaved: runs.unsaved, runIds: [...runs.savedIds, ...runs.unsavedIds] });
+      setLeft({ changes, saved: runs.saved, unsaved: runs.unsaved, runIds: [...runs.savedIds, ...runs.unsavedIds], why: runsView().on || runs.cloud ? runs.why : null });
       setPhase('ask');
     })().catch(() => {
       if (alive.current) setPhase('plain');
@@ -329,7 +333,20 @@ export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): 
                 </span>
               </li>
             )}
-            {left.saved > 0 && (
+            {left.saved > 0 && left.why && (
+              <li data-row="saved" class="is-two">
+                <Icon name="save" />
+                <span>
+                  <span>
+                    <b>{savedRunsLabel(left.saved).count}</b> {savedRunsLabel(left.saved).rest}
+                  </span>
+                  <span class="wc-ac-dkinds" data-why="">
+                    {savedRunsWhy(left.why)}
+                  </span>
+                </span>
+              </li>
+            )}
+            {left.saved > 0 && !left.why && (
               <li data-row="saved">
                 <Icon name="save" />
                 <span>

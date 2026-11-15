@@ -63,9 +63,12 @@ type TabState =
 export function SpotlightsTab(): VNode {
   const services = useServices();
   const [state, setState] = useState<TabState>(() => (services.embedPlayer ? { kind: 'loading' } : { kind: 'unavailable' }));
+  // Fetch all (stage 63 C2) brought sessions from the cloud: the reel is built again.
+  const [gen, setGen] = useState(0);
   useEffect(() => {
     if (!services.embedPlayer) return;
     let live = true;
+    if (gen > 0) setState({ kind: 'loading' });
     void (async () => {
       try {
         const [mod, lib] = await Promise.all([import('../../player/spotlight-reel'), services.runs()]);
@@ -80,8 +83,8 @@ export function SpotlightsTab(): VNode {
     return () => {
       live = false;
     };
-  }, []);
-  if (state.kind === 'wall') return <SpotlightsWall source={state.source} reel={state.reel} characters={state.characters} />;
+  }, [gen]);
+  if (state.kind === 'wall') return <SpotlightsWall key={gen} source={state.source} reel={state.reel} characters={state.characters} onCloudFetched={() => setGen((g) => g + 1)} />;
   return <SpotlightsWait text={SPOTLIGHTS_TAB_TEXT[state.kind]} kind={state.kind} />;
 }
 

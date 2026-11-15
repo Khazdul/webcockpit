@@ -74,6 +74,7 @@ import { DOS_PALETTE } from '../../theme/presets';
 import { type ViewerTheme, themeColors } from '../../player/viewer';
 import { colorToCss } from '../../ui/palette';
 import { useServices, useSettings } from '../kit/hooks';
+import { CloudCount } from './runs-cloud';
 import {
   Box,
   BoxBody,
@@ -133,6 +134,8 @@ export interface SpotlightsWallProps {
   characters: readonly string[];
   /** Now, µs (the period's clock; tests). */
   now?: () => number;
+  /** Fetch all brought sessions from the cloud (stage 63 C2): the tab loads the wall again. */
+  onCloudFetched?: () => void;
 }
 
 /** What the viewer is given (WP 46-B's contract; `cardRect` also takes an index). */
@@ -627,6 +630,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
         <BoxFoot class="wc-spw-foot">
           <GlassButton id="PLAY" label="Play all" letter="p" icon="play" primary disabled={count === 0} onClick={playAll} />
           <span class="wc-spw-sum">{reel ? wallSummary(count, reel.lengthMs) : ''}</span>
+          <CloudCount onFetched={() => p.onCloudFetched?.()} />
           <LookFlash class="wc-spw-flash" />
         </BoxFoot>
       </div>
