@@ -12,6 +12,7 @@ import {
   sortCommRecords,
   utcDay,
 } from '../../src/gmcp/comm-archive';
+import { commDayKept, commKeptFrom } from '../../src/gmcp/comm-records';
 import { lazyDb } from '../../src/panes/context';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -81,15 +82,21 @@ describe('CommArchive', () => {
     db.close();
   });
 
-  it('prunes everything older than 7 days, for every character', async () => {
+  it('prunes whole days past the sync\'s kept days (8 d 6 h from their start), for every character', async () => {
     let now = NOW;
     const { archive, db } = await open(() => now);
-    await archive.append(msg('Rasta', NOW - COMM_RETENTION_MS - 1, 'old R'));
-    await archive.append(msg('Gittan', NOW - 9 * DAY, 'old G'));
-    await archive.append(msg('Rasta', NOW - COMM_RETENTION_MS, 'edge'));
+    const from = commKeptFrom(NOW); // the start of the oldest kept day
+    expect(from % DAY).toBe(0);
+    expect(commDayKept(utcDay(from), NOW)).toBe(true);
+    expect(commDayKept(utcDay(from - 1), NOW)).toBe(false);
+    await archive.append(msg('Rasta', from - 1, 'old R'));
+    await archive.append(msg('Gittan', NOW - 10 * DAY, 'old G'));
+    await archive.append(msg('Rasta', from, 'past 7 days, day kept'));
     await archive.append(msg('Rasta', NOW, 'new'));
     expect(await archive.prune()).toBe(2);
-    expect((await archive.loadRecent('Rasta')).map((r) => r.text)).toEqual(['edge', 'new']);
+    // The pane still shows seven days.
+    expect((await archive.loadRecent('Rasta')).map((r) => r.text)).toEqual(['new']);
+    expect((await archive.dayRecords(utcDay(from), { all: true })).map((r) => r.text)).toEqual(['past 7 days, day kept']);
     now = NOW + DAY;
     expect(await archive.prune()).toBe(1);
     expect(await archive.prune()).toBe(0);
