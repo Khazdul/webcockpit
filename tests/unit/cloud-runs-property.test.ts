@@ -4,7 +4,10 @@
 // (sometimes two devices at once at the limit), sync (sometimes with
 // another device's sync slipped in), go offline, meet 5xx, a lost R2
 // write, a full account (run bytes or items) and a body over the limit,
-// and play (no uploads). The devices keep the `run` and `exportDoc` kinds
+// and play (no uploads); a run in the account whose body is lost (found
+// gone by the check of the bodies) or put back in the queue (as after
+// `revived`) is uploaded again into a full account. The devices keep the
+// `run` and `exportDoc` kinds
 // as the IndexedDB adapter must (`MemoryRunSpace` in cloud-sync-model.ts):
 // a run is listed only when up; a pulled run item becomes a remote row; a
 // tombstone deletes; an edit that beats a delete puts the body back in the
@@ -18,6 +21,11 @@
 //   - every live `run` item's body is in R2, of the item's size, and opens
 //     to that run; no body is there that no live item names;
 //   - the account's run bytes are the bodies' sizes and never passed the limit.
+//
+// And at every step: no run is deleted in the account (a tombstone) that
+// no player deleted (stage 63 review: a run whose upload again ended
+// `full` or `tooLarge` was left out of the list, and so deleted on every
+// device).
 //
 // Seeded (mulberry32): a failure names its seed; `RUNS_SEED=<n>` runs one.
 
@@ -129,11 +137,11 @@ class RunDevice {
     return this.queue.checkBodies(live);
   }
 
-  /** Saved runs here or remote, by id: the meta. */
-  saved(): Map<string, string> {
+  /** Saved runs here or remote, by id: the meta (but those of `except`, and those too large here). */
+  saved(except: ReadonlySet<string> = new Set()): Map<string, string> {
     const out = new Map<string, string>();
     for (const [id, meta] of this.space.savedRuns()) {
-      if (this.space.cloud.get(id)?.state === 'tooLarge') continue;
+      if (except.has(id) || this.space.cloud.get(id)?.state === 'tooLarge') continue;
       out.set(id, canonicalJson(meta));
     }
     return out;
@@ -150,6 +158,8 @@ interface Totals {
   refused: number;
   deletes: number;
   orphans: number;
+  /** Runs of the account re-uploaded into a full account (a lost body, or put back in the queue). */
+  reuploads: number;
 }
 
 function rowsOf(runId: string, startedUs: number, n: number, rnd: () => number): RunRows {
@@ -172,7 +182,16 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
   const deletedEver = new Set<string>();
   const log: string[] = [];
   for (const d of devices) d.note = (x) => log.push(`  ${x}`);
-  const t: Totals = { steps, uploads: 0, fetches: 0, fulls: 0, tooLarge: 0, revived: 0, refused: 0, deletes: 0, orphans: 0 };
+  const t: Totals = { steps, uploads: 0, fetches: 0, fulls: 0, tooLarge: 0, revived: 0, refused: 0, deletes: 0, orphans: 0, reuploads: 0 };
+  /** Server id → run id of every run saved. */
+  const runOf = new Map<string, string>();
+  const noUnaskedDelete = (what: string) => {
+    for (const it of server.all()) {
+      if (it.kind !== 'run' || !it.deleted) continue;
+      const id = runOf.get(it.id);
+      expect(id !== undefined && deletedEver.has(id), `run ${id} deleted in the account, never by a player (${what}); seed ${seed}\n${log.slice(-40).join('\n')}`).toBe(true);
+    }
+  };
   let ids = 0;
   let tick = 1;
 
@@ -227,6 +246,7 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
       d.space.runs.set(id, rows);
       d.space.cloud.set(id, { runId: id, state: 'queued', serverId: await codec.serverId('run', id), size: 0, tries: 0, at: clock.t, startedUs: rows.meta.startedUs });
       savedEver.add(id);
+      runOf.set(await codec.serverId('run', id), id);
       log.push(`${di} save ${id}`);
       // The trigger "after a save".
       if (!d.playing && rnd() < 0.5) await runQueue(d, nDevices > 1 && rnd() < 0.3);
@@ -276,6 +296,30 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
       if (rnd() < 0.5) d.link.fail5xx = 1 + int(2);
       else server.r2Fail = 1;
       log.push(`${di} 5xx`);
+    } else if (r < 0.96) {
+      // A run of the account here goes up again into a full account: its body lost (the
+      // check of the bodies queues it again) or its row put back in the queue (as after
+      // `revived`, the body still there). Neither may delete it anywhere.
+      if (d.playing || !d.link.online) continue;
+      const mine = [...d.space.runs.keys()].filter((id) => {
+        const row = d.space.cloud.get(id);
+        const rec = [...d.records.recs.values()].find((x) => x.kind === 'run' && x.key === id);
+        return row?.state === 'up' && !!rec && rec.rev > 0 && rec.hash !== null;
+      });
+      if (!mine.length) continue;
+      const id = pick(mine);
+      const row = d.space.cloud.get(id)!;
+      const lost = rnd() < 0.5;
+      if (lost) server.removeBody(row.serverId);
+      server.limits = { ...server.limits, runBytes: server.runBytes };
+      if (lost) {
+        const c = await d.checkBodies().catch(() => null);
+        if (!c) continue;
+      } else d.space.cloud.set(id, { ...row, state: 'queued' });
+      t.reuploads++;
+      log.push(`${di} ${lost ? 'body lost' : 'queued again'} ${id}, run limit ${server.limits.runBytes}`);
+      await runQueue(d, false);
+      await syncOne(d, false);
     } else {
       const which = rnd();
       if (which < 0.5) {
@@ -292,6 +336,7 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
         log.push(`body limit ${server.limits.runMaxBytes}`);
       }
     }
+    noUnaskedDelete(`step ${step}`);
   }
 
   // Everything back to normal; every device syncs and uploads until nothing moves.
@@ -326,6 +371,7 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
       expect(await d.queue.run(), context()).toEqual({ type: 'done', uploaded: 0 });
     }
   }
+  noUnaskedDelete('the end');
   const seq = server.seq;
   const bodies = server.bodies.size;
   log.push('last pass');
@@ -339,13 +385,24 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
     console.log(JSON.stringify(server.all().filter((x) => x.kind === 'run').map((x) => [x.rev, x.deleted])));
   }
   // Every device: the same saved runs with the same meta, the same docs; and the server's log.
-  const first = devices[0]!.saved();
-  const docs = (d: RunDevice) => [...d.space.docs.values()].filter((x) => d.saved().has(x.sessionId)).map((x) => canonicalJson(x)).sort();
+  // A run of the account whose body could not go up again (the body limit lowered meanwhile) stays
+  // the account's item (deleting it would delete it on every device) and here on the device that
+  // has it too large; others may have it only as a remote row whose body is gone.
+  const tooLargeHere = new Set<string>();
+  for (const d of devices) for (const row of d.space.cloud.values()) if (row.state === 'tooLarge' && d.space.runs.has(row.runId)) tooLargeHere.add(row.runId);
+  const first = devices[0]!.saved(tooLargeHere);
+  const docs = (d: RunDevice) => [...d.space.docs.values()].filter((x) => d.saved(tooLargeHere).has(x.sessionId)).map((x) => canonicalJson(x)).sort();
   for (const d of devices.slice(1)) {
-    expect([...d.saved()].sort(), `saved runs differ; ${context()}`).toEqual([...first].sort());
+    expect([...d.saved(tooLargeHere)].sort(), `saved runs differ; ${context()}`).toEqual([...first].sort());
     expect(docs(d), `docs differ; ${context()}`).toEqual(docs(devices[0]!));
   }
-  const live = server.all().filter((x) => x.kind === 'run' && !x.deleted);
+  const named = new Set<string>();
+  const live = server.all().filter((x) => {
+    if (x.kind !== 'run' || x.deleted) return false;
+    if (!tooLargeHere.has(runOf.get(x.id) ?? '')) return true;
+    if (server.bodies.has(x.id)) named.add(x.id);
+    return false;
+  });
   expect(live.length, `run items on the server; ${context()}`).toBe(first.size);
   for (const id of savedEver) {
     if (deletedEver.has(id)) continue;
@@ -354,7 +411,6 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
   }
   for (const id of first.keys()) expect(savedEver.has(id)).toBe(true);
   // Every live item's body is in R2, of its size, and opens to its run; nothing else is there.
-  const named = new Set<string>();
   for (const it of live) {
     const d = await codec.open(runSpec, it.id, it.blob!);
     expect(d.ok, context()).toBe(true);
@@ -405,7 +461,7 @@ describe('generated runs of runs in the cloud', async () => {
   ] as const) {
     const seeds = base * SCALE;
     it(`${nDevices} devices, ${ONE === null ? seeds : 1} seeds of ${steps} steps`, { timeout: 120_000 * SCALE }, async () => {
-      const total: Totals = { steps: 0, uploads: 0, fetches: 0, fulls: 0, tooLarge: 0, revived: 0, refused: 0, deletes: 0, orphans: 0 };
+      const total: Totals = { steps: 0, uploads: 0, fetches: 0, fulls: 0, tooLarge: 0, revived: 0, refused: 0, deletes: 0, orphans: 0, reuploads: 0 };
       const list = ONE !== null ? [ONE] : Array.from({ length: seeds }, (_, i) => 7_000_000 * nDevices + i);
       for (const seed of list) {
         const r = await simulate(seed, nDevices, steps, keys, codec);
@@ -419,9 +475,10 @@ describe('generated runs of runs in the cloud', async () => {
         expect(total.tooLarge).toBeGreaterThan(0);
         expect(total.refused).toBeGreaterThan(0);
         expect(total.revived).toBeGreaterThan(0);
+        expect(total.reuploads).toBeGreaterThan(seeds / 8);
       }
       console.log(
-        `runs property: ${nDevices} devices, ${list.length} seeds, ${total.steps} steps, ${total.uploads} uploads, ${total.fetches} fetches, ${total.fulls} full, ${total.tooLarge} too large, ${total.refused} items refused, ${total.revived} revived, ${total.deletes} deletes, ${total.orphans} orphans`,
+        `runs property: ${nDevices} devices, ${list.length} seeds, ${total.steps} steps, ${total.uploads} uploads, ${total.fetches} fetches, ${total.fulls} full, ${total.tooLarge} too large, ${total.refused} items refused, ${total.revived} revived, ${total.deletes} deletes, ${total.orphans} orphans, ${total.reuploads} re-uploads into a full account`,
       );
     });
   }

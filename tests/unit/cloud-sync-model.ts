@@ -616,11 +616,13 @@ const clone = <T>(x: T): T => structuredClone(x);
  * kinds' side of `LocalItems` as the IndexedDB adapter must keep them
  * (ADR 0153, stage 63 C1):
  *
- * - `run`: a run here is listed once its row is `up`, or while it is
- *   `queued` and the account already has its item (a live sync record: a
- *   run put back in the queue after an edit beat a delete; should that
- *   upload end `full` or `tooLarge`, the item goes); a `remote` or `fetching` row
- *   is listed with its meta. `put` of a run here takes the meta (and an
+ * - `run`: a run here is listed once its row is `up`, and, whatever its
+ *   row's state, while the account already has its item (a live sync
+ *   record: a run put back in the queue after an edit beat a delete or
+ *   after its body was found gone; should that upload end `full` or
+ *   `tooLarge`, the item stays: leaving it out would push its delete to
+ *   every device, stage 63 review); a `remote` or `fetching` row is listed
+ *   with its meta. `put` of a run here takes the meta (and an
  *   `up` row the item's size); of one not here makes a `remote` row. `remove` deletes the run, its row and
  *   the export doc of its session (one run per session in the model).
  * - `exportDoc`: listed for a session with a run (here or `remote`), or
@@ -681,7 +683,7 @@ export class MemoryRunSpace implements RunCloudStore {
       const out: LocalItem[] = [];
       for (const [id, r] of this.runs) {
         const row = this.cloud.get(id);
-        if (row && (row.state === 'up' || (row.state === 'queued' && this.agreed('run', id)))) out.push({ key: id, body: { runId: id, meta: clone(r.meta), size: row.size } as unknown as Body });
+        if (row && (row.state === 'up' || this.agreed('run', id))) out.push({ key: id, body: { runId: id, meta: clone(r.meta), size: row.size } as unknown as Body });
       }
       for (const row of this.cloud.values()) {
         if (this.runs.has(row.runId) || (row.state !== 'remote' && row.state !== 'fetching') || !row.meta) continue;
