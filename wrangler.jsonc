@@ -65,8 +65,20 @@
     // /admin answers 503 admin_not_configured. The secret ADMIN_EMAILS is
     // set in the dashboard.
     "ACCESS_TEAM_DOMAIN": "flat-unit-c1f3.cloudflareaccess.com",
-    "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34"
+    "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34",
+    // The owner's mail on each report (worker/mail.ts, ADR 0154 "As
+    // built ... mail on reports"): sent from this address on the zone
+    // (Email Routing is on) to the secret REPORT_MAIL_TO, a verified
+    // destination address, set outside the repository (`wrangler secret
+    // put REPORT_MAIL_TO`). Without the secret no mail is sent. The links
+    // in a mail use SITE_ORIGIN.
+    "REPORT_MAIL_FROM": "reports@mumecockpit.com",
+    "SITE_ORIGIN": "https://mumecockpit.com"
   },
+  // No destination here: an unrestricted binding sends to any verified
+  // destination address of the account, so the owner's address stays out
+  // of git (notes/research/cloudflare-email.md).
+  "send_email": [{ "name": "REPORT_MAIL" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -113,8 +125,13 @@
         // Every answer of the Worker carries X-Robots-Tag: noindex; the
         // static files get it from the `_headers` rule that
         // `build:site --target staging` adds.
-        "NOINDEX": true
+        "NOINDEX": true,
+        // The reports' mail (see the top level); a staging mail says
+        // "[staging]" in its subject (NOINDEX).
+        "REPORT_MAIL_FROM": "reports@mumecockpit.com",
+        "SITE_ORIGIN": "https://staging.mumecockpit.com"
       },
+      "send_email": [{ "name": "REPORT_MAIL" }],
       "d1_databases": [
         {
           "binding": "DB",

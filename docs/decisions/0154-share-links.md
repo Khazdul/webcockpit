@@ -863,3 +863,52 @@ on staging or production (part E not run), so no 0006.
   nor the HTML export embeds a map; both go through `withReplayMap`.
 - **Entry chunk**: 31 366 bytes, unchanged; the chunk set is the same
   files; the chrome chunk 159 904 → 160 256 bytes.
+
+## As built (stage 64, owner's test: mail on reports)
+
+The owner (2026-11-15): one e-mail to him on every report. Facts with
+their sources: `notes/research/cloudflare-email.md`.
+
+- **Binding.** `send_email: [{ "name": "REPORT_MAIL" }]` on production
+  and staging, with no `destination_address` and no allowlist: an
+  unrestricted binding "can send to any verified destination address in
+  your account". The recipient is the secret **`REPORT_MAIL_TO`** (the
+  owner's verified destination address of Email Routing), so the
+  address is never in git. Sending to `abuse@mumecockpit.com` (a routing
+  rule, not a destination address) is not documented, so we do not rely
+  on it. The sender is the var `REPORT_MAIL_FROM`
+  (`reports@mumecockpit.com`, a zone with Email Routing on; it needs no
+  rule of its own). `SITE_ORIGIN` gives the links' host.
+- **When.** `worker/reports.ts` stores the report, answers 204 and hands
+  the mail to `Deps.waitUntil` (`ctx.waitUntil`, from `worker/index.ts`,
+  which also hands over `cloudflare:email`'s EmailMessage as
+  `Deps.emailMessage`: the router never imports `cloudflare:*`, so it
+  still runs under Node in scripts/static-server.ts). A mail that fails
+  is logged (`report mail: send failed (<code>)`) and lost. Without the
+  binding, the secret or the EmailMessage (local, tests, until the owner
+  sets the secret) one line `report mail: skipped ...` is logged.
+- **The mail** (`worker/mail.ts`): `[staging] ` (on `NOINDEX`) +
+  `WebCockpit report: <title>`; the body: the title, the id, the
+  sender's account name, the reason, the number of accounts that have
+  reported it and of open reports, whether it is hidden (by reports or by
+  the admin), the reporter's text, `<origin>/admin` and
+  `<origin>/r/<id>?admin`. The message is hand-built RFC 5322 (no new
+  dependency): every header value has control characters and Unicode
+  line breaks replaced by spaces, the subject is RFC 2047 base64 words
+  when it is not plain ASCII (folded, never splitting a character), the
+  body is base64 UTF-8 `text/plain`. `Date`, `Message-ID` (on the
+  sender's domain), `Auto-Submitted: auto-generated`.
+- **The cap**: 20 single mails a clock hour per Worker, counted in the
+  table `attempt` (no migration): `mail|sent` (start: the hour, count)
+  and `mail|over|<hour>` (reports past the cap). The first report or
+  5-minute cron after such an hour claims the row (`DELETE ... RETURNING`,
+  so two cannot both send it) and sends one mail `WebCockpit: N more
+  reports` with the hours and the admin link. The daily attempt pruning
+  removes the counter rows after a day.
+- **Tests**: `worker/test/mail.test.ts` (a fake binding and
+  EmailMessage): the fields, staging, header injection through a title,
+  a name and the text, the cap and the collected mail (by a report and by
+  the cron, once), a failing or hanging binding, no configuration.
+- **For the owner**: `npx wrangler secret put REPORT_MAIL_TO` and
+  `npx wrangler secret put REPORT_MAIL_TO --env staging` (his verified
+  destination address); then a deploy, which brings the binding.

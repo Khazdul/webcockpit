@@ -390,8 +390,9 @@ production.
   (worktree `stage64-fullscreen`).
 - **A mail on every report** to the abuse address's owner (picked: one
   mail per report with the run, reason, text, count and links to
-  `/admin`; at most 20 an hour, then one collected mail). Being built
-  (worktree `stage64-mail`).
+  `/admin`; at most 20 an hour, then one collected mail; "[staging]" in a
+  staging mail's subject). Built (ADR 0154 "As built … mail on
+  reports"); waits for the secret `REPORT_MAIL_TO` on both Workers.
 - **The account list in `/admin`** (all accounts, search, Suspend /
   Restore / Delete): stays in stage 66 as planned (owner's pick); the
   "An account" form beside the queue serves until then.

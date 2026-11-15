@@ -64,6 +64,15 @@ export interface RateLimiter {
 }
 
 /**
+ * The `send_email` binding (wrangler.jsonc `REPORT_MAIL`, worker/mail.ts).
+ * `message` is what `Deps.emailMessage` made (a `cloudflare:email`
+ * EmailMessage on the real Worker).
+ */
+export interface MailBinding {
+  send(message: unknown): Promise<unknown>;
+}
+
+/**
  * The Worker's environment: bindings, vars and secrets of wrangler.jsonc.
  * Everything but the assets is optional, so a host without them (the
  * static server, a test) gets the answers of a service that is down or
@@ -112,6 +121,14 @@ export interface Env {
   TURNSTILE_SITE_KEY?: string;
   /** Host names a passed Turnstile challenge may come from, comma separated. Unset: any (the test keys say `example.com`). */
   TURNSTILE_HOSTNAMES?: string;
+  /** `send_email` (ADR 0154, "mail on reports"): the owner's mail on each report. Without it: no mail. */
+  REPORT_MAIL?: MailBinding;
+  /** A secret: the owner's address, a verified destination of Email Routing. Without it: no mail. */
+  REPORT_MAIL_TO?: string;
+  /** The sender, on the zone with Email Routing. Unset: reports@mumecockpit.com. */
+  REPORT_MAIL_FROM?: string;
+  /** The site's origin for the links in a mail (`https://mumecockpit.com`). Unset: the request's origin. */
+  SITE_ORIGIN?: string;
 }
 
 /** What the Worker's own requests set (worker/turnstile.ts). */
@@ -126,12 +143,30 @@ export interface FetchInit {
 export interface Deps {
   now(): number;
   fetch(input: string, init?: FetchInit): Promise<Response>;
+  /**
+   * Work that goes on after the answer (the request's
+   * `ctx.waitUntil`). Without it the work runs unawaited.
+   */
+  waitUntil?(work: Promise<unknown>): void;
+  /**
+   * Makes the message `REPORT_MAIL.send` takes from a raw RFC 5322 text:
+   * worker/index.ts hands over `cloudflare:email`'s EmailMessage (the
+   * router does not import it, so it still runs under Node). Without it:
+   * no mail.
+   */
+  emailMessage?(from: string, to: string, raw: string): unknown;
 }
 
 export const DEFAULT_DEPS: Deps = {
   now: () => Date.now(),
   fetch: (input, init) => fetch(input, init),
 };
+
+/** Runs `work` after the answer (Deps.waitUntil); it never throws into the caller. */
+export function later(deps: Deps, work: Promise<unknown>): void {
+  const safe = work.catch(() => undefined);
+  if (deps.waitUntil) deps.waitUntil(safe);
+}
 
 /** A var that means on: true, "true", "on", "1" (any case). */
 export function truthy(v: unknown): boolean {
