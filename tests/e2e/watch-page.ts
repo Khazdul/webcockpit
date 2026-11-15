@@ -88,3 +88,23 @@ export async function guestWatches(page: Page, s: WatchSetup): Promise<void> {
   const device = await page.evaluate(() => localStorage.getItem('wc.device'));
   expect(s.pubs.views[0]!.device).toBe(device);
 }
+
+/** The iframe's element is the page's fullscreen element. */
+export const frameIsFullscreen = (page: Page): Promise<boolean> =>
+  page.evaluate(() => document.fullscreenElement !== null && document.fullscreenElement === document.querySelector('.wc-watch-slot iframe'));
+
+/** The frame covers the whole window, the band under it (what is on top at the band's middle is the frame). */
+export async function frameFillsWindow(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const f = document.querySelector('.wc-watch-slot iframe')!.getBoundingClientRect();
+    const b = document.querySelector('.wc-watch-band')!.getBoundingClientRect();
+    const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return f.x <= 0 && f.y <= 0 && f.width >= innerWidth - 1 && f.height >= innerHeight - 1 && top?.tagName === 'IFRAME';
+  });
+}
+
+/** Makes the frame's document say it has no element fullscreen (as the iPhone's Safari). */
+export async function noFrameFullscreen(page: Page): Promise<void> {
+  const f = page.frames().find((x) => x.url().endsWith('/r/frame'))!;
+  await f.evaluate(() => Object.defineProperty(Document.prototype, 'fullscreenEnabled', { get: () => false, configurable: true }));
+}
