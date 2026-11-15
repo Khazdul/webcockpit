@@ -10,7 +10,7 @@ declare namespace Cloudflare {
   interface Env {
     ASSETS: Fetcher;
     DB: D1Database;
-    /** R2 `webcockpit` / `webcockpit-staging` (eu): used from stage 63. */
+    /** R2 `webcockpit` / `webcockpit-staging` (eu): the run bodies (stage 63). */
     FILES: R2Bucket;
     BEAT_LIMITER: RateLimit;
     FLAG_STATS: boolean;
@@ -22,6 +22,8 @@ declare namespace Cloudflare {
     FLAG_ACCOUNTS: boolean;
     FLAG_SYNC: boolean;
     FLAG_RUNS: boolean;
+    /** The default run storage per account, bytes; unset: DEFAULT_ACCOUNT_LIMITS.runBytes. */
+    RUN_BYTES_LIMIT?: number | string;
     API_LIMITER: RateLimit;
     AUTH_LIMITER: RateLimit;
     TURNSTILE_SITE_KEY: string;

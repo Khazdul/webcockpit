@@ -26,7 +26,8 @@
 // here; on staging (`NOINDEX`) every answer of the Worker gets
 // `X-Robots-Tag: noindex`.
 
-import { type AdminFlag, type Config, DEFAULT_ACCOUNT_LIMITS, type Health, type PublicStats } from '../shared/cloud/api.ts';
+import { type AdminFlag, type Config, type Health, type PublicStats } from '../shared/cloud/api.ts';
+import { defaultLimits } from './accounts.ts';
 import { verifyAccess } from './access.ts';
 import { ADMIN_CSP, ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from './admin/page.ts';
 import { accountApi, isAccountPath, sameSite } from './auth.ts';
@@ -103,14 +104,14 @@ async function statsPublic(_request: Request, env: Env, _url: URL, deps: Deps): 
 /**
  * `GET /api/config`: the flags, and what the account pages need before a
  * login: the Turnstile site key (public by its nature), the default
- * limits and the server's time (as old as the cache lets it be).
+ * limits (with RUN_BYTES_LIMIT) and the server's time (as old as the cache lets it be).
  */
 async function config(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();
   const answer: Required<Config> = {
     flags: await flags(env, now),
     turnstileSiteKey: typeof env.TURNSTILE_SITE_KEY === 'string' ? env.TURNSTILE_SITE_KEY : '',
-    limits: DEFAULT_ACCOUNT_LIMITS,
+    limits: defaultLimits(env),
     time: now,
   };
   return json(answer, 200, MINUTE_CACHE);

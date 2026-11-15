@@ -20,6 +20,7 @@ import {
 import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { DAY_MS, type D1, type Env, dayStart, utcDay } from './runtime.ts';
+import { sweepPrefixes } from './runs.ts';
 import { pruneSessions } from './sessions.ts';
 
 // --- The beat ---
@@ -296,6 +297,7 @@ export async function runCron(env: Env, cron: string, time: number): Promise<voi
     } finally {
       await pruneAttempts(db, time);
       await pruneSessions(db, time);
+      await sweepPrefixes(env, time);
     }
   } else {
     await sample(db, time);

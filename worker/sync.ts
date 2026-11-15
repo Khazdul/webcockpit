@@ -22,6 +22,10 @@
 // `storage_full`); live items at most `items` (413 `too_many_items`).
 // Tombstones count against neither: a delete, and a write that does not
 // grow, are always let through.
+//
+// The kinds open are SYNC_KINDS_OPEN, and with the flag `runs` on also
+// `run` and `exportDoc` (stage 63, ADR 0153): openKinds(). The usage
+// answered has the account's run bytes too (worker/runs.ts keeps them).
 import {
   type AccountLimits,
   SYNC_ID_PATTERN,
@@ -36,7 +40,8 @@ import {
 } from '../shared/cloud/api.ts';
 import { limitsOf } from './accounts.ts';
 import { toB64url } from './bytes.ts';
-import type { D1, Deps } from './runtime.ts';
+import { flags } from './flags.ts';
+import type { D1, Deps, Env } from './runtime.ts';
 import { error, json } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readBytesCapped } from './stats.ts';
@@ -44,6 +49,7 @@ import { readBytesCapped } from './stats.ts';
 /** What a handler here uses of auth.ts's context. */
 export interface SyncCtx {
   request: Request;
+  env: Env;
   url: URL;
   deps: Deps;
   db: D1;
@@ -86,19 +92,28 @@ export function syncRoute(path: string): Record<string, Handler> | undefined {
 
 // --- Reading what a request names ---
 
+/** The kinds the flag `runs` opens, besides SYNC_KINDS_OPEN. */
+export const RUN_KINDS: readonly SyncKind[] = ['run', 'exportDoc'];
+
+/** The kinds this Worker accepts now: SYNC_KINDS_OPEN, and RUN_KINDS while the flag `runs` is on. */
+export async function openKinds(env: Env, now: number): Promise<readonly SyncKind[]> {
+  return (await flags(env, now)).runs ? [...SYNC_KINDS_OPEN, ...RUN_KINDS] : SYNC_KINDS_OPEN;
+}
+
 interface Target {
   kind: SyncKind;
   id: string;
 }
 
-/** The kind and id of an items path, or the answer: 400 for an unknown kind or a bad id, 403 `kind_closed` for a kind not open yet. */
-function targetOf(path: string): Target | Response {
+/** The kind and id of an items path, or the answer: 400 for an unknown kind or a bad id, 403 `kind_closed` for a kind not open (openKinds). */
+async function targetOf(c: SyncCtx): Promise<Target | Response> {
+  const path = c.url.pathname;
   const parts = path.slice(ITEMS_PREFIX.length).split('/');
   const [kind, id] = parts;
   if (parts.length !== 2 || kind === undefined || id === undefined) return error('bad_request', 400);
   if (!(SYNC_KINDS as readonly string[]).includes(kind)) return error('bad_request', 400);
   if (!SYNC_ID_PATTERN.test(id)) return error('bad_request', 400);
-  if (!SYNC_KINDS_OPEN.includes(kind as SyncKind)) return error('kind_closed', 403);
+  if (!(await openKinds(c.env, c.now)).includes(kind as SyncKind)) return error('kind_closed', 403);
   return { kind: kind as SyncKind, id };
 }
 
@@ -134,6 +149,7 @@ interface UsageRow {
   seq: number;
   item_count: number;
   item_bytes: number;
+  run_bytes: number;
 }
 
 const ITEM_COLUMNS = 'kind, id, rev, seq, deleted, size, updated, blob';
@@ -145,7 +161,7 @@ function itemOf(r: ItemRow): SyncItem {
   return out;
 }
 
-const usageOf = (r: UsageRow): SyncUsage => ({ items: r.item_count, itemBytes: r.item_bytes });
+const usageOf = (r: UsageRow): SyncUsage => ({ items: r.item_count, itemBytes: r.item_bytes, runBytes: r.run_bytes });
 
 // --- GET /api/u/sync/changes ---
 
@@ -176,8 +192,8 @@ async function changes(c: SyncCtx): Promise<Response> {
     items,
     cursor: items.at(-1)?.seq ?? since,
     more: (results[0]?.total ?? 0) > items.length,
-    usage: { items: account.item_count, itemBytes: account.item_bytes },
-    limits: limitsOf(account),
+    usage: usageOf(account),
+    limits: limitsOf(account, c.env),
   };
   return json(answer);
 }
@@ -185,13 +201,13 @@ async function changes(c: SyncCtx): Promise<Response> {
 // --- PUT and DELETE /api/u/sync/items/<kind>/<id> ---
 
 async function put(c: SyncCtx): Promise<Response> {
-  const target = targetOf(c.url.pathname);
+  const target = await targetOf(c);
   if (target instanceof Response) return target;
   const base = baseOf(c.request);
   if (base instanceof Response) return base;
   const type = (c.request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
   if (type !== 'application/octet-stream') return error('bad_request', 400);
-  const limits = limitsOf((c.auth as Authed).account);
+  const limits = limitsOf((c.auth as Authed).account, c.env);
   const blob = await readBytesCapped(c.request, limits.itemMaxBytes);
   if (blob === null) {
     // A conflict is answered before a 413 (the client resolves it first).
@@ -203,11 +219,11 @@ async function put(c: SyncCtx): Promise<Response> {
 }
 
 async function remove(c: SyncCtx): Promise<Response> {
-  const target = targetOf(c.url.pathname);
+  const target = await targetOf(c);
   if (target instanceof Response) return target;
   const base = baseOf(c.request);
   if (base instanceof Response) return base;
-  return write(c, target, base, null, limitsOf((c.auth as Authed).account));
+  return write(c, target, base, null, limitsOf((c.auth as Authed).account, c.env));
 }
 
 /** A tombstone of rev 0: what a 409 carries as the current item for an item the account never had. */
@@ -241,7 +257,7 @@ async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<Array
   for (let round = 0; round < WRITE_ROUNDS; round++) {
     const [curRes, accRes] = await c.db.batch<Record<string, unknown>>([
       c.db.prepare(`SELECT ${ITEM_COLUMNS} FROM item WHERE account = ?1 AND kind = ?2 AND id = ?3`).bind(accountId, t.kind, t.id),
-      c.db.prepare('SELECT seq, item_count, item_bytes FROM account WHERE id = ?1').bind(accountId),
+      c.db.prepare('SELECT seq, item_count, item_bytes, run_bytes FROM account WHERE id = ?1').bind(accountId),
     ]);
     const cur = (curRes?.results[0] ?? null) as ItemRow | null;
     const acc = (accRes?.results[0] ?? null) as UsageRow | null;
@@ -286,7 +302,7 @@ async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<Array
            WHERE id = ?1 AND EXISTS (SELECT 1 FROM item WHERE account = ?1 AND kind = ?4 AND id = ?5 AND rev = ?6 AND seq = account.seq + 1)`,
         )
         .bind(accountId, dCount, dBytes, t.kind, t.id, rev),
-      c.db.prepare('SELECT seq, item_count, item_bytes FROM account WHERE id = ?1').bind(accountId),
+      c.db.prepare('SELECT seq, item_count, item_bytes, run_bytes FROM account WHERE id = ?1').bind(accountId),
     ]);
     const after = results[2]?.results[0];
     if (results[0]?.meta.changes === 1 && results[1]?.meta.changes === 1 && after) {

@@ -7,6 +7,7 @@ import {
   type AccountLimits,
   type AccountPrefs,
   type AccountSession,
+  type AccountUsage,
   DEFAULT_ACCOUNT_LIMITS,
   KDF_MAX_ROUNDS,
   KDF_MIN_ROUNDS,
@@ -20,7 +21,7 @@ import {
   WRAP_MIN_BYTES,
 } from '../shared/cloud/api.ts';
 import { fromB64url, sha256, toB64url } from './bytes.ts';
-import type { D1 } from './runtime.ts';
+import type { D1, Env } from './runtime.ts';
 
 /** A row of `account`, as far as the Worker reads it. */
 export interface AccountRow {
@@ -42,10 +43,12 @@ export interface AccountRow {
   /** Live items and their bytes (worker/sync.ts keeps them; migration 0003). */
   item_count: number;
   item_bytes: number;
+  /** The bytes of the account's run bodies, reserved before they are stored (worker/runs.ts; migration 0004). */
+  run_bytes: number;
 }
 
 export const ACCOUNT_COLUMNS =
-  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes';
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes';
 
 /**
  * Names nobody can register, besides those of deleted accounts
@@ -153,9 +156,25 @@ function parsed(text: string | null): Record<string, unknown> {
   }
 }
 
-/** The defaults with what the account's `limits` column overrides (whole numbers ≥ 0 of known names). */
-export function limitsOf(row: Pick<AccountRow, 'limits'>): AccountLimits {
-  const out = { ...DEFAULT_ACCOUNT_LIMITS };
+/** A whole number ≥ 0 from a var (a number or its digits), or null. */
+function wholeVar(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isSafeInteger(v) && v >= 0 ? v : null;
+  return typeof v === 'string' && /^\d{1,15}$/.test(v.trim()) ? Number(v.trim()) : null;
+}
+
+/**
+ * The limits of an account that has none of its own: DEFAULT_ACCOUNT_LIMITS,
+ * with `runBytes` from the var RUN_BYTES_LIMIT when it is set (so the owner
+ * can change the run storage without a client release; ADR 0153).
+ */
+export function defaultLimits(env: Pick<Env, 'RUN_BYTES_LIMIT'>): AccountLimits {
+  const runBytes = wholeVar(env.RUN_BYTES_LIMIT);
+  return runBytes === null ? { ...DEFAULT_ACCOUNT_LIMITS } : { ...DEFAULT_ACCOUNT_LIMITS, runBytes };
+}
+
+/** The defaults (defaultLimits) with what the account's `limits` column overrides (whole numbers ≥ 0 of known names). */
+export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BYTES_LIMIT'>): AccountLimits {
+  const out = defaultLimits(env);
   const own = parsed(row.limits);
   for (const k of Object.keys(out) as (keyof AccountLimits)[]) {
     const v = own[k];
@@ -178,8 +197,13 @@ export async function accountByKey(db: D1, nameKey: string): Promise<AccountRow 
   return db.prepare(`SELECT ${ACCOUNT_COLUMNS} FROM account WHERE name_key = ?1`).bind(nameKey).first<AccountRow>();
 }
 
+/** The account's usage as the server counts it. */
+export function usageOf(row: Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes'>): AccountUsage {
+  return { items: row.item_count, itemBytes: row.item_bytes, runBytes: row.run_bytes };
+}
+
 /** The account as its owner sees it, with its live sessions; `idHash` is the asking session's. */
-export async function accountView(db: D1, row: AccountRow, idHash: string, now: number): Promise<Account> {
+export async function accountView(db: D1, env: Pick<Env, 'RUN_BYTES_LIMIT'>, row: AccountRow, idHash: string, now: number): Promise<Account> {
   const { results } = await db
     .prepare('SELECT id, id_hash, label, created, last_used FROM session WHERE account = ?1 AND expires > ?2 ORDER BY last_used DESC, created DESC, id')
     .bind(row.id, now)
@@ -195,9 +219,8 @@ export async function accountView(db: D1, row: AccountRow, idHash: string, now: 
     name: row.name,
     created: row.created,
     state: row.state === 'suspended' ? 'suspended' : 'active',
-    // Run bodies come with stage 63.
-    usage: { items: row.item_count, itemBytes: row.item_bytes, runBytes: 0 },
-    limits: limitsOf(row),
+    usage: usageOf(row),
+    limits: limitsOf(row, env),
     sessions,
     prefs: prefsOf(row),
   };
