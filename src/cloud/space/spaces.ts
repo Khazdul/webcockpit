@@ -243,6 +243,14 @@ export interface RunsLeft {
   /** Their ids, saved ones first (Log out's Download: the runs backup of exactly these). */
   savedIds: string[];
   unsavedIds: string[];
+  /**
+   * Why the saved ones are not in the cloud (stage 63 C2, Log out's second
+   * line): `full` and `tooLarge` their `runCloud` state, `waiting` the rest
+   * (queued, never queued, up without an agreed item). `cloud`: the space
+   * has `runCloud` rows at all (runs in the cloud were on in it).
+   */
+  why: { full: number; tooLarge: number; waiting: number };
+  cloud: boolean;
 }
 
 /**
@@ -263,14 +271,19 @@ export async function runCounts(open: OpenDb, nowMs = Date.now()): Promise<RunsL
   ]);
   await done;
   const up = new Set(cloud.filter((r) => r.state === 'up').map((r) => r.runId));
+  const state = new Map(cloud.map((r) => [r.runId, r.state]));
   const agreed = new Set(sync.filter((r) => r.kind === 'run' && r.rec?.key && r.rec.rev > 0 && r.rec.hash !== null).map((r) => r.rec!.key!));
   const cutoff = nowMs * 1000 - 14 * DAY_US;
-  const out: RunsLeft = { saved: 0, unsaved: 0, savedIds: [], unsavedIds: [] };
+  const out: RunsLeft = { saved: 0, unsaved: 0, savedIds: [], unsavedIds: [], why: { full: 0, tooLarge: 0, waiting: 0 }, cloud: cloud.length > 0 };
   for (const r of runs) {
     if (r.saved) {
       if (up.has(r.runId) && agreed.has(r.runId)) continue;
       out.saved++;
       out.savedIds.push(r.runId);
+      const st = state.get(r.runId);
+      if (st === 'full') out.why.full++;
+      else if (st === 'tooLarge') out.why.tooLarge++;
+      else out.why.waiting++;
     } else if ((r.startedUs ?? 0) >= cutoff) {
       out.unsaved++;
       out.unsavedIds.push(r.runId);
@@ -288,11 +301,11 @@ export const LOCKING_SPECS: readonly KindSpec[] = SYNC_SPECS.filter((s) => s.kin
  * ADR 0152, ADR 0153). The run kinds are not among the changes: a saved
  * run counts once, as a run, and an export doc edit alone does not lock.
  */
-export async function notInAccount(nameKey: string, deviceLabel = 'device'): Promise<{ changes: Unsynced[]; savedRuns: number }> {
+export async function notInAccount(nameKey: string, deviceLabel = 'device'): Promise<{ changes: Unsynced[]; savedRuns: number; runsCloud: boolean }> {
   const open = spaceDb(nameKey);
   const changes = await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => deviceLabel), LOCKING_SPECS);
-  const { saved } = await runCounts(open);
-  return { changes, savedRuns: saved };
+  const { saved, cloud } = await runCounts(open);
+  return { changes, savedRuns: saved, runsCloud: cloud };
 }
 
 // ------------------------------------------------------------ the device's own things

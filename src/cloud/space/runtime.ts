@@ -229,6 +229,11 @@ export class PageSync implements Runtime {
     // Called on the game path (a Comm append, a timers save): a flag test and at most a timer.
     this.offs.push(
       onStored((kind) => {
+        // A saved run sealed (the Exit popup's, at the game's end): the upload queue takes it now, not at the next sync.
+        if (kind === 'runSealed') {
+          this.runs?.kick();
+          return;
+        }
         if (kind === 'profile' || kind === 'script' || !inPlay()) this.soon();
       }),
     );

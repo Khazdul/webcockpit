@@ -36,7 +36,22 @@ export function runCloudHook(): RunCloudHook | null {
   return hook;
 }
 
-/** Why a session could not be opened when its runs could not be fetched (stage 63 C2 may give better words). */
+/** Why a session in the cloud could not be opened when its runs could not be fetched (stage 63 C2). */
 export function notFetchedWords(why: string): string {
-  return why === 'offline' ? 'This session is in the cloud and could not be fetched: no connection.' : 'This session is in the cloud and could not be fetched.';
+  switch (why) {
+    case 'offline':
+      return 'This session is in the cloud and needs the network to open.';
+    case 'server':
+      return 'This session could not be fetched from the cloud: the server did not answer. Try again in a while.';
+    case 'missing':
+      return 'This session is no longer in the cloud.';
+    case 'newer':
+      return 'This session was saved by a newer WebCockpit. Reload the page to open it.';
+    case 'unreadable':
+      return 'This session in the cloud could not be read.';
+    case 'session_ended':
+      return 'This session is in the cloud, and you are no longer logged in.';
+    default:
+      return 'This session is in the cloud and could not be fetched.';
+  }
 }

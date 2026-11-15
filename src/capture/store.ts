@@ -18,6 +18,7 @@
 
 import { idbDone as done, idbRequest as req, openWebcockpitDb } from '../core/db';
 import type { RunSummary } from '../runs/store';
+import { noteStored } from '../core/store-events';
 
 export { DB_NAME, DB_VERSION, openWebcockpitDb, requestPersistence } from '../core/db';
 
@@ -100,19 +101,26 @@ export class CaptureStore {
     await done(tx);
   }
 
-  /** Marks a run sealed with `endedUs`. */
+  /**
+   * Marks a run sealed with `endedUs`. A saved run sealed (the Exit popup
+   * saves the live run before the game ends) is noted, so the upload queue
+   * of runs in the cloud takes it at once (stage 63 C2, ADR 0153).
+   */
   async sealRun(runId: string, endedUs: number): Promise<void> {
     const tx = this.db.transaction('runs', 'readwrite');
     const runs = tx.objectStore('runs');
     const r = runs.get(runId);
+    let saved = false;
     r.onsuccess = () => {
       const meta = r.result as RunMeta | undefined;
       if (!meta || meta.sealed) return;
       meta.sealed = true;
       meta.endedUs = endedUs;
+      saved = !!meta.saved;
       runs.put(meta);
     };
     await done(tx);
+    if (saved) noteStored('runSealed');
   }
 
   /** A run's chunks in sequence order. */

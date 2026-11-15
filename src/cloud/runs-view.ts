@@ -17,6 +17,9 @@
 //   storageFigures(lib): Promise<StorageFigures>
 //       the storage line's numbers: the device's estimate and the cloud's
 //       use and limit (null when not known)
+//   sessionMark(session, rows, nowMs): SessionMark
+//       History's tag (stage 63 C2): in the cloud (and its bytes), not in
+//       the cloud (and why), or none
 //   cloudOnlySessions(lib): Promise<number>
 //       sessions of the account that are only in the cloud (not counted
 //       by Statistics, Spotlights and Diary)
@@ -128,6 +131,45 @@ export function sessionCloud(session: Pick<Session, 'runs'>, rows: ReadonlyMap<s
   const strong = STRONGEST.find((st) => places.has(st));
   const state: SessionCloudState = strong ?? (places.size === 1 && places.has('up') ? 'up' : 'local');
   return { state, runs, remote, cloudBytes, cloudOnly: runs.length > 0 && remote === runs.length };
+}
+
+/** A queued run is told "not in the cloud" only after this long (ms) or a failed upload. */
+export const QUEUED_QUIET_MS = 10 * 60_000;
+
+/**
+ * A session's tag in History: `remote` (some run only in the cloud: opening
+ * fetches it; `bytes` to fetch), `local` (a saved run not in the cloud, and
+ * why), or null (in step, unsaved, a guest, the flag off).
+ */
+export type SessionMark = { kind: 'remote'; bytes: number } | { kind: 'local'; why: 'full' | 'tooLarge' | 'waiting' } | null;
+
+/**
+ * The mark of `s` from the `runCloud` rows. A run queued shortly after its
+ * save is not alarming: `waiting` only once it failed to go up or waited
+ * longer than `QUEUED_QUIET_MS`.
+ */
+export function sessionMark(s: Pick<Session, 'runs' | 'saved'>, rows: ReadonlyMap<string, RunCloudRow>, nowMs: number): SessionMark {
+  if (rows.size === 0) return null;
+  const sc = sessionCloud(s, rows);
+  if (sc.state === 'remote' || sc.state === 'fetching') {
+    let bytes = 0;
+    for (const r of s.runs) {
+      const row = rows.get(r.runId);
+      if (row && (row.state === 'remote' || row.state === 'fetching')) bytes += row.size;
+    }
+    return { kind: 'remote', bytes };
+  }
+  if (!s.saved) return null;
+  if (sc.state === 'tooLarge') return { kind: 'local', why: 'tooLarge' };
+  if (sc.state === 'full') return { kind: 'local', why: 'full' };
+  if (sc.state === 'queued') {
+    const late = s.runs.some((r) => {
+      const row = rows.get(r.runId);
+      return !!row && row.state === 'queued' && (row.tries > 0 || nowMs - row.at > QUEUED_QUIET_MS);
+    });
+    return late ? { kind: 'local', why: 'waiting' } : null;
+  }
+  return null;
 }
 
 /** What the views read of the run library (`RunLibrary` fits). */
