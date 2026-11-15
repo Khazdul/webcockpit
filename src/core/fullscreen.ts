@@ -75,7 +75,12 @@ export function toggleFullscreen(doc: Document = document, target?: HTMLElement)
       }
       resolve(ok);
     };
-    const off = onFullscreenChange(() => finish(isFullscreen(doc, target)), doc);
+    // Only an entry settles it at once: a change that is not one (a late
+    // exit of an earlier fullscreen, which Firefox can deliver after this
+    // request was made) waits for the entry or the settle time (stage 65 C2).
+    const off = onFullscreenChange(() => {
+      if (isFullscreen(doc, target)) finish(true);
+    }, doc);
     const timer = setTimeout(() => finish(isFullscreen(doc, target)), SETTLE_MS);
     try {
       if (el.requestFullscreen) void el.requestFullscreen().catch(() => finish(false));
