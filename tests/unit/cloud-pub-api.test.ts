@@ -125,6 +125,41 @@ describe('createPubApi', () => {
   });
 });
 
+describe('the community (stage 65 C3)', () => {
+  it('create with listed: the meta says listed true; the 10-a-day refusal is too_many', async () => {
+    const { api: a, calls } = api(200, { pub: { ...PUB, listed: true, listedAt: 1_763_000_000 } });
+    const meta = linkMeta({ title: 'T', description: '', character: 'Rasta', lengthS: 3, listed: true });
+    expect(meta.listed).toBe(true);
+    expect(await a.create(meta, new Uint8Array([0x1f, 0x8b]))).toMatchObject({ ok: true, value: { listed: true, listedAt: 1_763_000_000 } });
+    expect((splitPubBody(calls[0]!.body as Uint8Array)!.meta as PubMetaIn).listed).toBe(true);
+    expect(await api(429, { error: 'too_many' }).api.create(meta, new Uint8Array(2))).toEqual({ ok: false, code: 'too_many', status: 429 });
+    // The network's own limit stays rate_limited.
+    expect(await api(429, { error: 'rate_limited' }).api.create(meta, new Uint8Array(2))).toMatchObject({ code: 'rate_limited' });
+  });
+
+  it('edit sends listed (and only what is given); 429 too_many and 403 hidden come back as such', async () => {
+    const e = api(200, { pub: { ...PUB, listed: true } });
+    expect(await e.api.edit(PUB.id, { listed: true })).toMatchObject({ ok: true, value: { listed: true } });
+    expect(e.calls[0]).toMatchObject({ method: 'PATCH', path: '/api/u/pub/Ab3dE5fG7hJk', body: '{"listed":true}' });
+    const f = api(200, { pub: PUB });
+    await f.api.edit(PUB.id, { title: 'T', listed: false });
+    expect(f.calls[0]!.body).toBe('{"title":"T","listed":false}');
+    expect(await api(429, { error: 'too_many' }).api.edit(PUB.id, { listed: true })).toMatchObject({ code: 'too_many' });
+    expect(await api(403, { error: 'hidden' }).api.edit(PUB.id, { listed: true })).toMatchObject({ code: 'hidden' });
+  });
+
+  it("the run's stars, comments, listedAt and what is new are read; a field that does not hold is left out", () => {
+    const full = { ...PUB, listed: true, listedAt: 5, stars: { sum: 13, count: 3 }, comments: 4, news: { votes: 1, comments: 2 } };
+    expect(parseMyPub(full)).toEqual(full);
+    // Capped at NEWS_MAX as the server caps them.
+    expect(parseMyPub({ ...full, news: { votes: 500, comments: 0 } })!.news).toEqual({ votes: 99, comments: 0 });
+    const odd = parseMyPub({ ...PUB, listedAt: -1, stars: { sum: 'x', count: 1 }, comments: 1.5, news: { votes: 1 } })!;
+    expect(odd).toEqual(PUB);
+    // An older Worker sends none of them.
+    expect(parseMyPub(PUB)).toEqual(PUB);
+  });
+});
+
 describe('the share link\'s pieces', () => {
   it('the title: the doc\'s, or the character and the date', () => {
     const us = new Date(2026, 8, 26, 21, 0, 12).getTime() * 1000;

@@ -61,6 +61,10 @@ describe('the start menu: its forms', () => {
     expect(communityCount(0)).toBeNull();
     expect(communityCount(-1)).toBeNull();
     expect(communityCount(Number.NaN)).toBeNull();
+    // Each count stops at 99 (the server's cap): "99+ new" (stage 65, pick 5).
+    expect(communityCount(98)).toBe('98 new');
+    expect(communityCount(99)).toBe('99+ new');
+    expect(communityCount(250)).toBe('99+ new');
   });
 });
 
@@ -107,5 +111,12 @@ describe('the owner row: a pure function of the account state', () => {
     expect(ownerRow({ name: 'ole', sync: 'synced', news: 2 })).toMatchObject({ news: '2 new', label: 'ole · synced · 2 new' });
     expect(ownerRow({ name: 'ole', news: 2 })).toMatchObject({ state: null, news: '2 new', label: 'ole · 2 new' });
     expect(ownerRow({ name: 'ole', sync: 'synced', news: 0 }).news).toBeNull();
+    expect(ownerRow({ name: 'ole', sync: 'synced', news: 99 })).toMatchObject({ news: '99+ new', label: 'ole · synced · 99+ new' });
+  });
+
+  it('a press with new reactions opens Published runs (stage 65); without, the Account page', () => {
+    expect(ownerRow({ name: 'ole', sync: 'synced', news: 2 }).opens).toBe('published');
+    expect(ownerRow({ name: 'ole', news: 1 }).opens).toBe('published');
+    expect(ownerRow({ name: 'ole', sync: 'synced', news: 0 }).opens).toBe('account');
   });
 });

@@ -40,6 +40,16 @@
 // Keys: the account pages' form ring (`useFormKeys`): Tab walks the title,
 // the description, the tick and the buttons; Enter creates the link (or
 // presses the cursor's button); Esc cancels.
+//
+// The listed form (stage 65 C3, ADR 0155, round 13's pick 4: Hall of Fame,
+// the export editor's fourth format): the same dialog with `listed`. Its
+// title "Publish to the Hall of Fame", the line "Everyone can find this in
+// the Community." and its note, Publish (U); the POST's meta says
+// `listed: true`. The answer "Published" with the link and Copy, Open
+// Community (M: the stack pops to the start menu, which opens its
+// Community row, start-request.ts; only where the editor stands on the
+// start page) and Done. The 10-a-day refusal (`429 too_many`) is said on
+// the error line, with Link now and listing later, and Publish stays off.
 
 import './share.css';
 import { touchInteraction } from '../../core/device';
@@ -52,8 +62,9 @@ import type { MyPub } from '../../../shared/cloud/api.ts';
 import { codePointCount, linkMeta, linkUrl, newLinkKey, sizeWords, typedDescription, typedTitle } from '../../share/link';
 import type { LinkPayload } from '../../share/link-payload';
 import { copyText } from '../kit/clipboard';
-import { Check, Dialog, Field, GlassButton, Icon, LoadBar, TextArea, lookFrame } from '../kit/look';
+import { Check, Dialog, Field, GlassButton, Icon, LoadBar, TextArea, lookFrame, useLookPlace } from '../kit/look';
 import { useNav } from '../kit/stack';
+import { requestStartRow } from './start-request';
 import { useFormKeys } from './account/form';
 import {
   ANYONE,
@@ -61,6 +72,11 @@ import {
   COPY_FAILED,
   DESC_PLACEHOLDER,
   DONE_NOTE,
+  HOF_DONE_NOTE,
+  HOF_DONE_TITLE,
+  HOF_EVERYONE,
+  HOF_NOTE,
+  HOF_TITLE,
   LOGGED_OUT,
   NOT_BUILT,
   RULES,
@@ -80,6 +96,8 @@ export interface ShareDialogProps {
   titleIsDefault?: boolean;
   /** Builds the payload (the editor's data, exactly as for HTML), validated and gzip. */
   build(): Promise<LinkPayload>;
+  /** Hall of Fame (stage 65): the listed form; the run goes to the Community. */
+  listed?: boolean;
 }
 
 type Built = { ok: true; link: LinkPayload } | { ok: false };
@@ -90,6 +108,8 @@ type Phase = 'form' | 'up' | 'done';
 
 export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): VNode {
   const nav = useNav();
+  const listed = p.listed === true;
+  const onStart = useLookPlace() === 'start';
   const [title, setTitle] = useState(p.title);
   const [desc, setDesc] = useState('');
   const [tick, setTick] = useState(false);
@@ -137,9 +157,11 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const suspended = acct !== null && acct !== false && acct.state === 'suspended';
   const up = phase === 'up';
   const quota = failure?.code === 'pub_quota';
+  /** The day's listings are used up (stage 65): Publish stays off, the line says Link now. */
+  const dayFull = failure?.code === 'too_many';
   const loggedOut = error === LOGGED_OUT;
   const canCreate =
-    phase === 'form' && built?.ok === true && acct !== null && !tooLarge && !suspended && !quota && !loggedOut && title.trim() !== '' && (!rulesShown || tick);
+    phase === 'form' && built?.ok === true && acct !== null && !tooLarge && !suspended && !quota && !dayFull && !loggedOut && title.trim() !== '' && (!rulesShown || tick);
 
   const close = (): void => {
     abort.current?.abort();
@@ -166,7 +188,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
       }
       setAcct((a) => (a ? { ...a, rulesAccepted: true } : { state: 'active', limits, rulesAccepted: true }));
     }
-    const meta = linkMeta({ title, description: desc, character: link.payload.character, level: link.payload.level, lengthS: link.lengthS, key: key.current });
+    const meta = linkMeta({ title, description: desc, character: link.payload.character, level: link.payload.level, lengthS: link.lengthS, key: key.current, listed });
     const r = await createPubApi().create(meta, link.bytes, { signal: ctl.signal, onProgress: (s, t) => alive.current && setSent([s, t]) });
     if (!alive.current || (!r.ok && r.code === 'cancelled')) return;
     if (r.ok) {
@@ -180,7 +202,13 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
     if (r.code === 'suspended') setAcct((a) => (a ? { ...a, state: 'suspended' } : a));
     // The device learns that its session is gone (the flows log it out).
     if (r.code === 'unauthorized') void loadAccount();
-    setError(createFailureWords(r.code, r.limit));
+    setError(createFailureWords(r.code, r.code === 'too_many' ? (acct ? acct.limits.listingsPerDay : DEFAULT_ACCOUNT_LIMITS.listingsPerDay) : r.limit));
+  };
+
+  /** The Community page: the stack goes back to the start menu, which opens its Community row (start-request.ts). */
+  const openCommunity = (): void => {
+    requestStartRow('community');
+    nav.pop(Math.max(1, nav.depth() - 1));
   };
 
   const openAccount = (): void => {
@@ -203,6 +231,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
     stops: done
       ? [
           { id: 'COPY', run: copy },
+          ...(listed && onStart ? [{ id: 'COMMUNITY', run: openCommunity }] : []),
           { id: 'DONE', run: close },
         ]
       : [
@@ -211,7 +240,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
           ...(rulesShown ? [{ id: 'TICK', run: () => setTick((t) => !t), disabled: up }] : []),
           { id: 'CANCEL', run: close },
           ...(quota ? [{ id: 'ACCOUNT', run: openAccount }] : []),
-          { id: 'CREATE', run: () => void create(), disabled: !canCreate },
+          { id: listed ? 'PUBLISH' : 'CREATE', run: () => void create(), disabled: !canCreate },
         ],
     submit: done ? close : () => void create(),
     canSubmit: done || canCreate,
@@ -221,12 +250,15 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   if (done && made) {
     return (
       <Dialog
-        title="Link created"
+        title={listed ? HOF_DONE_TITLE : 'Link created'}
         dlg="share-done"
         width={540}
         at={keys.at}
         onCancel={close}
-        buttons={[{ id: 'DONE', label: 'Done', letter: 'd', primary: true, run: close }]}
+        buttons={[
+          ...(listed && onStart ? [{ id: 'COMMUNITY', label: 'Open Community', letter: 'm', run: openCommunity }] : []),
+          { id: 'DONE', label: 'Done', letter: 'd', primary: true, run: close },
+        ]}
       >
         <div class="wc-sh">
           <p class="wc-lk-q wc-sh-made" data-pub-title="">
@@ -239,7 +271,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
           <p class="wc-sh-copied" role="status">
             {copied ?? ''}
           </p>
-          <p class="wc-lk-qn wc-sh-note">{DONE_NOTE}</p>
+          <p class="wc-lk-qn wc-sh-note">{listed ? HOF_DONE_NOTE : DONE_NOTE}</p>
         </div>
       </Dialog>
     );
@@ -265,7 +297,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const retry = failure?.code === 'offline' || failure?.code === 'timeout';
   return (
     <Dialog
-      title="Share as a link"
+      title={listed ? HOF_TITLE : 'Share as a link'}
       dlg="share"
       width={540}
       error={shownError}
@@ -274,7 +306,9 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
       buttons={[
         { id: 'CANCEL', label: 'Cancel', letter: 'c', run: close },
         ...(quota ? [{ id: 'ACCOUNT', label: 'Open Account', letter: 'a', run: openAccount }] : []),
-        { id: 'CREATE', label: up ? 'Creating…' : retry ? 'Try again' : 'Create link', letter: 'l', primary: true, disabled: !canCreate, run: () => void create() },
+        listed
+          ? { id: 'PUBLISH', label: up ? 'Publishing…' : retry ? 'Try again' : 'Publish', letter: 'u', primary: true, disabled: !canCreate, run: () => void create() }
+          : { id: 'CREATE', label: up ? 'Creating…' : retry ? 'Try again' : 'Create link', letter: 'l', primary: true, disabled: !canCreate, run: () => void create() },
       ]}
     >
       <div class={'wc-sh' + (up ? ' is-locked' : '')}>
@@ -307,10 +341,20 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
           <Icon name="save" />
           {sizeLine}
         </p>
-        <p class="wc-sh-anyone">
-          <Icon name="link" />
-          <span>{ANYONE}</span>
-        </p>
+        {listed ? (
+          <>
+            <p class="wc-sh-anyone is-listed">
+              <Icon name="star" />
+              <span>{HOF_EVERYONE}</span>
+            </p>
+            <p class="wc-lk-qn wc-sh-listnote">{HOF_NOTE}</p>
+          </>
+        ) : (
+          <p class="wc-sh-anyone">
+            <Icon name="link" />
+            <span>{ANYONE}</span>
+          </p>
+        )}
         {rulesShown && (
           <div class="wc-sh-rules" data-rules="">
             <p class="wc-sh-rules-h">{RULES_HEAD}</p>

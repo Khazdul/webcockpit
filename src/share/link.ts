@@ -81,11 +81,11 @@ export function newLinkKey(): string {
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** The meta sent with a payload (`PubMetaIn`): the texts cleaned, the numbers in the Worker's ranges, the dialog's key. */
-export function linkMeta(o: { title: string; description: string; character: string; level?: number | undefined; lengthS: number; key?: string }): PubMetaIn {
+/** The meta sent with a payload (`PubMetaIn`): the texts cleaned, the numbers in the Worker's ranges, the dialog's key; `listed` only for the Hall of Fame (stage 65). */
+export function linkMeta(o: { title: string; description: string; character: string; level?: number | undefined; lengthS: number; key?: string; listed?: boolean }): PubMetaIn {
   const character = codePoints(pubText(o.character).replace(/\s+/g, ' ').trim(), PUB_CHARACTER_MAX).trim();
   const lengthS = Number.isFinite(o.lengthS) ? Math.max(0, Math.min(PUB_LENGTH_MAX_S, Math.round(o.lengthS))) : 0;
-  const meta: PubMetaIn = { title: cleanTitle(o.title), description: cleanDescription(o.description), character, lengthS, listed: false };
+  const meta: PubMetaIn = { title: cleanTitle(o.title), description: cleanDescription(o.description), character, lengthS, listed: o.listed === true };
   const lv = o.level;
   if (typeof lv === 'number' && Number.isInteger(lv) && lv >= 0 && lv <= PUB_LEVEL_MAX) meta.level = lv;
   if (o.key !== undefined) meta.key = o.key;

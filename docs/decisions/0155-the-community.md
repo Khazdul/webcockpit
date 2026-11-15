@@ -491,3 +491,93 @@ change the client and, in small ways, the Worker (built in part C1):
   shows each whole.
 - **The watch page** sits inside the start page's sky and frame, Back
   at the top left (the stage 64 page too).
+
+## As built (stage 65 C3)
+
+Hall of Fame in the export editor and the share dialog, Published runs as a
+view of its own, the owner row's reactions mark (branch
+`stage65-published`), round 13's picks 4, 5 and 6 as drawn.
+
+- **The news module** (`src/cloud/community/news.ts`, made here; C1 reads
+  the same module for the Community row's count): `GET
+  /api/u/community/news` → `{runs, reactions, newestRun, newestReaction}`,
+  checked against the contract and capped at 99. `refreshCommunityNews()`
+  (one request at a time, the last answer kept on a failure),
+  `communityNews()`, `onCommunityNews(fn)`, `watchCommunityNews()` (the
+  cadence, reference counted: at once, every 5 minutes, when the tab becomes
+  visible, when the start page is the view again after a game; never while
+  `isPlaying()`) and `markCommunitySeen({gallery?, reactions?})` (`POST
+  …/seen` with `X-WC`; the counts it covers are cleared locally at once).
+  Asked only with the API allowed, `accounts`, `share` and `gallery` on and
+  somebody logged in here. It imports no value of `shared/cloud/api.ts`
+  (`NEWS_CAP` written out, a unit test holds it to `NEWS_MAX`), so the
+  chrome chunk does not load the contract. **The entry chunk is unchanged**
+  (31 378 bytes, the same as `main` with B and C5; the same chunk set).
+- **The owner row**: the start menu watches the news while somebody is
+  logged in; `ownerRow({…, news})` shows "· N new" in gold, "99+ new" at the
+  cap (`communityCount`, also the Community row's). With news, `opens` is
+  `published`: a press loads the account chunk and pushes the Published runs
+  view straight away (`accountEntry(true, 'published')`); its Back returns
+  to the menu.
+- **Hall of Fame in the export editor**: the fourth option (F, the kit's
+  `star`), shown when `gallery` is on as well as `accounts` and `share`;
+  greyed for a guest as Link ("Log in to publish", the tip and the flash);
+  in the keyboard's ring after Link; a choice of the visit as Link
+  (`data-format="hof"`, the doc's `format` untouched). On a phone the four
+  labels may take two lines so the row still fits.
+- **The share dialog's listed form** (`listed` prop): the title "Publish to
+  the Hall of Fame", the line "Everyone can find this in the Community." with
+  a gold star and the note under it, Publish (`PUBLISH`), the POST's meta
+  `listed: true` (`linkMeta({listed})`), the rules' tick as stage 64. The
+  result "Published", the link with Copy, **Open Community** and Done. The
+  10-a-day refusal (`429 too_many`, the client's new code `too_many`; `403
+  hidden` is `hidden`) says "You have listed 10 runs today, the most a day.
+  Choose Link now, and list it tomorrow under Published runs." (the
+  account's `listingsPerDay`) and Publish stays off.
+- **Open Community** pops the stack to the start menu and leaves a request
+  (`src/chrome/frames/start-request.ts`, `requestStartRow('community')`);
+  the menu takes it when it is the top frame again, puts its cursor on the
+  row and activates it as a press would. So whatever C1 wires to the
+  Community row opens; with no row (the flag off) the request is dropped.
+  The button is there only where the editor stands on the start page
+  (`useLookPlace() === 'start'`). The dialog's letters (U, M) are drawn but,
+  as stage 64's, not pressed by key: the dialog's form ring owns the keys.
+- **Published runs** (`account/published.tsx`): with `gallery` off stage
+  64's section is unchanged (its specs untouched). With `gallery` on the
+  Account page has one row, "4 runs · 2 listed · 475 views · 2 new" (the new
+  reactions of the list's `news`, gold) and Published runs (U); with no runs
+  "None yet. In History, Export a session and choose Link or Hall of Fame."
+  and no button. The view (`PublishedFrame`, a page of its own over the
+  Account page) has the head "4 of 150 · 6.1 MB, not counted against your
+  50 MB · 2 new since you last looked" (stage 64's foot line is dropped: the
+  head says it), each run's title, a Listed / Link only chip, the stars
+  (the kit's `Stars`, the mean to a tenth, votes), the comment count (the
+  kit's `comment` glyph), views (as words: the kit has no eye), date and
+  size, the new ones in gold with a gold left edge; the hidden note; Copy,
+  Edit, Remove; the empty line. Its keyboard ring is the rows' buttons.
+- **Seen.** Opening the view asks the news first, then the list, then posts
+  `seen {reactions: newestReaction}`, so everything marked seen was in the
+  list that was shown (a reaction arriving between the two shows again next
+  time, never the other way round). What was new at opening is kept by id
+  and shown until the view closes, also after an Edit or Remove asks the
+  list again; closing it makes the Account page ask its row again.
+- **Edit** in the view has the switch "Listed in the Community" (the kit's
+  `Toggle`, in the dialog's ring after the description) and "Off: only
+  people with the link can watch it. The stars and comments stay."; only
+  what changed goes in the PATCH. `429` says "You have listed as many runs
+  as you may today. List it tomorrow; turn the switch off to save the rest
+  now."; `403 hidden` has its line.
+- **Words chosen here** (the mockup says "1 star · 1 comment new"): "1 vote
+  · 1 comment new", since a "star" next to "12 votes" reads as a rating.
+- **`galleryNotice`** is gone from the client (the comments in
+  `src/cloud/account`, the Account page's note); the account client drops
+  unknown prefs keys, so the Worker's legacy key is ignored.
+- **Tests:** unit `community-news.test.ts` (7: the answer, one request, the
+  failures, nothing while off, seen with X-WC and the local clear, the
+  cadence with a game and two watchers), `cloud-pub-api.test.ts` (+3:
+  listed in the POST, PATCH listed, too_many and hidden, the new fields),
+  `start-menu-model.test.ts` (99+, `opens: 'published'`); e2e
+  `hall-of-fame.spec.ts` (6 × Chromium and Firefox), `published-runs.spec.ts`
+  (5 × 2), `phone-hall-of-fame.spec.ts` (3), helpers in `community-pub.ts`.
+  The test of Open Community uses the dev `?community=0` row until C1's page
+  is merged (then the row is there with `gallery` and the test still holds).

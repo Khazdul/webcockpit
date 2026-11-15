@@ -200,7 +200,7 @@ function sessionOf(v: unknown): AccountSession | undefined {
 
 function prefsOf(v: unknown): AccountPrefs | undefined {
   // `rulesAccepted` is absent from a Worker before stage 64: not ticked.
-  // (`galleryNotice` is gone from the contract in stage 65; the Worker still sends it for 0.13 clients.)
+  // Other keys are dropped (the Worker's legacy `galleryNotice`, still sent for 0.13 clients).
   return isObject(v) ? { rulesAccepted: v.rulesAccepted === true } : undefined;
 }
 
