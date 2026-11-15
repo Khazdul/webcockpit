@@ -65,7 +65,7 @@
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
 | 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
 | 61 | Sync of profiles and scripts, on the two spaces | Done on staging (flag `sync` on there only); not released, accounts open after 63 | `docs/stages/61-sync-profiles-scripts.md` |
-| 62 | Sync of settings, script data, Comm history and timers | Planned (spec §7.12) | |
+| 62 | Sync of settings, script data, Comm history and timers | In progress (night pass 2026-11-15/16) | `docs/stages/62-sync-settings-comm.md` |
 | 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
 | 64 | Share links | Planned (spec §7.12) | |
 | 65 | The community | Planned (spec §7.12) | |
