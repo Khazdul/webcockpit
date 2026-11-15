@@ -21,9 +21,9 @@ export interface WatchSetup {
 }
 
 /** The fakes on `page`, with one seeded run (`ID`, by `SENDER`). */
-export async function setUp(page: Page, o: { share?: boolean } = {}): Promise<WatchSetup> {
+export async function setUp(page: Page, o: { share?: boolean; gallery?: boolean } = {}): Promise<WatchSetup> {
   const api = await fakeAccountApi(page);
-  api.server.flags = { accounts: true, share: o.share ?? true };
+  api.server.flags = { accounts: true, share: o.share ?? true, ...(o.gallery ? { gallery: true } : {}) };
   const pubs = await fakePubApi(page, api);
   pubs.add({
     id: ID,
@@ -52,6 +52,8 @@ export async function openWatch(page: Page, id = ID, query = ''): Promise<void> 
 }
 
 export const band = (page: Page): Locator => page.locator('.wc-watch-band');
+/** The stage 65 frame around the page (the start menu's sub-page box). */
+export const watchBox = (page: Page): Locator => page.locator('.wc-watch-box');
 export const watchBtn = (page: Page, id: string): Locator => page.locator(`.wc-watch [data-btn="${id}"]`);
 export const endBox = (page: Page): Locator => page.locator('.wc-watch [data-watch="end"]');
 export const replay = (page: Page): FrameLocator => page.frameLocator('.wc-watch-slot iframe');

@@ -100,6 +100,8 @@ import {
   TOP_PRIOR_VOTES,
 } from '../../shared/cloud/api';
 import { isPublicText } from '../../shared/cloud/text';
+// Reports of comments (stage 65 C2).
+import { REPORTS_PER_DAY, REPORTS_TO_HIDE } from '../../shared/cloud/api';
 import { ServerModel } from '../unit/cloud-sync-model';
 
 /** Cloudflare's published test site key (always passes). */
@@ -1021,6 +1023,36 @@ export class FakeAccountServer {
     this.seenTimes.set(me, next);
     return { status: 200, body: next };
   }
+  // ----- Reports of comments (stage 65 C2) -----
+  // `POST /api/u/report` with `kind: 'comment'` (the pub fake's report route
+  // hands it here): as worker/reports.ts for a comment: `gallery` off →
+  // `400 kind_closed`; an unknown or removed comment `404`; one's own `403
+  // own`; one per account and comment (`409 already_reported`);
+  // `REPORTS_PER_DAY` a day over every kind (`429 too_many`, with the run
+  // reports the pub fake keeps in `extraReportsToday`); the fifth account
+  // hides the comment.
+
+  /** Every comment report, in order. */
+  commentReports: { account: string; target: string; reason: string; text?: string }[] = [];
+  /** Run reports made today by an account (the pub fake's own list; a test may set it). */
+  extraReportsToday: (name: string) => number = () => 0;
+
+  /** One comment report from `name` (the body checked by the caller). */
+  reportComment(name: string, b: { target: string; reason: string; text?: string }): FakeResponse {
+    if (this.flags.gallery !== true) return err('kind_closed', 400);
+    const c = this.comments.get(b.target);
+    if (!c) return err('not_found', 404);
+    const me = name.toLowerCase();
+    if (c.account === me) return err('own', 403);
+    if (this.commentReports.some((r) => r.target === b.target && r.account.toLowerCase() === me)) return err('already_reported', 409);
+    const today = this.commentReports.filter((r) => r.account.toLowerCase() === me).length + this.extraReportsToday(name);
+    if (today >= REPORTS_PER_DAY) return err('too_many', 429);
+    this.commentReports.push({ account: name, target: b.target, reason: b.reason, ...(b.text !== undefined ? { text: b.text } : {}) });
+    if (new Set(this.commentReports.filter((r) => r.target === b.target).map((r) => r.account.toLowerCase())).size >= REPORTS_TO_HIDE) c.state = 'hidden';
+    return { status: 204 };
+  }
+  // ----- end of Reports of comments (stage 65 C2) -----
+
   // =================== end of The community (stage 65 B) ===================
 
   // --- The server ---

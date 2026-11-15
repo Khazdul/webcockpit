@@ -102,6 +102,8 @@ export class FakePubs {
       created: pub.created,
       views: pub.views,
       bytes: pub.bytes,
+      // Stage 65 (C2): with the flag `gallery` on the public meta carries the community's fields, as the Worker's.
+      ...(this.server.flags.gallery === true ? { listed: pub.listed, stars: this.server.starsOf(id), comments: this.server.commentCount(id) } : {}),
     };
   }
 }
@@ -117,6 +119,9 @@ const day = (): string => new Date().toISOString().slice(0, 10);
 export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new FakePubs(api.server)): Promise<FakePubs> {
   const server = api.server;
   const seenViews = new Set<string>();
+  // Stage 65 (C2): the 30 a day count run and comment reports together.
+  server.extraReportsToday = (name) => pubs.reports.filter((r) => r.account.toLowerCase() === name.toLowerCase()).length;
+  const commentReportsOf = (name: string): number => server.commentReports.filter((r) => r.account.toLowerCase() === name.toLowerCase()).length;
   await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -212,12 +217,17 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
       ) {
         return json(400, { error: 'bad_request' });
       }
+      // Stage 65 (C2): a comment's report is the account fake's (its community block).
+      if (b.kind === 'comment') {
+        const r = server.reportComment(who.name, b as unknown as ReportRequest);
+        return r.status === 204 ? route.fulfill({ status: 204 }) : json(r.status, r.body);
+      }
       if (b.kind !== 'run') return json(400, { error: 'kind_closed' });
       const pub = server.pubs.get(b.target);
       if (!pub) return json(404, { error: 'not_found' });
       if (pub.account === who.name.toLowerCase()) return json(403, { error: 'own' });
       if (pubs.reports.some((r) => r.target === b!.target && r.account.toLowerCase() === who.name.toLowerCase())) return json(409, { error: 'already_reported' });
-      if (pubs.reports.filter((r) => r.account.toLowerCase() === who.name.toLowerCase()).length >= REPORTS_PER_DAY) return json(429, { error: 'too_many' });
+      if (pubs.reports.filter((r) => r.account.toLowerCase() === who.name.toLowerCase()).length + commentReportsOf(who.name) >= REPORTS_PER_DAY) return json(429, { error: 'too_many' });
       pubs.reports.push({ ...(b as unknown as ReportRequest), account: who.name });
       if (new Set(pubs.reports.filter((r) => r.target === b!.target).map((r) => r.account.toLowerCase())).size >= REPORTS_TO_HIDE) pub.pub.state = 'hidden';
       return route.fulfill({ status: 204 });
