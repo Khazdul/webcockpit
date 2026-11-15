@@ -4,6 +4,7 @@
 // No DOM, no requests (src/watch/page.tsx draws, src/watch/api.ts asks).
 
 import type { PubMeta, ReportReason } from '../../shared/cloud/api.ts';
+import { cleanText } from '../../shared/cloud/text.ts';
 
 // The contract's PUB_ID_PATTERN and REPORT_TEXT_MAX (shared/cloud/api.ts), written out so the chrome
 // chunk, which holds this page, does not load that module for two values (a unit test holds them together).
@@ -40,6 +41,17 @@ export const REFUSED_NOTE = 'The link works, but this run cannot be played. Tell
 /** `?admin` without the admin's access. */
 export const ADMIN_WORDS: readonly [string, string] = ['This view is for the admin.', 'Open the link without ?admin to watch it as anyone does.'];
 
+/**
+ * What the server's config says of `share` for the watch page (review fix
+ * CR1): `off` only when a config came and says so (or the page may not call
+ * the API at all); `failed` when it could not be had (Try again).
+ */
+export function shareFlag(allowed: boolean, answer: { flags: { share?: boolean } } | null): 'on' | 'off' | 'failed' {
+  if (!allowed) return 'off';
+  if (answer === null) return 'failed';
+  return answer.flags.share === true ? 'on' : 'off';
+}
+
 /** What an HTTP status of the meta or the payload means for the page; null: not one of the states. */
 export function endOf(status: number): WatchEnd | null {
   if (status === 404) return 'unknown';
@@ -64,9 +76,9 @@ export function lengthText(s: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** "26 September 2026" (local time); `t` in ms, or in seconds (as the Account page reads it). */
+/** "26 September 2026" (local time); `t` in ms, as the Worker sends every time. */
 export function dateText(t: number): string {
-  const d = new Date(t < 1e11 ? t * 1000 : t);
+  const d = new Date(t);
   if (!Number.isFinite(d.getTime())) return '';
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -124,22 +136,14 @@ export const REASONS: readonly { id: ReportReason; label: string }[] = [
   { id: 'other', label: 'Other' },
 ];
 
-// C0 but \n, DEL, C1, the bidi embeddings, overrides and isolates (the Worker refuses them, ADR 0154 "As built (B1)").
-// eslint-disable-next-line no-control-regex
-const NOT_IN_TEXT = /[\x00-\x09\x0b-\x1f\x7f-\x9f‪-‮⁦-⁩]/g;
-
 /**
  * A report's text as the Worker takes it: NFC, no control characters but
  * `\n` (a `\r\n` becomes `\n`), no bidi controls or lone surrogates,
  * trimmed, at most `REPORT_MAX` code points. Empty: no text.
  */
 export function reportText(raw: string): string {
-  const s = raw
-    .replace(/\r\n?/g, '\n')
-    .replace(NOT_IN_TEXT, '')
-    .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')
-    .normalize('NFC')
-    .trim();
+  // The Worker's rules (shared/cloud/text.ts): refused characters taken out, `\n` kept.
+  const s = cleanText(raw.replace(/\r\n?/g, '\n'), { newlines: true }).trim();
   return [...s].slice(0, REPORT_MAX).join('').trim();
 }
 

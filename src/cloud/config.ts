@@ -104,12 +104,34 @@ export async function fetchConfig(fetchFn?: FetchLike, url = '/api/config'): Pro
   return parseConfig(await getJson(url, fetchFn));
 }
 
-let cached: Promise<Config> | null = null;
+/** This page load's answer: the config, and whether the server answered (`false`: a failure read as no flags). */
+let cached: Promise<{ config: Config; answered: boolean }> | null = null;
+
+function load(): Promise<{ config: Config; answered: boolean }> {
+  cached ??= apiAllowed()
+    ? getJson('/api/config').then((d) => ({ config: parseConfig(d), answered: d !== null }))
+    : Promise.resolve({ config: { flags: {} }, answered: true });
+  return cached;
+}
 
 /** The flags of this page load: fetched on the first call, then the same answer. No flags when the API is not allowed. */
-export function config(): Promise<Config> {
-  cached ??= apiAllowed() ? fetchConfig() : Promise.resolve({ flags: {} });
-  return cached;
+export async function config(): Promise<Config> {
+  return (await load()).config;
+}
+
+/**
+ * The flags, or null when `/api/config` could not be had (no answer, an
+ * error status, a body that is not JSON): the watch page tells that apart
+ * from "the flag is off" and offers Try again (review fix CR1). A failure
+ * is forgotten, so the next call of either function asks again. Never
+ * rejects; no flags (not null) when the page may not call the API.
+ */
+export async function configAnswer(): Promise<Config | null> {
+  const got = load();
+  const r = await got;
+  if (r.answered) return r.config;
+  if (cached === got) cached = null;
+  return null;
 }
 
 /** True when the server has flag `name` on (false on any failure). */

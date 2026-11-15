@@ -38,6 +38,7 @@ function init(mode: WatchMode, timeoutMs: number, extra: RequestInit = {}): Requ
   return {
     // The public paths need no cookie; the owner's needs the session, the admin's the Access cookie.
     credentials: mode === 'public' ? 'omit' : 'same-origin',
+    // The meta, a view and a report are never kept; the payload passes its own `cache`.
     cache: 'no-store',
     // Access answers a stranger with a redirect to its login: not followed.
     redirect: mode === 'admin' ? 'manual' : 'follow',
@@ -108,7 +109,10 @@ export async function fetchPayload(
   f: WatchFetch = defaultFetch,
 ): Promise<Got<Uint8Array>> {
   try {
-    const res = await f(`${PREFIX[mode]}${encodeURIComponent(id)}/payload`, init(mode, PAYLOAD_TIMEOUT_MS));
+    // The browser's own cache (review fix CR8): the public payload is frozen and
+    // answers `private, max-age=604800, immutable`; the sender's and the admin's
+    // say `no-store` themselves.
+    const res = await f(`${PREFIX[mode]}${encodeURIComponent(id)}/payload`, init(mode, PAYLOAD_TIMEOUT_MS, { cache: 'default' }));
     if (!res.ok) return failure(res);
     const declared = Number(res.headers.get('content-length'));
     const total = Number.isSafeInteger(declared) && declared > 0 ? declared : expected;
@@ -151,7 +155,8 @@ export async function countView(id: string, device: string, f: WatchFetch = defa
   try {
     const res = await f(
       `${PREFIX.public}${encodeURIComponent(id)}/view`,
-      init('public', WATCH_TIMEOUT_MS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device }) }),
+      // JSON, `X-WC: 1` and the page's own Origin (the browser's), as the Worker wants them (review fix S5).
+      init('public', WATCH_TIMEOUT_MS, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WC': '1' }, body: JSON.stringify({ device }) }),
     );
     return res.status === 204;
   } catch {

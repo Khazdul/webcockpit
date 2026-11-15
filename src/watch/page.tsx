@@ -40,7 +40,7 @@ import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
 import { downloadBlob } from '../chrome/kit/download';
 import { inTextField } from '../chrome/kit/look-keys';
 import { accountState, accountsEnabled } from '../cloud/account/state';
-import { apiAllowed, config } from '../cloud/config';
+import { apiAllowed, configAnswer } from '../cloud/config';
 import type { PubMeta, ReportReason } from '../../shared/cloud/api.ts';
 import { device } from '../core/device';
 import { buildReplayHtml } from '../replay/export';
@@ -62,10 +62,11 @@ import {
   metaLine,
   reportFailText,
   reportText,
+  shareFlag,
   watchDevice,
   watchIdOf,
 } from './model';
-import { noteLoginReturn } from './return';
+import { leaveForLogin } from './return';
 
 // The download arrow, which the kit has not got, drawn in its manner (round 12's mockups); the flag is the kit's.
 const DOWN: IconDraw = {
@@ -137,7 +138,12 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       if (!p.valid) return set({ k: 'end', end: 'unknown' });
       let mode: WatchMode = p.admin ? 'admin' : 'public';
       // The flag first: with `share` off every path is a 404, which is "not yet", not "unknown".
-      if (!p.admin && !(apiAllowed() && (await config()).flags.share === true)) return set({ k: 'end', end: 'notyet' });
+      // Only a config that came and says so is "not yet"; one that could not be had is a
+      // failure with Try again, which asks for it again (review fix CR1).
+      if (!p.admin) {
+        const flags = shareFlag(apiAllowed(), apiAllowed() ? await configAnswer() : null);
+        if (flags !== 'on') return set(flags === 'off' ? { k: 'end', end: 'notyet' } : { k: 'failed', lines: FAILED_WORDS, retry: true });
+      }
       let meta = await fetchMeta(p.id, mode);
       if (!meta.ok && meta.status === 451 && loggedInName() !== null && (await accountsEnabled())) {
         // The sender's own hidden run (ADR 0154 "As built (B1)").
@@ -406,6 +412,8 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // The server said 401 though this device holds a login (review fix CR2).
+  const [lost, setLost] = useState(false);
   const close = (): void => {
     nav.pop();
     p.onClosed();
@@ -423,6 +431,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
       p.onSent();
       setStep('already');
     } else if (r.status === 401) {
+      setLost(loggedInName() !== null);
       setStep('guest');
     } else {
       setError(reportFailText(r.status, r.code));
@@ -459,8 +468,12 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
   }
   if (step === 'guest') {
     const login = (): void => {
-      noteLoginReturn(location.pathname + location.search);
-      goStart();
+      void leaveForLogin(location.pathname + location.search, {
+        lost,
+        // The app's way of a lost session: the hint and the keys go (and the account's copy is decided on).
+        forget: () => import('../cloud/space/flows').then((m) => m.sessionLost(null)),
+        go: goStart,
+      });
     };
     return (
       <Dialog

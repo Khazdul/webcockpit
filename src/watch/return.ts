@@ -50,6 +50,30 @@ export function noteLoginReturn(back: string, now = Date.now(), store: Store | n
 }
 
 /**
+ * The watch page's Log in, all of it (review fix CR2): the note, then, when
+ * `lost` (the server answered 401 though this device holds a login: a stale
+ * hint), `forget` (the app's lost-session path, src/cloud/space/flows.ts
+ * `sessionLost`, which clears the hint and the keys and may reload to the
+ * start page itself) before `go`. Without it the start page saw "logged
+ * in" and sent the player straight back to the run, which asked to log in
+ * again, for ever.
+ */
+export async function leaveForLogin(
+  back: string,
+  o: { lost: boolean; forget: () => Promise<void>; go: () => void; now?: number; store?: Store | null },
+): Promise<void> {
+  noteLoginReturn(back, o.now ?? Date.now(), o.store === undefined ? session() : o.store);
+  if (o.lost) {
+    try {
+      await o.forget();
+    } catch {
+      /* the start page's own checks find the lost session later */
+    }
+  }
+  o.go();
+}
+
+/**
  * The start menu's first render: `login` to open the Log in page, `go` to
  * leave for the run (logged in), or null. Moves the note on (or drops it).
  */
