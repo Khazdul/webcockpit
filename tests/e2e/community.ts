@@ -159,7 +159,7 @@ export async function openCommunity(page: Page, query = ''): Promise<void> {
 export async function shot(page: Page, name: string): Promise<void> {
   const dir = process.env.WC_COMMUNITY_SHOTS;
   if (!dir) return;
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(2000);
   mkdirSync(dir, { recursive: true });
   await page.screenshot({ path: join(dir, `${name}.jpg`), type: 'jpeg', quality: 72, scale: 'css' });
 }

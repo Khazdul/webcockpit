@@ -701,8 +701,8 @@ export class FakeAccountServer {
   // Listed runs are the store's `pubs` (seed one with `addPub(name,
   // {listed: true, listedAt})`); votes, comments and notes are seeded with
   // `addVote`, `addComment`, `addNote`. No cache: every answer is fresh.
-  // Not modelled: reports of comments and notes (the pub fake's
-  // `/api/u/report` answers run reports only) and the hiding by reports.
+  // Reports of notes are the pub fake's (`/api/u/report` with `kind: 'note'`,
+  // stage 65 C1); hiding by reports hides a note there.
 
   /** `<pub id>` → account key → the vote. */
   votes = new Map<string, Map<string, { stars: number; updated: number; ranks: boolean }>>();

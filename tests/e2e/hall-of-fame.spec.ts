@@ -109,11 +109,11 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   expect(meta.listed).toBe(true);
   expect(JSON.parse(gunzipSync(Buffer.from(s.pubUploads[0]!.payload)).toString('utf8'))).toMatchObject({ schema: 1 });
 
-  // Open Community: back to the start menu, its Community row asked for.
+  // Open Community: back to the start menu, its Community row asked for, and so the Community page (stage 65 C1).
   await btn(page, 'COMMUNITY').click();
   await expect(done(page)).toHaveCount(0);
   await expect(exp(page)).toHaveCount(0);
-  await expect(page.locator('.wc-start .wc-sm-item[data-key="enter"]')).toBeVisible();
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-cy')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

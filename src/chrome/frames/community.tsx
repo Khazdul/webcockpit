@@ -351,7 +351,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
       sort={sort}
       page={view.page}
       pages={pages}
-      cursor={isTop ? cursor : -1}
+      cursor={isTop && !narrow ? cursor : -1}
       narrow={narrow}
       by={view.by ?? null}
       me={account.name}
@@ -535,7 +535,8 @@ function RunList(p: RunListProps): VNode {
           <div class="wc-lk-throw wc-cy-throw" role="row">
             <span class="wc-lk-th" role="columnheader" aria-label="Rank" />
             <span class="wc-lk-th wc-cy-th-first" role="columnheader">
-              Title (character) · Sender · <Head sort="length" current={p.sort} onSort={p.onSort} /> · <Head sort="new" current={p.sort} onSort={p.onSort} />
+              <span class="wc-cy-th-words">Title (character) · Sender · </span>
+              <Head sort="length" current={p.sort} onSort={p.onSort} /> · <Head sort="new" current={p.sort} onSort={p.onSort} />
             </span>
             <Head sort="top" current={p.sort} onSort={p.onSort} end />
             <Head sort="comments" current={p.sort} onSort={p.onSort} end />

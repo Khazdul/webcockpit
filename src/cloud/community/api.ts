@@ -8,8 +8,9 @@
 //   POST   /api/u/runes                              a note → `Note`
 //   DELETE /api/u/runes/<id>                         one's own note → 204
 //   POST   /api/u/report {kind: 'note', …}           a note reported → 204
-//   GET    /api/u/community/news                     the counts → `CommunityNews`
-//   POST   /api/u/community/seen                     the seen times → `CommunitySeen`
+//
+// The counts and the seen times (`/api/u/community/news`, `/seen`) are
+// news.ts's (stage 65 C3), the one place that asks for them.
 //
 // As the other cloud clients (src/cloud/pub/api.ts): no request unless the
 // page may call the API and the flags allow it (`share` and `gallery` for
@@ -21,15 +22,10 @@
 // makes links of them.
 //
 // Lives with the Community page in the account pages' lazy chunk (with
-// shared/cloud/api.ts). The start menu's counter makes its own two
-// requests (counter.ts): importing this from there would split the start
-// page's chunks.
+// shared/cloud/api.ts).
 
 import {
   type CommunityBoxes,
-  type CommunityNews,
-  type CommunitySeen,
-  type CommunitySeenRequest,
   type DayRun,
   GALLERY_SORTS,
   type GalleryPage,
@@ -148,8 +144,6 @@ export interface CommunityApi {
   writeNote(text: string): Promise<CommunityResult<Note>>;
   removeNote(id: string): Promise<CommunityResult<null>>;
   reportNote(id: string, reason: ReportReason, text?: string): Promise<CommunityResult<null>>;
-  news(): Promise<CommunityResult<CommunityNews>>;
-  seen(times: CommunitySeenRequest): Promise<CommunityResult<CommunitySeen>>;
 }
 
 /** The flags a request of `need` asks for (never rejects; false on any failure). */
@@ -273,18 +267,6 @@ export function parseBoard(v: unknown): RunesBoard | undefined {
   return { notes, time: v.time };
 }
 
-export function parseNews(v: unknown): CommunityNews | undefined {
-  if (!isObject(v)) return undefined;
-  const { runs, reactions, newestRun, newestReaction } = v;
-  const time = (x: unknown): x is number | null => x === null || whole(x);
-  if (!whole(runs) || !whole(reactions) || !time(newestRun) || !time(newestReaction)) return undefined;
-  return { runs, reactions, newestRun, newestReaction };
-}
-
-export function parseSeen(v: unknown): CommunitySeen | undefined {
-  return isObject(v) && whole(v.gallery) && whole(v.reactions) ? { gallery: v.gallery, reactions: v.reactions } : undefined;
-}
-
 // --- Failures ---
 
 const fail = (code: CommunityErrorCode, status?: number): CommunityFailure => (status === undefined ? { ok: false, code } : { ok: false, code, status });
@@ -403,12 +385,6 @@ export function communityApi(o: CommunityApiOptions = {}): CommunityApi {
     reportNote(id, reason, t) {
       if (!COMMUNITY_ID_PATTERN.test(id)) return Promise.resolve(fail('not_found'));
       return call('userRunes', 'POST', '/api/u/report', nothing, { kind: 'note', target: id, reason, ...(t ? { text: t } : {}) });
-    },
-    news() {
-      return call('user', 'GET', '/api/u/community/news', parseNews);
-    },
-    seen(times) {
-      return call('user', 'POST', '/api/u/community/seen', parseSeen, times);
     },
   };
 }
