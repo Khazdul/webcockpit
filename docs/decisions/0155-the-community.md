@@ -784,7 +784,7 @@ look (round 13's pick 3a with the owner's change; branch `stage65-watch`).
 ## As built (stage 65, review fixes)
 
 The findings of `notes/research/stage65-security-review.md` (S1–S9) and the
-code review (CR1–CR9; CR4 was not raised), each with a test that failed
+code review (CR1–CR9 but CR4, not in this round), each with a test that failed
 before the fix. The Worker's tests are in `worker/test/review65.test.ts`,
 the client's in `tests/unit/review65.test.ts` unless named.
 
