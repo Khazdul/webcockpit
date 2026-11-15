@@ -32,6 +32,12 @@ declare namespace Cloudflare {
     /** Secrets, set outside the repository (`wrangler secret put`, or the dashboard). */
     AUTH_PEPPER?: string;
     TURNSTILE_SECRET?: string;
+    /** `send_email` (worker/mail.ts): the owner's mail on each report. */
+    REPORT_MAIL?: SendEmail;
+    /** A secret: the owner's address (a verified destination of Email Routing). */
+    REPORT_MAIL_TO?: string;
+    REPORT_MAIL_FROM?: string;
+    SITE_ORIGIN?: string;
     /** worker/test only: the migrations, read by vitest.config.ts. */
     TEST_MIGRATIONS?: import('cloudflare:test').D1Migration[];
   }
