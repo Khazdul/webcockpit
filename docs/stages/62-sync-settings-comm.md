@@ -366,4 +366,14 @@ the privacy text.
 
 ## Owner feedback
 
-(After the test.)
+2026-11-15, after the test on staging:
+
+1. **The test guide's steps work** on staging.
+2. **The points to confirm:** 1a yes; **2a** instead of 2b with 2c
+   (pulled settings apply quietly, no message); **3b** instead of 3a
+   (no "Follows the account" line on the Account page). Points 4 and 5
+   (Create account copies; timers make no locked copy) got no comment
+   and stay as built. Built after the feedback: ADR 0152, "Owner's
+   picks".
+3. **`/privacy`'s account section** is approved as drafted.
+4. **Stage 63** runs in a session of its own.
