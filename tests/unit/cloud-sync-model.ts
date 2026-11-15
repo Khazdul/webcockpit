@@ -1,6 +1,9 @@
 // Stage 61 (spec §7.4, ADR 0151; stage 62, ADR 0152): an in-memory model of the sync API of
 // shared/cloud/api.ts ("// --- Sync"), and in-memory local ports, for the
-// engine's tests. The server answers as HTTP would (status + body); the
+// engine's tests. Stage 63 (ADR 0153) adds the run bodies in R2 ("Runs in
+// the cloud": the reservation of room, `quota`, `run_too_large`, the
+// list) and the in-memory side of runs in the cloud (`MemoryRunSpace`,
+// `RunDevice`). The server answers as HTTP would (status + body); the
 // `remoteFor` adapter maps that onto the engine's `Remote` port the way
 // the fetch adapter of part C must.
 
@@ -16,10 +19,15 @@ import {
   type SyncKind,
   type SyncUsage,
 } from '../../shared/cloud/api.ts';
+import type { RunBodyList } from '../../shared/cloud/api.ts';
 import { toBase64Url } from '../../src/cloud/crypto/base64url';
 import type { NameRules } from '../../src/cloud/sync/items';
 import { ITEM_SPECS, SYNC_SPECS, commIdentity } from '../../src/cloud/sync/items';
 import { SyncEngine, type SyncEngineOptions } from '../../src/cloud/sync/engine';
+import type { RunBodyWritten } from '../../shared/cloud/api.ts';
+import type { RunMeta } from '../../src/capture/store';
+import type { RunCloudRow, RunCloudStore, RunPutResult, RunRemote, RunRows } from '../../src/cloud/runs/types';
+import type { ExportDoc } from '../../src/share/edits';
 import {
   type Body,
   type CommItem,
@@ -30,6 +38,7 @@ import {
   type LocalItem,
   type LocalItems,
   type Remote,
+  type RunItem,
   RemoteError,
   type SyncEvent,
   type SyncKeys,
@@ -55,6 +64,25 @@ export class ServerModel {
   time = 1_700_000_000_000;
   /** Requests answered (for tests that count). */
   requests = 0;
+  /** The kinds open (stage 63: `enableRuns()` opens run and exportDoc). */
+  open: SyncKind[] = [...SYNC_KINDS_OPEN];
+  /** The flag `runs`: off, the run endpoints answer 404. */
+  runsFlag = false;
+  /** The R2 bucket of the account: run bodies by id. */
+  readonly bodies = new Map<string, { bytes: Uint8Array; size: number; created: number }>();
+  /** The account's run bytes as D1 counts them: stored bodies plus reservations in flight. */
+  runBytes = 0;
+  /** The next n R2 writes fail (after the reservation: it is given back). */
+  r2Fail = 0;
+  /** The most `runBytes` ever was (the limit must hold at every moment). */
+  peakOverLimit = 0;
+
+  /** Flag `runs` on: the run endpoints answer, run and exportDoc open. */
+  enableRuns(): this {
+    this.runsFlag = true;
+    for (const k of ['run', 'exportDoc'] as const) if (!this.open.includes(k)) this.open.push(k);
+    return this;
+  }
 
   private key(kind: string, id: string): string {
     return `${kind}/${id}`;
@@ -68,7 +96,84 @@ export class ServerModel {
       items++;
       itemBytes += it.size;
     }
-    return { items, itemBytes };
+    return this.runsFlag ? { items, itemBytes, runBytes: this.runBytes } : { items, itemBytes };
+  }
+
+  /** The bytes of the bodies stored (tests: equals `runBytes` when nothing is in flight). */
+  storedRunBytes(): number {
+    let n = 0;
+    for (const b of this.bodies.values()) n += b.size;
+    return n;
+  }
+
+  private runGate(id?: string): Answer | null {
+    this.requests++;
+    if (this.ended) return { status: 401, body: { error: 'session_ended', reason: this.ended } };
+    if (!this.runsFlag) return { status: 404, body: { error: 'not_found' } };
+    if (id !== undefined && !SYNC_ID_PATTERN.test(id)) return { status: 400, body: { error: 'bad_request' } };
+    return null;
+  }
+
+  /**
+   * `PUT /api/u/runs/<id>`: the room is reserved first (one conditional
+   * update), then the body is stored (`between` runs in the gap, where a
+   * parallel PUT may come), then it counts; an R2 failure gives it back.
+   */
+  async putBody(id: string, bytes: Uint8Array, between?: () => Promise<void>): Promise<Answer> {
+    const g = this.runGate(id);
+    if (g) return g;
+    if (bytes.length > this.limits.runMaxBytes) return { status: 413, body: { error: 'run_too_large', limit: this.limits.runMaxBytes } };
+    const old = this.bodies.get(id)?.size ?? 0;
+    const delta = bytes.length - old;
+    if (delta > 0 && this.runBytes + delta > this.limits.runBytes) {
+      return { status: 413, body: { error: 'quota', used: this.runBytes, limit: this.limits.runBytes, size: bytes.length } };
+    }
+    this.runBytes += delta;
+    this.peakOverLimit = Math.max(this.peakOverLimit, this.runBytes - this.limits.runBytes);
+    await between?.();
+    if (this.r2Fail > 0) {
+      this.r2Fail--;
+      this.runBytes -= delta;
+      return { status: 500, body: { error: 'unavailable' } };
+    }
+    // A replace counts what is stored then (a parallel replace of the same id).
+    const now = this.bodies.get(id)?.size ?? 0;
+    this.runBytes += now - old;
+    this.bodies.set(id, { bytes: bytes.slice(), size: bytes.length, created: this.time++ });
+    return { status: 200, body: { size: bytes.length, usage: this.usage() } };
+  }
+
+  /** `GET /api/u/runs/<id>` */
+  getBody(id: string): Answer {
+    const g = this.runGate(id);
+    if (g) return g;
+    const b = this.bodies.get(id);
+    if (!b) return { status: 404, body: { error: 'not_found' } };
+    return { status: 200, body: b.bytes.slice() };
+  }
+
+  /** `DELETE /api/u/runs/<id>` */
+  removeBody(id: string): Answer {
+    const g = this.runGate(id);
+    if (g) return g;
+    const b = this.bodies.get(id);
+    if (b) {
+      this.bodies.delete(id);
+      this.runBytes -= b.size;
+    }
+    return { status: 200, body: { size: 0, usage: this.usage() } };
+  }
+
+  /** `GET /api/u/runs` */
+  listBodies(): Answer {
+    const g = this.runGate();
+    if (g) return g;
+    const body: RunBodyList = {
+      bodies: [...this.bodies].map(([id, b]) => ({ id, size: b.size, created: b.created })),
+      usage: this.usage(),
+      limits: { ...this.limits },
+    };
+    return { status: 200, body };
   }
 
   /** Every item, tombstones too (tests). */
@@ -80,7 +185,7 @@ export class ServerModel {
     this.requests++;
     if (this.ended) return { status: 401, body: { error: 'session_ended', reason: this.ended } };
     if (kind !== undefined && !(SYNC_KINDS as readonly string[]).includes(kind)) return { status: 404, body: { error: 'not_found' } };
-    if (kind !== undefined && !SYNC_KINDS_OPEN.includes(kind as SyncKind)) return { status: 400, body: { error: 'kind_closed' } };
+    if (kind !== undefined && !this.open.includes(kind as SyncKind)) return { status: 400, body: { error: 'kind_closed' } };
     if (id !== undefined && !SYNC_ID_PATTERN.test(id)) return { status: 400, body: { error: 'bad_id' } };
     return null;
   }
@@ -438,5 +543,204 @@ export class Device {
 
   byName(name: string, kind = 'profile'): Body | undefined {
     return this.list(kind).find((b) => b.name === name);
+  }
+}
+
+// --- Runs in the cloud (stage 63, ADR 0153) ---
+
+/** What the network does to a device's run requests, besides `Link`. */
+export interface RunLink {
+  /** Runs between a PUT's reservation and its body being stored (a parallel PUT comes here). */
+  betweenReserveAndStore?: () => Promise<void>;
+}
+
+/** The queue's `RunRemote` over the model, mapping answers as `fetchRunRemote` must. */
+export function runRemoteFor(server: ServerModel, link: Link, runLink: RunLink = {}): RunRemote {
+  const check = (): void => {
+    if (!link.online) throw new RemoteError('offline');
+    if (link.fail5xx > 0) {
+      link.fail5xx--;
+      throw new RemoteError('server', { status: 503 });
+    }
+  };
+  const gate = (a: Answer): Answer => {
+    if (a.status === 401) {
+      const b = a.body as { error: string; reason?: SessionEndReason };
+      if (b.error === 'session_ended') throw new RemoteError('session_ended', b.reason ? { reason: b.reason, status: 401 } : { status: 401 });
+      throw new RemoteError('not_logged_in', { status: 401 });
+    }
+    if (a.status >= 500 || a.status === 429) throw new RemoteError('server', { status: a.status });
+    return a;
+  };
+  return {
+    async put(id, body): Promise<RunPutResult> {
+      check();
+      const bytes = new Uint8Array(await body.arrayBuffer());
+      const a = gate(await server.putBody(id, bytes, runLink.betweenReserveAndStore));
+      if (a.status === 200) return { status: 'ok', written: a.body as RunBodyWritten };
+      const b = a.body as { error?: string; used?: number; limit?: number; size?: number };
+      if (a.status === 413 && b.error === 'quota') return { status: 'quota', used: b.used!, limit: b.limit!, size: b.size! };
+      if (a.status === 413 && b.error === 'run_too_large') return { status: 'tooLarge', limit: b.limit! };
+      throw new RemoteError('refused', { status: a.status });
+    },
+    async get(id, o = {}) {
+      check();
+      const a = gate(server.getBody(id));
+      if (a.status !== 200) throw new RemoteError('refused', { status: a.status });
+      const bytes = a.body as Uint8Array;
+      // In pieces, as a stream comes.
+      for (let at = 0; at < bytes.length; at += 4096) o.onBytes?.(Math.min(4096, bytes.length - at));
+      return new Blob([bytes as Uint8Array<ArrayBuffer>]);
+    },
+    async remove(id) {
+      check();
+      const a = gate(server.removeBody(id));
+      if (a.status !== 200) throw new RemoteError('refused', { status: a.status });
+      return a.body as RunBodyWritten;
+    },
+    async list() {
+      check();
+      const a = gate(server.listBodies());
+      if (a.status !== 200) throw new RemoteError('refused', { status: a.status });
+      return structuredClone(a.body as RunBodyList);
+    },
+  };
+}
+
+const clone = <T>(x: T): T => structuredClone(x);
+
+/**
+ * A space's runs in memory: the `runs`, `runChunks` and `runEvents` of its
+ * saved runs (`RunRows` by run id), the `runCloud` rows, the export docs;
+ * the queue's `RunCloudStore` over them, and the `run` and `exportDoc`
+ * kinds' side of `LocalItems` as the IndexedDB adapter must keep them
+ * (ADR 0153, stage 63 C1):
+ *
+ * - `run`: a run here is listed once its row is `up`, or while the
+ *   account already has its item (a live sync record: a run put back in
+ *   the queue after an edit beat a delete); a `remote` or `fetching` row
+ *   is listed with its meta. `put` of a run here takes the meta; of one
+ *   not here makes a `remote` row. `remove` deletes the run, its row and
+ *   the export doc of its session (one run per session in the model).
+ * - `exportDoc`: listed for a session with a run (here or `remote`), or
+ *   while the account has it.
+ */
+export class MemoryRunSpace implements RunCloudStore {
+  readonly runs = new Map<string, RunRows>();
+  readonly cloud = new Map<string, RunCloudRow>();
+  readonly docs = new Map<string, ExportDoc>();
+
+  constructor(
+    private readonly records: MemoryRecords,
+    private readonly serverIdOf: (runId: string) => Promise<string>,
+    private readonly clock: Clock,
+  ) {}
+
+  // RunCloudStore
+  async list(): Promise<RunCloudRow[]> {
+    return [...this.cloud.values()].map(clone);
+  }
+  async get(runId: string): Promise<RunCloudRow | undefined> {
+    const r = this.cloud.get(runId);
+    return r && clone(r);
+  }
+  async put(row: RunCloudRow): Promise<void> {
+    this.cloud.set(row.runId, clone(row));
+  }
+  async remove(runId: string): Promise<void> {
+    this.cloud.delete(runId);
+  }
+  async rows(runId: string): Promise<RunRows | null> {
+    const r = this.runs.get(runId);
+    return r ? clone(r) : null;
+  }
+  async putFetched(rows: RunRows, row: RunCloudRow): Promise<void> {
+    this.runs.set(rows.meta.runId, clone(rows));
+    this.cloud.set(row.runId, clone(row));
+  }
+
+  /** Whether the account has the item `kind`/`key` as this device last agreed (a live record). */
+  private agreed(kind: SyncKind, key: string): boolean {
+    for (const r of this.records.recs.values()) if (r.kind === kind && r.key === key && r.rev > 0 && r.hash !== null) return true;
+    return false;
+  }
+
+  /** The runs of the account as this device has them: run id → meta (here, or a `remote` row's). */
+  savedRuns(): Map<string, RunMeta> {
+    const out = new Map<string, RunMeta>();
+    for (const [id, r] of this.runs) out.set(id, r.meta);
+    for (const row of this.cloud.values()) if ((row.state === 'remote' || row.state === 'fetching') && row.meta && !out.has(row.runId)) out.set(row.runId, row.meta);
+    return out;
+  }
+
+  list_(kind: 'run' | 'exportDoc'): LocalItem[] {
+    if (kind === 'run') {
+      const out: LocalItem[] = [];
+      for (const [id, r] of this.runs) {
+        const row = this.cloud.get(id);
+        if (row && (row.state === 'up' || this.agreed('run', id))) out.push({ key: id, body: { runId: id, meta: clone(r.meta), size: row.size } as unknown as Body });
+      }
+      for (const row of this.cloud.values()) {
+        if (this.runs.has(row.runId) || (row.state !== 'remote' && row.state !== 'fetching') || !row.meta) continue;
+        out.push({ key: row.runId, body: { runId: row.runId, meta: clone(row.meta), size: row.size } as unknown as Body });
+      }
+      return out;
+    }
+    const sessions = this.savedRuns();
+    return [...this.docs.values()]
+      .filter((d) => sessions.has(d.sessionId) || this.agreed('exportDoc', d.sessionId))
+      .map((d) => ({ key: d.sessionId, body: clone(d) as unknown as Body }));
+  }
+
+  async write_(kind: 'run' | 'exportDoc', batch: { put: Body[]; remove: string[] }): Promise<void> {
+    if (kind === 'exportDoc') {
+      for (const k of batch.remove) this.docs.delete(k);
+      for (const b of batch.put) this.docs.set((b as unknown as ExportDoc).sessionId, clone(b as unknown as ExportDoc));
+      return;
+    }
+    for (const k of batch.remove) this.deleteRun(k);
+    for (const b of batch.put) {
+      const it = b as unknown as RunItem;
+      const here = this.runs.get(it.runId);
+      const row = this.cloud.get(it.runId);
+      if (here) {
+        here.meta = clone(it.meta);
+        if (!row) this.cloud.set(it.runId, { runId: it.runId, state: 'up', serverId: await this.serverIdOf(it.runId), size: it.size, tries: 0, at: this.clock.now(), startedUs: it.meta.startedUs });
+      } else {
+        this.cloud.set(it.runId, {
+          ...(row ?? { tries: 0 }),
+          runId: it.runId,
+          state: row?.state === 'fetching' ? 'fetching' : 'remote',
+          serverId: await this.serverIdOf(it.runId),
+          size: it.size,
+          at: this.clock.now(),
+          startedUs: it.meta.startedUs,
+          meta: clone(it.meta),
+        });
+      }
+    }
+  }
+
+  /** Delete (a tombstone, or the player's Delete): the run, its row, its session's doc. */
+  deleteRun(runId: string): void {
+    this.runs.delete(runId);
+    this.cloud.delete(runId);
+    this.docs.delete(runId);
+  }
+}
+
+/** `MemoryLocal` with the run kinds kept by a `MemoryRunSpace`. */
+export class RunLocal implements LocalItems {
+  constructor(
+    readonly base: MemoryLocal,
+    readonly space: MemoryRunSpace,
+  ) {}
+  async list(kind: SyncKind): Promise<LocalItem[]> {
+    if (kind === 'run' || kind === 'exportDoc') return this.space.list_(kind);
+    return this.base.list(kind);
+  }
+  async write(kind: SyncKind, batch: { put: Body[]; remove: string[] }): Promise<void> {
+    if (kind === 'run' || kind === 'exportDoc') return this.space.write_(kind, batch);
+    return this.base.write(kind, batch);
   }
 }

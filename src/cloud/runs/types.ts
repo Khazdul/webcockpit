@@ -3,6 +3,7 @@
 // the queue is pure and reaches IndexedDB, the body's worker, the network,
 // the game, the clock and the Web Lock only through these interfaces.
 
+import type { FullReason } from '../sync/types';
 import type { AccountLimits, RunBodyList, RunBodyWritten, SessionEndReason, SyncUsage } from '../../../shared/cloud/api.ts';
 import type { RunMeta } from '../../capture/store';
 import type { RunRows } from '../../runs/backup-format';
@@ -39,6 +40,8 @@ export interface RunCloudRow {
   startedUs: number;
   /** `remote` and `fetching`: the item's meta (the run is not in `runs`). */
   meta?: RunMeta;
+  /** `full`: what refused it, the body (`quota`) or its item (after the body was up). */
+  full?: 'quota' | FullReason;
 }
 
 // --- Ports ---
@@ -48,6 +51,7 @@ export interface RunCloudStore {
   list(): Promise<RunCloudRow[]>;
   get(runId: string): Promise<RunCloudRow | undefined>;
   put(row: RunCloudRow): Promise<void>;
+  remove(runId: string): Promise<void>;
   /** The run's rows for its body: null when the run is not on this device (deleted meanwhile). */
   rows(runId: string): Promise<RunRows | null>;
   /**
@@ -89,8 +93,12 @@ export interface RunRemote {
 // --- What comes out ---
 
 export type RunQueueEvent =
-  /** A body did not fit (`413 quota`): the run stays here as `full`. Once per run. */
-  | { type: 'full'; runId: string; used: number; limit: number; size: number }
+  /**
+   * A run did not fit: its body (`413 quota`; `used`/`limit` the account's
+   * run bytes), or its item after the body was up (`too_many_items`,
+   * `storage_full`). The run stays here as `full`. Once per run.
+   */
+  | { type: 'full'; runId: string; used: number; limit: number; size: number; reason: 'quota' | FullReason }
   /** Over `runMaxBytes`: never uploaded. */
   | { type: 'tooLarge'; runId: string; size: number; limit: number }
   | { type: 'uploaded'; runId: string; size: number };

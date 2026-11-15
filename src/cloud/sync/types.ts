@@ -301,6 +301,12 @@ export type SyncEvent =
   | { type: 'renamed'; kind: SyncKind; key: string; from: string; to: string }
   /** An item deleted here was changed elsewhere and is back (an edit beats a delete). */
   | { type: 'restored'; kind: SyncKind; key: string; name: string }
+  /**
+   * An item edited here was deleted elsewhere: this device's version is
+   * pushed back (an edit beats a delete). No words for the player; a run's
+   * adapter puts the run's body back in the upload queue (ADR 0153).
+   */
+  | { type: 'revived'; kind: SyncKind; key: string }
   /** A version from a newer client: left untouched; update the client. */
   | { type: 'newer'; kind: SyncKind; serverId: string }
   /** A version that does not open or is not a body: left untouched. */
