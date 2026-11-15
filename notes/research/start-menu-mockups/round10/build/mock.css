@@ -1,0 +1,16 @@
+/* The mockups' own additions (mk-*), over the real look's CSS (stage 62,
+ * round 10). The values follow the kit's tokens (--lk-*), so a later build
+ * can take them over. */
+
+/* No entrance motion in a still mockup. */
+.wc-lk-veil, .wc-lk-dialog, .wc-alm-o, .wc-lk-flash > span { animation: none !important; }
+html, body { overflow: hidden; }
+
+/* 1a: the changes row with a second, quieter line naming the kinds. */
+.wc-ac-dlist li.mk-two { align-items: flex-start; }
+.wc-ac-dlist li.mk-two > .wc-so-mark { align-self: flex-start; margin-top: 4px; }
+.wc-ac-dlist li.mk-two > span { display: flex; flex-direction: column; min-width: 0; }
+.mk-kinds { margin-top: 1px; font: italic 500 15px/1.3 var(--lk-serif); color: var(--lk-dim); }
+
+/* 3a: what follows the account, under the bar. */
+.mk-follows { margin-top: 8px; text-wrap: pretty; }
