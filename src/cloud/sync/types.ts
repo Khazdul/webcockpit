@@ -6,9 +6,11 @@
 // in-memory ones (tests/unit/sync/).
 
 import type { AccountLimits, DeviceType, SessionEndReason, SyncChanges, SyncItem, SyncKind, SyncUsage, SyncWritten } from '../../../shared/cloud/api.ts';
+import type { RunMeta } from '../../capture/store';
 import type { NewCommRecord } from '../../gmcp/comm-archive';
 import type { ScriptDataRecord } from '../../scripts/library';
 import type { Settings } from '../../settings/types';
+import type { ExportDoc } from '../../share/edits';
 import type { TimersRecord } from '../../timers/archive';
 
 // --- Items ---
@@ -66,7 +68,21 @@ export interface CommItem {
   records: CommPieceRecord[];
 }
 
-/** The record type of each kind the engine syncs today. */
+/**
+ * A saved, sealed run's meta (ADR 0153): local key `runId`. `size` is its
+ * body's stored bytes (in R2, under the item's server id); the item is
+ * listed only once that body is up.
+ */
+export interface RunItem {
+  runId: string;
+  meta: RunMeta;
+  size: number;
+}
+
+/** A session's export doc (ADR 0153): local key `sessionId`, the `ExportDoc` as stored (normalised). */
+export type ExportDocItem = ExportDoc;
+
+/** The record type of each kind the engine syncs. */
 export interface ItemRecords {
   profile: ProfileItem;
   script: ScriptItem;
@@ -74,6 +90,8 @@ export interface ItemRecords {
   scriptData: ScriptDataItem;
   timers: TimersItem;
   comm: CommItem;
+  run: RunItem;
+  exportDoc: ExportDocItem;
 }
 
 /** The kinds with a body format in this client. */

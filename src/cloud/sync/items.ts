@@ -14,9 +14,12 @@
 import { type Browser, DEVICE_TYPES, type DeviceType, type SyncKind } from '../../../shared/cloud/api.ts';
 import { canonicalJson } from '../../core/canonical-json';
 import { commFields, sortCommRecords } from '../../gmcp/comm-records';
+import type { RunMeta } from '../../capture/store';
+import { runMetaProblem } from '../../runs/backup-format';
 import { SETTINGS_VERSION } from '../../settings/types';
+import { normalizeExportDoc } from '../../share/edits';
 import { toBase64Url } from '../crypto/base64url';
-import type { Body, CommItem, CommPieceRecord, ItemKind, ProfileItem, ScriptDataItem, ScriptItem, SettingsItem, TimersItem } from './types';
+import type { Body, CommItem, CommPieceRecord, ExportDocItem, ItemKind, ProfileItem, RunItem, ScriptDataItem, ScriptItem, SettingsItem, TimersItem } from './types';
 
 /**
  * How a conflict on the kind is settled (ADR 0146's table): `keepBoth`
@@ -316,6 +319,76 @@ export const commSpec: KindSpec = {
   },
 };
 
+// --- Runs (ADR 0153) ---
+
+export const RUN_ITEM_VERSION = 1;
+export const EXPORT_DOC_ITEM_VERSION = 1;
+
+const whole = (x: unknown): x is number => typeof x === 'number' && Number.isSafeInteger(x) && x >= 0;
+
+/**
+ * A run's meta as an item carries it: the backup's rules (`runMetaProblem`,
+ * src/runs/backup-format.ts), sealed and saved (only those are items), a
+ * rating of 0–5, and only the fields `RunMeta` has (an unknown one would
+ * be a newer body, which raises `v`). Null when it is not one.
+ */
+export function runItemMeta(m: unknown): RunMeta | null {
+  if (runMetaProblem(m)) return null;
+  const r = m as Record<string, unknown>;
+  if (r.sealed !== true || r.saved !== true) return null;
+  if (r.rating !== undefined && !(typeof r.rating === 'number' && Number.isInteger(r.rating) && r.rating >= 0 && r.rating <= 5)) return null;
+  if (r.savedUs !== undefined && r.savedUs !== null && !isTime(r.savedUs)) return null;
+  const meta: RunMeta = {
+    runId: r.runId as string,
+    character: r.character as string,
+    startedUs: r.startedUs as number,
+    endedUs: r.endedUs as number | null,
+    sealed: true,
+    bytes: r.bytes as number,
+    lines: r.lines as number,
+    saved: true,
+  };
+  if (r.rating !== undefined) meta.rating = r.rating as number;
+  if (r.savedUs !== undefined) meta.savedUs = r.savedUs as number | null;
+  if (r.summary !== undefined) meta.summary = r.summary as RunMeta['summary'];
+  return meta;
+}
+
+/** `run`: one item per saved run, `{runId, meta, size}`; last writer (a rating). */
+export const runSpec: KindSpec = {
+  kind: 'run',
+  version: RUN_ITEM_VERSION,
+  policy: 'lastWriter',
+  key: (b) => (b as unknown as RunItem).runId,
+  decode(raw) {
+    const r = checkVersion(raw, RUN_ITEM_VERSION);
+    if ('refused' in r) return r.refused;
+    const { runId, meta, size } = r.fields;
+    if (!isStr(runId) || runId === '' || !whole(size)) return UNREADABLE;
+    const m = runItemMeta(meta);
+    if (!m || m.runId !== runId) return UNREADABLE;
+    const body: RunItem = { runId, meta: m, size };
+    return { ok: true, body: body as unknown as Body };
+  },
+};
+
+/** `exportDoc`: one item per session (its first run's id), the `ExportDoc` normalised; last writer. */
+export const exportDocSpec: KindSpec = {
+  kind: 'exportDoc',
+  version: EXPORT_DOC_ITEM_VERSION,
+  policy: 'lastWriter',
+  key: (b) => (b as unknown as ExportDocItem).sessionId,
+  decode(raw) {
+    const r = checkVersion(raw, EXPORT_DOC_ITEM_VERSION);
+    if ('refused' in r) return r.refused;
+    const { v: _v, ...fields } = r.fields;
+    if (fields.schema !== undefined && fields.schema !== 1) return UNREADABLE;
+    const doc = normalizeExportDoc(fields);
+    if (!doc) return UNREADABLE;
+    return { ok: true, body: doc as unknown as Body };
+  },
+};
+
 /** Every kind this client syncs, by kind. */
 export const ITEM_SPECS: Readonly<Record<ItemKind, KindSpec>> = {
   profile: profileSpec,
@@ -324,10 +397,26 @@ export const ITEM_SPECS: Readonly<Record<ItemKind, KindSpec>> = {
   scriptData: scriptDataSpec,
   timers: timersSpec,
   comm: commSpec,
+  run: runSpec,
+  exportDoc: exportDocSpec,
 };
 
-/** The kinds in the order a sync handles them (ADR 0152): profile, script, settings, scriptData, timers, comm. */
+/**
+ * The kinds the app syncs without the flag `runs`, in the order a sync
+ * handles them (ADR 0152): profile, script, settings, scriptData, timers, comm.
+ */
 export const SYNC_SPECS: readonly KindSpec[] = [profileSpec, scriptSpec, settingsSpec, scriptDataSpec, timersSpec, commSpec];
+
+/** The kinds of runs in the cloud (ADR 0153), after the others: run, exportDoc. */
+export const RUN_SPECS: readonly KindSpec[] = [runSpec, exportDocSpec];
+
+/**
+ * Every kind, with the flag `runs` on: `SYNC_SPECS` then `RUN_SPECS`. The
+ * space passes it only once its adapters store `run` and `exportDoc`
+ * (stage 63 C1): an adapter that lists none of a kind would make the
+ * engine delete every pulled item of it again.
+ */
+export const SYNC_SPECS_WITH_RUNS: readonly KindSpec[] = [...SYNC_SPECS, ...RUN_SPECS];
 
 // --- Names ---
 
