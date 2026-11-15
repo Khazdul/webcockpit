@@ -290,4 +290,31 @@ describe('CR5: GET /api/community imports the HMAC key once and batches its read
   });
 });
 
+describe('CR8: the admin’s queue is one query over runs, comments and notes', () => {
+  it('one statement, ordered by reporters then newest across the kinds', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const run = await list(alice);
+    const c = await commented(bob, run, 'Rude');
+    const n = await noted(bob, 'Spam');
+    const rep = async (cookie: string, kind: string, target: string, now: number): Promise<void> => {
+      expect((await ccall('POST', '/api/u/report', { kind, target, reason: 'rules' }, { cookie, now })).status).toBe(204);
+    };
+    const r1 = await signUp('rep1');
+    const r2 = await signUp('rep2');
+    await rep(r1, 'note', n, NOW + 1);
+    await rep(r1, 'run', run, NOW + 2);
+    await rep(r2, 'run', run, NOW + 3);
+    await rep(r1, 'comment', c, NOW + 4);
+    const counted = countingDb();
+    const q = await ok<AdminReports>(await adminCall('/api/admin/reports', undefined, { env: cenvOf({ DB: counted.db }) }));
+    expect(q.items.map((i) => [i.kind, i.reporters, i.content ?? null, i.pub ?? null])).toEqual([
+      ['run', 2, null, null],
+      ['comment', 1, 'Rude', run],
+      ['note', 1, 'Spam', null],
+    ]);
+    expect(counted.sql.filter((t) => /FROM report r JOIN/.test(t))).toHaveLength(1);
+  });
+});
+
 export { DAY, NOW, call, db, publish, reportOf };
