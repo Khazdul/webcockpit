@@ -139,7 +139,7 @@ touches staging or production.
 
 #### A2. The measurement (no worktree; writes "Measurements" here)
 
-- [ ] Payload sizes (`buildPayload` + gzip, with and without the map)
+- [x] Payload sizes (`buildPayload` + gzip, with and without the map)
       of real runs from the owner's runs backups and stage 63's material
       (`notes/research/run-sizes.md`): a typical fight cut, a whole
       session, the largest; against 5 MiB; 150 × the median per account;
@@ -265,7 +265,29 @@ touches staging or production.
 
 ## Measurements
 
-(Part A2.)
+Part A2, 2026-11-15 (`notes/research/payload-sizes.md`): the real
+`buildReplayPayload` + `embedReplayMap` on the owner's runs (stage 63's
+material), JSON gzip as `encodePayload` makes it. KB = 1 000 bytes;
+5 MiB = 5 243 KB.
+
+| Payload | Without map, median (max) | With map, median (q1–q3) | With map, max |
+|---|---|---|---|
+| Fight cut, 3 min (56) | 61 KB (131) | **563 KB** (410–781) | 1 161 KB |
+| Fight cut, 10 min (56) | 102 KB (175) | 860 KB (686–1 189) | 1 960 KB |
+| Whole session ≥ 0.25 h (14) | 92 KB (600) | 632 KB (476–1 470) | **3 614 KB** (69 % of 5 MiB) |
+| Estimated worst (5 h, wide travel) | 1.2–2.4 MB | — | 4.2–6.4 MB |
+
+- The map is about 90 % of a cut (tiles and fonts ≈ 330 KB, the `.mm2`
+  ≈ 120 KB); its ceiling is 4.0 MB (a saturated subset).
+- 150 × the median cut = **84 MB per account**; R2's free 10 GB holds
+  about 118 such accounts, **73 beside full run storage** (50 MiB);
+  at the 5 MiB ceiling for every link only 11.
+
+**Verdict: keep 5 MiB.** Every measured cut and session fits (the
+largest 69 %); only an uncut multi-hour session with wide travel may
+pass it, and the dialog's refusal covers that. (A later saving if
+needed: the frame host hands the map's tiles and fonts over like the
+fonts, ≈ 0.2 MB per cut.)
 
 ## Test guide (owner)
 
