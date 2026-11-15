@@ -1,11 +1,18 @@
 # Stage 65 — The community
 
-Status: **In progress (2026-11-15).** Round 13 picked; part B and C5
-merged; part C building.
+Status: **On staging (2026-11-16)**, waiting for the owner's test.
+`gallery` and `runes` on in staging, off in production; no release.
 
 ## Waiting for the owner
 
-- Nothing yet: part C is building.
+1. **The test on staging** (the test guide below), with two accounts and
+   a private window; the look of the Community page and of the watch page
+   in the start frame (his picks of round 13 are built, not seen by him).
+2. **Words to approve:** none new in `/privacy` yet; say if the board's
+   and the comments' "shown with your account name" should be written
+   there (spec point 11.9 asks for it; proposed in the guide, step 9).
+3. **The go-ahead for part F** (the release with `gallery` and `runes`
+   on in production), a step of its own on his explicit word.
 
 ## Goal
 
@@ -291,9 +298,14 @@ the run removed): 4/4, twice.
 
 ### E. Staging
 
-- [ ] Push `main`; `deploy.yml` to staging with migration 0006;
+- [x] Push `main`; `deploy.yml` to staging with migration 0006;
       `test:prod` against <https://staging.mumecockpit.com>; production's
       `/api/config` unchanged (`gallery`, `runes` off). No tag.
+      (Run 43775755927, commit 67d46d77, `0006_community.sql` applied;
+      the first run, 43775395006, stopped in `build:site`'s smoke test,
+      which did not know the two flags: fixed, nothing had been deployed.
+      `test:prod` 36/36 against staging; production's `/api/config`
+      0.13.0's, without `gallery` and `runes`.)
 
 ### F. The community open in production (only on the owner's go-ahead)
 
@@ -303,7 +315,64 @@ the run removed): 4/4, twice.
 
 ## Test guide (owner)
 
-Written when part E is done.
+On staging (<https://staging.mumecockpit.com>), with your test account
+(A), a second account (B) and a private window (a guest). Desktop first,
+then the phone.
+
+1. **Publish to the Hall of Fame.** As A: History → a session → Export.
+   The format row has Hall of Fame (F) after Link. EXPORT → "Publish to
+   the Hall of Fame", "Everyone can find this in the Community.";
+   Publish → the link with Copy, Open Community, Done. Open Community
+   takes you to the page with your run first in the list.
+2. **The Community page** (C on the start menu). The list on the left,
+   newest first, about 10 a page, `‹ Page 1 of N ›` at its bottom right;
+   press a column heading (or its letter) to sort by stars, views,
+   comments, length, back to listed; press a sender's name for that
+   account's runs. On the right: Run of the day (today's, with its
+   description), Hall of Fame (top 8), Warlords with "N players on
+   MUME", no source line, visible without scrolling. Under the list,
+   Random Runes. No Published runs button, no foot line.
+3. **The counter.** In the private window (a guest) the Community row
+   says "1 new" after step 1; opening the page clears it; reload: gone.
+   As B (another browser) the same, and it stays cleared on B's other
+   devices.
+4. **Watch, rate, comment.** As B open the run from the list: the watch
+   page now sits in the start page's sky and frame, Back at the top
+   left (it returns to the Community page; from a link it goes to the
+   start page). Give stars in the band (change them; a click on your
+   lit star takes the vote back). Write a comment under the replay;
+   Remove it; write another. As a guest: "Log in to rate", "Log in to
+   comment", the comments readable. On your own run as A: no stars to
+   give, "your run", Remove on every comment.
+5. **Reactions.** As A on the start menu: the owner row says "· 2 new"
+   (B's vote and comment); pressing it opens Published runs (now a view
+   of its own) with the run's stars, comments and what is new in gold;
+   leave and come back: the mark is gone. Edit: the "Listed in the
+   Community" switch (off → link only, it leaves the list; on → back,
+   not on top of New again).
+6. **Random Runes.** As B write a note (the field grows while you type;
+   at most 250 characters; 5 a day); it shows whole under the list with
+   your name; Remove it. As A report B's note (the four reasons).
+7. **Reports and the admin.** As A report B's comment. `/admin` on
+   staging: the queue has a Comment and a Note card with the whole text,
+   "Reported by 1 account", Hide / Dismiss reports / Delete / Suspend.
+   The mail for each report says "comment on …" / "note by …" with the
+   text. Five reports hide an item only from accounts at least 7 days
+   old (covered by tests).
+8. **Phone.** The Community page with the tabs Runs · Hall of Fame ·
+   Runes (Runs newest only, no sorting); the watch page in the frame;
+   Hall of Fame in the export editor.
+9. **`/privacy`** (optional now): the board and comments show the
+   account name; we propose a short line there before production.
+
+**Feedback wanted:** the Community page and the watch page in the frame
+in real use (desktop and phone), the counter and the owner row's mark,
+the board's length (250), anything that looked wrong; then yes or no to
+opening the community in production.
+
+**Known:** a new account's votes count in Top's order only from its
+eighth day (by design, ADR 0155); the lists are cached up to a minute,
+so a new run can take a minute to show for others.
 
 ## Owner feedback
 

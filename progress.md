@@ -68,13 +68,23 @@
 | 62 | Sync of settings, script data, Comm history and timers | Done, released 0.12.0 | `docs/stages/62-sync-settings-comm.md` |
 | 63 | Runs in the cloud; then accounts open | Done, released 0.12.0 (accounts, sync, runs on in production) | `docs/stages/63-runs-in-the-cloud.md` |
 | 64 | Share links | Done, released 0.13.0 (`share` on in production) | `docs/stages/64-share-links.md` |
-| 65 | The community | In progress: planned, mockups (round 13) | `docs/stages/65-community.md` |
+| 65 | The community | On staging (`gallery`, `runes` on there, off in production); waiting for the owner's test | `docs/stages/65-community.md` |
 | 66 | The admin panel | Planned (spec §7.12) | |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-15/16 — Stage 65: the community, on staging
+
+- **Planned:** `docs/stages/65-community.md`, ADR 0155 (flags, migration 0006, the two vote sums and the 7-day rule, views per address, free-text rules, the counters, the board, reports of three kinds). MUME investigated (`notes/research/mume-war-lists.md`); owner: fetch `/news/war` and MSSP without asking, no source line.
+- **Owner:** round 13 (artifact RxKtoMqiLZrXtj9gRpuGaP): 1b with his changes (newest first, sort by column headings, pages of 10, Runes under the list with whole notes ≤ 250, no top posters, no Published runs button, sender's runs page, run of the day with description, warlords in view), 3a inside the start frame with Back top left (stage 64's page too), the rest as drawn, reporters' count only.
+- **Built** by agents in worktrees: B Worker, C5 MUME (PLAYERS filled: 34 in the probe, 29 on staging), C1 Community page and counter, C2 watch page in the frame with stars and comments, C3 Hall of Fame export, Published runs view, owner row's mark, C4 admin queue.
+- **Review:** security S1–S9 (2 medium: ZWJ past the mark limit, views per /64) and `/code-review` high CR1–CR9; all fixed with tests (bcdd0d0c).
+- **Checks:** unit 5 318; full e2e alone at 5 workers 1 820 passed, 1 old flake (phone editor, 17/18 alone); bench as stage 64; entry 31 382 (+16); `test:sync-worker` grown with the community, 4/4 twice.
+- **Staging:** run 43775755927 (67d46d77), 0006 applied; `test:prod` 36/36; production unchanged, no tag.
+- **Next:** the owner's test (stage file, "Waiting for the owner"); part F only on his explicit word. Open: a `/privacy` line on names shown with notes and comments; no flag to switch MUME's fetch off without a release. Commits d68f2c01…, and this one.
 
 ### 2026-11-15 — Stage 64: share links open in production (0.13.0)
 
