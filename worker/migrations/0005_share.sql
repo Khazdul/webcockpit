@@ -18,7 +18,12 @@
 --             account deleted): the text is gone, the link answers 410.
 --             `bytes` > 0 on a tombstone means its R2 object may still be
 --             there: the daily cron deletes it and sets `bytes` to 0.
--- `bytes` is the payload's size (spec §7.11 calls it `size`). `listed`
+-- `bytes` is the payload's size (spec §7.11 calls it `size`). `reviewed`
+-- is 1 once the admin has restored the run or dismissed its reports: later
+-- reports queue it for the admin but never hide it by themselves.
+-- `pub_key` is the client's idempotency key of the POST that made it
+-- (`PubMetaIn.key`, unique per account; a tombstone drops it): a repeated
+-- POST with it answers this run instead of making another. `listed`
 -- (stage 65), `vote_sum`, `vote_count` and `comment_count` (stage 65) are
 -- made now so stage 65 adds no columns here.
 CREATE TABLE publication (
@@ -36,6 +41,8 @@ CREATE TABLE publication (
   created       INTEGER NOT NULL,
   updated       INTEGER NOT NULL,
   views         INTEGER NOT NULL DEFAULT 0,
+  reviewed      INTEGER NOT NULL DEFAULT 0,
+  pub_key       TEXT,
   vote_sum      INTEGER NOT NULL DEFAULT 0,
   vote_count    INTEGER NOT NULL DEFAULT 0,
   comment_count INTEGER NOT NULL DEFAULT 0
@@ -45,6 +52,8 @@ CREATE TABLE publication (
 CREATE INDEX publication_account ON publication (account, created);
 -- The daily cron: tombstones whose object may still be in R2, pending rows left behind.
 CREATE INDEX publication_state ON publication (state, updated);
+-- A POST's idempotency key, per account (NULLs are distinct: runs without one).
+CREATE UNIQUE INDEX publication_key ON publication (account, pub_key);
 
 -- A view: one per publication, device (the statistics' device id) and UTC
 -- day. Pruned by the daily cron after two days.
@@ -60,12 +69,13 @@ CREATE INDEX pub_view_day ON pub_view (day);
 -- A report: `kind` 'run' (stage 64; 'comment' and 'note' from stage 65),
 -- `target` the item's id, `account` the reporter's account id. `handled`
 -- is 0 until the admin acts on the item (then the time). One per account
--- and item.
+-- and item. Delete account deletes the account's unhandled reports and
+-- keeps its handled ones without text and with `account` NULL.
 CREATE TABLE report (
   id      INTEGER PRIMARY KEY,
   kind    TEXT    NOT NULL,
   target  TEXT    NOT NULL,
-  account TEXT    NOT NULL,
+  account TEXT,
   reason  TEXT    NOT NULL,
   text    TEXT    NOT NULL DEFAULT '',
   created INTEGER NOT NULL,

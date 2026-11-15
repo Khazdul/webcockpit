@@ -224,7 +224,8 @@ export function neededAssets(map: MapData): string[] {
 /** A request to the tools worker. */
 export type MapToolRequest =
   | { t: 'validate'; bytes: ArrayBuffer }
-  | { t: 'subset'; source: MapSource; visits: MapVisits; margin?: number; ring?: number };
+  /** `notes: false`: the subset without the map's room notes (a share link's, review fix S6). */
+  | { t: 'subset'; source: MapSource; visits: MapVisits; margin?: number; ring?: number; notes?: false };
 
 export interface MapValidated {
   rooms: number;
@@ -291,6 +292,7 @@ export async function runMapToolRequest(req: MapToolRequest, env: MapToolEnv): P
     if (req.ring !== undefined) o.ring = req.ring;
     const sub = replaySubset(map, req.visits, o);
     if (!sub) return { ok: true, t: 'subset', result: { mm2: null, rooms: 0, visited: 0, assets: [], name } };
+    if (req.notes === false) sub.map.notes = sub.map.notes.map(() => '');
     return {
       ok: true,
       t: 'subset',

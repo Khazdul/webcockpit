@@ -162,6 +162,8 @@ export function splitPubBody(body: Uint8Array): { meta: unknown; payload: Uint8A
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const whole = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 const text = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max;
+/** A length in seconds: any finite number ≥ 0, read as whole seconds (review fix CR4; the Worker stores whole ones). */
+const seconds = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : undefined);
 
 /** `MyPub` with only the contract's fields, or undefined. */
 export function parseMyPub(v: unknown): MyPub | undefined {
@@ -170,18 +172,19 @@ export function parseMyPub(v: unknown): MyPub | undefined {
   if (typeof id !== 'string' || !PUB_ID_PATTERN.test(id)) return undefined;
   if (!text(title, 1000) || !text(description, 5000) || !text(character, 400)) return undefined;
   if (level !== undefined && !whole(level)) return undefined;
-  if (!whole(lengthS) || typeof listed !== 'boolean' || (state !== 'active' && state !== 'hidden')) return undefined;
+  const len = seconds(lengthS);
+  if (len === undefined || typeof listed !== 'boolean' || (state !== 'active' && state !== 'hidden')) return undefined;
   if (!whole(created) || !whole(updated) || !whole(views) || !whole(bytes)) return undefined;
-  return { id, title, description, character, ...(level !== undefined ? { level } : {}), lengthS, listed, state, created, updated, views, bytes };
+  return { id, title, description, character, ...(level !== undefined ? { level } : {}), lengthS: len, listed, state, created, updated, views, bytes };
 }
 
 function parseList(v: unknown): MyPub[] | undefined {
   if (!isObject(v) || !Array.isArray(v.pubs)) return undefined;
   const out: MyPub[] = [];
   for (const p of v.pubs) {
+    // A row this client cannot read is left out, not the whole list (review fix CR4).
     const one = parseMyPub(p);
-    if (!one) return undefined;
-    out.push(one);
+    if (one) out.push(one);
   }
   return out;
 }
@@ -197,7 +200,8 @@ export function parsePubMeta(v: unknown): PubMeta | undefined {
   if (typeof id !== 'string' || !PUB_ID_PATTERN.test(id)) return undefined;
   if (!text(title, 1000) || !text(description, 5000) || !text(sender, 100) || !text(character, 400)) return undefined;
   if (level !== undefined && !whole(level)) return undefined;
-  if (!whole(lengthS) || !whole(created) || !whole(views) || !whole(bytes)) return undefined;
+  const len = seconds(lengthS);
+  if (len === undefined || !whole(created) || !whole(views) || !whole(bytes)) return undefined;
   if (hidden !== undefined && hidden !== true) return undefined;
   return {
     id,
@@ -206,7 +210,7 @@ export function parsePubMeta(v: unknown): PubMeta | undefined {
     sender,
     character,
     ...(level !== undefined ? { level } : {}),
-    lengthS,
+    lengthS: len,
     created,
     views,
     bytes,

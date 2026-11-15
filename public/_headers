@@ -97,11 +97,14 @@
 #   worker-src blob:        the map worker starts from a blob: URL
 #   connect-src 'none'      no network at all (data: URIs are decoded, not fetched)
 #   frame-ancestors 'self'  only our own pages frame it
+#   sandbox allow-scripts   an opaque origin even when the document is opened
+#                           on its own, outside the watch page's sandboxed
+#                           frame (review fix S7)
 # `vite build` replaces the placeholders with the hashes (scripts/csp.ts
 # `fillFrameHashes`). No X-Frame-Options: frame-ancestors rules.
 /r/frame
   ! Content-Security-Policy
   ! Content-Security-Policy-Report-Only
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-FRAME-SCRIPT'; style-src 'sha256-FRAME-STYLE' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-FRAME-SCRIPT'; style-src 'sha256-FRAME-STYLE' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'; sandbox allow-scripts
   ! Cache-Control
   Cache-Control: no-cache

@@ -9,7 +9,10 @@
 // one's own run, not from a suspended account. When an item has unhandled
 // reports from REPORTS_TO_HIDE different accounts it is hidden
 // (`hidden_reason` 'reports') until the admin acts: in the same
-// transaction as the report that makes the fifth.
+// transaction as the report that makes the fifth. Only accounts that still
+// exist and are not suspended count, and a run the admin has restored or
+// whose reports were dismissed (`reviewed`) is never hidden by reports
+// again: they queue it for the admin (review fix S3).
 import { PUB_ID_PATTERN, REPORT_KINDS, REPORT_KINDS_OPEN, REPORT_REASONS, REPORT_TEXT_MAX, REPORTS_PER_DAY, REPORTS_TO_HIDE, type ReportKind, type ReportReason } from '../shared/cloud/api.ts';
 import { hasKeys } from './accounts.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
@@ -60,9 +63,12 @@ export async function report(c: PubCtx): Promise<Response> {
       .bind(b.kind, target, account.id, b.reason, note, c.now, since, REPORTS_PER_DAY),
     c.db
       .prepare(
+        // Review fix S3: never a run the admin has looked at (`reviewed`), and
+        // only reporters that still exist and are not suspended count.
         `UPDATE publication SET state = 'hidden', hidden_reason = 'reports', updated = ?2
-         WHERE id = ?1 AND state = 'active'
-         AND (SELECT COUNT(DISTINCT account) FROM report WHERE kind = 'run' AND target = ?1 AND handled = 0) >= ?3`,
+         WHERE id = ?1 AND state = 'active' AND reviewed = 0
+         AND (SELECT COUNT(DISTINCT r.account) FROM report r JOIN account a ON a.id = r.account
+              WHERE r.kind = 'run' AND r.target = ?1 AND r.handled = 0 AND a.state <> 'suspended') >= ?3`,
       )
       .bind(target, c.now, REPORTS_TO_HIDE),
   ]);

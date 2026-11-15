@@ -8,8 +8,11 @@ import type { LinkPayload, PreparedLink } from './link-payload';
 
 /** Validates and compresses a prepared link. Throws when the watch page would refuse it. */
 export async function sealLinkPayload(p: PreparedLink): Promise<LinkPayload> {
-  validatePayload(JSON.parse(p.json));
-  const gz = new Blob([new TextEncoder().encode(p.json) as BlobPart]).stream().pipeThrough(new CompressionStream('gzip'));
+  // What is uploaded is the validated copy (review fix S7): only the fields
+  // and bounds the watch page reads, never a key the validator drops.
+  const payload = validatePayload(JSON.parse(p.json));
+  const json = JSON.stringify(payload);
+  const gz = new Blob([new TextEncoder().encode(json) as BlobPart]).stream().pipeThrough(new CompressionStream('gzip'));
   const bytes = new Uint8Array(await new Response(gz).arrayBuffer());
-  return { payload: p.payload, bytes, lengthS: p.lengthS };
+  return { payload, bytes, lengthS: p.lengthS };
 }

@@ -94,7 +94,8 @@ export function usePublished(nav: Nav, host: Host): PublishedView {
         ...(error ? [{ id: 'PUBRETRY', run: load }] : []),
         ...(pubs ?? []).flatMap((p) => [
           { id: `COPY:${p.id}`, run: () => copy(p) },
-          { id: `EDIT:${p.id}`, run: () => edit(p) },
+          // A hidden run cannot be edited until the admin has looked (the Worker's 403 hidden).
+          ...(p.state === 'hidden' ? [] : [{ id: `EDIT:${p.id}`, run: () => edit(p) }]),
           { id: `REMOVE:${p.id}`, run: () => remove(p) },
         ]),
       ];
@@ -145,7 +146,7 @@ export function usePublished(nav: Nav, host: Host): PublishedView {
                         </span>
                         <GlassButton id="COPY" label="Copy" icon="duplicate" small selected={at === `COPY:${p.id}`} onClick={() => copy(p)} />
                         <span class="wc-ac-pub-sp" />
-                        <GlassButton id="EDIT" label="Edit" icon="pencil" small selected={at === `EDIT:${p.id}`} onClick={() => edit(p)} />
+                        {!hidden && <GlassButton id="EDIT" label="Edit" icon="pencil" small selected={at === `EDIT:${p.id}`} onClick={() => edit(p)} />}
                         <GlassButton id="REMOVE" label="Remove" icon="trash" small danger selected={at === `REMOVE:${p.id}`} onClick={() => remove(p)} />
                       </div>
                     </li>

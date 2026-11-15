@@ -429,4 +429,66 @@ describe('moderation (stage 64, ADR 0154)', () => {
     const { id } = await reported(1);
     expect((await write(`/api/admin/pub/${id}`, { action: 'hide' }, { env: adminEnv({ FLAG_SHARE: false }) })).status).toBe(204);
   });
+
+  // Review fixes (ADR 0154 "As built (stage 64, review fixes)").
+  describe('review fixes', () => {
+    const fiveMore = async (id: string, from: number): Promise<void> => {
+      for (let i = from; i < from + 5; i++) expect((await reportOf(await signUp(`sock${i}`, { rules: false }), id)).status).toBe(204);
+    };
+
+    it('S3: after Restore, five more throwaway accounts no longer hide the run; it queues for the admin', async () => {
+      const { id } = await reported(5);
+      expect(await pubRow(id)).toMatchObject({ state: 'hidden', hidden_reason: 'reports' });
+      expect((await write(`/api/admin/pub/${id}`, { action: 'restore' })).status).toBe(204);
+      await fiveMore(id, 100);
+      expect((await pubRow(id))?.state).toBe('active');
+      const items = (await read<AdminReports>('/api/admin/reports')).items;
+      expect(items.map((i) => [i.target, i.reporters, i.state])).toEqual([[id, 5, 'active']]);
+    });
+
+    it('CR6: Dismiss marks the reports handled and the run reviewed; a shown run stays shown, a hidden one hidden', async () => {
+      const { id } = await reported(2);
+      expect((await write(`/api/admin/pub/${id}`, { action: 'dismiss', note: 'fine' })).status).toBe(204);
+      expect(await pubRow(id)).toMatchObject({ state: 'active', reviewed: 1 });
+      expect((await read<AdminReports>('/api/admin/reports')).items).toEqual([]);
+      // Reviewed: reports no longer hide it.
+      await fiveMore(id, 200);
+      expect((await pubRow(id))?.state).toBe('active');
+
+      const carol = await signUp('carol');
+      const hidden = await publish(carol);
+      expect((await write(`/api/admin/pub/${hidden}`, { action: 'hide' })).status).toBe(204);
+      expect((await reportOf(await signUp('dave', { rules: false }), hidden)).status).toBe(204);
+      expect((await write(`/api/admin/pub/${hidden}`, { action: 'dismiss' })).status).toBe(204);
+      expect(await pubRow(hidden)).toMatchObject({ state: 'hidden', hidden_reason: 'admin', reviewed: 1 });
+      expect((await db.prepare('SELECT COUNT(*) AS n FROM report WHERE handled = 0 AND target = ?1').bind(hidden).first<{ n: number }>())?.n).toBe(0);
+      const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
+      expect(entries.map((e) => [e.action, e.target, e.note])).toEqual([
+        ['pub.dismiss', hidden, ''],
+        ['pub.hide', hidden, ''],
+        ['pub.dismiss', id, 'fine'],
+      ]);
+    });
+
+    it('the queue says why a run is hidden: after reports or by the admin', async () => {
+      const { id } = await reported(5);
+      const carol = await signUp('carol');
+      const other = await publish(carol);
+      expect((await reportOf(await signUp('erin', { rules: false }), other)).status).toBe(204);
+      expect((await write(`/api/admin/pub/${other}`, { action: 'hide' })).status).toBe(204);
+      expect((await reportOf(await signUp('frank', { rules: false }), other)).status).toBe(204);
+      const items = (await read<AdminReports>('/api/admin/reports')).items;
+      expect(items.map((i) => [i.target, i.state, i.hiddenReason])).toEqual([
+        [id, 'hidden', 'reports'],
+        [other, 'hidden', 'admin'],
+      ]);
+    });
+
+    it('CR5: a broken escape in the account name is 404, not 503', async () => {
+      await signUp('alice');
+      for (const path of ['/api/admin/account/%E0%A4%A', '/api/admin/account/%', '/api/admin/account/al%ZZice']) {
+        expect((await write(path, { action: 'suspend' })).status, path).toBe(404);
+      }
+    });
+  });
 });

@@ -11,7 +11,8 @@
 // and grow the entry chunk's preload lists.
 //
 // Only the cut leaves the device. The payload's settings are the
-// whitelisted sections (`replaySettings`); the doc itself, the run bodies,
+// whitelisted sections (`replaySettings`); the map's subset carries no
+// room notes and a neutral name (`forLink`); the doc itself, the run bodies,
 // the data key and any item stay here: nothing but the sealed bytes and
 // the meta go into the POST (src/cloud/pub/api.ts `pubBody`).
 
@@ -20,7 +21,7 @@ import { buildTimeline } from '../player/timeline';
 import type { RunEvent } from '../runs/events';
 import type { Settings } from '../settings/types';
 import type { MapSource } from '../map/protocol';
-import { withReplayMap } from '../replay/export';
+import { type BuildReplayOptions, withReplayMap } from '../replay/export';
 import type { ExportDoc } from './edits';
 import { type ReplayPayload, buildReplayPayload, payloadEdits } from './payload';
 
@@ -57,8 +58,9 @@ export async function prepareLinkPayload(
   doc: ExportDoc,
   settings: Settings,
   map: MapSource | null,
-  o: { base?: string; fetch?: (url: string) => Promise<Response> } = {},
+  o: { base?: string; fetch?: (url: string) => Promise<Response>; runMapTool?: BuildReplayOptions['runMapTool'] } = {},
 ): Promise<PreparedLink> {
-  const payload = await withReplayMap(buildReplayPayload(chain, events, doc, settings), { map, ...o });
+  // The map without the player's room notes and the map file's name (review fix S6).
+  const payload = await withReplayMap(buildReplayPayload(chain, events, doc, settings), { map, forLink: true, ...o });
   return { payload, json: JSON.stringify(payload), lengthS: playedSeconds(payload) };
 }

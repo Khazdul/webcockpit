@@ -145,6 +145,19 @@ async function bitmap(assets: AssetResolver, path: string): Promise<ImageBitmap 
   }
 }
 
+/**
+ * Decodes `paths` one after the other (review fix S1): a replay's map
+ * comes from a payload, and decoding every tile at once put them all
+ * through the decoder together; in turn, only the decoded bitmaps are held
+ * (bounded by `validatePayload`'s total pixels), never every decode's
+ * working memory as well.
+ */
+export async function bitmapsInTurn(assets: AssetResolver, paths: readonly string[]): Promise<(ImageBitmap | null)[]> {
+  const out: (ImageBitmap | null)[] = [];
+  for (const path of paths) out.push(await bitmap(assets, path));
+  return out;
+}
+
 export class WebGLMapRenderer implements Renderer {
   private readonly room: Program;
   private readonly color: Program;
@@ -242,13 +255,13 @@ export class WebGLMapRenderer implements Renderer {
     // Decode every file and size each array by its largest file; the others
     // are scaled to it on the GPU at upload (`uploadLayer`; a tileset's mixed
     // sizes, the default set needs none).
-    const loads = groups.map(async ([id, g]) => {
-      const images = await Promise.all(g.files.map((f) => bitmap(assets, `pixmaps/${f}`)));
-      return { id, size: arraySize(g.size, images), images };
-    });
-    const arrowsLoad = bitmap(assets, `pixmaps/${CHAR_ARROWS_FILE}`);
-    const loaded = await Promise.all(loads);
-    const a = await arrowsLoad;
+    // In turn, not all at once (`bitmapsInTurn`).
+    const loaded: { id: number; size: number; images: (ImageBitmap | null)[] }[] = [];
+    for (const [id, g] of groups) {
+      const images = await bitmapsInTurn(assets, g.files.map((f) => `pixmaps/${f}`));
+      loaded.push({ id, size: arraySize(g.size, images), images });
+    }
+    const a = await bitmap(assets, `pixmaps/${CHAR_ARROWS_FILE}`);
     if (this.disposed || gen !== this.tileGen) {
       for (const l of loaded) for (const im of l.images) im?.close();
       a?.close();

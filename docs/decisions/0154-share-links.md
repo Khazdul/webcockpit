@@ -744,3 +744,122 @@ the README's words.
   `shared/cloud/api.ts` and lives in the account and History chunks: from
   the chrome chunk it would split them. `dateText` reads `created` in ms or
   in seconds, as the Account page does.
+
+## As built (stage 64, review fixes)
+
+The security review (S, its own attack payloads) and `/code-review` high
+(CR) of the stage, fixed on branch `stage64-fixes`. Each fix has a test
+that failed before it: `tests/unit/share-fixes64.test.ts` (a describe per
+client finding), `worker/test/review64.test.ts` and the "review fixes"
+describe of `worker/test/admin.test.ts`; the e2e specs grew where a flow
+changed. **Migration 0005 is edited in place**: it has never been applied
+on staging or production (part E not run), so no 0006.
+
+- **S1 memory bomb** (120 × 4 096² PNGs in a 61 KB payload, 4.5–7.6 GB
+  in the frame). Map images are PNG only (the exporter never embedded
+  anything else); `MAP_IMAGE_PX` 4 096 → **512** (bundled tiles ≤ 313 px,
+  every community tileset 256, `MAX_TILE_SIZE` 256); a new budget
+  **`MAP_IMAGE_TOTAL_PX` 32 Mpx** over all the map's images (the largest of
+  the owner's 32 real exports embeds 4.9 Mpx; a whole tileset with the
+  default pixmaps about 6.4 Mpx). `fonts/` keeps `.fnt` as `text/plain`,
+  no longer woff2 (none was ever embedded). The renderer decodes the tiles
+  one after the other (`bitmapsInTurn`, src/map/render/webgl.ts), not all
+  at once. The real exports, the fixtures and all 831 PNGs under
+  `public/map` pass.
+- **S2 header-only bounds** of GIF, WebP and JPEG: gone with PNG-only.
+  PNG: IHDR is the size a browser decodes; APNG frames are bounded by
+  IHDR by the APNG spec (`fcTL`: offset + size within IHDR, a decoder
+  error otherwise, as Chromium's and Firefox's decoders treat it), but a
+  map has no use for animation, so **a PNG with `acTL` or `fcTL` before its
+  image data is refused** outright (`pngSize`).
+- **S3 five throwaway accounts hide any run, again after Restore.** A new
+  `publication.reviewed` (0/1): Restore and the new Dismiss set it; a
+  reviewed run is never hidden by reports again (they still queue it for
+  the admin). The five count only reporters whose account still exists
+  and is not suspended (a join on `account` in the hiding statement).
+- **S4 Delete account left its report rows and texts.** `deletionBatch`
+  deletes the account's unhandled reports and keeps its handled ones with
+  `text = ''` and `account = NULL` (`report.account` is nullable now, so
+  two such rows of one item do not meet the UNIQUE).
+- **S5 views inflatable cross-site** by a simple POST. `POST
+  /api/pub/<id>/view` wants `Content-Type: application/json`, `X-WC: 1`
+  and the site's own `Origin` (`403 forbidden` otherwise); the watch page
+  sends `X-WC`; the e2e fake checks the same.
+- **S6 link uploads carried the player's room notes and map name.** The
+  map tool's subset request takes `notes: false`; `prepareLinkPayload`
+  passes `forLink`, which empties every note in the `.mm2` subset and
+  names the map `map.mm2` (`LINK_MAP_NAME`; a neutral name rather than an
+  empty one, which the replay passes on as a source name). The HTML file
+  to a local disk keeps both. `/privacy`'s share text now says the map
+  goes without room notes or the map file's name, and that the display
+  settings include the panes' names, script panes too (their ids travel in
+  `settings.panes`).
+- **S7** (three parts): `sealLinkPayload` gzips `JSON.stringify` of
+  `validatePayload`'s output, not the original JSON; `/r/frame`'s policy
+  ends with **`sandbox allow-scripts`** (an opaque origin also when the
+  document is opened on its own; the hash placeholders are unchanged and
+  still filled at build); `PATCH /api/u/pub/<id>` of a hidden run is `403
+  hidden` (its words stay what was reported), and Published runs shows no
+  Edit on a hidden run.
+- **CR1** a failed `/api/config` showed "does not work yet" for good.
+  `configAnswer()` (src/cloud/config.ts) is null when the config could
+  not be had and forgets the failure; the watch page shows the failed view
+  with Try again (which asks again) and "not yet" only for a config that
+  came and says `share` is off (`shareFlag`, src/watch/model.ts). An e2e
+  fails the first `/api/config` and plays after Try again.
+- **CR2** a stale account hint after a 401 from Report bounced Log in
+  back to the run for ever. `leaveForLogin` (src/watch/return.ts): after a
+  401 with a hint, Log in first runs the app's lost-session path
+  (`sessionLost(null)` of src/cloud/space/flows.ts, imported on demand),
+  which clears the hint and the keys, so the start page opens Log in.
+- **CR3** Try again after a timeout could make a second run. `PubMetaIn.key`
+  (optional, `PUB_KEY_PATTERN` 16–32 of `[A-Za-z0-9_-]`), drawn once per
+  share dialog (`newLinkKey`, 22 characters); `publication.pub_key` with a
+  UNIQUE index on `(account, pub_key)`; a POST whose key already made a live
+  run answers `200` with it (before the count, so also at the limit), `503`
+  while that run is still `pending`; a parallel POST that meets the index
+  answers the same way; a tombstone drops its key. The e2e fake can lose a
+  POST's answer (`pubLoseAnswer`): Try again sends the same key and gets the
+  one run.
+- **CR4** the Worker took any finite `lengthS`, the client only whole ones,
+  and one bad row failed the list. The Worker wants a whole number ≥ 0;
+  `parseMyPub` / `parsePubMeta` take any finite number ≥ 0 and round it; the
+  list skips a row it cannot read.
+- **CR5** a broken escape in `/api/admin/account/<name>` threw a URIError →
+  `503`; now `404`.
+- **CR6** Dismiss reports posted `restore`. A server action **`dismiss`**
+  (`ADMIN_PUB_ACTIONS`): the run's reports handled, the run reviewed, its
+  state kept (a hidden run stays hidden), `pub.dismiss` in the log. The
+  admin page sends it and offers it on hidden runs too.
+- **CR7** Delete account racing an upload could orphan `pub/<id>`: the
+  deletion's drop set `bytes = 0` on the pending row's tombstone before the
+  upload's put had landed. The deletion now drops only live runs' objects;
+  a pending row's tombstone keeps its bytes for the upload's own step 3 or
+  the cron, and the cron deletes a tombstone's object only once the
+  tombstone is an hour old (`PENDING_STALE_MS`; uploads time out in two
+  minutes), its own stale pending rows' at once.
+- **CR8** the payload was fetched `no-store`; it now uses the browser's
+  default cache (the public answer is `private, max-age=604800,
+  immutable`; the sender's and the admin's are `no-store` by their own
+  headers). The meta stays `no-store`.
+- **CR9** the moderation Delete ran a second `handled` UPDATE after
+  `tombstones` had done it: dropped (no behaviour change, no test).
+- **CR10** the text rules lived three times. **`shared/cloud/text.ts`**
+  (no imports): `TEXT_FORBIDDEN`, `cleanText`, `isCleanText`; the Worker's
+  `textOf`, src/share/link.ts `pubText` and src/watch/model.ts `reportText`
+  use it (a test: what each client cleaner makes passes the Worker's
+  check). The chrome chunk carries it without `shared/cloud/api.ts`; the
+  chunk set is unchanged. `sweepPubs` gives the stale pending rows back in
+  one batch (a set over their ids) instead of a batch per row.
+- **Also:** the e2e account fake sends `created` and `updated` in ms, as
+  the Worker does (the specs' seeded runs too), and the watch page's
+  `dateText` reads ms only (the seconds fallback is gone; the Account
+  page's `serverMs` stays, it serves other fields). The admin queue's
+  items carry **`hiddenReason`** (`reports` | `admin`) and the card says
+  "Hidden after 5 reports" or "Hidden by the admin".
+- **The demo session's 6 KB link** (C1's note): not a defect. The runs
+  demo backup has no `Room.Info` and no `Group.*` `mapid` at all (only
+  `Event.Moved`), so `extractVisits` finds no room and neither the Link
+  nor the HTML export embeds a map; both go through `withReplayMap`.
+- **Entry chunk**: 31 366 bytes, unchanged; the chunk set is the same
+  files; the chrome chunk 159 904 → 160 256 bytes.

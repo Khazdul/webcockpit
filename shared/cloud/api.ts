@@ -591,11 +591,23 @@ export interface PubMetaIn {
   description: string;
   character: string;
   level?: number;
-  /** The cut's played length, seconds. */
+  /** The cut's played length, whole seconds (review fix CR4: a fraction is `400`). */
   lengthS: number;
   /** Stage 65; `true` is refused until then. */
   listed: false;
+  /**
+   * The share dialog's idempotency key (review fix CR3), `PUB_KEY_PATTERN`,
+   * drawn once per dialog: a POST whose key already made a run of this
+   * account answers `200` with that run (also at the limit) instead of
+   * making another; `503 unavailable` while that run's upload is still
+   * running. A removed run's key is free again. Optional: a POST without
+   * one always makes a new run.
+   */
+  key?: string;
 }
+
+/** `PubMetaIn.key`: 16–32 characters of `[A-Za-z0-9_-]`. */
+export const PUB_KEY_PATTERN = /^[A-Za-z0-9_-]{16,32}$/;
 
 /**
  * `POST /api/u/pub` (`X-WC: 1`, `application/octet-stream`,
@@ -664,6 +676,7 @@ export interface MyPub {
 
 /**
  * `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`. `listed` is refused until stage 65.
+ * Review fix S7: a hidden run → `403 hidden` (its words stay what was reported).
  * As built (stage 64 B1): at least one key, no others (`listed` is `400`);
  * the text rules of `POST`; `403 suspended`; another account's run, a
  * removed one or an unknown id → `404`. `updated` moves.
@@ -721,9 +734,12 @@ export interface PubMeta {
 
 /**
  * `POST /api/pub/<id>/view` → 204: counted once per device and UTC day.
- * As built (stage 64 B1): no session, no `X-WC`; `device` is a lowercase
+ * As built (stage 64 B1): no session; `device` is a lowercase
  * UUID (`400 bad_request` otherwise); the states answer as the meta does
  * and count nothing; `BEAT_LIMITER` and `API_LIMITER` key it by address.
+ * Review fix S5: `Content-Type: application/json`, `X-WC: 1` and the site's
+ * own `Origin` are required (`403 forbidden` otherwise), so another site's
+ * page cannot count views with a simple POST.
  */
 export interface PubView {
   /** The usage statistics' device id (ADR 0147). */
@@ -785,9 +801,18 @@ export interface AdminReportItem {
   newest: number;
   /** The newest report's text, if any. */
   text?: string;
+  /** A hidden run's why (review fixes): `reports` (five accounts) or `admin` (the admin's Hide). */
+  hiddenReason?: 'reports' | 'admin';
 }
 
-export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'delete'] as const;
+/**
+ * Review fixes (S3, CR6): `dismiss` marks the run's reports handled and the
+ * run reviewed without changing its state (a hidden run stays hidden);
+ * `restore` shows it and marks it reviewed. A reviewed run is never hidden
+ * by reports again (they still queue). The five that hide count only
+ * reporters whose account still exists and is not suspended.
+ */
+export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'dismiss', 'delete'] as const;
 export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete'] as const;
 
 /**

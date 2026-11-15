@@ -5,7 +5,7 @@
 // Not behind the flag `share`: the admin can still clean up with it off.
 //
 //   GET  /api/admin/reports              open reports by item, and the published runs' totals
-//   POST /api/admin/pub/<id>             {action: hide|restore|delete, note?} → 204
+//   POST /api/admin/pub/<id>             {action: hide|restore|dismiss|delete, note?} → 204
 //   POST /api/admin/account/<name>       {action: suspend|restore|delete, confirm?, note?} → 204
 //   GET  /api/admin/log                  the newest 100 entries of admin_log
 //   GET  /api/admin/pub/<id>             PubMeta, also of a hidden run
@@ -109,7 +109,7 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
     db
       .prepare(
         `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
-                p.title, p.state, COALESCE(a.name, '') AS sender
+                p.title, p.state, p.hidden_reason, COALESCE(a.name, '') AS sender
          FROM report r JOIN publication p ON r.kind = 'run' AND p.id = r.target
          LEFT JOIN account a ON a.id = p.account
          WHERE r.handled = 0 AND p.state IN ('active', 'hidden')
@@ -153,6 +153,7 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
     };
     const text = textOfItem.get(key(r));
     if (text) item.text = text;
+    if (r.state === 'hidden' && (r.hidden_reason === 'reports' || r.hidden_reason === 'admin')) item.hiddenReason = r.hidden_reason;
     return item;
   });
   const t = totals?.results[0] ?? {};
@@ -207,17 +208,23 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
   const row = await adminRow(db, url);
   if (row instanceof Response) return row;
   const id = row.id;
-  const handled = db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'run' AND target = ?1`).bind(id, now);
   const entry = logEntry(db, now, who, `pub.${action}`, id, note);
   if (action === 'delete') {
-    await db.batch([...tombstones(db, now, 'id = ?2', [id]), handled, entry]);
+    // (`tombstones` marks the run's reports handled.)
+    await db.batch([...tombstones(db, now, 'id = ?2', [id]), entry]);
     await dropObjects(env, [id]);
     return done();
   }
+  const handled = db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'run' AND target = ?1`).bind(id, now);
+  // Restore and Dismiss mark the run reviewed (review fix S3): later reports
+  // queue it for the admin but never hide it by themselves. Dismiss leaves
+  // the state as it is: a hidden run stays hidden (CR6).
   const change =
     action === 'hide'
       ? db.prepare(`UPDATE publication SET state = 'hidden', hidden_reason = 'admin', updated = ?2 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id, now)
-      : db.prepare(`UPDATE publication SET state = 'active', hidden_reason = NULL, updated = ?2 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id, now);
+      : action === 'restore'
+        ? db.prepare(`UPDATE publication SET state = 'active', hidden_reason = NULL, reviewed = 1, updated = ?2 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id, now)
+        : db.prepare(`UPDATE publication SET reviewed = 1 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id);
   await db.batch([change, handled, entry]);
   return done();
 }
@@ -225,7 +232,14 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
 // --- POST /api/admin/account/<name> ---
 
 async function accountAction(request: Request, env: Env, db: D1, url: URL, now: number, who: string): Promise<Response> {
-  const name = nameOf(decodeURIComponent(url.pathname.slice(ACCOUNT_PREFIX.length)));
+  let raw: string;
+  try {
+    raw = decodeURIComponent(url.pathname.slice(ACCOUNT_PREFIX.length));
+  } catch {
+    // A broken escape (`%E0%A4%A`) names no account (review fix CR5; was a 503).
+    return error('not_found', 404);
+  }
+  const name = nameOf(raw);
   if (!name) return error('not_found', 404);
   const b = await bodyOf(request, ['action'], ['confirm', 'note']);
   const note = b ? noteOf(b.note) : null;

@@ -49,7 +49,7 @@ import { DEFAULT_ACCOUNT_LIMITS, PUB_DESCRIPTION_MAX } from '../../../shared/clo
 import { type Account, loadAccount, setPrefs } from '../../cloud/account';
 import { type PubFailure, createPubApi } from '../../cloud/pub/api';
 import type { MyPub } from '../../../shared/cloud/api.ts';
-import { codePointCount, linkMeta, linkUrl, sizeWords, typedDescription, typedTitle } from '../../share/link';
+import { codePointCount, linkMeta, linkUrl, newLinkKey, sizeWords, typedDescription, typedTitle } from '../../share/link';
 import type { LinkPayload } from '../../share/link-payload';
 import { copyText } from '../kit/clipboard';
 import { Check, Dialog, Field, GlassButton, Icon, LoadBar, TextArea, lookFrame } from '../kit/look';
@@ -102,6 +102,8 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const [made, setMade] = useState<MyPub | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const alive = useRef(true);
+  // One idempotency key for the dialog (review fix CR3): Try again after a lost answer gets the same run.
+  const key = useRef(newLinkKey());
   const abort = useRef<AbortController | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLTextAreaElement | null>(null);
@@ -164,7 +166,7 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
       }
       setAcct((a) => (a ? { ...a, rulesAccepted: true } : { state: 'active', limits, rulesAccepted: true }));
     }
-    const meta = linkMeta({ title, description: desc, character: link.payload.character, level: link.payload.level, lengthS: link.lengthS });
+    const meta = linkMeta({ title, description: desc, character: link.payload.character, level: link.payload.level, lengthS: link.lengthS, key: key.current });
     const r = await createPubApi().create(meta, link.bytes, { signal: ctl.signal, onProgress: (s, t) => alive.current && setSent([s, t]) });
     if (!alive.current || (!r.ok && r.code === 'cancelled')) return;
     if (r.ok) {

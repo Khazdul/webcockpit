@@ -142,6 +142,9 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
         pubs.removed.has(id) ? json(410, { error: 'gone' }) : !pub ? json(404, { error: 'not_found' }) : pub.pub.state === 'hidden' ? json(451, { error: 'hidden' }) : null;
       if (m[2] === '/view') {
         if (req.method() !== 'POST') return json(405, { error: 'method_not_allowed' });
+        // JSON, X-WC and the site's Origin, as the Worker wants them (review fix S5).
+        const h = await req.allHeaders();
+        if ((h['content-type'] ?? '').split(';')[0]!.trim() !== 'application/json' || h['x-wc'] !== '1' || h.origin !== url.origin) return json(403, { error: 'forbidden' });
         let device = '';
         try {
           device = (JSON.parse(req.postData() ?? '') as { device?: string }).device ?? '';

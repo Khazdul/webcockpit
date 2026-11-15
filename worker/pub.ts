@@ -51,11 +51,13 @@ import {
   PUB_ID_PATTERN,
   PUB_META_MAX_BYTES,
   PUB_TITLE_MAX,
+  PUB_KEY_PATTERN,
   type PubMeta,
   type PubMetaIn,
   type PubQuota,
   type PubWritten,
 } from '../shared/cloud/api.ts';
+import { isCleanText } from '../shared/cloud/text.ts';
 import { type AccountRow, hasKeys, limitsOf, prefsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
 import { randomBytes } from './bytes.ts';
@@ -93,20 +95,12 @@ const ID_TRIES = 5;
 /** A `pending` row this old is left behind by an isolate that died (the cron gives its count back). */
 export const PENDING_STALE_MS = 60 * 60_000;
 
-// --- Text (ADR 0154: Unicode text, NFC, no control characters but `\n` in a description) ---
-
-/**
- * Control characters (C0, DEL, C1), lone surrogates, and the bidi
- * embeddings, overrides and isolates (U+202A–U+202E, U+2066–U+2069), which
- * could make a title read as something else around it.
- */
-const FORBIDDEN = /[\p{Cc}\p{Cs}‪-‮⁦-⁩]/u;
+// --- Text (ADR 0154: Unicode text, NFC, no control characters but `\n` in a description; shared/cloud/text.ts) ---
 
 /** `v` when it is text of `min`–`max` characters (code points) by the rules, else null. */
 export function textOf(v: unknown, min: number, max: number, o: { newlines?: boolean; trimmed?: boolean } = {}): string | null {
   if (typeof v !== 'string' || v.length > max * 2 + 8) return null;
-  if (v.normalize('NFC') !== v) return null;
-  if (FORBIDDEN.test(o.newlines ? v.replace(/\n/g, '') : v)) return null;
+  if (!isCleanText(v, o.newlines === true)) return null;
   if (o.trimmed && v.trim() !== v) return null;
   const n = [...v].length;
   return n >= min && n <= max ? v : null;
@@ -117,17 +111,20 @@ export const descriptionOf = (v: unknown): string | null => textOf(v, 0, PUB_DES
 
 /** The meta of a POST, checked, or null (400). */
 export function metaOf(v: unknown): PubMetaIn | null {
-  if (!hasKeys(v, ['title', 'description', 'character', 'lengthS', 'listed'], ['level'])) return null;
+  if (!hasKeys(v, ['title', 'description', 'character', 'lengthS', 'listed'], ['level', 'key'])) return null;
   const title = titleOf(v.title);
   const description = descriptionOf(v.description);
   const character = textOf(v.character, 0, CHARACTER_MAX, { trimmed: true });
   if (title === null || description === null || character === null) return null;
   if (v.listed !== false) return null;
   const { lengthS, level } = v;
-  if (typeof lengthS !== 'number' || !Number.isFinite(lengthS) || lengthS < 0 || lengthS > LENGTH_MAX_S) return null;
+  // Whole seconds (review fix CR4: the client's reader wants a whole number).
+  if (typeof lengthS !== 'number' || !Number.isInteger(lengthS) || lengthS < 0 || lengthS > LENGTH_MAX_S) return null;
   if (level !== undefined && (typeof level !== 'number' || !Number.isInteger(level) || level < 0 || level > LEVEL_MAX)) return null;
+  if (v.key !== undefined && (typeof v.key !== 'string' || !PUB_KEY_PATTERN.test(v.key))) return null;
   const meta: PubMetaIn = { title, description, character, lengthS, listed: false };
   if (level !== undefined) meta.level = level;
+  if (v.key !== undefined) meta.key = v.key;
   return meta;
 }
 
@@ -157,8 +154,11 @@ const P_COLUMNS = PUB_COLUMNS.split(', ')
   .map((c) => `p.${c}`)
   .join(', ');
 
-/** What a tombstone keeps: no text. `bytes` stays until R2 confirms the object is gone. */
-export const TOMBSTONE_SET = "state = 'removed', title = '', description = '', character = '', level = NULL, hidden_reason = NULL, listed = 0";
+/**
+ * What a tombstone keeps: no text, no idempotency key (a POST with it makes
+ * a new run). `bytes` stays until R2 confirms the object is gone.
+ */
+export const TOMBSTONE_SET = "state = 'removed', title = '', description = '', character = '', level = NULL, hidden_reason = NULL, listed = 0, pub_key = NULL";
 /** The states of a run that has its payload and counts against `sharedRuns` (besides `pending`). */
 export const LIVE = "('active', 'hidden')";
 
@@ -368,9 +368,13 @@ async function patch(c: PubCtx): Promise<Response> {
   const title = b.title === undefined ? undefined : titleOf(b.title);
   const description = b.description === undefined ? undefined : descriptionOf(b.description);
   if (title === null || description === null) return badRequest();
+  // A hidden run keeps the words it was reported for until the admin has
+  // looked (review fix S7): the queue shows what the reporters saw.
+  const now = await ownLive(c, id);
+  if (now?.state === 'hidden') return error('hidden', 403);
   const [updated, read] = await c.db.batch<PubRow>([
     c.db
-      .prepare(`UPDATE publication SET title = COALESCE(?3, title), description = COALESCE(?4, description), updated = ?5 WHERE id = ?1 AND account = ?2 AND state IN ${LIVE}`)
+      .prepare(`UPDATE publication SET title = COALESCE(?3, title), description = COALESCE(?4, description), updated = ?5 WHERE id = ?1 AND account = ?2 AND state = 'active'`)
       .bind(id, account.id, title ?? null, description ?? null, c.now),
     c.db.prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE id = ?1 AND account = ?2 AND state IN ${LIVE}`).bind(id, account.id),
   ]);
@@ -502,6 +506,20 @@ async function create(c: PubCtx): Promise<Response> {
   const magic = await body.peek(2);
   if (!magic || magic[0] !== 0x1f || magic[1] !== 0x8b) return fail(badRequest());
 
+  // A repeated POST (the dialog's Try again after a lost answer, review fix
+  // CR3): the run its key made, not another one. Before the count, so a
+  // retry at the limit still gets its run.
+  const byKey = async (): Promise<Response | null> => {
+    if (meta.key === undefined) return null;
+    const row = await c.db.prepare(`SELECT ${PUB_COLUMNS} FROM publication WHERE account = ?1 AND pub_key = ?2`).bind(account.id, meta.key).first<PubRow>();
+    if (!row) return null;
+    // Still on its way to R2 (the first request is running): no second copy.
+    if (row.state === 'pending') return error('unavailable', 503);
+    return json({ pub: myPub(row) } satisfies PubWritten);
+  };
+  const repeated = await byKey();
+  if (repeated) return fail(repeated);
+
   // 1. Reserve the count under a fresh id.
   let id = '';
   let made = false;
@@ -511,11 +529,11 @@ async function create(c: PubCtx): Promise<Response> {
       const results = await c.db.batch([
         c.db
           .prepare(
-            `INSERT INTO publication (id, account, title, description, character, level, length_s, bytes, listed, state, created, updated)
-             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 'pending', ?9, ?9
+            `INSERT INTO publication (id, account, title, description, character, level, length_s, bytes, listed, state, created, updated, pub_key)
+             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 'pending', ?9, ?9, ?11
              WHERE (SELECT pub_count FROM account WHERE id = ?2) < ?10`,
           )
-          .bind(id, account.id, meta.title, meta.description, meta.character, meta.level ?? null, meta.lengthS, bytes, c.now, limits.sharedRuns),
+          .bind(id, account.id, meta.title, meta.description, meta.character, meta.level ?? null, meta.lengthS, bytes, c.now, limits.sharedRuns, meta.key ?? null),
         c.db
           .prepare(
             `UPDATE account SET pub_count = pub_count + 1, pub_bytes = pub_bytes + ?3
@@ -531,8 +549,11 @@ async function create(c: PubCtx): Promise<Response> {
       }
       made = true;
     } catch (e) {
-      // The id is taken (the batch is one transaction: nothing applied): draw again.
+      // The id is taken (the batch is one transaction: nothing applied): draw
+      // again; or a parallel POST with the same key made its row first.
       if (!/UNIQUE|constraint/i.test(String(e instanceof Error ? e.message : e))) throw e;
+      const same = await byKey();
+      if (same) return fail(same);
     }
   }
   if (!made) return fail(error('unavailable', 503));
@@ -622,6 +643,13 @@ export async function publicPub(request: Request, env: Env, url: URL, deps: Deps
 
 async function publicAnswer(request: Request, env: Env, db: D1, id: string, part: string, now: number): Promise<Response> {
   if (part === '/view') {
+    // Only the watch page counts a view (review fix S5): JSON with `X-WC: 1`
+    // and the site's own Origin, which a page of another site cannot send
+    // without a preflight that gets no CORS answer.
+    const type = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
+    // (auth.ts `sameSite`, written out: auth.ts imports this module.)
+    const sameSite = request.headers.get('x-wc') === '1' && request.headers.get('origin') === new URL(request.url).origin;
+    if (type !== 'application/json' || !sameSite) return error('forbidden', 403);
     const text = await readCapped(request, 256);
     let b: unknown = null;
     try {
@@ -667,32 +695,42 @@ const SWEEP_PER_RUN = 500;
 export const KEEP_VIEWS_DAYS = 2;
 
 /**
- * The daily cron's part: views older than two days go; a `pending` row left
- * by an isolate that died an hour ago becomes a tombstone and gives its
- * count back; tombstones whose object may still be in R2 have it deleted.
+ * The daily cron's part: views older than two days go; `pending` rows left
+ * by an isolate that died an hour ago become tombstones and give their
+ * count back (one batch for all of them), and their objects go; tombstones
+ * whose object may still be in R2 have it deleted, once they are an hour
+ * old: Delete account turns an upload's `pending` row into a tombstone
+ * while its object may still be on its way to R2 (review fix CR7), so a
+ * fresh tombstone is left to its upload's own clean-up until then.
  */
 export async function sweepPubs(env: Env, now: number): Promise<void> {
   const db = env.DB;
   if (!db) return;
   await db.prepare('DELETE FROM pub_view WHERE day < ?1').bind(utcDay(now - KEEP_VIEWS_DAYS * DAY_MS)).run();
   const { results: stale } = await db
-    .prepare(`SELECT id, account, bytes FROM publication WHERE state = 'pending' AND updated <= ?1 LIMIT ?2`)
+    .prepare(`SELECT id FROM publication WHERE state = 'pending' AND updated <= ?1 LIMIT ?2`)
     .bind(now - PENDING_STALE_MS, SWEEP_PER_RUN)
-    .all<{ id: string; account: string; bytes: number }>();
-  for (const p of stale) {
+    .all<{ id: string }>();
+  if (stale.length > 0) {
+    const ids = JSON.stringify(stale.map((r) => r.id));
+    const these = `state = 'pending' AND id IN (SELECT value FROM json_each(?1))`;
+    const mine = `q.account = account.id AND q.state = 'pending' AND q.id IN (SELECT value FROM json_each(?1))`;
     await db.batch([
       db
         .prepare(
-          `UPDATE account SET pub_count = pub_count - 1, pub_bytes = pub_bytes - ?3
-           WHERE id = ?1 AND EXISTS (SELECT 1 FROM publication WHERE id = ?2 AND state = 'pending')`,
+          `UPDATE account SET
+             pub_count = pub_count - (SELECT COUNT(*) FROM publication q WHERE ${mine}),
+             pub_bytes = pub_bytes - (SELECT COALESCE(SUM(q.bytes), 0) FROM publication q WHERE ${mine})
+           WHERE id IN (SELECT account FROM publication WHERE ${these})`,
         )
-        .bind(p.account, p.id, p.bytes),
-      db.prepare(`UPDATE publication SET ${TOMBSTONE_SET}, updated = ?2 WHERE id = ?1 AND state = 'pending'`).bind(p.id, now),
+        .bind(ids),
+      db.prepare(`UPDATE publication SET ${TOMBSTONE_SET}, updated = ?2 WHERE ${these}`).bind(ids, now),
     ]);
+    await dropObjects(env, stale.map((r) => r.id));
   }
   const { results: left } = await db
-    .prepare(`SELECT id FROM publication WHERE state = 'removed' AND bytes > 0 LIMIT ?1`)
-    .bind(SWEEP_PER_RUN)
+    .prepare(`SELECT id FROM publication WHERE state = 'removed' AND bytes > 0 AND updated <= ?1 LIMIT ?2`)
+    .bind(now - PENDING_STALE_MS, SWEEP_PER_RUN)
     .all<{ id: string }>();
   await dropObjects(env, left.map((r) => r.id));
 }

@@ -19,13 +19,16 @@ const STILL = 'EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?2)';
 /**
  * The batch that deletes the account `row`. `extra` statements (bound by
  * the caller) go before the account row's delete. The first statement
- * reads the account's publications that have a payload; `deletedBy` reads
- * the results.
+ * reads the account's live publications (their payloads go after the
+ * transaction); `deletedBy` reads the results.
  */
 export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, hash: string, now: number, extra: D1Statement[] = []): D1Statement[] {
   const pubWhere = `account = ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?2 AND auth_hash = ?3)`;
   return [
-    db.prepare(`SELECT id FROM publication WHERE account = ?1 AND state <> 'removed' AND ${STILL}`).bind(row.id, hash),
+    // The live runs only: a pending one's object may still be on its way to
+    // R2, so its tombstone keeps its bytes for the upload or the cron
+    // (review fix CR7).
+    db.prepare(`SELECT id FROM publication WHERE account = ?1 AND state IN ('active', 'hidden') AND ${STILL}`).bind(row.id, hash),
     db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${STILL}`).bind(row.id, hash, row.name_key),
     ...ended(db, `account = ?1 AND ${STILL}`, [row.id, hash], 'deleted', now),
     db.prepare(`DELETE FROM item WHERE account = ?1 AND ${STILL}`).bind(row.id, hash),
@@ -40,6 +43,10 @@ export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, 
     // cron deletes what R2 failed on (a tombstone keeps its bytes until then).
     ...tombstones(db, now, pubWhere, [row.id, hash]),
     db.prepare(`UPDATE publication SET ${TOMBSTONE_SET}, updated = ?3 WHERE account = ?1 AND state = 'pending' AND ${STILL}`).bind(row.id, hash, now),
+    // The account's own reports (review fix S4): the open ones go, the
+    // handled ones stay for the record without their text or the account.
+    db.prepare(`DELETE FROM report WHERE account = ?1 AND handled = 0 AND ${STILL}`).bind(row.id, hash),
+    db.prepare(`UPDATE report SET text = '', account = NULL WHERE account = ?1 AND ${STILL}`).bind(row.id, hash),
     // Later stages add theirs here:
     //   stage 65: the votes and comments the account made (and the
     //             publications' vote_sum, vote_count, comment_count)

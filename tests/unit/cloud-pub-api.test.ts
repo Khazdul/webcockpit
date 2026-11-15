@@ -117,7 +117,8 @@ describe('createPubApi', () => {
   });
 
   it('an answer that is not the contract is bad_answer', async () => {
-    expect(await api(200, { pubs: [{ ...PUB, id: 'short' }] }).api.list()).toMatchObject({ code: 'bad_answer' });
+    // A row it cannot read is left out (review fix CR4), not the whole list.
+    expect(await api(200, { pubs: [{ ...PUB, id: 'short' }] }).api.list()).toMatchObject({ ok: true, value: [] });
     expect(await api(200, { pubs: 'no' }).api.list()).toMatchObject({ code: 'bad_answer' });
     expect(parseMyPub({ ...PUB, state: 'removed' })).toBeUndefined();
     expect(parseMyPub({ ...PUB, views: -1 })).toBeUndefined();

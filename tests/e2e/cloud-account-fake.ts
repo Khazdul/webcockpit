@@ -489,6 +489,10 @@ export class FakeAccountServer {
   pubUploads: { meta: unknown; payload: Uint8Array; body: Uint8Array }[] = [];
   /** The pub requests fail as if the network were down (the other requests answer). */
   pubOffline = false;
+  /** The next POST is done but its answer is lost on the way back (review fix CR3: the dialog's Try again). */
+  pubLoseAnswer = false;
+  /** `<account>|<key>` → the run a POST's idempotency key made (review fix CR3). */
+  private pubKeys = new Map<string, string>();
 
   /** An account's limits (a test's own: `sharedRuns`, `payloadMaxBytes`). */
   setLimits(name: string, patch: Partial<AccountLimits>): void {
@@ -505,7 +509,8 @@ export class FakeAccountServer {
   /** A published run of an account, as if it had shared it before (no payload check). Returns its id. */
   addPub(name: string, o: Partial<Omit<MyPub, 'id'>> & { id?: string; payload?: Uint8Array } = {}): string {
     const id = o.id ?? this.newPubId();
-    const t = Math.floor(this.clock / 1000);
+    // Milliseconds, as the Worker sends every time.
+    const t = this.clock;
     this.pubs.set(id, {
       account: name.toLowerCase(),
       payload: o.payload ?? new Uint8Array([0x1f, 0x8b]),
@@ -557,11 +562,15 @@ export class FakeAccountServer {
     if (!account) return err('unauthorized', 401);
     const res = this.pubAnswer(req, account, bytes);
     this.seen.push({ method: req.method, path: req.path, search: req.search ?? '', body: null, headers: { ...req.headers }, cookie: true, status: res.status });
+    if (this.pubLoseAnswer && req.method === 'POST') {
+      this.pubLoseAnswer = false;
+      return 'offline';
+    }
     return res;
   }
 
   private pubAnswer(req: FakeRequest, account: AccountRow, bytes: Uint8Array | null): FakeResponse {
-    const t = Math.floor(this.clock / 1000);
+    const t = this.clock;
     if (req.path === '/api/u/pub') {
       if (req.method === 'GET') return { status: 200, body: { pubs: this.pubsOf(account.key) } };
       if (req.method !== 'POST') return err('method_not_allowed', 405);
@@ -581,14 +590,19 @@ export class FakeAccountServer {
         return err('bad_request', 400);
       }
       this.pubUploads.push({ meta, payload: new Uint8Array(payload), body: new Uint8Array(bytes) });
-      if (!hasKeys(meta, ['title', 'description', 'character', 'lengthS', 'listed'], ['level'])) return err('bad_request', 400);
-      const m = meta as unknown as PubMetaIn;
+      if (!hasKeys(meta, ['title', 'description', 'character', 'lengthS', 'listed'], ['level', 'key'])) return err('bad_request', 400);
+      const { key, ...m } = meta as unknown as PubMetaIn;
+      if (key !== undefined && (typeof key !== 'string' || !/^[A-Za-z0-9_-]{16,32}$/.test(key))) return err('bad_request', 400);
       const textOk = (v: unknown, min: number, max: number): boolean => typeof v === 'string' && [...v].length >= min && [...v].length <= max && v === v.trim();
       if (!textOk(m.title, 1, PUB_TITLE_MAX) || typeof m.description !== 'string' || [...m.description].length > PUB_DESCRIPTION_MAX || !textOk(m.character, 0, 40)) return err('bad_request', 400);
-      if (m.listed !== false || typeof m.lengthS !== 'number' || (m.level !== undefined && !Number.isInteger(m.level))) return err('bad_request', 400);
+      if (m.listed !== false || !Number.isInteger(m.lengthS) || m.lengthS < 0 || (m.level !== undefined && !Number.isInteger(m.level))) return err('bad_request', 400);
       if (payload[0] !== 0x1f || payload[1] !== 0x8b) return err('bad_request', 400);
+      // A repeated key answers the run it made (review fix CR3).
+      const made = key === undefined ? undefined : this.pubKeys.get(`${account.key}|${key}`);
+      if (made && this.pubs.has(made)) return { status: 200, body: { pub: { ...this.pubs.get(made)!.pub } } };
       if (this.pubsOf(account.key).length >= account.limits.sharedRuns) return { status: 413, body: { error: 'pub_quota', limit: account.limits.sharedRuns } };
       const id = this.addPub(account.key, { ...m, created: t, updated: t, bytes: payload.length, payload: new Uint8Array(payload) });
+      if (key !== undefined) this.pubKeys.set(`${account.key}|${key}`, id);
       return { status: 200, body: { pub: { ...this.pubs.get(id)!.pub } } };
     }
     const id = req.path.slice('/api/u/pub/'.length);
@@ -619,6 +633,7 @@ export class FakeAccountServer {
     }
     if (req.method !== 'PATCH') return err('method_not_allowed', 405);
     if (account.state === 'suspended') return err('suspended', 403);
+    if (p.pub.state === 'hidden') return err('hidden', 403);
     const b = this.body(req, [], ['title', 'description']);
     if (!b || Object.keys(b).length === 0) return err('bad_request', 400);
     if (b.title !== undefined && (typeof b.title !== 'string' || b.title.trim() === '' || b.title !== b.title.trim() || [...b.title].length > PUB_TITLE_MAX)) return err('bad_request', 400);

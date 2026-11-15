@@ -6,7 +6,9 @@
 // words.
 //
 // Keep it true to what the code does: what is uploaded (ADR 0154 "What is
-// uploaded": the cut payload, its whitelisted settings, the meta),
+// uploaded": the cut payload, its whitelisted settings with the panes'
+// ids, the map subset without room notes and with a neutral name, the
+// meta; src/share/link-payload.ts),
 // worker/pub.ts (the row, views once per device and UTC day, `pub_view`
 // pruned after two days, Remove and Delete account to tombstones and R2
 // deleted), worker/reports.ts (one per account and run, five accounts
@@ -21,7 +23,7 @@ export const PRIVACY_SHARE_UPDATED = 'Last changed 15 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_SHARE = `SHARE LINKS
-A share link is your own choice, made with an account: in History, Export a session and choose Link. What you cut is all that leaves this browser: the game text and the panes of the parts you kept, as they were (other players' tells and channels in them included), the map of the rooms it passes when the export shows the map, the display settings the replay needs, and the title and description you give it. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared run is not encrypted: it is meant to be watched.
+A share link is your own choice, made with an account: in History, Export a session and choose Link. What you cut is all that leaves this browser: the game text and the panes of the parts you kept, as they were (other players' tells and channels in them included), the map of the rooms it passes when the export shows the map (without your own room notes or the name of your map file), the display settings the replay needs (among them the names of your panes, script panes included), and the title and description you give it. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared run is not encrypted: it is meant to be watched.
   Who can watch   Anyone with the link, without an account. The link is not listed anywhere, but whoever has it can pass it on, and can download the run as a file.
   What is kept    The run as you cut it, its title, description, character, level and length, when it was made, and how many have watched it. A view is counted once a day for each device, by the random number of the heartbeat (made for this browser if it has none); which devices watched is deleted after two days.
   Removing it     Remove a run on the Account page under Published runs, whenever you like: the link then says it was removed, and the run is deleted. Delete account removes all your shared runs. A copy someone has downloaded is theirs.

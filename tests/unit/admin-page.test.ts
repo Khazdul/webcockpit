@@ -48,6 +48,7 @@ const queue = (): AdminReports => ({
       reporters: 5,
       newest: NOW - 2 * 3600_000,
       text: `His name is ${HOSTILE}`,
+      hiddenReason: 'reports',
     },
     {
       kind: 'run',
@@ -150,7 +151,7 @@ describe('the admin page: the report queue', () => {
     const [first, second] = cards();
     expect(first?.querySelector('h3')?.textContent).toBe(HOSTILE);
     expect(first?.classList.contains('is-hidden')).toBe(true);
-    expect(first?.querySelector('.rq-state')?.textContent).toBe('hidden');
+    expect(first?.querySelector('.rq-state')?.textContent).toBe('Hidden after 5 reports');
     expect(first?.querySelector('.rq-text')?.textContent).toBe(`“His name is ${HOSTILE}”`);
     expect(first?.querySelector('.rq-from')?.textContent).toContain('Reported by 5 accounts');
     expect(first?.querySelector('.rq-from')?.textContent).toContain('2026-11-15 14:40 UTC (2 h ago)');
@@ -170,9 +171,9 @@ describe('the admin page: the report queue', () => {
     expect(watch.target).toBe('_blank');
     expect(watch.rel).toBe('noopener noreferrer');
 
-    // A hidden run offers Restore; a shown one Hide and Dismiss reports.
+    // A hidden run offers Restore; a shown one Hide; both Dismiss reports (review fix CR6).
     const texts = (c: HTMLElement | undefined) => Array.from(c?.querySelectorAll('button') ?? []).map((b) => b.textContent);
-    expect(texts(first)).toEqual(['Restore', 'Delete', 'Suspend fenwick']);
+    expect(texts(first)).toEqual(['Restore', 'Delete', 'Dismiss reports', 'Suspend fenwick']);
     expect(texts(second)).toEqual(['Hide', 'Delete', 'Dismiss reports', 'Suspend <b>marrow</b>']);
 
     expect(Array.from(document.querySelectorAll('#pubs dd')).map((d) => d.textContent)).toEqual(['1,284', '1.31 GB', '47']);
@@ -254,7 +255,7 @@ describe('the admin page: the actions ask first', () => {
     expect(calls.filter((c) => c.path === '/api/admin/log').length).toBe(1);
   });
 
-  it('Restore and Dismiss reports send restore without a note when none is given', async () => {
+  it('Restore sends restore and Dismiss reports dismiss (review fix CR6), without a note when none is given', async () => {
     await boot();
     buttonIn(cards()[0] as HTMLElement, 'Restore').click();
     expect(modal()?.querySelector('h3')?.textContent).toBe(`Show “${HOSTILE}” again?`);
@@ -265,8 +266,20 @@ describe('the admin page: the actions ask first', () => {
     await settle();
     expect(posts().map((c) => [c.path, c.body])).toEqual([
       ['/api/admin/pub/Zp6Wd3Fg5uNa', { action: 'restore' }],
-      ['/api/admin/pub/Vt8Ky2Qa4mRc', { action: 'restore' }],
+      ['/api/admin/pub/Vt8Ky2Qa4mRc', { action: 'dismiss' }],
     ]);
+  });
+
+  it('review fixes: the card says why a run is hidden; Dismiss on a hidden run keeps it hidden', async () => {
+    reports.items.push({ ...reports.items[0]!, target: 'Qw2Er4Ty6Ui8', title: 'By hand', hiddenReason: 'admin' });
+    reports.items.push({ ...reports.items[0]!, target: 'Mn3Bv5Cx7Zl9', title: 'Older', hiddenReason: undefined as never });
+    await boot();
+    expect(cards().map((c) => c.querySelector('.rq-state')?.textContent)).toEqual(['Hidden after 5 reports', 'shown', 'Hidden by the admin', 'hidden']);
+    buttonIn(cards()[2] as HTMLElement, 'Dismiss reports').click();
+    expect(modal()?.textContent).toContain('stays as it is, hidden');
+    buttonIn(modal() as HTMLElement, 'Dismiss reports').click();
+    await settle();
+    expect(posts().map((c) => [c.path, c.body])).toEqual([['/api/admin/pub/Qw2Er4Ty6Ui8', { action: 'dismiss' }]]);
   });
 
   it('Delete a run wants its id typed exactly', async () => {
