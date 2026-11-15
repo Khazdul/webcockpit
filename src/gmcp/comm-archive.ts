@@ -30,35 +30,22 @@
 // transaction notes `comm` (src/core/store-events.ts); these do not (they
 // are the sync's own writes).
 
-import { canonicalJson } from '../cloud/sync/items';
 import { STORE, idbDone, idbRequest } from '../core/db';
 import { noteStored } from '../core/store-events';
+import { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
+
+export { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
 
 /** How long messages are kept (7 days, Inv §2.7). */
 export const COMM_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 /** Messages loaded for a character (the pane keeps 1000 in memory). */
 export const COMM_LOAD_LIMIT = 1000;
 
-/** One stored message: the `Comm.Channel.Text` fields as received. */
-export interface CommRecord {
-  /** Character name from `Char.Name`. */
-  character: string;
-  /** Receive time, ms since the epoch. */
-  ts: number;
+/** One stored message: the `Comm.Channel.Text` fields as received, and its store key. */
+export interface CommRecord extends NewCommRecord {
   /** Store key, assigned on append (insertion order; ties in `ts` keep it). */
   seq: number;
-  channel: string;
-  talker: string;
-  /** `talker-type` as sent (npc, ally, neutral, enemy, player …), or null. */
-  talkerType: string | null;
-  /** `destination` (only on sent messages), or null. */
-  destination: string | null;
-  /** Text as sent, ANSI kept. */
-  text: string;
 }
-
-/** A record before it is stored (`seq` is assigned by the store). */
-export type NewCommRecord = Omit<CommRecord, 'seq'>;
 
 /** A day with records, for the sync: the UTC day and its cache key. */
 export interface CommDay {
@@ -68,54 +55,6 @@ export interface CommDay {
   count: number;
   /** Highest `seq` among them (with `count`, changes whenever the day does). */
   maxSeq: number;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/** The UTC day `YYYY-MM-DD` of a time in ms. */
-export function utcDay(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
-}
-
-/** The start (inclusive) and end (exclusive) of a UTC day in ms; throws on a bad day. */
-export function dayBounds(day: string): [number, number] {
-  const m = DAY_RE.exec(day);
-  const start = m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
-  if (!m || !Number.isFinite(start) || utcDay(start) !== day) throw new RangeError(`not a UTC day: ${day}`);
-  return [start, start + DAY_MS];
-}
-
-/** The record without `seq` (and without anything else that is not a field), or null if it is not one. */
-export function commFields(raw: unknown): NewCommRecord | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const r = raw as Record<string, unknown>;
-  const strOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
-  if (typeof r.character !== 'string' || typeof r.ts !== 'number' || !Number.isFinite(r.ts)) return null;
-  if (typeof r.channel !== 'string' || typeof r.talker !== 'string' || typeof r.text !== 'string') return null;
-  if (!strOrNull(r.talkerType) || !strOrNull(r.destination)) return null;
-  return {
-    character: r.character,
-    ts: r.ts,
-    channel: r.channel,
-    talker: r.talker,
-    talkerType: r.talkerType,
-    destination: r.destination,
-    text: r.text,
-  };
-}
-
-/** A record's identity (ADR 0152): the canonical JSON of its fields without `seq`. */
-export function commIdentity(rec: NewCommRecord): string {
-  return canonicalJson(commFields(rec) ?? rec);
-}
-
-/** Sorts records by `ts`, then identity (a new array; ADR 0152's piece order). */
-export function sortCommRecords(records: readonly NewCommRecord[]): NewCommRecord[] {
-  return records
-    .map((r) => ({ r, id: commIdentity(r) }))
-    .sort((a, b) => a.r.ts - b.r.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((x) => x.r);
 }
 
 export interface CommArchiveOptions {
