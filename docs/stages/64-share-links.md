@@ -249,20 +249,36 @@ touches staging or production.
 
 ### D. Checks
 
-- [ ] An independent security review by a second agent with only the
+- [x] An independent security review by a second agent with only the
       code and ADR 0148 / 0154: the sandboxed playback against hostile
       payloads (its own fuzzing, its own attack payloads), the frame's
       CSP and handshake, that the server can read only what was shared,
       the Worker's checks (auth, suspended, limits, races, states, the
       admin's guard). `/code-review` high of the stage. Fixes with tests
       that fail before them; ADR 0154 "As built (review fixes)".
-      **Partly done: the reviews' findings (S1–S7, CR1–CR10) fixed on
-      `stage64-fixes`** with their tests (ADR 0154 "As built (stage 64,
-      review fixes)"); not merged to `main` yet.
-- [ ] Unit; worker; the full e2e alone at 5 workers (a failure rerun
+      The security review found no script execution, network access or
+      escape from the frame and no HTML injection; its worst finding (S1,
+      a 61 KB payload whose map tiles took 4.5–7.6 GB in the frame) and
+      S2–S7, and `/code-review` high's CR1–CR10, are fixed with tests that
+      failed before them (ADR 0154 "As built (stage 64, review fixes)").
+      S1's fix decoded the tiles one at a time and also fetched them one
+      at a time, which the full e2e caught (the map's loading overlay and
+      the tileset swap); fixed in c9453b0c: fetched together, decoded in
+      turn.
+- [x] Unit; worker; the full e2e alone at 5 workers (a failure rerun
       alone before it is called one); the benchmark; the entry chunk;
       `npm run test:sync-worker` (grows: a run shared, watched and
       removed against the local Worker and R2).
+
+Checks (2026-11-15): unit and worker 5157 passed, 2 skipped; full e2e
+alone at 5 workers (port 5450) 1733 passed, 2 failed under load, 1
+skipped: the two (Chromium account-pages:739, Firefox
+script-code-editor:312) passed alone 12/12, neither in this stage's
+code; the benchmark as stage 63 (GPU: key → send playing 0.8 / 1.3 /
+3.4 ms; burst 84 159 lines/s, no frame over 50 ms); entry chunk 31 192
+(stage 63) → 31 366 bytes (+174: the watch path in the boot, ADR 0154
+"As built (C2)"); `npm run test:sync-worker` 2/2 (a run shared on the
+local Worker and R2, watched by a guest, counted once, removed).
 
 ### E. Staging
 
