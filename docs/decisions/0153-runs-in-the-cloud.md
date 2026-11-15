@@ -1,6 +1,6 @@
 # 0153 — Runs in the cloud
 
-- Status: Accepted (technical; stage 63). The points a player sees
+- Status: Accepted (technical; stage 63). Built; released in 0.12.0 (2026-11-15), when accounts opened in production. The points a player sees
   (the "does not fit" dialog, History's marks and storage line, Log
   out's runs, the confirmation, the counts in Statistics, Spotlights
   and Diary) follow the owner's picks of mockup round 11; the limit

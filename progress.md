@@ -81,6 +81,7 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 - The owner's test on staging passed ("Testerna gjorda. Allt ok. Kör på."), taken as the go-ahead for part E.
 - Checked before: production's secrets `AUTH_PEPPER` and `TURNSTILE_SECRET` present; the D1 flag overrides hold only `stats`; migrations 0003 and 0004 pending.
 - Released 0.12.0: `FLAG_ACCOUNTS`, `FLAG_SYNC`, `FLAG_RUNS` on in production's vars; tag `v0.12.0`, deploy run 43726017735 applied 0003 and 0004; `/api/config` all four flags on; `/api/u/*` 401 without a session; `test:prod` 30/30 against mumecockpit.com.
+- After the release the owner created an account on mumecockpit.com: "Ser bra ut."
 - Next: stage 64 (share links) in its own session. Open: none from stage 63.
 - Commits: 9a5a73a (release), and this one.
 

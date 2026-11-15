@@ -342,3 +342,6 @@ accounts in production.
 2026-11-15, after the test on staging: "Testerna gjorda. Allt ok. Kör
 på." The test guide's steps passed; no comments. Taken as the explicit
 go-ahead for part E: accounts open in production with 0.12.0.
+
+2026-11-15, after the release: the owner created an account on
+mumecockpit.com: "Ser bra ut." 
