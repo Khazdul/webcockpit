@@ -2,8 +2,7 @@
 // community" in shared/cloud/api.ts). Behind the flags `share` and
 // `gallery`; Random Runes behind `runes` as well.
 //
-//   GET    /api/gallery?sort=&period=&page=   the list (public, cached 60 s)
-//   GET    /api/gallery/random                one random listed run (public)
+//   GET    /api/gallery?sort=&period=&page=&by=   the list (public, cached 60 s)
 //   GET    /api/community                     the Hall of Fame boxes (public, cached 60 s)
 //   GET    /api/runes                         the board (public, cached 60 s; `runes`)
 //   GET    /api/pub/<id>/comments?page=       a run's comments (public; reached through worker/pub.ts)
@@ -29,6 +28,8 @@ import {
   type CommentWritten,
   type CommunityBoxes,
   type CommunityNews,
+  DAY_RUN_DESCRIPTION_MAX,
+  type DayRun,
   type CommunitySeen,
   COMMENT_MAX,
   COMMENT_NEWLINES_MAX,
@@ -44,12 +45,9 @@ import {
   GALLERY_SORTS,
   type GalleryPage,
   type GalleryPeriod,
-  type GalleryRandom,
   type GalleryRow,
   type GallerySort,
   HALL_OF_FAME_SIZE,
-  MUME_KEEP_HOURS,
-  type MumeBoxes,
   NEWS_MAX,
   NOTE_DAYS,
   NOTE_MAX,
@@ -59,17 +57,17 @@ import {
   RUNES_SHOWN,
   type RunesBoard,
   type Stars,
-  TOP_POSTERS,
   TOP_PRIOR_MEAN,
   TOP_PRIOR_VOTES,
   type VoteAnswer,
-  type Warlord,
+  NAME_PATTERN,
 } from '../shared/cloud/api.ts';
 import { isPublicText } from '../shared/cloud/text.ts';
 import { hasKeys, limitsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
 import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
+import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
 import { DAY_MS, type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
@@ -178,32 +176,29 @@ const ORDER: Record<GallerySort, string> = {
   top: `(${TOP_PRIOR_VOTES}.0 * m.mean + p.top_sum) / (${TOP_PRIOR_VOTES} + p.top_count) DESC, p.top_count DESC, p.listed_at DESC, p.id`,
   new: 'p.listed_at DESC, p.id',
   watched: 'p.views DESC, p.listed_at DESC, p.id',
+  comments: 'p.comment_count DESC, p.listed_at DESC, p.id',
+  length: 'p.length_s DESC, p.listed_at DESC, p.id',
 };
 
-/** Listed active runs, listed at or after `since`, in `sort`'s order. */
-async function listRows(db: D1, sort: GallerySort, since: number, limit: number, offset: number): Promise<GalleryRow[]> {
+/**
+ * Listed active runs, listed at or after `since`, in `sort`'s order; only
+ * the account whose `name_key` is `by` when it is given.
+ */
+async function listRows(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): Promise<GalleryRow[]> {
+  const mean = sort === 'top' ? `, (SELECT ${MEAN} AS mean) m` : '';
   const { results } = await db
     .prepare(
-      `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account, (SELECT ${MEAN} AS mean) m
-       WHERE ${LISTED} AND p.listed_at >= ?1 ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
+      `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account${mean}
+       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR a.name_key = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
     )
-    .bind(since, limit, offset)
+    .bind(since, limit, offset, by)
     .all<ListRow>();
   return results.map(galleryRow);
 }
 
-async function rowsById(db: D1, ids: string[]): Promise<Map<string, GalleryRow>> {
-  if (ids.length === 0) return new Map();
-  const { results } = await db
-    .prepare(`SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account WHERE ${LISTED} AND p.id IN (SELECT value FROM json_each(?1))`)
-    .bind(JSON.stringify(ids))
-    .all<ListRow>();
-  return new Map(results.map((r) => [r.id, galleryRow(r)]));
-}
-
 // --- Public paths ---
 
-const PUBLIC_PATHS = new Set(['/api/gallery', '/api/gallery/random', '/api/community', '/api/runes']);
+const PUBLIC_PATHS = new Set(['/api/gallery', '/api/community', '/api/runes']);
 
 export function isCommunityPublicPath(path: string): boolean {
   return PUBLIC_PATHS.has(path);
@@ -225,11 +220,9 @@ export async function communityPublic(request: Request, env: Env, url: URL, deps
     const res =
       path === '/api/gallery'
         ? await gallery(db, url, deps, now)
-        : path === '/api/gallery/random'
-          ? await random(db)
-          : path === '/api/community'
-            ? await cached(deps, `${url.origin}/api/community`, () => boxes(env, db, now))
-            : await cached(deps, `${url.origin}/api/runes`, () => runes(db, now));
+        : path === '/api/community'
+          ? await cached(deps, `${url.origin}/api/community`, () => boxes(env, db, now))
+          : await cached(deps, `${url.origin}/api/runes`, () => runes(db, now));
     return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
   } catch {
     return error('unavailable', 503);
@@ -241,33 +234,35 @@ function oneOf<T extends string>(list: readonly T[], v: string | null, fallback:
   return (list as readonly string[]).includes(v) ? (v as T) : null;
 }
 
-/** The list's parameters, normalised (defaults filled, unknown parameters dropped), or null (400). */
-export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPeriod; page: number } | null {
-  const sort = oneOf(GALLERY_SORTS, url.searchParams.get('sort'), 'top');
+/**
+ * The list's parameters, normalised (defaults filled, unknown parameters
+ * dropped), or null (400). `by` is never refused: the name's lowercase
+ * when it is a valid name, else `''`, which matches no account (an empty
+ * list, as for an unknown name).
+ */
+export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPeriod; page: number; by?: string } | null {
+  const sort = oneOf(GALLERY_SORTS, url.searchParams.get('sort'), 'new');
   const period = oneOf(GALLERY_PERIODS, url.searchParams.get('period'), 'all');
   const p = url.searchParams.get('page') ?? '1';
   const page = /^[1-9]\d{0,2}$/.test(p) ? Number(p) : 0;
   if (!sort || !period || page < 1 || page > GALLERY_PAGES_MAX) return null;
-  return { sort, period, page };
+  const by = url.searchParams.get('by');
+  if (by === null) return { sort, period, page };
+  return { sort, period, page, by: NAME_PATTERN.test(by) ? by.toLowerCase() : '' };
 }
 
 async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Response> {
   const q = galleryParams(url);
   if (!q) return badRequest();
-  const key = `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}`;
-  return cached(deps, key, async () => {
+  const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
+  return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, async () => {
     const days = GALLERY_PERIOD_DAYS[q.period];
     const since = days === null ? 0 : now - days * DAY_MS;
-    const rows = await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE);
+    const rows = q.by === '' ? [] : await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, q.by ?? null);
     const more = rows.length > GALLERY_PAGE_SIZE && q.page < GALLERY_PAGES_MAX;
     const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, time: now };
     return json(answer, 200, PUBLIC_CACHE);
   });
-}
-
-async function random(db: D1): Promise<Response> {
-  const row = await db.prepare(`SELECT p.id FROM publication p WHERE ${LISTED} ORDER BY RANDOM() LIMIT 1`).first<{ id: string }>();
-  return json({ id: row?.id ?? null } satisfies GalleryRandom);
 }
 
 /**
@@ -293,62 +288,24 @@ async function runOfDay(env: Env, ids: { id: string; listed_at: number }[], day:
   return best;
 }
 
-function warlordsOf(v: unknown): Warlord[] | null {
-  if (!Array.isArray(v)) return null;
-  const out: Warlord[] = [];
-  for (const w of v) {
-    if (!hasKeys(w, ['name', 'race', 'class']) || typeof w.name !== 'string' || typeof w.race !== 'string' || typeof w.class !== 'string') return null;
-    out.push({ name: w.name, race: w.race, class: w.class });
-  }
-  return out;
-}
-
-/** MUME's boxes from `mume_cache` (written by part C5), when the lists are under MUME_KEEP_HOURS old. */
-async function mumeOf(db: D1, now: number): Promise<MumeBoxes | undefined> {
-  const { results } = await db
-    .prepare("SELECT key, value FROM mume_cache WHERE key IN ('war', 'players') AND fetched > ?1 AND fetched <= ?2")
-    .bind(now - MUME_KEEP_HOURS * HOUR_MS, now)
-    .all<{ key: string; value: string }>();
-  const parse = (key: string): unknown => {
-    const row = results.find((r) => r.key === key);
-    try {
-      return row ? JSON.parse(row.value) : undefined;
-    } catch {
-      return undefined;
-    }
-  };
-  const war = parse('war') as { west?: unknown; dark?: unknown } | undefined;
-  const west = warlordsOf(war?.west);
-  const dark = warlordsOf(war?.dark);
-  if (!west || !dark) return undefined;
-  const out: MumeBoxes = { west, dark };
-  const players = parse('players');
-  if (typeof players === 'number' && Number.isSafeInteger(players) && players >= 0) out.players = players;
-  return out;
+/** The run of the day's row with its description cut to DAY_RUN_DESCRIPTION_MAX code points; null when it is gone. */
+async function dayRun(db: D1, id: string | null): Promise<DayRun | null> {
+  if (id === null) return null;
+  const r = await db
+    .prepare(`SELECT ${LIST_COLUMNS}, p.description FROM publication p JOIN account a ON a.id = p.account WHERE ${LISTED} AND p.id = ?1`)
+    .bind(id)
+    .first<ListRow & { description: string }>();
+  return r ? { ...galleryRow(r), description: [...r.description].slice(0, DAY_RUN_DESCRIPTION_MAX).join('') } : null;
 }
 
 async function boxes(env: Env, db: D1, now: number): Promise<Response> {
-  const [posters, listed] = await db.batch<Record<string, unknown>>([
-    db
-      .prepare(
-        `SELECT a.name AS name, COUNT(*) AS runs FROM publication p JOIN account a ON a.id = p.account
-         WHERE ${LISTED} GROUP BY p.account ORDER BY runs DESC, a.name_key LIMIT ?1`,
-      )
-      .bind(TOP_POSTERS),
-    db.prepare(`SELECT p.id, p.listed_at FROM publication p WHERE ${LISTED}`),
-  ]);
-  const ids = (listed?.results ?? []) as { id: string; listed_at: number }[];
-  const today = await runOfDay(env, ids, utcDay(now));
-  const yesterday = await runOfDay(env, ids, utcDay(now - DAY_MS));
-  const byId = await rowsById(db, [today, yesterday].filter((x): x is string => x !== null));
+  const { results: ids } = await db.prepare(`SELECT p.id, p.listed_at FROM publication p WHERE ${LISTED}`).all<{ id: string; listed_at: number }>();
   const answer: CommunityBoxes = {
-    topPosters: ((posters?.results ?? []) as { name: string; runs: number }[]).map((r) => ({ name: r.name, runs: r.runs })),
     hallOfFame: await listRows(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
-    today: (today && byId.get(today)) || null,
-    yesterday: (yesterday && byId.get(yesterday)) || null,
+    today: await dayRun(db, await runOfDay(env, ids, utcDay(now))),
     time: now,
   };
-  const mume = await mumeOf(db, now);
+  const mume = await readMume(db, now);
   if (mume) answer.mume = mume;
   return json(answer, 200, PUBLIC_CACHE);
 }

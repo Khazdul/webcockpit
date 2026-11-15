@@ -2,13 +2,13 @@
 // Hall of Fame boxes, a random run, the counters, views per address, the
 // metas' new fields, and the flags off.
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { CommunityBoxes, CommunityNews, CommunitySeen, GalleryPage, GalleryRandom, MyPub, PubMeta, PubWritten, PublicStats } from '../../shared/cloud/api.ts';
+import type { CommunityBoxes, CommunityNews, CommunitySeen, GalleryPage, MyPub, PubMeta, PubWritten, PublicStats } from '../../shared/cloud/api.ts';
 import { galleryParams } from '../community.ts';
 import { handle } from '../router.ts';
 import type { CacheLike } from '../runtime.ts';
 import { at, count, db, device, emptyTables } from './helpers.ts';
 import { META, ORIGIN, call, payload, post, publish, setLimits, signUp, siteverify } from './share-helpers.ts';
-import { CENV, DAY, NOW, ageAccount, ccall, cenvOf, list, ok, voted } from './community-helpers.ts';
+import { CENV, DAY, NOW, ageAccount, ccall, cenvOf, commented, list, ok, voted } from './community-helpers.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -101,12 +101,46 @@ describe('GET /api/gallery', () => {
     // m = (5 + 24) / 7; A: (5m + 5) / 6, B: (5m + 24) / 11, C: m.
     const m = 29 / 7;
     const score = { [a]: (5 * m + 5) / 6, [b]: (5 * m + 24) / 11, [c]: m };
-    const top = ids(await page(''));
+    const top = ids(await page('?sort=top'));
     expect(top).toEqual([a, b, c].sort((x, y) => score[y]! - score[x]!));
     expect(top).not.toContain(link);
     expect(top).not.toContain(hidden);
     const row = (await page('?sort=new')).rows[1]!;
     expect(row).toEqual({ id: b, title: 'B', sender: 'alice', character: 'Olev', level: 26, lengthS: 93, listedAt: NOW - 2000, views: 0, stars: { sum: 24, count: 6 }, comments: 0 });
+    // New is the default (round 13).
+    expect(ids(await page(''))).toEqual([c, b, a]);
+  });
+
+  it('Comments and Length order by their column, then the newer listedAt (round 13)', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const a = await list(alice, { now: NOW - 3000, title: 'A' });
+    const b = await list(alice, { now: NOW - 2000, title: 'B', seed: 2 });
+    const c = await list(alice, { now: NOW - 1000, title: 'C', seed: 3 });
+    await db.prepare('UPDATE publication SET length_s = 500 WHERE id = ?1').bind(a).run();
+    await db.prepare('UPDATE publication SET length_s = 300 WHERE id = ?1').bind(b).run();
+    await commented(bob, b);
+    await commented(bob, b, 'Again.');
+    await commented(bob, a);
+    const ids = (p: GalleryPage): string[] => p.rows.map((r) => r.id);
+    expect(ids(await page('?sort=comments'))).toEqual([b, a, c]);
+    expect(ids(await page('?sort=length'))).toEqual([a, b, c]);
+  });
+
+  it('by=<name> lists that account’s runs (any case); an unknown, deleted or malformed name is an empty list, never an error', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const a1 = await list(alice, { now: NOW - 2000 });
+    const a2 = await list(alice, { now: NOW - 1000, seed: 2 });
+    await list(bob, { now: NOW - 500, seed: 3 });
+    await publish(alice, payload(100, 4), META, { env: CENV });
+    expect((await page('?by=alice')).rows.map((r) => r.id)).toEqual([a2, a1]);
+    expect((await page('?by=ALICE&sort=new')).rows.map((r) => r.id)).toEqual([a2, a1]);
+    for (const q of ['?by=nobody', '?by=', '?by=a%20b', `?by=${'x'.repeat(80)}`, '?by=%3Cb%3E']) {
+      const res = await ccall('GET', `/api/gallery${q}`);
+      expect(res.status, q).toBe(200);
+      expect(((await res.json()) as GalleryPage).rows, q).toEqual([]);
+    }
   });
 
   it('votes of young accounts show in the stars but do not move Top', async () => {
@@ -122,7 +156,7 @@ describe('GET /api/gallery', () => {
     expect(p.rows[1]!.stars).toEqual({ sum: 25, count: 5 });
   });
 
-  it('periods filter on listedAt; pages of 30, a page past the end is empty, 34 is the deepest', async () => {
+  it('periods filter on listedAt; pages of 10, a page past the end is empty, 100 is the deepest', async () => {
     const alice = await signUp('alice');
     await setLimits('alice', { listingsPerDay: 100 });
     await list(alice, { now: NOW - 40 * DAY, title: 'old' });
@@ -132,16 +166,16 @@ describe('GET /api/gallery', () => {
     expect(await titles('?sort=new&period=week')).toEqual(['week']);
     expect(await titles('?sort=new&period=month')).toEqual(['week', 'month']);
     expect(await titles('?sort=new&period=all')).toEqual(['week', 'month', 'old']);
-    for (let i = 0; i < 30; i++) await list(alice, { now: NOW - i, title: `n${i}`, seed: 10 + i });
+    for (let i = 0; i < 10; i++) await list(alice, { now: NOW - i, title: `n${i}`, seed: 10 + i });
     const one = await page('?sort=new&page=1');
-    expect(one.rows).toHaveLength(30);
+    expect(one.rows).toHaveLength(10);
     expect(one.more).toBe(true);
     const two = await page('?sort=new&page=2');
     expect(two.rows.map((r) => r.title)).toEqual(['week', 'month', 'old']);
     expect(two.more).toBe(false);
     expect((await page('?sort=new&page=3')).rows).toEqual([]);
-    expect((await page('?page=34')).rows).toEqual([]);
-    for (const q of ['?page=0', '?page=35', '?page=1.5', '?page=x', '?sort=best', '?period=year', '?page=01']) expect((await ccall('GET', `/api/gallery${q}`)).status, q).toBe(400);
+    expect((await page('?page=100')).rows).toEqual([]);
+    for (const q of ['?page=0', '?page=101', '?page=1.5', '?page=x', '?sort=best', '?period=year', '?page=01']) expect((await ccall('GET', `/api/gallery${q}`)).status, q).toBe(400);
     // Unknown parameters are ignored.
     expect((await ccall('GET', '/api/gallery?x=1&sort=new')).status).toBe(200);
   });
@@ -161,15 +195,19 @@ describe('GET /api/gallery', () => {
     await list(alice);
     const first = await get('?page=1&utm=x');
     expect(first.headers.get('cache-control')).toBe('public, max-age=60');
-    expect([...store.keys()]).toEqual([`${ORIGIN}/api/gallery?sort=top&period=all&page=1`]);
+    expect([...store.keys()]).toEqual([`${ORIGIN}/api/gallery?sort=new&period=all&page=1`]);
     await list(alice, { seed: 2 });
     // The same variant spelled otherwise: the kept answer.
-    expect(((await (await get('?period=all&sort=top')).json()) as GalleryPage).rows).toHaveLength(1);
-    expect(((await (await get('?sort=new')).json()) as GalleryPage).rows).toHaveLength(2);
+    expect(((await (await get('?period=all&sort=new')).json()) as GalleryPage).rows).toHaveLength(1);
+    expect(((await (await get('?sort=top')).json()) as GalleryPage).rows).toHaveLength(2);
     expect(store.size).toBe(2);
+    // A sender's list under the name's lowercase.
+    await get('?by=Alice');
+    expect(store.has(`${ORIGIN}/api/gallery?sort=new&period=all&page=1&by=alice`)).toBe(true);
+    expect(store.size).toBe(3);
     // A 400 is not kept.
     expect((await get('?sort=bad')).status).toBe(400);
-    expect(store.size).toBe(2);
+    expect(store.size).toBe(3);
     // A cache that fails is no cache.
     const broken: CacheLike = {
       match: () => Promise.reject(new Error('down')),
@@ -177,44 +215,41 @@ describe('GET /api/gallery', () => {
     };
     const res = await handle(new Request(`${ORIGIN}/api/gallery`), CENV, { ...at(NOW), cache: broken });
     expect(((await res.json()) as GalleryPage).rows).toHaveLength(2);
-    expect(galleryParams(new URL(`${ORIGIN}/api/gallery`))).toEqual({ sort: 'top', period: 'all', page: 1 });
+    expect(galleryParams(new URL(`${ORIGIN}/api/gallery`))).toEqual({ sort: 'new', period: 'all', page: 1 });
   });
 
   it('every new public path answers 404 with a flag off; POST is 405', async () => {
     for (const env of [cenvOf({ FLAG_GALLERY: false }), cenvOf({ FLAG_SHARE: false })]) {
-      for (const path of ['/api/gallery', '/api/gallery/random', '/api/community', '/api/runes', '/api/pub/AAAAAAAAAAAA/comments']) {
+      for (const path of ['/api/gallery', '/api/community', '/api/runes', '/api/pub/AAAAAAAAAAAA/comments']) {
         expect((await call('GET', path, undefined, { env })).status, path).toBe(404);
       }
     }
     expect((await call('GET', '/api/runes', undefined, { env: cenvOf({ FLAG_RUNES: false }) })).status).toBe(404);
     expect((await ccall('GET', '/api/gallery')).status).toBe(200);
     expect((await ccall('POST', '/api/gallery', {})).status).toBe(405);
+    // Round 13: no random run any more.
+    expect((await ccall('GET', '/api/gallery/random')).status).toBe(404);
   });
 });
 
-describe('GET /api/community and /api/gallery/random', () => {
-  it('top posters, the Hall of Fame and the run of the day (fixed for the day, only runs listed before it)', async () => {
+describe('GET /api/community', () => {
+  it('the Hall of Fame and the run of the day with its description cut (fixed for the day, only runs listed before it)', async () => {
     const alice = await signUp('alice');
     const bob = await signUp('bob');
     const a1 = await list(alice, { now: NOW - 3 * DAY });
     const a2 = await list(alice, { now: NOW - 2 * DAY, seed: 2 });
     const b1 = await list(bob, { now: NOW - 2 * DAY, seed: 3 });
     const fresh = await list(bob, { now: NOW, seed: 4 });
+    await db.prepare('UPDATE publication SET description = ?1').bind(`${'é'.repeat(299)}🐉 and more`).run();
     const boxes = await ok<CommunityBoxes>(await ccall('GET', '/api/community'));
-    expect(boxes.topPosters).toEqual([
-      { name: 'alice', runs: 2 },
-      { name: 'bob', runs: 2 },
-    ]);
+    expect(Object.keys(boxes).sort()).toEqual(['hallOfFame', 'time', 'today']);
     expect(boxes.hallOfFame.map((r) => r.id).sort()).toEqual([a1, a2, b1, fresh].sort());
     expect([a1, a2, b1]).toContain(boxes.today!.id);
-    expect([a1, a2, b1]).toContain(boxes.yesterday!.id);
-    expect(boxes.mume).toBeUndefined();
+    expect(boxes.today!.description).toBe(`${'é'.repeat(299)}🐉`);
+    expect(boxes.today!.sender).toMatch(/^(alice|bob)$/);
     const again = await ok<CommunityBoxes>(await ccall('GET', '/api/community', undefined, { now: NOW + 3_600_000 }));
     expect(again.today!.id).toBe(boxes.today!.id);
-    const random = await ok<GalleryRandom>(await ccall('GET', '/api/gallery/random'));
-    expect([a1, a2, b1, fresh]).toContain(random.id);
     await emptyTables();
-    expect(await ok<GalleryRandom>(await ccall('GET', '/api/gallery/random'))).toEqual({ id: null });
     expect((await ok<CommunityBoxes>(await ccall('GET', '/api/community'))).today).toBeNull();
   });
 

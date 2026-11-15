@@ -20,7 +20,7 @@
 //   /api/pub/<id>[/payload|/view|/comments]
 //                             a published run, public (worker/pub.ts; flag `share`;
 //                             the comments `gallery` too)
-//   GET  /api/gallery, /api/gallery/random, /api/community, /api/runes
+//   GET  /api/gallery, /api/community, /api/runes
 //                             the community, public (worker/community.ts; flags
 //                             `share` and `gallery`, the board `runes` too)
 //   /r/<id>                   the watch page: the site's index.html (the app
