@@ -7,6 +7,7 @@
 // flag `sync` is on and the page is in the account's space (or a locked
 // copy waits). Nothing here is on the game path (spec §7.0 rule 1).
 
+import { resetPlayingForTests } from '../core/playing';
 import { spaceStorageKey } from '../core/space';
 import type { SyncOutcome, SyncStatus, Unsynced } from './sync/types';
 
@@ -92,24 +93,8 @@ export function onSyncMessage(fn: () => void): () => void {
 
 // ------------------------------------------------------------ the page's state
 
-let playing = false;
-const playFns = new Set<(on: boolean) => void>();
-
-/** The start page's: a game is the view (true) or the start page is shown again (false). */
-export function setPlaying(on: boolean): void {
-  if (on === playing) return;
-  playing = on;
-  for (const fn of [...playFns]) fn(on);
-}
-
-export function isPlaying(): boolean {
-  return playing;
-}
-
-export function onPlaying(fn: (on: boolean) => void): () => void {
-  playFns.add(fn);
-  return () => void playFns.delete(fn);
-}
+// A game is the view: set by the shell (src/core/playing.ts), read here by the sync.
+export { isPlaying, onPlaying, setPlaying } from '../core/playing';
 
 // ------------------------------------------------------------ the runtime, lazily
 
@@ -153,8 +138,7 @@ export function resetSyncViewForTests(): void {
   viewFns.clear();
   queue.length = 0;
   msgFns.clear();
-  playing = false;
-  playFns.clear();
+  resetPlayingForTests();
   runtime = null;
 }
 

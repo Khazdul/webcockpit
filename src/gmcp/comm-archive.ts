@@ -24,41 +24,29 @@
 // calls then reject.
 //
 // For the sync (ADR 0152, a `comm` piece per UTC day): `commDays` lists the
-// days of the last seven with a cache key, `dayRecords` reads a day's
-// records without `seq`, `addDayRecords` adds the pulled ones it does not
-// have (by identity, removing none), `removeDay` deletes a day. An append
+// days with a cache key (a key cursor), `recordsAfter` reads what was
+// appended after a `seq`, `dayRecords` reads a day's records without
+// `seq`, `addDayRecords` adds the pulled ones it does not have (by
+// identity, removing none), `removeDay` deletes a day. An append
 // transaction notes `comm` (src/core/store-events.ts); these do not (they
 // are the sync's own writes).
 
-import { canonicalJson } from '../cloud/sync/items';
 import { STORE, idbDone, idbRequest } from '../core/db';
 import { noteStored } from '../core/store-events';
+import { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
+
+export { type NewCommRecord, commFields, commIdentity, dayBounds, sortCommRecords, utcDay } from './comm-records';
 
 /** How long messages are kept (7 days, Inv §2.7). */
 export const COMM_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 /** Messages loaded for a character (the pane keeps 1000 in memory). */
 export const COMM_LOAD_LIMIT = 1000;
 
-/** One stored message: the `Comm.Channel.Text` fields as received. */
-export interface CommRecord {
-  /** Character name from `Char.Name`. */
-  character: string;
-  /** Receive time, ms since the epoch. */
-  ts: number;
+/** One stored message: the `Comm.Channel.Text` fields as received, and its store key. */
+export interface CommRecord extends NewCommRecord {
   /** Store key, assigned on append (insertion order; ties in `ts` keep it). */
   seq: number;
-  channel: string;
-  talker: string;
-  /** `talker-type` as sent (npc, ally, neutral, enemy, player …), or null. */
-  talkerType: string | null;
-  /** `destination` (only on sent messages), or null. */
-  destination: string | null;
-  /** Text as sent, ANSI kept. */
-  text: string;
 }
-
-/** A record before it is stored (`seq` is assigned by the store). */
-export type NewCommRecord = Omit<CommRecord, 'seq'>;
 
 /** A day with records, for the sync: the UTC day and its cache key. */
 export interface CommDay {
@@ -68,54 +56,6 @@ export interface CommDay {
   count: number;
   /** Highest `seq` among them (with `count`, changes whenever the day does). */
   maxSeq: number;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/** The UTC day `YYYY-MM-DD` of a time in ms. */
-export function utcDay(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
-}
-
-/** The start (inclusive) and end (exclusive) of a UTC day in ms; throws on a bad day. */
-export function dayBounds(day: string): [number, number] {
-  const m = DAY_RE.exec(day);
-  const start = m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
-  if (!m || !Number.isFinite(start) || utcDay(start) !== day) throw new RangeError(`not a UTC day: ${day}`);
-  return [start, start + DAY_MS];
-}
-
-/** The record without `seq` (and without anything else that is not a field), or null if it is not one. */
-export function commFields(raw: unknown): NewCommRecord | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const r = raw as Record<string, unknown>;
-  const strOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
-  if (typeof r.character !== 'string' || typeof r.ts !== 'number' || !Number.isFinite(r.ts)) return null;
-  if (typeof r.channel !== 'string' || typeof r.talker !== 'string' || typeof r.text !== 'string') return null;
-  if (!strOrNull(r.talkerType) || !strOrNull(r.destination)) return null;
-  return {
-    character: r.character,
-    ts: r.ts,
-    channel: r.channel,
-    talker: r.talker,
-    talkerType: r.talkerType,
-    destination: r.destination,
-    text: r.text,
-  };
-}
-
-/** A record's identity (ADR 0152): the canonical JSON of its fields without `seq`. */
-export function commIdentity(rec: NewCommRecord): string {
-  return canonicalJson(commFields(rec) ?? rec);
-}
-
-/** Sorts records by `ts`, then identity (a new array; ADR 0152's piece order). */
-export function sortCommRecords(records: readonly NewCommRecord[]): NewCommRecord[] {
-  return records
-    .map((r) => ({ r, id: commIdentity(r) }))
-    .sort((a, b) => a.r.ts - b.r.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((x) => x.r);
 }
 
 export interface CommArchiveOptions {
@@ -231,26 +171,28 @@ export class CommArchive {
   // ------------------------------------------------------------ the sync
 
   /**
-   * The UTC days that have records within the 7 days before `now`, oldest
-   * first, each with its cache key (count, highest `seq`).
+   * The UTC days that have records from `since` on (default: the 7 days
+   * before `now`), oldest first, each with its cache key (count, highest
+   * `seq`). A key cursor on the `ts` index: no record is read.
    */
-  async commDays(now = this.now()): Promise<CommDay[]> {
+  async commDays(now = this.now(), since = now - COMM_RETENTION_MS): Promise<CommDay[]> {
     this.writeQueued();
     const tx = this.db.transaction(STORE.comm, 'readonly');
     const done = idbDone(tx);
-    const req = tx.objectStore(STORE.comm).index('ts').openCursor(IDBKeyRange.lowerBound(now - COMM_RETENTION_MS));
+    const req = tx.objectStore(STORE.comm).index('ts').openKeyCursor(IDBKeyRange.lowerBound(since));
     const days = new Map<string, CommDay>();
     await new Promise<void>((resolve, reject) => {
       req.onsuccess = () => {
         const c = req.result;
         if (!c) return resolve();
-        const r = c.value as CommRecord;
-        const day = utcDay(r.ts);
+        const ts = c.key as number;
+        const seq = c.primaryKey as number;
+        const day = utcDay(ts);
         const d = days.get(day);
         if (d) {
           d.count++;
-          if (r.seq > d.maxSeq) d.maxSeq = r.seq;
-        } else days.set(day, { day, count: 1, maxSeq: r.seq });
+          if (seq > d.maxSeq) d.maxSeq = seq;
+        } else days.set(day, { day, count: 1, maxSeq: seq });
         c.continue();
       };
       req.onerror = () => reject(req.error);
@@ -259,9 +201,28 @@ export class CommArchive {
     return [...days.values()];
   }
 
-  /** The records of a UTC day within retention, without `seq`, sorted by `ts` then identity. */
-  async dayRecords(day: string): Promise<NewCommRecord[]> {
-    const range = this.dayRange(day);
+  /** The records stored after `seq` (appended later), without `seq`, in store order. */
+  async recordsAfter(seq: number): Promise<NewCommRecord[]> {
+    this.writeQueued();
+    const tx = this.db.transaction(STORE.comm, 'readonly');
+    const done = idbDone(tx);
+    const all = (await idbRequest(tx.objectStore(STORE.comm).getAll(IDBKeyRange.lowerBound(seq, true)))) as unknown[];
+    await done;
+    const out: NewCommRecord[] = [];
+    for (const r of all) {
+      const f = commFields(r);
+      if (f) out.push(f);
+    }
+    return out;
+  }
+
+  /**
+   * The records of a UTC day within retention (`all`: every stored record
+   * of the day), without `seq`, sorted by `ts` then identity, each
+   * identity once.
+   */
+  async dayRecords(day: string, o: { all?: boolean } = {}): Promise<NewCommRecord[]> {
+    const range = o.all ? IDBKeyRange.bound(...dayBounds(day), false, true) : this.dayRange(day);
     if (!range) return [];
     this.writeQueued();
     const tx = this.db.transaction(STORE.comm, 'readonly');
@@ -278,12 +239,13 @@ export class CommArchive {
 
   /**
    * Adds the records the store does not have (by identity; duplicates in
-   * `records` are one), removes none; records outside retention or not
-   * records at all are skipped. Resolves with how many were added. One
-   * transaction, so a message appended meanwhile is never lost.
+   * `records` are one), removes none; records older than `since`
+   * (default: retention) or not records at all are skipped. Resolves with
+   * how many were added. One transaction, so a message appended meanwhile
+   * is never lost.
    */
-  async addDayRecords(records: readonly unknown[]): Promise<number> {
-    const since = this.now() - COMM_RETENTION_MS;
+  async addDayRecords(records: readonly unknown[], o: { since?: number } = {}): Promise<number> {
+    const since = o.since ?? this.now() - COMM_RETENTION_MS;
     const byDay = new Map<string, NewCommRecord[]>();
     for (const raw of records) {
       const f = commFields(raw);

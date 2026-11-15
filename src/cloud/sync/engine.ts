@@ -114,6 +114,10 @@ interface Entry {
   /** The name before the names pass (for its event). */
   renamedFrom?: string;
   restored?: boolean;
+  /** Held because it is in use (its record is marked `waited`). */
+  waits?: boolean;
+  /** Its local body cannot be encoded (not JSON): left alone this round, record and all. */
+  skipped?: boolean;
 }
 
 const NO_BASE: Base = { rev: 0, hash: null, bare: null, deleted: false, name: null };
@@ -344,9 +348,20 @@ export class SyncEngine {
     const kind = spec.kind;
     const inUse = await this.inUse.keys(kind);
     const entries = new Map<string, Entry>();
-    for (const li of await this.local.list(kind)) {
+    for (const li of await this.local.list(kind, { scan: true })) {
       const sid = await this.codec.serverId(kind, li.key);
-      entries.set(sid, this.entry(spec, sid, li.key, { body: li.body, ...(await itemHashes(spec, li.body)) }, null));
+      let hashes: { hash: string; bare: string };
+      try {
+        hashes = await itemHashes(spec, li.body);
+      } catch {
+        // A body that is not JSON (a number that is not finite …): this item is left alone, the rest goes on.
+        const e = this.entry(spec, sid, li.key, null, null);
+        e.fixed = e.skipped = true;
+        entries.set(sid, e);
+        this.events.emit({ type: 'unencodable', kind, key: li.key });
+        continue;
+      }
+      entries.set(sid, this.entry(spec, sid, li.key, { body: li.body, ...hashes }, null));
     }
     for (const rec of recs) {
       const e = entries.get(rec.serverId);
@@ -357,6 +372,7 @@ export class SyncEngine {
     // Resolve.
     const copies: Entry[] = [];
     for (const e of [...entries.values()]) {
+      if (e.skipped) continue;
       // (Also an item that is not listed: an untouched seed in use is not replaced during play.)
       e.used = e.key !== null && inUse.has(e.key);
       const copy = await this.decide(e, e.used, meta);
@@ -371,16 +387,23 @@ export class SyncEngine {
     // Apply: the local batch, then the records.
     const put: Body[] = [];
     const remove: string[] = [];
+    const waited: string[] = [];
     for (const e of entries.values()) {
       if (e.fixed) continue;
-      if (e.target && e.targetHash !== e.local?.hash) put.push(e.target);
-      else if (!e.target && e.local) remove.push(e.key!);
+      if (e.target && e.targetHash !== e.local?.hash) {
+        put.push(e.target);
+        if (e.rec?.waited && e.key !== null) waited.push(e.key);
+      } else if (!e.target && e.local) remove.push(e.key!);
     }
-    if (put.length || remove.length) await this.local.write(kind, { put, remove });
+    if (put.length || remove.length) await this.local.write(kind, { put, remove, ...(waited.length ? { held: waited } : {}) });
     const recPut: SyncRecord[] = [];
     const recRemove: { kind: SyncKind; serverId: string }[] = [];
     for (const e of entries.values()) {
-      if (e.fixed) continue;
+      if (e.fixed) {
+        // Held for a game: its write, when it comes, says it waited.
+        if (e.waits && e.rec && !e.rec.waited) recPut.push((e.rec = { ...e.rec, waited: true }));
+        continue;
+      }
       const next = this.recordAt(e);
       if (next) recPut.push(next);
       else if (e.rec) recRemove.push({ kind, serverId: e.sid });
@@ -415,6 +438,10 @@ export class SyncEngine {
     let full: SyncRecord['full'] | null = null;
     let newer = false;
     for (const e of entries.values()) {
+      if (e.skipped) {
+        waiting++;
+        continue;
+      }
       if (e.rec?.state === 'full') full ??= e.rec.full ?? 'storage_full';
       if (e.rec?.state === 'newer') newer = true;
       if (e.fixed && e.rec?.state === 'held') held++;
@@ -483,7 +510,7 @@ export class SyncEngine {
     })();
     // Nothing is written into an item in use: the whole decision waits.
     if (used && (decided === 'copy' || e.target !== L?.body)) {
-      e.fixed = true;
+      e.fixed = e.waits = true;
       e.target = L?.body ?? null;
       e.base = recBase;
       e.restored = false;

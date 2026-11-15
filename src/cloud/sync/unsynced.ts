@@ -31,7 +31,7 @@ export async function listUnsynced(specs: readonly KindSpec[], local: LocalItems
       const rec = mine.get(id);
       const name = spec.names?.get(li.body) ?? null;
       if (!rec || rec.rev === 0) out.push({ kind: spec.kind, key: li.key, name, change: 'new' });
-      else if ((await itemHashes(spec, li.body)).hash !== rec.hash) out.push({ kind: spec.kind, key: li.key, name, change: 'edit' });
+      else if ((await itemHashes(spec, li.body).catch(() => null))?.hash !== rec.hash) out.push({ kind: spec.kind, key: li.key, name, change: 'edit' });
     }
     for (const [id, rec] of mine) {
       if (!seen.has(id) && rec.rev > 0 && rec.hash !== null && rec.key !== null) out.push({ kind: spec.kind, key: rec.key, name: rec.name, change: 'delete' });

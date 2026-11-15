@@ -18,7 +18,7 @@
 // player wrote) and comm (merge): devices append messages to the day's
 // piece (or a `.2` piece), sometimes while the engine is writing, and in
 // the end every message of a kept day is on every device and the server
-// exactly once, and every day older than seven days is on none of them.
+// exactly once, and every day past `commDayKept` (8 days 6 hours) is on none of them.
 //
 // Seeded (mulberry32): a failure names its seed; `SYNC_SEED=<n>` runs one.
 
@@ -147,7 +147,7 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
   };
 
   for (let step = 0; step < steps; step++) {
-    clock.t += int(6 * 3600_000);
+    clock.t += int(8 * 3600_000); // 4 h on average: a run spans some ten days, past the 8 d 6 h a Comm day is listed
     const d = pick(devices);
     const di = devices.indexOf(d);
     if (rnd() < 0.3) {
@@ -299,7 +299,7 @@ async function simulate(seed: number, nDevices: number, steps: number, keys: Syn
     }
   }
 
-  // Comm: every message of a kept day on every device exactly once; no day older than seven days anywhere.
+  // Comm: every message of a kept day on every device exactly once; no day past `commDayKept` anywhere.
   const now = clock.t;
   const want = new Map<string, string[]>();
   for (const c of comms) if (commDayKept(c.day, now)) want.set(c.day, [...(want.get(c.day) ?? []), c.id]);

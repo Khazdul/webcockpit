@@ -143,6 +143,7 @@ import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
 import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
+import { setPlaying } from '../core/playing';
 import { followSpace, holdGameLock, reloadToStart, spaceMessagePending } from '../core/space';
 import { type Notices, noticeIndicators } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
@@ -745,6 +746,8 @@ export class Shell {
     try {
       await load(host);
       if (this.player !== host) return { ok: false, error: 'The player was closed while it opened.' };
+      // The run log player counts as play for the sync, as when the start page's hide set it.
+      setPlaying(true);
       this.start?.hide();
       this.startHost.style.display = 'none';
       host.el.style.display = '';
@@ -765,6 +768,7 @@ export class Shell {
     this.player = null;
     this.markPhoneGame(false);
     this.startHost.style.display = '';
+    setPlaying(false);
     this.start?.show({ keep: true });
     this.viewChanged();
   }
@@ -782,6 +786,8 @@ export class Shell {
     this.inCockpit = false;
     this.releaseGame?.();
     this.releaseGame = null;
+    // The sync (ADR 0151, stage 62 review F7): nothing is in use now; what was held comes in.
+    setPlaying(false);
     // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
     this.windows?.closeAll();
     this.appRef?.menuBar?.setShown(false);
@@ -807,6 +813,8 @@ export class Shell {
     this.inCockpit = true;
     // A game runs on this space (ADR 0150): a log out in another tab is refused meanwhile.
     if (!this.opts.offline) this.releaseGame ??= holdGameLock();
+    // In play from here, not from the end of the start page's leave (which a hidden tab may never see end).
+    setPlaying(true);
     this.markPhoneGame(true);
     app.menuBar?.setShown(true);
     app.input.focus();

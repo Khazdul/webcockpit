@@ -12,6 +12,8 @@
 // version does not make every item look edited.
 
 import { type Browser, DEVICE_TYPES, type DeviceType, type SyncKind } from '../../../shared/cloud/api.ts';
+import { canonicalJson } from '../../core/canonical-json';
+import { commFields, sortCommRecords } from '../../gmcp/comm-records';
 import { SETTINGS_VERSION } from '../../settings/types';
 import { toBase64Url } from '../crypto/base64url';
 import type { Body, CommItem, CommPieceRecord, ItemKind, ProfileItem, ScriptDataItem, ScriptItem, SettingsItem, TimersItem } from './types';
@@ -61,27 +63,8 @@ export interface KindSpec {
 
 // --- Canonical encoding and hash ---
 
-/**
- * JSON with object keys sorted (by UTF-16 code units) and no whitespace.
- * Values are what the records hold: strings, finite numbers, booleans,
- * null, arrays and plain objects.
- */
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value);
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('canonicalJson: a number that is not finite');
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object') {
-    const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj)
-      .filter((k) => obj[k] !== undefined)
-      .sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(',')}}`;
-  }
-  throw new Error(`canonicalJson: a ${typeof value}`);
-}
+export { canonicalJson } from '../../core/canonical-json';
+export { commIdentity, sortCommRecords, utcDay } from '../../gmcp/comm-records';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -304,37 +287,6 @@ export const timersSpec: KindSpec = {
 /** A Comm day's key: `YYYY-MM-DD`, or `YYYY-MM-DD.<n>` (n ≥ 2) for a further piece of the day. */
 export const COMM_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}(?:\.(?:[2-9]|[1-9]\d+))?$/;
 
-/** The UTC day of a time, `YYYY-MM-DD`. */
-export function utcDay(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
-}
-
-/** A Comm record's identity: its canonical JSON (without `seq`). */
-export function commIdentity(rec: CommPieceRecord): string {
-  return canonicalJson(rec);
-}
-
-/** A Comm record of a piece, without `seq` and fields it does not know; null when it is not one. */
-function commRecord(x: unknown): CommPieceRecord | null {
-  if (!isObj(x)) return null;
-  const { character, ts, channel, talker, talkerType, destination, text } = x;
-  const strOrNull = (y: unknown): y is string | null => y === null || isStr(y);
-  if (!isStr(character) || !isTime(ts) || !isStr(channel) || !isStr(talker) || !strOrNull(talkerType) || !strOrNull(destination) || !isStr(text)) return null;
-  return { character, ts, channel, talker, talkerType, destination, text };
-}
-
-/** Records sorted by `ts`, then identity, each identity once. */
-export function sortCommRecords(records: Iterable<CommPieceRecord>): CommPieceRecord[] {
-  const byId = new Map<string, CommPieceRecord>();
-  for (const r of records) {
-    const id = commIdentity(r);
-    if (!byId.has(id)) byId.set(id, r);
-  }
-  return [...byId]
-    .sort(([ia, a], [ib, b]) => a.ts - b.ts || (ia < ib ? -1 : ia > ib ? 1 : 0))
-    .map(([, r]) => r);
-}
-
 /** `comm`: one item per UTC day (or piece of one), merged by record; gzipped. */
 export const commSpec: KindSpec = {
   kind: 'comm',
@@ -349,7 +301,7 @@ export const commSpec: KindSpec = {
     if (!isStr(day) || !COMM_DAY_PATTERN.test(day) || !Array.isArray(records)) return UNREADABLE;
     const recs: CommPieceRecord[] = [];
     for (const x of records) {
-      const rec = commRecord(x);
+      const rec = commFields(x);
       if (!rec) return UNREADABLE;
       recs.push(rec);
     }

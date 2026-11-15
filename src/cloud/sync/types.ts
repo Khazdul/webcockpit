@@ -101,13 +101,23 @@ export type Body = Readonly<Record<string, unknown>>;
  * The local stores of the current space (an account's database). The
  * engine never writes anything else of the player's.
  */
+/** One write of the engine to a kind's local store. */
+export interface LocalBatch {
+  put: Body[];
+  remove: string[];
+  /** Local keys among `put` whose version waited for a game to end (in use when it was pulled). */
+  held?: readonly string[];
+}
+
 export interface LocalItems {
   /**
    * Every item of `kind` (user scripts only: bundled ones are not items).
-   * `comm`: only the days of the last seven, each day's records sorted
-   * and once each (`CommItem`).
+   * `comm`: only the kept days, each day's records sorted and once each
+   * (`CommItem`). `scan`: the engine's scan before its write of the
+   * kind (an adapter may remember what it saw, to keep a change made in
+   * between).
    */
-  list(kind: SyncKind): Promise<LocalItem[]>;
+  list(kind: SyncKind, o?: { scan?: boolean }): Promise<LocalItem[]>;
   /**
    * One batch for `kind`, applied atomically (one transaction): `put`
    * creates or replaces by local key (a rename is a put of the same key
@@ -121,7 +131,7 @@ export interface LocalItems {
    * store does not have (by identity) and removes none; a `remove` deletes
    * the whole day. A day older than seven days is not stored.
    */
-  write(kind: SyncKind, batch: { put: Body[]; remove: string[] }): Promise<void>;
+  write(kind: SyncKind, batch: LocalBatch): Promise<void>;
 }
 
 /** Why an item is not plainly in step (`SyncRecord.state`). */
@@ -173,6 +183,8 @@ export interface SyncRecord {
   remote?: RemoteVersion;
   /** The 413 code of the last refused push (`full`). */
   full?: FullReason;
+  /** The pulled version waits for a game to end (it was in use): its write says so (`LocalBatch.held`). */
+  waited?: boolean;
 }
 
 /** The `syncMeta` store as the engine uses it. */
@@ -286,6 +298,8 @@ export type SyncEvent =
   | { type: 'newer'; kind: SyncKind; serverId: string }
   /** A version that does not open or is not a body: left untouched. */
   | { type: 'unreadable'; kind: SyncKind; serverId: string }
+  /** A local item whose body is not JSON (a number that is not finite …): left alone, the rest is synced. */
+  | { type: 'unencodable'; kind: SyncKind; key: string }
   /** A push refused for storage: the item stays on this device and is retried. */
   | { type: 'full'; kind: SyncKind; key: string; name: string | null; error: FullReason };
 

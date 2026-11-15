@@ -144,7 +144,7 @@ describe('the settings adapter', () => {
     expect(written).toHaveBeenCalledWith('settings', undefined, undefined);
   });
 
-  it('a login copies the device settings as a seed: no item until settled, an agreed record or a change', async () => {
+  it('a login copies the device settings as a seed: no item, changed or not, until settled or an agreed record', async () => {
     const dev = await openDeviceDb();
     await put(dev, STORE.settings, [settings(18), 'main']);
     dev.close();
@@ -152,14 +152,13 @@ describe('the settings adapter', () => {
     expect((await readMeta(open, [META.settingsSeed]))[META.settingsSeed]).toBe(await settingsSeedHash('desktop', settings(18)));
     const li = idbLocalItems(open, {}, { type: 'desktop' });
     expect(await li.list('settings')).toEqual([]);
-    // Changed by the player: an item.
+    // Changed (the player, the shell's own writes at boot): still the seed (stage 62 review, F1).
     await put(await open(), STORE.settings, [settings(19), 'main']);
-    expect((await li.list('settings')).map((i) => i.key)).toEqual(['desktop']);
-    await put(await open(), STORE.settings, [settings(18), 'main']);
     expect(await li.list('settings')).toEqual([]);
-    // A full sync met none of this type: the seed is the account's.
+    // A full sync met none of this type: the seed is the account's, as it is now.
     expect(await settleSettingsSeed(open, 'desktop')).toBe(true);
     expect((await li.list('settings')).map((i) => i.key)).toEqual(['desktop']);
+    expect(((await li.list('settings'))[0]!.body as unknown as SettingsItem).record).toEqual(settings(19));
     expect(await settleSettingsSeed(open, 'desktop')).toBe(false);
   });
 
@@ -228,12 +227,12 @@ describe('the comm adapter', () => {
     const texts = ((await li.list('comm'))[1]!.body as unknown as CommItem).records.map((r) => r.text);
     expect(texts).toEqual(['a', 'b', 'c', 'from B']);
     expect((await li.list('comm')).map((i) => i.key)).toEqual(['2026-11-14', today]);
-    // The day whose start is past seven days is not listed, though some records are still kept.
+    // A day whose start is past seven days is still listed while its records are kept (stage 62 review, F9: 8 days 6 hours).
     const edge = new CommArchive(await open(), { now: () => NOW });
     await edge.addDayRecords([msg(NOW - 7 * DAY + 3600_000, 'edge')]);
-    expect((await li.list('comm')).map((i) => i.key)).toEqual(['2026-11-14', today]);
+    expect((await li.list('comm')).map((i) => i.key)).toEqual(['2026-11-08', '2026-11-14', today]);
     await li.write('comm', { put: [], remove: ['2026-11-14'] });
-    expect((await li.list('comm')).map((i) => i.key)).toEqual([today]);
+    expect((await li.list('comm')).map((i) => i.key)).toEqual(['2026-11-08', today]);
   });
 
   it('a day over the limit is split, newest in the last piece; a piece removed takes only its records', async () => {
@@ -332,7 +331,7 @@ describe('applying pulled settings', () => {
 });
 
 describe('the triggers (the play schedule)', () => {
-  it('during play small-kind writes wait for 5 minutes, hidden or the game left; settings note at 5 s; off play all do', async () => {
+  it('during play small-kind and settings writes wait for 5 minutes, hidden or the game left; profiles note at 5 s; off play all do', async () => {
     writeSpaceRecord({ nameKey: 'ole', state: 'open' });
     resetSpaceForTests();
     await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'x' });
@@ -349,16 +348,20 @@ describe('the triggers (the play schedule)', () => {
     const n0 = sync.mock.calls.length;
     expect(n0).toBe(1); // the load
     setPlaying(true);
-    for (const k of ['comm', 'timers', 'scriptData'] as const) noteStored(k);
+    // (Settings too since the stage 62 review, F8: the cockpit writes them by itself, pane sizes and window rects.)
+    for (const k of ['comm', 'timers', 'scriptData', 'settings'] as const) noteStored(k);
     await flush(6000);
     expect(sync.mock.calls.length).toBe(n0);
-    noteStored('settings');
+    noteStored('profile');
     await flush(6000);
     expect(sync.mock.calls.length).toBe(n0 + 1);
     // Every 5 minutes of play.
     await flush(5 * 60_000);
     expect(sync.mock.calls.length).toBe(n0 + 2);
-    // Hidden.
+    // Visible again in play: nothing; hidden: a sync.
+    doc.dispatchEvent(new Event('visibilitychange'));
+    await flush(10);
+    expect(sync.mock.calls.length).toBe(n0 + 2);
     doc.visibilityState = 'hidden';
     doc.dispatchEvent(new Event('visibilitychange'));
     await flush(10);
@@ -371,6 +374,14 @@ describe('the triggers (the play schedule)', () => {
     noteStored('comm');
     await flush(6000);
     expect(sync.mock.calls.length).toBe(n0 + 5);
+    // Off play, hidden: nothing; visible again: a sync.
+    doc.dispatchEvent(new Event('visibilitychange'));
+    await flush(10);
+    expect(sync.mock.calls.length).toBe(n0 + 5);
+    doc.visibilityState = 'visible';
+    doc.dispatchEvent(new Event('visibilitychange'));
+    await flush(10);
+    expect(sync.mock.calls.length).toBe(n0 + 6);
     ps.stop();
   });
 });

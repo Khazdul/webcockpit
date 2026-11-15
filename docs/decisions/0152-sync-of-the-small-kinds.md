@@ -104,12 +104,13 @@ first two:
 ADR 0146's addendum: Comm and timers are also pushed when the game is
 left, when the tab is hidden and every 5 minutes of play.
 
-- **During play** a store write of `comm`, `timers` or `scriptData` does
-  not start the 5 s sync (they write per message, per tick, per second).
-  They ride the play schedule: every 5 minutes, on `visibilitychange` to
-  hidden, and when the game is left (the start page shows). A `settings`
-  write notes the change as a profile or script does (5 s): a player's
-  own change, rare during play.
+- **During play** a store write of `comm`, `timers`, `scriptData` or
+  `settings` does not start the 5 s sync (they write per message, per
+  tick, per second; the cockpit writes its settings by itself, pane sizes
+  and window rects). They ride the play schedule: every 5 minutes, on
+  `visibilitychange` to hidden, and when the game is left (the start page
+  shows). Off play every change notes at 5 s, and the tab visible again
+  syncs. (Settings in play rode the 5 s until the stage 62 review.)
 - **A sync during play is cheap.** The Comm adapter keeps each day's
   body and hashes cached under (record count, highest `seq`), so a day
   that got no message is neither read in full nor hashed again; in
@@ -402,3 +403,76 @@ the registration's point and `/privacy`.
   file. With the flag on, the two sentences of the intro and "What is
   sent" that an account makes untrue are replaced too (main session,
   after the merge).
+
+## As built (stage 62, review fixes)
+
+Branch `stage62-fixes`; tests in `tests/unit/cloud-sync-fixes62.test.ts`
+(one `describe` per finding) and e2e `sync-kinds.spec.ts`.
+
+- **F1, the login seed.** While `syncMeta.settingsSeed` is set and this
+  type has no agreed record, `main` is no item whatever its hash (the
+  shell's `profile` at boot, pane sizes and window rects change it). A
+  pulled item of this type replaces it: the adapter's hook carries the
+  record (`SettingsWritten.seedRecord`, over the channel too) and the
+  store applies it with `SettingsStore.reload({ force, record })`, which
+  drops a change not saved and writes the record back if a write of its
+  own landed over it. Only a first full pull that ends `synced` with no
+  record of this type settles the seed: `main` as it is then, changes
+  included, is pushed. Changes made before the first pull give way to the
+  account's (a login gives the account's settings).
+- **F2, values that are not JSON.** `store.set` refuses `math.huge` and
+  `0/0` anywhere in a value (a script error). The scriptData adapter lists
+  stored values through `jsonSafe` (src/core/canonical-json.ts: not finite
+  and holes become null). The engine leaves an item whose body cannot be
+  hashed alone (event `unencodable`, counted as waiting, its record kept)
+  and syncs the rest; `unsynced()` counts it as an edit.
+- **F3, removing a split day.** A batch's removes resolve each day's
+  pieces once (as the last list gave them, else a fresh read) and delete
+  only the removed pieces' records; a message written since stays and is
+  pushed next.
+- **F4, pieces.** `COMM_PIECE_RAW` is 1 MB of JSON (a merge of two
+  pieces stays far under 1 MB of gzip). Pieces are greedy from the day's
+  first record; a day that only grew at its end (seq after the cached
+  highest, later `ts`, count matching) keeps its earlier piece objects,
+  so they are neither read nor hashed again.
+- **F5, the guest's chunks.** `canonicalJson` is src/core/canonical-json.ts;
+  `utcDay`, `dayBounds`, `commFields` (the record rule), `commIdentity` and
+  `sortCommRecords` are src/gmcp/comm-records.ts, one copy each, imported
+  by the archive and re-exported by items.ts. The comm-archive chunk went
+  from 10 049 to 5 087 bytes and no longer loads the shared API module;
+  the entry chunk 31 113 → 31 119 bytes (`npx vite build`,
+  `assets/index-*.js`; +6, the shell's `setPlaying` of F7).
+- **F6, "held until the game ended".** The engine marks a record held for
+  in use (`SyncRecord.waited`); the write that later takes it passes the
+  key in `LocalBatch.held`, and the settings hook says `held`. The
+  runtime's page-wide flag is gone.
+- **F7, playing.** `src/core/playing.ts` holds the flag (sync-view
+  re-exports it); the shell sets it in `showCockpit` (with the game lock)
+  and `showStart`, and for the run log player as before; the start page's
+  show and hide no longer do. A leave whose fade never ends (a hidden
+  tab, a cancelled transition) no longer leaves the sync thinking the
+  game was never entered.
+- **F8, work in play.** Settings ride the play schedule (above);
+  `visibilitychange` syncs in play only to hidden, off play only to
+  visible. `commDays` counts with a key cursor on `ts` (key `ts`, primary
+  key `seq`). The Comm cache is per database connection, shared by every
+  adapter of the page (the runtime's counts and in-use check use the
+  engine's adapter). The Comm list yields (`setTimeout(0)`) after each day
+  it reads.
+- **F9, kept days.** A Comm day is listed while its start is within 8 days
+  6 hours (`COMM_LIST_MS`; the model's `commDayKept` the same), read whole
+  (`dayRecords(day, {all})`), and a pulled piece of it is taken
+  (`addDayRecords(…, {since})`): a day is given up, and its tombstone
+  pushed, only once all its records are past the seven days, with a
+  margin for clocks. The generated runs step 4 hours on average so days
+  still age out (265 and 723 days in the runs).
+- **F10, scan and write.** `LocalItems.list(kind, {scan})` is the
+  engine's scan; the settings and scriptData adapters remember each
+  stored value's stamp then, and their write skips a put or remove over a
+  value that changed since (the seed's `main` excepted, F1). The engine
+  sees it dirty next round and pushes it: local wins as the last writer.
+- **F11, cleanups.** Timers go through `TimersArchive.list` and a new
+  `write` (one transaction); the small kinds' words are one table
+  (`SMALL_KIND_WORDS`, `smallKindNames` in unsynced-words.ts) for Log out
+  and the locked copy's Remove; `settleSettingsSeed` reads the mark first
+  and the sync store once.

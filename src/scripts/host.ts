@@ -1269,7 +1269,10 @@ export class ScriptHost {
         if (t !== 'string' && t !== 'number' && t !== 'boolean' && t !== 'table') {
           throw new Error(`bad argument #2 to 'store.set' (string, number, boolean or table expected, got ${t})`);
         }
-        this.lib.storeSet(o.name, key, a.value(2) as StoreValue);
+        const value = a.value(2);
+        // The store is synced (ADR 0152): JSON has no `math.huge` or `0/0`.
+        if (!finiteValue(value)) throw new Error(`bad argument #2 to 'store.set' (a number that is not finite: inf or nan)`);
+        this.lib.storeSet(o.name, key, value as StoreValue);
       },
     });
 
@@ -2392,4 +2395,12 @@ export function toCecho(text: string, runs: readonly StyleRun[]): string {
     pos = r.end;
   }
   return out + text.slice(pos);
+}
+
+/** False when `v` holds a number that is not finite (`math.huge`, `0/0`) anywhere: the store's values are synced as JSON. */
+export function finiteValue(v: unknown, depth = 0): boolean {
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (!v || typeof v !== 'object' || depth > 64) return true;
+  for (const x of Array.isArray(v) ? v : Object.values(v)) if (!finiteValue(x, depth + 1)) return false;
+  return true;
 }

@@ -1,12 +1,25 @@
 // The Log out dialog's second line under "N changes not synced" (stage 62,
 // round 10's pick 1a, notes/research/start-menu-mockups/round10/README.md):
 // the kinds of what is not in the account, quietly named. Pure but for
-// the clock (today's UTC day), so the unit tests hold every form.
-//
-// (Stage 62 C2 wrote this beside src/cloud/space/words.ts, which part C1
-// changes in parallel; the two are joined at the merge.)
+// the clock (today's UTC day), so the unit tests hold every form. The
+// small kinds' names are one table, `SMALL_KIND_WORDS`, also used by the
+// locked copy's Remove list (src/cloud/space/flows.ts).
 
 import type { Unsynced } from '../sync/types';
+
+/** The small kinds as a player reads them, in the order they are named. */
+export const SMALL_KIND_WORDS = [
+  ['settings', 'settings'],
+  ['scriptData', 'script data'],
+  ['comm', 'Comm history'],
+  ['timers', 'timers'],
+] as const satisfies readonly (readonly [Unsynced['kind'], string])[];
+
+/** The names of the small kinds among `list`, in order, each once ("settings", "script data", "Comm history"; `timers` too unless left out). */
+export function smallKindNames(list: readonly Unsynced[], o: { timers?: boolean } = {}): string[] {
+  const kinds = new Set(list.map((u) => u.kind));
+  return SMALL_KIND_WORDS.filter(([k]) => kinds.has(k) && (k !== 'timers' || o.timers !== false)).map(([, w]) => w);
+}
 
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 
@@ -26,13 +39,11 @@ export function unsyncedKindsWords(list: Unsynced[]): string {
   const scripts = of('script').length;
   if (profiles > 0) parts.push(plural(profiles, 'profile'));
   if (scripts > 0) parts.push(plural(scripts, 'script'));
-  if (of('settings').length > 0) parts.push('settings');
-  if (of('scriptData').length > 0) parts.push('script data');
   const days = new Set(of('comm').map((u) => dayOf(u.key)));
-  if (days.size > 0) {
-    const today = new Date().toISOString().slice(0, 10);
-    parts.push(days.size === 1 && days.has(today) ? 'Comm history, today' : `Comm history, ${plural(days.size, 'day')}`);
+  const today = new Date().toISOString().slice(0, 10);
+  for (const word of smallKindNames(list)) {
+    if (word !== 'Comm history') parts.push(word);
+    else parts.push(days.size === 1 && days.has(today) ? `${word}, today` : `${word}, ${plural(days.size, 'day')}`);
   }
-  if (of('timers').length > 0) parts.push('timers');
   return parts.join(' · ');
 }
