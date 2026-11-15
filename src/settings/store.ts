@@ -10,6 +10,7 @@
 //   store.update({ appearance: { size: 16 } });
 //   store.update((d) => { d.panes.ui.on = false; });
 //   await store.reload();              // the sync wrote `main`: read it again
+//   await store.reload({ force: true, record }); // … over a change not saved (a login's seed)
 //
 // - `get()` returns a frozen snapshot. Every change makes a new object, so
 //   `next !== prev` means something changed; compare sub-objects by value.
@@ -263,16 +264,27 @@ export class SettingsStore {
    * result is `local`. So is a change made while the record is read. In
    * safe mode, before the first change, the appearance stays the default.
    * Never rejects.
+   *
+   * `force` (a login's seed gave way to the account's settings, ADR 0152
+   * "The first copy"): a change not saved yet is dropped instead, and when
+   * `record` (what the sync wrote) is given and a write of ours landed
+   * over it meanwhile, `record` is written back; it is what shows.
    */
-  async reload(): Promise<SettingsReload> {
+  async reload(o: { force?: boolean; record?: unknown } = {}): Promise<SettingsReload> {
     await this.load();
     if (!this.db) return 'none';
+    if (o.force) {
+      if (this.timer !== null) clearTimeout(this.timer);
+      this.timer = null;
+      this.dirty = false;
+    }
     if (this.dirty) {
       await this.flush();
       return 'local';
     }
     // A write in flight is ours: read after it.
     await this.writing;
+    if (o.force && o.record !== undefined) return this.takeRecord(o.record);
     let stored: unknown;
     try {
       const db = this.db;
@@ -293,6 +305,44 @@ export class SettingsStore {
     }
     if (stored === undefined) return 'same';
     const next = migrateSettings(stored, { phone: this.phone && !this.tablet });
+    if (this.holdWrites) next.appearance = this.defaults().appearance;
+    const prev = this.current;
+    if (same(prev, next)) return 'same';
+    this.current = freeze(next);
+    this.writeMirror(prev.appearance, true);
+    this.emit(prev);
+    return 'applied';
+  }
+
+  /** `reload({ force, record })`: `record` is stored (again, if a write of ours replaced it) and shown. */
+  private async takeRecord(record: unknown): Promise<SettingsReload> {
+    const db = this.db;
+    if (!db) return 'none';
+    try {
+      const tx = db.transaction(STORE.settings, 'readwrite');
+      const os = tx.objectStore(STORE.settings);
+      const r = os.get(SETTINGS_KEY);
+      await new Promise<void>((resolve, reject) => {
+        r.onsuccess = () => {
+          if (!same(r.result, record)) os.put(record, SETTINGS_KEY);
+          resolve();
+        };
+        r.onerror = () => reject(r.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'));
+      });
+    } catch (err) {
+      this.warn('settings could not be saved', err);
+    }
+    // A change made meanwhile is the player's, after the account's settings came: it wins.
+    if (this.dirty) {
+      await this.flush();
+      return 'local';
+    }
+    const next = migrateSettings(record, { phone: this.phone && !this.tablet });
     if (this.holdWrites) next.appearance = this.defaults().appearance;
     const prev = this.current;
     if (same(prev, next)) return 'same';

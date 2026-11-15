@@ -96,6 +96,18 @@ export class TimersArchive {
     await done;
   }
 
+  /** Puts and removes in one transaction (the sync's batch): records as given, `savedAt` kept. */
+  async write(batch: { put: readonly TimersRecord[]; remove: readonly string[] }): Promise<void> {
+    const recs = batch.put.map((r) => asRecord(r));
+    if (recs.some((r) => !r)) throw new TypeError('not a timers record');
+    const tx = this.db.transaction(STORE.timers, 'readwrite');
+    const done = idbDone(tx);
+    const os = tx.objectStore(STORE.timers);
+    for (const c of batch.remove) os.delete(c);
+    for (const r of recs) os.put(r!);
+    await done;
+  }
+
   /** Replaces the record of `character`; resolves once committed. */
   async save(character: string, state: unknown): Promise<void> {
     const tx = this.db.transaction(STORE.timers, 'readwrite');

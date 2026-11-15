@@ -209,13 +209,20 @@ const DAY_MS = 24 * 3600_000;
 export const COMM_KEEP_MS = 7 * DAY_MS;
 
 /**
- * Whether a Comm piece's day is kept at `now` (ADR 0152 as built): a day
- * whose start (00:00 UTC) is within the last seven days. Whole days only,
- * so no day is ever listed with some of its records pruned (that would
- * make the piece shrink on one device and grow back from the others).
+ * How long a Comm day is listed (stage 62 review, F9; `COMM_LIST_MS` of
+ * src/cloud/space/local.ts): its start within 8 days and 6 hours, so it
+ * is given up only once all its records are past the seven days, with a
+ * margin for clocks that differ.
+ */
+export const COMM_LIST_MS = COMM_KEEP_MS + DAY_MS + 6 * 3600_000;
+
+/**
+ * Whether a Comm piece's day is kept at `now` (ADR 0152 as built, as
+ * amended by the review): a day whose start (00:00 UTC) is within
+ * `COMM_LIST_MS`. Whole days only.
  */
 export function commDayKept(day: string, now: number): boolean {
-  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - COMM_KEEP_MS;
+  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - COMM_LIST_MS;
 }
 
 /** The local key of a record of `kind`. */

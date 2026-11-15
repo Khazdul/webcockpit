@@ -11,13 +11,15 @@
 //   - an account's space: when the keys are gone, the session is lost;
 //     else, with the flag `sync` on, the engine on the space's database.
 //
-// The engine syncs on: the page's load, the start page shown again, the
-// tab visible again or hidden, 5 s after a profile, script or settings
-// change was stored, every 5 minutes (on the start page and in play), and
-// at the `retryAt` of a failed sync. During play a store write of
-// `scriptData`, `comm` or `timers` starts nothing (they write per second,
-// per message, per tick): they ride the play schedule (ADR 0152 "When the
-// small kinds push"); off play they note at 5 s as the rest. Every call is
+// The engine syncs on: the page's load, the start page shown again (the
+// game left), 5 s after a change was stored, every 5 minutes (on the start
+// page and in play), the tab visible again (off play) or hidden (in play),
+// and at the `retryAt` of a failed sync. During play only a profile or
+// script change notes at 5 s; a store write of `settings`, `scriptData`,
+// `comm` or `timers` starts nothing (the cockpit writes its settings by
+// itself: pane sizes, window rects; the rest per second, per message, per
+// tick): they ride the play schedule (ADR 0152 "When the small kinds
+// push", as amended by the stage 62 review). Every call is
 // fire-and-forget: nothing on the game path awaits it (§7.0 rule 1). While
 // a game plays on the space, in this tab or another (the game lock), the
 // selected profile, the enabled scripts and their data, this device
@@ -48,7 +50,7 @@ import { fetchRemote } from './remote';
 import { currentNameKey, spaceDb } from './spaces';
 import { eventWords, moveWaitWords, movedLine, movedWords, movingWords } from './words';
 
-/** After a profile, script or settings change was stored (and any change off play). */
+/** After a profile or script change was stored (and any change off play). */
 export const CHANGE_DELAY_MS = 5000;
 /** On the start page and in play (the play schedule of the small kinds). */
 export const PERIOD_MS = 5 * 60_000;
@@ -116,8 +118,8 @@ export class PageSync implements Runtime {
   private readonly offs: (() => void)[] = [];
   private last: SyncOutcome | null = null;
   private readonly type = thisDeviceType();
-  /** The game was just left with this type's pulled settings waiting: the next apply says so. */
-  private heldSettings = false;
+  /** The engine's local ports, shared by the counts and the in-use check (one Comm cache). */
+  private readonly local;
 
   constructor(
     private readonly host: Host,
@@ -127,8 +129,9 @@ export class PageSync implements Runtime {
   ) {
     this.open = spaceDb(nameKey);
     const inUse: InUse = { keys: (kind) => this.inUse(kind) };
+    this.local = idbLocalItems(this.open, { written: (kind, profiles, settings) => this.written(kind, profiles, settings) }, { type: this.type });
     this.engine = new SyncEngine({
-      local: idbLocalItems(this.open, { written: (kind, profiles, settings) => this.written(kind, profiles, settings) }, { type: this.type }),
+      local: this.local,
       records: idbSyncRecords(this.open, thisDeviceLabel),
       remote: fetchRemote(),
       keys,
@@ -146,7 +149,7 @@ export class PageSync implements Runtime {
     // Called on the game path (a Comm append, a timers save): a flag test and at most a timer.
     this.offs.push(
       onStored((kind) => {
-        if (kind === 'profile' || kind === 'script' || kind === 'settings' || !inPlay()) this.soon();
+        if (kind === 'profile' || kind === 'script' || !inPlay()) this.soon();
       }),
     );
     this.offs.push(
@@ -160,8 +163,12 @@ export class PageSync implements Runtime {
     );
     const doc = globalThis.document;
     if (doc) {
-      // Hidden: in play, the last minutes are pushed before a phone puts the tab away (ADR 0152).
-      const vis = (): void => this.run();
+      // In play, hidden: the last minutes are pushed before a phone puts the tab away (ADR 0152).
+      // Off play, visible again: what came meanwhile (stage 61).
+      const vis = (): void => {
+        const hidden = doc.visibilityState === 'hidden';
+        if (inPlay() ? hidden : !hidden) this.run();
+      };
       doc.addEventListener('visibilitychange', vis);
       this.offs.push(() => doc.removeEventListener('visibilitychange', vis));
     }
@@ -260,23 +267,17 @@ export class PageSync implements Runtime {
       postSyncMessage({ text: movedWords(this.name, p.total), ms: MESSAGE_MS, tag: 'move' });
     }
     const m = p?.done ? await moveState(this.open) : null;
-    const local = idbLocalItems(this.open);
-    const [profiles, scripts] = await Promise.all([local.list('profile'), local.list('script')]);
+    const [profiles, scripts] = await Promise.all([this.local.list('profile'), this.local.list('script')]);
     patchSyncView({
       moved: m && m.total.profiles + m.total.scripts > 0 ? movedLine(m.total) : null,
       counts: { profiles: profiles.length, scripts: scripts.length },
     });
   }
 
-  /** The game was left: a sync, and whether this type's pulled settings waited for it (round 10, 2c). */
+  /** The game was left: a sync (what was held for it comes in; its write says it waited, round 10, 2c). */
   private async leftGame(): Promise<void> {
     if (this.stopped || this.paused) return;
-    const recs = await idbSyncRecords(this.open, thisDeviceLabel)
-      .list()
-      .catch(() => []);
-    this.heldSettings = recs.some((r) => r.kind === 'settings' && r.key === this.type && r.state === 'held');
     await this.sync();
-    this.heldSettings = false;
   }
 
   /** In use: what a game plays with, in this tab or in another tab of the space (the game lock). */
@@ -289,7 +290,7 @@ export class PageSync implements Runtime {
     if (kind === 'scriptData') return new Set(this.host.scripts?.enabledNames() ?? []);
     if (kind === 'timers') {
       // A game in another tab: its character is not known here, so every character's timers wait.
-      if (elsewhere) return new Set((await idbLocalItems(this.open, {}, { type: this.type }).list('timers')).map((i) => i.key));
+      if (elsewhere) return new Set((await this.local.list('timers')).map((i) => i.key));
       const c = this.host.playedCharacter?.() ?? null;
       return new Set(c ? [c] : []);
     }
@@ -315,7 +316,9 @@ export class PageSync implements Runtime {
     const w: SyncWrite = {
       kind,
       ...(profiles ? { profiles } : {}),
-      ...(settings ? { settings: { from: settings.from, ...(this.heldSettings ? { held: true } : {}) } } : {}),
+      ...(settings
+        ? { settings: { from: settings.from, ...(settings.held ? { held: true } : {}), ...(settings.seedRecord !== undefined ? { seedRecord: settings.seedRecord } : {}) } }
+        : {}),
     };
     void applyWritten(this.host, w);
     notifyWritten(currentSpace(), w);

@@ -20,6 +20,7 @@ import { syncDeviceLabel } from '../sync/items';
 import type { Unsynced } from '../sync/types';
 import { type LockedNotice, isPlaying, patchSyncView } from '../sync-view';
 import { META, writeMeta } from './local';
+import { smallKindNames } from './unsynced-words';
 import { beginMove } from './move';
 import { notifyWritten } from './notify';
 import {
@@ -337,15 +338,10 @@ export async function lockedNotice(): Promise<LockedNotice | null> {
   const kept = await notInAccount(nameKey).catch(() => null);
   if (!kept) return { nameKey, name, what: 'Some changes', lost: [] };
   const what = keptWords(kept.changes.length, kept.savedRuns) || 'Nothing';
-  const lost = [...unsyncedLines(kept.changes), ...smallKindLines(kept.changes), ...(kept.savedRuns ? [`${kept.savedRuns} saved run${kept.savedRuns === 1 ? '' : 's'}`] : [])];
+  const lost = [...unsyncedLines(kept.changes), ...smallKindNames(kept.changes, { timers: false }), ...(kept.savedRuns ? [`${kept.savedRuns} saved run${kept.savedRuns === 1 ? '' : 's'}`] : [])];
   return { nameKey, name, what, lost };
 }
 
-/** Remove's lines for the small kinds a locked copy keeps (timers never lock a copy, ADR 0152). */
-function smallKindLines(list: readonly Unsynced[]): string[] {
-  const has = (k: Unsynced['kind']): boolean => list.some((u) => u.kind === k);
-  return [...(has('settings') ? ['settings'] : []), ...(has('scriptData') ? ['script data'] : []), ...(has('comm') ? ['Comm history'] : [])];
-}
 
 /** The notice's sentence. */
 export const lockedText = (n: LockedNotice): string => lockedWords(n.name, n.what);

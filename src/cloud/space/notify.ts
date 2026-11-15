@@ -31,8 +31,12 @@ export interface SyncWrite {
   kind: WrittenKind;
   /** The profiles' changes, when known (else only the selected profile is checked). */
   profiles?: ProfileChanges;
-  /** `settings`: this device type's were pulled; from whom, and whether they waited for the game. */
-  settings?: { from: string | null; held?: boolean };
+  /**
+   * `settings`: this device type's were pulled; from whom, whether they
+   * waited for the game, and the record when it replaced a login's seed
+   * (taken over any change not saved yet).
+   */
+  settings?: { from: string | null; held?: boolean; seedRecord?: unknown };
 }
 
 /** How long the start menu's line says where pulled settings came from. */
@@ -103,7 +107,8 @@ export async function applyWritten(host: CacheHost, w: SyncWrite): Promise<void>
     }
     if (w.kind === 'settings') {
       if (!w.settings) return;
-      const r = await host.settings.reload();
+      const seed = w.settings.seedRecord;
+      const r = await host.settings.reload(seed !== undefined ? { force: true, record: seed } : {});
       if (r === 'applied') postSyncMessage({ text: settingsFromWords(w.settings.from, w.settings.held), ms: SETTINGS_MESSAGE_MS, tag: 'settings' });
       return;
     }
