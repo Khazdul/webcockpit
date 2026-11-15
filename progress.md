@@ -64,7 +64,7 @@
 | 58 | Move to Cloudflare | Switched 2026-11-14, owner check fine; part D (retire Pages) two releases later | `docs/stages/58-cloudflare-move.md` |
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
 | 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
-| 61 | Sync of profiles and scripts, on the two spaces | In progress: planned, mockups (part A) | `docs/stages/61-sync-profiles-scripts.md` |
+| 61 | Sync of profiles and scripts, on the two spaces | Owner testing: built, on staging (flag `sync` on there only), not released | `docs/stages/61-sync-profiles-scripts.md` |
 | 62 | Sync of settings, script data, Comm history and timers | Planned (spec §7.12) | |
 | 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
 | 64 | Share links | Planned (spec §7.12) | |
@@ -75,6 +75,31 @@
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-14/15 — Stage 61: the two spaces and sync of profiles and scripts, on staging
+
+- **Planned:** `docs/stages/61-sync-profiles-scripts.md`; ADR 0150 (a
+  database per space, a change of space reloads the page). **Part A:**
+  round 9 mockups (`notes/research/start-menu-mockups/round9/`,
+  artifact JhBtNxsewN6KZ26EiFahWh); the owner took the recommendation
+  on all seven points, and `warrior_from_phone_14Nov` as the
+  keep-both name.
+- **Built** by agents in worktrees: B1 spaces, B2 Worker (migration
+  0003, item endpoints, why a session ended, flag `sync`), B3 engine
+  (ADR 0151, property tests), C flows (the move, log in/out, the locked
+  copy, Delete account hands back, owner row, Account sync section,
+  `npm run test:sync-worker` against a local Worker). Reviews: a second
+  agent and `/code-review` high; 15 fixes with tests. Delete account
+  now hands back runs too (the session's call; text names runs).
+- **Checks:** unit 4783; full e2e alone at 5 workers 1614 passed, 1
+  failed under load (passes alone); bench clean; entry chunk 30 201 →
+  30 876 bytes. **Staging:** run 43662153802, `test:prod` 30/30.
+- **Next:** the owner's two-device test on staging (test guide in the
+  stage file); then stage 62. **Open:** the entry chunk's +675 bytes
+  (chunk wiring); tombstones have no cap of their own; `session_end`
+  keeps the account id up to 180 days; nothing released.
+- **Commits:** c0664be8…the staging fixes, merges 4143117b, 7853ed6a,
+  0094442d, b127c0f7, 27a797f5, and this one.
 
 ### 2026-11-14 — Stage 67 part B and checks: the menu and History's tabs built
 

@@ -1,6 +1,6 @@
 # Stage 61 — Sync of profiles and scripts, on the two spaces
 
-Status: **In progress.** Part A done (mockups, owner's picks 2026-11-14); part B waits for the owner's word.
+Status: **Built and on staging (2026-11-15), owner testing.** Parts A–D done; the flag `sync` on on staging only; nothing released.
 
 Done after stage 67 (spec §7.12: the order is 67, 61, 62, 63, then
 accounts open in production, then 64–66). On staging only: the flag
@@ -220,8 +220,11 @@ local Worker) green in the fix branch; the benchmark exits clean (key
 bytes (+675: the space, the owner row's source, the bundler's chunk
 wiring). Reviews: a second agent (seven confirmed findings) and
 `/code-review` high (ten); fifteen fixes with tests (merge 27a797f5).
-- [ ] Staging: `deploy.yml` to staging, the flag `sync` on there,
-      `test:prod` against staging. Nothing released.
+- [x] Staging: `deploy.yml` to staging, the flag `sync` on there,
+      `test:prod` against staging. Nothing released. (Run 43662153802,
+      migration 0003 applied to staging's D1; `test:prod` 30/30 against
+      staging; two earlier runs stopped in the checks before any upload:
+      the smoke test's flag list and a worker test's timeout, both fixed.)
 - [ ] Owner test with two devices on staging (test guide below).
 
 ## Test guide (owner)
