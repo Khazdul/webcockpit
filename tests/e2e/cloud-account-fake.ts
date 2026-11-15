@@ -337,7 +337,11 @@ export class FakeAccountServer {
     return reason ? { status: 401, body: { error: 'session_ended', reason } } : err('unauthorized', 401);
   }
 
-  /** The account's items (stage 61): the in-memory model of the sync API (tests/unit/cloud-sync-model.ts). */
+  /**
+   * The account's items (stage 61): the in-memory model of the sync API
+   * (tests/unit/cloud-sync-model.ts); with the flag `runs` (stage 63) its
+   * run bodies too (`bodies`, `runBytes`, `limits.runBytes` the quota).
+   */
   items(name: string): ServerModel {
     const key = name.toLowerCase();
     let m = this.models.get(key);
@@ -345,7 +349,38 @@ export class FakeAccountServer {
       m = new ServerModel();
       this.models.set(key, m);
     }
+    if (this.flags.runs === true && !m.runsFlag) m.enableRuns();
     return m;
+  }
+
+  /**
+   * A run request (`/api/u/runs…`, stage 63, ADR 0153): the flags
+   * `accounts` and `runs` (404 off), the CSRF rule on writes, the session,
+   * then the account's model. `bytes` is a PUT's body; a GET's answer
+   * `body` is the stored bytes (a `Uint8Array`).
+   */
+  async runs(req: FakeRequest, cookie: string | null, bytes: Uint8Array | null): Promise<FakeResponse | 'offline'> {
+    if (this.syncOffline) return 'offline';
+    if (this.flags.accounts !== true || this.flags.runs !== true) return err('not_found', 404);
+    if (req.method !== 'GET' && !(req.headers['x-wc'] === '1' && req.headers.origin === req.origin)) return err('forbidden', 403);
+    let session = cookie !== null ? (this.sessions.get(cookie) ?? null) : null;
+    if (session && session.expires <= this.clock) {
+      this.drop(session.token, 'expired');
+      session = null;
+    }
+    if (!session) return this.gone(cookie);
+    const model = this.items(session.account);
+    model.ended = null;
+    if (req.path === '/api/u/runs' && req.method === 'GET') return model.listBodies();
+    const id = decodeURIComponent(req.path.slice('/api/u/runs/'.length));
+    if (!req.path.startsWith('/api/u/runs/') || id.includes('/')) return err('not_found', 404);
+    if (req.method === 'PUT') {
+      if (req.headers['content-length'] === undefined && bytes === null) return err('length_required', 411);
+      return model.putBody(id, bytes ?? new Uint8Array(0));
+    }
+    if (req.method === 'GET') return model.getBody(id);
+    if (req.method === 'DELETE') return model.removeBody(id);
+    return err('not_found', 404);
   }
 
   /**
@@ -580,7 +615,8 @@ export class FakeAccountServer {
     const sessions: AccountSession[] = this.sessionsOf(a.key)
       .sort((x, y) => y.lastUsed - x.lastUsed || y.created - x.created || (x.id < y.id ? -1 : 1))
       .map((s) => ({ id: s.id, label: s.label, created: s.created, lastUsed: s.lastUsed, current: s.token === current.token }));
-    return { name: a.name, created: a.created, state: a.state, usage: { items: 0, itemBytes: 0, runBytes: 0 }, limits: { ...a.limits }, sessions, prefs: { ...a.prefs } };
+    const usage = this.models.get(a.key)?.usage() ?? { items: 0, itemBytes: 0 };
+    return { name: a.name, created: a.created, state: a.state, usage: { ...usage, runBytes: usage.runBytes ?? 0 }, limits: { ...a.limits }, sessions, prefs: { ...a.prefs } };
   }
 
   /** A stable fake salt for a name without an account: the same for the same name, 16 bytes. */
@@ -805,6 +841,13 @@ export class FakeBrowser {
     return res;
   }
 
+  /** A run request from this browser (stage 63). */
+  async runsRequest(req: FakeRequest, bytes: Uint8Array | null): Promise<FakeResponse | 'offline'> {
+    const res = await this.server.runs(req, this.cookie, bytes);
+    if (res !== 'offline' && res.status === 401) this.cookie = null;
+    return res;
+  }
+
   /** One request from this browser. `offline`: the connection failed. `hang`: no answer ever comes. */
   request(req: FakeRequest): FakeResponse | 'offline' | 'hang' {
     const { res, cookie } = this.server.handle(req, this.cookie);
@@ -875,6 +918,16 @@ export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer
         buf ? new Uint8Array(buf) : null,
       );
       if (r === 'offline') return route.abort('connectionrefused');
+      return json(r.status, r.body);
+    }
+    if (url.pathname === '/api/u/runs' || url.pathname.startsWith('/api/u/runs/')) {
+      const buf = req.postDataBuffer();
+      const r = await browser.runsRequest(
+        { method: req.method(), path: url.pathname, search: url.search, headers: await req.allHeaders(), body: null, origin: url.origin },
+        buf ? new Uint8Array(buf) : null,
+      );
+      if (r === 'offline') return route.abort('connectionrefused');
+      if (r.body instanceof Uint8Array) return route.fulfill({ status: r.status, contentType: 'application/octet-stream', headers: { 'Cache-Control': 'no-store' }, body: Buffer.from(r.body) });
       return json(r.status, r.body);
     }
     const res = browser.request({
