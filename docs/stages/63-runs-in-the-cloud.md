@@ -214,15 +214,17 @@ touches staging or production.
 
 #### C2. Views (worktree `stage63-views`, port 5445)
 
-- [ ] History: the marks, the storage line, fetch on open with stage
+- [x] History: the marks, the storage line, fetch on open with stage
       24's bar, offline on a cloud-only row (round 11's pick, desktop and
       phone).
-- [ ] The "does not fit" dialog (pick 1), with Download the run (the
+- [x] The "does not fit" dialog (pick 1), with Download the run (the
       runs backup of that session), Open History, Keep on this device.
-- [ ] Log out's runs (pick 3); the delete confirmation (pick 4).
-- [ ] Statistics, Spotlights, Diary: the counts and Fetch all on desktop
+- [x] Log out's runs (pick 3); the delete confirmation (pick 4).
+- [x] Statistics, Spotlights, Diary: the counts and Fetch all on desktop
       (pick 5).
-- [ ] e2e for each, desktop and phone.
+- [x] e2e for each, desktop and phone.
+- [x] The Exit popup's run goes up when it is sealed (C1's gap: it
+      waited for the next sync). ADR 0153 "As built (stage 63 C2)".
 
 ### D. Checks and staging
 
