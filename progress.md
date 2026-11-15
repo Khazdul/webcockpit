@@ -83,6 +83,12 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 - Checks: unit 4865 passed; full e2e at 5 workers 1624 passed, 2 Firefox failures under load that passed alone 6/6 (layout.spec.ts:200, popup-focus.spec.ts:161); test:sync-worker 2/2; staging deploy run 43702069674 (27701fe5), test:prod 30/30 against staging.
 - Next: stage 63 in its own session. Commits 788deb59, dd25bdf1, cbb4781e, 27701fe5.
 
+### 2026-11-15 — Stage 62: the three small things
+
+- Fixed with tests (worktree): the Account page fits 1440 × 900 in synced, offline and full with two devices; Comm is pruned by whole days the sync no longer keeps (no extra pushes; ADR 0152 "Small fixes"); `ScriptLibrary.reload()` drops a deleted data record.
+- Owner's choice: `/privacy` says Comm is kept "about a week, never more than ten days".
+- Checks: unit 4868 passed; full e2e 1625 passed, 3 Firefox failures under load passed alone 9/9 (chrome.spec.ts:287, keymanager.spec.ts:39, layout.spec.ts:331); staging deploy and test:prod below in the commit log.
+
 ### 2026-11-15/16 — Stage 62 (night pass): the small kinds sync, on staging
 
 - **Planned:** `docs/stages/62-sync-settings-comm.md`; ADR 0152 (keys

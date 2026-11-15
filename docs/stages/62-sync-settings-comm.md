@@ -272,7 +272,7 @@ draft below is the one sent for checking.
                         made from them that let the site check them.
       Comm history      What the Comm pane keeps, the other players' tells
                         and your channels included, encrypted like the
-                        rest, for seven days, as in this browser.
+                        rest, for about a week (never more than ten days), as in this browser.
       Sessions          Each device you log in on: a name for it such as
                         "Firefox on Linux", when it logged in and was last
                         used. A session ends after 180 days without use;
@@ -366,5 +366,8 @@ the privacy text.
    (Create account copies; timers make no locked copy) got no comment
    and stay as built. Built after the feedback: ADR 0152, "Owner's
    picks".
-3. **`/privacy`'s account section** is approved as drafted.
+3. **`/privacy`'s account section** is approved as drafted. After the
+   small fixes (Comm pruned by whole days, so a device keeps up to about
+   nine days) the owner chose to change its Comm line to "about a week,
+   never more than ten days".
 4. **Stage 63** runs in a session of its own.

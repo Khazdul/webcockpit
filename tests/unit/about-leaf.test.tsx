@@ -446,7 +446,7 @@ describe("the privacy page's account section (flag `accounts`)", () => {
     expect(LOGIN_TURNSTILE_AFTER).toBe(3);
     expect(PRIVACY_ACCOUNTS).toContain('180 days');
     expect(PRIVACY_ACCOUNTS).toContain('after three failed tries');
-    expect(PRIVACY_ACCOUNTS).toContain('seven days');
+    expect(PRIVACY_ACCOUNTS).toContain('never more than ten days');
   });
 });
 
