@@ -59,7 +59,7 @@ import { h } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { type Account, type AccountSession, type FlowResult, accountState, loadAccount, onAccountState, storedAccount } from '../../../cloud/account';
 import { Box, BoxBody, GlassButton, LookFlash, Rule, letterOf, lookFrame } from '../../kit/look';
-import { useKeys, useNav } from '../../kit/stack';
+import { useFlash, useKeys, useNav } from '../../kit/stack';
 import { DeleteDialog, EndDialog, LogoutDialog, NewCodeDialog, PasswordDialog } from './account-dialogs';
 import { labelWords, orderSessions, sessionWords } from './account-model';
 import { FormError, type PageProps, SmallNote, go, useHeldCode, useTallPage } from './form';
@@ -304,10 +304,18 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
     if (at?.startsWith('END:')) rows.current?.querySelector('.is-cur')?.scrollIntoView({ block: 'nearest' });
   }, [at]);
 
+  // The message line under Leaving takes no room while empty (account.css): one that shows is
+  // scrolled into view, so a page that only just fits does not hide it under the body's edge.
+  const flash = useFlash();
+  const formRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (flash) formRef.current?.querySelector('.wc-ac-flash')?.scrollIntoView({ block: 'nearest' });
+  }, [flash?.seq]);
+
   return (
     <Box title="Account" onBack={back} tall={tall} class="wc-ac wc-ac-account" winClass="wc-ac-win">
       <BoxBody class="wc-ac-body" scroll={tall}>
-        <div class="wc-ac-form wc-ac-acct" data-page="account">
+        <div class="wc-ac-form wc-ac-acct" data-page="account" ref={formRef}>
           <div class="wc-ac-head">
             <span class="wc-ac-head-name" data-account-name="">
               {name}
