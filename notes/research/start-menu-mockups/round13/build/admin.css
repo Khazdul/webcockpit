@@ -1,0 +1,41 @@
+/* Round 12: the report queue in the admin page's own plain look (worker/admin/page.ts). */
+.rq { border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin: 0 0 10px; background: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%); }
+.rq.is-hidden { border-left: 4px solid var(--warn); }
+.rq-head { display: flex; align-items: baseline; gap: 12px; }
+.rq-head h3 { margin: 0; font-size: 1.02rem; }
+.rq-state { font-size: .8rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+.rq.is-hidden .rq-state { color: var(--warn); border-color: var(--warn); }
+.rq p { margin: 4px 0 0; }
+.rq-who code, .modal code { font-size: .9em; }
+.rq-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.rq-r { font-size: .88rem; border-radius: 4px; padding: 1px 7px; background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.rq-r b { margin-left: 3px; }
+.rq-from { font-size: .88rem; }
+.rq-text { font-style: italic; }
+.rq-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px !important; }
+.rq-acts .sep { width: 12px; }
+button.danger { color: #b3261e; }
+button.danger.solid { color: #fff; background: #b3261e; border: 1px solid #8c1d17; }
+.log td { font-size: .9rem; }
+.log td:nth-child(n+3), .log th:nth-child(n+3) { text-align: left; }
+.mono { font-family: ui-monospace, monospace; }
+.modal-veil { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; }
+.modal { width: min(520px, 92vw); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 18px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, .4); }
+.modal h3 { margin: 0 0 8px; }
+.modal p { margin: 0 0 10px; }
+.modal label { display: block; margin: 0 0 10px; font-size: .9rem; color: var(--muted); }
+.modal input { display: block; width: 100%; margin-top: 3px; font: inherit; padding: 4px 6px; }
+.modal-btns { text-align: right; margin: 6px 0 0 !important; }
+html, body { height: auto; }
+header, main.mk-two { max-width: 1360px; }
+main.mk-two { display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 0 32px; align-items: start; }
+.mk-rest { grid-column: 1 / -1; }
+.mk-col2 .figures { gap: 8px 22px; }
+.mk-col2 .figures div { min-width: 5.5em; }
+.log td, .log th { font-size: .8rem; padding: 3px 5px; }
+.rq { padding: 8px 12px; }
+/* Round 13: comments and notes in the queue. */
+.rq-kind { flex: none; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 1px 6px; background: color-mix(in srgb, var(--fg) 12%, transparent); }
+.rq-kind.is-c { background: color-mix(in srgb, #2f6fb3 25%, transparent); }
+.rq-kind.is-n { background: color-mix(in srgb, #8a5bb3 25%, transparent); }
+.rq-quote { margin: 6px 0 2px; padding: 6px 10px; border-left: 3px solid var(--line); background: color-mix(in srgb, var(--fg) 5%, transparent); white-space: pre-wrap; overflow-wrap: anywhere; }
