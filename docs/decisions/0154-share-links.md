@@ -531,3 +531,98 @@ from the API set with `textContent`):
   state, errors, the log's 20 / all) and one more in
   `worker/test/admin.test.ts` (the three files behind Access, the CSP
   string unchanged, no HTML sinks in the script).
+
+## As built (stage 64 C1)
+
+The export editor's Link, the share dialog and Published runs (branch
+`stage64-share`), round 12's picks 1a, 2a and 4a, with the README's words.
+
+- **The client** (`src/cloud/pub/api.ts`): `create`, `list`, `mine`,
+  `edit`, `remove` of the sender's `/api/u/pub*`; no request unless the page
+  may call the API and `accounts` and `share` are on (`disabled`); never
+  rejects; `X-WC: 1` on writes; answers checked against the contract.
+  `pubBody` makes the two-part body (4-byte big-endian meta length, the
+  meta's UTF-8 JSON, the gzip bytes) and nothing else goes in it. The
+  refusals come back as `payload_too_large` and `pub_quota` (with the
+  server's `limit`), `rules`, `suspended`, `unauthorized` (also for `401
+  session_ended`), `offline`, `timeout`. **The upload goes by
+  XMLHttpRequest** (fetch has no upload progress; the dialog draws stage
+  24's bar with the bytes sent), two minutes' timeout; the rest 15 s.
+- **The tick**: the account flows' `setPrefs` passes `rulesAccepted: true`
+  (it sent only `galleryNotice` before); the dialog sends it just before
+  the first POST, and a `403 rules` shows the rules' well again.
+- **The meta** (`src/share/link.ts`): the text rules of B1 applied as the
+  player types (controls, DEL, C1, lone surrogates and the bidi controls
+  taken out, NFC, code points), title and character trimmed, `level` only
+  as a whole number 0–1000, `lengthS` the replay's own timeline length
+  (`buildTimeline(...).durationMs`, gaps collapsed, holds in), `listed:
+  false`. **The description is one paragraph** (Enter creates the link, as
+  a comment's Enter saves it): line breaks become spaces.
+- **The payload**: `prepareLinkPayload` (`buildReplayPayload`, then
+  `withReplayMap`: the map step taken out of `buildReplayHtml` so both use
+  one function) and `sealLinkPayload` (`validatePayload` of the JSON, then
+  gzip). Both run in the export editor's chunk; the dialog gets the bytes.
+- **Link is not stored as the doc's `format`**: it is a choice of the
+  editor's visit (`linkOn`); the doc keeps `html` or `text`, so older
+  clients and `share` off read every doc as before, and the doc keeps no
+  link. The toggle gains Link (L) when `accounts` and `share` are on; the
+  keyboard's ring gains it after Plain text. A guest's Link is
+  `aria-disabled`: a press, L or a tap says "Log in to share. Account is
+  on the start page." in the flash, a pointer over it a tip "Log in to
+  share". With Link chosen the file row says Title and shows the link's
+  title (the doc's own, or "Rasta · 26 September 2026"); T edits the doc's
+  title as before.
+- **The dialog** (`src/chrome/frames/share-dialog.tsx`) as drawn: the
+  payload built and the account asked (`loadAccount`: the tick, the state,
+  the limits) when it opens; the size against the account's
+  `payloadMaxBytes`, **refused before Create link** when over (nothing is
+  sent); the rules' well until the account has ticked (also when the
+  account could not be asked: a second tick is harmless); Create link,
+  Creating… with the bar, Cancel aborts; the link (`<origin><base>r/<id>`)
+  read-only with Copy; 150 reached with Open Account; offline and timeout
+  with Try again. No autofocus on a touch screen (our keyboard would cover
+  the form). **It lives in the account pages' chunk** (account/index.tsx
+  exports it): a chunk of its own, or the validator in one, shared modules
+  with the account and history chunks and split the app's chunks, growing
+  the entry chunk's preload lists by up to 421 bytes.
+- **Published runs** (`src/chrome/frames/account/published.tsx`) after Sync
+  (the page takes its tall form): `GET /api/u/pub` when the page opens and
+  after each change; each run on two lines (title and "37 views · 15 Nov
+  2026 · 1.2 MB · link only"; `/r/<id>` with Copy, Edit, Remove; on a
+  narrow page stacked); a hidden run dimmed with the flag and "Hidden after
+  reports. Only you can watch it until we have looked."; the foot "4 of 150
+  · 6.1 MB · links do not count against your 50 MB."; the empty line. Edit
+  sends only what changed; Remove asks first; a `404` on Remove counts as
+  removed. The rows' buttons are in the page's keyboard ring.
+- **Words chosen here** (not in the README): the flash "Copied the link."
+  and "Saved." / "Removed. The link now says so."; "Building the replay…"
+  in the size line; the timeout "No answer from the server: the link may
+  or may not have been made. Look under Published runs on the Account page
+  before you try again."; "This account is suspended: it cannot publish
+  runs."; "Tick the rules first: the server has no tick from this account
+  yet."; "You were logged out here. Log in again on the start page, then
+  share."; Copy's failure "Could not copy here: select the link and copy
+  it."; the Title hint in the editor "Empty: the character and date.".
+  Sizes are binary ("MB" = MiB, rounded up to a tenth) so the limit reads
+  "5 MB".
+- **The kit** gains the icons `link` and `flag` (round 12's glyphs; C2's
+  Report can use `flag`), `Field.readOnly`, `TextArea.disabled`, and
+  `kit/clipboard.ts` (the recovery code's copy, shared).
+- **The e2e fake** (`tests/e2e/cloud-account-fake.ts`, a marked block):
+  the sender's pub endpoints behind `accounts` and `share`, `pubUploads`
+  (each POST's meta and payload), `addPub`, `setLimits`, `setState`,
+  `pubOffline`.
+- **Tests**: `tests/unit/cloud-pub-api.test.ts` (13: the body, the
+  refusals, offline, disabled sends nothing, the meta's text rules, the
+  link, sizes), `tests/unit/share-link-payload.test.ts` (2: the bytes are
+  the export payload's gzip JSON, validated, settings whitelisted, no doc,
+  run or private setting; a payload the validator refuses is not made), the
+  flows' tick; e2e `share-link.spec.ts` (10 × Chromium and Firefox: the
+  guest's Link, `share` off, the first share with the rules **and every
+  API request of it** — one GET of the account, the PATCH `{rulesAccepted:
+  true}`, one POST whose body is exactly the length, the meta and a gzip of
+  a valid payload with the whitelisted settings and nothing of the doc, the
+  runs or the keys — the second share, Esc, the three refusals, Open
+  Account, Published runs list/Copy/Edit/Remove/empty, its keyboard, `share`
+  off) and `phone-share-link.spec.ts` (4).
+- **Entry chunk**: 31 193 bytes, unchanged.

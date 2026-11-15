@@ -214,15 +214,16 @@ touches staging or production.
 
 #### C1. Share and Published runs (worktree `stage64-share`, port 5464)
 
-- [ ] `src/cloud/pub/api.ts`: the client of the pub and report
+- [x] `src/cloud/pub/api.ts`: the client of the pub and report
       endpoints, against the contract and the e2e fake
-      (`tests/e2e/cloud-account-fake.ts` grows them).
-- [ ] The export editor's Link (pick 1), the share dialog (pick 2), the
+      (`tests/e2e/cloud-account-fake.ts` grows them). (Report's client
+      is C2's, with the watch page.)
+- [x] The export editor's Link (pick 1), the share dialog (pick 2), the
       rules' tick, the refusals; the upload test (nothing but payload and
       meta).
-- [ ] Published runs on the Account page (pick 4): list, Copy, Edit,
+- [x] Published runs on the Account page (pick 4): list, Copy, Edit,
       Remove, hidden.
-- [ ] e2e for each, desktop and phone.
+- [x] e2e for each, desktop and phone.
 
 #### C2. The watch page (worktree `stage64-watch`, port 5465)
 
