@@ -11,7 +11,7 @@
 //   │  ┌ Add comment (the inline composer) ┐                      ▕ ▏ │
 //   │  …                                                          ▕L▏ │
 //   │ ─────────────────────────────────────────────────────────────── │
-//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text|Link] [Export]
+//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text|Link|Hall of Fame] [Export]
 //   │                         (the flash)                            │
 //   └────────────────────────────────────────────────────────────────┘
 //
@@ -34,6 +34,11 @@
 // Plain text, so an older client (or this one with `share` off) reads the
 // doc as before.
 //
+// Hall of Fame (stage 65 C3, ADR 0155, round 13's pick 4): the fourth
+// option (F, a star), after Link, there while `gallery` is on as well. As
+// Link in every way (greyed for a guest: "Log in to publish"; a choice of
+// this visit only), but Export opens the share dialog in its listed form.
+//
 // The log is virtual: every row is one line height, an entry wrapped hard
 // at the log's column count takes as many rows (export-model `buildItems`),
 // a spacer holds the full height and only the items near the view are in
@@ -51,7 +56,7 @@
 //
 // Keys: ↑↓ PgUp PgDn Home End in the log, X exclude / include (I too when
 // the label says Include), C add comment, E (or Enter on a comment) edit,
-// D / Delete delete the comment, T the title, H / P / L choose the format, O
+// D / Delete delete the comment, T the title, H / P / L / F choose the format, O
 // export; Tab / Shift+Tab walk the log and the enabled buttons (tools,
 // title, the formats, Export; the keyboard's `is-sel`), ← → walk the
 // buttons, Enter presses. Esc: the composer or the title field, then the
@@ -164,33 +169,43 @@ const PAD = 8;
 /** Drag auto-scroll: px per frame per line height of distance past the edge, at most … */
 const DRAG_MAX_ROWS = 8;
 
-/** The keyboard's ring after the log: the tools, the title, the formats (Link when shown), Export. */
-type ZoneId = 'exclude' | 'comment' | 'edit' | 'delete' | 'title' | 'html' | 'text' | 'link' | 'export';
-const ZONE_IDS: readonly ZoneId[] = ['exclude', 'comment', 'edit', 'delete', 'title', 'html', 'text', 'link', 'export'];
+/** The keyboard's ring after the log: the tools, the title, the formats (Link and Hall of Fame when shown), Export. */
+type ZoneId = 'exclude' | 'comment' | 'edit' | 'delete' | 'title' | 'html' | 'text' | 'link' | 'hof' | 'export';
+const ZONE_IDS: readonly ZoneId[] = ['exclude', 'comment', 'edit', 'delete', 'title', 'html', 'text', 'link', 'hof', 'export'];
 
 const FORMATS = [
   { value: 'html', label: 'HTML replay', letter: 'h', icon: 'html' as const, title: 'Player, map and comments', id: 'HTML' },
   { value: 'text', label: 'Plain text', letter: 'p', icon: 'text' as const, title: 'Plain text (.txt)', id: 'TEXT' },
 ];
 const LINK_FORMAT = { value: 'link', label: 'Link', letter: 'l', icon: 'link' as const, title: 'A link anyone can watch', id: 'LINK' };
+const HOF_FORMAT = { value: 'hof', label: 'Hall of Fame', letter: 'f', icon: 'star' as const, title: 'Listed in the Community', id: 'HOF' };
 
 /** What a guest is told about Link (round 12, pick 1a). */
 export const LINK_GUEST = 'Log in to share';
 const LINK_GUEST_FLASH = 'Log in to share. Account is on the start page.';
 
+/** What a guest is told about Hall of Fame (round 13, pick 4: as Link's 1a). */
+export const HOF_GUEST = 'Log in to publish';
+const HOF_GUEST_FLASH = 'Log in to publish. Account is on the start page.';
+
 /**
  * Link in the toggle: `shown` once the flags `accounts` and `share` are
  * known to be on (never while they are asked), and whether somebody is
  * logged in on this device (the account's hint; the dialog asks the server).
+ * `hof`: Hall of Fame too (the flag `gallery` as well, stage 65).
  */
-function useLinkOption(): { shown: boolean; loggedIn: boolean } {
+function useLinkOption(): { shown: boolean; hof: boolean; loggedIn: boolean } {
   const [shown, setShown] = useState(false);
+  const [hof, setHof] = useState(false);
   const [name, setName] = useState(() => accountState().name);
   useEffect(() => {
     let live = true;
     void (async () => {
       const on = (await accountsEnabled()) && (await flagOn('share').catch(() => false));
-      if (live) setShown(on);
+      const g = on && (await flagOn('gallery').catch(() => false));
+      if (!live) return;
+      setShown(on);
+      setHof(g);
     })();
     const off = onAccountState((st) => setName(st.name));
     return () => {
@@ -198,7 +213,7 @@ function useLinkOption(): { shown: boolean; loggedIn: boolean } {
       off();
     };
   }, []);
-  return { shown, loggedIn: name !== null };
+  return { shown, hof, loggedIn: name !== null };
 }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -258,13 +273,14 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   const [titleEdit, setTitleEdit] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  /** Link chosen in the toggle (this visit only: never the doc's stored format). */
-  const [linkOn, setLinkOn] = useState(false);
+  /** Link or Hall of Fame chosen in the toggle (this visit only: never the doc's stored format). */
+  const [shareAs, setShareAs] = useState<'link' | 'hof' | null>(null);
   const link = useLinkOption();
-  const asLink = linkOn && link.shown && link.loggedIn;
+  const asLink = shareAs !== null && link.shown && link.loggedIn && (shareAs === 'link' || link.hof);
   const guestLink = link.shown && !link.loggedIn;
   /** The guest's tip over the greyed Link (px from the toggle's row), or null. */
   const [tipAt, setTipAt] = useState<number | null>(null);
+  const [tipFor, setTipFor] = useState(LINK_GUEST);
   const logRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const compRef = useRef<HTMLDivElement>(null);
@@ -529,22 +545,22 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   };
 
   const chooseFormat = (f: ExportFormat): void => {
-    setLinkOn(false);
+    setShareAs(null);
     const d = docRef.current;
     if (d) save(setFormat(d, f));
   };
 
-  /** Link: chosen when logged in; a guest is told to log in (pick 1a). */
-  const chooseLink = (): void => {
-    if (!link.shown) return;
+  /** Link or Hall of Fame: chosen when logged in; a guest is told to log in (picks 1a and 4). */
+  const chooseLink = (as: 'link' | 'hof' = 'link'): void => {
+    if (!link.shown || (as === 'hof' && !link.hof)) return;
     if (!link.loggedIn) {
-      nav.flash(LINK_GUEST_FLASH);
+      nav.flash(as === 'hof' ? HOF_GUEST_FLASH : LINK_GUEST_FLASH);
       return;
     }
-    setLinkOn(true);
+    setShareAs(as);
   };
 
-  /** Export with Link: the share dialog over the editor (the account pages' chunk, loaded now). */
+  /** Export with Link or Hall of Fame: the share dialog over the editor (the account pages' chunk, loaded now). */
   const openShare = (): void => {
     const d = docRef.current;
     if (!d || !data || busyRef.current) return;
@@ -556,6 +572,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
           h(m.ShareDialog, {
             title: linkTitle(d, s.character, s.startUs),
             titleIsDefault: d.title.trim() === '',
+            listed: shareAs === 'hof',
             build: async () => sealLinkPayload(await prepareLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource())),
           }) as VNode,
           { overlay: true },
@@ -613,6 +630,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
         return !busy;
       case 'link':
         return link.shown;
+      case 'hof':
+        return link.hof;
       default:
         return true;
     }
@@ -634,7 +653,9 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
       case 'text':
         return chooseFormat(id as ExportFormat);
       case 'link':
-        return chooseLink();
+        return chooseLink('link');
+      case 'hof':
+        return chooseLink('hof');
       case 'export':
         void doExport();
         return;
@@ -665,6 +686,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     h: () => press('html'),
     p: () => press('text'),
     l: () => press('link'),
+    f: () => press('hof'),
     o: () => press('export'),
   };
 
@@ -983,17 +1005,19 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
 
   const tool = (id: ZoneId, node: (selected: boolean, disabled: boolean) => VNode): VNode =>
     node(zone.sel === id, !enabled(id) || editing);
-  const fmtSel = zone.sel === 'html' ? 0 : zone.sel === 'text' ? 1 : zone.sel === 'link' ? 2 : undefined;
+  const fmtSel = zone.sel === 'html' ? 0 : zone.sel === 'text' ? 1 : zone.sel === 'link' ? 2 : zone.sel === 'hof' ? 3 : undefined;
   const ext = doc.format === 'html' ? 'html' : 'txt';
   const formats = [
     ...FORMATS.map((f) => ({ ...f, disabled: editing })),
     ...(link.shown ? [{ ...LINK_FORMAT, disabled: editing || !link.loggedIn, ...(link.loggedIn ? {} : { title: LINK_GUEST }) }] : []),
+    ...(link.hof ? [{ ...HOF_FORMAT, disabled: editing || !link.loggedIn, ...(link.loggedIn ? {} : { title: HOF_GUEST }) }] : []),
   ];
+  const shareValue = asLink ? (shareAs ?? 'link') : null;
 
   return box(
     <div
       class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && kbd ? ' is-kbd' : '')}
-      data-format={asLink ? 'link' : doc.format}
+      data-format={shareValue ?? doc.format}
       style={editing && inset > 0 ? { paddingBottom: `${inset}px` } : undefined}
     >
       <BoxHead class="wc-exp-bar">
@@ -1075,24 +1099,26 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
           )}
           <div
             class="wc-exp-outs"
-            // A press on the greyed Link (the kit's option ignores it): the guest is told why.
+            // A press on the greyed Link or Hall of Fame (the kit's option ignores it): the guest is told why.
             onClickCapture={(e) => {
-              if (guestLink && !editing && (e.target as Element).closest?.('[data-opt="LINK"]')) chooseLink();
+              const o = guestLink && !editing ? (e.target as Element).closest?.('[data-opt="LINK"], [data-opt="HOF"]') : null;
+              if (o) chooseLink(o.getAttribute('data-opt') === 'HOF' ? 'hof' : 'link');
             }}
             // A pointer over it: the same words in a tip over the option.
             onMouseOver={(e) => {
-              const o = guestLink ? (e.target as Element).closest?.('[data-opt="LINK"]') : null;
+              const o = guestLink ? (e.target as Element).closest?.('[data-opt="LINK"], [data-opt="HOF"]') : null;
               if (!o) return setTipAt(null);
               const r = o.getBoundingClientRect();
               const b = e.currentTarget.getBoundingClientRect();
+              setTipFor(o.getAttribute('data-opt') === 'HOF' ? HOF_GUEST : LINK_GUEST);
               setTipAt(r.left - b.left + r.width / 2);
             }}
             onMouseLeave={() => setTipAt(null)}
           >
-            <Seg label="Format" options={formats} value={asLink ? 'link' : doc.format} selected={fmtSel} onChange={(v) => press(v)} />
+            <Seg label="Format" options={formats} value={shareValue ?? doc.format} selected={fmtSel} onChange={(v) => press(v)} />
             {guestLink && tipAt !== null && (
               <span class="wc-exp-tip" role="tooltip" style={{ left: `${tipAt}px` }}>
-                {LINK_GUEST}
+                {tipFor}
               </span>
             )}
             {tool('export', (sel, off) => (

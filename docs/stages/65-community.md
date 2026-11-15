@@ -212,29 +212,38 @@ touches staging or production.
 
 #### C1. The Community page (worktree `stage65-community`, port 5473)
 
-- [ ] `src/cloud/community/api.ts` (the list, the boxes, random, the
-      board, news, seen) against the contract and the e2e fake.
-- [ ] The page (pick 1) with Random Runes (pick 2); C on the start menu
+- [x] The Worker's part of the round 13 addendum (sorts, `by`, pages of
+      10, `total`, the boxes without top posters and yesterday, `today`'s
+      description, no random, notes 250).
+- [x] `src/cloud/community/api.ts` (the list, `by`, the boxes, the board,
+      a note, its removal and report; news and seen are C3's news.ts)
+      against the contract and the e2e fake.
+- [x] The page (pick 1) with Random Runes (pick 2); C on the start menu
       with `gallery` (the dev `?community=` goes); the counter (pick 5)
-      for guests and accounts.
-- [ ] e2e desktop and phone.
+      for guests and accounts; Back from a run (`?from=community` →
+      `<base>?community`, ADR 0155 "As built (stage 65 C1)").
+- [x] e2e desktop and phone.
 
 #### C2. The watch page and the way in (worktree `stage65-watch`, port 5474)
 
 - [ ] Stars and comments (pick 3), guests' lines, Back to the Community.
-- [ ] Hall of Fame in the export editor and the share dialog (pick 4).
+- [x] Hall of Fame in the export editor and the share dialog (pick 4)
+      (built in C3, branch `stage65-published`; ADR 0155 "As built (stage 65 C3)").
 - [ ] e2e desktop and phone.
 
 #### C3. Published runs and the reactions mark (worktree `stage65-published`, port 5475)
 
-- [ ] Published runs as a view of its own (pick 6): stars, comments,
+- [x] Published runs as a view of its own (pick 6): stars, comments,
       listed, what is new, `seen`.
-- [ ] The owner row's mark (pick 5); `galleryNotice` out of the client.
-- [ ] e2e.
+- [x] The owner row's mark (pick 5); `galleryNotice` out of the client;
+      the shared news module `src/cloud/community/news.ts`.
+- [x] e2e (`hall-of-fame`, `published-runs`, `phone-hall-of-fame`); ADR
+      0155 "As built (stage 65 C3)".
 
 #### C4. Admin (worktree `stage65-admin`, port 5476)
 
-- [ ] The queue's comments and notes (pick 7) and their actions; tests.
+- [x] The queue's comments and notes (pick 7) and their actions; tests
+      (ADR 0155 "As built (C4)"; branch `stage65-admin`).
 
 #### C5. MUME's boxes (worktree `stage65-mume`, port 5477; owner 2026-11-15: no leave needed first)
 

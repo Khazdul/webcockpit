@@ -1002,7 +1002,129 @@ html.wc-phone .wc-ac-win {
   overflow-wrap: anywhere;
 }
 
+/* Stage 65 C3 (round 13's pick 6): with the flag `gallery` the section is one
+ * row (the counts, what is new in gold, Published runs), and the list a view
+ * of its own whose rows add a Listed / Link only chip, the stars, comments,
+ * views, date and size, and what was new in gold with a mark at the left. */
+
+.wc-ac-pubrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 0;
+  font: 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-pubrow b {
+  color: var(--lk-text);
+  font-weight: 600;
+}
+
+.wc-ac-pubrow-w {
+  min-width: 0;
+}
+
+.wc-ac-pub-gold {
+  color: var(--lk-gold);
+  font-style: italic;
+}
+
+.wc-ac-pub-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border-radius: 10px;
+  font: 600 11px/1.6 var(--lk-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+  box-shadow: inset 0 0 0 1px var(--lk-rule);
+}
+
+.wc-ac-pub-chip .wc-lk-ic {
+  width: 12px;
+  height: 12px;
+}
+
+.wc-ac-pub-chip.is-listed {
+  color: var(--lk-gold);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lk-gold) 45%, transparent);
+}
+
+.wc-ac-pub-r {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 3px 0 0;
+  font: 500 14.5px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-ac-pub-r b {
+  color: var(--lk-text);
+}
+
+.wc-ac-pub-stars .wc-lk-stars {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.wc-ac-pub-n {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.wc-ac-pub-n .wc-lk-ic {
+  width: 13px;
+  height: 13px;
+  align-self: center;
+}
+
+.wc-ac-pub-faint,
+.wc-ac-pub-dt {
+  color: var(--lk-faint);
+  font-style: italic;
+}
+
+.wc-ac-pub-new {
+  color: var(--lk-gold);
+  font-style: italic;
+  font-weight: 600;
+}
+
+.wc-ac-pub-new::before {
+  content: "● ";
+  font-size: 0.7em;
+  vertical-align: 1px;
+}
+
+.wc-ac-publist.wc-lk-rows.is-flat > .wc-ac-pub.is-new {
+  box-shadow: inset 2px 0 0 var(--lk-gold);
+  background: color-mix(in srgb, var(--lk-gold) 6%, transparent);
+}
+
+.wc-ac-pub-listrow {
+  margin: 12px 0 0;
+}
+
+.wc-ac-pub-listrow.is-cur .wc-lk-toggle {
+  outline: 1px solid var(--lk-gold);
+  outline-offset: 3px;
+}
+
 @container wc-page (max-width: 460px) {
+  .wc-ac-pubrow {
+    flex-wrap: wrap;
+  }
+
   .wc-ac-pub-l1 {
     flex-direction: column;
     gap: 1px;

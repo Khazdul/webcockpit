@@ -11,6 +11,10 @@
 // runs' totals, an account action by name and the admin log on the right;
 // the stage 59 sections follow under both. Every action asks first in a
 // modal of the page; nothing from the API is ever parsed as HTML.
+// Stage 65 C4 (ADR 0155, round 13's point 7): the queue also holds
+// comments and notes (their text quoted whole, the writer, a comment's
+// run), with Hide / Restore, Dismiss reports, Delete and Suspend; the
+// right column opens with the community's totals.
 
 export const ADMIN_CSP = [
   "default-src 'none'",
@@ -45,6 +49,10 @@ export const ADMIN_HTML = `<!doctype html>
     <div id="queue"><p class="muted">Loading…</p></div>
   </section>
   <div class="col2">
+    <section id="community-sec" hidden>
+      <h2>Community</h2>
+      <dl class="figures" id="community"></dl>
+    </section>
     <section>
       <h2>Published runs</h2>
       <dl class="figures" id="pubs"></dl>
@@ -148,6 +156,10 @@ main.two { display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 0 32
 .rq-r b { margin-left: 3px; }
 .rq-from { font-size: .88rem; }
 .rq-text { font-style: italic; white-space: pre-wrap; }
+.rq-kind { flex: none; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 1px 6px; background: color-mix(in srgb, var(--fg) 12%, transparent); }
+.rq-kind.is-c { background: color-mix(in srgb, #2f6fb3 25%, transparent); }
+.rq-kind.is-n { background: color-mix(in srgb, #8a5bb3 25%, transparent); }
+.rq-quote { margin: 6px 0 2px; padding: 6px 10px; border-left: 3px solid var(--line); background: color-mix(in srgb, var(--fg) 5%, transparent); white-space: pre-wrap; overflow-wrap: anywhere; }
 .rq-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px !important; }
 .rq-acts .sep { width: 12px; }
 button.danger { color: #b3261e; }
@@ -374,7 +386,7 @@ export const ADMIN_JS = `'use strict';
     var items = Array.isArray(d.items) ? d.items : [];
     var open = 0;
     items.forEach(function (it) { open += openCount(it); });
-    document.getElementById('reports-count').textContent = items.length ? fmt(open) + ' open on ' + plural(items.length, 'run', 'runs') : 'none open';
+    document.getElementById('reports-count').textContent = items.length ? fmt(open) + ' open on ' + byKind(items) : 'none open';
     var queue = document.getElementById('queue');
     queue.replaceChildren();
     if (!items.length) {
@@ -382,21 +394,32 @@ export const ADMIN_JS = `'use strict';
       queue.append(el('p', 'No open reports.' + (last ? ' The last action on a run: ' + utc(last.ts) + ' UTC.' : ''), 'muted'));
     } else items.forEach(function (it) { queue.append(card(it)); });
 
+    // The community's totals (stage 65 C4), when the Worker sends them.
+    var c = d.community;
+    document.getElementById('community-sec').hidden = !c;
+    if (c) figures('community', [['Listed', c.listed], ['Comments', c.comments], ['Notes', c.notes], ['Votes', c.votes]]);
+
     var p = d.pubs || { count: 0, bytes: 0, today: 0 };
     figures('pubs', [['Runs', p.count], ['Stored', size(p.bytes)], ['New today', p.today]]);
     document.getElementById('pubs-r2').textContent = 'R2 holds 10 GB free; published runs use ' + ((100 * p.bytes) / R2_FREE).toFixed(1) + ' % of it.';
   }
 
-  function card(it) {
-    var hidden = it.state === 'hidden';
-    var art = el('article', null, 'rq' + (hidden ? ' is-hidden' : ''));
-    art.dataset.id = it.target;
-    var head = el('div', null, 'rq-head');
-    // Why it is hidden (review fixes): the reports or the admin's Hide.
-    var why = !hidden ? 'shown' : it.hiddenReason === 'reports' ? 'Hidden after 5 reports' : it.hiddenReason === 'admin' ? 'Hidden by the admin' : 'hidden';
-    head.append(el('h3', it.title), el('span', why, 'rq-state'));
-    var meta = el('span', '', 'rq-meta');
-    var who = para(['by ', el('b', it.sender || '(no account)'), ' · ', el('code', it.target), meta], 'rq-who');
+  var KINDS = { run: ['run', 'runs', 'Run', ''], comment: ['comment', 'comments', 'Comment', 'is-c'], note: ['note', 'notes', 'Note', 'is-n'] };
+  function kindOf(it) { return KINDS[it.kind] ? it.kind : 'run'; }
+  /** "2 runs", or with more than one kind "3 items · 1 run, 1 comment, 1 note". */
+  function byKind(items) {
+    var n = { run: 0, comment: 0, note: 0 };
+    items.forEach(function (it) { n[kindOf(it)]++; });
+    var parts = Object.keys(n).filter(function (k) { return n[k]; });
+    if (parts.length === 1) return plural(n[parts[0]], KINDS[parts[0]][0], KINDS[parts[0]][1]);
+    return plural(items.length, 'item', 'items') + ' · ' + parts.map(function (k) { return plural(n[k], KINDS[k][0], KINDS[k][1]); }).join(', ');
+  }
+  function kindTag(it) { var k = KINDS[kindOf(it)]; return el('span', k[2], 'rq-kind' + (k[3] ? ' ' + k[3] : '')); }
+  function whyHidden(it) {
+    return it.state !== 'hidden' ? 'shown' : it.hiddenReason === 'reports' ? 'Hidden after 5 reports' : it.hiddenReason === 'admin' ? 'Hidden by the admin' : 'hidden';
+  }
+  /** The reasons with their counts, the reporters' count (never their names) and the newest report's text. */
+  function reportLines(art, it) {
     var reasons = el('p', null, 'rq-reasons');
     REASONS.forEach(function (r) {
       var n = it.reasons[r[0]];
@@ -406,8 +429,22 @@ export const ADMIN_JS = `'use strict';
       reasons.append(s);
     });
     var from = el('p', 'Reported by ' + plural(it.reporters, 'account', 'accounts') + ' · the newest ' + utc(it.newest) + ' UTC (' + ago(it.newest) + ')', 'rq-from muted');
-    art.append(head, who, reasons, from);
+    art.append(reasons, from);
     if (it.text) art.append(el('p', '“' + it.text + '”', 'rq-text'));
+  }
+
+  function card(it) {
+    if (kindOf(it) !== 'run') return itemCard(it);
+    var hidden = it.state === 'hidden';
+    var art = el('article', null, 'rq' + (hidden ? ' is-hidden' : ''));
+    art.dataset.id = it.target;
+    var head = el('div', null, 'rq-head');
+    // Why it is hidden (review fixes): the reports or the admin's Hide.
+    head.append(kindTag(it), el('h3', it.title), el('span', whyHidden(it), 'rq-state'));
+    var meta = el('span', '', 'rq-meta');
+    var who = para(['by ', el('b', it.sender || '(no account)'), ' · ', el('code', it.target), meta], 'rq-who');
+    art.append(head, who);
+    reportLines(art, it);
 
     var acts = el('p', null, 'rq-acts');
     var watch = el('a', 'Watch');
@@ -432,6 +469,37 @@ export const ADMIN_JS = `'use strict';
     return art;
   }
 
+  /** A comment's or a note's card (stage 65 C4): its whole text quoted, the writer, a comment's run. */
+  function itemCard(it) {
+    var kind = kindOf(it);
+    var hidden = it.state === 'hidden';
+    var art = el('article', null, 'rq' + (hidden ? ' is-hidden' : ''));
+    art.dataset.id = it.target;
+    art.dataset.kind = kind;
+    var head = el('div', null, 'rq-head');
+    head.append(kindTag(it), el('h3', kind === 'comment' ? 'on ' + quoted(it.title || '(untitled run)') : 'on Random Runes'), el('span', whyHidden(it), 'rq-state'));
+    var who = ['by ', el('b', it.sender || '(no account)'), ' · ', el('code', it.target)];
+    if (kind === 'comment' && it.pub) who.push(' · on the run ', el('code', it.pub));
+    art.append(head, el('blockquote', it.content || '', 'rq-quote'), para(who, 'rq-who'));
+    reportLines(art, it);
+
+    var acts = el('p', null, 'rq-acts');
+    if (kind === 'comment' && it.pub) {
+      var open = el('a', 'Open run');
+      open.href = '/r/' + encodeURIComponent(it.pub) + '?admin';
+      open.target = '_blank';
+      open.rel = 'noopener noreferrer';
+      acts.append(open);
+    }
+    if (hidden) acts.append(button('Restore', '', function () { itemAction(it, 'restore'); }));
+    else acts.append(button('Hide', '', function () { itemAction(it, 'hide'); }));
+    acts.append(button('Delete', 'danger', function () { itemAction(it, 'delete'); }), el('span', null, 'sep'));
+    acts.append(button('Dismiss reports', '', function () { itemAction(it, 'dismiss'); }));
+    if (it.sender) acts.append(button('Suspend ' + it.sender, '', function () { accountAction(it.sender, 'suspend'); }));
+    art.append(acts);
+    return art;
+  }
+
   function renderLog() {
     var body = document.querySelector('#log tbody');
     body.replaceChildren();
@@ -441,7 +509,7 @@ export const ADMIN_JS = `'use strict';
       var dot = a.indexOf('.');
       var kind = a.slice(0, dot);
       var tr = el('tr');
-      tr.append(el('td', utc(e.ts)), el('td', a.slice(dot + 1)), el('td', (kind === 'pub' ? 'run ' : kind === 'account' ? 'account ' : '') + e.target), el('td', e.note));
+      tr.append(el('td', utc(e.ts)), el('td', a.slice(dot + 1)), el('td', (kind === 'pub' ? 'run ' : kind === 'account' ? 'account ' : kind === 'comment' ? 'comment ' : kind === 'note' ? 'note ' : '') + e.target), el('td', e.note));
       body.append(tr);
     });
     if (!logEntries.length) {
@@ -560,6 +628,35 @@ export const ADMIN_JS = `'use strict';
         var body = { action: spec.action };
         if (note) body.note = note;
         return post('/api/admin/pub/' + encodeURIComponent(it.target), body);
+      },
+    });
+  }
+
+  /** Hide, Restore, Dismiss reports or Delete on a comment or a note (stage 65 C4); Delete needs no typed id. */
+  function itemAction(it, action) {
+    var kind = kindOf(it);
+    var word = kind === 'comment' ? 'comment' : 'note';
+    var n = openCount(it);
+    var handled = 'Its ' + plural(n, 'open report is', 'open reports are') + ' marked handled and the action goes to the admin log.';
+    var shown = it.state !== 'hidden';
+    var count = kind === 'comment' && shown ? ' The run’s comment count goes down by one.' : '';
+    var spec = {
+      hide: { title: 'Hide this ' + word + '?', what: 'It disappears for everyone, its writer too; you still see it here.' + count, ok: 'Hide ' + word, done: 'Hidden: ' },
+      restore: { title: 'Show this ' + word + ' again?', what: 'It shows for everyone again; later reports queue it here but no longer hide it.' + (kind === 'comment' ? ' The run’s comment count goes up by one.' : ''), ok: 'Restore ' + word, done: 'Shown again: ' },
+      dismiss: { title: 'Dismiss the reports on this ' + word + '?', what: 'It stays as it is' + (shown ? '' : ', hidden') + '; later reports queue it here but no longer hide it.', ok: 'Dismiss reports', done: 'Reports dismissed: ' },
+      delete: { title: 'Delete this ' + word + '?', what: 'The ' + word + ' is deleted; no text is kept.' + count + ' This cannot be undone.', ok: 'Delete ' + word, done: 'Deleted: ', danger: true },
+    }[action];
+    var by = ['By ', el('b', it.sender || '(no account)'), kind === 'comment' ? ' on ' + quoted(it.title || '(untitled run)') + '.' : ' on Random Runes.'];
+    return confirmModal({
+      title: spec.title,
+      body: [el('blockquote', it.content || '', 'rq-quote'), para(by), el('p', spec.what), el('p', handled)],
+      ok: spec.ok,
+      danger: spec.danger,
+      done: spec.done + word + ' ' + it.target,
+      run: function (note) {
+        var body = { action: action };
+        if (note) body.note = note;
+        return post('/api/admin/' + word + '/' + encodeURIComponent(it.target), body);
       },
     });
   }

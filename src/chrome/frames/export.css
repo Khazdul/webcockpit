@@ -643,6 +643,15 @@
     display: none;
   }
 
+  /* Four formats (Hall of Fame, stage 65 C3): the labels may take two lines, so the row still fits. */
+  .wc-exp-outs .wc-lk-seg:has([data-opt="HOF"]) .wc-lk-opt {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+    padding: 0 3px;
+    letter-spacing: 0.04em;
+  }
+
   .wc-exp-outs .wc-lk-btn {
     flex: none;
     padding: 0 12px;

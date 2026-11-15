@@ -66,9 +66,13 @@ export function startRows(input: StartMenuInput): Extract<StartEntry, { kind: 'r
   return startMenu(input).filter((e): e is Extract<StartEntry, { kind: 'row' }> => e.kind === 'row');
 }
 
-/** The Community row's counter: "3 new", or nothing when there is no news. */
+/** Where a count stops (the contract's `NEWS_MAX`: the server caps each count there). */
+export const COUNT_CAP = 99;
+
+/** The Community row's counter and the owner row's mark: "3 new", "99+ new" at the cap, or nothing when there is no news. */
 export function communityCount(count: number): string | null {
-  return Number.isFinite(count) && count >= 1 ? `${Math.floor(count)} new` : null;
+  if (!Number.isFinite(count) || count < 1) return null;
+  return count >= COUNT_CAP ? `${COUNT_CAP}+ new` : `${Math.floor(count)} new`;
 }
 
 // ------------------------------------------------------------ the owner row
@@ -108,8 +112,8 @@ export interface OwnerView {
   /** The reactions mark ("2 new"), in gold; never cut. */
   news: string | null;
   mark: OwnerMark;
-  /** What a press opens. */
-  opens: 'login' | 'account';
+  /** What a press opens: with new reactions, the Account page's Published runs view (stage 65). */
+  opens: 'login' | 'account' | 'published';
   /** The row's whole text for a screen reader (the shown text is split and partly hidden). */
   label: string;
 }
@@ -135,7 +139,8 @@ export function ownerRow(input: OwnerInput): OwnerView {
     return finish({ kind: 'guest', name: 'Guest', state: 'log in', stateIsAction: true, news: null, mark: 'key', opens: 'login' });
   }
   const news = communityCount(input.news ?? 0);
+  const opens = news ? 'published' : 'account';
   const sync = input.sync ? SYNC[input.sync] : null;
-  if (!sync) return finish({ kind: 'name', name: input.name, state: null, stateIsAction: false, news, mark: null, opens: 'account' });
-  return finish({ kind: sync.kind, name: input.name, state: sync.state, stateIsAction: false, news, mark: sync.mark, opens: 'account' });
+  if (!sync) return finish({ kind: 'name', name: input.name, state: null, stateIsAction: false, news, mark: null, opens });
+  return finish({ kind: sync.kind, name: input.name, state: sync.state, stateIsAction: false, news, mark: sync.mark, opens });
 }

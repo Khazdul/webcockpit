@@ -1386,23 +1386,27 @@ the counter, Random Runes). The flag keeps the name `gallery`.
 - **Reactions to one's own runs:** a mark on the owner row ("<name> ·
   synced · 2 new") for new stars and comments; it leads to Published
   runs (§7.7) and is cleared there (`reactions_seen` on the account).
-- **Hall of Fame** is the top list. Beside the lists below the page
-  has: who has published most, a random run of the day, and, if the
-  investigation of stage 65 allows it, MUME's war point lists (white
-  lords, saurons minions) and the number of players on MUME. Not
-  wanted: "profile updates", "most occurring".
+- **Hall of Fame** is the top list (the eight best rated, all time),
+  in a column beside the list with the run of the day (today's, with
+  its description) and MUME's warlords (White lords, Sauron's
+  minions) with the number of players on MUME, fetched from mume.org
+  and MUME's MSSP and shown without a source line (owner, stage 65).
+  Not wanted: "profile updates", "most occurring", top posters
+  (owner, round 13).
 - **Random Runes,** the notice board (flag `runes`, so it can be
   closed alone). Any logged-in, not suspended account writes; guests
-  read. Plain text ≤ 500 characters with the account name; no answers
+  read. Plain text ≤ 250 characters (owner, round 13) with the account name; no answers
   or threads. The board shows the latest 50 notes; a note is removed
   after 30 days. The writer removes their own; Report as for
-  comments; 5 notes a day per account. Desktop: a box beside the
-  list; phone: a tab or a section (the mockups decide).
+  comments; 5 notes a day per account. Desktop: under the list,
+  every note whole; phone: a tab (round 13).
 - **Guests** on the watch page see "Log in to comment" and "Log in to
   rate" where the field and the stars sit.
 - **List:** title, sender, character and level, length, date, stars
-  and votes, comments, views. Top (weighted mean, default), New, Most
-  watched; week, month, all. Pages of 30.
+  and votes, comments, views. New first; a press on a column heading
+  sorts (Top by the weighted mean, Most watched, comments, length);
+  the phone shows New only. Pages of 10; a press on a sender lists
+  that account's runs (owner, round 13).
 - **Stars** on the watch page: 1–5, the client's star control; one's
   own vote is shown and can be changed; not on one's own run.
 - **Comments** under the replay: plain text ≤ 1000 characters, newest
@@ -1461,7 +1465,7 @@ ADR 0148, "The admin page".
 | Runs | 50 MB per account; 20 MB per run body |
 | Published runs | 150 per account, 5 MB each; not counted against the 50 MB |
 | Comments, votes | 20 and 60 an hour per account |
-| Notes on the board | 5 a day per account, 500 characters |
+| Notes on the board | 5 a day per account, 250 characters |
 | Reports | 30 a day per account |
 
 Limits live in `/api/config` and per account (`limits` column), so
