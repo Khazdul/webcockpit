@@ -260,14 +260,31 @@ touches staging or production.
 
 ### D. Checks
 
-- [ ] An independent security review (free public text in comments and
+- [x] An independent security review (free public text in comments and
       Random Runes, abuse of stars, reports and limits, that Top cannot
       be moved cheaply, that the report mail covers comments and notes)
       and `/code-review` high; fixes with tests that fail before them;
-      ADR 0155 "As built (review fixes)".
+      ADR 0155 "As built (stage 65, review fixes)". The review
+      (`notes/research/stage65-security-review.md`) found no injection,
+      authorization hole or vote-sum drift: S1 (combining marks past the
+      limit through ZWJ) and S4 (views per IPv6 /64) medium, S2–S3,
+      S5–S9 low; `/code-review` high CR1–CR9 (comment paging, a stale
+      news answer, the writer removing a hidden item, the run of the
+      day's cost, duplicated formatters, a double request on the phone,
+      the queue's three queries, a comment). All fixed (bcdd0d0c).
 - [ ] Unit; worker; the full e2e alone at 5 workers (a failure rerun
       alone before it is called one); the benchmark; the entry chunk;
       `npm run test:sync-worker` (grows: list, vote, comment, a note).
+
+Checks (2026-11-16): typecheck; unit and worker 5 318 passed, 2
+skipped; full e2e alone at 5 workers (port 5450) 1 820 passed, 1
+failed, 1 skipped: the one (phone own-keyboard-editors:660, the script
+editor at 320 × 568, code untouched by this stage) passed alone 17 of
+18 runs, an old flake, not this stage's; the benchmark as stage 64
+(key → send playing 0.8 / 1.6 / 3.2 ms; burst 76 801 lines/s measured
+right after a build at load 1.8, no frame over 50 ms; the game path
+unchanged); entry chunk 31 366 → 31 382 bytes (+16: the Community
+page's route); `test:sync-worker` 2/2 before it grew.
 
 ### E. Staging
 
