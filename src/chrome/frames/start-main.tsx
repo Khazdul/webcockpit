@@ -57,6 +57,7 @@ import { openHistory } from './history';
 import { ProfileFrame } from './profiles';
 import { useDoesNotFit, useMoveLine } from './runs-cloud';
 import { ScriptsFrame } from './scripts';
+import { takeLoginReturn } from '../../watch/return';
 import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 
 export const LATER = 'Coming in a later stage.';
@@ -141,6 +142,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
   const kit = useKitGallery(nav);
   usePrivacyAddress(nav);
+  useWatchReturn(openAccount);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
     if (kit(e)) return true;
@@ -457,6 +459,26 @@ function usePrivacyAddress(nav: ReturnType<typeof useNav>): void {
     if (privacyOpened || !atPrivacyPath()) return;
     privacyOpened = true;
     nav.push(<PrivacyFrame />);
+  }, []);
+}
+
+// Report's Log in on the watch page (stage 64 C2, src/watch/return.ts):
+// the first render after it opens Log in; the render after the login's
+// reload goes back to the run. Once per page load.
+let watchReturnTaken = false;
+function useWatchReturn(openAccount: (opens: OwnerView['opens']) => void): void {
+  useEffect(() => {
+    if (watchReturnTaken) return;
+    watchReturnTaken = true;
+    const r = takeLoginReturn(accountState().name !== null, (import.meta.env?.BASE_URL as string | undefined) ?? '/');
+    if (!r) return;
+    if ('go' in r) {
+      location.replace(r.go);
+      return;
+    }
+    void watchAccountState().then((s) => {
+      if (s.enabled === true) openAccount('login');
+    });
   }, []);
 }
 
