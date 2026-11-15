@@ -684,7 +684,9 @@ export("bad", function() send(tostring(pcall(setSetting, "nope", 1)) .. tostring
         export("put", function() store.set("n", 5); store.set("t", { a = 1, list = { "x", "y" } }); store.set("gone", true); store.set("gone", nil) end)
         export("get", function() local t = store.get("t"); send(store.get("n") .. t.a .. t.list[2] .. tostring(store.get("gone"))) end)
         export("bad", function() store.set("f", print) end)
-        export("evil", function() store.get = nil end)`),
+        export("evil", function() store.get = nil end)
+        export("inf", function() store.set("x", math.huge) end)
+        export("nan", function() store.set("y", { 1, { 0/0 } }) end)`),
       other: src(`export("get", function() send(tostring(store.get("n"))) end)`),
     });
     t.engine.input('#lua s put');
@@ -693,9 +695,16 @@ export("bad", function() send(tostring(pcall(setSetting, "nope", 1)) .. tostring
     t.engine.input('#lua other get');
     t.engine.input('#lua s bad');
     t.engine.input('#lua s evil');
+    // Stage 62 review (F2): a number that is not finite is refused (the store is synced as JSON).
+    t.engine.input('#lua s inf');
+    t.engine.input('#lua s nan');
     expect(t.sent).toEqual(['51ynil', 'nil']);
     expect(t.lib.storeGet('s', 'n')).toBe(5);
-    expect(t.uiText().filter((m) => m.startsWith('s:'))).toHaveLength(2);
+    expect(t.lib.storeGet('s', 'x')).toBeUndefined();
+    expect(t.lib.storeGet('s', 'y')).toBeUndefined();
+    const errors = t.uiText().filter((m) => m.startsWith('s:'));
+    expect(errors).toHaveLength(4);
+    expect(errors.at(-1)).toContain('not finite');
   });
 
   it('uiMessage writes an event line', async () => {

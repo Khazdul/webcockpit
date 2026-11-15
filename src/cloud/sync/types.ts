@@ -286,6 +286,8 @@ export type SyncEvent =
   | { type: 'newer'; kind: SyncKind; serverId: string }
   /** A version that does not open or is not a body: left untouched. */
   | { type: 'unreadable'; kind: SyncKind; serverId: string }
+  /** A local item whose body is not JSON (a number that is not finite …): left alone, the rest is synced. */
+  | { type: 'unencodable'; kind: SyncKind; key: string }
   /** A push refused for storage: the item stays on this device and is retried. */
   | { type: 'full'; kind: SyncKind; key: string; name: string | null; error: FullReason };
 

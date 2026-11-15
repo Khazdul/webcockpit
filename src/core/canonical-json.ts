@@ -25,3 +25,22 @@ export function canonicalJson(value: unknown): string {
   }
   throw new Error(`canonicalJson: a ${typeof value}`);
 }
+
+/**
+ * `value` as `canonicalJson` takes it: a number that is not finite and
+ * anything that is not JSON (`undefined`, a function) become null in an
+ * array and are left out of an object. A new value; the input is not
+ * changed. (Stored script data from before the store refused them.)
+ */
+export function jsonSafe(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'object' || depth > 64) return undefined;
+  if (Array.isArray(value)) return Array.from(value, (x) => jsonSafe(x, depth + 1) ?? null);
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(value as Record<string, unknown>)) {
+    const y = jsonSafe(x, depth + 1);
+    if (y !== undefined) out[k] = y;
+  }
+  return out;
+}

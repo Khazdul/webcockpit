@@ -40,6 +40,7 @@
 //               is dropped.
 
 import { DEVICE_TYPES, type DeviceType, type SyncKind } from '../../../shared/cloud/api.ts';
+import { jsonSafe } from '../../core/canonical-json';
 import { STORE, idbDone, idbRequest } from '../../core/db';
 import { device } from '../../core/device';
 import { CommArchive, commFields, commIdentity, dayBounds } from '../../gmcp/comm-archive';
@@ -447,7 +448,8 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
 
 /** A `scriptData` row as it is stored and travels. */
 function scriptDataBody(r: Readonly<Record<string, unknown>>): Body {
-  const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+  // Normalised for JSON (a number that is not finite, a hole in a Lua array: null), so an old stored value never breaks the sync.
+  const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (jsonSafe(v) as Record<string, unknown>) : {});
   return { name: r.name, settings: obj(r.settings), store: obj(r.store), ...(typeof r.enabled === 'boolean' ? { enabled: r.enabled } : {}) };
 }
 

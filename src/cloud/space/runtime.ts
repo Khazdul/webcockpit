@@ -322,6 +322,7 @@ export class PageSync implements Runtime {
   }
 
   private event(e: SyncEvent): void {
+    if (e.type === 'unencodable') console.warn(`WebCockpit: ${e.kind} ${e.key} is not synced (its data is not JSON)`);
     if (e.type === 'keptBoth' && e.kind === 'profile') markKeptBoth(e.copyKey);
     const text = eventWords(e);
     if (text) postSyncMessage({ text, ms: MESSAGE_MS });

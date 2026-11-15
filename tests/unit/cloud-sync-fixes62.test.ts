@@ -110,3 +110,72 @@ describe('F5: the Comm archive does not pull the sync into a guest', () => {
     expect(items.utcDay).toBe(rec.utcDay);
   });
 });
+
+describe('F2: numbers that are not finite and holes never stop the sync', () => {
+  it('the store API refuses math.huge and 0/0 anywhere in a value (finiteValue)', async () => {
+    const { finiteValue } = await import('../../src/scripts/host');
+    expect(finiteValue(1)).toBe(true);
+    expect(finiteValue({ a: [1, 'x', { b: true }] })).toBe(true);
+    expect(finiteValue(Infinity)).toBe(false);
+    expect(finiteValue({ a: [1, { b: NaN }] })).toBe(false);
+  });
+
+  it('the scriptData adapter lists stored values that are not JSON as null (jsonSafe)', async () => {
+    const { jsonSafe, canonicalJson } = await import('../../src/core/canonical-json');
+    expect(jsonSafe({ a: NaN, b: [1, undefined, Infinity], c: undefined, d: { e: -Infinity } })).toEqual({ a: null, b: [1, null, null], d: { e: null } });
+    const { prepareAccountSpace } = await import('../../src/cloud/space/spaces');
+    const { idbLocalItems } = await import('../../src/cloud/space/local');
+    const { itemHashes, ITEM_SPECS } = await import('../../src/cloud/sync/items');
+    const { STORE, idbDone } = await import('../../src/core/db');
+    const open = await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'd', copy: 'all' });
+    const db = await open();
+    const t = db.transaction(STORE.scriptData, 'readwrite');
+    const done = idbDone(t);
+    // eslint-disable-next-line no-sparse-arrays
+    t.objectStore(STORE.scriptData).put({ name: 'hunt', settings: {}, store: { big: Infinity, list: [1, , 3], nan: NaN } });
+    await done;
+    const [item] = await idbLocalItems(open, {}, { type: 'desktop' }).list('scriptData');
+    expect(item!.body).toEqual({ name: 'hunt', settings: {}, store: { big: null, list: [1, null, 3], nan: null } });
+    expect(() => canonicalJson(item!.body)).not.toThrow();
+    await expect(itemHashes(ITEM_SPECS.scriptData, item!.body)).resolves.toBeTruthy();
+  });
+
+  it('the engine skips a body it cannot hash (an event) and syncs the rest', async () => {
+    const { Device, ServerModel } = await import('./cloud-sync-model');
+    const server = new ServerModel();
+    const clock = { now: () => Date.UTC(2026, 10, 15, 12) };
+    const a = new Device(server, keys, 'desktop', clock);
+    const b = new Device(server, keys, 'phone', clock);
+    a.local.set('profile', { id: 'p1', name: 'warrior', text: 't', created: 1, modified: 1 });
+    a.local.set('scriptData', { name: 'bad', settings: {}, store: { x: NaN } });
+    a.local.set('scriptData', { name: 'good', settings: {}, store: { x: 1 } });
+    expect(await a.sync()).toEqual({ type: 'synced' });
+    expect(a.events).toContainEqual({ type: 'unencodable', kind: 'scriptData', key: 'bad' });
+    expect(a.engine.status.get().waiting).toBe(1);
+    expect(await a.engine.unsynced()).toEqual([{ kind: 'scriptData', key: 'bad', name: null, change: 'new' }]);
+    await b.sync();
+    expect(b.list('profile').map((x) => x.name)).toEqual(['warrior']);
+    expect(b.list('scriptData').map((x) => x.name)).toEqual(['good']);
+    // Once fixed, it goes up as any change.
+    a.local.set('scriptData', { name: 'bad', settings: {}, store: { x: 2 } });
+    await a.sync();
+    await b.sync();
+    expect(b.list('scriptData').map((x) => x.name)).toEqual(['bad', 'good']);
+  });
+
+  it('an item already in the account whose body turns bad is left alone, not deleted', async () => {
+    const { Device, ServerModel } = await import('./cloud-sync-model');
+    const server = new ServerModel();
+    const clock = { now: () => Date.UTC(2026, 10, 15, 12) };
+    const a = new Device(server, keys, 'desktop', clock);
+    const b = new Device(server, keys, 'phone', clock);
+    a.local.set('scriptData', { name: 'hunt', settings: {}, store: { x: 1 } });
+    await a.sync();
+    await b.sync();
+    a.local.set('scriptData', { name: 'hunt', settings: {}, store: { x: NaN } });
+    expect(await a.sync()).toEqual({ type: 'synced' });
+    expect(server.all().filter((x) => x.kind === 'scriptData' && !x.deleted)).toHaveLength(1);
+    await b.sync();
+    expect(b.list('scriptData')).toEqual([{ name: 'hunt', settings: {}, store: { x: 1 } }]);
+  });
+});
