@@ -270,9 +270,29 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     expect(await count('item')).toBe(1);
   });
 
+  it('the small kinds of stage 62 are open: a write, a change, a delete of each (ADR 0152)', async () => {
+    const cookie = await signUp('alice');
+    const kinds = ['settings', 'scriptData', 'comm', 'timers'];
+    for (const [i, kind] of kinds.entries()) {
+      expect(await written(await put(cookie, kind, idOf(i + 1), 0, blob(20 + i, i)))).toMatchObject({ rev: 1, seq: i + 1 });
+    }
+    const ch = await changes(cookie, '?since=0');
+    expect(ch.items.map((x) => [x.kind, x.id, x.rev, x.size, x.blob])).toEqual(kinds.map((k, i) => [k, idOf(i + 1), 1, 20 + i, toB64url(blob(20 + i, i))]));
+    expect(ch.usage).toEqual({ items: 4, itemBytes: 20 + 21 + 22 + 23 });
+    // A stale write conflicts as for any kind; a write on the rev replaces; a delete makes a tombstone.
+    expect((await put(cookie, 'comm', idOf(3), 0, blob(5))).status).toBe(409);
+    expect(await written(await put(cookie, 'comm', idOf(3), 1, blob(30, 9)))).toMatchObject({ rev: 2, seq: 5 });
+    expect(await written(await del(cookie, 'timers', idOf(4), 1))).toMatchObject({ rev: 2, seq: 6, usage: { items: 3 } });
+    const after = await changes(cookie, '?since=4');
+    expect(after.items.map((x) => [x.kind, x.rev, x.deleted])).toEqual([
+      ['comm', 2, false],
+      ['timers', 2, true],
+    ]);
+  });
+
   it('the kind and the id: open kinds only (kind_closed), known kinds, an id of the pattern', async () => {
     const cookie = await signUp('alice');
-    for (const kind of ['scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers']) {
+    for (const kind of ['run', 'exportDoc']) {
       const res = await put(cookie, kind, idOf(1), 0, blob(10));
       expect(res.status, kind).toBe(403);
       expect(await res.json()).toEqual({ error: 'kind_closed' });

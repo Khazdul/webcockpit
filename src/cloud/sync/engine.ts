@@ -11,8 +11,9 @@
 //            server id: new (no record), edited (hash differs), deleted
 //            (a record, no item).
 //   resolve  per item: take the remote version, keep the local one, an
-//            edit beats a delete, keep both (profile, script) or last
-//            writer; an item in use during play is left alone (`held`).
+//            edit beats a delete, keep both (profile, script), last
+//            writer, or merge (comm, ADR 0152); an item in use during
+//            play is left alone (`held`).
 //   names    two items may not share a name: a pulled one keeps it, a
 //            local new or renamed one gets `_2`.
 //   apply    one batch per kind to the local stores, then the records.
@@ -23,6 +24,9 @@
 // Every write is ordered so that a sync cut off anywhere loses nothing and
 // duplicates nothing: the local batch before the records, the records
 // before the pushes, and a keep-both copy's key made from what it copies.
+//
+// The engine yields to the game (a macrotask) between kinds and between
+// pushes (ADR 0152), so a sync during play never holds the page for long.
 
 import type { AccountLimits, SyncItem, SyncKind, SyncUsage } from '../../../shared/cloud/api.ts';
 import { ItemCodec } from './codec';
@@ -61,7 +65,10 @@ export interface SyncEngineOptions {
   events?: EventSink;
   /** `noLock` by default; the page passes `webSyncLock()`. */
   lock?: SyncLock;
-  /** The kinds to sync, in order. Default: profile, script. */
+  /**
+   * The kinds to sync, in order. Default: profile, script (the kinds the
+   * space's adapters store so far); `SYNC_SPECS` is every kind.
+   */
   specs?: readonly KindSpec[];
   /** `limit` of a pull (default: the server's, 500). */
   pageSize?: number;
@@ -69,7 +76,12 @@ export interface SyncEngineOptions {
   maxRounds?: number;
   /** For the back-off's jitter. */
   random?: () => number;
+  /** Lets the page run between kinds and between pushes. Default: `setTimeout(0)`. */
+  yieldToGame?: () => Promise<void>;
 }
+
+/** A macrotask's pause: the game's frames and keys run before the sync goes on. */
+export const yieldMacrotask = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 /** The server version a local copy is (or will be) based on. */
 interface Base {
@@ -124,6 +136,7 @@ export class SyncEngine {
   private readonly pageSize: number | undefined;
   private readonly maxRounds: number;
   private readonly random: () => number;
+  private readonly yieldToGame: () => Promise<void>;
 
   private failures = 0;
   private usage: SyncUsage | null = null;
@@ -145,6 +158,7 @@ export class SyncEngine {
     this.pageSize = o.pageSize;
     this.maxRounds = o.maxRounds ?? 3;
     this.random = o.random ?? Math.random;
+    this.yieldToGame = o.yieldToGame ?? yieldMacrotask;
   }
 
   /**
@@ -314,7 +328,8 @@ export class SyncEngine {
   private async round(meta: SyncMeta): Promise<{ conflicts: number; waiting: number; held: number; full: SyncRecord['full'] | null; newer: boolean }> {
     const recs = await this.records.list();
     const result = { conflicts: 0, waiting: 0, held: 0, full: null as SyncRecord['full'] | null, newer: false };
-    for (const spec of this.specs) {
+    for (const [i, spec] of this.specs.entries()) {
+      if (i > 0) await this.yieldToGame();
       const r = await this.roundKind(spec, meta, recs.filter((x) => x.kind === spec.kind));
       result.conflicts += r.conflicts;
       result.waiting += r.waiting;
@@ -379,9 +394,12 @@ export class SyncEngine {
     const pushed: SyncRecord[] = [];
     const dropped: { kind: SyncKind; serverId: string }[] = [];
     try {
+      let first = true;
       for (const e of entries.values()) {
         if (e.fixed) continue;
+        if (!first) await this.yieldToGame();
         const r = await this.push(e);
+        if (r !== 'none') first = false;
         if (r === 'conflict') conflicts++;
         if (r !== 'none') {
           if (e.rec) pushed.push(e.rec);
@@ -458,6 +476,8 @@ export class SyncEngine {
       if (L.hash === R.hash) return take(L.body);
       if (!edited) return take(theirEdit && names && theirs.name === rec?.name ? names.set(body, names.get(L.body)) : body);
       if (!theirEdit) return take(names && theirs.name !== rec?.name ? names.set(L.body, theirs.name!) : L.body);
+      // Edited on both sides: per kind.
+      if (spec.policy === 'merge' && spec.merge) return take(spec.merge(L.body, body));
       if (spec.policy === 'lastWriter' || !spec.copy) return take(L.body);
       return 'copy';
     })();

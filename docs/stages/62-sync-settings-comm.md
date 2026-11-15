@@ -135,19 +135,19 @@ touches staging or production.
 
 #### B1. Engine and Worker (worktree `stage62-engine`, port 5432)
 
-- [ ] `src/cloud/sync/items.ts`: kind specs for `settings`, `scriptData`,
+- [x] `src/cloud/sync/items.ts`: kind specs for `settings`, `scriptData`,
       `timers`, `comm` (bodies, `decode`, `v` 1; settings `newer` for a
       record version above `SETTINGS_VERSION`); `compress` for `comm`
       (gzip, async `encodeBody`/`decodeBody`); the order profile, script,
       settings, scriptData, timers, comm.
-- [ ] The policy `merge` (`KindSpec.merge`) in the engine; `setTimeout(0)`
+- [x] The policy `merge` (`KindSpec.merge`) in the engine; `setTimeout(0)`
       between kinds and between pushes.
-- [ ] The model and the generated tests over the four new kinds as well:
+- [x] The model and the generated tests over the four new kinds as well:
       last writer converges; merge keeps every record any device wrote
       exactly once; a day older than seven days goes everywhere.
-- [ ] Worker: `SYNC_KINDS_OPEN` with the four kinds; worker tests; the
+- [x] Worker: `SYNC_KINDS_OPEN` with the four kinds; worker tests; the
       contract's comment.
-- [ ] ADR 0152 "As built (B1)".
+- [x] ADR 0152 "As built (B1)".
 
 #### B2. The stores (worktree `stage62-stores`, port 5433)
 

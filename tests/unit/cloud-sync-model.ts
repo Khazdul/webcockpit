@@ -1,4 +1,4 @@
-// Stage 61 (spec §7.4, ADR 0151): an in-memory model of the sync API of
+// Stage 61 (spec §7.4, ADR 0151; stage 62, ADR 0152): an in-memory model of the sync API of
 // shared/cloud/api.ts ("// --- Sync"), and in-memory local ports, for the
 // engine's tests. The server answers as HTTP would (status + body); the
 // `remoteFor` adapter maps that onto the engine's `Remote` port the way
@@ -18,10 +18,13 @@ import {
 } from '../../shared/cloud/api.ts';
 import { toBase64Url } from '../../src/cloud/crypto/base64url';
 import type { NameRules } from '../../src/cloud/sync/items';
-import { ITEM_SPECS } from '../../src/cloud/sync/items';
+import { ITEM_SPECS, SYNC_SPECS, commIdentity } from '../../src/cloud/sync/items';
 import { SyncEngine, type SyncEngineOptions } from '../../src/cloud/sync/engine';
 import {
   type Body,
+  type CommItem,
+  type CommPieceRecord,
+  type ItemKind,
   type Clock,
   type FullReason,
   type LocalItem,
@@ -201,12 +204,49 @@ export function validName(kind: string, name: string): boolean {
   return true;
 }
 
-/** The local stores in memory. A batch whose result breaks a store's rule (two names alike, a bad name) throws, as a store would. */
+const DAY_MS = 24 * 3600_000;
+/** How long the device keeps Comm history (the archive's seven days). */
+export const COMM_KEEP_MS = 7 * DAY_MS;
+
+/**
+ * Whether a Comm piece's day is kept at `now` (ADR 0152 as built): a day
+ * whose start (00:00 UTC) is within the last seven days. Whole days only,
+ * so no day is ever listed with some of its records pruned (that would
+ * make the piece shrink on one device and grow back from the others).
+ */
+export function commDayKept(day: string, now: number): boolean {
+  return Date.parse(`${day.slice(0, 10)}T00:00:00Z`) >= now - COMM_KEEP_MS;
+}
+
+/** The local key of a record of `kind`. */
+export const keyOf = (kind: string, b: Body): string => (ITEM_SPECS[kind as ItemKind]?.key ?? ((x: Body) => x.id as string))(b);
+
+/** Records sorted as a piece is (by `ts`, then identity), duplicates kept (so a test can see them). */
+function sortedPiece(records: readonly CommPieceRecord[]): CommPieceRecord[] {
+  return records
+    .map((r) => [commIdentity(r), r] as const)
+    .sort(([ia, a], [ib, b]) => a.ts - b.ts || (ia < ib ? -1 : ia > ib ? 1 : 0))
+    .map(([, r]) => structuredClone(r));
+}
+
+/**
+ * The local stores in memory. A batch whose result breaks a store's rule
+ * (two names alike, a bad name) throws, as a store would.
+ *
+ * `comm` behaves as the IndexedDB adapter must (ADR 0152): `list` gives
+ * the kept days only, each day's records sorted; a `put` adds the records
+ * the day does not have (by identity) and removes none; a `remove`
+ * deletes the day; a day not kept is not stored (a put of it is dropped).
+ */
 export class MemoryLocal implements LocalItems {
   readonly kinds = new Map<string, Map<string, Body>>();
   /** Throw on the next write (a cut-off sync). */
   failNext = false;
   writes = 0;
+  /** Called at the start of every write, before the batch is applied (the game writing meanwhile). */
+  beforeWrite?: (kind: SyncKind) => void;
+
+  constructor(private readonly clock: Clock = { now: () => Date.now() }) {}
 
   private of(kind: string): Map<string, Body> {
     let m = this.kinds.get(kind);
@@ -219,14 +259,38 @@ export class MemoryLocal implements LocalItems {
     return b && structuredClone(b);
   }
 
+  /** What `list` gives, as bodies. */
   items(kind: string): Body[] {
-    return [...this.of(kind).values()].map((b) => structuredClone(b));
+    return this.listed(kind).map(([, b]) => b);
+  }
+
+  private listed(kind: string): [string, Body][] {
+    const all = [...this.of(kind)];
+    if (kind !== 'comm') return all.map(([k, b]) => [k, structuredClone(b)]);
+    const now = this.clock.now();
+    return all
+      .filter(([day]) => commDayKept(day, now))
+      .map(([k, b]) => [k, { day: k, records: sortedPiece((b as unknown as CommItem).records) } as unknown as Body]);
+  }
+
+  /** The stored Comm records of a day as they are, duplicates and all (tests). */
+  rawComm(day: string): CommPieceRecord[] {
+    const b = this.of('comm').get(day) as unknown as CommItem | undefined;
+    return b ? structuredClone(b.records) : [];
   }
 
   /** A user's edit, outside the engine. */
   set(kind: string, body: Body): void {
-    this.checkNames(kind, new Map([...this.of(kind), [body.id as string, body]]));
-    this.of(kind).set(body.id as string, structuredClone(body));
+    const key = keyOf(kind, body);
+    this.checkNames(kind, new Map([...this.of(kind), [key, body]]));
+    this.of(kind).set(key, structuredClone(body));
+  }
+
+  /** The game appends a Comm message to the piece `day` (outside the engine). */
+  append(day: string, rec: CommPieceRecord): void {
+    const m = this.of('comm');
+    const cur = m.get(day) as unknown as CommItem | undefined;
+    m.set(day, { day, records: [...(cur?.records ?? []), structuredClone(rec)] } as unknown as Body);
   }
 
   del(kind: string, key: string): void {
@@ -234,23 +298,34 @@ export class MemoryLocal implements LocalItems {
   }
 
   async list(kind: SyncKind): Promise<LocalItem[]> {
-    return [...this.of(kind)].map(([key, body]) => ({ key, body: structuredClone(body) }));
+    return this.listed(kind).map(([key, body]) => ({ key, body }));
   }
 
   async write(kind: SyncKind, batch: { put: Body[]; remove: string[] }): Promise<void> {
     this.writes++;
+    this.beforeWrite?.(kind);
     if (this.failNext) {
       this.failNext = false;
       throw new Error('local write failed');
     }
     const next = new Map(this.of(kind));
     for (const k of batch.remove) next.delete(k);
-    for (const b of batch.put) next.set(b.id as string, structuredClone(b));
+    for (const b of batch.put) {
+      const key = keyOf(kind, b);
+      if (kind === 'comm') {
+        if (!commDayKept(key, this.clock.now())) continue;
+        const cur = (next.get(key) as unknown as CommItem | undefined)?.records ?? [];
+        const have = new Set(cur.map(commIdentity));
+        const add = (b as unknown as CommItem).records.filter((r) => !have.has(commIdentity(r)));
+        next.set(key, { day: key, records: [...cur, ...structuredClone(add)] } as unknown as Body);
+      } else next.set(key, structuredClone(b));
+    }
     this.checkNames(kind, next);
     this.kinds.set(kind, next);
   }
 
   private checkNames(kind: string, m: Map<string, Body>): void {
+    if (!NAME_RULES[kind]) return;
     const seen = new Set<string>();
     for (const b of m.values()) {
       const n = b.name as string;
@@ -307,7 +382,7 @@ export function prng(seed: number): () => number {
 
 /** One device of the account: its stores, its link and its engine. */
 export class Device {
-  readonly local = new MemoryLocal();
+  readonly local: MemoryLocal;
   readonly records: MemoryRecords;
   readonly link = newLink();
   /** kind → local keys in use (a game playing). */
@@ -322,8 +397,12 @@ export class Device {
     clock: Clock,
     opts: Partial<SyncEngineOptions> = {},
   ) {
+    this.local = new MemoryLocal(clock);
     this.records = new MemoryRecords(label);
     this.engine = new SyncEngine({
+      specs: SYNC_SPECS,
+      // A microtask, not the page's macrotask: the generated runs make thousands of syncs.
+      yieldToGame: () => Promise.resolve(),
       local: this.local,
       records: this.records,
       remote: remoteFor(server, this.link),
@@ -340,9 +419,10 @@ export class Device {
     return this.engine.sync();
   }
 
-  /** Items of `kind` sorted by name. */
+  /** Items of `kind` sorted by name (by key for a kind without names). */
   list(kind = 'profile'): Body[] {
-    return this.local.items(kind).sort((a, b) => ((a.name as string) < (b.name as string) ? -1 : 1));
+    const by = (b: Body): string => (NAME_RULES[kind] ? (b.name as string) : keyOf(kind, b));
+    return this.local.items(kind).sort((a, b) => (by(a) < by(b) ? -1 : 1));
   }
 
   names(kind = 'profile'): string[] {
