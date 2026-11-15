@@ -386,8 +386,12 @@ production.
 2026-11-15, after the test on staging: "I övrigt verkar det fungera bra."
 
 - **Fullscreen** from the link did not go fullscreen; wanted: real
-  fullscreen of the replay alone, without the band above. Being fixed
-  (worktree `stage64-fullscreen`).
+  fullscreen of the replay alone, without the band above. Fixed:
+  Firefox refused the sandboxed frame fullscreen (`allow="fullscreen"`
+  did not match its opaque origin); now `allow="fullscreen *"` and the
+  frame alone goes fullscreen; on an iPhone (no element fullscreen) the
+  frame fills the window over the band (ADR 0154 "As built (stage 64,
+  owner's test: fullscreen)").
 - **A mail on every report** to the abuse address's owner (picked: one
   mail per report with the run, reason, text, count and links to
   `/admin`; at most 20 an hour, then one collected mail; "[staging]" in a

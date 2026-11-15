@@ -123,8 +123,10 @@ owner's two answers of 2026-11-15:
   danger, and nothing a style could load gets past `img-src` and
   `font-src`). `X-Frame-Options` is not sent (`frame-ancestors` rules).
   The build fills the hashes as `cspHashesPlugin` does.
-- **The frame:** `<iframe sandbox="allow-scripts" allow="fullscreen"
-  src="/r/frame.html" referrerpolicy="no-referrer">`. No
+- **The frame:** `<iframe sandbox="allow-scripts" allow="fullscreen *"
+  src="/r/frame.html" referrerpolicy="no-referrer">` (`fullscreen *`,
+  not the default `'src'`: see "As built (stage 64, owner's test:
+  fullscreen)"). No
   `allow-same-origin`: its origin is opaque, so it cannot read the
   app's cookies, IndexedDB, `localStorage`, the data key or the DOM
   around it, and `connect-src 'none'` keeps it off the network. No
@@ -134,7 +136,9 @@ owner's two answers of 2026-11-15:
   v: 1}`; the page answers once with `{t: 'wc-play', v: 1, payload:
   ArrayBuffer (transferred, the gzip bytes), fonts: [{family, weight,
   range?, data: ArrayBuffer}], prefs}`; the frame posts `wc-error`
-  `{text}` or `wc-size` (nothing else). The page accepts a message only
+  `{text}` or `wc-size`, and `wc-fullscreen` `{on}` where it cannot go
+  fullscreen itself, which the page answers with `wc-fs-state` `{on}`
+  (nothing else; the owner's test, below). The page accepts a message only
   when `event.source` is the frame's window and `event.origin` is
   `'null'`; the frame accepts only from `parent` and only the first
   `wc-play`. Fonts are fetched by the page from its own origin as the
@@ -912,3 +916,57 @@ their sources: `notes/research/cloudflare-email.md`.
 - **For the owner**: `npx wrangler secret put REPORT_MAIL_TO` and
   `npx wrangler secret put REPORT_MAIL_TO --env staging` (his verified
   destination address); then a deploy, which brings the binding.
+
+## As built (stage 64, owner's test: fullscreen)
+
+The owner on staging: the replay's Fullscreen (the box button and `F`)
+did nothing on `/r/<id>`; wanted: real fullscreen of the replay alone,
+without the band.
+
+- **Cause:** `allow="fullscreen"` delegates fullscreen to `'src'`, the
+  origin of the frame's URL. The sandbox (no `allow-same-origin`) gives
+  the frame an opaque origin, and Firefox does not match it to `'src'`:
+  `document.fullscreenEnabled` was false in the frame and the request
+  was "denied because of FeaturePolicy directives". Chromium matches a
+  sandboxed frame to its URL's origin and let it through (measured in
+  both engines; neither the frame's CSP `sandbox allow-scripts` nor user
+  activation was the cause).
+- **Fix:** `allow="fullscreen *"`. The frame's own `toggleFullscreen(doc)`
+  then works in both engines: the iframe element becomes the page's
+  `document.fullscreenElement` and fills the screen, the band is not
+  shown; Esc, `F` or the button again leave it; the frame's own
+  `fullscreenchange` keeps the button's label and icon right. `*` adds
+  nothing a hostile frame could use beyond fullscreen itself, which the
+  browser grants only on a click or key in the frame (and announces);
+  a frame that navigated itself stays sandboxed. The sandbox is
+  unchanged: no `allow-same-origin`, popups, top navigation, forms,
+  modals.
+- **No element fullscreen (the iPhone's Safari, for anything but
+  video), or a refusal** (Firefox on iPad offers the API and never
+  enters; `canFullscreen` turns false after 2 s): the frame posts
+  `{t: 'wc-fullscreen', v: 1, on}` and the page lets the frame fill the
+  window over the band (`.wc-watch-slot.is-filled`: `position: fixed;
+  inset: 0`), answering `{t: 'wc-fs-state', v: 1, on}` so the button
+  reads "Exit fullscreen (F)". Esc, `F` or the button again post
+  `on: false`. The page takes `wc-fullscreen` only as the other
+  messages (the frame's window, origin `'null'`, `v: 1`, `on` a
+  boolean), and turns the fill **on** only while it has transient user
+  activation (`navigator.userActivation.isActive`; a click or key in a
+  frame activates its ancestors too, measured in Chromium and Firefox;
+  a browser without the API is let through); off is always taken. That
+  toggle and the reply are all the message can do. The frame takes
+  `wc-fs-state` only from `parent`. On an iPhone this is the best the
+  browser allows: the replay fills the page, Safari's own bars stay.
+  The iPad's Safari has element fullscreen and gets the real one.
+- **`openReplay`** takes an optional `fullscreen` (`ReplayFullscreen`:
+  `is`, `toggle`, `exit`, `onChange`); the HTML file keeps the
+  document's own fullscreen (replay.spec unchanged and green).
+- **Tests:** watch-page.spec "fullscreen" (Chromium and Firefox, both
+  headless engines do grant fullscreen): the button and `F` put the
+  iframe in `document.fullscreenElement` with the frame over the whole
+  window, the label follows, the button, `F` and Esc leave; the iPhone's
+  fill (the frame's `fullscreenEnabled` made false); hostile messages
+  (from the frame without activation, repeated; from the page itself;
+  made-up events with the wrong origin, version, `on` or `t`) change
+  nothing. phone-watch-page.spec: both on the Pixel 7.
+- **Entry chunk:** 31 366 bytes, unchanged.

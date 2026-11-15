@@ -3,7 +3,23 @@
 // one view; Report logged out and in; a state; Download; Back. The
 // desktop's are in watch-page.spec.ts.
 import { expect, test } from '@playwright/test';
-import { ID, WATCHER, band, dialog, expectEnd, guestWatches, logIn, openWatch, playing, setUp, watchBtn } from './watch-page';
+import {
+  ID,
+  WATCHER,
+  band,
+  dialog,
+  expectEnd,
+  frameFillsWindow,
+  frameIsFullscreen,
+  guestWatches,
+  logIn,
+  noFrameFullscreen,
+  openWatch,
+  playing,
+  replay,
+  setUp,
+  watchBtn,
+} from './watch-page';
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -56,4 +72,29 @@ test('phone: the states keep their box', async ({ page }) => {
   const box = (await page.locator('.wc-watch [data-watch="end"]').boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+});
+
+// The owner's test of stage 64: the replay's Fullscreen on the watch page.
+test('phone: Fullscreen puts the frame alone in fullscreen; without element fullscreen (the iPhone) it fills the window over the band', async ({ page }) => {
+  await setUp(page);
+  await openWatch(page);
+  await playing(page);
+  const fsButton = replay(page).locator('.wc-player-box [data-act="extra"]');
+  await replay(page).locator('.wc-player').tap();
+  await fsButton.tap();
+  await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+  await expect(fsButton).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
+  await fsButton.tap();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
+
+  await noFrameFullscreen(page);
+  await fsButton.tap();
+  await expect(page.locator('.wc-watch-slot')).toHaveClass(/is-filled/);
+  await expect.poll(() => frameFillsWindow(page)).toBe(true);
+  await expect(fsButton).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
+  await fsButton.tap();
+  await expect(page.locator('.wc-watch-slot')).not.toHaveClass(/is-filled/);
+  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
+  await expect(band(page)).toBeVisible();
 });

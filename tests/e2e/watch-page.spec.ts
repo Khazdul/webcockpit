@@ -5,7 +5,7 @@
 // that plays; Back; `?admin`. Desktop (Chromium and Firefox); the phone's
 // in phone-watch-page.spec.ts.
 import { readFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
 import {
   ID,
@@ -15,7 +15,10 @@ import {
   dialog,
   endBox,
   expectEnd,
+  frameFillsWindow,
+  frameIsFullscreen,
   guestWatches,
+  noFrameFullscreen,
   logIn,
   openWatch,
   playing,
@@ -279,6 +282,113 @@ test('Download as HTML makes the exporter\'s file, and it plays', async ({ page,
   await p2.goto(`file://${file}`);
   await expect(p2.locator('.wc-player')).toBeVisible({ timeout: 20_000 });
   await expect(p2.locator('.wc-player')).toContainText('hardened ranger');
+});
+
+// The owner's test of stage 64: the replay's Fullscreen did nothing on the
+// watch page (Firefox refused the sandboxed frame fullscreen). The frame
+// alone goes fullscreen (ADR 0154 "As built (stage 64, owner's test:
+// fullscreen)").
+test.describe('fullscreen', () => {
+  const fsButton = (page: Page) => replay(page).locator('.wc-player-box [data-act="extra"]');
+
+  test('the Fullscreen button and F put the frame alone in fullscreen; again, F and Esc leave it', async ({ page }) => {
+    await setUp(page);
+    await openWatch(page);
+    await playing(page);
+    await replay(page).locator('.wc-player').hover();
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    await fsButton(page).click();
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+    await expect.poll(() => frameFillsWindow(page)).toBe(true);
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
+    await fsButton(page).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    await expect(band(page)).toBeVisible();
+    expect(await frameFillsWindow(page)).toBe(false);
+
+    await page.keyboard.press('f');
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
+    await page.keyboard.press('F');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await page.keyboard.press('f');
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    await expect(replay(page).locator('.wc-player')).toBeVisible();
+  });
+
+  test('without element fullscreen in the frame (the iPhone): the frame fills the window over the band, and leaves it', async ({ page }) => {
+    await setUp(page);
+    await openWatch(page);
+    await playing(page);
+    await noFrameFullscreen(page);
+    await replay(page).locator('.wc-player').hover();
+    await fsButton(page).click();
+    await expect(page.locator('.wc-watch-slot')).toHaveClass(/is-filled/);
+    await expect.poll(() => frameFillsWindow(page)).toBe(true);
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await fsButton(page).click();
+    await expect(page.locator('.wc-watch-slot')).not.toHaveClass(/is-filled/);
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    await page.keyboard.press('f');
+    await expect(page.locator('.wc-watch-slot')).toHaveClass(/is-filled/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.wc-watch-slot')).not.toHaveClass(/is-filled/);
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    await expect(band(page)).toBeVisible();
+  });
+
+  test('a hostile message does nothing: wrong source, wrong origin, without a click, another t, repeated', async ({ page }) => {
+    await setUp(page);
+    await openWatch(page);
+    await playing(page);
+    // Playwright's evaluate gives the page user activation (Chromium), and a
+    // click or key gives it for 5 s: the messages go 6 s later, as from a
+    // frame nobody touched.
+    const LATER = 6000;
+    const frame = page.frames().find((x) => x.url().endsWith('/r/frame'))!;
+    await frame.evaluate((later) => {
+      setTimeout(() => {
+        for (let i = 0; i < 5; i++) parent.postMessage({ t: 'wc-fullscreen', v: 1, on: true }, '*');
+        parent.postMessage({ t: 'wc-fs-state', v: 1, on: true }, '*');
+        parent.postMessage({ t: 'wc-navigate', v: 1, on: true }, '*');
+      }, later);
+    }, LATER);
+    await page.evaluate((later) => {
+      const f = document.querySelector<HTMLIFrameElement>('.wc-watch-slot iframe')!;
+      const send = (data: unknown, origin: string, source: Window | null): void => {
+        try {
+          window.dispatchEvent(new MessageEvent('message', { data, origin, source }));
+        } catch {
+          /* Firefox takes no cross-origin window as a made-up event's source */
+        }
+      };
+      setTimeout(() => {
+        (window as unknown as { __active?: boolean }).__active = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive;
+        // Wrong source (the page itself), wrong origin, another version, a non-boolean, the parent's own t, repeated.
+        window.postMessage({ t: 'wc-fullscreen', v: 1, on: true }, '*');
+        send({ t: 'wc-fullscreen', v: 1, on: true }, 'null', window);
+        send({ t: 'wc-fullscreen', v: 1, on: true }, location.origin, f.contentWindow);
+        send({ t: 'wc-fullscreen', v: 1, on: true }, 'https://evil.example', f.contentWindow);
+        send({ t: 'wc-fullscreen', v: 2, on: true }, 'null', f.contentWindow);
+        send({ t: 'wc-fullscreen', v: 1, on: 'yes' }, 'null', f.contentWindow);
+        send({ t: 'wc-fs-state', v: 1, on: true }, 'null', f.contentWindow);
+        for (let i = 0; i < 5; i++) send({ t: 'wc-fullscreen', v: 1, on: true }, 'null', f.contentWindow);
+      }, later);
+    }, LATER);
+    await page.waitForTimeout(LATER + 500);
+    expect(await page.evaluate(() => (window as unknown as { __active?: boolean }).__active)).toBe(false);
+    await expect(page.locator('.wc-watch-slot')).not.toHaveClass(/is-filled/);
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    expect(await frameFillsWindow(page)).toBe(false);
+    await expect(band(page)).toBeVisible();
+    await replay(page).locator('.wc-player').hover();
+    await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
+  });
 });
 
 test.describe('?admin', () => {
