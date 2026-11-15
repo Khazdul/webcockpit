@@ -36,6 +36,28 @@ export interface D1 {
   batch<T = Record<string, unknown>>(statements: D1Statement[]): Promise<D1Result<T>[]>;
 }
 
+/** An R2 object's head, as far as the Worker reads it. */
+export interface R2Head {
+  key: string;
+  size: number;
+}
+
+/** An R2 object with its body. */
+export interface R2Body extends R2Head {
+  body: ReadableStream<Uint8Array>;
+}
+
+/** The R2 binding (`FILES`), as far as the Worker uses it. */
+export interface R2 {
+  /** Stores `value` under `key` (R2 needs its length known: a FixedLengthStream, or bytes). */
+  put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string, options?: { httpMetadata?: { contentType?: string } }): Promise<R2Head | null>;
+  get(key: string): Promise<R2Body | null>;
+  head(key: string): Promise<R2Head | null>;
+  /** Up to 1000 keys at once. */
+  delete(keys: string | string[]): Promise<void>;
+  list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<{ objects: R2Head[]; truncated: boolean; cursor?: string }>;
+}
+
 /** The Workers rate limiting binding (`ratelimits` in wrangler.jsonc). */
 export interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -67,7 +89,12 @@ export interface Env {
   FLAG_ACCOUNTS?: boolean | string;
   /** The default of the flag `sync` (stage 61). Off: `/api/u/sync/*` answers 404. */
   FLAG_SYNC?: boolean | string;
+  /** The default of the flag `runs` (stage 63). Off: `/api/u/runs*` answers 404 and the kinds `run` and `exportDoc` stay closed. */
   FLAG_RUNS?: boolean | string;
+  /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
+  FILES?: R2;
+  /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */
+  RUN_BYTES_LIMIT?: number | string;
   /** The limit on `/api/auth/*` and `/api/u/*`, keyed by address and by session. Without it: no limit. */
   API_LIMITER?: RateLimiter;
   /** The tight limit on `POST /api/auth/login`, `/recover` and `/register`, keyed by address. Without it: no limit. */

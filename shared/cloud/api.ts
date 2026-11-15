@@ -218,7 +218,7 @@ export interface AccountLimits {
   itemBytes: number;
   /** One small item, bytes. */
   itemMaxBytes: number;
-  /** Run bodies and shared payloads together, bytes. */
+  /** Run bodies and shared payloads together, bytes. The default is the Worker's var `RUN_BYTES_LIMIT` when set (stage 63). */
   runBytes: number;
   /** One run body, bytes. */
   runMaxBytes: number;
@@ -386,13 +386,16 @@ export const OTHER_SESSIONS = 'others';
  * The kinds of item. Stage 61 opened `profile` and `script`; stage 62
  * (ADR 0152) `settings` (one per device type), `scriptData` (per script
  * name), `comm` (per UTC day, gzipped before it is sealed) and `timers`
- * (per character). `run` and `exportDoc` are refused (`kind_closed`)
- * until stage 63. The server reads none of them: the limits and the
- * endpoints are the same for every kind.
+ * (per character). Stage 63 (ADR 0153) `run` and `exportDoc`, open only
+ * while the flag `runs` is on (off: `kind_closed`). The server reads none
+ * of them: the limits and the endpoints are the same for every kind.
  */
 export const SYNC_KINDS = ['profile', 'script', 'scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers'] as const;
 export type SyncKind = (typeof SYNC_KINDS)[number];
-/** The kinds the server accepts now. */
+/**
+ * The kinds the server accepts whatever the flags. With the flag `runs` on
+ * it accepts `run` and `exportDoc` as well (worker/sync.ts `openKinds`).
+ */
 export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script', 'settings', 'scriptData', 'comm', 'timers'];
 
 /** An item id: the opaque id of ADR 0145 (base64url of 16 bytes, 22 characters). */
@@ -420,7 +423,7 @@ export interface SyncItem {
 export interface SyncUsage {
   items: number;
   itemBytes: number;
-  /** Run bodies stored, bytes (stage 63; absent from a Worker before it). */
+  /** Run bodies stored (and reserved by a PUT in flight), bytes (stage 63; absent from a Worker before it). */
   runBytes?: number;
 }
 
@@ -508,6 +511,17 @@ export interface SessionEnded {
  * `RunBodyWritten` (also when there was none).
  *
  * `GET /api/u/runs`: `RunBodyList`, every body of the account.
+ *
+ * As built (stage 63 B1): an id not of `SYNC_ID_PATTERN`, a PUT that is
+ * not `application/octet-stream`, a `Content-Length` that is not a whole
+ * number or is 0 → `400 bad_request`; `run_too_large` is answered before
+ * `quota`; a body that does not reach R2 whole (R2 down, a body shorter
+ * or longer than its `Content-Length`) → `503 unavailable`, the room given
+ * back and an old body of the id kept as it was; the account deleted
+ * while the body was uploaded → `401`. A DELETE that R2 fails changes
+ * nothing (`503`). `RunBodyWritten.size` of a DELETE is 0. HEAD is GET
+ * without the body. The session, `X-WC` and `Origin` rules are those of
+ * the sync endpoints.
  */
 export interface RunBodyWritten {
   size: number;
@@ -529,6 +543,7 @@ export interface RunQuota {
 }
 
 export interface RunBodyList {
+  /** Oldest first; `created` is the time of the body's last write (a replace moves it). */
   bodies: Array<{ id: string; size: number; created: number }>;
   usage: SyncUsage;
   limits: AccountLimits;

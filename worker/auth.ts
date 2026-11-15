@@ -11,9 +11,11 @@
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
 //   PATCH  /api/u/account/prefs            the gallery notice switch
-//   DELETE /api/u/account                  removes the account and its items; its name stays reserved
+//   DELETE /api/u/account                  removes the account, its items and run bodies; its name stays reserved
 //   GET    /api/u/sync/changes, PUT and DELETE /api/u/sync/items/<kind>/<id>
 //                                          the sync (worker/sync.ts; flag `sync` as well)
+//   GET    /api/u/runs, PUT, GET and DELETE /api/u/runs/<id>
+//                                          the run bodies (worker/runs.ts; flag `runs` as well)
 //
 // The server never sees a password or a key that opens data. The browser
 // sends `authKey` (and `recoveryAuth`), derived from the password (the
@@ -68,6 +70,7 @@ import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
+import { emptyPrefix, isRunsPath, prefixOf, runsRoute } from './runs.ts';
 import { readCapped } from './stats.ts';
 import { isSyncPath, syncRoute } from './sync.ts';
 import { isToken, verifyTurnstile } from './turnstile.ts';
@@ -242,7 +245,7 @@ async function register(c: Ctx): Promise<Response> {
   if (made !== 1) return error('name_taken', 409);
   const row = await accountByKey(c.db, name.key);
   if (!row) return error('unavailable', 503);
-  return json({ account: await accountView(c.db, row, session.idHash, c.now) } satisfies AccountAnswer, 201, { 'Set-Cookie': session.cookie });
+  return json({ account: await accountView(c.db, c.env, row, session.idHash, c.now) } satisfies AccountAnswer, 201, { 'Set-Cookie': session.cookie });
 }
 
 async function login(c: Ctx): Promise<Response> {
@@ -281,7 +284,7 @@ async function login(c: Ctx): Promise<Response> {
   ]);
   // The account was deleted between the two statements.
   if (inserted?.meta.changes !== 1) return error('invalid_login', 401);
-  const answer: LoginAnswer = { account: await accountView(c.db, row, session.idHash, c.now), wrapPw: row.wrap_pw };
+  const answer: LoginAnswer = { account: await accountView(c.db, c.env, row, session.idHash, c.now), wrapPw: row.wrap_pw };
   return json(answer, 200, { 'Set-Cookie': session.cookie });
 }
 
@@ -343,7 +346,7 @@ async function recover(c: Ctx): Promise<Response> {
   if (updated?.meta.changes !== 1) return error('invalid_recovery', 401);
   const fresh = await accountByKey(c.db, name.key);
   if (!fresh) return error('invalid_recovery', 401);
-  return json({ account: await accountView(c.db, fresh, session.idHash, c.now) } satisfies AccountAnswer, 200, { 'Set-Cookie': session.cookie });
+  return json({ account: await accountView(c.db, c.env, fresh, session.idHash, c.now) } satisfies AccountAnswer, 200, { 'Set-Cookie': session.cookie });
 }
 
 // --- /api/u/* (c.auth is set) ---
@@ -382,7 +385,7 @@ async function logout(c: Ctx): Promise<Response> {
 
 async function account(c: Ctx): Promise<Response> {
   const { account: row, idHash } = c.auth as Authed;
-  return json({ account: await accountView(c.db, row, idHash, c.now), wrapPw: row.wrap_pw } satisfies LoginAnswer);
+  return json({ account: await accountView(c.db, c.env, row, idHash, c.now), wrapPw: row.wrap_pw } satisfies LoginAnswer);
 }
 
 async function password(c: Ctx): Promise<Response> {
@@ -473,11 +476,11 @@ async function remove(c: Ctx): Promise<Response> {
     c.db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${still}`).bind(row.id, proven.hash, row.name_key),
     ...ended(c.db, `account = ?1 AND ${still}`, [row.id, proven.hash], 'deleted', c.now),
     c.db.prepare(`DELETE FROM item WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
+    // Stage 63: the run bodies' rows, and the R2 prefix noted for the
+    // daily sweep (R2 is not in the transaction; the objects go after it).
+    c.db.prepare(`DELETE FROM run_body WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
+    c.db.prepare(`INSERT OR REPLACE INTO r2_sweep (prefix, at) SELECT ?3, ?4 WHERE ${still}`).bind(row.id, proven.hash, prefixOf(row.id), c.now),
     // Later stages add theirs here:
-    //   stage 63: DELETE FROM run_body WHERE account = ?1, and the R2
-    //             objects under u/<account>/ (after the batch; a failure
-    //             there must be picked up by a sweep, as R2 is not in the
-    //             transaction)
     //   stage 64: the account's publications and their R2 payloads, with
     //             the votes and comments on them
     //   stage 65: the votes and comments the account made (and the
@@ -487,6 +490,11 @@ async function remove(c: Ctx): Promise<Response> {
   ]);
   if (results.at(-1)?.meta.changes !== 1) return error('invalid_login', 401);
   await proven.done();
+  // The account's R2 objects, a list page of 1000 at a time. A failure
+  // half-way (or an upload that raced this) leaves objects that belong to
+  // no account; the r2_sweep row makes the daily cron empty the prefix
+  // again (worker/runs.ts sweepPrefixes), so the answer does not wait on it.
+  if (c.env.FILES) await emptyPrefix(c.env.FILES, prefixOf(row.id)).catch(() => {});
   return empty({ 'Set-Cookie': clearedCookie() });
 }
 
@@ -510,6 +518,7 @@ const ROUTES: Record<string, Record<string, Handler>> = {
 
 function routeOf(path: string): Record<string, Handler> | undefined {
   if (isSyncPath(path)) return syncRoute(path);
+  if (isRunsPath(path)) return runsRoute(path);
   if (path.startsWith(SESSIONS_PREFIX)) return path.length > SESSIONS_PREFIX.length ? ROUTES[SESSIONS_PREFIX] : undefined;
   return Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined;
 }
@@ -552,8 +561,9 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
 
   const route = routeOf(path);
   if (!route) return error('not_found', 404);
-  // The flag `sync` closes its paths as `accounts` closes them all.
+  // The flags `sync` and `runs` close their paths as `accounts` closes them all.
   if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
+  if (isRunsPath(path) && !(await flags(env, now)).runs) return error('not_found', 404);
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;

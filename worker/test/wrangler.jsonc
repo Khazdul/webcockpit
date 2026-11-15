@@ -2,7 +2,7 @@
 // project of vitest.config.ts): the same entry and asset settings, with
 // the assets taken from worker/test/assets instead of a site build, so
 // `npm test` needs no dist-site/. A local D1 (the migrations are applied by
-// worker/test/setup.ts), a local rate limiter with a small limit, and the
+// worker/test/setup.ts) and R2, a local rate limiter with a small limit, and the
 // stats flag on by default as on staging. No Access vars: the admin tests
 // pass their own env to handle().
 {
@@ -31,6 +31,8 @@
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": ""
   },
+  // A local R2 bucket (worker/test/helpers.ts empties it before each test).
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-test" }],
   "d1_databases": [{ "binding": "DB", "database_name": "webcockpit-test", "database_id": "00000000-0000-0000-0000-00000000test" }],
   // The API and auth limiters are high enough never to trip here: a 429 is tested
   // with a stub limiter (auth.test.ts).
