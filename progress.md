@@ -76,6 +76,14 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-15 — Stage 64: the owner's feedback, round 1
+
+- Owner on staging: works well; fullscreen from the link did nothing; a mail on every report wanted; the account list waits for stage 66; five reports hide until he has looked, as built (asked and answered).
+- Built in worktrees: fullscreen (Firefox refused the sandboxed frame: `allow="fullscreen *"`; the iPhone fills the page), the mail on reports (`send_email` binding, the secret `REPORT_MAIL_TO` set by the owner on both Workers, 20 an hour then one collected mail). ADR 0154 "As built" for both.
+- `test:sync-worker` met the API's 120 a minute between its two browsers (shown in the Worker's log, also on the commit before): a minute's rest between them.
+- Checks: unit 5165; full e2e alone at 5 workers 1740 passed, 2 failed under load and passed alone 12/12 (import:148, Firefox script-code-editor:312); `test:sync-worker` 2/2 twice; staging deploy run 43756501555 (80274c3a), `test:prod` 36/36; production unchanged.
+- Next: the owner's second look (fullscreen, the mail), then part F only on his word. Commits f7d756fd…80274c3a, and this one.
+
 ### 2026-11-15 — Stage 64: share links, on staging
 
 - **Planned:** `docs/stages/64-share-links.md`; ADR 0154 (wire form, ids, the count reserved before R2, views, reports, `/r/*`, the frame document with its own CSP, the handshake, `validatePayload`, admin API, flag `share`); the contract in `shared/cloud/api.ts`. Owner: the rules' tick at the first link; the abuse address now.

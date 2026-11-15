@@ -5,8 +5,9 @@ Status: **Owner testing (2026-11-15).** Built, reviewed and on staging
 
 ## Waiting for the owner
 
-1. **A second look on staging** once fullscreen and the report mail are
-   there (and the mail's secret is set: steps will follow).
+1. **A second look on staging** (test guide, "Second look"): fullscreen
+   from the link, and the mail on a report (the secret `REPORT_MAIL_TO`
+   is set on both Workers, owner, 2026-11-15).
 2. **The words of `/privacy`'s "Share links" section** (step 8): approve
    or change.
 3. ~~The report rule~~: settled (five hide until you have looked; see
@@ -375,6 +376,22 @@ a private window is a guest.
 9. **Size and refusals** (optional): an uncut multi-hour session with
    much travel may pass 5 MB; the dialog then says so before anything is
    sent.
+
+**Second look (after the owner's feedback, 2026-11-15; deploy run
+43756501555, commit 80274c3a; `test:prod` 36/36 against staging):**
+
+10. **Fullscreen.** On a link, the replay's Fullscreen button (or F):
+    the replay alone fills the screen, no band; Esc, F or the button
+    leave it. Desktop (Chrome and Firefox) and the iPad: real
+    fullscreen. **iPhone:** Safari allows element fullscreen only for
+    video, so the replay fills the page over the band and Safari's bars
+    stay; worth a look on the real phone (not tested on one here).
+11. **The mail.** Report a run on staging (another account than the
+    sender's): within a minute a mail "[staging] WebCockpit report:
+    <title>" arrives with the reason, the text, how many have reported it
+    and links to `/admin` and the run. If none comes, say so: the Worker's
+    log then says why (the likely cause would be that the domain must
+    also be added under Email Service → Email Sending).
 
 **Feedback wanted:** does share → send → watch feel right on desktop
 and phone; the band and the dialog in real use; the `/privacy` words;
