@@ -53,9 +53,15 @@ import {
   LOGIN_TURNSTILE_AFTER,
   LOGIN_WINDOW_SECONDS,
   type LoginAnswer,
+  type MyPub,
   NAME_PATTERN,
   OTHER_SESSIONS,
+  PUB_DESCRIPTION_MAX,
+  PUB_META_MAX_BYTES,
+  PUB_TITLE_MAX,
   type PrefsAnswer,
+  type PubMetaIn,
+  type PubPatch,
   RECOVER_TICKET_SECONDS,
   REGISTER_PER_HOUR,
   type RecoverAnswer,
@@ -118,6 +124,13 @@ export interface SeenRequest {
 
 /** What a failure switch answers instead of the endpoint. */
 export type FakeFailure = 'unavailable' | 'accounts_not_configured' | 'rate_limited' | 'offline' | 'garbage';
+
+/** A published run in the fake (stage 64 C1). */
+interface FakePub {
+  account: string;
+  pub: MyPub;
+  payload: Uint8Array;
+}
 
 interface AccountRow {
   name: string;
@@ -440,6 +453,158 @@ export class FakeAccountServer {
   saw(text: string): boolean {
     return this.seen.some((r) => JSON.stringify([r.path, r.search, r.body, r.headers]).includes(text));
   }
+
+  // ===================== Share links (stage 64 C1) =====================
+  // The sender's pub endpoints (worker/pub.ts, ADR 0154): `POST /api/u/pub`
+  // (the two-part body), `GET /api/u/pub`, `GET|PATCH|DELETE
+  // /api/u/pub/<id>`, behind the flags `accounts` and `share`. The public
+  // `/api/pub/*` and `/api/u/report` are the watch page's (stage 64 C2).
+  // The rules' tick is `PATCH /api/u/account/prefs` above.
+
+  /** Every published run, by id (removed ones are deleted here: the list never shows a tombstone). */
+  pubs = new Map<string, FakePub>();
+  /** Every `POST /api/u/pub` body as it arrived (the meta parsed, the payload bytes as sent), in order. */
+  pubUploads: { meta: unknown; payload: Uint8Array; body: Uint8Array }[] = [];
+  /** The pub requests fail as if the network were down (the other requests answer). */
+  pubOffline = false;
+
+  /** An account's limits (a test's own: `sharedRuns`, `payloadMaxBytes`). */
+  setLimits(name: string, patch: Partial<AccountLimits>): void {
+    const a = this.accounts.get(name.toLowerCase());
+    if (a) a.limits = { ...a.limits, ...patch };
+  }
+
+  /** Sets an account's state (`suspended`: cannot share). */
+  setState(name: string, state: 'active' | 'suspended'): void {
+    const a = this.accounts.get(name.toLowerCase());
+    if (a) a.state = state;
+  }
+
+  /** A published run of an account, as if it had shared it before (no payload check). Returns its id. */
+  addPub(name: string, o: Partial<Omit<MyPub, 'id'>> & { id?: string; payload?: Uint8Array } = {}): string {
+    const id = o.id ?? this.newPubId();
+    const t = Math.floor(this.clock / 1000);
+    this.pubs.set(id, {
+      account: name.toLowerCase(),
+      payload: o.payload ?? new Uint8Array([0x1f, 0x8b]),
+      pub: {
+        id,
+        title: o.title ?? 'A run',
+        description: o.description ?? '',
+        character: o.character ?? 'Rasta',
+        ...(o.level !== undefined ? { level: o.level } : {}),
+        lengthS: o.lengthS ?? 60,
+        listed: false,
+        state: o.state ?? 'active',
+        created: o.created ?? t,
+        updated: o.updated ?? o.created ?? t,
+        views: o.views ?? 0,
+        bytes: o.bytes ?? 2,
+      },
+    });
+    return id;
+  }
+
+  /** The account's runs, newest first (as `GET /api/u/pub`). */
+  pubsOf(name: string): MyPub[] {
+    return [...this.pubs.values()]
+      .filter((p) => p.account === name.toLowerCase())
+      .map((p) => ({ ...p.pub }))
+      .sort((a, b) => b.created - a.created || (a.id < b.id ? -1 : 1));
+  }
+
+  private newPubId(): string {
+    const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let id = '';
+    for (const b of crypto.getRandomValues(new Uint8Array(12))) id += abc[b % abc.length];
+    return this.pubs.has(id) ? this.newPubId() : id;
+  }
+
+  /** A pub request (`/api/u/pub…`). `bytes` is a POST's body. */
+  pub(req: FakeRequest, cookie: string | null, bytes: Uint8Array | null): FakeResponse | 'offline' {
+    if (this.pubOffline) return 'offline';
+    if (this.flags.accounts !== true || this.flags.share !== true) return err('not_found', 404);
+    if (req.method !== 'GET' && !(req.headers['x-wc'] === '1' && req.headers.origin === req.origin)) return err('forbidden', 403);
+    let session = cookie !== null ? (this.sessions.get(cookie) ?? null) : null;
+    if (session && session.expires <= this.clock) {
+      this.drop(session.token, 'expired');
+      session = null;
+    }
+    if (!session) return this.gone(cookie);
+    const account = this.accounts.get(session.account);
+    if (!account) return err('unauthorized', 401);
+    const res = this.pubAnswer(req, account, bytes);
+    this.seen.push({ method: req.method, path: req.path, search: req.search ?? '', body: null, headers: { ...req.headers }, cookie: true, status: res.status });
+    return res;
+  }
+
+  private pubAnswer(req: FakeRequest, account: AccountRow, bytes: Uint8Array | null): FakeResponse {
+    const t = Math.floor(this.clock / 1000);
+    if (req.path === '/api/u/pub') {
+      if (req.method === 'GET') return { status: 200, body: { pubs: this.pubsOf(account.key) } };
+      if (req.method !== 'POST') return err('method_not_allowed', 405);
+      if (bytes === null) return err('length_required', 411);
+      if ((req.headers['content-type'] ?? '').split(';')[0]!.trim() !== 'application/octet-stream') return err('bad_request', 400);
+      if (bytes.length < 4) return err('bad_request', 400);
+      const n = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, false);
+      if (n === 0 || n > PUB_META_MAX_BYTES || 4 + n > bytes.length) return err('bad_request', 400);
+      if (account.state === 'suspended') return err('suspended', 403);
+      if (!account.prefs.rulesAccepted) return err('rules', 403);
+      const payload = bytes.subarray(4 + n);
+      if (payload.length > account.limits.payloadMaxBytes) return { status: 413, body: { error: 'payload_too_large', limit: account.limits.payloadMaxBytes } };
+      let meta: unknown;
+      try {
+        meta = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(4, 4 + n)));
+      } catch {
+        return err('bad_request', 400);
+      }
+      this.pubUploads.push({ meta, payload: new Uint8Array(payload), body: new Uint8Array(bytes) });
+      if (!hasKeys(meta, ['title', 'description', 'character', 'lengthS', 'listed'], ['level'])) return err('bad_request', 400);
+      const m = meta as unknown as PubMetaIn;
+      const textOk = (v: unknown, min: number, max: number): boolean => typeof v === 'string' && [...v].length >= min && [...v].length <= max && v === v.trim();
+      if (!textOk(m.title, 1, PUB_TITLE_MAX) || typeof m.description !== 'string' || [...m.description].length > PUB_DESCRIPTION_MAX || !textOk(m.character, 0, 40)) return err('bad_request', 400);
+      if (m.listed !== false || typeof m.lengthS !== 'number' || (m.level !== undefined && !Number.isInteger(m.level))) return err('bad_request', 400);
+      if (payload[0] !== 0x1f || payload[1] !== 0x8b) return err('bad_request', 400);
+      if (this.pubsOf(account.key).length >= account.limits.sharedRuns) return { status: 413, body: { error: 'pub_quota', limit: account.limits.sharedRuns } };
+      const id = this.addPub(account.key, { ...m, created: t, updated: t, bytes: payload.length, payload: new Uint8Array(payload) });
+      return { status: 200, body: { pub: { ...this.pubs.get(id)!.pub } } };
+    }
+    const id = req.path.slice('/api/u/pub/'.length);
+    const p = /^[A-Za-z0-9]{12}$/.test(id) ? this.pubs.get(id) : undefined;
+    if (!p || p.account !== account.key) return err('not_found', 404);
+    if (req.method === 'GET') {
+      const { pub } = p;
+      return {
+        status: 200,
+        body: {
+          id: pub.id,
+          title: pub.title,
+          description: pub.description,
+          sender: account.name,
+          character: pub.character,
+          ...(pub.level !== undefined ? { level: pub.level } : {}),
+          lengthS: pub.lengthS,
+          created: pub.created,
+          views: pub.views,
+          bytes: pub.bytes,
+          ...(pub.state === 'hidden' ? { hidden: true } : {}),
+        },
+      };
+    }
+    if (req.method === 'DELETE') {
+      this.pubs.delete(id);
+      return { status: 204 };
+    }
+    if (req.method !== 'PATCH') return err('method_not_allowed', 405);
+    if (account.state === 'suspended') return err('suspended', 403);
+    const b = this.body(req, [], ['title', 'description']);
+    if (!b || Object.keys(b).length === 0) return err('bad_request', 400);
+    if (b.title !== undefined && (typeof b.title !== 'string' || b.title.trim() === '' || b.title !== b.title.trim() || [...b.title].length > PUB_TITLE_MAX)) return err('bad_request', 400);
+    if (b.description !== undefined && (typeof b.description !== 'string' || [...b.description].length > PUB_DESCRIPTION_MAX)) return err('bad_request', 400);
+    p.pub = { ...p.pub, ...(b as PubPatch), updated: t };
+    return { status: 200, body: { pub: { ...p.pub } } };
+  }
+  // =================== end of Share links (stage 64 C1) ===================
 
   // --- The server ---
 
@@ -854,6 +1019,13 @@ export class FakeBrowser {
     return res;
   }
 
+  /** A pub request from this browser (stage 64 C1). */
+  pubRequest(req: FakeRequest, bytes: Uint8Array | null): FakeResponse | 'offline' {
+    const res = this.server.pub(req, this.cookie, bytes);
+    if (res !== 'offline' && res.status === 401) this.cookie = null;
+    return res;
+  }
+
   /** One request from this browser. `offline`: the connection failed. `hang`: no answer ever comes. */
   request(req: FakeRequest): FakeResponse | 'offline' | 'hang' {
     const { res, cookie } = this.server.handle(req, this.cookie);
@@ -936,6 +1108,18 @@ export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer
       if (r.body instanceof Uint8Array) return route.fulfill({ status: r.status, contentType: 'application/octet-stream', headers: { 'Cache-Control': 'no-store' }, body: Buffer.from(r.body) });
       return json(r.status, r.body);
     }
+    // --- Share links (stage 64 C1): the sender's pub endpoints ---
+    if (url.pathname === '/api/u/pub' || url.pathname.startsWith('/api/u/pub/')) {
+      const buf = req.postDataBuffer();
+      const r = browser.pubRequest(
+        { method: req.method(), path: url.pathname, search: url.search, headers: await req.allHeaders(), body: req.method() === 'PATCH' ? req.postData() : null, origin: url.origin },
+        buf ? new Uint8Array(buf) : null,
+      );
+      if (r === 'offline') return route.abort('connectionrefused');
+      if (r.body === undefined) return route.fulfill({ status: r.status });
+      return json(r.status, r.body);
+    }
+    // --- end of Share links ---
     const res = browser.request({
       method: req.method(),
       path: url.pathname,

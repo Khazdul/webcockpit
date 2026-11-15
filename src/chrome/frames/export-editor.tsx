@@ -11,7 +11,7 @@
 //   │  ┌ Add comment (the inline composer) ┐                      ▕ ▏ │
 //   │  …                                                          ▕L▏ │
 //   │ ─────────────────────────────────────────────────────────────── │
-//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text] [Export]
+//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text|Link] [Export]
 //   │                         (the flash)                            │
 //   └────────────────────────────────────────────────────────────────┘
 //
@@ -23,6 +23,16 @@
 // its right (hidden under 900 px). The foot: the file name (T edits it
 // inline), the format toggle (H / P only choose; the choice is the export
 // doc's stored `format`, saved at once) and Export (O), the flash under it.
+//
+// Link (stage 64 C1, ADR 0154, round 12's pick 1a): the toggle's third
+// option (L), there while the flags `accounts` and `share` are on. Logged
+// out it is greyed: a press (or L) says "Log in to share" in the flash, a
+// pointer over it says the same. Logged in it is chosen like the others,
+// the file row then says Title (a link has no file name), and Export opens
+// the share dialog (share-dialog.tsx, its own lazy chunk). Link is a
+// choice of this visit only: the doc's stored `format` stays HTML or
+// Plain text, so an older client (or this one with `share` off) reads the
+// doc as before.
 //
 // The log is virtual: every row is one line height, an entry wrapped hard
 // at the log's column count takes as many rows (export-model `buildItems`),
@@ -41,9 +51,9 @@
 //
 // Keys: ↑↓ PgUp PgDn Home End in the log, X exclude / include (I too when
 // the label says Include), C add comment, E (or Enter on a comment) edit,
-// D / Delete delete the comment, T the title, H / P choose the format, O
+// D / Delete delete the comment, T the title, H / P / L choose the format, O
 // export; Tab / Shift+Tab walk the log and the enabled buttons (tools,
-// title, the two formats, Export; the keyboard's `is-sel`), ← → walk the
+// title, the formats, Export; the keyboard's `is-sel`), ← → walk the
 // buttons, Enter presses. Esc: the composer or the title field, then the
 // selection, then back to History (whose state is intact). The composer
 // and the title field own their keys (`data-wc-own-keys`): Enter saves,
@@ -52,9 +62,12 @@
 // Every edit is saved at once (`RunLibrary.saveExportDoc`).
 
 import './export.css';
+import { h } from 'preact';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { touchInteraction } from '../../core/device';
+import { accountState, accountsEnabled, onAccountState } from '../../cloud/account/state';
+import { flagOn } from '../../cloud/config';
 import type { ChainRun } from '../../player/timeline';
 import type { RunEvent } from '../../runs/events';
 import { notFetchedWords } from '../../runs/cloud-hook';
@@ -80,6 +93,7 @@ import {
   setFormat,
   setTitle,
 } from '../../share/edits';
+import { linkTitle } from '../../share/link';
 import { buildReplayPayload } from '../../share/payload';
 import { buildTextExport } from '../../share/text';
 import { buildReplayHtml } from '../../replay/export';
@@ -141,6 +155,7 @@ import {
   selectionTitle,
 } from './export-model';
 import { fmtDate } from './history-model';
+import { LINK_ICON } from './share-glyphs';
 
 const END_TEXT = '── end of log ──';
 /** The padding above the first row and below the last (px). */
@@ -148,14 +163,42 @@ const PAD = 8;
 /** Drag auto-scroll: px per frame per line height of distance past the edge, at most … */
 const DRAG_MAX_ROWS = 8;
 
-/** The keyboard's ring after the log: the tools, the title, the two formats, Export. */
-type ZoneId = 'exclude' | 'comment' | 'edit' | 'delete' | 'title' | 'html' | 'text' | 'export';
-const ZONE_IDS: readonly ZoneId[] = ['exclude', 'comment', 'edit', 'delete', 'title', 'html', 'text', 'export'];
+/** The keyboard's ring after the log: the tools, the title, the formats (Link when shown), Export. */
+type ZoneId = 'exclude' | 'comment' | 'edit' | 'delete' | 'title' | 'html' | 'text' | 'link' | 'export';
+const ZONE_IDS: readonly ZoneId[] = ['exclude', 'comment', 'edit', 'delete', 'title', 'html', 'text', 'link', 'export'];
 
 const FORMATS = [
   { value: 'html', label: 'HTML replay', letter: 'h', icon: 'html' as const, title: 'Player, map and comments', id: 'HTML' },
   { value: 'text', label: 'Plain text', letter: 'p', icon: 'text' as const, title: 'Plain text (.txt)', id: 'TEXT' },
 ];
+const LINK_FORMAT = { value: 'link', label: 'Link', letter: 'l', icon: LINK_ICON, title: 'A link anyone can watch', id: 'LINK' };
+
+/** What a guest is told about Link (round 12, pick 1a). */
+export const LINK_GUEST = 'Log in to share';
+const LINK_GUEST_FLASH = 'Log in to share. Account is on the start page.';
+
+/**
+ * Link in the toggle: `shown` once the flags `accounts` and `share` are
+ * known to be on (never while they are asked), and whether somebody is
+ * logged in on this device (the account's hint; the dialog asks the server).
+ */
+function useLinkOption(): { shown: boolean; loggedIn: boolean } {
+  const [shown, setShown] = useState(false);
+  const [name, setName] = useState(() => accountState().name);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const on = (await accountsEnabled()) && (await flagOn('share').catch(() => false));
+      if (live) setShown(on);
+    })();
+    const off = onAccountState((st) => setName(st.name));
+    return () => {
+      live = false;
+      off();
+    };
+  }, []);
+  return { shown, loggedIn: name !== null };
+}
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -214,6 +257,13 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   const [titleEdit, setTitleEdit] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  /** Link chosen in the toggle (this visit only: never the doc's stored format). */
+  const [linkOn, setLinkOn] = useState(false);
+  const link = useLinkOption();
+  const asLink = linkOn && link.shown && link.loggedIn;
+  const guestLink = link.shown && !link.loggedIn;
+  /** The guest's tip over the greyed Link (px from the toggle's row), or null. */
+  const [tipAt, setTipAt] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const compRef = useRef<HTMLDivElement>(null);
@@ -478,12 +528,51 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   };
 
   const chooseFormat = (f: ExportFormat): void => {
+    setLinkOn(false);
     const d = docRef.current;
     if (d) save(setFormat(d, f));
   };
 
+  /** Link: chosen when logged in; a guest is told to log in (pick 1a). */
+  const chooseLink = (): void => {
+    if (!link.shown) return;
+    if (!link.loggedIn) {
+      nav.flash(LINK_GUEST_FLASH);
+      return;
+    }
+    setLinkOn(true);
+  };
+
+  /** Export with Link: the share dialog over the editor, its chunk loaded now. */
+  const openShare = (): void => {
+    const d = docRef.current;
+    if (!d || !data || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    void import('./share-dialog')
+      .then(async (m) => {
+        nav.push(
+          h(m.ShareDialog, {
+            title: linkTitle(d, s.character, s.startUs),
+            titleIsDefault: d.title.trim() === '',
+            build: async () => {
+              const { buildLinkPayload } = await import('../../share/link-payload');
+              return buildLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource());
+            },
+          }) as VNode,
+          { overlay: true },
+        );
+      })
+      .catch(() => nav.flash('The share dialog could not be loaded. Check the connection and try again.', 'fail'))
+      .finally(() => {
+        busyRef.current = false;
+        setBusy(false);
+      });
+  };
+
   /** Builds and downloads the chosen format (the doc's stored `format`, ADR 0115 §4, ADR 0128 §43d). */
   const doExport = async (): Promise<void> => {
+    if (asLink) return openShare();
     const d = docRef.current;
     if (!d || !data || busyRef.current) return;
     busyRef.current = true;
@@ -524,6 +613,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
         return curComment >= 0;
       case 'export':
         return !busy;
+      case 'link':
+        return link.shown;
       default:
         return true;
     }
@@ -544,6 +635,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
       case 'html':
       case 'text':
         return chooseFormat(id as ExportFormat);
+      case 'link':
+        return chooseLink();
       case 'export':
         void doExport();
         return;
@@ -573,6 +666,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     t: () => press('title'),
     h: () => press('html'),
     p: () => press('text'),
+    l: () => press('link'),
     o: () => press('export'),
   };
 
@@ -891,13 +985,17 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
 
   const tool = (id: ZoneId, node: (selected: boolean, disabled: boolean) => VNode): VNode =>
     node(zone.sel === id, !enabled(id) || editing);
-  const fmtSel = zone.sel === 'html' ? 0 : zone.sel === 'text' ? 1 : undefined;
+  const fmtSel = zone.sel === 'html' ? 0 : zone.sel === 'text' ? 1 : zone.sel === 'link' ? 2 : undefined;
   const ext = doc.format === 'html' ? 'html' : 'txt';
+  const formats = [
+    ...FORMATS.map((f) => ({ ...f, disabled: editing })),
+    ...(link.shown ? [{ ...LINK_FORMAT, disabled: editing || !link.loggedIn, ...(link.loggedIn ? {} : { title: LINK_GUEST }) }] : []),
+  ];
 
   return box(
     <div
       class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && kbd ? ' is-kbd' : '')}
-      data-format={doc.format}
+      data-format={asLink ? 'link' : doc.format}
       style={editing && inset > 0 ? { paddingBottom: `${inset}px` } : undefined}
     >
       <BoxHead class="wc-exp-bar">
@@ -961,30 +1059,44 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
           {titleEdit !== null ? (
             <TitleEditor
               initial={titleEdit}
-              ext={ext}
+              ext={asLink ? null : ext}
               onSave={saveTitle}
               onCancel={closeTitle}
             />
           ) : (
             <div class="wc-exp-file">
-              <span class="wc-exp-flabel">File</span>
+              <span class="wc-exp-flabel">{asLink ? 'Title' : 'File'}</span>
               <span class="wc-exp-fn" title="Edit the title (T)" onClick={() => press('title')}>
-                <span class="wc-exp-title">{exportTitle(doc, s.character, s.startUs)}</span>
-                <em>.{ext}</em>
+                <span class="wc-exp-title">{asLink ? linkTitle(doc, s.character, s.startUs) : exportTitle(doc, s.character, s.startUs)}</span>
+                {!asLink && <em>.{ext}</em>}
               </span>
               {tool('title', (sel, off) => (
                 <GlassButton id="TITLE" label="Title" letter="t" icon="title" small selected={sel} disabled={off} onClick={() => press('title')} />
               ))}
             </div>
           )}
-          <div class="wc-exp-outs">
-            <Seg
-              label="Format"
-              options={FORMATS.map((f) => ({ ...f, disabled: editing }))}
-              value={doc.format}
-              selected={fmtSel}
-              onChange={(v) => press(v)}
-            />
+          <div
+            class="wc-exp-outs"
+            // A press on the greyed Link (the kit's option ignores it): the guest is told why.
+            onClickCapture={(e) => {
+              if (guestLink && !editing && (e.target as Element).closest?.('[data-opt="LINK"]')) chooseLink();
+            }}
+            // A pointer over it: the same words in a tip over the option.
+            onMouseOver={(e) => {
+              const o = guestLink ? (e.target as Element).closest?.('[data-opt="LINK"]') : null;
+              if (!o) return setTipAt(null);
+              const r = o.getBoundingClientRect();
+              const b = e.currentTarget.getBoundingClientRect();
+              setTipAt(r.left - b.left + r.width / 2);
+            }}
+            onMouseLeave={() => setTipAt(null)}
+          >
+            <Seg label="Format" options={formats} value={asLink ? 'link' : doc.format} selected={fmtSel} onChange={(v) => press(v)} />
+            {guestLink && tipAt !== null && (
+              <span class="wc-exp-tip" role="tooltip" style={{ left: `${tipAt}px` }}>
+                {LINK_GUEST}
+              </span>
+            )}
             {tool('export', (sel, off) => (
               <GlassButton id="EXPORT" label="Export" letter="o" icon="export" primary selected={sel} disabled={off} onClick={() => press('export')} />
             ))}
@@ -1071,7 +1183,7 @@ function CommentComposer(p: {
 }
 
 /** The title, edited inline in the foot: the field, the file it gives (or the default), Save and Cancel. */
-function TitleEditor(p: { initial: string; ext: string; onSave(text: string): void; onCancel(): void }): VNode {
+function TitleEditor(p: { initial: string; ext: string | null; onSave(text: string): void; onCancel(): void }): VNode {
   const [text, setText] = useState(p.initial);
   const v = text.replace(/\s+/g, ' ').trim();
   return (
@@ -1080,12 +1192,20 @@ function TitleEditor(p: { initial: string; ext: string; onSave(text: string): vo
       data-wc-own-keys=""
       onKeyDown={(e) => fieldKeys(e, { save: () => p.onSave(text), cancel: p.onCancel, clear: () => setText('') })}
     >
-      <span class="wc-exp-flabel">File</span>
+      <span class="wc-exp-flabel">{p.ext === null ? 'Title' : 'File'}</span>
       <div class="wc-exp-tfield">
         <Field value={text} onInput={setText} id="title" mono maxLength={TITLE_MAX} autoFocus selectAll />
       </div>
       <span class="wc-exp-thint">
-        {v ? (
+        {p.ext === null ? (
+          v ? (
+            <>
+              Title: <b>{v}</b>
+            </>
+          ) : (
+            'Empty: the character and date.'
+          )
+        ) : v ? (
           <>
             File: <b>{`${v}.${p.ext}`}</b>
           </>
