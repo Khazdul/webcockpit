@@ -64,9 +64,9 @@ export function lengthText(s: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** "26 September 2026" (local time). */
-export function dateText(ms: number): string {
-  const d = new Date(ms);
+/** "26 September 2026" (local time); `t` in ms, or in seconds (as the Account page reads it). */
+export function dateText(t: number): string {
+  const d = new Date(t < 1e11 ? t * 1000 : t);
   if (!Number.isFinite(d.getTime())) return '';
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }

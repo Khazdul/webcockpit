@@ -79,7 +79,7 @@ test('every value is text: markup in the title, description, sender and characte
 test.describe('the states', () => {
   test('removed (410)', async ({ page }) => {
     const s = await setUp(page);
-    s.pubs.pubs.get(ID)!.state = 'removed';
+    s.pubs.setState(ID, 'removed');
     await openWatch(page);
     await expectEnd(page, 'This run was removed by its sender.', 'The link no longer leads anywhere.');
     await expect(page.locator('.wc-watch-slot')).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe('the states', () => {
 
   test('hidden (451) for a guest, and for a watcher who is not its sender', async ({ page }) => {
     const s = await setUp(page);
-    s.pubs.pubs.get(ID)!.state = 'hidden';
+    s.pubs.setState(ID, 'hidden');
     await logIn(page, s, WATCHER);
     await openWatch(page);
     await expectEnd(page, 'This run is hidden.', 'It was hidden after reports and waits for a look.');
@@ -96,7 +96,7 @@ test.describe('the states', () => {
 
   test('hidden, its sender: the run plays with the note, no Report, no view', async ({ page }) => {
     const s = await setUp(page);
-    s.pubs.pubs.get(ID)!.state = 'hidden';
+    s.pubs.setState(ID, 'hidden');
     await logIn(page, s, SENDER);
     await openWatch(page);
     await playing(page);
@@ -269,7 +269,7 @@ test('Download as HTML makes the exporter\'s file, and it plays', async ({ page,
 test.describe('?admin', () => {
   test('the admin watches a hidden run through the admin\'s endpoints, with a note; nothing is counted', async ({ page }) => {
     const s = await setUp(page);
-    s.pubs.pubs.get(ID)!.state = 'hidden';
+    s.pubs.setState(ID, 'hidden');
     await openWatch(page, ID, '&admin');
     await playing(page);
     await expect(band(page).locator('[data-watch="admin-note"]')).toHaveText('Admin view. This run is hidden from everyone else.');

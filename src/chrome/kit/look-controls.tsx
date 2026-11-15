@@ -277,6 +277,8 @@ export interface FieldProps {
   name?: string;
   /** Not typed in now (the page is working): dimmed, out of the Tab order. */
   disabled?: boolean;
+  /** Shown to be selected and copied, not typed in (a made link). */
+  readOnly?: boolean;
 }
 
 export interface TextAreaProps extends Omit<FieldProps, 'inputRef'> {
@@ -369,6 +371,7 @@ export function Field(p: FieldProps): VNode {
         placeholder={p.placeholder}
         maxLength={p.maxLength}
         disabled={p.disabled}
+        readOnly={p.readOnly}
         spellcheck={false}
         autocomplete={p.autocomplete ?? 'off'}
         autocapitalize="off"
@@ -399,6 +402,7 @@ export function TextArea(p: TextAreaProps): VNode {
         rows={p.rows ?? 4}
         placeholder={p.placeholder}
         maxLength={p.maxLength}
+        disabled={p.disabled}
         spellcheck={false}
         {...ownFieldAttrs(p.enterSubmits ? undefined : 'lines')}
         aria-invalid={p.error ? 'true' : undefined}

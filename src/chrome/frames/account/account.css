@@ -898,3 +898,134 @@ html.wc-phone .wc-ac-win {
   font: italic 500 16px/1.4 var(--lk-serif);
   color: var(--lk-dim);
 }
+
+/* ------------------------------------------------------------ Published runs
+ * (stage 64 C1, published.tsx; round 12's pick 4a): the kit's flat rows,
+ * each on two lines (the title and its figures; the link with Copy, Edit
+ * and Remove), a hidden run dimmed with its note; the count under them. */
+
+.wc-ac-publist {
+  margin: 2px 0 0;
+}
+
+.wc-ac-publist.wc-lk-rows.is-flat > .wc-ac-pub {
+  display: block;
+  padding: 8px 4px 8px 14px;
+  cursor: default;
+  flex: none;
+}
+
+.wc-ac-pub-l1 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wc-ac-pub-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 17px/1.25 var(--lk-serif);
+  color: var(--lk-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-ac-pub-fig {
+  flex: none;
+  font: italic 500 14.5px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-ac-pub-l2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.wc-ac-pub-url {
+  min-width: 0;
+  font: 13px/1.2 var(--lk-mono);
+  color: var(--lk-head);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-ac-pub-sp {
+  flex: 1 1 auto;
+}
+
+.wc-ac-pub.is-hidden .wc-ac-pub-t,
+.wc-ac-pub.is-hidden .wc-ac-pub-url {
+  opacity: 0.6;
+}
+
+.wc-ac-pub-hid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0 0;
+  font: italic 500 15px/1.25 var(--lk-serif);
+  color: var(--lk-soon);
+}
+
+.wc-ac-pub-hid .wc-lk-ic {
+  flex: none;
+}
+
+.wc-ac-pub-empty {
+  margin: 4px 0 2px;
+}
+
+.wc-ac-pub-count {
+  display: block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-ac-pubdlg .wc-lk-field textarea.wc-lk-input {
+  min-height: 0;
+  resize: none;
+}
+
+.wc-ac-pub-note {
+  text-align: left;
+}
+
+.wc-ac-pub-bare {
+  overflow-wrap: anywhere;
+}
+
+@container wc-page (max-width: 460px) {
+  .wc-ac-pub-l1 {
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .wc-ac-pub-t {
+    white-space: normal;
+  }
+
+  .wc-ac-pub-l2 {
+    flex-wrap: wrap;
+  }
+
+  .wc-ac-pub-url {
+    flex-basis: 100%;
+    margin-bottom: 2px;
+  }
+
+  .wc-ac-pub-sp {
+    display: none;
+  }
+
+  .wc-ac-pub-hid {
+    align-items: flex-start;
+  }
+}

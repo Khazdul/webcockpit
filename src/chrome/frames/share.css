@@ -1,0 +1,169 @@
+/* The share dialog (stage 64 C1, share-dialog.tsx; round 12's pick 2a,
+ * notes/research/start-menu-mockups/round12): the kit's dialog with the
+ * form, the size against the limit, the "anyone" line, the rules' well,
+ * stage 24's bar while it uploads, and the link with Copy. */
+
+.wc-sh {
+  text-align: left;
+}
+
+.wc-lk-dialog[data-dlg="share"] .wc-lk-dialog-btns,
+.wc-lk-dialog[data-dlg="share-done"] .wc-lk-dialog-btns {
+  justify-content: flex-end;
+}
+
+.wc-lk-dialog-b .wc-sh .wc-ac-dform .wc-lk-field {
+  margin: 10px 0 0;
+}
+
+.wc-lk-dialog-b .wc-sh .wc-ac-dform .wc-lk-field:first-child {
+  margin-top: 0;
+}
+
+.wc-sh .wc-lk-field textarea.wc-lk-input {
+  min-height: 0;
+  resize: none;
+}
+
+.wc-sh.is-locked .wc-lk-field {
+  opacity: 0.6;
+}
+
+.wc-sh-count {
+  display: block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-sh-count.is-full {
+  color: var(--lk-soon);
+}
+
+.wc-sh-size,
+.wc-sh-anyone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font: 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-sh-size .wc-lk-ic,
+.wc-sh-anyone .wc-lk-ic {
+  flex: none;
+}
+
+.wc-sh-size b {
+  color: var(--lk-text);
+  font-weight: 600;
+}
+
+.wc-sh-size.is-over,
+.wc-sh-size.is-over b {
+  color: var(--lk-danger);
+}
+
+.wc-sh-measure {
+  font-style: italic;
+}
+
+.wc-sh-sizebar {
+  flex: 1 1 auto;
+  max-width: 160px;
+  height: 4px;
+  margin-left: 6px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(255, 220, 170, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.wc-sh-sizebar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #8a6a3a, var(--lk-gold));
+}
+
+.wc-sh-anyone {
+  color: var(--lk-text);
+  font-style: italic;
+}
+
+.wc-sh-rules {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.12);
+}
+
+.wc-sh-rules-h {
+  margin: 0 0 4px;
+  font: 700 11px/1.4 var(--lk-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lk-head);
+}
+
+.wc-sh-rules-l {
+  margin: 0 0 8px;
+  padding: 0 0 0 18px;
+  font: 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-sh-rules-l li::marker {
+  color: var(--lk-gold);
+}
+
+.wc-sh-load {
+  margin: 14px 0 4px;
+}
+
+.wc-sh-made {
+  text-align: center;
+}
+
+.wc-sh-linkrow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.wc-sh-linkrow .wc-lk-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.wc-sh-linkrow .wc-lk-input {
+  font-size: 14px;
+}
+
+.wc-sh-copied {
+  min-height: 1.2em;
+  margin: 6px 0 8px;
+  text-align: right;
+  font: italic 500 15px/1.2 var(--lk-serif);
+  color: var(--lk-ok);
+}
+
+.wc-sh-note {
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .wc-sh-linkrow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wc-sh-linkrow .wc-lk-btn {
+    align-self: flex-end;
+  }
+
+  .wc-sh-rules-l {
+    font-size: 15px;
+  }
+}

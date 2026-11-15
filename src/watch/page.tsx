@@ -35,7 +35,7 @@
 import './watch.css';
 import { type VNode, render } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { Dialog, GlassButton, type IconDraw, LoadBar, LookFlash, TextArea, letterAction, lookFrame } from '../chrome/kit/look';
+import { Dialog, GlassButton, Icon, type IconDraw, LoadBar, LookFlash, TextArea, letterAction, lookFrame } from '../chrome/kit/look';
 import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
 import { downloadBlob } from '../chrome/kit/download';
 import { inTextField } from '../chrome/kit/look-keys';
@@ -67,15 +67,7 @@ import {
 } from './model';
 import { noteLoginReturn } from './return';
 
-// Glyphs the kit has not got, drawn in its manner (round 12's mockups).
-const FLAG: IconDraw = {
-  draw: (
-    <>
-      <path d="M4 14V2.6" />
-      <path d="M4 3.2h7.6L9.8 5.9l1.8 2.8H4" />
-    </>
-  ),
-};
+// The download arrow, which the kit has not got, drawn in its manner (round 12's mockups); the flag is the kit's.
 const DOWN: IconDraw = {
   draw: (
     <>
@@ -320,7 +312,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
             ) : null)}
         </div>
         <div class="wc-watch-acts">
-          {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon={FLAG} small onClick={report} />}
+          {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />}
           <GlassButton
             id="DOWNLOAD"
             label={phone ? 'Download' : 'Download as HTML'}
@@ -347,11 +339,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
 });
 
 function FlagIcon(): VNode {
-  return (
-    <svg class="wc-lk-ic" viewBox="0 0 16 16" aria-hidden="true">
-      {FLAG.draw}
-    </svg>
-  );
+  return <Icon name="flag" />;
 }
 
 /** What a failed request shows. */

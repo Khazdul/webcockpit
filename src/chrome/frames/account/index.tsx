@@ -11,6 +11,9 @@
 //   account-page.tsx   the Account page (devices, password and recovery, leaving)
 //   account-dialogs.tsx   its dialogs (log out, end session, change password, new recovery code, delete)
 //   account-model.ts   the device list's order and the words of its times (pure)
+//   published.tsx      Published runs on the Account page, Edit and Remove (stage 64)
+//   ../share-dialog.tsx  the export editor's share dialog (stage 64): here, so
+//                      it adds no chunk of its own (the entry chunk's preload lists)
 //
 //   form.tsx           the keys of a form, the pages' way to each other (`go`), small pieces
 //   words.ts           every error code's words and the shared sentences
@@ -32,6 +35,8 @@ import { RecoveryCodeFrame } from './recovery-code';
 import { RemoveCopyDialog } from './sync-ui';
 import type { LockedNotice } from '../../../cloud/sync-view';
 import './account.css';
+
+export { ShareDialog } from '../share-dialog';
 
 registerPages({ login: LoginFrame, create: CreateFrame, recover: RecoverFrame, code: RecoveryCodeFrame, account: AccountFrame });
 

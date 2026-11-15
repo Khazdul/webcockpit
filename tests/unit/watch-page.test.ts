@@ -85,6 +85,7 @@ describe('the details', () => {
     expect(lengthText(50)).toBe('50 s');
     expect(lengthText(Number.NaN)).toBe('0 s');
     expect(dateText(Date.UTC(2026, 8, 26, 12))).toBe('26 September 2026');
+    expect(dateText(Date.UTC(2026, 8, 26, 12) / 1000)).toBe('26 September 2026');
     expect(viewsText(1)).toBe('1 view');
     expect(viewsText(37)).toBe('37 views');
     expect(viewsText(12345)).toBe('12,345 views');

@@ -50,7 +50,7 @@ test('phone: Report logged in, and Download', async ({ page }) => {
 
 test('phone: the states keep their box', async ({ page }) => {
   const s = await setUp(page);
-  s.pubs.pubs.get(ID)!.state = 'removed';
+  s.pubs.setState(ID, 'removed');
   await openWatch(page);
   await expectEnd(page, 'This run was removed by its sender.', 'The link no longer leads anywhere.');
   const box = (await page.locator('.wc-watch [data-watch="end"]').boundingBox())!;

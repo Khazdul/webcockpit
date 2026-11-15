@@ -8,31 +8,26 @@
 // down (`route.fallback()`):
 //
 //   GET  /api/pub/<id>, /api/pub/<id>/payload, POST /api/pub/<id>/view
-//   GET  /api/u/pub/<id>, /api/u/pub/<id>/payload   the sender's hidden run
+//   GET  /api/u/pub/<id>/payload                    the sender's hidden run
+//                                                    (its meta: the account fake)
 //   POST /api/u/report
 //   GET  /api/admin/pub/<id>, /payload              `adminAllowed` (else
 //                                                    Access's redirect)
 //
-// The runs are seeded straight into it (`add`), not through the share
-// dialog (part C1 builds that and the `/api/u/pub` writes). The flag
-// `share` is the account fake's `flags.share`: off, every path here is 404
-// (the admin's are not behind it, as in the Worker).
+// The runs live in the account fake's store (`server.pubs`, part C1's,
+// which also answers the sender's `/api/u/pub` and `GET /api/u/pub/<id>`);
+// a test seeds them with `add` (not through the share dialog) and removes
+// one with `setState(id, 'removed')`, which leaves a tombstone here (the
+// store deletes removed runs). The flag `share` is the account fake's
+// `flags.share`: off, every path here is 404 (the admin's are not behind
+// it, as in the Worker).
 
 import type { Page } from '@playwright/test';
 import { gzipSync } from 'node:zlib';
 import { PUB_ID_PATTERN, type PubMeta, REPORTS_PER_DAY, REPORTS_TO_HIDE, REPORT_REASONS, REPORT_TEXT_MAX, type ReportRequest } from '../../shared/cloud/api';
-import type { FakeAccountApi } from './cloud-account-fake';
+import type { FakeAccountApi, FakeAccountServer } from './cloud-account-fake';
 
 export type FakePubState = 'active' | 'hidden' | 'removed';
-
-export interface FakePub {
-  meta: Omit<PubMeta, 'hidden'>;
-  /** The sender's account name. */
-  owner: string;
-  state: FakePubState;
-  /** The stored bytes (gzip JSON). */
-  payload: Uint8Array;
-}
 
 export interface FakeReport extends ReportRequest {
   account: string;
@@ -40,9 +35,11 @@ export interface FakeReport extends ReportRequest {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** The runs, views and reports. */
+/** The watch page's side of the runs in the account fake's store: tombstones, views and reports. */
 export class FakePubs {
-  pubs = new Map<string, FakePub>();
+  readonly server: FakeAccountServer;
+  /** Removed runs (the store deletes them; the public paths answer 410). */
+  removed = new Set<string>();
   /** Every view request that counted (a new device and day). */
   views: { id: string; device: string }[] = [];
   /** Every view request, counted or not. */
@@ -55,35 +52,60 @@ export class FakePubs {
   /** Payload requests seen, by path. */
   payloadRequests: string[] = [];
 
-  /** Seeds a run; its payload is the JSON of `payload`, gzip. Returns its id. */
+  constructor(server: FakeAccountServer) {
+    this.server = server;
+  }
+
+  /** Seeds a run of `owner` (an account name); its payload is the JSON of `payload`, gzip. Returns its id. */
   add(o: { id?: string; owner: string; title?: string; description?: string; character?: string; level?: number; lengthS?: number; created?: number; views?: number; state?: FakePubState; payload: unknown | Uint8Array }): string {
-    const id = o.id ?? randomId();
     const bytes = o.payload instanceof Uint8Array ? o.payload : new Uint8Array(gzipSync(JSON.stringify(o.payload)));
-    this.pubs.set(id, {
-      owner: o.owner,
-      state: o.state ?? 'active',
+    const id = this.server.addPub(o.owner, {
+      ...(o.id ? { id: o.id } : {}),
+      title: o.title ?? 'Clearing the ranger camp',
+      description: o.description ?? '',
+      character: o.character ?? 'Rasta',
+      ...(o.level !== undefined ? { level: o.level } : {}),
+      lengthS: o.lengthS ?? 4500,
+      created: o.created ?? Date.UTC(2026, 8, 26, 12),
+      views: o.views ?? 0,
+      bytes: bytes.byteLength,
       payload: bytes,
-      meta: {
-        id,
-        title: o.title ?? 'Clearing the ranger camp',
-        description: o.description ?? '',
-        sender: o.owner,
-        character: o.character ?? 'Rasta',
-        ...(o.level !== undefined ? { level: o.level } : {}),
-        lengthS: o.lengthS ?? 4500,
-        created: o.created ?? Date.UTC(2026, 8, 26, 12),
-        views: o.views ?? 0,
-        bytes: bytes.byteLength,
-      },
     });
+    if (o.state) this.setState(id, o.state);
     return id;
+  }
+
+  /** A run's state; `removed` deletes it from the store and leaves a tombstone. */
+  setState(id: string, state: FakePubState): void {
+    if (state === 'removed') {
+      this.server.pubs.delete(id);
+      this.removed.add(id);
+      return;
+    }
+    const p = this.server.pubs.get(id);
+    if (p) p.pub.state = state;
+  }
+
+  /** The public `PubMeta` of a run in the store (its sender's name as the account spells it). */
+  meta(id: string): PubMeta | null {
+    const p = this.server.pubs.get(id);
+    if (!p) return null;
+    const { pub } = p;
+    return {
+      id: pub.id,
+      title: pub.title,
+      description: pub.description,
+      sender: this.server.accountName(p.account) ?? p.account,
+      character: pub.character,
+      ...(pub.level !== undefined ? { level: pub.level } : {}),
+      lengthS: pub.lengthS,
+      created: pub.created,
+      views: pub.views,
+      bytes: pub.bytes,
+    };
   }
 }
 
-function randomId(): string {
-  const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => a[b % a.length]).join('');
-}
 
 const day = (): string => new Date().toISOString().slice(0, 10);
 
@@ -92,7 +114,7 @@ const day = (): string => new Date().toISOString().slice(0, 10);
  * already (its server's flags and sessions are used). Open the page with
  * `?cloudtest`.
  */
-export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new FakePubs()): Promise<FakePubs> {
+export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new FakePubs(api.server)): Promise<FakePubs> {
   const server = api.server;
   const seenViews = new Set<string>();
   await page.route('**/api/**', async (route) => {
@@ -115,9 +137,9 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
     if (m) {
       if (!share) return json(404, { error: 'not_found' });
       const id = m[1]!;
-      const pub = PUB_ID_PATTERN.test(id) ? pubs.pubs.get(id) : undefined;
+      const pub = PUB_ID_PATTERN.test(id) ? server.pubs.get(id) : undefined;
       const state = (): Promise<void> | null =>
-        !pub ? json(404, { error: 'not_found' }) : pub.state === 'removed' ? json(410, { error: 'gone' }) : pub.state === 'hidden' ? json(451, { error: 'hidden' }) : null;
+        pubs.removed.has(id) ? json(410, { error: 'gone' }) : !pub ? json(404, { error: 'not_found' }) : pub.pub.state === 'hidden' ? json(451, { error: 'hidden' }) : null;
       if (m[2] === '/view') {
         if (req.method() !== 'POST') return json(405, { error: 'method_not_allowed' });
         let device = '';
@@ -133,7 +155,7 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
         const key = `${id}|${device}|${day()}`;
         if (!seenViews.has(key)) {
           seenViews.add(key);
-          pub!.meta.views++;
+          pub!.pub.views++;
           pubs.views.push({ id, device });
         }
         return route.fulfill({ status: 204 });
@@ -146,22 +168,19 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
         pubs.payloadRequests.push(path);
         return bytes(pub!.payload);
       }
-      return json(200, { ...pub!.meta });
+      return json(200, pubs.meta(id));
     }
 
-    // The sender's own run (a hidden one).
-    m = /^\/api\/u\/pub\/([^/]+)(\/payload)?$/.exec(path);
+    // The sender's own run's payload (its meta: the account fake's `GET /api/u/pub/<id>`).
+    m = /^\/api\/u\/pub\/([^/]+)\/payload$/.exec(path);
     if (m && req.method() === 'GET') {
       if (!share || server.flags.accounts !== true) return json(404, { error: 'not_found' });
       const who = server.sessionAccount(api.browser.cookie);
       if (!who) return json(401, { error: 'unauthorized' });
-      const pub = pubs.pubs.get(m[1]!);
-      if (!pub || pub.state === 'removed' || pub.owner.toLowerCase() !== who.name.toLowerCase()) return json(404, { error: 'not_found' });
-      if (m[2]) {
-        pubs.payloadRequests.push(path);
-        return bytes(pub.payload);
-      }
-      return json(200, { ...pub.meta, ...(pub.state === 'hidden' ? { hidden: true } : {}) });
+      const pub = server.pubs.get(m[1]!);
+      if (!pub || pub.account !== who.name.toLowerCase()) return json(404, { error: 'not_found' });
+      pubs.payloadRequests.push(path);
+      return bytes(pub.payload);
     }
 
     // Report.
@@ -191,13 +210,13 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
         return json(400, { error: 'bad_request' });
       }
       if (b.kind !== 'run') return json(400, { error: 'kind_closed' });
-      const pub = pubs.pubs.get(b.target);
-      if (!pub || pub.state === 'removed') return json(404, { error: 'not_found' });
-      if (pub.owner.toLowerCase() === who.name.toLowerCase()) return json(403, { error: 'own' });
+      const pub = server.pubs.get(b.target);
+      if (!pub) return json(404, { error: 'not_found' });
+      if (pub.account === who.name.toLowerCase()) return json(403, { error: 'own' });
       if (pubs.reports.some((r) => r.target === b!.target && r.account.toLowerCase() === who.name.toLowerCase())) return json(409, { error: 'already_reported' });
       if (pubs.reports.filter((r) => r.account.toLowerCase() === who.name.toLowerCase()).length >= REPORTS_PER_DAY) return json(429, { error: 'too_many' });
       pubs.reports.push({ ...(b as unknown as ReportRequest), account: who.name });
-      if (new Set(pubs.reports.filter((r) => r.target === b!.target).map((r) => r.account.toLowerCase())).size >= REPORTS_TO_HIDE) pub.state = 'hidden';
+      if (new Set(pubs.reports.filter((r) => r.target === b!.target).map((r) => r.account.toLowerCase())).size >= REPORTS_TO_HIDE) pub.pub.state = 'hidden';
       return route.fulfill({ status: 204 });
     }
 
@@ -205,14 +224,14 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
     m = /^\/api\/admin\/pub\/([^/]+)(\/payload)?$/.exec(path);
     if (m && req.method() === 'GET') {
       if (!pubs.adminAllowed) return route.fulfill({ status: 302, headers: { Location: 'https://example.cloudflareaccess.com/cdn-cgi/access/login' } });
-      const pub = pubs.pubs.get(m[1]!);
+      if (pubs.removed.has(m[1]!)) return json(410, { error: 'gone' });
+      const pub = server.pubs.get(m[1]!);
       if (!pub) return json(404, { error: 'not_found' });
-      if (pub.state === 'removed') return json(410, { error: 'gone' });
       if (m[2]) {
         pubs.payloadRequests.push(path);
         return bytes(pub.payload);
       }
-      return json(200, { ...pub.meta, ...(pub.state === 'hidden' ? { hidden: true } : {}) });
+      return json(200, { ...pubs.meta(m[1]!), ...(pub.pub.state === 'hidden' ? { hidden: true } : {}) });
     }
 
     return route.fallback();
