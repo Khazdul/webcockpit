@@ -1039,8 +1039,10 @@ export interface GalleryPage {
  * Fame boxes. `today` and `yesterday`: the random run of that UTC day,
  * fixed for the day (among the runs listed before the day began, the one
  * whose id has the smallest HMAC-SHA-256 under the server's secret and the
- * day); null when there is none. MUME's lists (`mume`) come only with
- * MUME's leave (part C5) and are absent until then.
+ * day); null when there is none. `mume` (ADR 0155, "MUME's lists and
+ * player count"; fetched by part C5's cron into `mume_cache`) is present
+ * only while the lists were fetched less than `MUME_KEEP_HOURS` ago;
+ * `players` only while that probe's row is as fresh.
  */
 export interface CommunityBoxes {
   /** The `TOP_POSTERS` accounts with most active listed runs, most first (ties: the name). */
@@ -1049,8 +1051,32 @@ export interface CommunityBoxes {
   hallOfFame: GalleryRow[];
   today: GalleryRow | null;
   yesterday: GalleryRow | null;
+  mume?: MumeBoxes;
   time: number;
 }
+
+/** One warlord of MUME's war page: plain text, each at most 40 code points. */
+export interface Warlord {
+  name: string;
+  race: string;
+  class: string;
+}
+
+/** MUME's war point lists (the west, the dark side) and the players online. */
+export interface MumeBoxes {
+  west: Warlord[];
+  dark: Warlord[];
+  players?: number;
+}
+
+/**
+ * `mume_cache` rows (migration 0006), written by part C5: key `war` with
+ * the value `{"west": Warlord[], "dark": Warlord[]}` (JSON), key `players`
+ * with a whole number (JSON); `fetched` the time of the last good fetch.
+ */
+export const MUME_CACHE_KEYS = ['war', 'players'] as const;
+/** A `mume_cache` row older than this is not shown. */
+export const MUME_KEEP_HOURS = 24;
 
 export const TOP_POSTERS = 5;
 export const HALL_OF_FAME_SIZE = 8;

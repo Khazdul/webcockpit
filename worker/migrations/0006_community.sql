@@ -78,6 +78,17 @@ CREATE TABLE note (
 CREATE INDEX note_state ON note (state, created);
 CREATE INDEX note_account ON note (account, created);
 
+-- MUME's war point lists and player count (ADR 0155, "MUME's lists and
+-- player count"; written by the cron of part C5): the last good answer per
+-- `key` ('war': JSON {west, dark}; 'players': a JSON number) and when it
+-- was fetched. `GET /api/community` shows a row only while it is under
+-- 24 hours old.
+CREATE TABLE mume_cache (
+  key     TEXT    NOT NULL PRIMARY KEY,
+  value   TEXT    NOT NULL,
+  fetched INTEGER NOT NULL
+) WITHOUT ROWID;
+
 -- The account's last look at the reactions on its own runs (Published
 -- runs); `gallery_seen` (0002) is its last look at the Community page.
 ALTER TABLE account ADD COLUMN reactions_seen INTEGER NOT NULL DEFAULT 0;
