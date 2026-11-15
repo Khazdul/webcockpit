@@ -103,6 +103,8 @@ staging, off in production until the owner says yes.
 Mockups in round 9–12's manner (`notes/research/start-menu-mockups/
 round13/`), published as an artifact, the recommendation in its README.
 
+Artifact: https://claude.ai/artifact/RxKtoMqiLZrXtj9gRpuGaP
+
 1. **The Community page** (desktop and phone): the layout of the list,
    the Hall of Fame boxes and Random Runes (a: the reference's order,
    boxes on top, the list, the board at the foot; b: the list with a
@@ -136,12 +138,12 @@ touches staging or production.
 
 #### A1. Mockups, round 13 (worktree `stage65-mockups`, port 5471)
 
-- [ ] `notes/research/start-menu-mockups/round13/` in round 12's manner
+- [x] `notes/research/start-menu-mockups/round13/` in round 12's manner
       (README, `build/`, the real DOM captured with the e2e fake, new
       content in `mk-*` classes, a picture per state, a review page, one
       self-contained file published as an artifact).
-- [ ] Points 1–7 above, desktop and phone (7 desktop only); the
-      recommendation.
+- [x] Points 1–7 above, desktop and phone (7 desktop only); the
+      recommendation (61 states, 112 pictures).
 
 #### A2. MUME's lists (no worktree)
 
