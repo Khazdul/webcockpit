@@ -1,19 +1,16 @@
 # Stage 64 — Share links
 
-Status: **Owner testing (2026-11-15).** Built, reviewed and on staging
-(`share` on there); production unchanged (`share` off, no release).
+Status: **Done, released 0.13.0 (2026-11-15): share links open in
+production** on the owner's word after his test on staging.
 
 ## Waiting for the owner
 
-1. **A second look on staging** (test guide, "Second look"): fullscreen
-   from the link, and the mail on a report (the secret `REPORT_MAIL_TO`
-   is set on both Workers, owner, 2026-11-15).
-2. **The words of `/privacy`'s "Share links" section** (step 8): approve
-   or change.
-3. ~~The report rule~~: settled (five hide until you have looked; see
-   "Owner feedback").
-4. **Then the yes or no to `share` in production** (part F: version,
-   tag, migration 0005, `FLAG_SHARE`), only on your explicit word.
+Nothing. Share links opened in production with 0.13.0. Not yet seen by
+the owner: the report mail arriving (the secret is set on both Workers;
+the first real report will show it; if none comes, the Worker's log says
+why, likely Email Service → Email Sending for the domain), and the
+iPhone's fullscreen fallback (no iPhone to test on). Next is stage 65
+(the community) in a session of its own.
 
 ## Goal
 
@@ -308,9 +305,14 @@ local Worker and R2, watched by a guest, counted once, removed).
       "Fullscreen fungerade fint på desktop och såg bra ut. Share links
       texten är ok. Öppna i produktionen."; no iPhone to test on; the
       report mail not confirmed by him).
-- [ ] The release: version, tag, migration 0005 in production,
+- [x] The release: version, tag, migration 0005 in production,
       `FLAG_SHARE` on in production's vars; `/api/config`; `test:prod`
-      against mumecockpit.com.
+      against mumecockpit.com. (Version 0.13.0, tag `v0.13.0`, commit
+      f90d93c1; `deploy.yml` run 43757380385 applied `0005_share.sql`
+      in production; `FLAG_SHARE` true in production's vars (in git);
+      `/api/config` has `share` on and `sharedRuns` 150; `/api/health`
+      0.13.0; `/api/u/pub` 401 without a session; `/r/frame` with its own
+      policy; `test:prod` 36/36 against mumecockpit.com.)
 
 ## Measurements
 
@@ -402,6 +404,10 @@ anything that looked wrong. Then the yes or no to opening `share` in
 production.
 
 ## Owner feedback
+
+2026-11-15, second look: "Fullscreen fungerade fint på desktop och såg
+bra ut. Share links texten är ok. Öppna i produktionen." (No iPhone to
+test on.) Taken as the go-ahead for part F: released 0.13.0.
 
 2026-11-15, after the test on staging: "I övrigt verkar det fungera bra."
 
