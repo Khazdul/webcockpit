@@ -5,7 +5,7 @@
 // so it is unit tested (tests/unit/share-link.test.ts).
 
 import { PUB_DESCRIPTION_MAX, PUB_TITLE_MAX, type PubMetaIn } from '../../shared/cloud/api.ts';
-import { cleanText } from '../../shared/cloud/text.ts';
+import { cleanPublicText, cleanText, hasVisible } from '../../shared/cloud/text.ts';
 import type { ExportDoc } from './edits';
 
 /** `character`'s longest (the Worker's rule, as built in stage 64 B1). */
@@ -38,6 +38,18 @@ export function pubText(s: string, newlines = false): string {
   return cleanText(s, { newlines, control: ' ' });
 }
 
+/**
+ * A listed run's text (Hall of Fame, review fix S3): also the free public
+ * text rules of comments and notes (shared/cloud/text.ts) on one line,
+ * since the Community shows it to everyone.
+ */
+function listedText(s: string, listed: boolean): string {
+  return listed ? cleanPublicText(s, { newlines: 0 }) : s;
+}
+
+/** A sent text with nothing visible is none (a listed run's: review fix S3). */
+const visibleOr = (s: string, listed: boolean): string => (listed && !hasVisible(s) ? '' : s);
+
 /** The first `max` code points of `s` (the Worker counts code points). */
 export function codePoints(s: string, max: number): string {
   const cps = Array.from(s);
@@ -47,9 +59,15 @@ export function codePoints(s: string, max: number): string {
 /** Code points in `s`. */
 export const codePointCount = (s: string): number => Array.from(s).length;
 
-/** A title as sent: the rules above, whitespace collapsed, trimmed, at most `PUB_TITLE_MAX`. */
-export function cleanTitle(s: string): string {
-  return codePoints(pubText(s).replace(/\s+/g, ' ').trim(), PUB_TITLE_MAX).trim();
+/** A title as sent: the rules above (a listed run's: also the free public text rules), whitespace collapsed, trimmed, at most `PUB_TITLE_MAX`. */
+export function cleanTitle(s: string, listed = false): string {
+  return sent(s, PUB_TITLE_MAX, listed);
+}
+
+/** A text as sent: cleaned, one line, cut, cleaned again after the cut (a listed run's: no dangling ZWJ), trimmed. */
+function sent(s: string, max: number, listed: boolean): string {
+  const one = (v: string): string => listedText(pubText(v).replace(/\s+/g, ' '), listed).trim();
+  return visibleOr(one(codePoints(one(s), max)), listed);
 }
 
 /**
@@ -57,18 +75,18 @@ export function cleanTitle(s: string): string {
  * comment is: Enter creates the link), whitespace collapsed, trimmed, at
  * most `PUB_DESCRIPTION_MAX`.
  */
-export function cleanDescription(s: string): string {
-  return codePoints(pubText(s).replace(/\s+/g, ' ').trim(), PUB_DESCRIPTION_MAX).trim();
+export function cleanDescription(s: string, listed = false): string {
+  return sent(s, PUB_DESCRIPTION_MAX, listed);
 }
 
-/** What a description field keeps of what is typed or pasted: the rules, one line, the length (not trimmed: a space is being typed). */
-export function typedDescription(s: string): string {
-  return codePoints(pubText(s).replace(/[\r\n\t]+/g, ' '), PUB_DESCRIPTION_MAX);
+/** What a description field keeps of what is typed or pasted: the rules (a listed run's too), one line, the length (not trimmed: a space is being typed). */
+export function typedDescription(s: string, listed = false): string {
+  return codePoints(listedText(pubText(s).replace(/[\r\n\t]+/g, ' '), listed), PUB_DESCRIPTION_MAX);
 }
 
-/** What a title field keeps of what is typed or pasted. */
-export function typedTitle(s: string): string {
-  return codePoints(pubText(s).replace(/[\r\n\t]+/g, ' '), PUB_TITLE_MAX);
+/** What a title field keeps of what is typed or pasted (a listed run's: also the free public text rules). */
+export function typedTitle(s: string, listed = false): string {
+  return codePoints(listedText(pubText(s).replace(/[\r\n\t]+/g, ' '), listed), PUB_TITLE_MAX);
 }
 
 /**
@@ -83,9 +101,10 @@ export function newLinkKey(): string {
 
 /** The meta sent with a payload (`PubMetaIn`): the texts cleaned, the numbers in the Worker's ranges, the dialog's key; `listed` only for the Hall of Fame (stage 65). */
 export function linkMeta(o: { title: string; description: string; character: string; level?: number | undefined; lengthS: number; key?: string; listed?: boolean }): PubMetaIn {
-  const character = codePoints(pubText(o.character).replace(/\s+/g, ' ').trim(), PUB_CHARACTER_MAX).trim();
+  const listed = o.listed === true;
+  const character = sent(o.character, PUB_CHARACTER_MAX, listed);
   const lengthS = Number.isFinite(o.lengthS) ? Math.max(0, Math.min(PUB_LENGTH_MAX_S, Math.round(o.lengthS))) : 0;
-  const meta: PubMetaIn = { title: cleanTitle(o.title), description: cleanDescription(o.description), character, lengthS, listed: o.listed === true };
+  const meta: PubMetaIn = { title: cleanTitle(o.title, listed), description: cleanDescription(o.description, listed), character, lengthS, listed };
   const lv = o.level;
   if (typeof lv === 'number' && Number.isInteger(lv) && lv >= 0 && lv <= PUB_LEVEL_MAX) meta.level = lv;
   if (o.key !== undefined) meta.key = o.key;

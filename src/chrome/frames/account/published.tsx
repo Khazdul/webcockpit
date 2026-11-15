@@ -513,8 +513,10 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
   );
   const titleRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLTextAreaElement | null>(null);
-  const t = cleanTitle(title);
-  const d = cleanDescription(desc);
+  // A run listed after the save keeps its texts by the free public text rules (review fix S3).
+  const strict = p.community === true ? listed : p.pub.listed;
+  const t = cleanTitle(title, strict);
+  const d = cleanDescription(desc, strict);
   const changed = t !== p.pub.title || d !== p.pub.description || (p.community === true && listed !== p.pub.listed);
   const canSave = !busy && t !== '' && changed;
   const cancel = (): void => {
@@ -571,7 +573,7 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
     >
       <div class="wc-ac-dlg wc-ac-pubdlg">
         <form class="wc-ac-dform" noValidate {...keys.form}>
-          <Field id="title" label="Title" value={title} disabled={busy} autoFocus={!touchInteraction()} inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v))} />
+          <Field id="title" label="Title" value={title} disabled={busy} autoFocus={!touchInteraction()} inputRef={titleRef} onInput={(v) => setTitle(typedTitle(v, strict))} />
           <TextArea
             id="desc"
             label="Description"
@@ -581,7 +583,7 @@ export const EditPubDialog = lookFrame(function EditPubDialog(p: { host: Host; p
             enterSubmits
             inputRef={descRef}
             hint={<span class="wc-ac-pub-count">{`${n} / ${PUB_DESCRIPTION_MAX}`}</span>}
-            onInput={(v) => setDesc(typedDescription(v))}
+            onInput={(v) => setDesc(typedDescription(v, strict))}
           />
         </form>
         {p.community && (

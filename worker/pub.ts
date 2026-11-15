@@ -65,7 +65,7 @@ import {
   type PubQuota,
   type PubWritten,
 } from '../shared/cloud/api.ts';
-import { isCleanText } from '../shared/cloud/text.ts';
+import { isCleanText, isPublicText } from '../shared/cloud/text.ts';
 import { type AccountRow, hasKeys, limitsOf, prefsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
 import { addressHash } from './attempts.ts';
@@ -119,6 +119,20 @@ export function textOf(v: unknown, min: number, max: number, o: { newlines?: boo
 
 export const titleOf = (v: unknown): string | null => textOf(v, 1, PUB_TITLE_MAX, { trimmed: true });
 export const descriptionOf = (v: unknown): string | null => textOf(v, 0, PUB_DESCRIPTION_MAX, { newlines: true });
+
+/**
+ * A listed run's texts by the free public text rules (review fix S3: New,
+ * Top, the Hall of Fame and the run of the day show them to everyone): the
+ * title and the character on one line, the description with its line
+ * breaks; an empty description or character is allowed as before.
+ */
+export function listedTextOk(m: { title: string; description: string; character: string }): boolean {
+  return (
+    isPublicText(m.title, { newlines: 0 }) &&
+    (m.description === '' || isPublicText(m.description, { newlines: PUB_DESCRIPTION_MAX })) &&
+    (m.character === '' || isPublicText(m.character, { newlines: 0 }))
+  );
+}
 
 /** The meta of a POST, checked, or null (400). */
 export function metaOf(v: unknown, gallery = false): PubMetaIn | null {
@@ -426,6 +440,11 @@ async function patch(c: PubCtx): Promise<Response> {
   // looked (review fix S7): the queue shows what the reporters saw.
   const now = await ownLive(c, id);
   if (now?.state === 'hidden') return error('hidden', 403);
+  // A run listed after the change, whose texts change or which is listed
+  // now: its texts by the free public text rules (review fix S3).
+  if (now && (listed ?? now.listed) === 1 && (listed === 1 || title !== undefined || description !== undefined)) {
+    if (!listedTextOk({ title: title ?? now.title, description: description ?? now.description, character: now.character })) return error('bad_text', 400);
+  }
   // A first listing (no `listed_at` yet) only while the account's first
   // listings today are under `listingsPerDay`: in the statement, so two at
   // once cannot both be the eleventh. Listing again keeps `listed_at`.
@@ -567,6 +586,7 @@ async function create(c: PubCtx): Promise<Response> {
     meta = null;
   }
   if (!meta) return fail(badRequest());
+  if (meta.listed && !listedTextOk(meta)) return fail(error('bad_text', 400));
   const bytes = total - 4 - metaLength;
   if (bytes > limits.payloadMaxBytes) return fail(tooLarge());
   const magic = await body.peek(2);
