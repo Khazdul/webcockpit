@@ -109,7 +109,7 @@ export const thisDeviceType = (): DeviceType => deviceType(device());
 /** The `settings` store's key of another device type's item. */
 export const otherTypeKey = (t: DeviceType): string => `device:${t}`;
 
-/** The hash a settings seed is kept as: `main` as this type's item (`from` is not hashed). */
+/** The hash a settings seed is kept as: `main` as this type's item. */
 export async function settingsSeedHash(type: DeviceType, record: unknown): Promise<string> {
   return (await itemHashes(ITEM_SPECS.settings, { type, record } as unknown as Body)).hash;
 }
@@ -220,10 +220,6 @@ export interface ProfileChanges {
 
 /** What a batch of the sync wrote into this device type's settings (`main`). */
 export interface SettingsWritten {
-  /** The writing device's sync label, when the item said. */
-  from: string | null;
-  /** The version written had waited for the game to end (in use, ADR 0152 "In use and held"). */
-  held?: boolean;
   /**
    * The record that replaced a login's seed (F1 of the stage 62 review):
    * the settings store takes it over any change of its own not saved yet
@@ -338,10 +334,9 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
       const done = idbDone(t);
       const os = t.objectStore(STORE.settings);
       const meta = t.objectStore(STORE.syncMeta);
-      const [keys, values, label, seed, agreed] = await Promise.all([
+      const [keys, values, seed, agreed] = await Promise.all([
         idbRequest(os.getAllKeys()),
         idbRequest(os.getAll()),
-        idbRequest(meta.get(META.deviceLabel)),
         idbRequest(meta.get(META.settingsSeed)),
         agreedKeys(t, 'settings'),
       ]);
@@ -356,12 +351,12 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
           if (!v || typeof v !== 'object') continue;
           // A login's copy is a seed until the first full pull settles it, changed or not (F1): it gives way to the account's.
           if (seed !== undefined && !agreed.has(type)) continue;
-          const body: SettingsItem = { type, record: v as unknown as SettingsItem['record'], ...(typeof label === 'string' && label ? { from: label } : {}) };
+          const body: SettingsItem = { type, record: v as unknown as SettingsItem['record'] };
           out.push({ key: type, body: body as unknown as Body });
         } else if (typeof k === 'string' && k.startsWith('device:')) {
           const t2 = k.slice('device:'.length);
           if (!isDeviceType(t2) || t2 === type || !v || typeof v !== 'object' || !v.record) continue;
-          const body: SettingsItem = { type: t2, record: v.record as SettingsItem['record'], ...(typeof v.from === 'string' ? { from: v.from } : {}) };
+          const body: SettingsItem = { type: t2, record: v.record as SettingsItem['record'] };
           out.push({ key: t2, body: body as unknown as Body });
         }
       }
@@ -436,13 +431,9 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
           // The seed is replaced whatever happened to it (F1); else a change made since the scan wins (F10).
           if (!seeded && !(await unchanged(snap, os, SETTINGS_KEY))) continue;
           os.put(it.record, SETTINGS_KEY);
-          mine = {
-            from: typeof it.from === 'string' ? it.from : null,
-            ...(batch.held?.includes(type) ? { held: true } : {}),
-            ...(seeded ? { seedRecord: it.record } : {}),
-          };
+          mine = seeded ? { seedRecord: it.record } : {};
         } else if (await unchanged(snap, os, otherTypeKey(it.type))) {
-          os.put({ type: it.type, record: it.record, ...(typeof it.from === 'string' ? { from: it.from } : {}) }, otherTypeKey(it.type));
+          os.put({ type: it.type, record: it.record }, otherTypeKey(it.type));
         }
       }
       await done;

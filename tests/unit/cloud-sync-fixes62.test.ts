@@ -294,7 +294,7 @@ describe('F1: a login seed gives way to the account settings, changed or not', (
   it('the page applies a seed record with force', async () => {
     const { applyWritten } = await import('../../src/cloud/space/notify');
     const reload = vi.fn(async () => 'applied' as const);
-    await applyWritten({ profiles: {} as never, settings: { reload } as never }, { kind: 'settings', settings: { from: 'x', seedRecord: { version: 1 } } });
+    await applyWritten({ profiles: {} as never, settings: { reload } as never }, { kind: 'settings', settings: { seedRecord: { version: 1 } } });
     expect(reload).toHaveBeenCalledWith({ force: true, record: { version: 1 } });
   });
 });
@@ -369,8 +369,8 @@ describe('F4: pieces of 1 MB, stable as the day grows', () => {
   });
 });
 
-describe('F6: the write says a settings version was held for the game', () => {
-  it('the engine marks the record held for in use, and its later write carries held', async () => {
+describe('F6: a settings version pulled during play waits for the game', () => {
+  it('the engine holds it while in use and writes it once the game ends (quietly: pick 2a)', async () => {
     const server = new Server();
     const aOpen = await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'a', copy: 'all' });
     await put(await aOpen(), STORE.settings, [settings(20), 'main']);
@@ -392,14 +392,15 @@ describe('F6: the write says a settings version was held for the game', () => {
     // The game ends.
     playing.clear();
     await b.sync();
-    expect(written).toHaveBeenCalledWith('settings', undefined, expect.objectContaining({ held: true }));
+    expect(written).toHaveBeenCalledWith('settings', undefined, {});
     expect(await get(await bOpen(), STORE.settings, 'main')).toEqual(settings(21));
-    // A change taken off play says nothing of the kind.
+    // A change taken off play is written at once, the same way.
     await put(await aOpen(), STORE.settings, [settings(22), 'main']);
     await a.sync();
     written.mockClear();
     await b.sync();
-    expect(written).toHaveBeenCalledWith('settings', undefined, { from: 'a' });
+    expect(written).toHaveBeenCalledWith('settings', undefined, {});
+    expect(await get(await bOpen(), STORE.settings, 'main')).toEqual(settings(22));
   });
 
   it('the runtime keeps no page-wide flag: the hook carries it', () => {

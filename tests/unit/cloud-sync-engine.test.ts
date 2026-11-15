@@ -600,7 +600,7 @@ describe('the engine around a sync', () => {
 describe('the small kinds', () => {
   const msg = (ts: number, text: string, character = 'Gandalf') => ({ character, ts, channel: 'tell', talker: 'Frodo', talkerType: null, destination: null, text });
   const pieceOf = (d: Device, day: string) => d.local.items('comm').find((b) => b.day === day);
-  const settingsOf = (look: string, from: string) => ({ type: 'desktop', record: { version: SETTINGS_VERSION, look }, from });
+  const settingsOf = (look: string) => ({ type: 'desktop', record: { version: SETTINGS_VERSION, look } });
 
   it('comm edited on both sides: the union is written on both and pushed once on the remote rev', async () => {
     const { server, clock, devices: [a, b] } = await account();
@@ -659,38 +659,36 @@ describe('the small kinds', () => {
     expect(a!.engine.status.get()).toMatchObject({ state: 'synced', waiting: 0 });
   });
 
-  it('settings are last writer, and `from` alone is not a change', async () => {
+  it('settings are last writer; in step, nothing is pushed again', async () => {
     const { server, devices: [a, b] } = await account();
-    a!.local.set('settings', settingsOf('amber', 'desktop, Firefox'));
+    a!.local.set('settings', settingsOf('amber'));
     await a!.sync();
     await b!.sync();
-    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber', 'desktop, Firefox'));
-    // The phone's adapter lists it with its own label: still in step.
-    b!.local.set('settings', settingsOf('amber', 'phone'));
+    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber'));
     const seq = server.seq;
     await b!.sync();
     expect(server.seq).toBe(seq);
     // Both change it: the later sync wins whole, no copy.
-    a!.local.set('settings', settingsOf('steel', 'desktop, Firefox'));
-    b!.local.set('settings', settingsOf('green', 'phone'));
+    a!.local.set('settings', settingsOf('steel'));
+    b!.local.set('settings', settingsOf('green'));
     await a!.sync();
     await b!.sync();
     await a!.sync();
-    expect(a!.local.get('settings', 'desktop')).toEqual(settingsOf('green', 'phone'));
+    expect(a!.local.get('settings', 'desktop')).toEqual(settingsOf('green'));
     expect(a!.local.items('settings')).toHaveLength(1);
     expect(b!.events).toEqual([]);
   });
 
   it('settings from a newer client are left untouched; this device type in use waits for the start page', async () => {
     const { server, keys, devices: [a, b] } = await account();
-    a!.local.set('settings', settingsOf('amber', 'desktop, Firefox'));
+    a!.local.set('settings', settingsOf('amber'));
     await a!.sync();
     await b!.sync();
     const sid = [...a!.records.recs.values()][0]!.serverId;
     const newer = { v: 1, type: 'desktop', record: { version: SETTINGS_VERSION + 1, look: 'future' } };
     expect(server.put('settings', sid, 1, await seal(keys.dataKey, 'settings', sid, new TextEncoder().encode(JSON.stringify(newer)))).status).toBe(200);
     await b!.sync();
-    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber', 'desktop, Firefox'));
+    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber'));
     expect(b!.engine.status.get().state).toBe('update');
     expect(b!.events).toEqual([{ type: 'newer', kind: 'settings', serverId: sid }]);
 

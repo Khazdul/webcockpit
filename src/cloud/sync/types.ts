@@ -44,13 +44,6 @@ export interface ScriptItem {
 export interface SettingsItem {
   type: DeviceType;
   record: Settings;
-  /**
-   * The sync label of the device that wrote it (`syncDeviceLabel`, e.g.
-   * "desktop, Chrome"), for "Settings from desktop, Chrome."; absent when
-   * unknown. Not part of the hashes (`KindSpec.hashed`): two devices with
-   * the same settings are in step whoever wrote them.
-   */
-  from?: string;
 }
 
 /** A script's data (ADR 0152): the library's `scriptData` record. Local key: `name`. */
@@ -105,8 +98,6 @@ export type Body = Readonly<Record<string, unknown>>;
 export interface LocalBatch {
   put: Body[];
   remove: string[];
-  /** Local keys among `put` whose version waited for a game to end (in use when it was pulled). */
-  held?: readonly string[];
 }
 
 export interface LocalItems {
@@ -183,8 +174,6 @@ export interface SyncRecord {
   remote?: RemoteVersion;
   /** The 413 code of the last refused push (`full`). */
   full?: FullReason;
-  /** The pulled version waits for a game to end (it was in use): its write says so (`LocalBatch.held`). */
-  waited?: boolean;
 }
 
 /** The `syncMeta` store as the engine uses it. */

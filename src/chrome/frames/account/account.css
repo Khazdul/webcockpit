@@ -790,12 +790,6 @@ html.wc-phone .wc-ac-win {
   margin-top: 7px;
 }
 
-/* What follows the account (stage 62, round 10 pick 3a). */
-.wc-ac-sync-follows {
-  margin-top: 8px;
-  text-wrap: pretty;
-}
-
 .wc-ac-sync-move {
   display: flex;
   align-items: baseline;

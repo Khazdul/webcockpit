@@ -197,12 +197,10 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await logIn(a.page);
   await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
   await account(a.page);
-  // Round 10's 3a: what follows the account, this device first; synced, the page still shows whole at 1440 × 900
-  // (Leaving's buttons inside the body's view without a scroll; only the empty message line under them is not).
+  // Synced, the page shows whole at 1440 × 900 (Leaving's buttons inside the body's view without a scroll;
+  // only the empty message line under them is not). No line of what follows the account (the owner's pick 3b).
   await expect(frame(a.page).locator('[data-sync="synced"]')).toBeVisible();
-  await expect(frame(a.page).locator('[data-follows]')).toHaveText(
-    'Follows the account: profiles, scripts, settings for desktop (this device), tablet and phone, script data, Comm history (7 days), timers.',
-  );
+  await expect(frame(a.page).locator('[data-follows]')).toHaveCount(0);
   const box = (await frame(a.page).locator('.wc-lk-box').boundingBox())!;
   expect(box.y + box.height).toBeLessThanOrEqual(900);
   const view = (await frame(a.page).locator('.wc-ac-body').boundingBox())!;
@@ -258,7 +256,6 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await expect(pageOf(a.page, 'account')).toBeVisible();
   // Offline is the state now.
   await expect(frame(a.page).locator('[data-sync="offline"]')).toContainText('1 change waits on this device.');
-  await expect(frame(a.page).locator('[data-follows]')).toContainText('settings for desktop (this device)');
   await a.ctx.close();
 });
 

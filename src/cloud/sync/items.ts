@@ -55,8 +55,6 @@ export interface KindSpec {
   copy?(body: Body, key: string, name: string): Body;
   /** `merge`: the record both an edited local and an edited remote version become (same key). */
   merge?(local: Body, remote: Body): Body;
-  /** What the hashes are over, when not the whole record (settings: without `from`). */
-  hashed?(body: Body): Body;
   /** The blob's plaintext is gzip of the canonical JSON (comm). The hashes stay over the JSON. */
   compress?: boolean;
 }
@@ -96,10 +94,9 @@ export function itemHashes(spec: KindSpec, record: Body): Promise<{ hash: string
 const hashCache = new WeakMap<Body, Promise<{ hash: string; bare: string }>>();
 
 async function hashesOf(spec: KindSpec, record: Body): Promise<{ hash: string; bare: string }> {
-  const body = spec.hashed ? spec.hashed(record) : record;
-  const hash = await contentHash(spec.kind, body);
+  const hash = await contentHash(spec.kind, record);
   if (!spec.names) return { hash, bare: hash };
-  return { hash, bare: await contentHash(spec.kind, { ...body, name: undefined }) };
+  return { hash, bare: await contentHash(spec.kind, { ...record, name: undefined }) };
 }
 
 /** The plaintext of a blob: the record with its format version (gzipped for a kind with `compress`). */
@@ -231,7 +228,11 @@ export const SCRIPT_DATA_VERSION = 1;
 export const TIMERS_VERSION = 1;
 export const COMM_VERSION = 1;
 
-/** `settings`: one item per device type, `{type, record, from?}`; last writer; `from` is not hashed. */
+/**
+ * `settings`: one item per device type, `{type, record}`; last writer. A
+ * `from` (the writer's label, stage 62 before the owner's pick 2a) in an
+ * older body is dropped on decode, whatever it holds.
+ */
 export const settingsSpec: KindSpec = {
   kind: 'settings',
   version: SETTINGS_ITEM_VERSION,
@@ -240,16 +241,15 @@ export const settingsSpec: KindSpec = {
   decode(raw) {
     const r = checkVersion(raw, SETTINGS_ITEM_VERSION);
     if ('refused' in r) return r.refused;
-    const { type, record, from } = r.fields;
-    if (!isStr(type) || !(DEVICE_TYPES as readonly string[]).includes(type) || !isObj(record) || (from !== undefined && !isStr(from))) return UNREADABLE;
+    const { type, record } = r.fields;
+    if (!isStr(type) || !(DEVICE_TYPES as readonly string[]).includes(type) || !isObj(record)) return UNREADABLE;
     const version = record.version;
     if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return UNREADABLE;
     // A newer client's settings: left untouched ("update the client"). An older one is migrated by the store.
     if (version > SETTINGS_VERSION) return { ok: false, why: 'newer' };
-    const body = { type, record, ...(from !== undefined ? { from } : {}) } as unknown as SettingsItem;
+    const body = { type, record } as unknown as SettingsItem;
     return { ok: true, body: body as unknown as Body };
   },
-  hashed: (b) => ({ ...b, from: undefined }),
 };
 
 /** `scriptData`: one item per script name (bundled and user), the library's record; last writer. */

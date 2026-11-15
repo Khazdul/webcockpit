@@ -24,7 +24,6 @@ import { type SyncFetch, fetchRemote } from '../../src/cloud/space/remote';
 import { applyWritten } from '../../src/cloud/space/notify';
 import { PageSync } from '../../src/cloud/space/runtime';
 import { notInAccount, pendingChanges, prepareAccountSpace, resetSpaceConnsForTests, spaceDb } from '../../src/cloud/space/spaces';
-import { settingsFromWords } from '../../src/cloud/space/words';
 import { SyncEngine } from '../../src/cloud/sync/engine';
 import { SYNC_SPECS } from '../../src/cloud/sync/items';
 import type { CommItem, SettingsItem, SyncKeys } from '../../src/cloud/sync/types';
@@ -121,10 +120,10 @@ describe('the settings adapter', () => {
     await put(db, STORE.settings, [settings(16), 'main'], [{ type: 'phone', record: settings(12), from: 'phone' }, 'device:phone'], [{ type: 'desktop', record: settings(1) }, 'device:desktop']);
     const li = idbLocalItems(open, {}, { type: 'desktop' });
     const items = (await li.list('settings')).sort((x, y) => (x.key < y.key ? -1 : 1));
-    // `device:desktop` is this type's key spelled as another's: never listed.
+    // `device:desktop` is this type's key spelled as another's: never listed. A stored `from` (stage 62 before pick 2a) is not.
     expect(items).toEqual([
-      { key: 'desktop', body: { type: 'desktop', record: settings(16), from: 'desktop, Chrome' } },
-      { key: 'phone', body: { type: 'phone', record: settings(12), from: 'phone' } },
+      { key: 'desktop', body: { type: 'desktop', record: settings(16) } },
+      { key: 'phone', body: { type: 'phone', record: settings(12) } },
     ]);
     const written = vi.fn();
     await idbLocalItems(open, { written }, { type: 'desktop' }).write('settings', {
@@ -135,9 +134,9 @@ describe('the settings adapter', () => {
       remove: ['phone'],
     });
     expect(await get(db, STORE.settings, 'main')).toEqual(settings(20));
-    expect(await get(db, STORE.settings, 'device:tablet')).toEqual({ type: 'tablet', record: settings(14), from: 'tablet' });
+    expect(await get(db, STORE.settings, 'device:tablet')).toEqual({ type: 'tablet', record: settings(14) });
     expect(await get(db, STORE.settings, 'device:phone')).toBeUndefined();
-    expect(written).toHaveBeenCalledWith('settings', undefined, { from: 'desktop, Firefox' });
+    expect(written).toHaveBeenCalledWith('settings', undefined, {});
     // Another type's alone: nothing for this page to show.
     written.mockClear();
     await idbLocalItems(open, { written }, { type: 'desktop' }).write('settings', { put: [{ type: 'phone', record: settings(9) }], remove: [] });
@@ -277,7 +276,7 @@ describe('the engine over every kind on three devices', () => {
     await new CommArchive(await pOpen(), { now: () => NOW }).addDayRecords([msg(NOW - 4000, 'from phone', 'Other')]);
     for (const e of [a, b, p, a, b, p]) expect(await e.sync()).toEqual({ type: 'synced' });
     expect(await get(await bOpen(), STORE.settings, 'main')).toEqual(settings(20));
-    expect(bWritten).toHaveBeenCalledWith('settings', undefined, { from: 'desktop, Chrome' });
+    expect(bWritten).toHaveBeenCalledWith('settings', undefined, {});
     expect(await get(await pOpen(), STORE.settings, 'main')).toEqual(settings(11));
     expect(await get(await pOpen(), STORE.settings, 'device:desktop')).toMatchObject({ type: 'desktop', record: settings(20) });
     expect(await get(await bOpen(), STORE.timers, 'Rasta')).toEqual({ character: 'Rasta', savedAt: NOW - 60_000, state: { v: 1, t: 3 } });
@@ -294,7 +293,7 @@ describe('the engine over every kind on three devices', () => {
     expect(await get(await aOpen(), STORE.settings, 'main')).toEqual(settings(22));
     expect(await get(await pOpen(), STORE.settings, 'main')).toEqual(settings(11));
     const pItems = await idbLocalItems(pOpen, {}, { type: 'phone' }).list('settings');
-    expect((pItems.find((i) => i.key === 'desktop')!.body as unknown as SettingsItem).from).toBe('desktop, Firefox');
+    expect((pItems.find((i) => i.key === 'desktop')!.body as unknown as SettingsItem).record).toEqual(settings(22));
   });
 
   it('a login seed gives way to the account settings of this type', async () => {
@@ -316,17 +315,12 @@ describe('the engine over every kind on three devices', () => {
 });
 
 describe('applying pulled settings', () => {
-  it('reloads the settings store and says where they came from, when they changed what shows', async () => {
+  it('reloads the settings store quietly: no message (the owner\'s pick 2a)', async () => {
     const reload = vi.fn(async () => 'applied' as const);
     const host = { profiles: {} as never, settings: { reload } as never };
-    await applyWritten(host, { kind: 'settings', settings: { from: 'desktop, Chrome' } });
-    expect(takeSyncMessage()?.text).toBe('Settings from desktop, Chrome.');
-    await applyWritten(host, { kind: 'settings', settings: { from: 'desktop, Chrome', held: true } });
-    expect(takeSyncMessage()?.text).toBe('Settings from desktop, Chrome, held until the game ended.');
-    reload.mockResolvedValueOnce('same' as never);
-    await applyWritten(host, { kind: 'settings', settings: { from: null } });
+    await applyWritten(host, { kind: 'settings', settings: {} });
+    expect(reload).toHaveBeenCalledWith({});
     expect(takeSyncMessage()).toBeNull();
-    expect(settingsFromWords(null)).toBe('Settings from another device.');
   });
 });
 
