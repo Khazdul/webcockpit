@@ -5,14 +5,12 @@ Status: **Owner testing (2026-11-15).** Built, reviewed and on staging
 
 ## Waiting for the owner
 
-1. **The test on staging** (test guide below), desktop and phone.
+1. **A second look on staging** once fullscreen and the report mail are
+   there (and the mail's secret is set: steps will follow).
 2. **The words of `/privacy`'s "Share links" section** (step 8): approve
    or change.
-3. **The report rule after a review** (decided by me, ADR 0154 review
-   fixes S3): once you have restored a run or dismissed its reports, new
-   reports only queue it for you and never hide it again; only existing,
-   not suspended accounts count toward the five. Say if you want it
-   stricter (e.g. a minimum account age).
+3. ~~The report rule~~: settled (five hide until you have looked; see
+   "Owner feedback").
 4. **Then the yes or no to `share` in production** (part F: version,
    tag, migration 0005, `FLAG_SHARE`), only on your explicit word.
 
@@ -385,4 +383,21 @@ production.
 
 ## Owner feedback
 
-(After the test.)
+2026-11-15, after the test on staging: "I övrigt verkar det fungera bra."
+
+- **Fullscreen** from the link did not go fullscreen; wanted: real
+  fullscreen of the replay alone, without the band above. Being fixed
+  (worktree `stage64-fullscreen`).
+- **A mail on every report** to the abuse address's owner (picked: one
+  mail per report with the run, reason, text, count and links to
+  `/admin`; at most 20 an hour, then one collected mail). Being built
+  (worktree `stage64-mail`).
+- **The account list in `/admin`** (all accounts, search, Suspend /
+  Restore / Delete): stays in stage 66 as planned (owner's pick); the
+  "An account" form beside the queue serves until then.
+- **Five reports** (asked and answered): nothing is deleted by reports;
+  five accounts hide a run until the owner has looked, as built (ADR
+  0154 review fixes S3). The owner expects most cases to be his own
+  review of a run with fewer than five reports, hiding it by hand: the
+  queue lists every run with at least one report, and Hide works on any
+  run at any time.
