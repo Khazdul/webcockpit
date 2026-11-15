@@ -22,7 +22,7 @@
 
 import { FONTS, TITLE_FACE, familyFaces } from '../theme/fonts';
 import { FONT_IDS } from '../settings/types';
-import { PayloadReadError, readSharedPayload } from './codec';
+import { PayloadReadError, readSharedPayload } from './shared';
 import { type ReplayPage, fail, openReplay } from './page';
 
 export const FRAME_PROTOCOL = 1;

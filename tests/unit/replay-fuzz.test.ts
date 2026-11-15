@@ -8,7 +8,7 @@
 // added to the document outside the player's root, and every case ends in
 // bounded wall time.
 import { afterEach, describe, expect, it } from 'vitest';
-import { PayloadReadError, payloadBytes, readSharedPayload } from '../../src/replay/codec';
+import { PayloadReadError, payloadBytes, readSharedPayload } from '../../src/replay/shared';
 import { openReplay } from '../../src/replay/page';
 import { PayloadError, validatePayload } from '../../src/replay/validate';
 import type { ReplayPayload } from '../../src/share/payload';

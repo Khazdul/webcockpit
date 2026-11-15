@@ -22,7 +22,7 @@
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
 // `wc-play`, the payload's bytes and the fonts transferred) and `wc-error`.
 
-import { PayloadReadError, readSharedPayload } from '../replay/codec';
+import { PayloadReadError, readSharedPayload } from '../replay/shared';
 import { fetchReplayFonts } from '../replay/export';
 import type { ReplayPayload } from '../share/payload';
 

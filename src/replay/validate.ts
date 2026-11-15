@@ -23,7 +23,8 @@
 
 import { migrateSettings } from '../settings/migrate';
 import type { PlayedRunMeta } from '../player/timeline';
-import { type ReplayMap, type ReplayPayload, pickReplaySettings } from '../share/payload';
+import type { ReplayMap, ReplayPayload } from '../share/payload';
+import { pickReplaySettings } from '../share/replay-settings';
 import type { ExcludeRange } from '../share/edits';
 
 /** Bounds of a payload (ADR 0154). */

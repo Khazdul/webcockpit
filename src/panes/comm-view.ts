@@ -5,7 +5,6 @@
 import { ACTION_CHANNELS, type CommText, channelColor, cleanName, formatComm, messageBody, stripAnsi } from '../gmcp/comm';
 import type { PersonColor } from '../gmcp/comm-chats';
 import { fitContrast, lightShift } from '../theme/color';
-import { own } from '../core/own';
 
 /** Below this pane width (CSS px) the chat column is an icon rail, from it a name list. */
 export const COMM_LIST_MIN_PANE = 380;
@@ -195,7 +194,7 @@ export function personInk(color: PersonColor, light: boolean, bg: string, self: 
 
 /** A channel's colour in the thread. */
 export function channelInk(name: string, light: boolean, bg: string): string {
-  return fitInk(own(CHANNEL_INKS, name) ?? channelColor(name), light, bg);
+  return fitInk((Object.hasOwn(CHANNEL_INKS, name) ? CHANNEL_INKS[name] : undefined) ?? channelColor(name), light, bg);
 }
 
 /** A channel's short word in a bubble's footer (`tell`, `say`, …). */
@@ -204,5 +203,5 @@ export function channelWord(name: string): string {
     tells: 'tell', says: 'say', whispers: 'whisper', emotes: 'emote', socials: 'social',
     tales: 'narrate', yells: 'yell', prayers: 'pray', songs: 'song', questions: 'ask',
   };
-  return own(words, name) ?? name;
+  return (Object.hasOwn(words, name) ? words[name] : undefined) ?? name;
 }
