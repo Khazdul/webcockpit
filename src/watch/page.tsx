@@ -31,24 +31,36 @@
 //
 // Keys (outside the frame; a click in the replay gives it the keys):
 // R Report, D Download, B Back.
+//
+// Stage 65 C2 (round 13's pick 3a with the owner's change, ADR 0155 "As
+// built (stage 65 C2)"): the page sits inside the start page's look: the
+// start page's sky (its still CSS look, no engine, no animation) behind the
+// framed window of the start menu's sub-pages ("Shared run" on its hood,
+// Back at its top left); in it the band, the replay and, with the flag
+// `gallery` (the meta carries `stars`), the stars in the band and the
+// comments under the replay (src/watch/community.tsx); the page scrolls.
+// Back goes to the start page's Community when the run was opened from it.
 
 import './watch.css';
-import { type VNode, render } from 'preact';
+import { type ComponentChildren, type VNode, render } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { Dialog, GlassButton, Icon, type IconDraw, LoadBar, LookFlash, TextArea, letterAction, lookFrame } from '../chrome/kit/look';
+import { Dialog, GlassButton, Icon, type IconDraw, LoadBar, LookFlash, TextArea, inTextField, letterAction, lookFrame } from '../chrome/kit/look';
 import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
 import { downloadBlob } from '../chrome/kit/download';
-import { inTextField } from '../chrome/kit/look-keys';
 import { accountState, accountsEnabled } from '../cloud/account/state';
 import { apiAllowed, configAnswer } from '../cloud/config';
-import type { PubMeta, ReportReason } from '../../shared/cloud/api.ts';
+import type { Comment, PubMeta, ReportKind, ReportReason, Stars } from '../../shared/cloud/api.ts';
+import { skyCss } from '../start/sky/look';
+import { startSkyLook } from '../start/start-look';
 import { device } from '../core/device';
 import { buildReplayHtml } from '../replay/export';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
+import { Comments, type RaterRole, RunStars } from './community';
 import {
   ABUSE_ADDRESS,
   ADMIN_WORDS,
+  COMMUNITY_QUERY,
   END_WORDS,
   FAILED_WORDS,
   OWNER_NOTE,
@@ -56,6 +68,7 @@ import {
   REPORT_MAX,
   REFUSED_NOTE,
   type WatchEnd,
+  backTarget,
   downloadName,
   endOf,
   loadingLine,
@@ -90,6 +103,23 @@ function startUrl(): string {
 
 function goStart(): void {
   location.assign(startUrl());
+}
+
+/** Back: the start page's Community when the run was opened from it, else the start page (stage 65). */
+function goBack(): void {
+  if (backTarget(history.state, location.search) !== 'community') return goStart();
+  const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest') ? 'cloudtest&' : '';
+  location.assign(`${base()}?${keep}${COMMUNITY_QUERY}`);
+}
+
+/** Log in from the watch page (Report's, the stars' and the comments'): the start page's Log in, and back here after it. */
+function logIn(lost = false): void {
+  void leaveForLogin(location.pathname + location.search, {
+    lost,
+    // The app's way of a lost session: the hint and the keys go (and the account's copy is decided on).
+    forget: () => import('../cloud/space/flows').then((m) => m.sessionLost(null)),
+    go: goStart,
+  });
 }
 
 /** What the page shows. */
@@ -210,19 +240,35 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     };
   }, [bytes, meta]);
 
-  const self = meta !== null && loggedInName()?.toLowerCase() === meta.sender.toLowerCase();
+  const me = loggedInName();
+  const self = meta !== null && me?.toLowerCase() === meta.sender.toLowerCase();
   const canReport = meta !== null && mode === 'public' && !self;
   const canDownload = playing && host.current !== null;
+  // Stage 65: the stars and the comments, only as anyone watches and only when the meta carries them (`gallery` on).
+  const social = meta !== null && mode === 'public' && meta.stars !== undefined;
+  const [stars, setStars] = useState<Stars | null>(null);
+  const [reportedComments, setReportedComments] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => setStars(meta?.stars ?? null), [meta]);
+  const role: RaterRole = me === null ? 'guest' : self ? 'own' : 'voter';
+  const refocus = (): void => void setTimeout(() => host.current?.frame.focus(), 0);
 
   const report = (): void => {
     if (!meta || !canReport) return;
+    nav.push(<ReportFrame kind="run" title={meta.title} id={meta.id} already={reported} onSent={() => setReported(true)} onClosed={refocus} />, {
+      overlay: true,
+    });
+  };
+  const reportComment = (c: Comment): void => {
     nav.push(
       <ReportFrame
-        title={meta.title}
-        id={meta.id}
-        already={reported}
-        onSent={() => setReported(true)}
-        onClosed={() => setTimeout(() => host.current?.frame.focus(), 0)}
+        kind="comment"
+        title={meta?.title ?? ''}
+        id={c.id}
+        quote={c.text}
+        writer={c.writer}
+        already={reportedComments.has(c.id)}
+        onSent={() => setReportedComments((s) => new Set(s).add(c.id))}
+        onClosed={() => {}}
       />,
       { overlay: true },
     );
@@ -245,13 +291,15 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   };
 
   useKeys((e, nk) => {
+    // The comment field's keys are its own (Esc lets go of it: the stack's rule).
+    if (inTextField(e.target)) return false;
     if (nk === 'back') return true;
     if (view.k === 'end' || view.k === 'failed') {
-      return letterAction(e, { b: goStart, ...(view.k === 'failed' && view.retry ? { t: () => setAttempt((n) => n + 1) } : {}) }) || nk !== null;
+      return letterAction(e, { b: goBack, ...(view.k === 'failed' && view.retry ? { t: () => setAttempt((n) => n + 1) } : {}) }) || nk !== null;
     }
     return (
       letterAction(e, {
-        b: goStart,
+        b: goBack,
         ...(canReport ? { r: report } : {}),
         ...(canDownload ? { d: () => void download() } : {}),
       }) || nk !== null
@@ -280,69 +328,114 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       </p>
     ) : null;
   return (
-    <div class="wc-lk-page wc-watch-page" data-watch={playing ? 'playing' : 'loading'}>
-      <header class="wc-watch-band">
-        <div class="wc-watch-id">
-          <h1 class="wc-watch-title" data-watch="title">
-            {meta?.title ?? ' '}
-          </h1>
-          <p class="wc-watch-meta" data-watch="meta">
-            {line ? (
-              <>
-                {line.character && <span class="wc-watch-char">{line.character}</span>}
-                {line.level && <span class="wc-watch-lv"> {line.level}</span>}
-                {line.character || line.level ? <i>·</i> : null}
-                {line.length}
-                <i>·</i>
-                {line.date}
-                <i>·</i>
-                <span data-watch="views">{line.views}</span>
-                {line.sender && (
-                  <>
-                    <i>·</i>
-                    <span class="wc-watch-by">
-                      shared by <b data-watch="sender">{line.sender}</b>
-                    </span>
-                  </>
-                )}
-              </>
-            ) : (
-              ' '
-            )}
-          </p>
-          {note ??
-            (meta?.description ? (
-              <p class="wc-watch-desc" data-watch="description" title={meta.description}>
-                {meta.description}
-              </p>
-            ) : null)}
-        </div>
-        <div class="wc-watch-acts">
-          {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />}
-          <GlassButton
-            id="DOWNLOAD"
-            label={phone ? 'Download' : 'Download as HTML'}
-            letter="d"
-            icon={DOWN}
-            small
-           
-            disabled={!canDownload || busy}
-            onClick={() => void download()}
-          />
-          <GlassButton id="BACK" label="Back" letter="b" icon="back" small onClick={goStart} />
-        </div>
-        <LookFlash class="wc-watch-flash" />
-      </header>
-      <div class="wc-watch-slot" ref={slot}>
-        {!playing && (
-          <div class="wc-watch-wait">
-            <LoadBar done={load?.done ?? 0} total={load?.total ?? meta?.bytes ?? 0} line={load ? loadingLine(load.done, load.total) : 'Loading the run…'} />
+    <div class={'wc-lk-page wc-watch-page' + (social ? ' has-social' : '')} data-watch={playing ? 'playing' : 'loading'}>
+      <div class="wc-watch-outer">
+        <WatchBox>
+          <div class="wc-watch-screen">
+            <header class="wc-watch-band">
+              <div class="wc-watch-id">
+                <h1 class="wc-watch-title" data-watch="title">
+                  {meta?.title ?? ' '}
+                </h1>
+                <p class="wc-watch-meta" data-watch="meta">
+                  {line ? (
+                    <>
+                      {line.character && <span class="wc-watch-char">{line.character}</span>}
+                      {line.level && <span class="wc-watch-lv"> {line.level}</span>}
+                      {line.character || line.level ? <i>·</i> : null}
+                      {line.length}
+                      <i>·</i>
+                      {line.date}
+                      <i>·</i>
+                      <span data-watch="views">{line.views}</span>
+                      {line.sender && (
+                        <>
+                          <i>·</i>
+                          <span class="wc-watch-by">
+                            shared by <b data-watch="sender">{line.sender}</b>
+                          </span>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    ' '
+                  )}
+                </p>
+                {note ??
+                  (meta?.description ? (
+                    <p class="wc-watch-desc" data-watch="description" title={meta.description}>
+                      {meta.description}
+                    </p>
+                  ) : null)}
+              </div>
+              {social && stars && <RunStars id={meta.id} stars={stars} role={role} onLogin={() => logIn()} onStars={setStars} />}
+              <div class="wc-watch-acts">
+                {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />}
+                <GlassButton
+                  id="DOWNLOAD"
+                  label={phone ? 'Download' : 'Download as HTML'}
+                  letter="d"
+                  icon={DOWN}
+                  small
+                  disabled={!canDownload || busy}
+                  onClick={() => void download()}
+                />
+              </div>
+              <LookFlash class="wc-watch-flash" />
+            </header>
+            <div class="wc-watch-slot" ref={slot}>
+              {!playing && (
+                <div class="wc-watch-wait">
+                  <LoadBar done={load?.done ?? 0} total={load?.total ?? meta?.bytes ?? 0} line={load ? loadingLine(load.done, load.total) : 'Loading the run…'} />
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          {social && (
+            <Comments id={meta.id} sender={meta.sender} me={me} total={meta.comments ?? 0} onLogin={() => logIn()} onReport={reportComment} onCount={() => {}} />
+          )}
+        </WatchBox>
       </div>
     </div>
   );
 });
+
+/**
+ * The start menu's sub-page frame (the kit's large `Box`: the iron frame,
+ * its brackets, the hood, Back at the top left, the lit window), drawn here
+ * in the page's own scrolling layout rather than the Box's fixed one: the
+ * window grows with the comments and the page scrolls.
+ */
+function WatchBox(p: { children: ComponentChildren }): VNode {
+  return (
+    <section class="wc-lk-box wc-lk-box-large wc-watch-box" aria-label="Shared run">
+      <i class="wc-lk-br wc-lk-b1" />
+      <i class="wc-lk-br wc-lk-b2" />
+      <i class="wc-lk-br wc-lk-b3" />
+      <i class="wc-lk-br wc-lk-b4" />
+      <div class="wc-lk-hood">
+        <span class="wc-lk-hood-t">Shared run</span>
+      </div>
+      <button
+        type="button"
+        class="wc-lk-back"
+        data-btn="BACK"
+        tabIndex={-1}
+        aria-label="Back (B)"
+        title="Back (B)"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.stopPropagation();
+          goBack();
+        }}
+      >
+        <Icon name="back" />
+        Back
+      </button>
+      <div class="wc-lk-win wc-watch-win">{p.children}</div>
+    </section>
+  );
+}
 
 function FlagIcon(): VNode {
   return <Icon name="flag" />;
@@ -384,7 +477,7 @@ function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | un
           </div>
           <div class="wc-lk-btns wc-lk-dialog-btns">
             {p.retry && <GlassButton id="RETRY" label="Try again" letter="t" onClick={p.retry} />}
-            <GlassButton id="BACK" label="Back to MUME Cockpit" letter="b" icon="back" primary onClick={goStart} />
+            <GlassButton id="BACK" label="Back to MUME Cockpit" letter="b" icon="back" primary onClick={goBack} />
           </div>
         </div>
       </section>
@@ -397,15 +490,27 @@ function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | un
 type ReportStep = 'form' | 'sending' | 'thanks' | 'already' | 'guest';
 
 interface ReportProps {
+  /** A run (the band's Report) or a comment (stage 65). */
+  kind: Extract<ReportKind, 'run' | 'comment'>;
+  /** The run's title. */
   title: string;
+  /** The reported item's id. */
   id: string;
+  /** A comment's text, quoted in the dialog. */
+  quote?: string;
+  /** A comment's writer. */
+  writer?: string;
   /** Reported from this page already. */
   already: boolean;
   onSent(): void;
   onClosed(): void;
 }
 
-/** Report (round 12, point 5): the reasons and a text logged in; "Log in to report" and the abuse address logged out. */
+/**
+ * Report (round 12, point 5): the reasons and a text logged in; "Log in to
+ * report" and the abuse address logged out. A comment (stage 65, round 13):
+ * the same with the comment quoted and the writer named.
+ */
 export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode {
   const nav = useNav();
   const [step, setStep] = useState<ReportStep>(() => (p.already ? 'already' : loggedInName() === null ? 'guest' : 'form'));
@@ -423,7 +528,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
     setStep('sending');
     setError(null);
     const t = reportText(text);
-    const r = await sendReport({ kind: 'run', target: p.id, reason, ...(t ? { text: t } : {}) });
+    const r = await sendReport({ kind: p.kind, target: p.id, reason, ...(t ? { text: t } : {}) });
     if (r.ok) {
       p.onSent();
       setStep('thanks');
@@ -434,7 +539,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
       setLost(loggedInName() !== null);
       setStep('guest');
     } else {
-      setError(reportFailText(r.status, r.code));
+      setError(reportFailText(r.status, r.code, p.kind));
       setStep('form');
     }
   };
@@ -450,34 +555,29 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
     step === 'form',
   );
 
+  const what = p.kind === 'comment' ? 'comment' : 'run';
+  const head = `Report this ${what}`;
   if (step === 'thanks') {
     return (
       <Dialog title="Report sent" dlg="report-thanks" width={460} onCancel={close} buttons={[{ id: 'CLOSE', label: 'Close', letter: 'c', primary: true, run: close }]}>
         <p class="wc-lk-q">Thank you.</p>
-        <p class="wc-lk-qn">We look at every report. A run that breaks the rules is removed; one that many report is hidden until then.</p>
+        <p class="wc-lk-qn">We look at every report. A {what} that breaks the rules is removed; one that many report is hidden until then.</p>
       </Dialog>
     );
   }
   if (step === 'already') {
     return (
-      <Dialog title="Report this run" dlg="report-already" width={440} onCancel={close} buttons={[{ id: 'CLOSE', label: 'Close', letter: 'c', primary: true, run: close }]}>
-        <p class="wc-lk-q">You have already reported this run.</p>
-        <p class="wc-lk-qn">One report per run is enough; it is in the queue.</p>
+      <Dialog title={head} dlg="report-already" width={440} onCancel={close} buttons={[{ id: 'CLOSE', label: 'Close', letter: 'c', primary: true, run: close }]}>
+        <p class="wc-lk-q">You have already reported this {what}.</p>
+        <p class="wc-lk-qn">One report per {what} is enough; it is in the queue.</p>
       </Dialog>
     );
   }
   if (step === 'guest') {
-    const login = (): void => {
-      void leaveForLogin(location.pathname + location.search, {
-        lost,
-        // The app's way of a lost session: the hint and the keys go (and the account's copy is decided on).
-        forget: () => import('../cloud/space/flows').then((m) => m.sessionLost(null)),
-        go: goStart,
-      });
-    };
+    const login = (): void => logIn(lost);
     return (
       <Dialog
-        title="Report this run"
+        title={head}
         dlg="report-guest"
         width={480}
         onCancel={close}
@@ -488,7 +588,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
       >
         <p class="wc-lk-q">Log in to report.</p>
         <p class="wc-lk-qn">
-          Reports come from accounts, one per run. Without an account, write to{' '}
+          Reports come from accounts, one per {what}. Without an account, write to{' '}
           <a class="wc-watch-mail" href={`mailto:${ABUSE_ADDRESS}`}>
             {ABUSE_ADDRESS}
           </a>{' '}
@@ -500,7 +600,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
   const n = [...text].length;
   return (
     <Dialog
-      title="Report this run"
+      title={head}
       dlg="report"
       width={500}
       onCancel={close}
@@ -511,7 +611,18 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
       ]}
     >
       <div class="wc-watch-report">
-        <p class="wc-lk-qn wc-watch-left">What is wrong with “{p.title}”?</p>
+        {p.kind === 'comment' ? (
+          <>
+            <p class="wc-lk-qn wc-watch-left">
+              What is wrong with this comment by <b>{p.writer ?? ''}</b>?
+            </p>
+            <p class="wc-watch-quote" data-watch="quote">
+              {p.quote ?? ''}
+            </p>
+          </>
+        ) : (
+          <p class="wc-lk-qn wc-watch-left">What is wrong with “{p.title}”?</p>
+        )}
         <div class="wc-watch-reasons" role="radiogroup" aria-label="Reason">
           {REASONS.map((r) => (
             <button
@@ -542,7 +653,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
           onInput={setText}
           hint={<span class="wc-watch-count">{`${n} / ${REPORT_MAX}`}</span>}
         />
-        <p class="wc-lk-qn wc-watch-left wc-watch-small">The sender is not told who reported.</p>
+        <p class="wc-lk-qn wc-watch-left wc-watch-small">The {p.kind === 'comment' ? 'writer' : 'sender'} is not told who reported.</p>
       </div>
     </Dialog>
   );
@@ -559,5 +670,32 @@ export function startWatch(root: HTMLElement, path: string = location.pathname, 
   const host = document.createElement('div');
   host.className = 'wc-chrome wc-look wc-watch';
   root.appendChild(host);
+  stillSky(host);
   render(<FrameStack root={<WatchPage id={at.id} valid={at.valid} admin={admin} />} active={true} />, host);
+}
+
+/**
+ * The start page's sky behind the page (stage 65 C2): its smooth part
+ * only, the look model's CSS gradients for now and this window
+ * (src/chrome/start-surface.tsx draws the same before its engine mounts),
+ * painted once and again after a resize. No engine, no frame loop, no
+ * animation: the watch page's first paint and boot stay as stage 64's.
+ */
+function stillSky(host: HTMLElement): void {
+  const paint = (): void => {
+    try {
+      host.style.background = skyCss(startSkyLook({ w: innerWidth, h: innerHeight })).all;
+    } catch {
+      // The plain dark background of watch.css stays.
+    }
+  };
+  paint();
+  let queued = 0;
+  addEventListener('resize', () => {
+    if (queued) return;
+    queued = requestAnimationFrame(() => {
+      queued = 0;
+      paint();
+    });
+  });
 }
