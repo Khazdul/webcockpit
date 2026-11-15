@@ -78,7 +78,17 @@ another; and the Log out dialog in full. On staging only: the flags
 ## For the owner to confirm (made without you this night)
 
 These are built as recommended; each is a small change if you want it
-otherwise. The mockups are round 10 (link below).
+otherwise. The mockups are round 10:
+`notes/research/start-menu-mockups/round10/` (README, 22 pictures),
+published as <https://claude.ai/artifact/G1zwjmFCu8v8qXkDj2k3xw>.
+The recommendation (built): **1a** (round 9's one "changes" row with a
+quieter second line naming the kinds), **2b with 2c** (the message line
+says "Settings from desktop, Chrome." when pulled settings apply, and
+"Settings from desktop, Chrome, held until the game ended." when they
+waited for the game), **3a** (one line on the Account page: what follows
+the account). The device in 2 is the sync's label (the device type and
+the browser, which the settings follow), not the Devices list's "Chrome
+on Linux".
 
 1. **Log out's list of what is not in the account** (round 10, point 1).
 2. **Settings that arrive from another device** on the start menu
@@ -103,23 +113,23 @@ touches staging or production.
 
 ### A. Mockups, round 10 (one agent, worktree `stage62-mockups`, port 5431)
 
-- [ ] `notes/research/start-menu-mockups/round10/`, in round 9's manner
+- [x] `notes/research/start-menu-mockups/round10/`, in round 9's manner
       (its README and `build/`): the real DOM captured from a dev server
       on its own port, the new content in `mk-*` classes, every state a
       picture, a review page, one self-contained file published as an
       artifact.
-- [ ] Point 1, Log out with things not in the account: (a) the one
+- [x] Point 1, Log out with things not in the account: (a) the one
       "changes" row of round 9 with a second line naming the kinds
       ("2 profiles · settings · Comm history, today"), (b) a row per kind.
-- [ ] Point 2, settings pulled from another desktop while the start menu
+- [x] Point 2, settings pulled from another desktop while the start menu
       shows: (a) applied quietly, (b) applied, and the message line says
       "Settings from desktop, Chrome." (c) the same after the game is
       left, when they waited.
-- [ ] Point 3, the Account page's sync section: (a) one line "Follows
+- [x] Point 3, the Account page's sync section: (a) one line "Follows
       the account: profiles, scripts, settings for desktop (this
       device), tablet and phone, script data, Comm history (7 days),
       timers." (b) no new line.
-- [ ] Desktop and phone; the recommendation in the README.
+- [x] Desktop and phone; the recommendation in the README.
 
 ### B. Foundations (two agents in worktrees side by side)
 
