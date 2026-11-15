@@ -188,7 +188,9 @@ export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BY
 
 export function prefsOf(row: Pick<AccountRow, 'prefs'>): AccountPrefs {
   const p = parsed(row.prefs);
-  return { galleryNotice: p.galleryNotice !== false, rulesAccepted: p.rulesAccepted === true };
+  // `galleryNotice` left the contract in stage 65 (ADR 0155); it is still
+  // sent, always true, because the 0.13 client refuses prefs without it.
+  return { galleryNotice: true, rulesAccepted: p.rulesAccepted === true } as AccountPrefs;
 }
 
 /** The stored KDF parameters of an account. */

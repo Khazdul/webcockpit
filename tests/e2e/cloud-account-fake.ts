@@ -306,7 +306,7 @@ export class FakeAccountServer {
       state: o.state ?? 'active',
       ...fields,
       limits: { ...DEFAULT_ACCOUNT_LIMITS },
-      prefs: { galleryNotice: true, rulesAccepted: false },
+      prefs: { rulesAccepted: false },
     });
   }
 
@@ -1010,7 +1010,7 @@ export class FakeAccountServer {
     if (b.rulesAccepted !== undefined && b.rulesAccepted !== true) return err('bad_request', 400);
     account.prefs = {
       ...account.prefs,
-      ...(typeof b.galleryNotice === 'boolean' ? { galleryNotice: b.galleryNotice } : {}),
+      // (`galleryNotice` is accepted and ignored since stage 65, as the Worker does.)
       ...(b.rulesAccepted === true ? { rulesAccepted: true } : {}),
     };
     return { status: 200, body: { prefs: { ...account.prefs } } satisfies PrefsAnswer };

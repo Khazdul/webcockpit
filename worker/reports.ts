@@ -44,8 +44,8 @@ export async function report(c: PubCtx): Promise<Response> {
   if (!oneOf<ReportKind>(REPORT_KINDS, b.kind) || !oneOf<ReportReason>(REPORT_REASONS, b.reason) || typeof b.target !== 'string') return error('bad_request', 400);
   const note = b.text === undefined ? '' : textOf(b.text, 0, REPORT_TEXT_MAX, { newlines: true });
   if (note === null) return error('bad_request', 400);
-  // `comment` and `note` come with stage 65.
-  if (!REPORT_KINDS_OPEN.includes(b.kind)) return error('kind_closed', 400);
+  // `comment` and `note` come with stage 65 (built after the contract).
+  if (!REPORT_KINDS_OPEN.includes(b.kind) || b.kind !== 'run') return error('kind_closed', 400);
   if (!PUB_ID_PATTERN.test(b.target)) return error('not_found', 404);
   const target = b.target;
   const pub = await c.db.prepare('SELECT account, state FROM publication WHERE id = ?1').bind(target).first<{ account: string; state: PubRowState }>();

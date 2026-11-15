@@ -831,7 +831,6 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
       step(o, 'sending');
       // Only the contract's keys, each only when given (the server sets each on its own; `rulesAccepted` is one way).
       const body: PrefsRequest = {
-        ...(typeof prefs.galleryNotice === 'boolean' ? { galleryNotice: prefs.galleryNotice } : {}),
         ...(prefs.rulesAccepted === true ? { rulesAccepted: true as const } : {}),
       };
       return need(await authed(me, api.setPrefs(body))).prefs;

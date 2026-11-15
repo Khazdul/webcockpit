@@ -10,7 +10,7 @@
 //   POST   /api/u/account/password         a new password (the old one proves it)
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
-//   PATCH  /api/u/account/prefs            the gallery notice switch; the sharing rules ticked (one way)
+//   PATCH  /api/u/account/prefs            the sharing rules ticked (one way); `galleryNotice` ignored (stage 65)
 //   DELETE /api/u/account                  removes the account, its items, run bodies and published runs; its name stays reserved
 //   GET    /api/u/sync/changes, PUT and DELETE /api/u/sync/items/<kind>/<id>
 //                                          the sync (worker/sync.ts; flag `sync` as well)
@@ -464,12 +464,13 @@ async function prefs(c: Ctx): Promise<Response> {
   if (b.galleryNotice !== undefined && typeof b.galleryNotice !== 'boolean') return badRequest();
   // One way: the rules are ticked once and stay ticked (ADR 0154).
   if (b.rulesAccepted !== undefined && b.rulesAccepted !== true) return badRequest();
+  // `galleryNotice` left the contract in stage 65 (ADR 0155): a cached old
+  // client may still send it; it is checked and ignored.
   // Each key set on its own in the stored JSON, so two changes at once do not undo each other.
   let sql = "CASE WHEN json_valid(prefs) AND json_type(prefs) = 'object' THEN prefs ELSE '{}' END";
-  if (b.galleryNotice !== undefined) sql = `json_set(${sql}, '$.galleryNotice', json(?2))`;
   if (b.rulesAccepted === true) sql = `json_set(${sql}, '$.rulesAccepted', json('true'))`;
   const [, read] = await c.db.batch<{ prefs: string }>([
-    c.db.prepare(`UPDATE account SET prefs = ${sql} WHERE id = ?1`).bind(...(b.galleryNotice === undefined ? [row.id] : [row.id, String(b.galleryNotice)])),
+    c.db.prepare(`UPDATE account SET prefs = ${sql} WHERE id = ?1`).bind(row.id),
     c.db.prepare('SELECT prefs FROM account WHERE id = ?1').bind(row.id),
   ]);
   const fresh = read?.results[0];

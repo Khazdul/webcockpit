@@ -100,7 +100,12 @@ export interface Env {
   FLAG_SYNC?: boolean | string;
   /** The default of the flag `runs` (stage 63). Off: `/api/u/runs*` answers 404 and the kinds `run` and `exportDoc` stay closed. */
   FLAG_RUNS?: boolean | string;
+  /** The default of the flag `share` (stage 64). Off: the publication paths answer 404. */
   FLAG_SHARE?: boolean | string;
+  /** The default of the flag `gallery` (stage 65, ADR 0155): listing, the Community, stars, comments, the counters. */
+  FLAG_GALLERY?: boolean | string;
+  /** The default of the flag `runes` (stage 65): Random Runes (needs `gallery`). */
+  FLAG_RUNES?: boolean | string;
   /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
   FILES?: R2;
   /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */

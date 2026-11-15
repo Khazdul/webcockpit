@@ -36,6 +36,7 @@ import {
   type AccountSession,
   type AccountUsage,
   type AuthParams,
+  DEFAULT_ACCOUNT_LIMITS,
   type DeleteAccountRequest,
   KDF_MAX_ROUNDS,
   KDF_MIN_ROUNDS,
@@ -175,6 +176,15 @@ const SESSION_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const LIMIT_KEYS = ['items', 'itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes', 'sharedRuns'] as const;
 const USAGE_KEYS = ['items', 'itemBytes', 'runBytes'] as const;
 
+const COMMUNITY_LIMIT_KEYS = ['commentsPerHour', 'votesPerHour', 'notesPerDay', 'listingsPerDay'] as const;
+
+/** The stage 65 limits of `v`, each the default when it is not a whole number. */
+function communityLimits(v: unknown): Pick<AccountLimits, (typeof COMMUNITY_LIMIT_KEYS)[number]> {
+  const o = isObject(v) ? v : {};
+  const pick = (k: (typeof COMMUNITY_LIMIT_KEYS)[number]): number => (whole(o[k]) ? o[k] : DEFAULT_ACCOUNT_LIMITS[k]);
+  return { commentsPerHour: pick('commentsPerHour'), votesPerHour: pick('votesPerHour'), notesPerDay: pick('notesPerDay'), listingsPerDay: pick('listingsPerDay') };
+}
+
 function numbersOf<K extends string>(v: unknown, keys: readonly K[]): Record<K, number> | undefined {
   if (!isObject(v) || !keys.every((k) => whole(v[k]))) return undefined;
   return Object.fromEntries(keys.map((k) => [k, v[k]])) as Record<K, number>;
@@ -190,7 +200,8 @@ function sessionOf(v: unknown): AccountSession | undefined {
 
 function prefsOf(v: unknown): AccountPrefs | undefined {
   // `rulesAccepted` is absent from a Worker before stage 64: not ticked.
-  return isObject(v) && typeof v.galleryNotice === 'boolean' ? { galleryNotice: v.galleryNotice, rulesAccepted: v.rulesAccepted === true } : undefined;
+  // (`galleryNotice` is gone from the contract in stage 65; the Worker still sends it for 0.13 clients.)
+  return isObject(v) ? { rulesAccepted: v.rulesAccepted === true } : undefined;
 }
 
 /** `Account` with only the contract's fields, or undefined when `v` is not one. */
@@ -200,7 +211,9 @@ export function parseAccount(v: unknown): Account | undefined {
   if (typeof name !== 'string' || !NAME_PATTERN.test(name) || !whole(created)) return undefined;
   if (state !== 'active' && state !== 'suspended') return undefined;
   const usage: AccountUsage | undefined = numbersOf(v.usage, USAGE_KEYS);
-  const limits: AccountLimits | undefined = numbersOf(v.limits, LIMIT_KEYS);
+  // The limits of stage 65 (ADR 0155) are the defaults when an older Worker leaves them out.
+  const known = numbersOf(v.limits, LIMIT_KEYS);
+  const limits: AccountLimits | undefined = known && { ...communityLimits(v.limits), ...known };
   const prefs = prefsOf(v.prefs);
   if (!usage || !limits || !prefs || !Array.isArray(v.sessions)) return undefined;
   const sessions: AccountSession[] = [];
