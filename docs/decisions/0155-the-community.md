@@ -581,3 +581,97 @@ view of its own, the owner row's reactions mark (branch
   (5 × 2), `phone-hall-of-fame.spec.ts` (3), helpers in `community-pub.ts`.
   The test of Open Community uses the dev `?community=0` row until C1's page
   is merged (then the row is there with `gallery` and the test still holds).
+
+## As built (stage 65 C1)
+
+The Community page and its counter (branch `stage65-community`), as the
+round 13 addendum decided, with these details.
+
+- **The Worker (the addendum's part).** `GALLERY_SORTS` is `new` (the
+  default), `top`, `watched`, `comments` (then the newer `listedAt`) and
+  `length` (longest first, then the newer); pages of 10, `page` 1–100.
+  `GalleryPage.total` is new (the runs of the list over every page, at most
+  1 000): the pager says "Page 1 of N", which `more` alone cannot. `by=<name>`
+  matches the name without regard to case (`name_key`); a name that is not
+  a valid name, unknown or deleted gives an empty list (200, `total` 0); the
+  cache keeps it under the lowercase. `GET /api/community` is
+  `{hallOfFame, today, mume?, time}`: `today` is a `DayRun` (the row and its
+  description cut to `DAY_RUN_DESCRIPTION_MAX` = 300 code points), `mume`
+  is C5's `readMume` (the stage B reader `mumeOf` is gone). `GET
+  /api/gallery/random` is gone (404 with the other unknown paths). `NOTE_MAX`
+  250. `TOP_POSTERS` and `GalleryRandom` left the contract.
+- **The client.** `src/cloud/community/api.ts` (list, boxes, board, a note,
+  its removal, its report): as the other clients (never rejects, the flags
+  first: `share` and `gallery` for every read, `runes` for the board,
+  `accounts` too for `/api/u/`; `X-WC: 1` on writes; the public reads
+  without the cookie; every answer checked). The counts and `seen` are C3's
+  `news.ts` only (no second news request). The page
+  (`src/chrome/frames/community.tsx`, `community-model.ts`,
+  `community.css`, class prefix `wc-cy-`: `wc-cm-` is the comm pane's)
+  **lives in the account pages' chunk** (`account/index.tsx` exports
+  `openCommunity`), as the share dialog does (ADR 0154): as a chunk of its
+  own it split the kit and the account's state out of the start page's
+  chunks (six more names in the entry's preload map, +263 bytes). Entry
+  chunk: 31 378 (main with C3) → 31 362 bytes; the chunk set is the same
+  files. A guest who opens the page loads the account chunk (about 126 KB).
+- **The look.** 1b as changed: the list (rank under Top only; title and
+  "(Character Llevel)", then sender · length · listed date; stars with the
+  mean and votes; comments; views) on the left with the pager at its foot,
+  right; Random Runes under it, taking the rest of the height (the left
+  side scrolls when the window is short); the column (330 px, 270 under
+  1 040 px of content) holds Run of the day (title, character, sender,
+  date, the description clamped to three lines), Hall of Fame (8; a press
+  opens the run) and Warlords (5 a side, "N players on MUME" when sent; no
+  source or time). A box is drawn only with data. At 1 440 × 900 the
+  column does not scroll (the spec checks it). The headings: "Title
+  (character) · Sender · **Length** · **Listed**", **Stars · votes**,
+  **Com.**, **Views**; a press or the marked letter (E L S M V) sorts, the
+  current one ▾; under 1 040 px of content the first heading's words go and
+  Length · Listed stay. ↑ ↓ Home End move the row cursor, Enter opens, ← →
+  (PgUp PgDn) change page, R opens the cursor's sender's runs, W the note
+  field. The phone (under 700 px of content): History's tab strip classes,
+  Runs (New only, no headings, three lines a run) · Hall of Fame · Runes
+  (two tabs with `runes` off), 1 2 3.
+- **A sender's runs** is a state of the page (`by`), not a frame: "Runs by
+  <name>" with All runs; Back (and Esc) returns to the whole list first.
+- **Random Runes.** Each note whole (`pre-wrap`, `overflow-wrap: anywhere`,
+  text nodes only, never a link). The field is a one-row textarea that
+  grows to its text while focused or holding text (to 160 px), cleaned as
+  typed (`cleanPublicText`, one line, cut to 250), Enter posts; the hint
+  "41 / 250 · 4 left today" counts the account's notes of the UTC day the
+  board shows (the server's 429 is the truth: it switches the field off
+  with the limit's words). Remove has no question (the mockups'); Report
+  is the stage 64 dialog's steps and words for a note, its own component
+  (`ReportNoteFrame`, the watch page's `REASONS`, `reportText`), the note
+  quoted. Actions show on hover, and on a tap on touch screens.
+- **Back from the watch page (for part C2).** A run opens
+  `<base>r/<id>?from=community` (plus `&cloudtest` on the dev server when
+  the page has it) by `location.assign`, in the same tab. The watch page,
+  seeing `from=community`, sends Back to `<base>?community` (keep
+  `cloudtest` as its `startUrl` does; `community-model.ts`
+  `communityBackHref` builds it). The start menu takes `community` from the
+  address once per load (and removes it with `replaceState`), and when the
+  flags allow opens the Community page on the view it kept in
+  sessionStorage (`wc.community.view`: sort, page, sender, phone tab).
+- **The counter.** The row comes in when `share` and `gallery` are known
+  (idle time, like the owner row). Logged in it shows news.ts's `runs`
+  (C3's cadence, held by the owner row's mark); a guest's count comes from
+  `GET /api/stats/public`'s `listed` against `wc.communitySeen`, asked
+  when the menu is the top frame, when the tab is visible again and every 5
+  minutes, never in a game. `src/cloud/online.ts` now keeps one answer for
+  55 s and asks with `stats` or with `share` and `gallery`, so the almanac's
+  "N online" and the counter share one request. Opening the page writes the
+  newest `listedAt` it showed to `wc.communitySeen` and, logged in, posts it
+  through news.ts `markCommunitySeen({gallery})`. The share dialog's Open
+  Community (C3, `requestStartRow`) now opens the page.
+- **The dev `?community=<n>`** is gone; the start menu specs use the flags.
+- **The e2e fake** answers the round 13 list (`by`, five sorts, `total`,
+  pages of 10) and boxes, and the pub fake reports of notes (`kind: 'note'`,
+  five hide it).
+- **Tests:** worker (`community.test.ts`: the new sorts, `by`, `total`,
+  the boxes; `runes.test.ts`: 250), unit (`community-api.test.ts`,
+  `community-model.test.ts`), e2e `community-page.spec.ts` (11, Chromium
+  and Firefox) and `phone-community-page.spec.ts` (3); the start menu's and
+  the Hall of Fame's specs follow the flag.
+- **Deviations:** the spec's "a link to Published runs" and the foot line
+  are out (the owner's picks); `total` added to the list's answer.
