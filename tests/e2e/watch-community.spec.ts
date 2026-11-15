@@ -289,3 +289,16 @@ test('the flag gallery off: stage 64\'s page in the frame, no stars, no comments
   // No community request was made.
   expect(asked.filter((p) => /\/(comments|vote)$/.test(p))).toEqual([]);
 });
+
+test('a comment’s text is clipped to its box: a stored tower of marks paints over nothing (review fix S1)', async ({ page }) => {
+  const s = await setUp(page, { gallery: true });
+  await others(s, 'kuzzim');
+  // An old row from before the rule (the fake stores what it is given).
+  s.api.server.addComment('kuzzim', ID, `x${'\u0310\u0311\u0312\u200d'.repeat(60)}`, { ago: 120_000 });
+  s.api.server.addComment('kuzzim', ID, 'Below it', { ago: 60_000 });
+  await openWatch(page);
+  await playing(page);
+  const texts = comments(page).locator('[data-watch="comment-text"]');
+  await expect(texts).toHaveCount(2);
+  expect(await texts.first().evaluate((el) => getComputedStyle(el).overflow)).toBe('hidden');
+});
