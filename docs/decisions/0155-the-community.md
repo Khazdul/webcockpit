@@ -675,3 +675,108 @@ round 13 addendum decided, with these details.
   the Hall of Fame's specs follow the flag.
 - **Deviations:** the spec's "a link to Published runs" and the foot line
   are out (the owner's picks); `total` added to the list's answer.
+
+## As built (stage 65 C2)
+
+The watch page's stars and comments, and the page inside the start page's
+look (round 13's pick 3a with the owner's change; branch `stage65-watch`).
+
+- **The look.** `/r/<id>` (a share link's page too) keeps stage 64's boot:
+  the first paint's loading line, no start page, no animation, the page in
+  the lazy chrome chunk. On mount `.wc-watch` gets the start page's sky as
+  its still CSS look (`skyCss(startSkyLook(window))`, what the start surface
+  shows before its engine; repainted after a resize, once a frame at most;
+  no engine, no canvas, no frame loop). Over it the start menu's large
+  sub-page frame (the kit's `.wc-lk-box-large` markup: brackets, the hood
+  "Shared run", Back at the top left), drawn by the page in a layout of its
+  own (`WatchBox`) rather than `Box`, whose large form is fixed to the
+  window: here the window grows with the comments and the page scrolls.
+  In it the band (title, details, description; the stars; Report and
+  Download as HTML; Back left the band for the frame's top left, `data-btn`
+  `BACK`, B still its key), then the replay's sandboxed frame; band and
+  replay fill the first view (`100dvh` less the frame), the comments sit
+  under them. With `gallery` off (no `stars` in the meta) the page is stage
+  64's in this frame and does not scroll. Phone (under 760 px): the frame
+  4 px from the edges, the band stacked (title, details, the stars' row,
+  Report and Download), the replay a window's height, the comments under.
+  The end states (removed, hidden, …) keep their box, over the sky.
+- **The frame keeps every stage 64 property**: the same sandbox, `allow`,
+  handshake and message checks (src/watch/frame-host.ts untouched). The
+  frame's window is no size container (`container-type: normal` on
+  `.wc-watch-win`; nothing in the page queries `wc-page`), since its layout
+  containment held the fixed-position fill (the iPhone's) inside the
+  window; while the fill is on, the page stops scrolling and the window
+  drops its clip and stacking context, so the frame covers the whole window
+  over the hood and Back.
+- **Fullscreen fix (src/core/fullscreen.ts).** `toggleFullscreen` settled
+  on the first `fullscreenchange` after a request; Firefox can deliver an
+  earlier fullscreen's exit after a new request, which counted as a refusal
+  (the frame then filled the window for good and its button stayed "Exit
+  fullscreen"). Now only an entry settles at once; anything else waits for
+  the entry or the 2 s settle time, which still marks a real refusal. The
+  new layout's timing made stage 64's Firefox fullscreen e2e fail one run
+  in two to five; 20 of 20 after the fix (two unit tests).
+- **Stars** (`src/watch/community.tsx` `RunStars`, beside the details;
+  under them on a phone): History's Rate control drawn again in the page's
+  CSS (`.wc-watch-stars`, the Rate's rules smaller; its module lives in
+  History's chunk). A voter: `GET /api/u/pub/<id>/vote` once, the own vote
+  lit, "Your stars: four" or "Rate this run", the mean and votes ("4.3 · 12
+  votes", "No votes yet"); a click PUTs, a click on the own vote takes it
+  back (`DELETE`); the band's flash says what happened or why not
+  (`voteFailText`). One's own run: the mean as the kit's `Stars`, "12 votes
+  · your run". A guest: the same with "Log in to rate", which takes stage
+  64's way to Log in and back (`leaveForLogin`). The stars are kept apart
+  from the meta, so a vote never reloads the frame.
+- **Comments** (`Comments`): `GET /api/pub/<id>/comments?page=last`
+  (public, no cookie), newest last, the writer's name (gold for one's own
+  and for the run's sender, "· sender"), the age ("3 h ago", "yesterday",
+  "4 days ago", then the date), the text as text (`pre-wrap`,
+  `overflow-wrap: anywhere`, never a link). Remove for the writer and the
+  run's sender (on every comment for the sender), Report on others' for a
+  logged-in watcher who is not the sender (as drawn: the sender removes,
+  a guest has no Report on comments; the band's Report gives guests the
+  abuse address). Past one page an "Earlier comments" button above the list
+  loads the page before and puts it in front (a comment already shown is
+  kept once). The field: the free-text rules as the player types
+  (`cleanPublicText`, 20 line breaks, cut to 1 000 code points), the count
+  "n / 1000", trimmed when sent, Post comment off while there is nothing to
+  send; the answer's comment goes last and the count follows. Refusals in
+  a line under the list (`commentFailText`). A guest: "Comments come from
+  accounts." and Log in to comment. Empty: "No comments yet." A failed
+  load: one line and Try again.
+- **Report on a comment**: the stage 64 dialog with `kind: 'comment'`:
+  "Report this comment", "What is wrong with this comment by <writer>?",
+  the comment quoted, "The writer is not told who reported.", the thanks
+  and "already" words with "comment"; reported ones are remembered on the
+  page.
+- **Keys**: R, D, B as before; in the comment field every key is the
+  field's (Esc lets go of it, the stack's rule); Esc elsewhere still does
+  nothing (stage 64), so a half-written comment is never lost to it.
+- **Back**: `?from=community` (the Community page's `runHref`) → the
+  Community's `communityBackHref` (`<base>?community`, `&cloudtest` kept on
+  the dev server); otherwise the start page. The end states' "Back to MUME
+  Cockpit" does the same.
+- **The client's requests** stay the page's own (`src/watch/api.ts`:
+  `fetchVote`, `sendVote`, `fetchComments`, `postComment`,
+  `deleteComment`; `parseMeta` reads `listed`, `stars`, `comments` and
+  leaves out malformed ones); `COMMENT_MAX`, `COMMENT_NEWLINES_MAX` and
+  `COMMENTS_PAGE_SIZE` are written out in src/watch/model.ts (a unit test
+  holds them to the contract), so the chrome chunk still does not load
+  `shared/cloud/api.ts`.
+- **The e2e fakes**: the pub fake's public meta carries `listed`, `stars`
+  and `comments` with `gallery` on; a marked sub-block "Reports of comments
+  (stage 65 C2)" in the account fake's community block answers comment
+  reports (gallery off `kind_closed`, unknown 404, own 403, one per
+  account, 30 a day across kinds, five hide it).
+- **Chunks**: the chunk set is the same 127 files; the entry chunk 31 362
+  (main with C1, C3, C4) → **31 382 bytes** (+20: a shared chunk is now
+  named after `community-model`, which the page imports for
+  `communityBackHref`, in the preload map); the chrome chunk 159 024 →
+  168 828 bytes.
+- **Tests**: `tests/unit/watch-community.test.ts` (11), two in
+  `fullscreen.test.ts`; e2e `watch-community.spec.ts` (11, Chromium and
+  Firefox), `phone-watch-community.spec.ts` (2); stage 64's watch-page,
+  phone-watch-page and watch-sandbox specs green, changed only where the
+  layout moved (Back above the title on a phone, the replay's height in a
+  tablet window and its width on a phone).
+
