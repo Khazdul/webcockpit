@@ -7,7 +7,7 @@
 //                              then the payload's gzip bytes → `PubWritten`
 //   GET    /api/u/pub          the account's runs → `{ pubs: MyPub[] }`
 //   GET    /api/u/pub/<id>     one of them as the sender sees it → `PubMeta`
-//   PATCH  /api/u/pub/<id>     title, description → `PubWritten`
+//   PATCH  /api/u/pub/<id>     title, description, listed → `PubWritten`
 //   DELETE /api/u/pub/<id>     → 204
 //
 // The rules' tick is the account's (`PATCH /api/u/account/prefs`, the
@@ -25,7 +25,7 @@
 // goes up. Nothing else is sent: the body is built here from the meta and
 // the bytes the caller passes, and only from them.
 
-import { type MyPub, PUB_ID_PATTERN, PUB_META_MAX_BYTES, type PubMeta, type PubMetaIn, type PubPatch, type PubWritten } from '../../../shared/cloud/api.ts';
+import { type MyPub, NEWS_MAX, PUB_ID_PATTERN, PUB_META_MAX_BYTES, type PubMeta, type PubMetaIn, type PubPatch, type PubWritten } from '../../../shared/cloud/api.ts';
 import { accountsEnabled } from '../account/state';
 import { flagOn } from '../config';
 
@@ -35,6 +35,8 @@ import { flagOn } from '../config';
  *   payload_too_large  the payload is over the account's `payloadMaxBytes` (`limit`)
  *   pub_quota          the account has `sharedRuns` published runs (`limit`)
  *   rules              the account has not ticked the rules
+ *   too_many           listing: the account's `listingsPerDay` first listings today (stage 65)
+ *   hidden             a hidden run cannot be edited or listed (stage 65 B: `403 hidden`)
  *   suspended          the account may not publish (or edit)
  *   unauthorized       the session is gone
  *   disabled           the flags or the page say no; nothing was sent
@@ -47,6 +49,8 @@ export type PubErrorCode =
   | 'payload_too_large'
   | 'pub_quota'
   | 'rules'
+  | 'too_many'
+  | 'hidden'
   | 'suspended'
   | 'unauthorized'
   | 'not_found'
@@ -60,7 +64,7 @@ export type PubErrorCode =
   | 'cancelled'
   | 'bad_answer';
 
-const SERVER_CODES: readonly PubErrorCode[] = ['payload_too_large', 'pub_quota', 'rules', 'suspended', 'unauthorized', 'not_found', 'bad_request', 'forbidden', 'rate_limited', 'unavailable'];
+const SERVER_CODES: readonly PubErrorCode[] = ['payload_too_large', 'pub_quota', 'rules', 'too_many', 'hidden', 'suspended', 'unauthorized', 'not_found', 'bad_request', 'forbidden', 'rate_limited', 'unavailable'];
 
 export interface PubFailure {
   ok: false;
@@ -175,7 +179,14 @@ export function parseMyPub(v: unknown): MyPub | undefined {
   const len = seconds(lengthS);
   if (len === undefined || typeof listed !== 'boolean' || (state !== 'active' && state !== 'hidden')) return undefined;
   if (!whole(created) || !whole(updated) || !whole(views) || !whole(bytes)) return undefined;
-  return { id, title, description, character, ...(level !== undefined ? { level } : {}), lengthS: len, listed, state, created, updated, views, bytes };
+  const out: MyPub = { id, title, description, character, ...(level !== undefined ? { level } : {}), lengthS: len, listed, state, created, updated, views, bytes };
+  // Stage 65 (the community): read when they hold, left out when not (an older Worker sends none).
+  const { listedAt, stars, comments, news } = v;
+  if (whole(listedAt)) out.listedAt = listedAt;
+  if (isObject(stars) && whole(stars.sum) && whole(stars.count)) out.stars = { sum: stars.sum, count: stars.count };
+  if (whole(comments)) out.comments = comments;
+  if (isObject(news) && whole(news.votes) && whole(news.comments)) out.news = { votes: Math.min(NEWS_MAX, news.votes), comments: Math.min(NEWS_MAX, news.comments) };
+  return out;
 }
 
 function parseList(v: unknown): MyPub[] | undefined {
@@ -376,6 +387,7 @@ export function createPubApi(options: PubApiOptions = {}): PubApi {
       const json: PubPatch = {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.listed !== undefined ? { listed: patch.listed } : {}),
       };
       return call('PATCH', path, { json, signal: o.signal }, parseWritten);
     },

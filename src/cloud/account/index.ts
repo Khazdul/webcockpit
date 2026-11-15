@@ -147,7 +147,7 @@
 //       Removes the account on the server (its name stays reserved for
 //       good) and logs this device out; `lastName` is forgotten. Codes:
 //       invalid_login, locked.
-//   setPrefs({ galleryNotice?, rulesAccepted? }, o?): FlowResult<AccountPrefs>
+//   setPrefs({ rulesAccepted? }, o?): FlowResult<AccountPrefs>
 //       Each key only when given. `rulesAccepted: true` is the sharing
 //       rules' tick (stage 64 C1, the share dialog); it cannot be undone.
 //   storedAccount(): StoredAccount | null   the device's record (name,
