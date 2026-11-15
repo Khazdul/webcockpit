@@ -385,4 +385,11 @@ production.
 
 ## Owner feedback
 
-(After the test.)
+- 2026-11-15, staging: "The Fullscreen button when watching from the
+  link does not go fullscreen; I want real fullscreen (the log alone,
+  without the description band above)." Fixed on `stage64-fullscreen`:
+  Firefox refused the sandboxed frame fullscreen (`allow="fullscreen"`
+  did not match its opaque origin); now `allow="fullscreen *"` and the
+  frame alone goes fullscreen; on an iPhone (no element fullscreen) the
+  frame fills the window over the band. ADR 0154 "As built (stage 64,
+  owner's test: fullscreen)".
