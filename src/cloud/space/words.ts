@@ -88,7 +88,8 @@ export const loggedOutWords = (name: string): string => `Logged out. Everything 
 export const loggedOutAnywayWords = (name: string): string => `Logged out of ${name}.`;
 export const lostWords = (name: string): string => `You were logged out of ${name} on this device.`;
 export const deletedElsewhereWords = (name: string): string => `The account ${name} was deleted.`;
-export const deletedHereWords = (name: string): string => `The account ${name} is deleted. Its profiles and scripts are this device’s now.`;
+export const deletedHereWords = (name: string): string => `The account ${name} is deleted. Its profiles, scripts and runs are this device’s now.`;
+export const handingBackWords = (name: string): string => `The account ${name} is deleted. Its things are being moved back to this device.`;
 
 /** A sync event in words for the start menu's line, or null when it needs none. */
 export function eventWords(e: SyncEvent): string | null {

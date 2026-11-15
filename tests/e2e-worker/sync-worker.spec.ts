@@ -120,7 +120,7 @@ test('two devices of one account on the real Worker: move, edit, keep both, lost
   await field(a.page, 'password').fill(PASSWORD);
   await field(a.page, 'confirm').fill(name);
   await dialog(a.page, 'ac-delete').locator('[data-btn="DELETE"]').click();
-  await expect(menuFlash(a.page)).toHaveText(`The account ${name} is deleted. Its profiles and scripts are this device’s now.`, { timeout: 30_000 });
+  await expect(menuFlash(a.page)).toHaveText(`The account ${name} is deleted. Its profiles, scripts and runs are this device’s now.`, { timeout: 30_000 });
   expect(await names(a.page, 'webcockpit')).toEqual(['default', 'khazdul', 'mage', 'warrior', copy!].sort());
   expect(await names(a.page, 'webcockpit', 'scripts')).toEqual(['hunt']);
   expect(errors).toEqual([]);

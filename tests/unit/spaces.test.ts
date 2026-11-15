@@ -241,7 +241,7 @@ describe('a database per space', () => {
 
   it('deletes an account database, never the device one', async () => {
     const f = new IDBFactory();
-    (await openWebcockpitDb(f, 'webcockpit-u-olev')).close();
+    (await openWebcockpitDb(f, 'webcockpit-u-olev', { create: true })).close();
     (await openDeviceDb(f)).close();
     await deleteSpaceDb('olev', f);
     expect((await f.databases()).map((d) => d.name)).toEqual(['webcockpit']);

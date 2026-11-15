@@ -204,8 +204,23 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
     return () => void (typingTimer.current && clearTimeout(typingTimer.current));
   }, []);
 
-  // The script as the library sees it (state, errors).
-  useEffect(() => lib.subscribe(() => setInfo(lib.get(nameRef.current))), [lib]);
+  // The script as the library sees it (state, errors). Its source changed from outside (the sync,
+  // here or in another tab, stage 61): a buffer without unsaved edits shows the new source; one with
+  // edits keeps them, and Save then keeps both (`save`).
+  useEffect(
+    () =>
+      lib.subscribe(() => {
+        const now = lib.get(nameRef.current);
+        setInfo(now);
+        const v = viewRef.current;
+        if (!now || now.readonly || !v || now.source === savedRef.current || unsaved()) return;
+        savedRef.current = now.source;
+        v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: now.source } });
+        markScriptSaved(v, now.source);
+        setDirty(false);
+      }),
+    [lib],
+  );
 
   // -------------------------------------------------------------- buffer
 
@@ -289,6 +304,25 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
     const src = current();
     const before = nameRef.current;
     try {
+      const stored = lib.get(before);
+      if (!stored || stored.source !== savedRef.current) {
+        // Changed (or renamed, or deleted) from outside since it was opened: saving over it would lose
+        // that change, so the editor's version is kept beside it as a new script.
+        const copy = await lib.create(undefined, src);
+        savedRef.current = copy.source;
+        const v = viewRef.current;
+        if (v) {
+          if (v.state.doc.toString() !== copy.source) v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: copy.source } });
+          markScriptSaved(v, copy.source);
+        }
+        setDirty(false);
+        nameRef.current = copy.name;
+        setName(copy.name);
+        host.onName?.(copy.name);
+        setInfo(lib.get(copy.name));
+        showFlash(`${before} was changed elsewhere while you edited. Your version is saved as ${copy.name}.`, 'fail', 8000);
+        return true;
+      }
       const r = await lib.save(before, src);
       if (viewRef.current) markScriptSaved(viewRef.current, src);
       savedRef.current = src;

@@ -224,3 +224,63 @@ Branch `stage61-flows`. The flows that change space are
 - Dropping a space closes this page's connection first and gives up
   waiting for `deleteDatabase` after 4 s (a connection that never closes;
   the next login deletes the leftover).
+
+## As built (stage 61, review fixes)
+
+Branch `stage61-fixes`; the tests are `tests/unit/cloud-space-fixes.test.ts`
+(one `describe` per finding) and the e2e specs named below.
+
+- **The move removes only what it copied.** Each entry of `syncMeta.move`
+  keeps a fingerprint of the device's thing as it was copied
+  (`thingHash`: id, name, body, times; synchronous, so it is checked in
+  the transaction that removes). A thing changed on the device after the
+  copy (a guest game in another tab typed into it) stays there as the
+  device's own: it leaves the list (`kept`), and the totals of the lines
+  afterwards no longer count it as moved (the account has the version
+  that was copied). Create account is not blocked for it.
+- **The created mark** `wc.space.created` goes only once `beginMove` has
+  stored the move's state; a move that throws is begun again at the next
+  load (`reconcile`).
+- **Delete account hands the runs back too:** `runs`, `runChunks`,
+  `runEvents` and `exports` (local only before stage 63), one transaction
+  per run; a run the device already has with the same id, start and
+  character was handed back before and is skipped; another run of that id
+  keeps the device's, and the account's gets a new id (its export edit
+  follows). `scriptData`, `settings`, `comm` and `timers` of the account's
+  space are not handed back: the device keeps its own. The words name the
+  runs ("your profiles, scripts and runs in <name> come back…", "Its
+  profiles, scripts and runs are this device's now.").
+- **A hand-back that fails after the server deleted the account** is not
+  a locked copy (the account is dead; no Log in can open it): the page
+  goes to the device's space with "The account <name> is deleted. Its
+  things are being moved back to this device.", the database is kept, and
+  `wc.space.handback` (localStorage, `[{nameKey, name}]`) lists it; every
+  load in the device's space tries the hand-back again
+  (`finishHandBacks`, the runtime) and, once it is done, drops the copy and
+  says the "is deleted" line. Profiles and scripts already handed back are
+  identical to the one of their name and are skipped, runs too.
+- **Delete account is refused** while a game runs on the account's space
+  in another tab, as Log out ("A game is running in another tab." /
+  "Delete the account when it has ended."). Both dialogs ask again at the
+  moment of the last action (Log out, Log out anyway, Delete account), not
+  only when they open.
+- **A failed Log out or Delete account** no longer stops the page's sync
+  for good: `setLeaving(true)` pauses it (`SyncControl.pause`), and
+  `setLeaving(false)` resumes it (the timers again, a sync at once).
+- **A deleted account database is not made again by a late writer.**
+  `openWebcockpitDb` makes a `webcockpit-u-*` database only while its
+  space is prepared (`prepareAccountSpace` opens with `create`), or as the
+  page's own space at load when this page has not seen it deleted (the
+  e2e hook `wc.space` set before a load keeps working). A page sees a
+  deletion through its connections' `versionchange` with no new version,
+  or does it itself (`dropSpace` marks it first). A refused open fails
+  with `NoSuchSpaceDb`; the profile store and the script library fall
+  back to memory, as when superseded. A lock of the copy at a lost session
+  is skipped when the record no longer has this account open (a Log out
+  in another tab, or a Log out or Delete account running here).
+- **The seeds were put there once:** every space's database has the mark
+  `seeded` in `syncMeta` (set by the profile store's first `init`, or by
+  `prepareAccountSpace`). A missing `default` after that (the move took
+  the device's edited one) brings back `default` alone; a bundled profile
+  the user deleted stays deleted. Seeding (both places) puts a seed only
+  where its name and its id are free.

@@ -184,6 +184,7 @@ describe('LocalItems and SyncRecords on IndexedDB', () => {
   });
 
   it('writes a batch in one transaction, removes before it puts: a swap of names and a rename by id', async () => {
+    resetSpaceForTests({ kind: 'account', nameKey: 'ole' });
     const open = spaceDb('ole');
     const db = await open();
     await put(db, STORE.profiles, prof('a', 'one'), prof('b', 'two'), prof('c', 'gone'));
@@ -195,10 +196,21 @@ describe('LocalItems and SyncRecords on IndexedDB', () => {
       ['one', 'b'],
       ['two', 'a'],
     ]);
-    expect(written).toHaveBeenCalledWith('profile');
+    expect(written).toHaveBeenCalledWith('profile', {
+      put: [
+        { id: 'a', name: 'two', text: '#nop two' },
+        { id: 'b', name: 'one', text: '#nop one' },
+      ],
+      renamed: [
+        { id: 'a', from: 'one', to: 'two' },
+        { id: 'b', from: 'two', to: 'one' },
+      ],
+      removed: [{ id: 'c', name: 'gone' }],
+    });
   });
 
   it("a script's @name follows a name the sync gave it", async () => {
+    resetSpaceForTests({ kind: 'account', nameKey: 'ole' });
     const open = spaceDb('ole');
     const li = idbLocalItems(open);
     await li.write('script', { put: [{ ...script('s1', 'hunt_from_phone_14Nov', '-- @name hunt\nprint(1)') }, { ...script('s2', 'bare', 'print(2)') }], remove: [] });
@@ -209,6 +221,7 @@ describe('LocalItems and SyncRecords on IndexedDB', () => {
   });
 
   it('records by server id; meta with the stored label, or the default', async () => {
+    resetSpaceForTests({ kind: 'account', nameKey: 'ole' });
     const open = spaceDb('ole');
     const r = idbSyncRecords(open, () => 'desktop, Chrome');
     expect(await r.meta()).toEqual({ cursor: 0, lastSynced: null, deviceLabel: 'desktop, Chrome' });
@@ -261,7 +274,7 @@ describe('the engine on two IndexedDB devices', () => {
     await prepareAccountSpace('ole', { fresh: true, deviceLabel: 'desktop, Firefox' });
     const a = engineOn('ole', server);
     const bFactory = new IDBFactory();
-    const bOpen = async (): Promise<IDBDatabase> => openWebcockpitDb(bFactory, 'webcockpit-u-ole');
+    const bOpen = async (): Promise<IDBDatabase> => openWebcockpitDb(bFactory, 'webcockpit-u-ole', { create: true });
     const bDb = await bOpen();
     const b = new SyncEngine({ local: idbLocalItems(bOpen), records: idbSyncRecords(bOpen, () => 'phone'), remote: fetchRemote(modelFetch(server)), keys });
     const aDb = await spaceDb('ole')();
@@ -459,7 +472,7 @@ describe('Log out and Delete account', () => {
     const acct = await spaceDb('ole')();
     await put(acct, STORE.profiles, prof('w', 'warrior', '#nop account'), prof('m', 'mage'), { ...prof(seedId('default'), 'default', '#nop changed') });
     await put(acct, STORE.scripts, script('s2', 'hunt', '-- @name hunt\nprint("account")'), script('s3', 'loot'));
-    expect(await handBack('ole')).toEqual({ profiles: 3, scripts: 2 });
+    expect(await handBack('ole')).toEqual({ profiles: 3, scripts: 2, runs: 0 });
     const dev = await deviceDb();
     const ps = await all<ProfileRow>(dev, STORE.profiles);
     expect(ps.map((p) => p.name).sort()).toEqual(['default', 'default_2', 'khazdul', 'mage', 'warrior', 'warrior_2']);
@@ -476,7 +489,7 @@ describe('Log out and Delete account', () => {
     await put(await spaceDb('ole')(), STORE.profiles, prof('m', 'mage'));
     expect(await deleteHandBack('Ole')).toBe(true);
     expect(readSpaceRecord()).toBeNull();
-    expect(session.getItem(SPACE_MESSAGE_KEY)).toBe('The account Ole is deleted. Its profiles and scripts are this device’s now.');
+    expect(session.getItem(SPACE_MESSAGE_KEY)).toBe('The account Ole is deleted. Its profiles, scripts and runs are this device’s now.');
     expect((await all<ProfileRow>(await deviceDb(), STORE.profiles)).map((p) => p.name)).toContain('mage');
   });
 

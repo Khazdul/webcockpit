@@ -52,8 +52,9 @@
 //     sync       keyPath ['kind', 'key']; per synced item: { kind, key
 //                (the local key), id (server id), rev, hash, state }
 //                (src/cloud/sync; empty in the device's database)
-//     syncMeta   out-of-line keys; account, cursor, device label
-//                (empty in the device's database)
+//     syncMeta   out-of-line keys; account, cursor, device label (an
+//                account's space); `seeded` in every space's database
+//                (src/profiles/seed-ids.ts: the seeds were put there once)
 //
 // The upgrade handler is a chain of `if (oldVersion < N)` steps, so every
 // older database upgrades in order. Add a step (and bump DB_VERSION) for
@@ -68,8 +69,15 @@
 // with `VersionError`), this tab can no longer save anything; its stores
 // fall back to memory. `onDbSuperseded` tells the app so it can say so. Other
 // open failures (private mode, no IndexedDB) are not reported here.
+//
+// Deleted (stage 61): an account's database is made only while its space
+// is prepared, or as the page's own space at load. Once this page has seen
+// it deleted (a Log out here or in another tab), a late write does not make
+// an empty one again: the open fails with `NoSuchSpaceDb` and the store
+// falls back to memory, as when superseded.
 
-import { DEVICE_DB_NAME, currentSpace, spaceDbName } from './space';
+import { seedIdOf } from '../profiles/seed-ids';
+import { ACCOUNT_SPACE_PREFIX, DEVICE_DB_NAME, currentSpace, spaceDbName } from './space';
 
 /** The device's database (the space of a guest). */
 export const DB_NAME = DEVICE_DB_NAME;
@@ -156,19 +164,63 @@ export function requestPersistence(): void {
   }
 }
 
+/** Account databases this page saw deleted (or deleted itself): never made again by a late writer. */
+const goneDbs = new Set<string>();
+
+/** An account's database is being deleted by this page (Log out, Delete account, Remove): no store of this page makes it again. */
+export function markDbGone(name: string): void {
+  if (name.startsWith(ACCOUNT_SPACE_PREFIX)) goneDbs.add(name);
+}
+
+/** Tests: forget the deleted databases. */
+export function resetGoneDbsForTests(): void {
+  goneDbs.clear();
+}
+
+/** Thrown (as the open's rejection) when an account's database does not exist and may not be made here. */
+export class NoSuchSpaceDb extends Error {
+  override name = 'NoSuchSpaceDb';
+}
+
+/**
+ * Whether an open may make `name` when it does not exist. The device's
+ * database always; an account's only while its space is being prepared
+ * (`create`), or as the page's own space at load (the record says the page
+ * is in it) when this page has not seen it deleted. A writer that comes
+ * late, after a Log out deleted the space, gets `NoSuchSpaceDb` instead of
+ * an empty database of a dead account (its store falls back to memory).
+ */
+function mayCreate(name: string, create: boolean): boolean {
+  if (!name.startsWith(ACCOUNT_SPACE_PREFIX) || create) return true;
+  return name === spaceDbName(currentSpace()) && !goneDbs.has(name);
+}
+
 /**
  * Opens (and creates or upgrades) the current space's database
  * (`webcockpit`, or `webcockpit-u-<nameKey>` while an account is logged
  * in; src/core/space.ts). `name` overrides the space (tests,
- * `openDeviceDb`).
+ * `openDeviceDb`). `create`: an account's space is being prepared (see
+ * `mayCreate`).
  */
-export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB, name: string = spaceDbName(currentSpace())): Promise<IDBDatabase> {
+export function openWebcockpitDb(
+  factory: IDBFactory = globalThis.indexedDB,
+  name: string = spaceDbName(currentSpace()),
+  o: { create?: boolean } = {},
+): Promise<IDBDatabase> {
   if (!factory) return Promise.reject(new Error('IndexedDB unavailable'));
   requestPersistence();
+  if (o.create) goneDbs.delete(name);
   return new Promise((resolve, reject) => {
     const r = factory.open(name, DB_VERSION);
+    let refused = false;
     r.onupgradeneeded = (ev) => {
       const db = r.result;
+      if (ev.oldVersion === 0 && !mayCreate(name, o.create === true)) {
+        // Aborting the first upgrade leaves no database behind.
+        refused = true;
+        r.transaction?.abort();
+        return;
+      }
       if (ev.oldVersion < 1) {
         const runs = db.createObjectStore(STORE.runs, { keyPath: 'runId' });
         runs.createIndex('character', 'character');
@@ -208,8 +260,8 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB, nam
           const cur = (e.target as IDBRequest<IDBCursorWithValue | null>).result;
           if (!cur) return;
           const rec = cur.value as { id?: unknown; name?: unknown };
-          // The seeds get their fixed ids (`seed-<name>`, src/profiles/store.ts): one item per seed on every device.
-          const seed = rec.name === 'default' || rec.name === 'khazdul' ? `seed-${rec.name}` : null;
+          // The seeds get their fixed ids (`seed-<name>`, src/profiles/seed-ids.ts): one item per seed on every device.
+          const seed = seedIdOf(rec.name);
           if (typeof rec.id !== 'string' || !rec.id) cur.update({ ...rec, id: seed ?? randomId() });
           cur.continue();
         };
@@ -222,11 +274,16 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB, nam
       db.onversionchange = (ev) => {
         db.close();
         // null: the database is being deleted, not upgraded.
-        if (ev.newVersion !== null && ev.newVersion > DB_VERSION) markSuperseded();
+        if (ev.newVersion === null) markDbGone(name);
+        else if (ev.newVersion > DB_VERSION) markSuperseded();
       };
       resolve(db);
     };
     r.onerror = () => {
+      if (refused) {
+        reject(new NoSuchSpaceDb(`${name} does not exist`));
+        return;
+      }
       if (r.error?.name === 'VersionError') markSuperseded();
       reject(r.error);
     };

@@ -8,7 +8,7 @@
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { NAME, PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from './account-pages';
 import { FakeAccountServer, fakeAccountApi, seedAccount } from './cloud-account-fake';
-import { account, awayFromMenu, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from './sync-pages';
+import { account, awayFromMenu, getIdb, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from './sync-pages';
 import { stubTurnstile } from './turnstile-stub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -194,16 +194,29 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   const a = await device(browser, server);
   await openStart(a.page);
   await logIn(a.page);
+  await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
+  await account(a.page);
+  // The dialog asks again at the last moment: a game that starts after it opened refuses the log out too.
+  await btn(a.page, 'LOGOUT').click();
+  await expect(dialog(a.page, 'ac-logout').locator('[data-logout="all"]')).toBeVisible({ timeout: 30_000 });
   // A game on the account's space elsewhere: its Web Lock is held.
   await a.page.evaluate((name) => {
     void navigator.locks.request(name, { mode: 'shared' }, () => new Promise(() => {}));
   }, `webcockpit-game@u-${NAME.toLowerCase()}`);
-  await account(a.page);
+  await a.page.keyboard.press('Enter');
+  await expect(dialog(a.page, 'ac-logout').locator('[data-logout="refused"]')).toHaveText('A game is running in another tab.');
+  await a.page.keyboard.press('Enter');
+  await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);
   await btn(a.page, 'LOGOUT').click();
   // (This page holds the lock itself here, as a stand-in for the other tab: it holds no game lock of its own.)
   await expect(dialog(a.page, 'ac-logout').locator('[data-logout="refused"]')).toHaveText('A game is running in another tab.');
   await a.page.keyboard.press('Enter');
   await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);
+  // Delete account too.
+  await btn(a.page, 'DELETE').click();
+  await expect(dialog(a.page, 'ac-delete').locator('[data-delete="refused"]')).toHaveText('A game is running in another tab.');
+  await a.page.keyboard.press('Enter');
+  await expect(dialog(a.page, 'ac-delete')).toHaveCount(0);
   await a.page.reload();
   await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
 
@@ -230,17 +243,19 @@ test('Delete account hands the account’s things back to the device', async ({ 
   await putIdb(a.page, 'webcockpit', 'profiles', [profile('d1', 'warrior', '#nop device')]);
   await logIn(a.page);
   await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior', '#nop account'), profile('m1', 'mage')]);
+  await putIdb(a.page, DB, 'runs', [{ runId: 'run-acc', character: 'Acc', startedUs: 1, saved: true }]);
   await account(a.page);
   await syncNow(a.page);
   await btn(a.page, 'DELETE').click();
   const dlg = dialog(a.page, 'ac-delete');
   await expect(dlg.locator('[data-delete="handback"]')).toHaveText(
-    `What happens on this device: your profiles and scripts in ${NAME} come back to this device as its own. A name that exists on both sides keeps both.`,
+    `What happens on this device: your profiles, scripts and runs in ${NAME} come back to this device as its own. A name that exists on both sides keeps both.`,
   );
   await field(a.page, 'password').fill(PASSWORD);
   await field(a.page, 'confirm').fill(NAME);
   await dlg.locator('[data-btn="DELETE"]').click();
-  await expect(menuFlash(a.page)).toHaveText(`The account ${NAME} is deleted. Its profiles and scripts are this device’s now.`, { timeout: 20_000 });
+  await expect(menuFlash(a.page)).toHaveText(`The account ${NAME} is deleted. Its profiles, scripts and runs are this device’s now.`, { timeout: 20_000 });
   expect(await names(a.page, 'webcockpit')).toEqual(['default', 'khazdul', 'mage', 'warrior', 'warrior_2']);
+  expect((await getIdb(a.page, 'webcockpit', 'runs')).map((r) => r.runId)).toEqual(['run-acc']);
   await a.ctx.close();
 });

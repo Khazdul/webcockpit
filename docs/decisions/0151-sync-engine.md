@@ -307,3 +307,53 @@ Account page read; in the chrome chunk) and `src/core/store-events.ts`.
 - **The Remote over fetch** gives up after 20 s (`offline`).
 - **The contract's missing item** is now the Worker's too: `409` with a
   tombstone of rev 0, a conflict before a `413` (ADR 0146 as built C).
+
+## As built (stage 61, review fixes)
+
+Branch `stage61-fixes`; tests in `tests/unit/cloud-space-fixes.test.ts`.
+
+- **Seeds and ids.** An untouched seed is an item only once it has an
+  agreed base: a sync record with rev > 0 and a hash. A record pulled but
+  not agreed on (rev 0, no hash) no longer makes it one, so on a second
+  device the pulled item simply replaces the seed by id instead of the
+  engine making a keep-both copy of it. `LocalItems.list` takes one row
+  per id: an untouched seed that shares its id with another row gives way
+  to it, and two other rows with one id are refused (`DuplicateIdError`,
+  the sync fails as a port fault) rather than one pushed over the other.
+  The move never writes such a pair: an untouched seed of the new space
+  that has the id of a device thing (`khazdul` renamed `conan` keeps
+  `seed-khazdul`) is removed by `writeThings`; any other holder of an id
+  makes the written thing take a new one.
+- **In use** now holds for an item that is not listed, too (an untouched
+  seed in use is not replaced during play), and is per space: the
+  selected profile and the enabled scripts are in use while a game plays
+  in this tab or another tab of the space holds the game lock
+  (`gameRunningElsewhere`).
+- **The other tabs' caches.** After the sync writes profiles or scripts,
+  the writing tab brings its own caches up to date and posts the change on
+  the BroadcastChannel `webcockpit-sync@<space id>` (one channel object
+  per page, so a page never hears its own posts); every tab of the space
+  (src/cloud/space/notify.ts, listening from the runtime's start in either
+  space) then reloads its script library, fires the profile store's
+  listeners (`ProfileStore.announce`) and keeps its selected profile: a
+  pulled rename of it follows by id, a pulled delete falls back to
+  `default` as the shell's start does. The move's removals and the
+  hand-back post on the device's channel.
+- **Open editors.** The profile editor already laid its edits over an
+  outside save (ADR 0105): the listeners now hear the sync's writes, and
+  every apply reads the stored text first, so nothing is saved over a
+  pulled change; a profile renamed or deleted under it fails its next
+  save ("No profile …") instead of writing. The script editor shows a
+  pulled change when its buffer has no unsaved edits; with edits it keeps
+  them, and Save then keeps both: the buffer is saved as a new script
+  (`finder_2`, its `@name` rewritten) with a notice, and the editor goes
+  on with it (e2e `script-editor.spec.ts`, "stage 61").
+- **One routine** for what is not in the account
+  (src/cloud/sync/unsynced.ts): the engine's `unsynced()` matches by server
+  id, the spaces' `pendingChanges` by local key. The row types of the
+  stores are exported from `local.ts`.
+- **The stored note** comes only from a profile transaction that put or
+  deleted a profile (not from every read-write one, such as `init` with
+  nothing to do).
+- **The seeds' names and ids** live in src/profiles/seed-ids.ts, used by
+  the version 9 upgrade and the profile store alike.
