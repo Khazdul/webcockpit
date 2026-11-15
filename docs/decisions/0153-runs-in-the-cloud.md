@@ -627,3 +627,124 @@ History and after an Exit; Log out; the move's line once; a guest and
 the flag off as before) and phone-runs-views.spec.ts (the phone's rows,
 offline, the counts without Fetch all, "does not fit", Log out, a guest).
 `WC_C2_SHOTS=<dir>` saves the pictures compared with round 11's.
+
+## As built (stage 63, review fixes)
+
+Part D's review (an independent one, findings 1–9, and `/code-review`
+high, CR1–CR9; CR1 is finding 3, CR3 covers finding 8), on branch
+`stage63-fixes`. Each fix has a test that failed before it
+(tests/unit/cloud-runs-fixes63.test.ts, one `describe` per finding;
+worker/test/runs.test.ts for 7 and CR5). The views and their words are
+the owner's picks, unchanged; where a fix shows otherwise it is the
+defect going: after finding 4 the move's line names the runs again, after
+finding 9 History with runs in the cloud off is stage 62's again, after
+finding 2 a restored session is no longer marked as only in the cloud.
+
+- **1. An export doc deleted everywhere while its session was not in the
+  account.** A doc is listed once its session's first run is saved here,
+  also while that run is `queued`/`full`/`tooLarge`; a device that pulled
+  the doc had no run and no row, its sweep dropped the doc, and the
+  engine pushed the delete. The sweep now also keeps a doc the account has
+  (an agreed `exportDoc` record, `RunStore.syncedDocKeys`). The listing is
+  unchanged (a doc goes up with its saved session, as before).
+- **2. A restore deleted a run of the account.** A run this device had as
+  `remote`, restored from a backup, was listed by neither branch (here,
+  but its row not `up`), so the engine pushed its delete. The listing now
+  keeps a run here with an agreed record whatever its row (below), and
+  `putWholeRun` makes such a run as a fetch does: the item's meta, the row
+  `up` (its body is in the cloud), so History does not mark it cloud-only
+  and Log out counts it in the cloud.
+- **3 (CR1). A run of the account whose upload again ended `full` or
+  `tooLarge` was deleted everywhere.** A row put back in the queue
+  (`revived`, or its body found gone by the check of the bodies) and then
+  refused for room left the list. Now `run` lists a run here once its row
+  is `up` **or whenever the account has its item** (an agreed record),
+  whatever the row; the model (`MemoryRunSpace`) has the same rule, and
+  the generated runs check at every step that no run is deleted in the
+  account that no player deleted, with a new step: a run of the account
+  whose body is lost, or that is queued again with its body there,
+  uploads into an account full to the byte (the old rule fails at once).
+  The client's room check before a PUT counts only what a queued row
+  grows over the size its body had (`row.size`), as the server counts a
+  replace, so a re-upload of the same body is never refused here. A run
+  of the account that cannot go up again (`tooLarge` after the body limit
+  was lowered) stays the account's item: other devices keep it, a remote
+  row of it says "no longer in the cloud" when opened (the generated runs'
+  end checks allow just that).
+- **4. The move's state lost its runs.** `continueMove` rebuilt the state
+  from profiles and scripts: `total.runs`, `runs.saved` and `pending`
+  went, so the move's lines lost the runs and a moved run that did not fit
+  got the dialog. It keeps the rest of the state now. The line "Moved into
+  X: 2 profiles, 4 runs." names the runs again after a move with profiles
+  (as decided; before the fix it said only "2 profiles").
+- **5. Uploads went on while a game started in another tab.** The game
+  lock held elsewhere was looked at once before the queue ran. The
+  queue's `isPlaying` may now answer with a promise and is asked before
+  each upload; the page asks `gameRunningElsewhere` there.
+- **6 (judged real). The move took an unsealed run.** A guest game in
+  another tab that was quiet between the copy and the removal passed the
+  fingerprint check; its next append found no meta on the device (text
+  with no run) and the account held the run cut short. Only sealed runs
+  move now; an unsealed one stays the device's (the device's sweep seals
+  an orphan). The move's line counts the runs that moved, so it stays
+  true.
+- **7 (judged real). A DELETE racing a PUT of the same id** (a device's
+  Delete of a run whose rating an edit on another device brought back)
+  could leave a `run_body` row with no object. After its batch the PUT
+  looks for the object (`head`); when it is gone the row and its bytes go
+  too and the answer is `503`, so the client puts again. `run_bytes`
+  stays the sum of `run_body`, and B1's reservation is unchanged.
+- **8 (CR3, judged real).** `checkBodies` now runs under the queue's Web
+  Lock (an upload of another tab is never seen half done: it re-queued a
+  body that had just gone up). A fetch that finds its row `up` meanwhile
+  (another tab fetched it) is fetched, not `not_remote`; a fetch of a run
+  this tab is fetching already waits for that one (Fetch all, then the
+  open of one of its sessions). `recover()` at load puts back only
+  `fetching` rows older than `FETCH_STALE_MS` (15 minutes, longer than
+  the longest transfer the adapter allows).
+- **9 (judged real). Runs in the cloud turned off after rows were made**
+  left cloud-only sessions in History that could not be opened.
+  `listSessions(now, {remote: true})` stitches the remote rows in only
+  while the run library's hook is set (runs in the cloud on in the page);
+  off, History is stage 62's.
+- **CR2. Limits assumed.** An upload's or a `quota` answer with no room
+  known filled in `DEFAULT_ACCOUNT_LIMITS`, so a server limit above it
+  (`RUN_BYTES_LIMIT`, an account's own) was refused here, and a body
+  above the default `runMaxBytes` made `tooLarge`. The queue's room is now
+  only ever the server's (`setRoom` from a sync's answer or the list's);
+  answers update it once it is known; without it the server decides.
+- **CR4.** A row refused as an item for its size (`item_too_large`) is
+  not uploaded again when there is room (it went up again after each
+  sync); it waits as `tooLarge` does.
+- **CR5.** When R2's put ended but the request's stream failed, the PUT
+  gave the reservation back while R2 held the new object (an old body's
+  row then named the wrong size, or an object had no row). That object is
+  not trusted now: it goes with its row and bytes, as one of the wrong
+  size (`503`).
+- **CR6.** The deleted runs' bodies (`RUN_BODY_DELETES`) were taken off in
+  a read and a write of two transactions: a Delete stored between them
+  was lost and its body stayed. One transaction now (`updateMeta`), and
+  only the entries that were done go.
+- **CR7.** The sync awaited the runs' network part (body deletes, the
+  list of the bodies) and so did Log out's `syncNow`. Now `afterSync`
+  awaits only this device's rows (the `revived` runs back in the queue,
+  the room), so Log out still counts exactly what is not in the account;
+  an item refused for room (`itemRefused`, which deletes a body), the
+  bodies of deleted runs, the check of the bodies and the queue go on
+  behind it, one after the other (`PageRuns.later`), and not once the
+  page stops or Log out pauses it. The scan for new saved runs before
+  each queue run (`enqueue`) is left: it is one read of the `runs` store
+  off the game path and awaited by nobody.
+- **CR8.** One each: the Worker's usage of an account row
+  (`accounts.ts usageOf`, used by runs.ts and sync.ts), the agreed keys
+  (`agreedIn`, local.ts, used by `runCounts`), and the key range of a
+  run's chunks and events (`runRange`, local.ts, used by move.ts and
+  spaces.ts; src/runs/store.ts keeps its own, as the run library does not
+  import the cloud's space code).
+- **CR9.** `DoesNotFit.where`, the page's `where` map and the hook's
+  `SaveWhere` went (the dialog never read them; it shows over the page on
+  top, as round 11's pick 1a was accepted); the page keeps the set of runs
+  it was asked to save (a moved run saved again is told). The unused
+  `PageRuns.offs` and `RunQueue.dropBody` went.
+
+**The entry chunk**: 31 192 bytes, unchanged.
