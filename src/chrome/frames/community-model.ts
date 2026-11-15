@@ -7,6 +7,7 @@
 
 import type { GalleryRow, GallerySort, Note } from '../../../shared/cloud/api.ts';
 import { cleanPublicText, publicTextToSend } from '../../../shared/cloud/text.ts';
+import { ageText } from '../../cloud/community/format';
 
 // ------------------------------------------------------------ the list
 
@@ -65,15 +66,8 @@ export function dateText(ms: number, now: number = Date.now()): string {
   return d.getFullYear() === new Date(now).getFullYear() ? day : `${day} ${d.getFullYear()}`;
 }
 
-/** The stars' mean with one decimal ("4.8"), null without votes. */
-export function meanText(s: { sum: number; count: number }): string | null {
-  return s.count > 0 ? (s.sum / s.count).toFixed(1) : null;
-}
-
-/** The whole stars drawn for a mean (0 without votes). */
-export function starsShown(s: { sum: number; count: number }): number {
-  return s.count > 0 ? Math.max(0, Math.min(5, Math.round(s.sum / s.count))) : 0;
-}
+/** The stars' mean ("4.8") and the whole stars drawn: the community's one formatter set (review fix CR6). */
+export { meanText, meanStars as starsShown } from '../../cloud/community/format';
 
 /** The newest `listedAt` among what the page has shown (the counter's seen time), null when nothing. */
 export function newestListed(...lists: ReadonlyArray<readonly Pick<GalleryRow, 'listedAt'>[] | null | undefined>): number | null {
@@ -84,17 +78,9 @@ export function newestListed(...lists: ReadonlyArray<readonly Pick<GalleryRow, '
 
 // ------------------------------------------------------------ the board
 
-/** The age of a note at the right: "just now", "2 min", "3 h", "yesterday", "4 days". */
+/** The age of a note at the right: "just now", "2 min", "3 h", "yesterday", "4 days" (the community's formatter, CR6). */
 export function noteAge(ms: number, now: number = Date.now()): string {
-  const d = Math.max(0, now - ms);
-  const min = 60_000;
-  const hour = 60 * min;
-  const day = 24 * hour;
-  if (d < min) return 'just now';
-  if (d < hour) return `${Math.floor(d / min)} min`;
-  if (d < day) return `${Math.floor(d / hour)} h`;
-  if (d < 2 * day) return 'yesterday';
-  return `${Math.floor(d / day)} days`;
+  return ageText(ms, now);
 }
 
 /** The start (ms) of the UTC day of `now`. */

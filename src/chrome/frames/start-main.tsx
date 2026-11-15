@@ -52,7 +52,7 @@
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type AccountState, accountState, onAccountState, watchAccountState } from '../../cloud/account/state';
-import { apiAllowed, flagOn, whenIdle } from '../../cloud/config';
+import { whenIdle } from '../../cloud/config';
 import { type LockedNotice, type SyncView, onSyncMessage, onSyncView, startSync, syncView, takeSyncMessage } from '../../cloud/sync-view';
 import { currentSpace, lockedCopies, takeSpaceMessage } from '../../core/space';
 import { useServices, useSettings } from '../kit/hooks';
@@ -70,6 +70,7 @@ import { takeLoginReturn } from '../../watch/return';
 import { COUNTER_PERIOD_MS, communityCount as communityRuns, onCommunityCount, refreshCommunityCount } from '../../cloud/community/counter';
 import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 import { communityNews, onCommunityNews, watchCommunityNews } from '../../cloud/community/news';
+import { communityAllowed } from '../../cloud/community/allowed';
 import { takeStartRow } from './start-request';
 
 export interface StartMainProps {
@@ -528,14 +529,6 @@ function useWatchReturn(openAccount: (opens: OwnerView['opens']) => void): void 
 
 // ------------------------------------------------------------ Community (stage 65 C1)
 
-/** The Community page may be shown: the page may call the API, `share` and `gallery` are on (never rejects). */
-async function galleryOn(): Promise<boolean> {
-  try {
-    return apiAllowed() && (await flagOn('share')) && (await flagOn('gallery'));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The Community row: null until the flags say it is there, then its count.
@@ -550,7 +543,7 @@ function useCommunityRow(isTop: boolean): { count: number } | null {
   useEffect(() => {
     let live = true;
     const off = onCommunityCount(setN);
-    whenIdle(() => void galleryOn().then((v) => live && setOn(v)));
+    whenIdle(() => void communityAllowed('read').then((v) => live && setOn(v)));
     return () => {
       live = false;
       off();
@@ -610,7 +603,7 @@ function useCommunityAddress(open: (restore: boolean) => void): void {
     } catch {
       /* the address keeps it; a reload opens the page again */
     }
-    whenIdle(() => void galleryOn().then((on) => on && open(true)));
+    whenIdle(() => void communityAllowed('read').then((on) => on && open(true)));
   }, []);
 }
 

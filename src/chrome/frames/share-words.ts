@@ -126,11 +126,8 @@ export function pubViewHead(o: { count: number; limit: number; size: string; run
   return `${o.count} of ${o.limit} · ${o.size}, not counted against your ${o.runBytes}`;
 }
 
-/** A run's stars: "4.3" (the mean to a tenth), or null without votes. */
-export function meanWords(stars: { sum: number; count: number } | undefined): string | null {
-  if (!stars || stars.count <= 0) return null;
-  return (Math.round((stars.sum / stars.count) * 10) / 10).toFixed(1);
-}
+/** A run's stars: "4.3" (the mean to a tenth), or null without votes: the community's formatter (review fix CR6). */
+export { meanText as meanWords } from '../../cloud/community/format';
 export const PUB_HIDDEN = 'Hidden after reports. Only you can watch it until we have looked.';
 export const EDIT_NOTE = 'The run itself stays as it was cut.';
 export const REMOVE_NOTE = 'The link stops working; whoever opens it is told that the run was removed by its sender. This cannot be undone.';

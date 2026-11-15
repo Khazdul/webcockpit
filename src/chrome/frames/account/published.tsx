@@ -49,9 +49,9 @@ import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { DEFAULT_ACCOUNT_LIMITS, type AccountLimits, type MyPub, PUB_DESCRIPTION_MAX } from '../../../../shared/cloud/api.ts';
 import { loadAccount } from '../../../cloud/account';
-import { flagOn } from '../../../cloud/config';
 import { communityNews, markCommunitySeen, refreshCommunityNews } from '../../../cloud/community/news';
 import { type PubErrorCode, createPubApi, shareEnabled } from '../../../cloud/pub/api';
+import { communityAllowed } from '../../../cloud/community/allowed';
 import { cleanDescription, cleanTitle, codePointCount, linkPath, linkUrl, sizeWords, typedDescription, typedTitle } from '../../../share/link';
 import { copyText } from '../../kit/clipboard';
 import { Box, BoxBody, Dialog, Field, GlassButton, Icon, LookFlash, Rule, Stars, TextArea, Toggle, lookFrame } from '../../kit/look';
@@ -98,14 +98,6 @@ export interface PublishedView {
 
 const api = createPubApi();
 
-/** True when the community is on (the flag `gallery`; never rejects). */
-async function galleryOn(): Promise<boolean> {
-  try {
-    return await flagOn('gallery');
-  } catch {
-    return false;
-  }
-}
 
 /** New reactions on the runs, summed (each run's counts are capped at 99 by the server). */
 const newOf = (pubs: MyPub[]): number => pubs.reduce((n, p) => n + (p.news ? p.news.votes + p.news.comments : 0), 0);
@@ -137,7 +129,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
   };
 
   useEffect(() => {
-    void Promise.all([shareEnabled(), galleryOn()]).then(([on, g]) => {
+    void Promise.all([shareEnabled(), communityAllowed('read')]).then(([on, g]) => {
       if (!alive.current) return;
       setCommunity(g);
       setShown(on);

@@ -62,3 +62,22 @@ describe('CR2: an answer asked before a mark does not bring back what the mark c
     setNewsDepsForTest({});
   });
 });
+
+describe('CR6: one formatter set for the mean, the stars and the age', () => {
+  it('the Community page, the watch page and Published runs round alike', async () => {
+    const cm = await import('../../src/chrome/frames/community-model');
+    const wm = await import('../../src/watch/model');
+    const sw = await import('../../src/chrome/frames/share-words');
+    for (const s of [{ sum: 87, count: 20 }, { sum: 13, count: 3 }, { sum: 72, count: 15 }, { sum: 0, count: 0 }]) {
+      expect(cm.meanText(s)).toBe(wm.meanText(s));
+      expect(sw.meanWords(s)).toBe(wm.meanText(s));
+      expect(cm.starsShown(s)).toBe(wm.meanStars(s));
+    }
+    // 4.35: half up everywhere (the Community page said 4.3 before).
+    expect(cm.meanText({ sum: 87, count: 20 })).toBe('4.4');
+    const now = Date.UTC(2026, 10, 15, 12);
+    for (const ago of [10_000, 5 * 60_000, 3 * 3_600_000, 30 * 3_600_000, 4 * 86_400_000]) {
+      expect(wm.ageText(now - ago, now).replace(/ ago$/, '')).toBe(cm.noteAge(now - ago, now));
+    }
+  });
+});
