@@ -42,3 +42,23 @@ describe('S7: a hidden comment or note says why it cannot be removed', () => {
     expect(commentFailText(403, 'suspended')).not.toBe(HIDDEN_TEXT);
   });
 });
+
+describe('CR2: an answer asked before a mark does not bring back what the mark cleared', () => {
+  it('the counts the mark covers stay 0; a count with newer items stays', async () => {
+    const { communityNews, markCommunitySeen, refreshCommunityNews, setNewsDepsForTest } = await import('../../src/cloud/community/news');
+    let release: (v: unknown) => void = () => undefined;
+    const answers: Promise<unknown>[] = [new Promise((r) => (release = r))];
+    setNewsDepsForTest({
+      enabled: async () => true,
+      fetch: async (url) => (url.endsWith('/news') ? { ok: true, json: () => answers.shift() ?? Promise.resolve(null) } : { ok: true, json: async () => ({}) }),
+    });
+    const asked = refreshCommunityNews();
+    // The page shows the runs up to 500 and the reactions up to 900 while the answer is on its way.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(await markCommunitySeen({ gallery: 500, reactions: 900 })).toBe(true);
+    release({ runs: 3, reactions: 2, newestRun: 500, newestReaction: 950 });
+    await asked;
+    expect(communityNews()).toEqual({ runs: 0, reactions: 2, newestRun: 500, newestReaction: 950 });
+    setNewsDepsForTest({});
+  });
+});
