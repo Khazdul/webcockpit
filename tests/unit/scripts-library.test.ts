@@ -4,6 +4,7 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
+import { type StoredKind, onStored } from '../../src/core/store-events';
 import { resetScriptKeys, scriptKeyOwner } from '../../src/script/script-keys';
 import { ScriptError, ScriptLibrary, scriptNameError, uniqueScriptName } from '../../src/scripts';
 import {
@@ -178,6 +179,21 @@ describe('library', () => {
     expect(again.storeGet('looter', 'n')).toBe(5);
     expect(again.storeGet('looter', 'gone')).toBe(undefined);
     await again.close();
+    await lib.close();
+  });
+
+  it('notes `scriptData` for a data write and `script` for a script write (ADR 0152)', async () => {
+    const { lib } = make();
+    await lib.init();
+    const kinds: StoredKind[] = [];
+    const off = onStored((k) => kinds.push(k));
+    lib.storeSet('looter', 'n', 1);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(kinds).toEqual(['scriptData']);
+    kinds.length = 0;
+    await lib.create('mine');
+    expect(kinds).toContain('script');
+    off();
     await lib.close();
   });
 

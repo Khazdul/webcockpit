@@ -23,6 +23,30 @@ describe('TimersArchive', () => {
     db.close();
   });
 
+  it('lists, puts as given and removes (the sync, ADR 0152); a save notes `timers`, a put does not', async () => {
+    const { onStored } = await import('../../src/core/store-events');
+    const db = await openWebcockpitDb(new IDBFactory());
+    const a = new TimersArchive(db, { now: () => NOW });
+    const kinds: string[] = [];
+    const off = onStored((k) => kinds.push(k));
+    expect(await a.list()).toEqual([]);
+    await a.save('Rasta', { v: 1, trackers: {} });
+    expect(kinds).toEqual(['timers']);
+    await a.put({ character: 'Gibur', savedAt: NOW - 5000, state: { v: 1, trackers: { x: 1 } } });
+    await expect(a.put({ savedAt: 1 } as never)).rejects.toThrow(TypeError);
+    expect(kinds).toEqual(['timers']);
+    off();
+    expect(await a.list()).toEqual([
+      { character: 'Gibur', savedAt: NOW - 5000, state: { v: 1, trackers: { x: 1 } } },
+      { character: 'Rasta', savedAt: NOW, state: { v: 1, trackers: {} } },
+    ]);
+    await a.remove('Rasta');
+    await a.remove('Nobody');
+    expect((await a.list()).map((r) => r.character)).toEqual(['Gibur']);
+    expect(await a.load('Rasta')).toBeNull();
+    db.close();
+  });
+
   it('opens through the lazy opener and rejects without IndexedDB', async () => {
     const a = await TimersArchive.open(lazyDb(new IDBFactory()));
     await a.save('Rasta', null);

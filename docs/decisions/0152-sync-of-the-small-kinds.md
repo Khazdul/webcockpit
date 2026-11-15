@@ -207,3 +207,38 @@ behind the flag `sync`; the limits and the endpoints are unchanged.
 - Comm history of other players (their tells) is stored in the account,
   encrypted, for seven days. The registration's first point and
   `/privacy` say so (owner, 2026-11-15).
+
+## As built (stage 62 B2)
+
+- **`SettingsStore.reload(): Promise<'applied'|'same'|'local'|'none'>`**
+  (src/settings/store.ts). A local change not flushed yet **wins**: it
+  is flushed over the pulled record (the next scan pushes it, last
+  writer) and the result is `local`; the same for a change made while
+  the record is read. A write in flight is awaited before the read.
+  `applied` tells the subscribers and rewrites the mirror; nothing is
+  written back. Safe mode before its first change keeps the default
+  appearance. A flush that committed notes `settings`.
+- **store-events**: `StoredKind` adds `settings`, `scriptData`, `comm`,
+  `timers`. The stores note only their own writes (the settings flush,
+  a library write touching `scriptData`, a committed Comm append
+  transaction, a timers `save`); the adapter-facing helpers below do
+  not. The sync runtime still starts its 5 s sync only for `profile`
+  and `script` (part C wires the rest).
+- **CommArchive** (src/gmcp/comm-archive.ts): `commDays(now?)` →
+  `{day, count, maxSeq}[]`, oldest first, within retention (`ts ≥ now −
+  7 d`, as `loadRecent`); `dayRecords(day)` → records without `seq`,
+  clipped to retention, sorted by `ts` then identity;
+  `addDayRecords(records)` → count added, in one transaction (identity
+  against the day's stored records, duplicates in the input are one;
+  non-records and records outside retention skipped);
+  `removeDay(day)` → count. Pure exports: `utcDay`, `dayBounds` (throws
+  `RangeError` on anything but a real `YYYY-MM-DD`, so a split key
+  `YYYY-MM-DD.2` is the adapter's to strip), `commFields`,
+  `commIdentity` (canonicalJson of src/cloud/sync/items.ts),
+  `sortCommRecords`.
+- **TimersArchive**: `list()`, `put(record)` (as given, `savedAt` kept),
+  `remove(character)`. The hub already reads a record put from outside
+  at the next `Char.Name` (a test).
+- **Measured** (stage file, "Measurements"): the owner's heaviest real
+  day is 1 472 records, 267 KB of canonical JSON, 30 KB gzip; a heavy
+  week is some 3 % of the 2 MB small-item limit.

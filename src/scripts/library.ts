@@ -807,6 +807,7 @@ export class ScriptLibrary {
     }
     await idbDone(tx);
     if (ops.some((op) => op.store === STORE.scripts)) noteStored('script');
+    if (ops.some((op) => op.store === STORE.scriptData)) noteStored('scriptData');
   }
 
   private open(): Promise<IDBDatabase> {
