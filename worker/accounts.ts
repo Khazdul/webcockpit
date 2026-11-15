@@ -48,10 +48,13 @@ export interface AccountRow {
   /** The account's live published runs and their payload bytes (worker/pub.ts; migration 0005). */
   pub_count: number;
   pub_bytes: number;
+  /** The account's last looks at the Community page and at the reactions on its own runs (stage 65; migrations 0002, 0006). */
+  gallery_seen: number;
+  reactions_seen: number;
 }
 
 export const ACCOUNT_COLUMNS =
-  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes';
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes, gallery_seen, reactions_seen';
 
 /**
  * Names nobody can register, besides those of deleted accounts

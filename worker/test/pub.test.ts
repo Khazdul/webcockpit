@@ -35,7 +35,10 @@ async function stored(key: string): Promise<Uint8Array | null> {
 
 const meta = (id: string, o: { cookie?: string; now?: number } = {}): Promise<Response> => call('GET', `/api/pub/${id}`, undefined, o);
 const payloadOf = (id: string): Promise<Response> => call('GET', `/api/pub/${id}/payload`);
-const view = (id: string, dev: string, now = NOW): Promise<Response> => call('POST', `/api/pub/${id}/view`, { device: dev }, { now, headers: { 'content-type': 'application/json' } });
+// Each device from an address of its own (stage 65 counts a view once per address a day too: community.test.ts).
+let viewIps = 0;
+const view = (id: string, dev: string, now = NOW): Promise<Response> =>
+  call('POST', `/api/pub/${id}/view`, { device: dev }, { now, ip: `192.0.2.${(viewIps++ % 250) + 1}`, headers: { 'content-type': 'application/json' } });
 
 beforeEach(async () => {
   await emptyTables();
@@ -90,6 +93,9 @@ describe('POST /api/u/pub', () => {
       updated: NOW,
       views: 0,
       bytes: 1234,
+      stars: { sum: 0, count: 0 },
+      comments: 0,
+      news: { votes: 0, comments: 0 },
     } satisfies MyPub);
     expect(await stored(`pub/${pub.id}`)).toEqual(data);
     expect(await r2Keys()).toEqual([`pub/${pub.id}`]);
@@ -374,7 +380,7 @@ describe('GET, PATCH and DELETE /api/u/pub', () => {
     expect((await ok<{ pubs: MyPub[] }>(await call('GET', '/api/u/pub', undefined, { cookie: alice }))).pubs.map((p) => p.id)).toEqual([a1]);
   });
 
-  it('PATCH changes title and description; listed and unknown keys are refused; another’s run is 404', async () => {
+  it('PATCH changes title and description; listing with the flag gallery off and unknown keys are refused; another’s run is 404', async () => {
     const alice = await signUp('alice');
     const bob = await signUp('bob');
     const id = await publish(alice);
@@ -382,7 +388,7 @@ describe('GET, PATCH and DELETE /api/u/pub', () => {
     const { pub } = await ok<PubWritten>(res);
     expect(pub).toMatchObject({ id, title: 'New title', description: META.description, updated: NOW + 5000, created: NOW });
     expect((await ok<PubWritten>(await call('PATCH', `/api/u/pub/${id}`, { description: '' }, { cookie: alice }))).pub.description).toBe('');
-    for (const b of [{}, { listed: true }, { listed: false }, { title: '' }, { title: 'a\u0000' }, { description: 'x'.repeat(501) }, { title: 'ok', other: 1 }]) {
+    for (const b of [{}, { listed: true }, { listed: 'yes' }, { title: '' }, { title: 'a\u0000' }, { description: 'x'.repeat(501) }, { title: 'ok', other: 1 }]) {
       expect((await call('PATCH', `/api/u/pub/${id}`, b, { cookie: alice })).status, JSON.stringify(b)).toBe(400);
     }
     expect((await call('PATCH', `/api/u/pub/${id}`, { title: 'mine now' }, { cookie: bob })).status).toBe(404);
@@ -548,7 +554,8 @@ describe('the daily cron', () => {
     await view(id, device(), NOW - DAY);
     await view(id, device(), NOW);
     await runCron(ENV, DAILY_CRON, NOW);
-    expect((await db.prepare('SELECT day FROM pub_view ORDER BY day').all()).results.map((r) => r.day)).toEqual(['2026-11-13', '2026-11-14', '2026-11-15']);
+    // A device row and an address row each (stage 65).
+    expect((await db.prepare('SELECT day FROM pub_view ORDER BY day').all()).results.map((r) => r.day)).toEqual(['2026-11-13', '2026-11-13', '2026-11-14', '2026-11-14', '2026-11-15', '2026-11-15']);
     // The count stays.
     expect((await pubRow(id))?.views).toBe(4);
   });

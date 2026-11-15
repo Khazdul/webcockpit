@@ -9,6 +9,7 @@
 // (the player proved the password; the admin read the row): the account
 // row goes last, so the guard sees it until then.
 import type { AccountRow } from './accounts.ts';
+import { deletionStatements } from './community.ts';
 import { TOMBSTONE_SET, dropObjects, tombstones } from './pub.ts';
 import { emptyPrefix, prefixOf } from './runs.ts';
 import type { D1, D1Result, D1Statement, Env } from './runtime.ts';
@@ -47,10 +48,10 @@ export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, 
     // handled ones stay for the record without their text or the account.
     db.prepare(`DELETE FROM report WHERE account = ?1 AND handled = 0 AND ${STILL}`).bind(row.id, hash),
     db.prepare(`UPDATE report SET text = '', account = NULL WHERE account = ?1 AND ${STILL}`).bind(row.id, hash),
-    // Later stages add theirs here:
-    //   stage 65: the votes and comments the account made (and the
-    //             publications' vote_sum, vote_count, comment_count)
-    //   (each with the same guard)
+    // Stage 65: the votes the account cast (out of both sums unless it is
+    // suspended), its comments (the counts adjusted) and notes, and the
+    // reports on them handled.
+    ...deletionStatements(db, STILL, row.id, hash, now),
     ...extra,
     db.prepare('DELETE FROM account WHERE id = ?1 AND auth_hash = ?2').bind(row.id, hash),
   ];

@@ -4,7 +4,8 @@
 // match no file, and for the cron triggers (ADR 0147): the 5-minute sample
 // and the daily roll-up. It hands the router what only workerd has: the
 // request's `waitUntil` and `cloudflare:email`'s EmailMessage (the
-// owner's mail on reports, worker/mail.ts).
+// owner's mail on reports, worker/mail.ts) and the Cache API (the public
+// community answers, worker/community.ts).
 import { EmailMessage } from 'cloudflare:email';
 import { type Env, handle } from './router.ts';
 import { DEFAULT_DEPS, type Deps } from './runtime.ts';
@@ -14,6 +15,7 @@ const depsOf = (ctx: ExecutionContext): Deps => ({
   ...DEFAULT_DEPS,
   waitUntil: (work) => ctx.waitUntil(work),
   emailMessage: (from, to, raw) => new EmailMessage(from, to, raw),
+  cache: caches.default,
 });
 
 export default {

@@ -21,6 +21,7 @@ import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { flushReportMail } from './mail.ts';
 import { DAY_MS, type D1, type Deps, type Env, dayStart, utcDay } from './runtime.ts';
+import { sweepCommunity } from './community.ts';
 import { sweepPubs } from './pub.ts';
 import { sweepPrefixes } from './runs.ts';
 import { pruneSessions } from './sessions.ts';
@@ -305,6 +306,7 @@ export async function runCron(env: Env, cron: string, time: number, deps?: Deps)
       await pruneSessions(db, time);
       await sweepPrefixes(env, time);
       await sweepPubs(env, time);
+      await sweepCommunity(env, time);
     }
   } else {
     try {

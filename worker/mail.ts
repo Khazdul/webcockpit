@@ -18,8 +18,10 @@
 // LF and the other control characters replaced, the subject is RFC 2047
 // encoded when it is not plain ASCII, and what users wrote (the title,
 // the names, the report's text) is only in the subject (encoded) and in
-// the base64 UTF-8 text/plain body.
-import { REPORTS_TO_HIDE } from '../shared/cloud/api.ts';
+// the base64 UTF-8 text/plain body. Stage 65 (ADR 0155): a reported
+// comment or note has a mail of its own kind, with its text in full in the
+// body (never in a header) and its writer's name in the subject (encoded).
+import { REPORTS_TO_HIDE, type ReportKind } from '../shared/cloud/api.ts';
 import { randomBytes } from './bytes.ts';
 import { type D1, type Deps, type Env, later, truthy } from './runtime.ts';
 
@@ -192,6 +194,8 @@ async function flush(s: Sender, now: number): Promise<void> {
 }
 
 export interface ReportFacts {
+  /** Stage 65: what was reported (a run when absent). */
+  kind?: ReportKind;
   target: string;
   reason: string;
   text: string;
@@ -228,6 +232,72 @@ export function reportText(r: ReportFacts, run: RunFacts, origin: string): strin
   ].join('\n');
 }
 
+/** What a comment's or a note's mail says of it (stage 65). */
+interface ItemFacts {
+  text: string;
+  state: string;
+  hidden_reason: string | null;
+  writer: string | null;
+  /** A comment's run. */
+  pub: string | null;
+  title: string | null;
+  accounts: number;
+  open: number;
+}
+
+/** The text of a comment's or a note's report mail: the kind, the reported text in full, its writer, a comment's run, the links. */
+export function itemReportText(r: ReportFacts, kind: 'comment' | 'note', item: ItemFacts, origin: string): string {
+  const hidden = item.state === 'hidden' ? `yes (${item.hidden_reason === 'reports' ? 'by reports' : 'by the admin'})` : 'no';
+  return [
+    kind === 'comment' ? 'A comment was reported.' : 'A note on Random Runes was reported.',
+    '',
+    `Kind:     ${kind}`,
+    `Id:       ${r.target}`,
+    `Writer:   ${item.writer ?? '(account deleted)'}`,
+    ...(kind === 'comment' ? [`Run:      ${item.title ?? ''} (${item.pub ?? ''})`] : []),
+    `Reason:   ${r.reason}`,
+    `Reported: by ${item.accounts} ${item.accounts === 1 ? 'account' : 'accounts'} in all; ${item.open} open (${REPORTS_TO_HIDE} open hide it)`,
+    `Hidden:   ${hidden}`,
+    '',
+    `The reported ${kind}:`,
+    item.text,
+    '',
+    "The reporter's text:",
+    r.text === '' ? '(none)' : r.text,
+    '',
+    `Admin:    ${origin}/admin`,
+    ...(kind === 'comment' && item.pub ? [`Run:      ${origin}/r/${item.pub}?admin`] : []),
+    '',
+  ].join('\n');
+}
+
+const counts = (kind: string, id: string): string =>
+  `(SELECT COUNT(DISTINCT r.account) FROM report r WHERE r.kind = '${kind}' AND r.target = ${id}) AS accounts,
+   (SELECT COUNT(*) FROM report r WHERE r.kind = '${kind}' AND r.target = ${id} AND r.handled = 0) AS open`;
+
+/** The subject and text of a comment's or a note's mail, or null when the item is gone. */
+async function itemMail(db: D1, r: ReportFacts, kind: 'comment' | 'note', origin: string): Promise<{ subject: string; text: string } | null> {
+  const item =
+    kind === 'comment'
+      ? await db
+          .prepare(
+            `SELECT c.text, c.state, c.hidden_reason, a.name AS writer, p.id AS pub, p.title, ${counts('comment', 'c.id')}
+             FROM comment c LEFT JOIN account a ON a.id = c.account LEFT JOIN publication p ON p.id = c.publication WHERE c.id = ?1`,
+          )
+          .bind(r.target)
+          .first<ItemFacts>()
+      : await db
+          .prepare(
+            `SELECT n.text, n.state, n.hidden_reason, a.name AS writer, NULL AS pub, NULL AS title, ${counts('note', 'n.id')}
+             FROM note n LEFT JOIN account a ON a.id = n.account WHERE n.id = ?1`,
+          )
+          .bind(r.target)
+          .first<ItemFacts>();
+  if (!item) return null;
+  const subject = kind === 'comment' ? `WebCockpit report: comment on "${item.title ?? ''}"` : `WebCockpit report: note by ${item.writer ?? '(account deleted)'}`;
+  return { subject, text: itemReportText(r, kind, item, origin) };
+}
+
 /** The mail of one stored report (or its share of the hour's count past the cap). Never throws. */
 export async function reportMail(env: Env, deps: Deps, origin: string, r: ReportFacts): Promise<void> {
   try {
@@ -236,6 +306,11 @@ export async function reportMail(env: Env, deps: Deps, origin: string, r: Report
     const now = deps.now();
     await flush(s, now);
     if (!(await claim(s.db, now))) return;
+    if (r.kind === 'comment' || r.kind === 'note') {
+      const m = await itemMail(s.db, r, r.kind, s.origin);
+      if (m) await s.send(`${s.tag}${m.subject}`, m.text, now);
+      return;
+    }
     const run = await s.db
       .prepare(
         `SELECT p.title, p.state, p.hidden_reason, a.name AS sender,

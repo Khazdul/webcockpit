@@ -18,6 +18,9 @@
 //                                          the run bodies (worker/runs.ts; flag `runs` as well)
 //   /api/u/pub*, POST /api/u/report        published runs and reports (worker/pub.ts,
 //                                          worker/reports.ts; flag `share` as well)
+//   /api/u/pub/<id>/vote|comments, /api/u/comments/<id>, /api/u/runes[/<id>],
+//   /api/u/community/news|seen             the community (worker/community.ts; flags
+//                                          `share` and `gallery`, Random Runes `runes` too)
 //
 // The server never sees a password or a key that opens data. The browser
 // sends `authKey` (and `recoveryAuth`), derived from the password (the
@@ -72,6 +75,7 @@ import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
+import { communityUserRoute } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
 import { REPORT_PATH, isPubPath, pubRoute } from './pub.ts';
 import { report } from './reports.ts';
@@ -515,6 +519,8 @@ const ROUTES: Record<string, Record<string, Handler>> = {
 };
 
 function routeOf(path: string): Record<string, Handler> | undefined {
+  const community = communityUserRoute(path);
+  if (community) return community.route;
   if (isSyncPath(path)) return syncRoute(path);
   if (isRunsPath(path)) return runsRoute(path);
   if (isPubPath(path)) return pubRoute(path);
@@ -563,7 +569,11 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
   // The flags `sync` and `runs` close their paths as `accounts` closes them all.
   if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
   if (isRunsPath(path) && !(await flags(env, now)).runs) return error('not_found', 404);
-  if ((isPubPath(path) || path === REPORT_PATH) && !(await flags(env, now)).share) return error('not_found', 404);
+  const community = communityUserRoute(path);
+  if (community) {
+    const on = await flags(env, now);
+    if (!on.share || !on.gallery || (community.runes && !on.runes)) return error('not_found', 404);
+  } else if ((isPubPath(path) || path === REPORT_PATH) && !(await flags(env, now)).share) return error('not_found', 404);
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;

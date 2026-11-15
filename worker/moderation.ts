@@ -10,6 +10,8 @@
 //   GET  /api/admin/log                  the newest 100 entries of admin_log
 //   GET  /api/admin/pub/<id>             PubMeta, also of a hidden run
 //   GET  /api/admin/pub/<id>/payload     its payload, also of a hidden run
+//   POST /api/admin/comment/<id>         {action: hide|restore|dismiss|delete, note?} → 204 (stage 65)
+//   POST /api/admin/note/<id>            the same for a note on Random Runes (stage 65)
 //
 // Every action writes `admin_log(ts, who, action, target, note)` in the
 // same transaction; `who` is an HMAC of the Access e-mail (under
@@ -17,6 +19,8 @@
 // handled; deleting an account marks the reports on its runs handled.
 import {
   ADMIN_ACCOUNT_ACTIONS,
+  ADMIN_ITEM_ACTIONS,
+  COMMUNITY_ID_PATTERN,
   ADMIN_PUB_ACTIONS,
   type AdminLogEntry,
   type AdminReportItem,
@@ -30,9 +34,10 @@ import {
 import { accountByKey, hasKeys, nameOf } from './accounts.ts';
 import { sameSite } from './auth.ts';
 import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
+import { stateChange } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
 import { dropObjects, keyOf, payloadResponse, pubMeta, pubWithSender, textOf, tombstones } from './pub.ts';
-import { type D1, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
+import { type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
 import { readCapped } from './stats.ts';
 
 const MAX_ACTION_BYTES = 4096;
@@ -42,6 +47,7 @@ export const LOG_ENTRIES = 100;
 
 const PUB_PREFIX = '/api/admin/pub/';
 const ACCOUNT_PREFIX = '/api/admin/account/';
+const ITEM_PREFIXES = { comment: '/api/admin/comment/', note: '/api/admin/note/' } as const;
 
 const done = (): Response => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 
@@ -69,7 +75,14 @@ function noteOf(v: unknown): string | null {
 }
 
 export function isModerationPath(path: string): boolean {
-  return path === '/api/admin/reports' || path === '/api/admin/log' || path.startsWith(PUB_PREFIX) || path.startsWith(ACCOUNT_PREFIX);
+  return (
+    path === '/api/admin/reports' ||
+    path === '/api/admin/log' ||
+    path.startsWith(PUB_PREFIX) ||
+    path.startsWith(ACCOUNT_PREFIX) ||
+    path.startsWith(ITEM_PREFIXES.comment) ||
+    path.startsWith(ITEM_PREFIXES.note)
+  );
 }
 
 type AdminHandler = (request: Request, env: Env, url: URL, deps: Deps, who: string) => Promise<Response>;
@@ -85,6 +98,10 @@ export function moderationRoute(path: string): Record<string, AdminHandler> | un
     return undefined;
   }
   if (path.startsWith(ACCOUNT_PREFIX) && /^[^/]+$/.test(path.slice(ACCOUNT_PREFIX.length))) return { POST: guarded(accountAction) };
+  for (const kind of ['comment', 'note'] as const) {
+    const prefix = ITEM_PREFIXES[kind];
+    if (path.startsWith(prefix) && /^[^/]+$/.test(path.slice(prefix.length))) return { POST: guarded((...a) => itemAction(kind, ...a)) };
+  }
   return undefined;
 }
 
@@ -105,7 +122,7 @@ function guarded(h: (request: Request, env: Env, db: D1, url: URL, now: number, 
 // --- GET /api/admin/reports ---
 
 async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: number): Promise<Response> {
-  const [items, reasons, texts, totals] = await db.batch<Record<string, unknown>>([
+  const [items, comments, notes, reasons, texts, totals] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
@@ -113,6 +130,26 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
          FROM report r JOIN publication p ON r.kind = 'run' AND p.id = r.target
          LEFT JOIN account a ON a.id = p.account
          WHERE r.handled = 0 AND p.state IN ('active', 'hidden')
+         GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
+      )
+      .bind(QUEUE_MAX),
+    // Stage 65: comments (with their run) and notes, with the reported text.
+    db
+      .prepare(
+        `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
+                COALESCE(p.title, '') AS title, c.state, c.hidden_reason, COALESCE(a.name, '') AS sender, c.text AS content, c.publication AS pub
+         FROM report r JOIN comment c ON r.kind = 'comment' AND c.id = r.target
+         LEFT JOIN publication p ON p.id = c.publication LEFT JOIN account a ON a.id = c.account
+         WHERE r.handled = 0 AND c.state IN ('active', 'hidden')
+         GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
+      )
+      .bind(QUEUE_MAX),
+    db
+      .prepare(
+        `SELECT r.kind, r.target, COUNT(DISTINCT r.account) AS reporters, MAX(r.created) AS newest,
+                '' AS title, n.state, n.hidden_reason, COALESCE(a.name, '') AS sender, n.text AS content
+         FROM report r JOIN note n ON r.kind = 'note' AND n.id = r.target LEFT JOIN account a ON a.id = n.account
+         WHERE r.handled = 0 AND n.state IN ('active', 'hidden')
          GROUP BY r.kind, r.target ORDER BY reporters DESC, newest DESC LIMIT ?1`,
       )
       .bind(QUEUE_MAX),
@@ -140,7 +177,10 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
   }
   const textOfItem = new Map<string, string>();
   for (const r of texts?.results ?? []) textOfItem.set(key(r), r.text as string);
-  const out: AdminReportItem[] = (items?.results ?? []).map((r) => {
+  const all = [...(items?.results ?? []), ...(comments?.results ?? []), ...(notes?.results ?? [])]
+    .sort((x, y) => Number(y.reporters) - Number(x.reporters) || Number(y.newest) - Number(x.newest))
+    .slice(0, QUEUE_MAX);
+  const out: AdminReportItem[] = all.map((r) => {
     const item: AdminReportItem = {
       kind: r.kind as ReportKind,
       target: r.target as string,
@@ -153,6 +193,8 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
     };
     const text = textOfItem.get(key(r));
     if (text) item.text = text;
+    if (typeof r.content === 'string') item.content = r.content;
+    if (typeof r.pub === 'string') item.pub = r.pub;
     if (r.state === 'hidden' && (r.hidden_reason === 'reports' || r.hidden_reason === 'admin')) item.hiddenReason = r.hidden_reason;
     return item;
   });
@@ -188,7 +230,7 @@ async function adminRow(db: D1, url: URL) {
 
 async function pubGet(_request: Request, _env: Env, db: D1, url: URL): Promise<Response> {
   const row = await adminRow(db, url);
-  return row instanceof Response ? row : json(pubMeta(row, row.sender ?? ''));
+  return row instanceof Response ? row : json(pubMeta(row, row.sender ?? '', true));
 }
 
 async function pubPayload(_request: Request, env: Env, db: D1, url: URL): Promise<Response> {
@@ -263,6 +305,44 @@ async function accountAction(request: Request, env: Env, db: D1, url: URL, now: 
     return done();
   }
   const state = action === 'suspend' ? 'suspended' : 'active';
-  await db.batch([db.prepare('UPDATE account SET state = ?2 WHERE id = ?1').bind(row.id, state), logEntry(db, now, who, `account.${action}`, row.name, note)]);
+  // Stage 65: the account's votes leave both sums with Suspend and come back with Restore (only on a change).
+  await db.batch([...stateChange(db, row.id, state), logEntry(db, now, who, `account.${action}`, row.name, note)]);
+  return done();
+}
+
+// --- /api/admin/comment/<id>, /api/admin/note/<id> (stage 65) ---
+
+async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env, db: D1, url: URL, now: number, who: string): Promise<Response> {
+  const b = await bodyOf(request, ['action'], ['note']);
+  const note = b ? noteOf(b.note) : null;
+  if (!b || note === null || !(ADMIN_ITEM_ACTIONS as readonly unknown[]).includes(b.action)) return error('bad_request', 400);
+  const action = b.action as (typeof ADMIN_ITEM_ACTIONS)[number];
+  const id = url.pathname.slice(ITEM_PREFIXES[kind].length);
+  if (!COMMUNITY_ID_PATTERN.test(id)) return error('not_found', 404);
+  const row = await db.prepare(`SELECT state FROM ${kind} WHERE id = ?1`).bind(id).first<{ state: string }>();
+  if (!row || (row.state !== 'active' && row.state !== 'hidden')) return error('not_found', 404);
+  const live = "state IN ('active', 'hidden')";
+  const statements: D1Statement[] = [];
+  // A comment's run counts its visible comments: the count moves with the state.
+  const count = (sign: '+' | '-', from: string): void => {
+    if (kind === 'comment') {
+      statements.push(db.prepare(`UPDATE publication SET comment_count = comment_count ${sign} 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = '${from}')`).bind(id));
+    }
+  };
+  if (action === 'delete') {
+    count('-', 'active');
+    statements.push(db.prepare(`DELETE FROM ${kind} WHERE id = ?1 AND ${live}`).bind(id));
+  } else if (action === 'hide') {
+    count('-', 'active');
+    statements.push(db.prepare(`UPDATE ${kind} SET state = 'hidden', hidden_reason = 'admin' WHERE id = ?1 AND ${live}`).bind(id));
+  } else if (action === 'restore') {
+    count('+', 'hidden');
+    statements.push(db.prepare(`UPDATE ${kind} SET state = 'active', hidden_reason = NULL, reviewed = 1 WHERE id = ?1 AND ${live}`).bind(id));
+  } else {
+    statements.push(db.prepare(`UPDATE ${kind} SET reviewed = 1 WHERE id = ?1 AND ${live}`).bind(id));
+  }
+  statements.push(db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = ?3 AND target = ?1`).bind(id, now, kind));
+  statements.push(logEntry(db, now, who, `${kind}.${action}`, id, note));
+  await db.batch(statements);
   return done();
 }
