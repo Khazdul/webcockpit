@@ -18,10 +18,14 @@
 // and what the walk stores (a restored demo backup, a script's switch)
 // stays in the test browser's own storage.
 //
+// The shared replay's frame (ADR 0154): its own policy, and a payload played
+// in it inside the app page (the app's frame-src 'self').
+//
 // Not walked: the account pages (Turnstile's script and frame), which do
 // not exist yet; they get their own steps here when they do.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { type Browser, type BrowserContext, type Page, devices, expect, test } from '@playwright/test';
 import { type CspWatch, keepQuiet, mockMume, watchCsp } from './csp.ts';
 import { cloudflare } from './profile.ts';
@@ -109,6 +113,77 @@ test('the policy is sent with every static file and names the inline scripts of 
   const missing = await request.get('no-such-page-csp');
   expect(missing.status()).toBe(404);
   policyOf(missing.headers());
+});
+
+/** The shared replay's frame policy (ADR 0154), its two hashes filled in. */
+const FRAME_POLICY =
+  /^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/]+=*'; style-src 'sha256-[A-Za-z0-9+/]+=*' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'$/;
+
+test('the shared replay frame /r/frame has its own policy, naming its one script and one style', async ({ request }) => {
+  const r = await request.get('r/frame');
+  expect(r.status()).toBe(200);
+  const h = r.headers();
+  // Its own policy only: the app's (frame-ancestors 'none', the report-only line) is removed for it.
+  expect(h['content-security-policy']).toMatch(FRAME_POLICY);
+  expect(h['content-security-policy-report-only']).toBeUndefined();
+  expect(h['x-frame-options']).toBeUndefined();
+  const html = await r.text();
+  const hash = (t: string): string => `'sha256-${createHash('sha256').update(t, 'utf8').digest('base64')}'`;
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
+  const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)];
+  expect([scripts.length, styles.length]).toEqual([1, 1]);
+  expect(scripts[0]![1]).not.toMatch(/\bsrc\s*=/);
+  expect(h['content-security-policy']).toContain(`script-src ${hash(scripts[0]![2]!)};`);
+  expect(h['content-security-policy']).toContain(`style-src ${hash(styles[0]![1]!)} `);
+  // The file's own name redirects to the clean path (html_handling), where the rule applies.
+  const file = await request.get('r/frame.html', { maxRedirects: 0 });
+  expect(file.status()).toBe(307);
+  expect(file.headers()['location']).toMatch(/\/r\/frame$/);
+  // The app's page may load it in a frame.
+  const app = (await request.get('./')).headers();
+  expect(app['content-security-policy-report-only'] ?? app['content-security-policy'] ?? '').toContain("frame-src 'self' ");
+});
+
+test('the shared replay frame plays a payload inside the app page, sandboxed, without a violation', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const csp = await watchCsp(page);
+  await mockMume(page);
+  await page.goto('privacy');
+  await expect(hood(page)).toHaveText(/Privacy/);
+  // A payload of the map demo (its rooms; no map embedded), gzip JSON as the Worker serves it.
+  const text = readFileSync(new URL('../fixtures/map-demo.log', import.meta.url), 'utf8');
+  const startUs = Number(/^(\d{16}) /.exec(text)![1]);
+  const payload = { schema: 1, title: 'CSP walk', character: 'Rasta', startUs, settings: {}, runs: [{ meta: { startedUs: startUs }, text }], comments: [], cuts: [], markers: [] };
+  const bytes = [...gzipSync(Buffer.from(JSON.stringify(payload)))];
+  const result = await page.evaluate(
+    (gz) =>
+      new Promise<string>((done) => {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('sandbox', 'allow-scripts');
+        frame.setAttribute('referrerpolicy', 'no-referrer');
+        frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;border:0';
+        addEventListener('message', (e) => {
+          if (e.source !== frame.contentWindow || e.origin !== 'null') return;
+          const d = e.data as { t?: string; text?: string };
+          if (d.t === 'wc-ready') {
+            const buf = new Uint8Array(gz).buffer;
+            frame.contentWindow!.postMessage({ t: 'wc-play', v: 1, payload: buf, fonts: [] }, '*', [buf]);
+            done('played');
+          } else if (d.t === 'wc-error') done(`error: ${d.text}`);
+        });
+        frame.src = new URL('r/frame', document.baseURI.replace(/privacy$/, '')).href;
+        document.body.appendChild(frame);
+      }),
+    bytes,
+  );
+  expect(result).toBe('played');
+  const f = page.frameLocator('iframe[sandbox]');
+  await expect(f.locator('.wc-player')).toBeVisible({ timeout: 20_000 });
+  await expect(f.locator('.wc-player-name')).toHaveText('CSP walk');
+  await page.waitForTimeout(1500);
+  await csp.clean();
+  expect(errors).toEqual([]);
 });
 
 test('the collector sees a violation, and the game socket and the link probe are allowed', async ({ page, context }) => {

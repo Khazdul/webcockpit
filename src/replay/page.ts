@@ -26,6 +26,7 @@
 import { PlayerHost } from '../app/player-host';
 import { type Settings, SettingsStore, migrateSettings } from '../settings';
 import { playAtLogUs } from '../player/timeline';
+import type { Wall } from '../player/engine';
 import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
@@ -93,8 +94,8 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
   return openReplay(doc, root, payload);
 }
 
-/** Plays `payload` in `root` (the page, and tests that skip the decoding). */
-export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload): ReplayPage {
+/** Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock). */
+export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall } = {}): ReplayPage {
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
@@ -103,7 +104,7 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map) });
+  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), ...(o.wall ? { wall: o.wall } : {}) });
   host.openChain(
     payload.runs,
     [],

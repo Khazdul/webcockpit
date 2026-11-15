@@ -4,18 +4,20 @@
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { RunLibrary } from '../../src/runs/library';
 import { defaultSettings } from '../../src/settings';
 import { defaultExportDoc } from '../../src/share/edits';
 import { type ReplayPayload, buildReplayPayload } from '../../src/share/payload';
 import type { ChainRun } from '../../src/player/timeline';
 
-const FIXTURES = new URL('../fixtures/', import.meta.url);
+// A path, not a URL: happy-dom's URL is not the one `readFileSync` takes.
+const FIXTURES = join(import.meta.dirname, '../fixtures');
 const LOGS = ['gmcp-demo.log', 'map-demo.log', 'timers-demo.log', 'colour-chart.log'];
 
 /** The payload of one `.log` fixture, as `__wc.replayHtml({ logs })` builds it (src/replay/dev.ts). */
 export function logPayload(name: string, over: Partial<ReturnType<typeof defaultExportDoc>> = {}): ReplayPayload {
-  const text = readFileSync(new URL(name, FIXTURES), 'utf8');
+  const text = readFileSync(join(FIXTURES, name), 'utf8');
   const m = /^(\d{16}) /.exec(text);
   const us = m ? Number(m[1]) : 1_790_000_000_000_000;
   const chain: ChainRun[] = [
@@ -27,7 +29,7 @@ export function logPayload(name: string, over: Partial<ReturnType<typeof default
 /** Every session of the runs demo backup, as the export editor builds it (with its stored doc, and once cut and commented). */
 export async function demoPayloads(): Promise<ReplayPayload[]> {
   const lib = await RunLibrary.open(new IDBFactory(), { locks: null, storage: null });
-  await lib.restore(new Blob([readFileSync(new URL('runs-demo.jsonl.gz', FIXTURES))]));
+  await lib.restore(new Blob([readFileSync(join(FIXTURES, 'runs-demo.jsonl.gz'))]));
   const out: ReplayPayload[] = [];
   for (const s of await lib.listSessions(Date.now() * 1000)) {
     const ids = s.runs.map((r) => r.runId);

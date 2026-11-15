@@ -3,7 +3,19 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CSP_SCRIPT_HASHES, enforceCsp, fillCspHashes, inlineScriptHashes, reportOnlyPolicy } from '../../scripts/csp.ts';
+import {
+  CSP_FRAME_SCRIPT,
+  CSP_FRAME_STYLE,
+  CSP_SCRIPT_HASHES,
+  enforceCsp,
+  fillCspHashes,
+  fillFrameHashes,
+  framePolicy,
+  inlineScriptHashes,
+  inlineStyleHashes,
+  reportOnlyPolicy,
+} from '../../scripts/csp.ts';
+import { frameHtml } from '../../scripts/frame-html.ts';
 import { applyHeaderRules, parseHeadersFile, serve } from '../../scripts/static-server.ts';
 
 const HEADERS = readFileSync(new URL('../../public/_headers', import.meta.url), 'utf8');
@@ -46,7 +58,8 @@ describe('the Content-Security-Policy of the static files (ADR 0144, stage 60)',
     expect(d['script-src']).toEqual(["'self'", "'wasm-unsafe-eval'", CSP_SCRIPT_HASHES, 'https://challenges.cloudflare.com', "'report-sample'"]);
     expect(d['connect-src']).toEqual(["'self'", 'wss://mume.org', 'https://mume.org']);
     expect(d['worker-src']).toEqual(["'self'"]);
-    expect(d['frame-src']).toEqual(['https://challenges.cloudflare.com']);
+    // Our own frame (the shared replay's, ADR 0154) and Turnstile's.
+    expect(d['frame-src']).toEqual(["'self'", 'https://challenges.cloudflare.com']);
     for (const name of ['object-src', 'base-uri', 'form-action', 'frame-ancestors']) expect(d[name], name).toEqual(["'none'"]);
     // Nowhere but in style-src is anything inline allowed, and nothing is a wildcard.
     for (const [name, sources] of Object.entries(d)) {
@@ -122,5 +135,38 @@ describe('the Content-Security-Policy of the static files (ADR 0144, stage 60)',
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the shared replay frame’s policy (ADR 0154, stage 64 B2)', () => {
+  const FRAME = "default-src 'none'; script-src 'sha256-FRAME-SCRIPT'; style-src 'sha256-FRAME-STYLE' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
+
+  it('public/_headers: /r/frame has the ADR’s policy alone, the app’s removed, as built and once enforced', () => {
+    for (const text of [HEADERS, enforceCsp(fillCspHashes(HEADERS, ['<script>one()</script>']))]) {
+      const h = headersOf(text, '/r/frame');
+      expect(h['content-security-policy']).toBe(FRAME);
+      expect(h['content-security-policy-report-only']).toBeUndefined();
+      expect(h['cache-control']).toBe('no-cache');
+      // The app's rules still hold elsewhere under /r/ (the watch page is index.html).
+      expect(headersOf(text, '/r/abcdefABCDEF')['content-security-policy']).toContain("frame-ancestors 'none'");
+    }
+    expect(framePolicy(HEADERS)).toBe(FRAME);
+  });
+
+  it('fillFrameHashes names the document’s one script and one style', () => {
+    const html = frameHtml('console.log("</script>")', '.a{content:"</style>"}', '1.2.3');
+    const filled = fillFrameHashes(HEADERS, html);
+    const d = directives(framePolicy(filled)!);
+    expect(d['script-src']).toEqual(inlineScriptHashes(html));
+    expect(d['style-src']).toEqual([...inlineStyleHashes(html), "'unsafe-inline'"]);
+    expect(filled).not.toContain(CSP_FRAME_SCRIPT);
+    expect(filled).not.toContain(CSP_FRAME_STYLE);
+    // The escapes keep each one element.
+    expect(html.match(/<\/script>/g)).toHaveLength(1);
+    expect(html.match(/<\/style>/g)).toHaveLength(1);
+    // A second script or a script by URL is refused: the policy would allow nothing else.
+    expect(() => fillFrameHashes(HEADERS, html.replace('</body>', '<script>x()</script></body>'))).toThrow(/2 inline scripts/);
+    expect(() => fillFrameHashes(HEADERS, html.replace('</body>', '<script src="x.js"></script></body>'))).toThrow(/not one of each/);
+    expect(() => fillFrameHashes(filled, html)).toThrow(/placeholders/);
   });
 });
