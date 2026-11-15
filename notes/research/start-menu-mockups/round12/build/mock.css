@@ -1,0 +1,129 @@
+/* The mockups' own additions (mk-*), over the real look's CSS (stage 64,
+ * round 12). The values follow the kit's tokens (--lk-*), so a later build
+ * can take them over. */
+
+/* No entrance motion in a still mockup. */
+.wc-lk-veil, .wc-lk-dialog, .wc-lk-flash > span { animation: none !important; }
+html, body { overflow: hidden; height: 100%; margin: 0; }
+.mk-faint { opacity: 0.55; }
+
+/* Stage 24's bar (index.html .wcf-loader): a 2 px track and its fill, an italic line under it. */
+.mk-load { margin: 14px 0 4px; }
+.mk-load-bar { display: block; position: relative; height: 2px; border-radius: 1px; overflow: hidden; background: rgba(222, 237, 241, 0.16); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); }
+.mk-load-bar > i { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #4c777b, #a2c4c8 70%, #deedf1); }
+.mk-load-l { display: block; margin-top: 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: italic 14px/1.2 var(--lk-serif); letter-spacing: 0.02em; color: rgba(226, 236, 238, 0.78); font-variant-numeric: tabular-nums; }
+
+/* A tooltip (the kit has none of its own here). */
+.mk-tip { position: absolute; z-index: 5; white-space: nowrap; padding: 5px 9px; border-radius: 4px; transform: translate(-50%, -100%);
+  font: italic 500 14px/1.2 var(--lk-serif); color: var(--lk-text, #eee); background: rgba(12, 10, 8, 0.94); box-shadow: 0 0 0 1px var(--lk-rule), 0 6px 18px rgba(0, 0, 0, 0.5); pointer-events: none; }
+
+/* 1. The guest's line under the toggle (b). */
+.wc-exp-row2.mk-has-line { flex-wrap: wrap; }
+.mk-guest-line { flex-basis: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 4px 0 0;
+  font: italic 500 15px/1.25 var(--lk-serif); color: var(--lk-dim); }
+.mk-touch .mk-guest-line { justify-content: flex-start; font-size: 14px; }
+
+/* 2. The share dialog. */
+.mk-share .wc-lk-dwin { text-align: left; }
+.mk-share .wc-lk-dialog-btns { justify-content: flex-end; }
+.mk-share .wc-lk-dialog-b .wc-lk-q { text-align: center; }
+.mk-share .wc-lk-field textarea.wc-lk-input { min-height: 0; resize: none; }
+.mk-share.is-locked .wc-lk-field { opacity: 0.6; }
+.mk-count-r { display: block; text-align: right; font-variant-numeric: tabular-nums; }
+.mk-size, .mk-anyone { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 !important; font: 500 16px/1.3 var(--lk-serif); color: var(--lk-dim); }
+.mk-size b { color: var(--lk-text); font-weight: 600; }
+.mk-size.is-over, .mk-size.is-over b { color: var(--lk-danger, #e88f78); }
+.mk-sizebar { flex: 1 1 auto; max-width: 160px; height: 4px; margin-left: 6px; border-radius: 2px; background: rgba(255, 220, 170, 0.12); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4); overflow: hidden; }
+.mk-sizebar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a6a3a, var(--lk-gold)); }
+.mk-anyone { color: var(--lk-text); font-style: italic; }
+.mk-rulesbox { margin: 14px 0 0; padding: 10px 14px 10px; border-radius: 3px; background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.12); }
+.mk-rules-h { margin: 0 0 4px !important; font: 700 11px/1.4 var(--lk-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--lk-head); }
+.mk-rules { margin: 0 0 8px; padding: 0 0 0 18px; font: 500 16px/1.4 var(--lk-serif); color: var(--lk-text); text-align: left; }
+.mk-rules li::marker { color: var(--lk-gold); }
+.mk-tick { margin: 10px 0 0; text-align: left; }
+.mk-once { margin-top: 10px !important; }
+.mk-linkrow { display: flex; align-items: flex-end; gap: 8px; }
+.mk-linkrow .wc-lk-field { flex: 1 1 auto; min-width: 0; margin-bottom: 0 !important; }
+.mk-linkrow .wc-lk-input { font-size: 14px; }
+.mk-copied { margin: 6px 0 8px !important; text-align: right; font: italic 500 15px/1.2 var(--lk-serif); color: var(--lk-ok, #9fd39a); }
+.mk-left { text-align: left; }
+.mk-small { font-size: 14.5px !important; color: var(--lk-faint) !important; margin-top: 8px !important; }
+.mk-touch .mk-linkrow { flex-direction: column; align-items: stretch; }
+.mk-touch .mk-linkrow .wc-lk-btn { align-self: flex-end; }
+.mk-touch .mk-share .wc-lk-dwin { padding-left: 16px; padding-right: 16px; }
+.mk-touch .mk-rules { font-size: 15px; }
+
+/* 5. The reasons: the kit's check as a radio (a round well). */
+.mk-reasons { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+.mk-radio .wc-lk-cbox { border-radius: 50%; }
+.mk-radio.is-on .wc-lk-cbox::after { left: 4px; top: 4px; width: 8px; height: 8px; border: 0; border-radius: 50%; transform: none; background: var(--lk-on); box-shadow: 0 0 6px var(--lk-on-glow, rgba(255, 190, 110, 0.5)); }
+.mk-mail { color: var(--lk-gold); }
+
+/* 4. Published runs. */
+.mk-pubs { margin: 2px 0 0; }
+.mk-pubs > .mk-pub { display: block; padding-top: 8px; padding-bottom: 8px; }
+.mk-pub-l1 { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.mk-pub-t { flex: 1 1 auto; min-width: 0; font: 600 17px/1.25 var(--lk-serif); color: var(--lk-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-pub-fig { flex: none; font: italic 500 14.5px/1.2 var(--lk-serif); color: var(--lk-dim); font-variant-numeric: lining-nums tabular-nums; }
+.mk-pub-d { margin: 2px 0 0; font: italic 500 15px/1.3 var(--lk-serif); color: var(--lk-dim); }
+.mk-pub-l2 { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.mk-pub-url { font: 13px/1.2 var(--lk-mono); color: var(--lk-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mk-pub-sp { flex: 1 1 auto; }
+.mk-pub.is-hidden .mk-pub-t, .mk-pub.is-hidden .mk-pub-url { opacity: 0.6; }
+.mk-pub-hid { display: flex; align-items: center; gap: 6px; margin: 3px 0 0; font: italic 500 15px/1.25 var(--lk-serif); color: var(--lk-soon); }
+.mk-warn { color: var(--lk-soon); }
+.mk-pubrow { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin: 4px 0 0; font: 500 16px/1.3 var(--lk-serif); color: var(--lk-dim); }
+.mk-pubrow b { color: var(--lk-text); font-weight: 600; }
+.mk-pub-empty { margin: 4px 0 2px !important; }
+.mk-touch .mk-pub-l1 { flex-direction: column; gap: 1px; }
+.mk-touch .mk-pub-t { white-space: normal; }
+.mk-touch .mk-pub-l2 { flex-wrap: wrap; }
+.mk-touch .mk-pub-url { flex-basis: 100%; margin-bottom: 2px; }
+.mk-touch .mk-pub-sp { display: none; }
+.mk-touch .mk-pubrow { flex-wrap: wrap; }
+
+/* 3. The watch page (no start page: the theme's own dark, the kit's tokens). */
+.mk-watch { position: fixed; inset: 0; background: #0b0908; color: var(--lk-text); }
+.mk-watch > .wc-stack { position: absolute; inset: 0; }
+.mk-watch > .wc-stack > .wc-frame { position: absolute; inset: 0; }
+.mk-w-page { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.mk-w-band, .mk-w-strip { flex: none; display: flex; align-items: center; gap: 18px; box-sizing: border-box; padding: 0 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0) 40%), radial-gradient(60% 120% at 30% 0, rgba(255, 207, 143, 0.08), transparent), #14100d;
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.06); }
+.mk-w-band { height: 104px; border-bottom: 1px solid #000; box-shadow: inset 0 -1px 0 rgba(255, 207, 143, 0.14); }
+.mk-w-strip { height: 78px; border-top: 1px solid #000; box-shadow: inset 0 1px 0 rgba(255, 207, 143, 0.14); }
+.mk-w-id { flex: 1 1 auto; min-width: 0; }
+.mk-w-title { margin: 0; font: 700 20px/1.2 var(--lk-display); letter-spacing: 0.06em; color: var(--lk-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-w-meta { margin: 4px 0 0; font: 500 16px/1.3 var(--lk-serif); color: var(--lk-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: lining-nums; }
+.mk-w-meta i { font-style: normal; margin: 0 7px; color: var(--lk-faint); }
+.mk-w-char { color: var(--lk-text); font-weight: 600; }
+.mk-w-meta b { color: var(--lk-text); font-weight: 600; }
+.mk-w-desc { margin: 3px 0 0; font: italic 500 15px/1.3 var(--lk-serif); color: var(--lk-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-w-strip .mk-w-title { font-size: 17px; }
+.mk-w-strip .mk-w-meta { margin-top: 2px; font-size: 15px; }
+.mk-w-strip .mk-w-desc { display: none; }
+.mk-w-acts { flex: none; display: flex; gap: 8px; align-items: center; }
+.mk-w-frame { flex: 1 1 auto; min-height: 0; position: relative; background: #000; overflow: hidden; }
+.mk-w-img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 0 0; }
+.mk-w-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.mk-w-wait .mk-load { width: min(360px, 80%); }
+.mk-w-note { display: flex; align-items: center; gap: 7px; margin: 3px 0 0; font: italic 500 15.5px/1.3 var(--lk-serif); color: var(--lk-soon); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-w-note b { font-style: normal; font-weight: 600; }
+.mk-w-note .wc-lk-ic { flex: none; }
+.mk-w-page.is-err { align-items: center; justify-content: center; padding: 16px; background: radial-gradient(60% 50% at 50% 40%, rgba(255, 190, 120, 0.05), transparent); }
+.mk-w-errbox { width: min(460px, 100%); animation: none; }
+.mk-w-errbox .wc-lk-dialog-btns { justify-content: center; }
+
+/* The phone: the band and the strip stack. */
+.mk-touch .mk-w-band, .mk-touch .mk-w-strip { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
+.mk-touch .mk-w-band { height: 168px; }
+.mk-touch .mk-w-strip { height: 204px; justify-content: flex-start; }
+.mk-touch .mk-w-title { font-size: 17px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mk-touch .mk-w-meta { white-space: normal; font-size: 15px; line-height: 1.3; }
+.mk-touch .mk-w-meta i { margin: 0 4px; }
+.mk-touch .mk-w-desc { display: none; }
+.mk-touch .mk-w-strip .mk-w-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; font-size: 14.5px; }
+.mk-touch .mk-w-acts { gap: 6px; }
+.mk-touch .mk-w-acts .wc-lk-btn { flex: 1 1 0; justify-content: center; }
+.mk-touch .mk-w-note { white-space: normal; align-items: flex-start; font-size: 14.5px; }
