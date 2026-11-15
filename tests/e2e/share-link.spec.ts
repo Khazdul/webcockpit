@@ -190,7 +190,7 @@ test('the first share: the rules ticked in the dialog, the link with Copy; only 
   const body = writes[1]!.body!;
   const n = body.readUInt32BE(0);
   const meta = JSON.parse(body.subarray(4, 4 + n).toString('utf8')) as Record<string, unknown>;
-  expect(Object.keys(meta).sort()).toEqual(['character', 'description', 'lengthS', 'level', 'listed', 'title']);
+  expect(Object.keys(meta).sort()).toEqual(['character', 'description', 'key', 'lengthS', 'level', 'listed', 'title']);
   expect(meta).toMatchObject({ title: 'Clearing the ranger camp', description: 'Norsy and Kuzzim join at the ford.', character: 'Rasta', listed: false });
   const gz = body.subarray(4 + n);
   expect([gz[0], gz[1]]).toEqual([0x1f, 0x8b]);
@@ -295,6 +295,24 @@ test('the refusals: too large (nothing sent), 150 reached (Open Account), offlin
   await btn(page, 'CREATE').click();
   await expect(done(page)).toBeVisible();
   expect(s.pubsOf(NAME).map((p) => p.title)).toEqual(['Offline run']);
+  await btn(page, 'DONE').click();
+  for (const p of s.pubsOf(NAME)) s.pubs.delete(p.id);
+
+  // The answer lost on the way back (the run was made): Try again sends the dialog's key
+  // again and gets that run, not a second one (review fix CR3).
+  const before = s.pubUploads.length;
+  s.pubLoseAnswer = true;
+  await btn(page, 'EXPORT').click();
+  await share(page).locator('[data-field="title"] input').fill('Lost answer');
+  await btn(page, 'CREATE').click();
+  await expect(btn(page, 'CREATE')).toHaveText('Try again');
+  await btn(page, 'CREATE').click();
+  await expect(done(page)).toBeVisible();
+  expect(s.pubsOf(NAME).map((p) => p.title)).toEqual(['Lost answer']);
+  const keys = s.pubUploads.slice(before).map((u) => (u.meta as { key?: unknown }).key);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{16,32}$/);
+  expect(keys[1]).toBe(keys[0]);
   expect(errors).toEqual([]);
 });
 
@@ -327,8 +345,9 @@ async function openAccountPage(page: Page, s: FakeAccountServer): Promise<void> 
 test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, empty', async ({ page, context, browserName }) => {
   const errors = watchErrors(page);
   const s = await server();
-  const day = 86_400;
-  const now = Math.floor(Date.now() / 1000);
+  // Milliseconds, as the Worker sends them.
+  const day = 86_400_000;
+  const now = Date.now();
   s.addPub(NAME, { id: 'Zp6Wd3Fg5uNa', title: 'Trollshaws hoard run', views: 21, bytes: Math.round(1.9 * 1024 * 1024), state: 'hidden', created: now - 12 * day });
   s.addPub(NAME, { id: 'Hn4Kc8Vb1sYe', title: 'First crossing of the <b>Brandywine</b>', views: 1, bytes: 600 * 1024, created: now - 5 * day });
   s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Clearing the ranger camp', description: 'At the ford.', views: 37, bytes: Math.round(1.2 * 1024 * 1024), created: now });
@@ -345,6 +364,9 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
   await expect(pubRows(page).nth(2)).toHaveClass(/is-hidden/);
   await expect(pubRows(page).nth(2).locator('[data-pub-hidden]')).toHaveText('Hidden after reports. Only you can watch it until we have looked.');
   await expect(pubRows(page).nth(0).locator('[data-pub-hidden]')).toHaveCount(0);
+  // A hidden run has no Edit (the Worker refuses it: 403 hidden, review fix S7).
+  await expect(pubRows(page).nth(2).locator('[data-btn="EDIT"]')).toHaveCount(0);
+  await expect(pubRows(page).nth(2).locator('[data-btn="REMOVE"]')).toHaveCount(1);
   await expect(frame(page).locator('.wc-ac-pub-foot')).toHaveText('3 of 150 · 3.7 MB · links do not count against your 50 MB.');
   // Markup in a title stays text.
   await expect(pubRows(page).nth(1).locator('b')).toHaveCount(0);

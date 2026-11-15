@@ -130,8 +130,8 @@ test('phone: offline, then Try again', async ({ page }) => {
 test('phone: Published runs stacked in the column; Edit and Remove by taps', async ({ page }) => {
   const errors = watchErrors(page);
   const s = await server();
-  s.addPub(NAME, { id: 'Zp6Wd3Fg5uNa', title: 'Trollshaws hoard run', state: 'hidden', created: 1_762_000_000 });
-  s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Gibur and the Witch-king’s lieutenant, a long title that wraps', views: 112, created: 1_763_000_000 });
+  s.addPub(NAME, { id: 'Zp6Wd3Fg5uNa', title: 'Trollshaws hoard run', state: 'hidden', created: 1_762_000_000_000 });
+  s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Gibur and the Witch-king’s lieutenant, a long title that wraps', views: 112, created: 1_763_000_000_000 });
   await pinDemoClock(page);
   await fakeAccountApi(page, { server: s });
   await openStart(page, PHONE_Q);

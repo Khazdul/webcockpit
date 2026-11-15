@@ -5,6 +5,7 @@
 // so it is unit tested (tests/unit/share-link.test.ts).
 
 import { PUB_DESCRIPTION_MAX, PUB_TITLE_MAX, type PubMetaIn } from '../../shared/cloud/api.ts';
+import { cleanText } from '../../shared/cloud/text.ts';
 import type { ExportDoc } from './edits';
 
 /** `character`'s longest (the Worker's rule, as built in stage 64 B1). */
@@ -28,17 +29,13 @@ export function linkTitle(doc: Pick<ExportDoc, 'title'>, character: string, star
 }
 
 // The Worker refuses (never repairs) a C0 or C1 control character, DEL, a
-// lone surrogate and the bidi embeddings, overrides and isolates; the
-// dialog takes them out as they are typed or pasted, so what is sent passes.
-// eslint-disable-next-line no-control-regex
-const CONTROLS = /[\x00-\x09\x0b-\x1f\x7f-\x9f‪-‮⁦-⁩]/g;
-const LONE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+// lone surrogate and the bidi embeddings, overrides and isolates
+// (shared/cloud/text.ts, the one place of the rules); the dialog takes them
+// out as they are typed or pasted, so what is sent passes.
 
-/** `s` with the characters the Worker refuses taken out (`\n` kept only when `newlines`), NFC. */
+/** `s` with the characters the Worker refuses made spaces (`\n` kept only when `newlines`), lone surrogates out, NFC. */
 export function pubText(s: string, newlines = false): string {
-  let t = s.replace(LONE, '').normalize('NFC').replace(CONTROLS, ' ');
-  if (!newlines) t = t.replace(/\n/g, ' ');
-  return t;
+  return cleanText(s, { newlines, control: ' ' });
 }
 
 /** The first `max` code points of `s` (the Worker counts code points). */
@@ -74,13 +71,24 @@ export function typedTitle(s: string): string {
   return codePoints(pubText(s).replace(/[\r\n\t]+/g, ' '), PUB_TITLE_MAX);
 }
 
-/** The meta sent with a payload (`PubMetaIn`): the texts cleaned, the numbers in the Worker's ranges. */
-export function linkMeta(o: { title: string; description: string; character: string; level?: number | undefined; lengthS: number }): PubMetaIn {
+/**
+ * A share dialog's idempotency key (`PubMetaIn.key`, review fix CR3): 22
+ * random characters of `[A-Za-z0-9_-]`, drawn once per dialog, so its Try
+ * again after a lost answer gets the run the first POST made.
+ */
+export function newLinkKey(): string {
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The meta sent with a payload (`PubMetaIn`): the texts cleaned, the numbers in the Worker's ranges, the dialog's key. */
+export function linkMeta(o: { title: string; description: string; character: string; level?: number | undefined; lengthS: number; key?: string }): PubMetaIn {
   const character = codePoints(pubText(o.character).replace(/\s+/g, ' ').trim(), PUB_CHARACTER_MAX).trim();
   const lengthS = Number.isFinite(o.lengthS) ? Math.max(0, Math.min(PUB_LENGTH_MAX_S, Math.round(o.lengthS))) : 0;
   const meta: PubMetaIn = { title: cleanTitle(o.title), description: cleanDescription(o.description), character, lengthS, listed: false };
   const lv = o.level;
   if (typeof lv === 'number' && Number.isInteger(lv) && lv >= 0 && lv <= PUB_LEVEL_MAX) meta.level = lv;
+  if (o.key !== undefined) meta.key = o.key;
   return meta;
 }
 
