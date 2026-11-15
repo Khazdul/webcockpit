@@ -146,17 +146,17 @@ touches staging or production.
 
 #### B1. Worker (worktree `stage63-worker`, port 5442)
 
-- [ ] Migration `0004_runs.sql`: `run_body`, `account.run_bytes`.
-- [ ] `worker/runs.ts`: `PUT`, `GET`, `DELETE /api/u/runs/<id>`, `GET
+- [x] Migration `0004_runs.sql`: `run_body`, `account.run_bytes`.
+- [x] `worker/runs.ts`: `PUT`, `GET`, `DELETE /api/u/runs/<id>`, `GET
       /api/u/runs`; the reservation of room before R2, given back on a
       failure; `411`, `413 run_too_large`, `413 quota` with the numbers;
       the flag `runs` (404 off); `run` and `exportDoc` open with it.
-- [ ] `usage.runBytes` real everywhere it is answered; the limit from
+- [x] `usage.runBytes` real everywhere it is answered; the limit from
       `RUN_BYTES_LIMIT` when set.
-- [ ] Delete account empties the R2 prefix and `run_body`.
-- [ ] Worker tests (two parallel PUTs at the limit, a replace, an R2
+- [x] Delete account empties the R2 prefix and `run_body`.
+- [x] Worker tests (two parallel PUTs at the limit, a replace, an R2
       failure, the list, Delete account); the contract's comments.
-- [ ] ADR 0153 "As built (B1)".
+- [x] ADR 0153 "As built (B1)".
 
 #### B2. The client's core (worktree `stage63-core`, port 5443)
 

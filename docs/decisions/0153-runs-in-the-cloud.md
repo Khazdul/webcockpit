@@ -231,3 +231,65 @@ counted, with **Fetch all** on desktop (not on a phone or tablet).
   so on the row and the session cannot be opened.
 - Accounts open in production after this stage, with `accounts`, `sync`
   and `runs` in one step (spec §7.12), and only on the owner's word.
+
+## As built (stage 63 B1)
+
+The Worker part, as decided above, with these additions and details:
+
+- **The reservation, exactly.** `grow = max(new size − stored size, 0)` is
+  reserved with the one conditional `UPDATE` (skipped when 0, so a PUT
+  that does not grow is never refused). A shrink frees its room only once
+  the new body is stored, so a parallel PUT cannot borrow room a failing
+  shrink would take back. After R2, one batch takes the reservation back,
+  adds the new size less what `run_body` holds *at that moment*, and
+  upserts `run_body`: `account.run_bytes` always ends at `SUM(run_body.size)`,
+  also when two PUTs of one id race (the R2 object is then the last put's,
+  the row the last batch's; one tab uploads under the Web Lock, so this is
+  theory).
+- **The body to R2** goes through a `FixedLengthStream` of the declared
+  `Content-Length`: a body shorter or longer fails the put, and the stored
+  size is checked against it. A failure gives the reservation back and
+  answers `503 unavailable`; R2's put is atomic, so an old body of the id
+  stays as it was. A stored size that differs (it should not happen) is
+  not trusted: the object and its row go.
+- **Account deleted during an upload**: the `run_body` upsert holds only
+  while the account exists; when it does not, the object is deleted again
+  and the answer is `401`.
+- **`DELETE`** removes the R2 object first, then the row and its bytes:
+  when R2 fails nothing has changed (`503`). It answers `size: 0`.
+- **`run_body.created`** is the time of the body's last write (a replace
+  moves it), so the clients' orphan rule ("no live item, older than a day")
+  never drops a body that was just uploaded again. The list is oldest
+  first.
+- **The open kinds.** `SYNC_KINDS_OPEN` (the contract) keeps meaning "open
+  whatever the flags"; `worker/sync.ts` `openKinds()` adds `run` and
+  `exportDoc` (`RUN_KINDS`) while `runs` is on. The run paths need only
+  `runs` (and `accounts`), not `sync`.
+- **The limit.** `defaultLimits(env)` (worker/accounts.ts) is
+  `DEFAULT_ACCOUNT_LIMITS` with `runBytes` from `RUN_BYTES_LIMIT` (a whole
+  number of bytes, as a number or a string; anything else is ignored).
+  `/api/config` answers it, and an account's own `limits` column still
+  wins over it.
+- **Delete account and R2.** The transaction deletes the `run_body` rows
+  and writes a row `r2_sweep(prefix, at)` for `u/<account id>/` (migration
+  0004, a third table besides the two decided). After it, the request
+  empties the prefix (list ≤ 1000, delete those keys, again until empty),
+  ignoring an R2 failure. The daily cron (`sweepPrefixes`, after the
+  session prune) empties every prefix whose row is at least an hour old
+  once more and only then removes the row; a prefix R2 fails on stays for
+  the next day. This covers an R2 failure half-way and an upload that
+  raced the delete, at one R2 list per deleted account.
+- **Without the `FILES` binding** the run endpoints answer `503`.
+- **What can still leak**: an isolate killed between the reservation and
+  the final batch leaves reserved bytes with no row (`run_bytes` above the
+  sum of `run_body`). Rare, and in the player's disfavour only (less room);
+  a reconciliation (`run_bytes = SUM(size)` for accounts with no PUT in the
+  last hour) can be added to the daily cron if it is ever seen.
+- **Tests** (`worker/test/runs.test.ts`, local R2 of Miniflare): the
+  endpoints, 400/411/413s, quota numbers, two and eight parallel PUTs at
+  the limit, replace (shrink/grow, limit lowered), R2 failures
+  (`faultyBucket` in the helpers), a short body, the race with Delete
+  account, the list, the flag, `RUN_BYTES_LIMIT`, `runBytes` in every
+  usage, Delete account and the cron sweep, `emptyPrefix` over 1003 keys.
+  Miniflare's local R2 logs an uncaught "Network connection lost" of its
+  own in the short-body test; the test passes.
