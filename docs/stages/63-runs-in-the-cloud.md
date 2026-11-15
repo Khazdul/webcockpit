@@ -6,9 +6,8 @@ production untouched.
 
 ## Waiting for the owner
 
-1. **Round 11's picks** (the mockups, published as an artifact; points
-   1–5 below under "For the owner to choose"). Part C2 (the views) waits
-   for them.
+1. ~~Round 11's picks~~: **1a, 2b, 3a, 4 as drawn, 5 Spotlights and
+   Diary only** (owner, 2026-11-15; see "For the owner to choose").
 2. ~~The limit~~: **50 MB, decided by the owner 2026-11-15** after the
    measurement.
 3. Later: **the test on staging** (test guide), and then, separately,
@@ -110,6 +109,17 @@ README.
    devices and in the cloud.").
 5. **The counts** in Statistics, Spotlights and Diary ("3 sessions in
    the cloud are not counted · Fetch all") and where they sit.
+
+**Owner's picks (2026-11-15)**, all as recommended in round 11's README
+(<https://claude.ai/artifact/RTA5x1WwBouwWkSC8hWaZ6>): **1a** the look
+kit's dialog "Cloud storage full" where the save was asked (after an
+Exit on the start page; Open History left out when over History);
+**2b** text tags in History ("in the cloud · 2.1 MB", "not in the
+cloud"; runs in step and unsaved runs show nothing); **3a** one runs row
+with the reason in its second line; **4** the delete dialog with the new
+warning line as drawn (a guest keeps today's words); **5** the count in
+the foot of Spotlights and Diary, Fetch all on desktop only, none in
+Statistics (a session is fetched when it is opened).
 
 ## Tasks
 
