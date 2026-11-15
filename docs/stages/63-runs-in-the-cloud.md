@@ -1,19 +1,13 @@
 # Stage 63 — Runs in the cloud; then accounts open
 
-Status: **Built, on staging (2026-11-15), waiting for the owner's test.**
-Parts A–D done; nothing released, production untouched (`accounts` off
-there).
+Status: **Done, released 0.12.0 (2026-11-15): accounts, sync and runs
+open in production** on the owner's word after his test on staging.
 
 ## Waiting for the owner
 
-1. **Test on staging** (<https://staging.mumecockpit.com>), the test
-   guide below. Feedback goes under "Owner feedback".
-2. **Then, only on your explicit word: open accounts in production**
-   (part E: the flags `accounts`, `sync` and `runs`, the version, the
-   tag). Nothing of it is done before you say yes.
-
-Decided already this session: the limit 50 MB; round 11's picks 1a, 2b,
-3a, 4 as drawn, 5 Spotlights and Diary only.
+Nothing. The owner tested on staging ("Allt ok. Kör på.") and accounts
+opened in production with 0.12.0. Next is stage 64 (share links) in a
+session of its own.
 
 ## Goal
 
@@ -261,10 +255,14 @@ the local Worker and R2).
 ### E. Accounts open in production (only on the owner's go-ahead)
 
 - [x] The owner has tested on staging and said yes (2026-11-15).
-- [ ] The release: version, `CHANGELOG`, the tag; `deploy.yml` applies
-      migrations 0003–0004 in production; `FLAG_ACCOUNTS`, `FLAG_SYNC`,
-      `FLAG_RUNS` on in production (vars, or the admin page's overrides:
-      the owner's choice); `test:prod` against mumecockpit.com.
+- [x] The release: version 0.12.0 (no CHANGELOG file exists; the
+      release commit and the tag carry it), tag `v0.12.0`; `deploy.yml`
+      run 43726017735 applied migrations 0003 and 0004 in production;
+      `FLAG_ACCOUNTS`, `FLAG_SYNC`, `FLAG_RUNS` on in production's vars
+      (in git, so the opening is traceable; the D1 overrides hold only
+      `stats`); the secrets `AUTH_PEPPER` and `TURNSTILE_SECRET` checked
+      present; `/api/config` has all four flags on; `/api/u/*` answers
+      401 without a session; `test:prod` 30/30 against mumecockpit.com.
 
 ## Measurements
 
