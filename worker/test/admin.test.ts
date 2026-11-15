@@ -228,6 +228,24 @@ describe('the admin page', () => {
     }
     expect((await call('/api/admin/zzz')).status).toBe(404);
   });
+
+  it('the moderation view (stage 64 C3) is in the same three files, behind Access, the CSP unchanged', async () => {
+    const stranger = await sign({ ...goodClaims(), email: 'stranger@example.org' });
+    for (const path of ['/admin', '/admin/', '/admin/admin.css', '/admin/admin.js']) {
+      expect((await call(path, { token: null })).status, path).toBe(403);
+      expect((await call(path, { token: stranger })).status, path).toBe(403);
+    }
+    const page = await call('/admin');
+    expect(page.headers.get('content-security-policy')).toBe(
+      "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    );
+    const html = await page.text();
+    for (const id of ['queue', 'reports-count', 'pubs', 'acct', 'log', 'mod-status']) expect(html, id).toContain(`id="${id}"`);
+    expect(html).not.toMatch(/\son[a-z]+=/i);
+    const js = await (await call('/admin/admin.js')).text();
+    for (const s of ['/api/admin/reports', '/api/admin/log', '/api/admin/pub/', '/api/admin/account/', "'X-WC': '1'", "'?admin'"]) expect(js, s).toContain(s);
+    expect(js).not.toMatch(/innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(/);
+  });
 });
 
 describe('staging: X-Robots-Tag', () => {
