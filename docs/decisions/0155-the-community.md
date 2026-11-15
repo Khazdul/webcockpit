@@ -196,12 +196,27 @@ notes, used by the Worker and by the client's cleaner:
 
 ### MUME's lists and player count
 
-- Only after the investigation (`notes/research/mume-war-lists.md`) and
-  MUME's leave, which the owner asks for. If allowed: the 5-minute cron
-  fetches, parses into plain names and numbers (no HTML passes on),
-  stores one row in `attempt`-like key/value form, and `GET
-  /api/community` carries it with its time. Without leave the boxes are
-  not drawn.
+Owner, 2026-11-15, after the investigation
+(`notes/research/mume-war-lists.md`): fetch without asking first; show
+the lists **without a source line or time** on the page.
+
+- **Warlords:** the 5-minute cron fetches `https://mume.org/news/war` at
+  most every 15 minutes (`User-Agent: WebCockpit (+https://mumecockpit.com)`,
+  a 10 s timeout, at most 256 KB read), parses `table.warlords` into
+  plain strings (name, race, class; the top 10 a side, the page shows the
+  first five or ten as the mockups decide; every value through the text
+  rules, at most 40 code points, no HTML passes on) and keeps the last
+  good answer in D1 (`flag`-like key/value row, below). A failed or
+  changed page keeps the last good lists for up to 24 hours, then the
+  box is not drawn.
+- **Players on MUME:** one MSSP probe (`connect()` to mume.org:4242,
+  telnet `IAC DO MSSP`, read the `PLAYERS` variable, close; 5 s, 8 KB)
+  with the same cadence. Tried once on staging first: if MUME does not
+  fill `PLAYERS`, the probe is switched off and the line is not drawn.
+- `GET /api/community` carries `mume: {west, dark, players?}` when it
+  has them. No source or time is shown (owner); we stop at once if MUME
+  asks us to.
+- Stored in a table `mume_cache(key, value, fetched)` of migration 0006.
 
 ### Reports, hiding and the admin
 

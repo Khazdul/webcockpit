@@ -6,8 +6,6 @@ built.
 ## Waiting for the owner
 
 - The picks of round 13 (the mockups' artifact, below).
-- MUME's leave for the war point lists and the player count (part A2):
-  only the owner can ask MUME's management.
 
 ## Goal
 
@@ -78,8 +76,6 @@ staging, off in production until the owner says yes.
 ## Not in this stage
 
 - The admin's account list, graphs and per-account limits (stage 66).
-- MUME's war point lists and player count unless MUME's management has
-  said yes (part A2); without it the boxes are not drawn.
 - Answers or threads on the board (not wanted); "profile updates" and
   "most occurring" (not wanted).
 - Any release, and `gallery` or `runes` on in production, without the
@@ -155,8 +151,9 @@ touches staging or production.
       10 a side, names, race and class, no points; no live player count
       on the web, MSSP on port 4242 unconfirmed; no terms; leave asked
       in game of an Ainu or on MUME's Discord.)
-- [ ] The owner asks MUME's management (his decision); built in part C
-      only with a yes.
+- [x] The owner (2026-11-15): no leave asked first; fetch `/news/war`
+      and try MSSP for the count; show the lists without source or time
+      (ADR 0155, "MUME's lists and player count").
 
 ### B. Worker (worktree `stage65-worker`, port 5472; may start before the picks)
 
@@ -208,10 +205,11 @@ touches staging or production.
 
 - [ ] The queue's comments and notes (pick 7) and their actions; tests.
 
-#### C5. MUME's boxes (only with MUME's yes)
+#### C5. MUME's boxes (worktree `stage65-mume`, port 5477; owner 2026-11-15: no leave needed first)
 
-- [ ] The cron's fetch and parse, `GET /api/community`'s `mume`, the
-      boxes.
+- [ ] The cron's fetch of `/news/war` and its parse, the MSSP probe
+      (tried on staging; off if `PLAYERS` is empty), `mume_cache`,
+      `GET /api/community`'s `mume`, the boxes without source or time.
 
 ### D. Checks
 
