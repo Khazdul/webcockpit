@@ -1,6 +1,6 @@
 // The two spaces in the browser (ADR 0150): src/core/space.ts, the
-// database per space and its version 9 upgrade, and the rule that only
-// src/core/db.ts opens a space's database.
+// database per space and its version 9 and 10 upgrades, and the rule that
+// only src/core/db.ts opens a space's database.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -290,7 +290,7 @@ describe('database version 9', () => {
     const f = new IDBFactory();
     await version8(f);
     const db = await openWebcockpitDb(f);
-    expect(db.version).toBe(9);
+    expect(db.version).toBe(DB_VERSION);
     expect([...db.objectStoreNames]).toEqual(expect.arrayContaining(['sync', 'syncMeta']));
     const tx = db.transaction(['profiles', 'scripts', 'mapIds', 'sync', 'syncMeta'], 'readwrite');
     const profiles = await idbRequest(tx.objectStore('profiles').getAll());
@@ -319,6 +319,73 @@ describe('database version 9', () => {
     const t = new ProfileStore({ factory: f });
     expect((await t.get('hunter'))?.id).toBe(before!.id);
     await t.close();
+  });
+});
+
+/** Builds a version 9 database as stage 61–62's code did, with a saved run (meta, chunk, event), an export doc and a profile. */
+async function version9(f: IDBFactory, name = DB_NAME): Promise<void> {
+  await version8(f, name);
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const r = f.open(name, 9);
+    r.onupgradeneeded = () => {
+      r.result.createObjectStore('sync', { keyPath: ['kind', 'key'] });
+      r.result.createObjectStore('syncMeta');
+    };
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+  const tx = db.transaction(['runs', 'runChunks', 'runEvents', 'exports', 'profiles'], 'readwrite');
+  tx.objectStore('runs').put({ runId: 'r1', character: 'Gandalf', startedUs: 5, endedUs: 9, sealed: true, bytes: 3, lines: 1, saved: true, rating: 4, savedUs: 9, summary: null });
+  tx.objectStore('runChunks').put({ runId: 'r1', seq: 0, firstUs: 5, lastUs: 9, text: 'hi\n' });
+  tx.objectStore('runEvents').put({ runId: 'r1', seq: 0, event: { type: 'run_start', us: 5 } });
+  tx.objectStore('exports').put({ sessionId: 'r1', schema: 1, title: 't', format: 'html', excludes: [], comments: [] });
+  tx.objectStore('profiles').put({ id: 'p9', name: 'mage', text: 'm', created: 5, modified: 6 });
+  await idbDone(tx);
+  db.close();
+}
+
+describe('database version 10', () => {
+  for (const name of [DB_NAME, 'webcockpit-u-olev']) {
+    it(`adds an empty runCloud store with a state index and keeps the runs (${name})`, async () => {
+      const f = new IDBFactory();
+      await version9(f, name);
+      const db = await openWebcockpitDb(f, name, { create: true });
+      expect(db.version).toBe(10);
+      expect(DB_VERSION).toBe(10);
+      expect([...db.objectStoreNames]).toContain(STORE.runCloud);
+      const tx = db.transaction(['runs', 'runChunks', 'runEvents', 'exports', 'profiles', 'runCloud'], 'readwrite');
+      expect(await idbRequest(tx.objectStore('runs').getAll())).toEqual([
+        { runId: 'r1', character: 'Gandalf', startedUs: 5, endedUs: 9, sealed: true, bytes: 3, lines: 1, saved: true, rating: 4, savedUs: 9, summary: null },
+      ]);
+      expect(await idbRequest(tx.objectStore('runChunks').getAll())).toHaveLength(1);
+      expect(await idbRequest(tx.objectStore('runEvents').getAll())).toHaveLength(1);
+      expect(await idbRequest(tx.objectStore('exports').getAll())).toHaveLength(1);
+      expect((await idbRequest(tx.objectStore('profiles').get('mage')))?.id).toBe('p9');
+      const rc = tx.objectStore('runCloud');
+      expect(rc.keyPath).toBe('runId');
+      expect([...rc.indexNames]).toEqual(['state']);
+      expect(await idbRequest(rc.count())).toBe(0);
+      rc.put({ runId: 'r1', state: 'queued', serverId: 'x'.repeat(22), size: 0, tries: 0, at: 1, startedUs: 5 });
+      rc.put({ runId: 'r2', state: 'remote', serverId: 'y'.repeat(22), size: 10, tries: 0, at: 1, startedUs: 7, meta: { runId: 'r2' } });
+      expect(await idbRequest(rc.index('state').getAllKeys('remote'))).toEqual(['r2']);
+      await idbDone(tx);
+      db.close();
+    });
+  }
+
+  it('builds a new database at version 10 from nothing, and a version 8 one through 9', async () => {
+    const f = new IDBFactory();
+    const fresh = await openDeviceDb(f);
+    expect(fresh.version).toBe(10);
+    expect([...fresh.objectStoreNames]).toEqual(expect.arrayContaining(['sync', 'syncMeta', 'runCloud']));
+    fresh.close();
+    const g = new IDBFactory();
+    await version8(g);
+    const db = await openDeviceDb(g);
+    expect([...db.objectStoreNames]).toEqual(expect.arrayContaining(['sync', 'syncMeta', 'runCloud']));
+    const profiles = await idbRequest(db.transaction('profiles').objectStore('profiles').getAll());
+    for (const p of profiles) expect(typeof p.id).toBe('string');
+    db.close();
   });
 });
 
