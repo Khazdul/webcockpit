@@ -4,6 +4,9 @@
 //
 //   the head                 the user name, "Account since …" (and one
 //                            plain line when the account is suspended)
+//   (Sync)                   stage 61's section, sync-ui.tsx
+//   (Published runs)         stage 64's section with the flag `share`,
+//                            published.tsx (round 12's pick 4a)
 //   Devices                  the sessions, this device first; End on each
 //                            other row, End all others in the rule
 //   Password and recovery    Change password, New recovery code
@@ -64,6 +67,7 @@ import { DeleteDialog, EndDialog, LogoutDialog, NewCodeDialog, PasswordDialog } 
 import { labelWords, orderSessions, sessionWords } from './account-model';
 import { FormError, type PageProps, SmallNote, go, useHeldCode, useTallPage } from './form';
 import { SyncSection, useSyncView } from './sync-ui';
+import { usePublished } from './published';
 import { syncNow } from '../../../cloud/sync-view';
 import { failureWords, sinceWords } from './words';
 
@@ -124,7 +128,9 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   const rows = useRef<HTMLUListElement | null>(null);
   // With the sync section (stage 61) the page no longer fits a desktop: it takes the tall, scrolling form.
   const syncing = useSyncView().status !== null;
-  const tall = useTallPage() || syncing;
+  const hostOfPage = (): AccountHost => host.current;
+  const published = usePublished(nav, hostOfPage);
+  const tall = useTallPage() || syncing || published.shown;
 
   const name = account?.name ?? hint ?? '';
 
@@ -253,6 +259,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   const sync = (): void => void syncNow();
   const stops: Stop[] = [
     ...(syncing ? [{ id: 'SYNCNOW', run: sync }] : []),
+    ...published.stops,
     ...(error ? [{ id: 'RETRY', run: load }] : []),
     ...(others.length > 0 ? [{ id: 'ENDALL', run: endAll }] : []),
     ...others.map((s) => ({ id: endId(s), run: () => endOne(s) })),
@@ -302,6 +309,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   // The cursor's row stays in view (a long device list scrolls on its own on a desktop).
   useEffect(() => {
     if (at?.startsWith('END:')) rows.current?.querySelector('.is-cur')?.scrollIntoView({ block: 'nearest' });
+    else if (at && /^(COPY|EDIT|REMOVE):/.test(at)) formRef.current?.querySelector('.wc-ac-pub .is-sel')?.scrollIntoView({ block: 'nearest' });
   }, [at]);
 
   // The message line under Leaving takes no room while empty (account.css): one that shows is
@@ -323,6 +331,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
             <span class="wc-ac-head-since">{account ? sinceWords(account.created) : error ? '' : 'Asking the server…'}</span>
           </div>
           <SyncSection at={at} />
+          {published.node(at, account?.limits ?? null)}
           {account?.state === 'suspended' && (
             <p class="wc-ac-suspended" role="status" data-suspended="">
               <b>This account is suspended.</b> It cannot publish runs or comment. Everything else works as before.

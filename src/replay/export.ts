@@ -246,20 +246,31 @@ export async function fetchReplayFonts(
   );
 }
 
+/**
+ * `payload` with the map subset around its rooms embedded when `opts.map`
+ * is given (ADR 0020 "Replays"): what the HTML replay file carries, and
+ * what a share link uploads (stage 64 C1: built exactly as for HTML).
+ */
+export async function withReplayMap(payload: ReplayPayload, opts: BuildReplayOptions = {}): Promise<ReplayPayload> {
+  if (!opts.map) return payload;
+  const f = opts.fetch ?? ((url: string) => fetch(url));
+  const base = opts.base ?? globalThis.document?.baseURI ?? '';
+  const url = (rel: string): string => (base ? new URL(rel, base).href : rel);
+  const { embedReplayMap } = await import('./map-embed');
+  return embedReplayMap(payload, opts.map, {
+    assetBase: url('map/'),
+    fetch: f,
+    ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
+    ...(opts.tileset ? { tileset: opts.tileset } : {}),
+  });
+}
+
 /** Builds the self-contained HTML replay of `payload` as a Blob (`text/html`). */
 export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayOptions = {}): Promise<Blob> {
   const f = opts.fetch ?? ((url: string) => fetch(url));
   const base = opts.base ?? globalThis.document?.baseURI ?? '';
   const url = (rel: string): string => (base ? new URL(rel, base).href : rel);
-  if (opts.map) {
-    const { embedReplayMap } = await import('./map-embed');
-    payload = await embedReplayMap(payload, opts.map, {
-      assetBase: url('map/'),
-      fetch: f,
-      ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
-      ...(opts.tileset ? { tileset: opts.tileset } : {}),
-    });
-  }
+  payload = await withReplayMap(payload, opts);
   const ids = replayFonts(payload);
   const [script, fonts, encoded] = await Promise.all([
     get(f, url(REPLAY_BUNDLE_PATH)).then((r) => r.text()),

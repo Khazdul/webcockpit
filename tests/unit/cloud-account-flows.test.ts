@@ -538,6 +538,10 @@ describe('logged in', () => {
     await registered(d);
     expect(await d.flows.setPrefs({ galleryNotice: false })).toEqual({ ok: true, value: { galleryNotice: false, rulesAccepted: false } });
     expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false, rulesAccepted: false });
+    // The sharing rules' tick (stage 64 C1): only that key is sent, and the notice stays as it was.
+    expect(await d.flows.setPrefs({ rulesAccepted: true })).toEqual({ ok: true, value: { galleryNotice: false, rulesAccepted: true } });
+    expect(server.stored('Olev')!.prefs).toEqual({ galleryNotice: false, rulesAccepted: true });
+    expect(server.requests('PATCH /api/u/account/prefs').at(-1)!.body).toEqual({ rulesAccepted: true });
   });
 
   it('delete account: the password again; the account is gone, the name reserved, the device logged out and the name forgotten', async () => {

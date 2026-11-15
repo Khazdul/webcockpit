@@ -48,6 +48,7 @@ import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { lastGroupMatches } from '../../../cloud/account';
 import { downloadBlob } from '../../kit/download';
+import { copyText } from '../../kit/clipboard';
 import { Box, Field, GlassButton, LookFlash, Plate, Well, lookFrame, useLocalFlash } from '../../kit/look';
 import { type Flash, useNav } from '../../kit/stack';
 import { type PageProps, SmallNote, go, holdCode, releaseCode, useFormKeys } from './form';
@@ -65,33 +66,6 @@ export interface RecoveryCodeHandle {
   copy(): void;
   download(): void;
   flash: Flash | null;
-}
-
-/** Puts `text` on the clipboard; false when the browser would not. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* not allowed here: the old way below */
-  }
-  try {
-    const el = document.createElement('textarea');
-    el.value = text;
-    el.setAttribute('readonly', '');
-    el.style.cssText = 'position:fixed;left:-999px;top:0;opacity:0';
-    document.body.append(el);
-    const back = document.activeElement as HTMLElement | null;
-    el.select();
-    const ok = document.execCommand('copy');
-    el.remove();
-    back?.focus?.({ preventScroll: true });
-    return ok;
-  } catch {
-    return false;
-  }
 }
 
 export function useRecoveryCode(name: string, code: string): RecoveryCodeHandle {
