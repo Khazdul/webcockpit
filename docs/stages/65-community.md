@@ -149,9 +149,12 @@ touches staging or production.
 
 #### A2. MUME's lists (no worktree)
 
-- [ ] `notes/research/mume-war-lists.md`: where MUME publishes the war
+- [x] `notes/research/mume-war-lists.md`: where MUME publishes the war
       point lists and the player count, the form, the terms, whom to
-      ask.
+      ask. (The warlords: <https://mume.org/news/war>, public HTML, top
+      10 a side, names, race and class, no points; no live player count
+      on the web, MSSP on port 4242 unconfirmed; no terms; leave asked
+      in game of an Ainu or on MUME's Discord.)
 - [ ] The owner asks MUME's management (his decision); built in part C
       only with a yes.
 
