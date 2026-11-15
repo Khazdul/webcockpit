@@ -138,10 +138,15 @@ const DECODE: ImageBitmapOptions = { imageOrientation: 'flipY', premultiplyAlpha
 
 /** A decoded tile (unpremultiplied, flipped for GL), or null when missing or not decodable. */
 async function bitmap(assets: AssetResolver, path: string): Promise<ImageBitmap | null> {
+  return decoded(await assets(path).catch(() => null));
+}
+
+async function decoded(blob: Blob | null): Promise<ImageBitmap | null> {
+  if (!blob) return null; // missing in an HTML-replay subset: the layer stays transparent
   try {
-    return await createImageBitmap(await assets(path), DECODE);
+    return await createImageBitmap(blob, DECODE);
   } catch {
-    return null; // missing in an HTML-replay subset, or not decodable: the layer stays transparent
+    return null; // not decodable: the layer stays transparent
   }
 }
 
@@ -153,8 +158,11 @@ async function bitmap(assets: AssetResolver, path: string): Promise<ImageBitmap 
  * working memory as well.
  */
 export async function bitmapsInTurn(assets: AssetResolver, paths: readonly string[]): Promise<(ImageBitmap | null)[]> {
+  // The files are fetched together (compressed, small; the loading overlay
+  // counts them as they come), only the decoding goes one at a time.
+  const blobs = paths.map((path) => assets(path).catch(() => null));
   const out: (ImageBitmap | null)[] = [];
-  for (const path of paths) out.push(await bitmap(assets, path));
+  for (const blob of blobs) out.push(await decoded(await blob));
   return out;
 }
 
@@ -255,13 +263,17 @@ export class WebGLMapRenderer implements Renderer {
     // Decode every file and size each array by its largest file; the others
     // are scaled to it on the GPU at upload (`uploadLayer`; a tileset's mixed
     // sizes, the default set needs none).
-    // In turn, not all at once (`bitmapsInTurn`).
+    // Every file is fetched at once, decoded in turn (`bitmapsInTurn`).
+    const paths = [...groups.flatMap(([, g]) => g.files.map((f) => `pixmaps/${f}`)), `pixmaps/${CHAR_ARROWS_FILE}`];
+    const all = await bitmapsInTurn(assets, paths);
     const loaded: { id: number; size: number; images: (ImageBitmap | null)[] }[] = [];
+    let at = 0;
     for (const [id, g] of groups) {
-      const images = await bitmapsInTurn(assets, g.files.map((f) => `pixmaps/${f}`));
+      const images = all.slice(at, at + g.files.length);
+      at += g.files.length;
       loaded.push({ id, size: arraySize(g.size, images), images });
     }
-    const a = await bitmap(assets, `pixmaps/${CHAR_ARROWS_FILE}`);
+    const a = all[at] ?? null;
     if (this.disposed || gen !== this.tileGen) {
       for (const l of loaded) for (const im of l.images) im?.close();
       a?.close();
