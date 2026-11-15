@@ -56,6 +56,8 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
     writeFileSync(join(dir, '404.html'), 'nothing here');
     writeFileSync(join(dir, 'page.html'), 'page');
     writeFileSync(join(dir, 'sub', 'index.html'), 'sub');
+    mkdirSync(join(dir, 'r'));
+    writeFileSync(join(dir, 'r', 'frame.html'), 'frame');
     writeFileSync(join(dir, 'assets', 'a-123.js'), 'export {}');
     writeFileSync(join(dir, 'map', 'arda.mm2'), 'map');
     writeFileSync(join(dir, 'release.json'), '{"version":"1.2.3","commit":"abc1234"}');
@@ -158,6 +160,23 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
     expect(post.status).toBe(405);
     expect(post.headers.get('allow')).toBe('GET');
     expect(await post.json()).toEqual({ error: 'method_not_allowed' });
+  });
+
+  it('/r/* is the Worker: /r/<id> is the site root (its _headers rules too), a file under /r/ is served as it is (stage 64)', async () => {
+    for (const path of ['/r/AbCdEfGh1234', '/r/not-an-id', '/r/']) {
+      const res = await fetch(`${url}${path}`);
+      expect(res.status, path).toBe(200);
+      expect(await res.text(), path).toBe('<!doctype html>');
+      expect(headers(res), path).toMatchObject({ ...SECURITY, 'cache-control': 'no-cache' });
+    }
+    const etag = (await fetch(`${url}/r/AbCdEfGh1234`)).headers.get('etag') as string;
+    expect((await fetch(`${url}/r/AbCdEfGh1234`, { headers: { 'If-None-Match': etag } })).status).toBe(304);
+    const frame = await fetch(`${url}/r/frame.html`, { redirect: 'manual' });
+    expect(frame.status).toBe(307);
+    expect(frame.headers.get('location')).toBe('/r/frame');
+    const clean = await fetch(`${url}/r/frame`);
+    expect(clean.status).toBe(200);
+    expect(await clean.text()).toBe('frame');
   });
 
   it('without a release.json the health says dev', async () => {

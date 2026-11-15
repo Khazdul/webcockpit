@@ -3,12 +3,13 @@
 // key, served by a stub of https://<team>/cdn-cgi/access/certs.
 import { exports } from 'cloudflare:workers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { AdminFlag, AdminStats } from '../../shared/cloud/api.ts';
+import type { AdminFlag, AdminLogEntry, AdminReports, AdminStats, PubMeta } from '../../shared/cloud/api.ts';
 import { forgetAccessKeys } from '../access.ts';
 import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { recordBeat, rollUp } from '../stats.ts';
-import { T, at, db, device, emptyTables, envWith, realEnv } from './helpers.ts';
+import { T, at, count, db, device, emptyTables, envWith, faultyBucket, r2Keys, realEnv } from './helpers.ts';
+import { call as userCall, payload, post as userPost, pubRow, publish, reportOf, signUp } from './share-helpers.ts';
 
 const NOW = T('2026-11-14T12:00:00Z');
 const TEAM = 'webcockpit-test.cloudflareaccess.com';
@@ -237,5 +238,177 @@ describe('staging: X-Robots-Tag', () => {
       expect(res.headers.get('x-robots-tag'), path).toBe('noindex');
     }
     expect((await handle(new Request('https://example.test/api/health'), realEnv, at(NOW))).headers.get('x-robots-tag')).toBeNull();
+  });
+});
+
+describe('moderation (stage 64, ADR 0154)', () => {
+  const write = (path: string, body: unknown, o: { headers?: Record<string, string>; env?: Env } = {}) =>
+    call(path, {
+      env: o.env ?? adminEnv(),
+      init: { method: 'POST', headers: o.headers ?? { 'X-WC': '1', Origin: ORIGIN, 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    });
+  const read = async <T>(path: string): Promise<T> => {
+    const res = await call(path);
+    expect(res.status, path).toBe(200);
+    return (await res.json()) as T;
+  };
+  /** The share-helpers' accounts make their own requests at their own time; the admin's are at NOW of this file. */
+  async function reported(n: number): Promise<{ alice: string; id: string; reporters: string[] }> {
+    const alice = await signUp('alice');
+    const id = await publish(alice, payload(321));
+    const reporters: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const c = await signUp(`rep${i}`, { rules: false });
+      reporters.push(c);
+      expect((await reportOf(c, id, { reason: i % 2 ? 'rules' : 'harassment', ...(i === n - 1 ? { text: 'the newest' } : {}) }, { now: T('2026-11-15T12:00:00Z') + i })).status).toBe(204);
+    }
+    return { alice, id, reporters };
+  }
+
+  it('every moderation path is behind the Access check; writes need X-WC and the same Origin', async () => {
+    for (const path of ['/api/admin/reports', '/api/admin/log', '/api/admin/pub/AAAAAAAAAAAA', '/api/admin/pub/AAAAAAAAAAAA/payload', '/api/admin/account/alice']) {
+      expect((await call(path, { token: null })).status, path).toBe(403);
+    }
+    const { id } = await reported(1);
+    for (const headers of [{ Origin: ORIGIN }, { 'X-WC': '1' }, { 'X-WC': '1', Origin: 'https://evil.example' }] as Record<string, string>[]) {
+      expect((await write(`/api/admin/pub/${id}`, { action: 'hide' }, { headers })).status).toBe(403);
+      expect((await write('/api/admin/account/alice', { action: 'suspend' }, { headers })).status).toBe(403);
+    }
+    expect((await pubRow(id))?.state).toBe('active');
+    expect(await count('admin_log')).toBe(0);
+  });
+
+  it('GET /api/admin/reports: open reports by item with reasons, reporters, the newest text; the totals of published runs', async () => {
+    const { id } = await reported(3);
+    const alice2 = await signUp('carol');
+    await publish(alice2, payload(1000));
+    const answer = await read<AdminReports>('/api/admin/reports');
+    expect(answer).toEqual({
+      items: [
+        {
+          kind: 'run',
+          target: id,
+          title: 'Orc fight at the ford',
+          sender: 'alice',
+          state: 'active',
+          reasons: { harassment: 2, rules: 1 },
+          reporters: 3,
+          newest: T('2026-11-15T12:00:00Z') + 2,
+          text: 'the newest',
+        },
+      ],
+      pubs: { count: 2, bytes: 1321, today: 2 },
+    } satisfies AdminReports);
+  });
+
+  it('hide, restore and delete a run: each marks its reports handled and writes the log (who is a hash)', async () => {
+    const { id } = await reported(2);
+    expect((await write(`/api/admin/pub/${id}`, { action: 'hide', note: 'looks bad' })).status).toBe(204);
+    expect(await pubRow(id)).toMatchObject({ state: 'hidden', hidden_reason: 'admin' });
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(451);
+    // The queue is empty now: the reports are handled.
+    expect((await read<AdminReports>('/api/admin/reports')).items).toEqual([]);
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM report WHERE handled = 0').first<{ n: number }>())?.n).toBe(0);
+
+    // The admin still sees the hidden run and its payload.
+    const meta = await read<PubMeta>(`/api/admin/pub/${id}`);
+    expect(meta).toMatchObject({ id, sender: 'alice', hidden: true, bytes: 321 });
+    const bytes = await call(`/api/admin/pub/${id}/payload`);
+    expect(bytes.status).toBe(200);
+    expect(new Uint8Array(await bytes.arrayBuffer())).toEqual(payload(321));
+
+    expect((await write(`/api/admin/pub/${id}`, { action: 'restore' })).status).toBe(204);
+    expect(await pubRow(id)).toMatchObject({ state: 'active', hidden_reason: null });
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(200);
+
+    expect((await write(`/api/admin/pub/${id}`, { action: 'delete' })).status).toBe(204);
+    expect(await pubRow(id)).toMatchObject({ state: 'removed', title: '', bytes: 0 });
+    expect(await r2Keys()).toEqual([]);
+    expect((await db.prepare("SELECT pub_count, pub_bytes FROM account WHERE name_key = 'alice'").first())).toEqual({ pub_count: 0, pub_bytes: 0 });
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(410);
+    expect((await call(`/api/admin/pub/${id}`)).status).toBe(410);
+    expect((await write(`/api/admin/pub/${id}`, { action: 'restore' })).status).toBe(410);
+
+    const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
+    expect(entries.map((e) => [e.action, e.target, e.note])).toEqual([
+      ['pub.delete', id, ''],
+      ['pub.restore', id, ''],
+      ['pub.hide', id, 'looks bad'],
+    ]);
+    const who = (await db.prepare('SELECT DISTINCT who FROM admin_log').all<{ who: string }>()).results;
+    expect(who.length).toBe(1);
+    expect(who[0]?.who).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(JSON.stringify(await db.prepare('SELECT * FROM admin_log').all())).not.toMatch(/owner|example\.org/i);
+  });
+
+  it('a run action: 400 for a bad body, 404 for an unknown run', async () => {
+    const { id } = await reported(1);
+    for (const b of [{}, { action: 'ban' }, { action: 'hide', more: 1 }, { action: 'hide', note: 'x'.repeat(501) }, { action: 'hide', note: 'a\u0000' }]) {
+      expect((await write(`/api/admin/pub/${id}`, b)).status, JSON.stringify(b)).toBe(400);
+    }
+    expect((await write('/api/admin/pub/AAAAAAAAAAAA', { action: 'hide' })).status).toBe(404);
+    expect((await write('/api/admin/pub/bad', { action: 'hide' })).status).toBe(404);
+    expect((await call('/api/admin/pub/AAAAAAAAAAAA/payload')).status).toBe(404);
+    expect(await count('admin_log')).toBe(0);
+  });
+
+  it('suspend and restore an account: it syncs but cannot share or report while suspended', async () => {
+    const { alice, id } = await reported(1);
+    const bob = await signUp('bob');
+    expect((await write('/api/admin/account/Alice', { action: 'suspend', note: 'spam' })).status).toBe(204);
+    expect((await db.prepare("SELECT state FROM account WHERE name_key = 'alice'").first())).toEqual({ state: 'suspended' });
+    expect((await userPost(alice)).status).toBe(403);
+    expect((await userCall('GET', '/api/u/account', undefined, { cookie: alice })).status).toBe(200);
+    // Its published runs stay.
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(200);
+    // A suspended account cannot report either.
+    await write('/api/admin/account/bob', { action: 'suspend' });
+    expect((await reportOf(bob, id)).status).toBe(403);
+    expect((await write('/api/admin/account/alice', { action: 'restore' })).status).toBe(204);
+    expect((await userPost(alice)).status).toBe(200);
+    const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
+    expect(entries.map((e) => [e.action, e.target])).toEqual([
+      ['account.restore', 'alice'],
+      ['account.suspend', 'bob'],
+      ['account.suspend', 'alice'],
+    ]);
+    expect((await write('/api/admin/account/nobody', { action: 'suspend' })).status).toBe(404);
+    expect((await write('/api/admin/account/a b', { action: 'suspend' })).status).toBe(404);
+    expect((await write('/api/admin/account/alice', { action: 'ban' })).status).toBe(400);
+  });
+
+  it('delete an account: only with its name typed; its runs, items and sessions go, its name is reserved', async () => {
+    const { alice, id } = await reported(2);
+    expect((await write('/api/admin/account/alice', { action: 'delete' })).status).toBe(400);
+    expect((await write('/api/admin/account/alice', { action: 'delete', confirm: 'bob' })).status).toBe(400);
+    expect(await count('admin_log')).toBe(0);
+    expect((await write('/api/admin/account/alice', { action: 'delete', confirm: 'ALICE', note: 'gone' })).status).toBe(204);
+    expect(await db.prepare("SELECT 1 FROM account WHERE name_key = 'alice'").first()).toBeNull();
+    expect(await db.prepare("SELECT 1 AS x FROM reserved_name WHERE name_key = 'alice'").first()).toEqual({ x: 1 });
+    expect((await userCall('GET', '/api/u/account', undefined, { cookie: alice })).status).toBe(401);
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(410);
+    expect(await r2Keys('pub/')).toEqual([]);
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM report WHERE handled = 0').first<{ n: number }>())?.n).toBe(0);
+    expect((await read<{ entries: AdminLogEntry[] }>('/api/admin/log')).entries.map((e) => [e.action, e.target, e.note])).toEqual([['account.delete', 'alice', 'gone']]);
+    expect((await write('/api/admin/account/alice', { action: 'delete', confirm: 'alice' })).status).toBe(404);
+  });
+
+  it('delete an account with R2 failing: the account and its links are gone; the cron catches the objects', async () => {
+    const { id } = await reported(0);
+    expect((await write('/api/admin/account/alice', { action: 'delete', confirm: 'alice' }, { env: adminEnv({ FILES: faultyBucket({ fail: ['delete', 'list'] }) }) })).status).toBe(204);
+    expect((await userCall('GET', `/api/pub/${id}`)).status).toBe(410);
+    expect(await r2Keys()).toEqual([`pub/${id}`]);
+  });
+
+  it('the log keeps the newest 100', async () => {
+    await db.batch(Array.from({ length: 105 }, (_, i) => db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (?1, 'w', 'pub.hide', ?2, '')").bind(i, `t${i}`)));
+    const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
+    expect(entries.length).toBe(100);
+    expect(entries[0]).toEqual({ ts: 104, action: 'pub.hide', target: 't104', note: '' });
+  });
+
+  it('works with the flag share off (the admin can clean up)', async () => {
+    const { id } = await reported(1);
+    expect((await write(`/api/admin/pub/${id}`, { action: 'hide' }, { env: adminEnv({ FLAG_SHARE: false }) })).status).toBe(204);
   });
 });
