@@ -260,7 +260,7 @@ the local Worker and R2).
 
 ### E. Accounts open in production (only on the owner's go-ahead)
 
-- [ ] The owner has tested on staging and said yes.
+- [x] The owner has tested on staging and said yes (2026-11-15).
 - [ ] The release: version, `CHANGELOG`, the tag; `deploy.yml` applies
       migrations 0003–0004 in production; `FLAG_ACCOUNTS`, `FLAG_SYNC`,
       `FLAG_RUNS` on in production (vars, or the admin page's overrides:
@@ -341,4 +341,6 @@ accounts in production.
 
 ## Owner feedback
 
-(After the test.)
+2026-11-15, after the test on staging: "Testerna gjorda. Allt ok. Kör
+på." The test guide's steps passed; no comments. Taken as the explicit
+go-ahead for part E: accounts open in production with 0.12.0.

@@ -38,11 +38,11 @@
     // Server flags' defaults (ADR 0147, addendum): production dark; a row
     // in the D1 table `flag`, set from /admin, overrides it.
     "FLAG_STATS": false,
-    "FLAG_ACCOUNTS": false,
-    // Sync of profiles and scripts (stage 61): staging only for now.
-    "FLAG_SYNC": false,
-    // Runs in the cloud (stage 63, ADR 0153): staging only until the owner opens accounts.
-    "FLAG_RUNS": false,
+    // Accounts, sync and runs in the cloud open together in production
+    // (owner, 2026-11-15, after stage 63's test on staging; release 0.12.0).
+    "FLAG_ACCOUNTS": true,
+    "FLAG_SYNC": true,
+    "FLAG_RUNS": true,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
