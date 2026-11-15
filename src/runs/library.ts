@@ -29,6 +29,20 @@
 //
 // The lines and their checks are src/runs/lines.ts, shared with a
 // run's body in the cloud (ADR 0153).
+//
+// Runs in the cloud (stage 63 C1, ADR 0153), through src/runs/cloud-hook.ts
+// (set by the space's runtime when the flag `runs` is on):
+//
+//   listSessions(now, {remote: true})  History's list: the `remote` rows'
+//                       metas stitched in with the runs here
+//   cloudRows()         the `runCloud` rows by run id (History's marks)
+//   ensureLocal(s, p)   fetches a session's cloud-only runs before they
+//                       are read (the player, the export editor)
+//   save                tells the hook (the queue takes the sealed runs)
+//   remove              deletes the runs here and their rows; the hook
+//                       deletes them everywhere (a tombstone, then the body)
+//   sweep               keeps the export docs of sessions in the cloud
+//   backup(now, {only}) the runs backup of some runs (Log out's Download)
 // Export lines were added in stage 7 without a schema bump (additive): a
 // stage 6 reader rejects them as an unknown record, a stage 7 reader reads
 // stage 6 files unchanged.
@@ -42,6 +56,9 @@ import { type LockManagerLike, acquire, runLockName } from '../capture/recorder'
 import { type ExportDoc, defaultExportDoc, normalizeExportDoc } from '../share/edits';
 import { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from './lines';
 import type { RunEvent } from './events';
+import type { RunCloudRow } from '../cloud/runs/types';
+import { type EnsureResult, type FetchProgressFn, type SaveWhere, runCloudHook } from './cloud-hook';
+import { noteStored } from '../core/store-events';
 import { RunStore } from './store';
 import { DAY_US, RETENTION_DAYS, type Session, stitchChains, stitchSessions, toSession } from './stitch';
 
@@ -82,10 +99,51 @@ export class RunLibrary {
 
   // ------------------------------------------------------------------ read
 
-  /** Sessions of sealed runs, newest first (the active run is never listed). */
-  async listSessions(nowUs: number): Promise<Session[]> {
+  /**
+   * Sessions of sealed runs, newest first (the active run is never
+   * listed). `remote`: the account's runs that are only in the cloud
+   * (`runCloud` rows `remote` or `fetching`) are stitched in from their
+   * metas (History; ADR 0153).
+   */
+  async listSessions(nowUs: number, o: { remote?: boolean } = {}): Promise<Session[]> {
     const runs = (await this.store.listRuns()).filter((r) => r.sealed);
+    if (o.remote) {
+      const here = new Set(runs.map((r) => r.runId));
+      for (const row of await this.cloudList()) {
+        if ((row.state === 'remote' || row.state === 'fetching') && row.meta && !here.has(row.runId)) runs.push(row.meta);
+      }
+    }
     return stitchSessions(runs, nowUs);
+  }
+
+  /** The `runCloud` rows by run id (empty for a guest, or with the flag `runs` off). */
+  async cloudRows(): Promise<Map<string, RunCloudRow>> {
+    return new Map((await this.cloudList()).map((r) => [r.runId, r]));
+  }
+
+  private async cloudList(): Promise<RunCloudRow[]> {
+    try {
+      return await this.store.listCloud();
+    } catch {
+      return []; // a database before version 10 (a test's), or a store in memory
+    }
+  }
+
+  /**
+   * Before a session is read (the player, the export editor): its runs
+   * that are only in the cloud are fetched (`onProgress(done, total)` in
+   * bytes). `ok` when every run is here now.
+   */
+  async ensureLocal(session: Session, onProgress?: FetchProgressFn): Promise<EnsureResult> {
+    const rows = await this.cloudRows();
+    const ids = session.runs.map((r) => r.runId).filter((id) => {
+      const st = rows.get(id)?.state;
+      return st === 'remote' || st === 'fetching';
+    });
+    if (ids.length === 0) return { ok: true };
+    const hook = runCloudHook();
+    if (!hook) return { ok: false, why: 'unavailable' };
+    return hook.fetch(ids, onProgress);
   }
 
   /** Characters with sealed runs, alphabetical. */
@@ -164,23 +222,35 @@ export class RunLibrary {
    * Saves every run of the session. With `rating` (0–5) every run gets it;
    * without, each run keeps its own.
    */
-  async save(session: Session, rating?: number, nowUs: number = Date.now() * 1000): Promise<void> {
+  async save(session: Session, rating?: number, nowUs: number = Date.now() * 1000, o: { where?: SaveWhere } = {}): Promise<void> {
     const r = rating === undefined ? undefined : Math.max(0, Math.min(5, Math.round(rating)));
-    await this.store.updateRuns(
-      session.runs.map((m) => m.runId),
-      (m) => {
-        m.saved = true;
-        m.savedUs = nowUs;
-        if (r !== undefined) m.rating = r;
-        else m.rating ??= 0;
-      },
-    );
+    const ids = session.runs.map((m) => m.runId);
+    await this.store.updateRuns(ids, (m) => {
+      m.saved = true;
+      m.savedUs = nowUs;
+      if (r !== undefined) m.rating = r;
+      else m.rating ??= 0;
+    });
+    // Logged in with runs in the cloud: the sealed ones are queued (the live run once it is sealed).
+    runCloudHook()?.saved(ids, o.where ?? 'history');
   }
 
-  /** Deletes every run of the session (meta, chunks, events) and its export doc. */
+  /**
+   * Deletes every run of the session (meta, chunks, events, its
+   * `runCloud` row) and its export doc. Logged in with runs in the
+   * cloud, that deletes them on every device and in the cloud (the
+   * tombstones at the next sync, then the bodies).
+   */
   async remove(session: Session): Promise<void> {
-    for (const m of session.runs) await this.store.deleteRun(m.runId);
-    await this.store.deleteExport(session.id);
+    const ids = session.runs.map((m) => m.runId);
+    try {
+      await this.store.deleteSavedRuns(ids, session.id);
+    } catch {
+      // A database before version 10 (no `runCloud`): as before stage 63.
+      for (const id of ids) await this.store.deleteRun(id);
+      await this.store.deleteExport(session.id);
+    }
+    runCloudHook()?.removed(ids);
   }
 
   // --------------------------------------------------------------- exports
@@ -194,6 +264,7 @@ export class RunLibrary {
   /** Saves an export doc (every edit). */
   async saveExportDoc(doc: ExportDoc): Promise<void> {
     await this.store.putExport(doc);
+    noteStored('exportDoc');
   }
 
   /**
@@ -241,8 +312,10 @@ export class RunLibrary {
       }
     }
     // Export docs of sessions whose first run is gone (deleted above, or a
-    // chain whose first run expired before the rest).
+    // chain whose first run expired before the rest); a session in the
+    // cloud (its first run has a `runCloud` row) keeps its doc (ADR 0153).
     const runs = new Set((await this.store.listRuns()).map((r) => r.runId));
+    for (const r of await this.cloudList()) runs.add(r.runId);
     for (const d of await this.store.listExports()) if (!runs.has(d.sessionId)) await this.store.deleteExport(d.sessionId);
     return deleted;
   }
@@ -260,12 +333,16 @@ export class RunLibrary {
 
   // ---------------------------------------------------------------- backup
 
-  /** Every sealed run as a gzip JSON-lines file (see the file header). */
-  async backup(nowUs: number = Date.now() * 1000): Promise<Blob> {
+  /**
+   * Every sealed run as a gzip JSON-lines file (see the file header);
+   * `only`: just those runs (Log out's Download of the runs not in the
+   * cloud).
+   */
+  async backup(nowUs: number = Date.now() * 1000, o: { only?: ReadonlySet<string> } = {}): Promise<Blob> {
     const parts: string[] = [JSON.stringify({ type: BACKUP_TYPE, schema: BACKUP_SCHEMA, exportedUs: nowUs }) + '\n'];
     const sealed = new Set<string>();
     for (const meta of await this.store.listRuns()) {
-      if (!meta.sealed) continue;
+      if (!meta.sealed || (o.only && !o.only.has(meta.runId))) continue;
       sealed.add(meta.runId);
       for (const line of runLines({ meta, events: await this.store.getEvents(meta.runId), chunks: await this.store.getChunks(meta.runId) })) parts.push(line);
     }

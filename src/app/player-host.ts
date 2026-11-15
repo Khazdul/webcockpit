@@ -81,6 +81,7 @@
 // alone.
 
 import type { RunLibrary } from '../runs/library';
+import { type FetchProgressFn, notFetchedWords } from '../runs/cloud-hook';
 import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot, defaultPhoneLensWant } from '../settings';
@@ -171,6 +172,8 @@ export interface PlayerOpenOptions {
   hiddenSys?: readonly number[];
   /** The viewer settings (ADR 0021): Panes and Display (default true), Display only, or none. */
   viewerSettings?: boolean | 'display';
+  /** The fetch of a session's cloud-only runs before it opens (ADR 0153): `(done, total)` bytes. */
+  onFetch?: FetchProgressFn;
 }
 
 /**
@@ -305,6 +308,10 @@ export class PlayerHost {
    * not stored, or hold nothing to play.
    */
   async open(session: Session, lib: RunLibrary, opts: PlayerOpenOptions = {}): Promise<void> {
+    // A session in the cloud is fetched first (ADR 0153; the progress is stage 63 C2's).
+    const got = await lib.ensureLocal(session, opts.onFetch);
+    if (!got.ok) throw new Error(notFetchedWords(got.why));
+    if (this.closed) return;
     const ids = session.runs.map((r) => r.runId);
     const [chain, events] = await Promise.all([lib.chainLog(ids), lib.events(ids)]);
     if (this.closed) return;

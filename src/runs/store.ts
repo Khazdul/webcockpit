@@ -20,10 +20,18 @@
 // Stage 7 (DB version 6, ADR 0019) adds the `exports` store: one export
 // editor document per session, keyPath 'sessionId' (the chain's first run
 // id; src/share/edits.ts).
+//
+// Stage 63 (DB version 10, ADR 0153): `runCloud` (src/cloud/runs/types.ts)
+// is read here for History (`listCloud`), and a player's Delete of saved
+// runs (`deleteSavedRuns`) removes their rows too and keeps each server id
+// whose body may be in the cloud in `syncMeta` (`RUN_BODY_DELETES`): the
+// space's runtime deletes those bodies after the next sync that pushed
+// the tombstones (ADR 0153 B2, "Delete's body goes after its tombstone").
 
 import { idbDone as done, idbRequest as req, openWebcockpitDb } from '../core/db';
 import { CaptureStore, type RunChunk, type RunMeta } from '../capture/store';
 import type { ExportDoc } from '../share/edits';
+import type { RunCloudRow } from '../cloud/runs/types';
 import type { RunEvent } from './events';
 import type { RunSummary } from './summary';
 
@@ -47,6 +55,12 @@ export interface RunAppend {
 }
 
 const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
+
+/** `syncMeta` key: run id → server id of deleted runs whose body is still to be deleted in the cloud. */
+export const RUN_BODY_DELETES = 'runBodyDeletes';
+
+/** The `runCloud` states whose body may be in the cloud (a Delete deletes it after the sync). */
+const BODY_MAY_BE_UP = new Set(['up', 'remote', 'fetching', 'queued']);
 
 export class RunStore extends CaptureStore {
   static override async open(factory?: IDBFactory): Promise<RunStore> {
@@ -96,6 +110,40 @@ export class RunStore extends CaptureStore {
     tx.objectStore('runs').delete(runId);
     tx.objectStore('runChunks').delete(runRange(runId));
     tx.objectStore('runEvents').delete(runRange(runId));
+    await done(tx);
+  }
+
+  /** The `runCloud` rows (empty in the device's space and with the flag `runs` off). */
+  listCloud(): Promise<RunCloudRow[]> {
+    const tx = this.db.transaction('runCloud', 'readonly');
+    return req(tx.objectStore('runCloud').getAll() as IDBRequest<RunCloudRow[]>);
+  }
+
+  /**
+   * The player's Delete of a session (ADR 0153): every run of it (meta,
+   * chunks, events, `runCloud` row) and its export doc, in one
+   * transaction; the server id of each run whose body may be in the
+   * cloud is kept in `syncMeta` (`RUN_BODY_DELETES`) for the runtime.
+   */
+  async deleteSavedRuns(runIds: readonly string[], sessionId: string): Promise<void> {
+    const tx = this.db.transaction(['runs', 'runChunks', 'runEvents', 'runCloud', 'syncMeta', 'exports'], 'readwrite');
+    const cloud = tx.objectStore('runCloud');
+    const meta = tx.objectStore('syncMeta');
+    const rows = await Promise.all(runIds.map((id) => req(cloud.get(id) as IDBRequest<RunCloudRow | undefined>)));
+    const bodies = rows.filter((r): r is RunCloudRow => !!r && BODY_MAY_BE_UP.has(r.state) && typeof r.serverId === 'string');
+    if (bodies.length) {
+      const cur = (await req(meta.get(RUN_BODY_DELETES))) as Record<string, string> | undefined;
+      const next: Record<string, string> = { ...(cur && typeof cur === 'object' ? cur : {}) };
+      for (const r of bodies) next[r.runId] = r.serverId;
+      meta.put(next, RUN_BODY_DELETES);
+    }
+    for (const id of runIds) {
+      tx.objectStore('runs').delete(id);
+      tx.objectStore('runChunks').delete(runRange(id));
+      tx.objectStore('runEvents').delete(runRange(id));
+      cloud.delete(id);
+    }
+    tx.objectStore('exports').delete(sessionId);
     await done(tx);
   }
 

@@ -57,6 +57,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import { touchInteraction } from '../../core/device';
 import type { ChainRun } from '../../player/timeline';
 import type { RunEvent } from '../../runs/events';
+import { notFetchedWords } from '../../runs/cloud-hook';
 import type { Session } from '../../runs/stitch';
 import {
   COMMENT_MAX,
@@ -227,6 +228,9 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     void (async () => {
       try {
         const lib = await runs();
+        // A session in the cloud is fetched first (ADR 0153; the progress is stage 63 C2's).
+        const got = await lib.ensureLocal(s);
+        if (!got.ok) throw new Error(notFetchedWords(got.why));
         const ids = s.runs.map((r) => r.runId);
         const [chain, events, d] = await Promise.all([lib.chainLog(ids), lib.events(ids), lib.exportDoc(s.id)]);
         if (!live) return;

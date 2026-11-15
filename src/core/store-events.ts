@@ -10,10 +10,11 @@
 //   scriptData  the script library, a write touching script data
 //   comm        the Comm archive, after each append transaction
 //   timers      the timers archive, after each save
+//   exportDoc   the run library, an export doc saved (stage 63, ADR 0153)
 //
 // The sync's own writes (the adapters' put/remove) do not note.
 
-export type StoredKind = 'profile' | 'script' | 'settings' | 'scriptData' | 'comm' | 'timers';
+export type StoredKind = 'profile' | 'script' | 'settings' | 'scriptData' | 'comm' | 'timers' | 'exportDoc';
 
 const listeners = new Set<(kind: StoredKind) => void>();
 

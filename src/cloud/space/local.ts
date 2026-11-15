@@ -45,6 +45,25 @@
 // The last-writer kinds settings and scriptData skip a put or remove over
 // a value changed since the engine's scan (`list(kind, {scan})`): the
 // player's change is then pushed at the next round.
+//
+// The run kinds (stage 63 C1, ADR 0153; `MemoryRunSpace` of
+// tests/unit/cloud-sync-model.ts is the reference):
+//
+//   run         a saved run here is an item once its `runCloud` row is `up`
+//               (its body is in the cloud), or while it is `queued` and the
+//               account has its item (an agreed record: put back in the
+//               queue after an edit beat a delete); a `remote` or
+//               `fetching` row is an item with its meta. The body is
+//               `{runId, meta, size}` (meta by `runItemMeta`). A put of a
+//               run here takes the item's meta (an `up` row its size; no
+//               row: an `up` one); of a run not here, a `remote` row. A
+//               remove deletes the run (meta, chunks, events), its row and
+//               the export doc of the session it began.
+//   exportDoc   the `exports` store; a doc is an item when its session's
+//               first run is saved here or `remote`, or the account has it.
+//
+// `idbRunCloudStore` is the upload queue's `RunCloudStore` over the same
+// database (src/cloud/runs/queue.ts).
 
 import { DEVICE_TYPES, type DeviceType, type SyncKind } from '../../../shared/cloud/api.ts';
 import { jsonSafe } from '../../core/canonical-json';
@@ -57,8 +76,12 @@ import { parseHeader, withHeaderName } from '../../scripts/header';
 import { SETTINGS_KEY } from '../../settings/store';
 import { type TimersRecord, TimersArchive } from '../../timers/archive';
 import { deviceType } from '../device-info';
-import { COMM_DAY_PATTERN, ITEM_SPECS, itemHashes } from '../sync/items';
-import type { Body, CommItem, CommPieceRecord, LocalBatch, LocalItem, LocalItems, SettingsItem, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
+import { COMM_DAY_PATTERN, ITEM_SPECS, itemHashes, runItemMeta } from '../sync/items';
+import type { Body, CommItem, CommPieceRecord, LocalBatch, LocalItem, LocalItems, RunItem, SettingsItem, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
+import type { RunCloudRow, RunCloudStore, RunRows } from '../runs/types';
+import type { RunChunk, RunMeta } from '../../capture/store';
+import type { RunEventRecord } from '../../runs/store';
+import { type ExportDoc, normalizeExportDoc } from '../../share/edits';
 
 /** Opens the space's database (a cached connection; reopened when another tab's upgrade closed it). */
 export type OpenDb = () => Promise<IDBDatabase>;
@@ -237,6 +260,8 @@ export interface LocalOptions {
   commPieceMax?: number;
   /** Lets the game run between Comm days read in a list (default `setTimeout(0)`). */
   yieldToGame?: () => Promise<void>;
+  /** A run's server id (`opaqueId(idKey, "run", runId)`): needed to write pulled `run` items. */
+  runServerId?: (runId: string) => Promise<string>;
 }
 
 const isDeviceType = (t: unknown): t is DeviceType => typeof t === 'string' && (DEVICE_TYPES as readonly string[]).includes(t);
@@ -494,6 +519,8 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
         await done;
         return rows.map((r): LocalItem => ({ key: r.id, body: scriptBody(r) }));
       }
+      if (kind === 'run') return listRunItems(open);
+      if (kind === 'exportDoc') return listExportDocItems(open);
       return listSmall(kind, !!lo?.scan);
     },
 
@@ -541,12 +568,180 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
           os.put(named && named !== r.name ? { ...r, source: withHeaderName(r.source, r.name) } : r);
         }
         await done;
+      } else if (kind === 'run' || kind === 'exportDoc') {
+        if (kind === 'run') await writeRunItems(open, batch, o.runServerId, now);
+        else await writeExportDocItems(open, batch);
+        hooks.written?.(kind);
+        return;
       } else {
         const settings = await writeSmall(kind, batch);
         hooks.written?.(kind, undefined, settings);
         return;
       }
       hooks.written?.(kind, changes);
+    },
+  };
+}
+
+// ------------------------------------------------------------ runs (ADR 0153)
+
+const runRange = (runId: string): IDBKeyRange => IDBKeyRange.bound([runId, 0], [runId, Infinity]);
+
+/** The `run` items of a space (see the file header). */
+async function listRunItems(open: OpenDb): Promise<LocalItem[]> {
+  const t = await tx(open, [STORE.runs, STORE.runCloud, STORE.sync], 'readonly');
+  const done = idbDone(t);
+  const [rows, agreed] = await Promise.all([idbRequest(t.objectStore(STORE.runCloud).getAll()) as Promise<RunCloudRow[]>, agreedKeys(t, 'run')]);
+  const runs = t.objectStore(STORE.runs);
+  const metas = await Promise.all(rows.map((r) => idbRequest(runs.get(r.runId)) as Promise<RunMeta | undefined>));
+  await done;
+  const out: LocalItem[] = [];
+  rows.forEach((row, i) => {
+    const here = metas[i];
+    let meta: RunMeta | null = null;
+    if (here) {
+      if (row.state === 'up' || (row.state === 'queued' && agreed.has(row.runId))) meta = runItemMeta(here);
+    } else if ((row.state === 'remote' || row.state === 'fetching') && row.meta) meta = runItemMeta(row.meta);
+    if (!meta || meta.runId !== row.runId) return;
+    const body: RunItem = { runId: row.runId, meta, size: row.size };
+    out.push({ key: row.runId, body: body as unknown as Body });
+  });
+  return out;
+}
+
+/** Writes pulled `run` items and tombstones (see the file header). */
+async function writeRunItems(open: OpenDb, batch: LocalBatch, serverIdOf: ((runId: string) => Promise<string>) | undefined, now: () => number): Promise<void> {
+  const puts = batch.put.map((b) => b as unknown as RunItem).filter((it) => typeof it.runId === 'string' && it.meta);
+  // Server ids first: an await of the crypto would end the transaction.
+  const ids = new Map<string, string>();
+  for (const it of puts) {
+    if (!serverIdOf) throw new Error('run items need runServerId');
+    ids.set(it.runId, await serverIdOf(it.runId));
+  }
+  const t = await tx(open, [STORE.runs, STORE.runChunks, STORE.runEvents, STORE.runCloud, STORE.exports], 'readwrite');
+  const done = idbDone(t);
+  const runs = t.objectStore(STORE.runs);
+  const cloud = t.objectStore(STORE.runCloud);
+  for (const id of batch.remove) {
+    runs.delete(id);
+    t.objectStore(STORE.runChunks).delete(runRange(id));
+    t.objectStore(STORE.runEvents).delete(runRange(id));
+    cloud.delete(id);
+    // The doc of the session this run began (a session is deleted whole).
+    t.objectStore(STORE.exports).delete(id);
+  }
+  const at = now();
+  for (const it of puts) {
+    const [here, row] = (await Promise.all([idbRequest(runs.get(it.runId)), idbRequest(cloud.get(it.runId))])) as [RunMeta | undefined, RunCloudRow | undefined];
+    const serverId = ids.get(it.runId)!;
+    if (here) {
+      runs.put({ ...here, ...it.meta });
+      // The item's size is the account's (a body sealed again elsewhere may differ).
+      if (row?.state === 'up') cloud.put({ ...row, size: it.size });
+      else if (!row) cloud.put({ runId: it.runId, state: 'up', serverId, size: it.size, tries: 0, at, startedUs: it.meta.startedUs } satisfies RunCloudRow);
+    } else {
+      const next: RunCloudRow = {
+        ...(row ?? { tries: 0 }),
+        runId: it.runId,
+        state: row?.state === 'fetching' ? 'fetching' : 'remote',
+        serverId,
+        size: it.size,
+        at,
+        startedUs: it.meta.startedUs,
+        meta: it.meta,
+      };
+      delete next.full;
+      cloud.put(next);
+    }
+  }
+  await done;
+}
+
+/** The `exportDoc` items of a space (see the file header). */
+async function listExportDocItems(open: OpenDb): Promise<LocalItem[]> {
+  const t = await tx(open, [STORE.exports, STORE.runs, STORE.runCloud, STORE.sync], 'readonly');
+  const done = idbDone(t);
+  const [docs, agreed] = await Promise.all([idbRequest(t.objectStore(STORE.exports).getAll()) as Promise<ExportDoc[]>, agreedKeys(t, 'exportDoc')]);
+  const runs = t.objectStore(STORE.runs);
+  const cloud = t.objectStore(STORE.runCloud);
+  const firsts = await Promise.all(
+    docs.map((d) =>
+      typeof d?.sessionId === 'string'
+        ? (Promise.all([idbRequest(runs.get(d.sessionId)), idbRequest(cloud.get(d.sessionId))]) as Promise<[RunMeta | undefined, RunCloudRow | undefined]>)
+        : Promise.resolve([undefined, undefined] as [undefined, undefined]),
+    ),
+  );
+  await done;
+  const out: LocalItem[] = [];
+  docs.forEach((raw, i) => {
+    const doc = normalizeExportDoc(raw);
+    if (!doc) return;
+    const [run, row] = firsts[i]!;
+    const inCloud = run ? run.saved === true : row?.state === 'remote' || row?.state === 'fetching';
+    if (inCloud || agreed.has(doc.sessionId)) out.push({ key: doc.sessionId, body: doc as unknown as Body });
+  });
+  return out;
+}
+
+async function writeExportDocItems(open: OpenDb, batch: LocalBatch): Promise<void> {
+  const t = await tx(open, [STORE.exports], 'readwrite');
+  const done = idbDone(t);
+  const os = t.objectStore(STORE.exports);
+  for (const k of batch.remove) os.delete(k);
+  for (const b of batch.put) {
+    const doc = normalizeExportDoc(b);
+    if (doc) os.put(doc);
+  }
+  await done;
+}
+
+/** The upload queue's `RunCloudStore` on a space's database (ADR 0153 B2). */
+export function idbRunCloudStore(open: OpenDb): RunCloudStore {
+  const one = async <T>(store: string, mode: IDBTransactionMode, fn: (os: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> => {
+    const t = await tx(open, [store], mode);
+    const done = idbDone(t);
+    const r = fn(t.objectStore(store));
+    const v = r ? await idbRequest(r) : undefined;
+    await done;
+    return v;
+  };
+  return {
+    async list() {
+      return ((await one(STORE.runCloud, 'readonly', (os) => os.getAll())) ?? []) as RunCloudRow[];
+    },
+    async get(runId) {
+      return (await one(STORE.runCloud, 'readonly', (os) => os.get(runId))) as RunCloudRow | undefined;
+    },
+    async put(row) {
+      await one(STORE.runCloud, 'readwrite', (os) => void os.put(row));
+    },
+    async remove(runId) {
+      await one(STORE.runCloud, 'readwrite', (os) => void os.delete(runId));
+    },
+    async rows(runId): Promise<RunRows | null> {
+      const t = await tx(open, [STORE.runs, STORE.runChunks, STORE.runEvents], 'readonly');
+      const done = idbDone(t);
+      const [meta, chunks, events] = (await Promise.all([
+        idbRequest(t.objectStore(STORE.runs).get(runId)),
+        idbRequest(t.objectStore(STORE.runChunks).getAll(runRange(runId))),
+        idbRequest(t.objectStore(STORE.runEvents).getAll(runRange(runId))),
+      ])) as [RunMeta | undefined, RunChunk[], RunEventRecord[]];
+      await done;
+      return meta ? { meta, chunks, events } : null;
+    },
+    async putFetched(rows, row) {
+      const t = await tx(open, [STORE.runs, STORE.runChunks, STORE.runEvents, STORE.runCloud], 'readwrite');
+      const done = idbDone(t);
+      const cloud = t.objectStore(STORE.runCloud);
+      // A tombstone pulled meanwhile deleted the row: the run is not written.
+      const cur = (await idbRequest(cloud.get(row.runId))) as RunCloudRow | undefined;
+      if (cur) {
+        t.objectStore(STORE.runs).put(rows.meta);
+        for (const e of rows.events) t.objectStore(STORE.runEvents).put(e);
+        for (const c of rows.chunks) t.objectStore(STORE.runChunks).put(c);
+        cloud.put(row);
+      }
+      await done;
     },
   };
 }
