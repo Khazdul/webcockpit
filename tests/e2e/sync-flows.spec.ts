@@ -243,10 +243,16 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await expect(rows).toBeVisible({ timeout: 30_000 });
   await expect(rows.locator('[data-row="changes"]')).toHaveText('1 change not synced (the server could not be reached)1 profile');
   // Round 10's 1a: the kinds on a quieter second line, under the first.
-  const first = await rows.locator('[data-row="changes"] > span > span').first().boundingBox();
+  // Both boxes measured together and polled: the dialog may still be moving in (slow under load).
+  const firstLine = rows.locator('[data-row="changes"] > span > span').first();
   const kinds = rows.locator('[data-row="changes"] [data-kinds]');
   await expect(kinds).toHaveText('1 profile');
-  expect((await kinds.boundingBox())!.y).toBeGreaterThanOrEqual(first!.y + first!.height - 1);
+  await expect
+    .poll(async () => {
+      const [f, k] = await Promise.all([firstLine.boundingBox(), kinds.boundingBox()]);
+      return !!f && !!k && k.y >= f.y + f.height - 1;
+    })
+    .toBe(true);
   await a.page.keyboard.press('Enter');
   await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);
   await expect(pageOf(a.page, 'account')).toBeVisible();
