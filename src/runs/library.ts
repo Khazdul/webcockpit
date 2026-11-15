@@ -42,6 +42,7 @@
 //   remove              deletes the runs here and their rows; the hook
 //                       deletes them everywhere (a tombstone, then the body)
 //   sweep               keeps the export docs of sessions in the cloud
+//                       and those the account has
 //   backup(now, {only}) the runs backup of some runs (Log out's Download)
 // Export lines were added in stage 7 without a schema bump (additive): a
 // stage 6 reader rejects them as an unknown record, a stage 7 reader reads
@@ -49,7 +50,9 @@
 // Restore reads the file twice: the first pass checks every line (a bad
 // file is rejected before anything is written), the second adds each run
 // whose `runId` is not stored yet, one transaction per run, then each export
-// doc for which no doc is stored.
+// doc for which no doc is stored. A run the account has that is only in the
+// cloud here (a `remote` row) becomes a run here as a fetch makes it (the
+// item's meta, the row `up`; `RunStore.putWholeRun`).
 
 import type { RunMeta } from '../capture/store';
 import { type LockManagerLike, acquire, runLockName } from '../capture/recorder';
@@ -57,7 +60,7 @@ import { type ExportDoc, defaultExportDoc, normalizeExportDoc } from '../share/e
 import { BACKUP_SCHEMA, BACKUP_TYPE, BadBackupError, type RunRows, checkRecord, parseLine, runLines, streamLines, toChunk, toEvent, toRunMeta } from './lines';
 import type { RunEvent } from './events';
 import type { RunCloudRow } from '../cloud/runs/types';
-import { type EnsureResult, type FetchProgressFn, type SaveWhere, runCloudHook } from './cloud-hook';
+import { type EnsureResult, type FetchProgressFn, runCloudHook } from './cloud-hook';
 import { noteStored } from '../core/store-events';
 import { RunStore } from './store';
 import { DAY_US, RETENTION_DAYS, type Session, stitchChains, stitchSessions, toSession } from './stitch';
@@ -103,11 +106,15 @@ export class RunLibrary {
    * Sessions of sealed runs, newest first (the active run is never
    * listed). `remote`: the account's runs that are only in the cloud
    * (`runCloud` rows `remote` or `fetching`) are stitched in from their
-   * metas (History; ADR 0153).
+   * metas (History; ADR 0153), while runs in the cloud are on (the hook
+   * is set).
    */
   async listSessions(nowUs: number, o: { remote?: boolean } = {}): Promise<Session[]> {
     const runs = (await this.store.listRuns()).filter((r) => r.sealed);
-    if (o.remote) {
+    // Only while the page's runtime has runs in the cloud on (its hook): a
+    // cloud-only session could not be opened otherwise (the flag `runs`
+    // turned off after rows were made).
+    if (o.remote && runCloudHook()) {
       const here = new Set(runs.map((r) => r.runId));
       for (const row of await this.cloudList()) {
         if ((row.state === 'remote' || row.state === 'fetching') && row.meta && !here.has(row.runId)) runs.push(row.meta);
@@ -222,7 +229,7 @@ export class RunLibrary {
    * Saves every run of the session. With `rating` (0–5) every run gets it;
    * without, each run keeps its own.
    */
-  async save(session: Session, rating?: number, nowUs: number = Date.now() * 1000, o: { where?: SaveWhere } = {}): Promise<void> {
+  async save(session: Session, rating?: number, nowUs: number = Date.now() * 1000): Promise<void> {
     const r = rating === undefined ? undefined : Math.max(0, Math.min(5, Math.round(rating)));
     const ids = session.runs.map((m) => m.runId);
     const fn = (m: RunMeta): void => {
@@ -235,7 +242,7 @@ export class RunLibrary {
     // A session only in the cloud is rated in its rows (the items follow at the next sync).
     if (r !== undefined) await this.store.updateRemoteMetas(ids, fn).catch(() => {});
     // Logged in with runs in the cloud: the sealed ones are queued (the live run once it is sealed).
-    runCloudHook()?.saved(ids, o.where ?? 'history');
+    runCloudHook()?.saved(ids);
   }
 
   /**
@@ -316,9 +323,13 @@ export class RunLibrary {
     }
     // Export docs of sessions whose first run is gone (deleted above, or a
     // chain whose first run expired before the rest); a session in the
-    // cloud (its first run has a `runCloud` row) keeps its doc (ADR 0153).
+    // cloud (its first run has a `runCloud` row) keeps its doc, and so does
+    // a doc the account has (an agreed `exportDoc` record: its session's
+    // run may not be in the account yet; dropping the doc would push its
+    // delete to every device) (ADR 0153).
     const runs = new Set((await this.store.listRuns()).map((r) => r.runId));
     for (const r of await this.cloudList()) runs.add(r.runId);
+    for (const k of await this.store.syncedDocKeys().catch(() => [] as string[])) runs.add(k);
     for (const d of await this.store.listExports()) if (!runs.has(d.sessionId)) await this.store.deleteExport(d.sessionId);
     return deleted;
   }

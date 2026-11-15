@@ -35,17 +35,17 @@
 //                                        event fired before the view was up)
 //
 // "Does not fit" (`DoesNotFit`): `{runId, sessionId, used, limit, size,
-// reason, where}`. `reason` `quota` (the body passed the account's run
-// storage), `too_many_items` / `storage_full` (its item did not fit), or
-// `tooLarge` (over the 20 MB of one body); `where` the place the save was
-// asked (`history`), or `start` after an Exit (the upload waits for the
-// game to end). A run moved at Create account fires none: it is counted in
-// `notInCloudAfterMove` (one line on the start menu). A run fires once.
+// reason}`. `reason` `quota` (the body passed the account's run storage),
+// `too_many_items` / `storage_full` (its item did not fit), or `tooLarge`
+// (over the 20 MB of one body). The upload of a save asked in play (an
+// Exit) waits for the game to end, and so does its event. A run moved at
+// Create account that no save of the page asked for fires none: it is
+// counted in `notInCloudAfterMove` (one line on the start menu). A run
+// fires once.
 
 import type { AccountLimits, SyncUsage } from '../../shared/cloud/api.ts';
 import type { FullReason } from './sync/types';
 import type { FetchFailure, RunCloudRow, RunCloudState } from './runs/types';
-import type { SaveWhere } from '../runs/cloud-hook';
 import type { Session } from '../runs/stitch';
 
 export interface RunsView {
@@ -246,7 +246,6 @@ export interface DoesNotFit {
   /** The run's body. */
   size: number;
   reason: 'quota' | FullReason | 'tooLarge';
-  where: SaveWhere;
 }
 
 const notFits: DoesNotFit[] = [];

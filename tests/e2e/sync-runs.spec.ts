@@ -212,8 +212,7 @@ test('a run over the limit stays on the device, says "does not fit" once where i
   const told = await fits(a.page);
   expect(told).toHaveLength(3);
   for (const e of told) expect(e).toMatchObject({ reason: 'quota', limit: 64 });
-  // Gittan's was saved in History; Rasta's two were saved before and are told on the start page.
-  expect(told.map((e) => e.where).sort()).toEqual(['history', 'start', 'start']);
+  // Gittan's was saved in History, Rasta's two before: each run is told once, two sessions.
   expect(new Set(told.map((e) => e.sessionId)).size).toBe(2);
   // The views (stage 63 C2) tell each session once in a dialog: Keep closes them.
   for (let i = 0; i < 2; i++) {

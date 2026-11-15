@@ -27,6 +27,8 @@
 // whose body may be in the cloud in `syncMeta` (`RUN_BODY_DELETES`): the
 // space's runtime deletes those bodies after the next sync that pushed
 // the tombstones (ADR 0153 B2, "Delete's body goes after its tombstone").
+// A restore over a `remote` row makes it `up` (`putWholeRun`), and the
+// sweep keeps the export docs the account has (`syncedDocKeys`).
 
 import { idbDone as done, idbRequest as req, openWebcockpitDb } from '../core/db';
 import { CaptureStore, type RunChunk, type RunMeta } from '../capture/store';
@@ -127,6 +129,20 @@ export class RunStore extends CaptureStore {
       };
     }
     await done(tx);
+  }
+
+  /**
+   * The session ids of the export docs the account has (an `exportDoc`
+   * sync record with an agreed base: rev > 0 and a hash). Empty in the
+   * device's space.
+   */
+  async syncedDocKeys(): Promise<string[]> {
+    if (!this.db.objectStoreNames.contains('sync')) return [];
+    const tx = this.db.transaction('sync', 'readonly');
+    const rows = (await req(tx.objectStore('sync').getAll())) as { kind?: string; rec?: { key?: string | null; rev?: number; hash?: string | null } }[];
+    const out: string[] = [];
+    for (const r of rows) if (r.kind === 'exportDoc' && typeof r.rec?.key === 'string' && (r.rec.rev ?? 0) > 0 && r.rec.hash != null) out.push(r.rec.key);
+    return out;
   }
 
   /** The `runCloud` rows (empty in the device's space and with the flag `runs` off). */
@@ -277,14 +293,34 @@ export class RunStore extends CaptureStore {
     });
   }
 
-  /** Adds a whole run (restore): meta, events and chunks in one transaction. */
+  /**
+   * Adds a whole run (restore): meta, events and chunks in one transaction.
+   * A run the account has that is only in the cloud here (a `remote` or
+   * `fetching` row) becomes a run here as a fetch makes it: the item's
+   * meta wins and the row is `up` (its body is in the cloud), so the run
+   * stays the account's item and is not marked as only in the cloud.
+   */
   async putWholeRun(meta: RunMeta, events: RunEventRecord[], chunks: RunChunk[]): Promise<void> {
-    const tx = this.db.transaction(['runs', 'runChunks', 'runEvents'], 'readwrite');
-    tx.objectStore('runs').put(meta);
+    const cloudToo = this.db.objectStoreNames.contains('runCloud');
+    const tx = this.db.transaction(cloudToo ? ['runs', 'runChunks', 'runEvents', 'runCloud'] : ['runs', 'runChunks', 'runEvents'], 'readwrite');
+    const runs = tx.objectStore('runs');
     const evs = tx.objectStore('runEvents');
     for (const e of events) evs.put(e);
     const cs = tx.objectStore('runChunks');
     for (const c of chunks) cs.put(c);
+    if (!cloudToo) runs.put(meta);
+    else {
+      const cloud = tx.objectStore('runCloud');
+      const r = cloud.get(meta.runId);
+      r.onsuccess = () => {
+        const row = r.result as RunCloudRow | undefined;
+        if (row && (row.state === 'remote' || row.state === 'fetching')) {
+          const { meta: item, full: _f, ...rest } = row;
+          runs.put(item && item.runId === meta.runId ? item : meta);
+          cloud.put({ ...rest, state: 'up' } satisfies RunCloudRow);
+        } else runs.put(meta);
+      };
+    }
     await done(tx);
   }
 }

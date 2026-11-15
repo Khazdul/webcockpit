@@ -7,9 +7,6 @@
 // off) a save is a local save and nothing is fetched. Tiny and dependency
 // free.
 
-/** Where a save was asked (the "does not fit" dialog is shown there; `start` after an Exit). */
-export type SaveWhere = 'history' | 'exit' | 'start';
-
 export interface FetchProgressFn {
   (done: number, total: number): void;
 }
@@ -19,7 +16,7 @@ export type EnsureResult = { ok: true } | { ok: false; why: string };
 
 export interface RunCloudHook {
   /** A save of these runs (sealed or not yet: the queue takes the sealed ones). */
-  saved(runIds: readonly string[], where: SaveWhere): void;
+  saved(runIds: readonly string[]): void;
   /** These runs were deleted by the player (their rows and bodies follow the sync). */
   removed(runIds: readonly string[]): void;
   /** Fetches the runs among `runIds` that are only in the cloud. */
