@@ -434,7 +434,7 @@ describe('GET /api/u/sync/changes', () => {
     const big = await changes(cookie, `?since=${rest.cursor}`);
     expect(big.items.map((i) => i.size)).toEqual([CHANGES_MAX_BYTES + 1]);
     expect(big.more).toBe(true);
-  });
+  }, 30_000); // several MB through D1: slow on a CI runner
 
   it('seq is strictly increasing over every write of an account, racing writes included', async () => {
     const cookie = await signUp('alice');
