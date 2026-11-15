@@ -141,19 +141,19 @@ touches staging or production.
 
 #### B2. The stores (worktree `stage62-stores`, port 5433)
 
-- [ ] `SettingsStore.reload()`: reads `main` again, migrates, tells the
+- [x] `SettingsStore.reload()`: reads `main` again, migrates, tells the
       subscribers without writing back, rewrites the appearance mirror;
       unit tests (a pulled appearance repaints, a pulled layout moves the
       panes on the start page, an older version migrates).
-- [ ] `store-events.ts`: kinds `settings`, `scriptData`, `comm`,
+- [x] `store-events.ts`: kinds `settings`, `scriptData`, `comm`,
       `timers`; the settings store, the script library (data writes too),
       the Comm archive and the timers archive note their writes.
-- [ ] `CommArchive`: the days of the last seven with a cache key (count,
+- [x] `CommArchive`: the days of the last seven with a cache key (count,
       highest `seq`), the records of a day without `seq`, an additive put
       of a day's records (by identity), the delete of a day.
-- [ ] `TimersArchive`: list, put, remove; the hub reads a pulled record
+- [x] `TimersArchive`: list, put, remove; the hub reads a pulled record
       at the next `Char.Name` (already so; a test).
-- [ ] **Measure** Comm: from the owner's session logs
+- [x] **Measure** Comm: from the owner's session logs
       (`/home/ole/MUME/logs`, read only) or a realistic generator, the
       size of a heavy day's piece as canonical JSON and gzip; write the
       figures here under "Measurements".
@@ -228,7 +228,30 @@ against the Worker in part C and approved by the owner.
 
 ## Measurements
 
-(Part B2.)
+Part B2, 2026-11-15. Material: Cockpit's own Comm archive of the owner's
+characters (`/home/ole/MUME/data/comm/*.jsonl`, read only; `logs/` holds
+no channel text): 2 585 real messages over 9 days, 7 characters (tells
+and says most, then yells, socials, tales, emotes). Each was turned into
+a WebCockpit record (`character, ts` in ms, `channel, talker,
+talkerType, destination, text`), grouped by UTC day, and measured as the
+piece's canonical JSON `{day, records}` and its gzip (node zlib, default
+level). No text or names are kept here.
+
+| Figure | Value |
+|---|---|
+| Bytes per record, canonical JSON | 186 (text 54 characters on average) |
+| Bytes per record, gzip, heaviest day | about 20 |
+| Records on the heaviest day | 1 472 (next: 804, 188) |
+| Heaviest day's piece, raw / gzip | 267 KB / 30 KB (ratio about 9) |
+| The 7 heaviest days together, raw / gzip | 480 KB / 54 KB |
+| Extrapolated: 5 000 records a day for 7 days, gzip | about 0.7 MB (about 0.95 MB if the sealed blob is counted as base64) |
+| A day's gzip piece at the 1 MB item limit | about 50 000 records |
+
+So a heavy real week of Comm is some 3 % of the 2 MB small-item limit;
+even a player with three times the owner's heaviest day every day of
+the week stays under half of it. The split of a day over 1 MB
+(`YYYY-MM-DD.2`) will in practice not happen; it stays as a guard. No
+call on the limit is needed from the owner.
 
 ## Test guide (owner)
 
