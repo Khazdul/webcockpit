@@ -531,3 +531,115 @@ from the API set with `textContent`):
   state, errors, the log's 20 / all) and one more in
   `worker/test/admin.test.ts` (the three files behind Access, the CSP
   string unchanged, no HTML sinks in the script).
+
+## As built (stage 64 C2)
+
+The watch page, Report and the abuse address (branch `stage64-watch`),
+round 12's picks 3a (a band over the frame) and 5 (Report as drawn), with
+the README's words.
+
+- **Boot.** `src/main.ts` sees a path under `<base>r/` and mounts the
+  watch page instead of making the Shell (no start page, no cockpit, no
+  notices, no beat); the rest of the old top level is `startApp()`. The
+  first paint (`src/boot/first-paint.ts`) treats `/r/…` as the offline
+  modes do: the loading line alone, plus the start faces' preload (the
+  band is Cinzel and Cormorant). The dev server answers any `<base>r/*`
+  but the frame document with the app (`watchPagePlugin`, vite.config.ts),
+  also where Vite's own fallback would not (a dot in the path).
+- **Deviation: not a chunk of its own.** The page is made of the kit, and
+  as its own lazy chunk it split the kit, the account's state, the font
+  table, the settings' types and the exporter out of the chunks the start
+  page loads (seven more names in the entry's preload map, entry +813
+  bytes, more requests for every start page). It lives in the lazy chrome
+  chunk instead (`src/chrome/index.tsx` exports `startWatch`), loaded from
+  the one place the Shell loads it (`importChrome`, src/app/shell.ts, so
+  the entry holds its preload list once); the exporter and the frame host
+  are imported statically (a dynamic import of either split them again);
+  `PUB_ID_PATTERN`, `REPORT_TEXT_MAX` and the device id's code are written
+  out in src/watch/model.ts (unit tests hold them to the contract and
+  src/cloud/beat.ts), so the chrome chunk does not load
+  `shared/cloud/api.ts` or the beat's module. Result: the start page's
+  chunk graph is the same set of files as before; **the entry chunk 31 193
+  → 31 366 bytes** (+173: the path test and `startApp`); the chrome chunk
+  grows by the page, the frame host, the reader and the validator (141 355
+  → 165 063 bytes, gzip 48 669 → 57 707; its CSS 76 256 → 79 394). A
+  watcher downloads the chrome chunk anyway (the kit); a player pays about
+  9 KB gzip once on the start page. Should that matter more than the
+  chunk graph, the alternative is a chunk of its own as described.
+- **The band** (`src/watch/page.tsx`, `watch.css`): the title, then
+  "<character> Level <n> · 1 h 15 min · 26 September 2026 · 37 views ·
+  shared by <sender>" (parts without a value left out), the description in
+  one line with the whole in `title`; Report (R), Download as HTML (D;
+  "Download" on a phone) and Back (B) at the right, the kit's glass
+  buttons with the mockup's flag and arrow glyphs. Under 760 px wide the
+  band stacks and the description goes. Every value is `textContent`. The
+  tab's title becomes "<title> · WebCockpit". Back goes to `<base>` (a page
+  load: the start page with its opening); the replay gets the keys when it
+  starts playing (the frame is focused), so R / D / B work once the band
+  has them back (a click).
+- **The order of the questions.** An id not of the pattern: unknown, no
+  request. Then `/api/config`: without `share` (or without the API at
+  all) "This link does not work yet.", so a 404 after it is always
+  unknown. `?admin` skips the flag (the moderation endpoints are not
+  behind it). Then the meta: 404 unknown, 410 removed, 451 hidden, and
+  logged in (the account hint and the flag `accounts`) a 451 asks
+  `/api/u/pub/<id>`; the sender's own hidden run plays with the owner's
+  note in the description's line and is not counted. Then the payload,
+  read in pieces with the loading bar ("Loading the run… 0.4 of 1.2 MB",
+  the declared length or the meta's `bytes`; 16 MiB the page's own fuse),
+  then `openFrame`. A `PayloadReadError` (or the frame's `wc-error`) shows
+  its text with "The link works, but this run cannot be played. Tell
+  whoever sent it."; a request that failed otherwise "The run could not be
+  loaded." / "Check the connection and try again." with Try again.
+  `?admin` without Access (a redirect, 401, 403): "This view is for the
+  admin." / "Open the link without ?admin to watch it as anyone does."; the
+  admin's band has "Admin view." and whether the run is hidden, no Report,
+  no view.
+- **The view** is `POST /api/pub/<id>/view` once per page load at the
+  frame's `wc-play`, only for the public view, with `wc.device` (made as
+  the beat makes it when there is none).
+- **Download as HTML** is `buildReplayHtml(host.payload, { base:
+  siteBaseUrl() })`, the payload the page validated; the file is named
+  after the title (`<title>.html`, file-name safe).
+- **Report** (an overlay dialog of the page's frame stack): logged in, the
+  four reasons as a radio list (the kit's check with a round well; ↑ ↓
+  walk it; Send report waits for one), More (optional) with "n / 500", "The
+  sender is not told who reported."; the text goes as the Worker takes it
+  (NFC, no control or bidi characters, `\r\n` → `\n`, trimmed). 204 → the
+  thanks; 409 → "You have already reported this run." (also on a second
+  Report from the same page); 429, 403 suspended / own, 404 and offline →
+  a line in the dialog; 401 → the guest's dialog. Not shown on one's own
+  run. Logged out: "Log in to report." and the abuse address as a mailto
+  link; **Log in** leaves a note in sessionStorage (`src/watch/return.ts`)
+  and opens the start page, whose menu opens Log in at once; after the
+  login's reload the menu goes back to the run (a note older than 15
+  minutes, or a load without a login in between, is dropped; only a
+  `<base>r/…` path of the site is ever a target). The replay does not
+  pause under the dialog (the frame's protocol has no pause; not added).
+- **About and `/privacy`.** About's "What the site knows" ends with "To
+  report abuse, or to have something removed, write to
+  abuse@mumecockpit.com." (a mailto link). `/privacy` with the flags
+  `accounts` and `share` on gets "Share links" (letter L,
+  `src/chrome/frames/privacy-share.ts`, loaded only then) before "Who runs
+  it": what leaves the browser, who can watch, what is kept, removing,
+  reports. The words wait for the owner.
+- **Tests.** `tests/e2e/watch-page.spec.ts` (Chromium and Firefox, 20
+  each), `phone-watch-page.spec.ts` (3): a guest watches a seeded run, the
+  band's words, the frame, one view and its device id, a reload; markup in
+  every meta field as text; removed, hidden for a guest and for another
+  account, hidden for its sender, unknown (404, not an id, a dot), not
+  yet, failed with Try again, refused payloads, loading; Report logged out
+  (and Log in to the start page's Log in with the note), logged in (thanks,
+  already, 409, 429, the keys), not on one's own run; Download makes a
+  file that plays; `?admin` with and without Access; a tablet-sized window;
+  `/privacy`'s section on and off. The runs are seeded straight into a
+  fake of the read side (`tests/e2e/cloud-pub-fake.ts`, its own route over
+  the account fake's, which gained `sessionAccount` and `logInBrowser` in
+  a marked block). `tests/unit/watch-page.test.ts` (17), the share
+  section in `about-leaf.test.tsx` (4), and the CSP walk opens `/r/<id>`
+  (`tests/e2e-prod/csp.spec.ts`, report-only and enforced).
+- **For the merge with C1:** C1 adds `/api/u/pub*` to the account fake
+  with its own store of runs; this branch's fake keeps its own
+  (`FakePubs`) and answers `GET /api/u/pub/<id>` and its payload. One store
+  for both is the merge's work. C1's `src/cloud/pub/api.ts` may also hold
+  a report client; the watch page's requests are in `src/watch/api.ts`.

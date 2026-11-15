@@ -226,14 +226,16 @@ touches staging or production.
 
 #### C2. The watch page (worktree `stage64-watch`, port 5465)
 
-- [ ] `src/boot`: `/r/<id>` straight to the watch view (a lazy chunk).
-- [ ] The watch page (pick 3) with B2's frame host; the states; Back;
+- [x] `src/boot`: `/r/<id>` straight to the watch view (in the lazy
+      chrome chunk, not a chunk of its own: ADR 0154 "As built (C2)").
+- [x] The watch page (pick 3) with B2's frame host; the states; Back;
       Download as HTML from the validated payload; the view counted once.
-- [ ] Report (pick 5), logged in and out.
-- [ ] About and `/privacy`: the abuse address; `/privacy`'s words on
+- [x] Report (pick 5), logged in and out.
+- [x] About and `/privacy`: the abuse address; `/privacy`'s words on
       share links (for the owner).
-- [ ] e2e: a link made on A watched on B as a guest, desktop and phone;
-      each state; Report; Download.
+- [x] e2e: a seeded run watched as a guest, desktop and phone; each
+      state; Report; Download. (A link made on A: once C1's share dialog
+      is merged, part D.)
 
 #### C3. Admin (worktree `stage64-admin`, port 5466)
 
