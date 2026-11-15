@@ -2,7 +2,7 @@
 // Env, a fixed clock, and an empty database before each test.
 import { env } from 'cloudflare:workers';
 import { forgetFlags } from '../flags.ts';
-import type { D1, Deps, Env } from '../runtime.ts';
+import type { D1, Deps, Env, R2 } from '../runtime.ts';
 
 export const realEnv = env as unknown as Env;
 export const db = realEnv.DB as D1;
@@ -28,8 +28,67 @@ export function at(now: number, fetch?: Deps['fetch']): Deps {
 export const T = (iso: string): number => Date.parse(iso);
 
 export async function emptyTables(): Promise<void> {
-  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end', 'run_body', 'r2_sweep'].map((t) => db.prepare(`DELETE FROM ${t}`)));
   forgetFlags(db);
+  await emptyBucket();
+}
+
+export const bucket = realEnv.FILES as R2;
+
+/** Every key in the test bucket (under `prefix`). */
+export async function r2Keys(prefix = ''): Promise<string[]> {
+  const out: string[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await bucket.list(cursor ? { prefix, cursor } : { prefix });
+    out.push(...page.objects.map((o) => o.key));
+    if (!page.truncated || !page.cursor) return out;
+    cursor = page.cursor;
+  }
+}
+
+async function emptyBucket(): Promise<void> {
+  const keys = await r2Keys();
+  for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000));
+}
+
+/**
+ * The test bucket with faults: `fail` names the methods that throw (as R2
+ * does when it is down), `calls` counts what was asked of it, and
+ * `putSize` makes a put report a stored size other than the real one.
+ */
+export function faultyBucket(o: { fail?: (keyof R2)[]; putSize?: number; failListAfter?: number } = {}): R2 & { calls: Record<string, number> } {
+  const calls: Record<string, number> = {};
+  const count = (m: string): number => (calls[m] = (calls[m] ?? 0) + 1);
+  const guard = (m: keyof R2): void => {
+    const n = count(m);
+    if (o.fail?.includes(m)) throw new Error(`R2 ${m} failed`);
+    if (m === 'list' && o.failListAfter !== undefined && n > o.failListAfter) throw new Error('R2 list failed');
+  };
+  return {
+    calls,
+    async put(key, value, options) {
+      guard('put');
+      const head = await bucket.put(key, value, options);
+      return head && o.putSize !== undefined ? { key: head.key, size: o.putSize } : head;
+    },
+    async get(key) {
+      guard('get');
+      return bucket.get(key);
+    },
+    async head(key) {
+      guard('head');
+      return bucket.head(key);
+    },
+    async delete(keys) {
+      guard('delete');
+      return bucket.delete(keys);
+    },
+    async list(options) {
+      guard('list');
+      return bucket.list(options);
+    },
+  };
 }
 
 export async function count(table: string): Promise<number> {
