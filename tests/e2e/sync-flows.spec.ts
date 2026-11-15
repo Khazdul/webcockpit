@@ -196,6 +196,20 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await logIn(a.page);
   await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
   await account(a.page);
+  // Round 10's 3a: what follows the account, this device first; synced, the page still shows whole at 1440 × 900
+  // (Leaving's buttons inside the body's view without a scroll; only the empty message line under them is not).
+  await expect(frame(a.page).locator('[data-sync="synced"]')).toBeVisible();
+  await expect(frame(a.page).locator('[data-follows]')).toHaveText(
+    'Follows the account: profiles, scripts, settings for desktop (this device), tablet and phone, script data, Comm history (7 days), timers.',
+  );
+  const box = (await frame(a.page).locator('.wc-lk-box').boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(900);
+  const view = (await frame(a.page).locator('.wc-ac-body').boundingBox())!;
+  expect(await frame(a.page).locator('.wc-ac-body').evaluate((el) => el.scrollTop)).toBe(0);
+  for (const id of ['LOGOUT', 'DELETE']) {
+    const b = (await btn(a.page, id).boundingBox())!;
+    expect(b.y + b.height).toBeLessThanOrEqual(view.y + view.height);
+  }
   // The dialog asks again at the last moment: a game that starts after it opened refuses the log out too.
   await btn(a.page, 'LOGOUT').click();
   await expect(dialog(a.page, 'ac-logout').locator('[data-logout="all"]')).toBeVisible({ timeout: 30_000 });
@@ -226,12 +240,18 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await btn(a.page, 'LOGOUT').click();
   const rows = dialog(a.page, 'ac-logout').locator('[data-logout="some"]');
   await expect(rows).toBeVisible({ timeout: 30_000 });
-  await expect(rows.locator('[data-row="changes"]')).toHaveText('1 change not synced (the server could not be reached)');
+  await expect(rows.locator('[data-row="changes"]')).toHaveText('1 change not synced (the server could not be reached)1 profile');
+  // Round 10's 1a: the kinds on a quieter second line, under the first.
+  const first = await rows.locator('[data-row="changes"] > span > span').first().boundingBox();
+  const kinds = rows.locator('[data-row="changes"] [data-kinds]');
+  await expect(kinds).toHaveText('1 profile');
+  expect((await kinds.boundingBox())!.y).toBeGreaterThanOrEqual(first!.y + first!.height - 1);
   await a.page.keyboard.press('Enter');
   await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);
   await expect(pageOf(a.page, 'account')).toBeVisible();
   // Offline is the state now.
   await expect(frame(a.page).locator('[data-sync="offline"]')).toContainText('1 change waits on this device.');
+  await expect(frame(a.page).locator('[data-follows]')).toContainText('settings for desktop (this device)');
   await a.ctx.close();
 });
 

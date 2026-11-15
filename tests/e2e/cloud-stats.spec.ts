@@ -167,6 +167,39 @@ test('/privacy opens the privacy page over the start menu; Back leaves it for th
   expect(errors).toEqual([]);
 });
 
+// Stage 62: the account section, only with the flag `accounts` on (staging); without it the page is as before.
+for (const on of [true, false]) {
+  test(`/privacy with the flag accounts ${on ? 'on: Accounts replaces Coming later' : 'off: Coming later, as before'}`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const api = await stubApi(page, { flags: on ? { accounts: true } : {} });
+    await page.goto('/privacy?cloudtest');
+    await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Privacy');
+    await morphDone(page);
+    await expect.poll(() => api.paths()).toContain('GET /api/config');
+    const rail = lookBox(page).locator('.wc-about-rail .wc-about-row');
+    const heads = lookBox(page).locator('.wc-about-h');
+    await expect(rail).toHaveCount(8);
+    if (on) {
+      await expect(rail.nth(5)).toHaveAttribute('data-sec-link', 'accounts');
+      await expect(rail.nth(5)).toContainText('Accounts');
+      await expect(heads).toContainText(['WHAT IS SENT', 'WHY', 'WHAT IS KEPT', 'YOUR ADDRESS', 'ACCOUNTS', 'WHO RUNS IT', 'REMOVING IT']);
+      await expect(lookBox(page).locator('[data-sec="later"]')).toHaveCount(0);
+      await expect(lookBox(page)).toContainText('180 days without use');
+      await expect(lookBox(page).locator('.wc-about-ver')).toHaveText('Last changed 15 November 2026');
+      // Its letter jumps (O: Accounts).
+      await page.keyboard.press('o');
+      await expect(lookBox(page).locator('.wc-about-rail .wc-about-row.is-on')).toHaveAttribute('data-sec-link', 'accounts');
+    } else {
+      await expect(rail.nth(5)).toHaveAttribute('data-sec-link', 'later');
+      await expect(heads).toContainText(['WHAT IS SENT', 'WHY', 'WHAT IS KEPT', 'YOUR ADDRESS', 'COMING LATER', 'WHO RUNS IT', 'REMOVING IT']);
+      await expect(lookBox(page).locator('[data-sec="accounts"]')).toHaveCount(0);
+      await expect(lookBox(page).locator('.wc-about-ver')).toHaveText('Last changed 14 November 2026');
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
 test('a tablet (the phone layout on a large window): the line by the almanac, inside the window', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await stubApi(page, { flags: { stats: true }, stats: { online: 4, playing: 1 } });
