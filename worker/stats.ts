@@ -20,6 +20,7 @@ import {
 import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { DAY_MS, type D1, type Env, dayStart, utcDay } from './runtime.ts';
+import { sweepPubs } from './pub.ts';
 import { sweepPrefixes } from './runs.ts';
 import { pruneSessions } from './sessions.ts';
 
@@ -30,7 +31,7 @@ export const MAX_BEAT_BYTES = 512;
 /** The longest version string accepted. */
 export const MAX_VERSION_LENGTH = 32;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** `0.9.3`, `1.0.0-rc.1`: three numbers and an optional short pre-release tag. */
 const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z][0-9A-Za-z.-]{0,15})?$/;
 const BEAT_KEYS = ['browser', 'device', 'state', 'type', 'version'];
@@ -284,6 +285,8 @@ export async function prune(db: D1, now: number): Promise<void> {
  * The Worker's `scheduled` handler: the sample every 5 minutes; at 00:10
  * UTC the roll-up of the previous day, then pruning, and the accounts'
  * own pruning (stale attempt counters, expired sessions: spec §7.10),
+ * the deleted accounts' R2 prefixes, and the published runs' part (old
+ * views, pending rows left behind, tombstones' objects: worker/pub.ts),
  * which runs whether or not the statistics' part failed. Nothing without
  * a database.
  */
@@ -298,6 +301,7 @@ export async function runCron(env: Env, cron: string, time: number): Promise<voi
       await pruneAttempts(db, time);
       await pruneSessions(db, time);
       await sweepPrefixes(env, time);
+      await sweepPubs(env, time);
     }
   } else {
     await sample(db, time);

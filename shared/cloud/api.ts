@@ -258,8 +258,12 @@ export interface AccountSession {
 export interface AccountPrefs {
   /** The notice of new runs in the gallery (unused; removed in stage 65, ADR 0148 addendum). */
   galleryNotice: boolean;
-  /** The sharing rules were ticked once (ADR 0154); `POST /api/u/pub` answers `403 rules` until then. */
-  rulesAccepted?: boolean;
+  /**
+   * The sharing rules were ticked once (ADR 0154); `POST /api/u/pub` answers `403 rules` until then.
+   * As built (stage 64 B1): always sent by the Worker (false until ticked); a client reads it as
+   * false when an older Worker leaves it out.
+   */
+  rulesAccepted: boolean;
 }
 
 export type AccountState = 'active' | 'suspended';
@@ -345,7 +349,12 @@ export interface DeleteAccountRequest {
   authKey: string;
 }
 
-/** `PATCH /api/u/account/prefs` → `PrefsAnswer`. */
+/**
+ * `PATCH /api/u/account/prefs` → `PrefsAnswer`.
+ * As built (stage 64 B1): at least one of the two keys, no others (else
+ * `400 bad_request`); `rulesAccepted: false` is `400`; each key is set on
+ * its own in the stored prefs, so two changes at once never undo each other.
+ */
 export interface PrefsRequest {
   galleryNotice?: boolean;
   /** One way: only `true` is accepted (ADR 0154). */
@@ -596,6 +605,23 @@ export interface PubMetaIn {
  * suspended`, `403 rules` (not ticked), `413 payload_too_large`
  * (`PayloadTooLarge`), `413 pub_quota` (`PubQuota`). The count is
  * reserved before R2, so two parallel posts never pass `sharedRuns`.
+ *
+ * As built (stage 64 B1): no `Content-Length` → `411 length_required`; a
+ * type other than `application/octet-stream`, a length that is not a whole
+ * number, a meta length of 0 or past `PUB_META_MAX_BYTES` or the body, meta
+ * that is not UTF-8 JSON of exactly the `PubMetaIn` keys, a payload that
+ * does not start with the gzip magic `1f 8b` → `400 bad_request`. The
+ * order: 411/400 for the framing, `403 suspended`, `403 rules`, `413
+ * payload_too_large` (also from the declared length alone, before anything
+ * is read), 400 for the meta and the magic, `413 pub_quota`. The text rules
+ * of `PubMetaIn` and `PubPatch`: NFC, no C0/C1 control characters, no lone
+ * surrogates, no bidi embeddings, overrides or isolates (U+202A–U+202E,
+ * U+2066–U+2069); `\n` only in a description; lengths in code points;
+ * `title` and `character` must already be trimmed. `character` 0–40,
+ * `level` a whole number 0–1000, `lengthS` 0–31 days. A payload that does
+ * not reach R2 whole (R2 down, a body shorter than its length) → `503
+ * unavailable` with the count given back; the account deleted meanwhile →
+ * `401`. A published run does not change `AccountUsage`.
  */
 export interface PubWritten {
   pub: MyPub;
@@ -613,7 +639,13 @@ export interface PubQuota {
 
 export type PubState = 'active' | 'hidden';
 
-/** One of the account's published runs (`GET /api/u/pub` → `{pubs: MyPub[]}`, newest first). */
+/** The longest meta JSON a `POST /api/u/pub` may carry, bytes (as built, stage 64 B1). */
+export const PUB_META_MAX_BYTES = 8192;
+
+/**
+ * One of the account's published runs (`GET /api/u/pub` → `{pubs: MyPub[]}`, newest first).
+ * As built (stage 64 B1): the list has the active and hidden runs, never a removed one.
+ */
 export interface MyPub {
   id: string;
   title: string;
@@ -630,13 +662,31 @@ export interface MyPub {
   bytes: number;
 }
 
-/** `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`. `listed` is refused until stage 65. */
+/**
+ * `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`. `listed` is refused until stage 65.
+ * As built (stage 64 B1): at least one key, no others (`listed` is `400`);
+ * the text rules of `POST`; `403 suspended`; another account's run, a
+ * removed one or an unknown id → `404`. `updated` moves.
+ */
 export interface PubPatch {
   title?: string;
   description?: string;
 }
 
-/** `DELETE /api/u/pub/<id>` (`X-WC: 1`) → 204; the link then answers `410 gone`. */
+/**
+ * `DELETE /api/u/pub/<id>` (`X-WC: 1`) → 204; the link then answers `410 gone`.
+ * As built (stage 64 B1): a suspended account may remove; the row becomes
+ * a tombstone without text and the count goes back in one transaction,
+ * then the object is deleted (an R2 failure is left to the daily cron, the
+ * answer is still 204); its open reports are marked handled; a DELETE of
+ * one's own tombstone is 204 again; another account's run → `404`.
+ *
+ * As built (stage 64 B1), the sender's own view: the session cookie's path
+ * is `/api/u`, so `GET /api/pub/<id>` never knows who asks. The sender asks
+ * `GET /api/u/pub/<id>` (→ `PubMeta`, with `hidden: true` for a hidden run)
+ * and `GET /api/u/pub/<id>/payload` (the bytes, `no-store`) instead; both
+ * `404` for another account's run or a removed one.
+ */
 
 /**
  * `GET /api/pub/<id>` (public): `PubMeta`. `404 not_found`, `410 gone`
@@ -645,6 +695,13 @@ export interface PubPatch {
  * `GET /api/pub/<id>/payload`: the stored bytes, `application/octet-stream`,
  * `Cache-Control: private, max-age=604800, immutable`; the same state
  * answers.
+ *
+ * As built (stage 64 B1): an id not of `PUB_ID_PATTERN`, or a run whose
+ * upload has not finished → `404`; the payload also has `Content-Length`,
+ * `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment`,
+ * and no CORS headers; HEAD is GET without the body; a wrong method →
+ * `405`; `API_LIMITER` keys the public paths by address (`429
+ * rate_limited`); the meta is `no-store`.
  */
 export interface PubMeta {
   id: string;
@@ -662,7 +719,12 @@ export interface PubMeta {
   hidden?: true;
 }
 
-/** `POST /api/pub/<id>/view` → 204: counted once per device and UTC day. */
+/**
+ * `POST /api/pub/<id>/view` → 204: counted once per device and UTC day.
+ * As built (stage 64 B1): no session, no `X-WC`; `device` is a lowercase
+ * UUID (`400 bad_request` otherwise); the states answer as the meta does
+ * and count nothing; `BEAT_LIMITER` and `API_LIMITER` key it by address.
+ */
 export interface PubView {
   /** The usage statistics' device id (ADR 0147). */
   device: string;
@@ -679,6 +741,14 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
  * `POST /api/u/report` (`X-WC: 1`) → 204. `409 already_reported`, `429
  * too_many` (`REPORTS_PER_DAY`), `403 suspended`, `403 own` (one's own run),
  * `404 not_found`.
+ *
+ * As built (stage 64 B1): `comment` and `note` → `400 kind_closed`; a bad
+ * body (an unknown reason, a `text` over `REPORT_TEXT_MAX` or with control
+ * characters but `\n`, other keys) → `400 bad_request`; a target that is
+ * not an id, unknown, still uploading or removed → `404`; a hidden run can
+ * still be reported. The 30 count per UTC day (not a rolling 24 hours) and
+ * are held in the insert itself, so parallel reports never pass them; the
+ * fifth account's report hides the run in the same transaction.
  */
 export interface ReportRequest {
   kind: ReportKind;
@@ -689,7 +759,14 @@ export interface ReportRequest {
 
 // The admin's side (behind Access, `X-WC: 1` and a matching `Origin` on writes).
 
-/** `GET /api/admin/reports`: open reports, one entry per item, most reports first. */
+/**
+ * `GET /api/admin/reports`: open reports, one entry per item, most reports first.
+ * As built (stage 64 B1): only items that are still active or hidden (at
+ * most 200, ties by the newest report); `pubs.count` and `pubs.bytes` are
+ * the active and hidden runs, `pubs.today` the runs made since midnight
+ * UTC (removed ones too). The moderation endpoints are not behind the flag
+ * `share`: the admin can clean up with it off.
+ */
 export interface AdminReports {
   items: AdminReportItem[];
   /** Published runs in total. */
@@ -713,13 +790,32 @@ export interface AdminReportItem {
 export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'delete'] as const;
 export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete'] as const;
 
-/** `POST /api/admin/pub/<id>` → 204. Marks the item's reports handled; writes `admin_log`. */
+/**
+ * `POST /api/admin/pub/<id>` → 204. Marks the item's reports handled; writes `admin_log`.
+ * As built (stage 64 B1): `note` is text of at most `REPORT_TEXT_MAX`; an
+ * unknown action or key → `400`; an unknown run `404`, a removed one
+ * `410`. `delete` is the sender's DELETE (a tombstone, the count back, the
+ * object). `GET /api/admin/pub/<id>` (→ `PubMeta`, `hidden: true` for a
+ * hidden run) and `GET /api/admin/pub/<id>/payload` (the bytes, `no-store`)
+ * answer for active and hidden runs. The log's `action` is `pub.<action>`
+ * or `account.<action>`, its `target` the run's id or the account's name.
+ */
 export interface AdminPubAction {
   action: (typeof ADMIN_PUB_ACTIONS)[number];
   note?: string;
 }
 
-/** `POST /api/admin/account/<name>` → 204. `delete` needs `confirm` equal to the name. */
+/**
+ * `POST /api/admin/account/<name>` → 204. `delete` needs `confirm` equal to the name.
+ * As built (stage 64 B1): the name in any case; `confirm` compared without
+ * regard to case (missing or another → `400 confirm_required`); an unknown
+ * account `404`. `delete` is the player's Delete account (the same
+ * transaction: items, run bodies, published runs to tombstones, sessions
+ * ended with the reason `deleted`, the name reserved), `409 conflict` when
+ * the account's password changed between the read and the delete (nothing
+ * done). `suspend` and `restore` set `Account.state`; no reports are marked
+ * handled by them.
+ */
 export interface AdminAccountAction {
   action: (typeof ADMIN_ACCOUNT_ACTIONS)[number];
   confirm?: string;

@@ -189,7 +189,8 @@ function sessionOf(v: unknown): AccountSession | undefined {
 }
 
 function prefsOf(v: unknown): AccountPrefs | undefined {
-  return isObject(v) && typeof v.galleryNotice === 'boolean' ? { galleryNotice: v.galleryNotice } : undefined;
+  // `rulesAccepted` is absent from a Worker before stage 64: not ticked.
+  return isObject(v) && typeof v.galleryNotice === 'boolean' ? { galleryNotice: v.galleryNotice, rulesAccepted: v.rulesAccepted === true } : undefined;
 }
 
 /** `Account` with only the contract's fields, or undefined when `v` is not one. */

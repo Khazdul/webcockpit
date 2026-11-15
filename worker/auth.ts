@@ -10,12 +10,14 @@
 //   POST   /api/u/account/password         a new password (the old one proves it)
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
-//   PATCH  /api/u/account/prefs            the gallery notice switch
-//   DELETE /api/u/account                  removes the account, its items and run bodies; its name stays reserved
+//   PATCH  /api/u/account/prefs            the gallery notice switch; the sharing rules ticked (one way)
+//   DELETE /api/u/account                  removes the account, its items, run bodies and published runs; its name stays reserved
 //   GET    /api/u/sync/changes, PUT and DELETE /api/u/sync/items/<kind>/<id>
 //                                          the sync (worker/sync.ts; flag `sync` as well)
 //   GET    /api/u/runs, PUT, GET and DELETE /api/u/runs/<id>
 //                                          the run bodies (worker/runs.ts; flag `runs` as well)
+//   /api/u/pub*, POST /api/u/report        published runs and reports (worker/pub.ts,
+//                                          worker/reports.ts; flag `share` as well)
 //
 // The server never sees a password or a key that opens data. The browser
 // sends `authKey` (and `recoveryAuth`), derived from the password (the
@@ -70,7 +72,10 @@ import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
-import { emptyPrefix, isRunsPath, prefixOf, runsRoute } from './runs.ts';
+import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
+import { REPORT_PATH, isPubPath, pubRoute } from './pub.ts';
+import { report } from './reports.ts';
+import { isRunsPath, runsRoute } from './runs.ts';
 import { readCapped } from './stats.ts';
 import { isSyncPath, syncRoute } from './sync.ts';
 import { isToken, verifyTurnstile } from './turnstile.ts';
@@ -454,11 +459,22 @@ async function endSession(c: Ctx): Promise<Response> {
 
 async function prefs(c: Ctx): Promise<Response> {
   const { account: row } = c.auth as Authed;
-  const b = await body(c.request, ['galleryNotice']);
-  if (!b || typeof b.galleryNotice !== 'boolean') return badRequest();
-  const next = { ...prefsOf(row), galleryNotice: b.galleryNotice };
-  await c.db.prepare('UPDATE account SET prefs = ?2 WHERE id = ?1').bind(row.id, JSON.stringify(next)).run();
-  return json({ prefs: next } satisfies PrefsAnswer);
+  const b = await body(c.request, [], ['galleryNotice', 'rulesAccepted']);
+  if (!b || Object.keys(b).length === 0) return badRequest();
+  if (b.galleryNotice !== undefined && typeof b.galleryNotice !== 'boolean') return badRequest();
+  // One way: the rules are ticked once and stay ticked (ADR 0154).
+  if (b.rulesAccepted !== undefined && b.rulesAccepted !== true) return badRequest();
+  // Each key set on its own in the stored JSON, so two changes at once do not undo each other.
+  let sql = "CASE WHEN json_valid(prefs) AND json_type(prefs) = 'object' THEN prefs ELSE '{}' END";
+  if (b.galleryNotice !== undefined) sql = `json_set(${sql}, '$.galleryNotice', json(?2))`;
+  if (b.rulesAccepted === true) sql = `json_set(${sql}, '$.rulesAccepted', json('true'))`;
+  const [, read] = await c.db.batch<{ prefs: string }>([
+    c.db.prepare(`UPDATE account SET prefs = ${sql} WHERE id = ?1`).bind(...(b.galleryNotice === undefined ? [row.id] : [row.id, String(b.galleryNotice)])),
+    c.db.prepare('SELECT prefs FROM account WHERE id = ?1').bind(row.id),
+  ]);
+  const fresh = read?.results[0];
+  if (!fresh) return error('unauthorized', 401);
+  return json({ prefs: prefsOf(fresh) } satisfies PrefsAnswer);
 }
 
 async function remove(c: Ctx): Promise<Response> {
@@ -467,34 +483,14 @@ async function remove(c: Ctx): Promise<Response> {
   if (!b) return badRequest();
   const proven = await passwordAgain(c, row, b.authKey);
   if (proven instanceof Response) return proven;
-  // Everything the account owns goes in one transaction, and its name is
-  // reserved in the same one, so it is never free in between. Every
-  // statement holds only while the password is still the one that was
-  // proven; the account row goes last, so the guard sees it until then.
-  const still = 'EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?2)';
-  const results = await c.db.batch([
-    c.db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${still}`).bind(row.id, proven.hash, row.name_key),
-    ...ended(c.db, `account = ?1 AND ${still}`, [row.id, proven.hash], 'deleted', c.now),
-    c.db.prepare(`DELETE FROM item WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
-    // Stage 63: the run bodies' rows, and the R2 prefix noted for the
-    // daily sweep (R2 is not in the transaction; the objects go after it).
-    c.db.prepare(`DELETE FROM run_body WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
-    c.db.prepare(`INSERT OR REPLACE INTO r2_sweep (prefix, at) SELECT ?3, ?4 WHERE ${still}`).bind(row.id, proven.hash, prefixOf(row.id), c.now),
-    // Later stages add theirs here:
-    //   stage 64: the account's publications and their R2 payloads, with
-    //             the votes and comments on them
-    //   stage 65: the votes and comments the account made (and the
-    //             publications' vote_sum, vote_count, comment_count)
-    //   (each with the same guard)
-    c.db.prepare('DELETE FROM account WHERE id = ?1 AND auth_hash = ?2').bind(row.id, proven.hash),
-  ]);
-  if (results.at(-1)?.meta.changes !== 1) return error('invalid_login', 401);
+  // One transaction (worker/deletion.ts), guarded by the proven password.
+  const results = await c.db.batch(deletionBatch(c.db, row, proven.hash, c.now));
+  const { deleted, pubs } = deletedBy(results);
+  if (!deleted) return error('invalid_login', 401);
   await proven.done();
-  // The account's R2 objects, a list page of 1000 at a time. A failure
-  // half-way (or an upload that raced this) leaves objects that belong to
-  // no account; the r2_sweep row makes the daily cron empty the prefix
-  // again (worker/runs.ts sweepPrefixes), so the answer does not wait on it.
-  if (c.env.FILES) await emptyPrefix(c.env.FILES, prefixOf(row.id)).catch(() => {});
+  // The R2 objects after it (the daily cron catches what fails), so the
+  // answer does not wait on more than one pass.
+  await afterDeletion(c.env, row.id, pubs);
   return empty({ 'Set-Cookie': clearedCookie() });
 }
 
@@ -513,12 +509,14 @@ const ROUTES: Record<string, Record<string, Handler>> = {
   '/api/u/account/password': { POST: password },
   '/api/u/account/recovery': { POST: recovery },
   '/api/u/account/prefs': { PATCH: prefs },
+  [REPORT_PATH]: { POST: report },
   [SESSIONS_PREFIX]: { DELETE: endSession },
 };
 
 function routeOf(path: string): Record<string, Handler> | undefined {
   if (isSyncPath(path)) return syncRoute(path);
   if (isRunsPath(path)) return runsRoute(path);
+  if (isPubPath(path)) return pubRoute(path);
   if (path.startsWith(SESSIONS_PREFIX)) return path.length > SESSIONS_PREFIX.length ? ROUTES[SESSIONS_PREFIX] : undefined;
   return Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined;
 }
@@ -564,6 +562,7 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
   // The flags `sync` and `runs` close their paths as `accounts` closes them all.
   if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
   if (isRunsPath(path) && !(await flags(env, now)).runs) return error('not_found', 404);
+  if ((isPubPath(path) || path === REPORT_PATH) && !(await flags(env, now)).share) return error('not_found', 404);
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;

@@ -25,12 +25,13 @@
   "assets": {
     "directory": "dist-site",
     "binding": "ASSETS",
-    // Only the API and the admin page run Worker code; every file is
-    // served without it. `/admin` and `/admin/*` both, as the docs do not
-    // promise that `/admin*` matches `/admin`.
-    "run_worker_first": ["/api/*", "/admin", "/admin/*"],
-    // Unknown paths answer 404 with 404.html, as on GitHub Pages
-    // (`/r/<id>` comes in stage 64).
+    // Only the API, the admin page and the watch page run Worker code;
+    // every other file is served without it. `/admin` and `/admin/*` both,
+    // as the docs do not promise that `/admin*` matches `/admin`. `/r/*`
+    // (stage 64, ADR 0154): `/r/<id>` answers the site's index.html, and a
+    // file under /r/ (the frame document) is handed to the assets as it is.
+    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/r/*"],
+    // Unknown paths answer 404 with 404.html, as on GitHub Pages.
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
   },
@@ -43,6 +44,9 @@
     "FLAG_ACCOUNTS": true,
     "FLAG_SYNC": true,
     "FLAG_RUNS": true,
+    // Share links (stage 64, ADR 0154): dark in production until the
+    // owner's go-ahead (part F).
+    "FLAG_SHARE": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -72,7 +76,7 @@
       "migrations_dir": "worker/migrations"
     }
   ],
-  // R2 is made now and used from stage 63 (run bodies, shared payloads).
+  // R2: run bodies under u/<account>/ (stage 63), published payloads under pub/ (stage 64).
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit", "jurisdiction": "eu" }],
   // POST /api/beat, keyed by address (ADR 0147). A page beats every 5
   // minutes and on a state change; 30 a minute leaves room for a
@@ -99,6 +103,7 @@
         "FLAG_ACCOUNTS": true,
         "FLAG_SYNC": true,
         "FLAG_RUNS": true,
+        "FLAG_SHARE": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
