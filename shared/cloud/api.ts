@@ -382,11 +382,18 @@ export const OTHER_SESSIONS = 'others';
 // sync engine (B3). Bodies are encrypted blobs (`application/octet-stream`,
 // ADR 0145's blob format); the server never reads them.
 
-/** The kinds of item. Stage 61 accepts `profile` and `script`; the others are refused (`kind_closed`) until their stage. */
+/**
+ * The kinds of item. Stage 61 opened `profile` and `script`; stage 62
+ * (ADR 0152) `settings` (one per device type), `scriptData` (per script
+ * name), `comm` (per UTC day, gzipped before it is sealed) and `timers`
+ * (per character). `run` and `exportDoc` are refused (`kind_closed`)
+ * until stage 63. The server reads none of them: the limits and the
+ * endpoints are the same for every kind.
+ */
 export const SYNC_KINDS = ['profile', 'script', 'scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers'] as const;
 export type SyncKind = (typeof SYNC_KINDS)[number];
 /** The kinds the server accepts now. */
-export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script'];
+export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script', 'settings', 'scriptData', 'comm', 'timers'];
 
 /** An item id: the opaque id of ADR 0145 (base64url of 16 bytes, 22 characters). */
 export const SYNC_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
