@@ -1,17 +1,19 @@
 # Stage 63 — Runs in the cloud; then accounts open
 
-Status: **In progress (2026-11-15).** Planned; part A (mockups round 11,
-the measurement) and part B (foundations) under way. Nothing released;
-production untouched.
+Status: **Built, on staging (2026-11-15), waiting for the owner's test.**
+Parts A–D done; nothing released, production untouched (`accounts` off
+there).
 
 ## Waiting for the owner
 
-1. ~~Round 11's picks~~: **1a, 2b, 3a, 4 as drawn, 5 Spotlights and
-   Diary only** (owner, 2026-11-15; see "For the owner to choose").
-2. ~~The limit~~: **50 MB, decided by the owner 2026-11-15** after the
-   measurement.
-3. Later: **the test on staging** (test guide), and then, separately,
-   **the go-ahead to open accounts in production** (part E).
+1. **Test on staging** (<https://staging.mumecockpit.com>), the test
+   guide below. Feedback goes under "Owner feedback".
+2. **Then, only on your explicit word: open accounts in production**
+   (part E: the flags `accounts`, `sync` and `runs`, the version, the
+   tag). Nothing of it is done before you say yes.
+
+Decided already this session: the limit 50 MB; round 11's picks 1a, 2b,
+3a, 4 as drawn, 5 Spotlights and Diary only.
 
 ## Goal
 
@@ -249,9 +251,12 @@ frame over 50 ms); entry chunk 31 119 (stage 62) → 31 192 bytes (+73,
 the preload map's names of the small runs chunks); `npm run
 test:sync-worker` 2/2 (a run uploaded, listed, fetched and deleted on
 the local Worker and R2).
-- [ ] Push `main`; `deploy.yml` to staging; migration 0004 there;
+- [x] Push `main`; `deploy.yml` to staging; migration 0004 there;
       `test:prod` against <https://staging.mumecockpit.com>. Nothing
-      released, no tag, nothing to production.
+      released, no tag, nothing to production. (Run 43722278005,
+      commit 4c285f03, migration `0004_runs.sql` applied; staging's
+      flags `stats`, `accounts`, `sync`, `runs` on; `test:prod` 30/30
+      against staging; production's `/api/config` unchanged.)
 
 ### E. Accounts open in production (only on the owner's go-ahead)
 
@@ -289,7 +294,50 @@ that size and should rise with the run limit if it goes past about
 
 ## Test guide (owner)
 
-(Written when part D is done.)
+On staging (<https://staging.mumecockpit.com>, not the `workers.dev`
+address: Turnstile only works on the domain), with your test account.
+Two devices can be two browsers on one computer; a tablet or phone is
+best for step 2.
+
+1. **Save on one device.** Log in on the desktop, play a short session
+   (or open the demo), Exit and save it. Within some seconds History has
+   it with no tag (it is in step).
+2. **Play it on another device.** Log in on the tablet or phone. History
+   lists the session with "in the cloud · <size>". Open its run log: a
+   bar fetches it, then it plays. Afterwards the tag is gone (it is on
+   the device now).
+3. **Offline.** On the second device, a session still only in the cloud:
+   go offline (the browser's offline switch); the tag says it needs the
+   network and Run log, Stats and Export are greyed. Go online again.
+4. **A cut follows.** In the export editor on one device make a cut or a
+   comment on a saved session; open the same session's export editor on
+   the other device after it syncs: the cut is there.
+5. **Delete everywhere.** Delete a saved session on one device: the
+   dialog says "It is deleted on all your devices and in the cloud."; it
+   goes from the other device's History too.
+6. **Spotlights and Diary.** On a device that has cloud-only sessions:
+   their foot says "N sessions in the cloud are not counted"; on the
+   desktop, Fetch all fetches them and the line goes.
+7. **Cloud full.** Per-account limits come with the admin panel (stage
+   66), so filling 50 MB by hand is impractical; this one is covered by
+   the e2e. If you want to see it live, say so and I lower
+   `RUN_BYTES_LIMIT` on staging for the test (a staging deploy, nothing
+   in production). What to look for then: Exit and save → on the start page
+   "Cloud storage full" with "(49 of 50 MB). The run is saved on this
+   device.", Download the run, Open History, Keep on this device; the
+   session in History says "not in the cloud".
+8. **Log out with a run not in the cloud** (after 7, or offline right
+   after a save): Log out lists "N saved runs not in the cloud" with the
+   reason under it; Download gives those runs.
+9. **Create account with runs.** As a guest on a device with saved runs
+   (and profiles), create a new account: the line after says what moved,
+   runs included; History looks the same; the saved ones upload in the
+   background. Log out: the device's space is back at the start set.
+
+**Feedback wanted:** whether a session taken up on another device feels
+right (the tag, the bar, how long it takes); the dialog and the tags in
+real use; anything that looked wrong. Then the yes or no to opening
+accounts in production.
 
 ## Owner feedback
 
