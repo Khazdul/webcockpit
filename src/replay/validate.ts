@@ -105,19 +105,36 @@ const KINDS = ['A', 'D', 'K', 'L'] as const;
 /** Map asset keys (ADR 0154): a known folder, plain characters, no `..`. */
 export const MAP_FILE_KEY = /^(pixmaps|fonts)\/[A-Za-z0-9._/-]{1,128}$/;
 const B64 = '[A-Za-z0-9+/]*={0,2}';
-const IMAGE_URI = new RegExp(`^data:image/(png|jpeg|gif|webp);base64,${B64}$`);
 /**
- * Under `fonts/` also woff2 and the map's bitmap font descriptions
+ * Map images are PNG only (review fix S1/S2): the exporter only ever
+ * embeds PNG (`map-embed.ts`), and a PNG's IHDR is the size every browser
+ * decodes. GIF, WebP and JPEG headers can name a small canvas over a far
+ * larger frame, so their header check bounded nothing.
+ */
+const IMAGE_URI = new RegExp(`^data:image/png;base64,${B64}$`);
+/**
+ * Under `fonts/` also the map's bitmap font descriptions
  * (`Cantarell18.fnt`, which the exporter has always embedded as
  * `data:text/plain;base64,`: a deviation from ADR 0154's list, recorded in
- * its "As built (stage 64 B2)").
+ * its "As built (stage 64 B2)"). Never woff2: the exporter has none.
  */
-const FONT_URI = new RegExp(`^data:(font/woff2|text/plain);base64,${B64}$`);
+const FONT_URI = new RegExp(`^data:text/plain;base64,${B64}$`);
 const MM2 = new RegExp(`^${B64}$`);
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** Widest and tallest map image (the bundled tiles and font pages are at most 313 px): a small file cannot decode to a huge bitmap. */
-export const MAP_IMAGE_PX = 4096;
+/**
+ * Widest and tallest map image: the bundled tiles and font pages are at
+ * most 313 px, the community tilesets' 256 (`MAX_TILE_SIZE`), so 512
+ * admits every real one with room; a small file cannot decode to a huge
+ * bitmap (review fix S1: was 4 096).
+ */
+export const MAP_IMAGE_PX = 512;
+/**
+ * The map's images together, pixels (review fix S1): the largest real
+ * export embeds about 4.9 Mpx, a whole tileset with the default pixmaps
+ * about 6.4 Mpx. Past this the payload is refused.
+ */
+export const MAP_IMAGE_TOTAL_PX = 32 * 1024 * 1024;
 
 /** The bytes of a base64 text (no `atob` errors escape: null). */
 function b64Bytes(b64: string): Uint8Array | null {
@@ -132,56 +149,38 @@ function b64Bytes(b64: string): Uint8Array | null {
 }
 
 /**
- * Width and height from an image file's header (PNG, GIF, WebP, JPEG), or
- * null when the header is not one the type says.
+ * Width and height from a PNG's IHDR, or null when the bytes are not a
+ * still PNG: an animated one (an `acTL` chunk before the image data, APNG)
+ * is refused outright, though its frames are bounded by IHDR too: the
+ * exporter makes none, and nothing then hangs on a decoder's APNG checks.
  */
-export function imageSize(type: string, b: Uint8Array): { w: number; h: number } | null {
-  const u16 = (i: number): number => (b[i]! << 8) | b[i + 1]!;
-  const u16le = (i: number): number => b[i]! | (b[i + 1]! << 8);
+export function pngSize(b: Uint8Array): { w: number; h: number } | null {
   const u32 = (i: number): number => ((b[i]! << 24) >>> 0) + (b[i + 1]! << 16) + (b[i + 2]! << 8) + b[i + 3]!;
   const tag = (i: number, t: string): boolean => [...t].every((c, k) => b[i + k] === c.charCodeAt(0));
-  if (type === 'png') return b.length >= 24 && b[0] === 0x89 && tag(1, 'PNG') && tag(12, 'IHDR') ? { w: u32(16), h: u32(20) } : null;
-  if (type === 'gif') return b.length >= 10 && tag(0, 'GIF8') ? { w: u16le(6), h: u16le(8) } : null;
-  if (type === 'webp') {
-    if (b.length < 30 || !tag(0, 'RIFF') || !tag(8, 'WEBP')) return null;
-    if (tag(12, 'VP8 ')) return { w: u16le(26) & 0x3fff, h: u16le(28) & 0x3fff };
-    if (tag(12, 'VP8L')) {
-      const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
-      return { w: (bits & 0x3fff) + 1, h: ((bits >>> 14) & 0x3fff) + 1 };
-    }
-    if (tag(12, 'VP8X')) return { w: 1 + (b[24]! | (b[25]! << 8) | (b[26]! << 16)), h: 1 + (b[27]! | (b[28]! << 8) | (b[29]! << 16)) };
-    return null;
+  if (b.length < 33 || b[0] !== 0x89 || !tag(1, 'PNG\r\n\x1a\n') || u32(8) !== 13 || !tag(12, 'IHDR')) return null;
+  // The chunks up to the first IDAT: an `acTL` there makes it an APNG.
+  for (let i = 33; i + 8 <= b.length; ) {
+    if (tag(i + 4, 'IDAT') || tag(i + 4, 'IEND')) break;
+    if (tag(i + 4, 'acTL') || tag(i + 4, 'fcTL')) return null;
+    i += 12 + u32(i);
   }
-  if (type === 'jpeg') {
-    if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
-    let i = 2;
-    while (i + 9 < b.length) {
-      if (b[i] !== 0xff) return null;
-      const m = b[i + 1]!;
-      if (m === 0xff) {
-        i++;
-        continue;
-      }
-      // SOF0–SOF15 but DHT (C4), JPG (C8) and DAC (CC).
-      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { w: u16(i + 7), h: u16(i + 5) };
-      if (m === 0xd9 || m === 0xda) return null;
-      i += 2 + u16(i + 2);
-    }
-    return null;
+  return { w: u32(16), h: u32(20) };
+}
+
+/** Pixels of a map file (0 for a font description), or null when it is not one the replay may load under `key`. */
+export function mapFilePixels(key: string, value: unknown): number | null {
+  if (typeof value !== 'string' || !MAP_FILE_KEY.test(key) || key.split('/').some((p) => p === '..' || p === '.' || p === '')) return null;
+  if (IMAGE_URI.test(value)) {
+    const bytes = b64Bytes(value.slice(value.indexOf(',') + 1));
+    const size = bytes ? pngSize(bytes) : null;
+    return size !== null && size.w > 0 && size.h > 0 && size.w <= MAP_IMAGE_PX && size.h <= MAP_IMAGE_PX ? size.w * size.h : null;
   }
-  return null;
+  return key.startsWith('fonts/') && FONT_URI.test(value) ? 0 : null;
 }
 
 /** True for a map asset value the replay may load under `key`. */
 export function validMapFile(key: string, value: unknown): value is string {
-  if (typeof value !== 'string' || !MAP_FILE_KEY.test(key) || key.split('/').some((p) => p === '..' || p === '.' || p === '')) return false;
-  const img = IMAGE_URI.exec(value);
-  if (img) {
-    const bytes = b64Bytes(value.slice(value.indexOf(',') + 1));
-    const size = bytes ? imageSize(img[1]!, bytes) : null;
-    return size !== null && size.w > 0 && size.h > 0 && size.w <= MAP_IMAGE_PX && size.h <= MAP_IMAGE_PX;
-  }
-  return key.startsWith('fonts/') && FONT_URI.test(value);
+  return mapFilePixels(key, value) !== null;
 }
 
 function map(v: unknown, path: string): ReplayMap {
@@ -193,9 +192,14 @@ function map(v: unknown, path: string): ReplayMap {
   const keys = Object.keys(raw);
   if (keys.length > PAYLOAD_LIMITS.mapFiles) fail(`${path}.files`);
   const files: Record<string, string> = {};
+  let pixels = 0;
   for (const k of keys) {
     const f = raw[k];
-    if (!validMapFile(k, f)) fail(`${path}.files`);
+    const px = mapFilePixels(k, f);
+    if (px === null || typeof f !== 'string') fail(`${path}.files`);
+    // All the images together (review fix S1): the renderer holds them at once.
+    pixels += px;
+    if (pixels > MAP_IMAGE_TOTAL_PX) fail(`${path}.files`);
     // Every key starts with `pixmaps/` or `fonts/`: never a prototype key.
     files[k] = f;
   }

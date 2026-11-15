@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { MAP_IMAGE_PX, PAYLOAD_LIMITS, PayloadError, imageSize, validMapFile, validatePayload } from '../../src/replay/validate';
+import { MAP_IMAGE_PX, PAYLOAD_LIMITS, PayloadError, pngSize, validMapFile, validatePayload } from '../../src/replay/validate';
 import { EMPTY_PNG } from '../../src/map/assets';
 import { defaultSettings } from '../../src/settings';
 import { migrateSettings } from '../../src/settings/migrate';
@@ -173,7 +173,8 @@ describe('validatePayload: refusals', () => {
     const many: Record<string, string> = {};
     for (let i = 0; i <= PAYLOAD_LIMITS.mapFiles; i++) many[`pixmaps/t${i}.png`] = png;
     refused(withFiles(many));
-    expect(validMapFile('fonts/x.woff2', 'data:font/woff2;base64,AAAA')).toBe(true);
+    // Review fix S1: no woff2 (the exporter embeds none).
+    expect(validMapFile('fonts/x.woff2', 'data:font/woff2;base64,AAAA')).toBe(false);
     expect(validMapFile('fonts/Cantarell18_0.png', png)).toBe(true);
   });
 
@@ -190,23 +191,10 @@ describe('validatePayload: refusals', () => {
     expect(validMapFile('pixmaps/a.png', pngOf(MAP_IMAGE_PX + 1, 1))).toBe(false);
     expect(validMapFile('pixmaps/a.png', pngOf(100_000, 100_000))).toBe(false);
     expect(validMapFile('pixmaps/a.png', 'data:image/png;base64,AAAA')).toBe(false);
+    expect(pngSize(Buffer.from(pngOf(64, 32).split(',')[1]!, 'base64'))).toEqual({ w: 64, h: 32 });
+    // Review fix S2: GIF, WebP and JPEG are refused whatever their header says (see share-fixes64.test.ts).
     const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x10, 0x00, 0x20, 0x00]);
-    expect(imageSize('gif', gif)).toEqual({ w: 16, h: 32 });
-    expect(validMapFile('pixmaps/a.gif', uri('gif', gif))).toBe(true);
-    gif[7] = 0xff;
     expect(validMapFile('pixmaps/a.gif', uri('gif', gif))).toBe(false);
-    // WebP VP8X: 24-bit sizes minus one.
-    const webp = new Uint8Array(30);
-    webp.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0);
-    webp.set([...'WEBPVP8X'].map((c) => c.charCodeAt(0)), 8);
-    webp.set([99, 0, 0, 49, 0, 0], 24);
-    expect(imageSize('webp', webp)).toEqual({ w: 100, h: 50 });
-    webp.set([0xff, 0xff, 0x0f], 24);
-    expect(validMapFile('pixmaps/a.webp', uri('webp', webp))).toBe(false);
-    // JPEG: an APP0 segment, then SOF0 with 8 × 4096+1.
-    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0, 0, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x08, 0x10, 0x01, 0x03]);
-    expect(imageSize('jpeg', jpg)).toEqual({ w: 4097, h: 8 });
-    expect(validMapFile('pixmaps/a.jpg', uri('jpeg', jpg))).toBe(false);
   });
 });
 
