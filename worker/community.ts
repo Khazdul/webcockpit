@@ -615,6 +615,9 @@ async function commentDelete(c: PubCtx): Promise<Response> {
     .bind(id)
     .first<{ account: string; state: string; owner: string | null }>();
   if (!row || (row.account !== account.id && row.owner !== account.id)) return notFound();
+  // Hidden after reports or by the admin: it stays, with its reports open,
+  // until the admin has looked (review fix S7).
+  if (row.state === 'hidden') return error('hidden', 403);
   // Removed already: done (a retry after a lost answer).
   if (row.state !== 'removed') await c.db.batch(removeComment(c.db, id, c.now));
   return done();
@@ -624,12 +627,15 @@ async function commentDelete(c: PubCtx): Promise<Response> {
  * A comment removed by its writer or the run's sender: the count first
  * (only an active one counts), its reports handled, then the row without
  * its text (kept an hour for the hourly limit; the daily cron deletes it).
+ * Only while it is active: one hidden meanwhile keeps its text and its
+ * reports for the admin (review fix S7).
  */
 function removeComment(db: D1, id: string, now: number): D1Statement[] {
+  const active = `EXISTS (SELECT 1 FROM comment WHERE id = ?1 AND state = 'active')`;
   return [
     db.prepare(`UPDATE publication SET comment_count = comment_count - 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = 'active')`).bind(id),
-    db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'comment' AND target = ?1`).bind(id, now),
-    db.prepare(`UPDATE comment SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state <> 'removed'`).bind(id),
+    db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'comment' AND target = ?1 AND ${active}`).bind(id, now),
+    db.prepare(`UPDATE comment SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
   ];
 }
 
@@ -668,11 +674,14 @@ async function noteDelete(c: PubCtx): Promise<Response> {
   if (!id) return notFound();
   const row = await c.db.prepare('SELECT state FROM note WHERE id = ?1 AND account = ?2').bind(id, account.id).first<{ state: string }>();
   if (!row) return notFound();
+  // Hidden: it stays for the admin with its reports open (review fix S7).
+  if (row.state === 'hidden') return error('hidden', 403);
   if (row.state !== 'removed') {
-    // The row stays, without its text, until the day's limit has passed (the daily cron).
+    // The row stays, without its text, until the day's limit has passed (the daily cron). Only while active (S7).
+    const active = `EXISTS (SELECT 1 FROM note WHERE id = ?1 AND state = 'active')`;
     await c.db.batch([
-      c.db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target = ?1`).bind(id, c.now),
-      c.db.prepare(`UPDATE note SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state <> 'removed'`).bind(id),
+      c.db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target = ?1 AND ${active}`).bind(id, c.now),
+      c.db.prepare(`UPDATE note SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
     ]);
   }
   return done();

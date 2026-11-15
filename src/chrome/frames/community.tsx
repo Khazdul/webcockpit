@@ -55,7 +55,7 @@ import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
 import { cloudTest, config } from '../../cloud/config';
-import { REASONS, REPORT_MAX, reportText } from '../../watch/model';
+import { HIDDEN_TEXT, REASONS, REPORT_MAX, reportText } from '../../watch/model';
 import {
   Box,
   BoxBody,
@@ -760,7 +760,8 @@ function RunesBox(p: RunesProps): VNode {
     if (r.ok || r.code === 'not_found') {
       p.onBoard({ ...board, notes: board.notes.filter((x) => x.id !== id) });
       p.nav.flash('Your note is removed.');
-    } else p.nav.flash(r.code === 'offline' || r.code === 'timeout' ? 'Offline: the note was not removed.' : 'The note could not be removed. Try again later.', 'fail');
+    } else if (r.code === 'hidden') p.nav.flash(HIDDEN_TEXT, 'fail');
+    else p.nav.flash(r.code === 'offline' || r.code === 'timeout' ? 'Offline: the note was not removed.' : 'The note could not be removed. Try again later.', 'fail');
   };
   const report = (note: Note): void => {
     p.nav.push(<ReportNoteFrame note={note} api={p.api} />, { overlay: true });

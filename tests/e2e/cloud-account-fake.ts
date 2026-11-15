@@ -963,6 +963,8 @@ export class FakeAccountServer {
       if (req.method !== 'DELETE') return err('method_not_allowed', 405);
       const c = this.comments.get(m[1]!);
       if (!c || (c.account !== me && this.pubs.get(c.pub)?.account !== me)) return err('not_found', 404);
+      // A hidden one stays for the admin (review fix S7).
+      if (c.state === 'hidden') return err('hidden', 403);
       this.comments.delete(c.id);
       return { status: 204 };
     }
@@ -983,6 +985,7 @@ export class FakeAccountServer {
       if (req.method !== 'DELETE') return err('method_not_allowed', 405);
       const n = this.notes.get(m[1]!);
       if (!n || n.account !== me) return err('not_found', 404);
+      if (n.state === 'hidden') return err('hidden', 403);
       this.notes.delete(n.id);
       return { status: 204 };
     }

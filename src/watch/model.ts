@@ -279,8 +279,12 @@ export function voteFailText(status: number, code: string): string {
   return 'The stars could not be saved. Try again later.';
 }
 
+/** A hidden comment or note cannot be removed by its writer (review fix S7: `403 hidden`). */
+export const HIDDEN_TEXT = 'Hidden after reports; the admin will look at it.';
+
 /** What a failed comment (post or remove) says. */
 export function commentFailText(status: number, code: string): string {
+  if (code === 'hidden') return HIDDEN_TEXT;
   if (code === 'too_many' || status === 429) return 'You have written many comments this hour. Try again later.';
   if (code === 'suspended') return 'This account is suspended: it cannot comment.';
   if (code === 'full' || status === 409) return 'This run has as many comments as it can hold.';

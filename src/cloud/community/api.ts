@@ -52,6 +52,7 @@ import { apiAllowed, flagOn } from '../config';
  *   unauthorized      the session is gone
  *   own               one's own note (Report)
  *   already_reported  this account reported it before
+ *   hidden            a hidden note cannot be removed by its writer (review fix S7: `403 hidden`)
  *   not_found         gone (a removed note), or the flags off on the server
  *   disabled          the flags or the page say no; nothing was sent
  *   offline           the request did not reach the server
@@ -60,6 +61,7 @@ import { apiAllowed, flagOn } from '../config';
  */
 export type CommunityErrorCode =
   | 'too_many'
+  | 'hidden'
   | 'bad_text'
   | 'suspended'
   | 'unauthorized'
@@ -78,6 +80,7 @@ export type CommunityErrorCode =
 
 const SERVER_CODES: readonly CommunityErrorCode[] = [
   'too_many',
+  'hidden',
   'bad_text',
   'suspended',
   'own',

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { isPublicText } from '../../shared/cloud/text.ts';
 import { cleanDescription, cleanTitle, linkMeta, typedTitle } from '../../src/share/link';
 import { createFailureWords, pubFailureWords } from '../../src/chrome/frames/share-words';
+import { HIDDEN_TEXT, commentFailText } from '../../src/watch/model';
 
 const cp = String.fromCodePoint;
 
@@ -31,5 +32,13 @@ describe('S3: the listed form cleans by the free public text rules', () => {
   it('a 400 bad_text has words of its own', () => {
     expect(createFailureWords('bad_text')).toMatch(/characters the Community does not show/);
     expect(pubFailureWords('bad_text', 'edit')).toMatch(/characters the Community does not show/);
+  });
+});
+
+describe('S7: a hidden comment or note says why it cannot be removed', () => {
+  it('403 hidden is the line of its own', () => {
+    expect(HIDDEN_TEXT).toBe('Hidden after reports; the admin will look at it.');
+    expect(commentFailText(403, 'hidden')).toBe(HIDDEN_TEXT);
+    expect(commentFailText(403, 'suspended')).not.toBe(HIDDEN_TEXT);
   });
 });

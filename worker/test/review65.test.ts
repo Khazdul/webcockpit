@@ -113,4 +113,33 @@ describe('S6: only reporters RANKING_AGE_DAYS old count towards the five that hi
   });
 });
 
+describe('S7: a hidden comment or note cannot be removed by its writer or the run’s sender', () => {
+  it('403 hidden; the reports stay open and the admin still sees the text', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const run = await list(alice);
+    const c = await commented(bob, run, 'You are a bad player.');
+    const n = await noted(bob, 'Buy gold at my shop');
+    for (let i = 0; i < 5; i++) {
+      const r = await oldSignUp(`rep${i}`);
+      expect((await ccall('POST', '/api/u/report', { kind: 'comment', target: c, reason: 'harassment' }, { cookie: r })).status).toBe(204);
+      expect((await ccall('POST', '/api/u/report', { kind: 'note', target: n, reason: 'rules' }, { cookie: r })).status).toBe(204);
+    }
+    for (const [cookie, path] of [[bob, `/api/u/comments/${c}`], [alice, `/api/u/comments/${c}`], [bob, `/api/u/runes/${n}`]] as const) {
+      const res = await ccall('DELETE', path, undefined, { cookie });
+      expect(res.status, path).toBe(403);
+      expect(await res.json()).toEqual({ error: 'hidden' });
+    }
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM report WHERE handled = 0').first<{ n: number }>())?.n).toBe(10);
+    const q = await ok<AdminReports>(await adminCall('/api/admin/reports'));
+    expect(q.items.map((i) => [i.kind, i.content, i.state]).sort()).toEqual([
+      ['comment', 'You are a bad player.', 'hidden'],
+      ['note', 'Buy gold at my shop', 'hidden'],
+    ]);
+    // Restored by the admin: the writer may remove it again.
+    expect((await adminCall(`/api/admin/comment/${c}`, { action: 'restore' })).status).toBe(204);
+    expect((await ccall('DELETE', `/api/u/comments/${c}`, undefined, { cookie: bob })).status).toBe(204);
+  });
+});
+
 export { DAY, NOW, call, db, publish, reportOf };
