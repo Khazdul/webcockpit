@@ -358,3 +358,171 @@ describe('the admin page: the actions ask first', () => {
     expect(modal()).toBeNull();
   });
 });
+
+describe('the admin page (stage 65 C4): comments and notes in the queue', () => {
+  const COMMENT = `you are the worst ranger ${HOSTILE}\nuninstall`;
+  const NOTE = `cheap gold <script>alert(1)</script> at shadyshop`;
+  beforeEach(() => {
+    reports = {
+      items: [
+        {
+          kind: 'note',
+          target: 'n2Xw8Rt5Kq1Z',
+          title: '',
+          sender: `<i>goldmonger7</i>`,
+          state: 'hidden',
+          content: NOTE,
+          reasons: { rules: 4, other: 1 },
+          reporters: 5,
+          newest: NOW - 3 * 3600_000,
+          text: `selling gold ${HOSTILE}`,
+          hiddenReason: 'reports',
+        },
+        reports.items[0]!,
+        {
+          kind: 'comment',
+          target: 'c7Hq2Lm9Vx4T',
+          title: `Orc raid ${HOSTILE}`,
+          sender: 'grimbeorn',
+          state: 'active',
+          content: COMMENT,
+          pub: 'Vt8Ky2Qa4mRc',
+          reasons: { harassment: 3 },
+          reporters: 3,
+          newest: NOW - 3600_000,
+        },
+      ],
+      pubs: { count: 1284, bytes: 1_310_000_000, today: 47 },
+      community: { listed: 214, comments: 1032, notes: 48, votes: 2611 },
+    };
+  });
+
+  it('counts by kind; the cards quote the whole text, the writer and the run; hostile text stays text; reporters as a count', async () => {
+    await boot();
+    expect($('#reports-count').textContent).toBe('13 open on 3 items · 1 run, 1 comment, 1 note');
+    const [note, run, comment] = cards() as [HTMLElement, HTMLElement, HTMLElement];
+    expect([note, run, comment].map((c) => c.querySelector('.rq-kind')?.textContent)).toEqual(['Note', 'Run', 'Comment']);
+
+    expect(comment.querySelector('h3')?.textContent).toBe(`on “Orc raid ${HOSTILE}”`);
+    expect(comment.querySelector('.rq-quote')?.textContent).toBe(COMMENT);
+    expect(comment.querySelector('.rq-who')?.textContent).toBe('by grimbeorn · c7Hq2Lm9Vx4T · on the run Vt8Ky2Qa4mRc');
+    expect(comment.querySelector('.rq-state')?.textContent).toBe('shown');
+    expect(comment.querySelector('.rq-from')?.textContent).toBe('Reported by 3 accounts · the newest 2026-11-15 15:40 UTC (60 min ago)');
+    const open = comment.querySelector('a') as HTMLAnchorElement;
+    expect(open.textContent).toBe('Open run');
+    expect(open.getAttribute('href')).toBe('/r/Vt8Ky2Qa4mRc?admin');
+    expect(open.rel).toBe('noopener noreferrer');
+    const texts = (c: HTMLElement) => Array.from(c.querySelectorAll('button')).map((b) => b.textContent);
+    expect(texts(comment)).toEqual(['Hide', 'Delete', 'Dismiss reports', 'Suspend grimbeorn']);
+
+    expect(note.querySelector('h3')?.textContent).toBe('on Random Runes');
+    expect(note.querySelector('.rq-quote')?.textContent).toBe(NOTE);
+    expect(note.querySelector('.rq-who b')?.textContent).toBe('<i>goldmonger7</i>');
+    expect(note.querySelector('.rq-state')?.textContent).toBe('Hidden after 5 reports');
+    expect(Array.from(note.querySelectorAll('.rq-r')).map((r) => r.textContent)).toEqual(['Breaks MUME’s rules 4', 'Other 1']);
+    expect(note.querySelector('.rq-from')?.textContent).toContain('Reported by 5 accounts');
+    expect(note.querySelector('.rq-text')?.textContent).toBe(`“selling gold ${HOSTILE}”`);
+    expect(note.querySelector('a')).toBeNull();
+    expect(texts(note)).toEqual(['Restore', 'Delete', 'Dismiss reports', 'Suspend <i>goldmonger7</i>']);
+
+    expect(document.querySelector('img, script, i')).toBeNull();
+    expect($('#queue').innerHTML).not.toContain('<script');
+    // Only the run's meta is read; comments and notes have none.
+    expect(calls.filter((c) => c.path.startsWith('/api/admin/pub/')).map((c) => c.path)).toEqual(['/api/admin/pub/Zp6Wd3Fg5uNa']);
+
+    // The community's totals.
+    expect($('#community-sec').hidden).toBe(false);
+    expect(Array.from(document.querySelectorAll('#community dt')).map((d) => d.textContent)).toEqual(['Listed', 'Comments', 'Notes', 'Votes']);
+    expect(Array.from(document.querySelectorAll('#community dd')).map((d) => d.textContent)).toEqual(['214', '1,032', '48', '2,611']);
+  });
+
+  it('without the totals (an older Worker) the Community section stays hidden', async () => {
+    delete reports.community;
+    await boot();
+    expect($('#community-sec').hidden).toBe(true);
+  });
+
+  it('Delete a comment: the text quoted, no typed id, the note; posts to /api/admin/comment/<id> with X-WC', async () => {
+    await boot();
+    const comment = cards()[2] as HTMLElement;
+    buttonIn(comment, 'Delete').click();
+    const m = modal() as HTMLElement;
+    expect(m.querySelector('h3')?.textContent).toBe('Delete this comment?');
+    expect(m.querySelector('.rq-quote')?.textContent).toBe(COMMENT);
+    expect(m.textContent).toContain(`By grimbeorn on “Orc raid ${HOSTILE}”.`);
+    expect(m.textContent).toContain('no text is kept');
+    expect(m.textContent).toContain('comment count goes down by one');
+    expect(m.textContent).toContain('Its 3 open reports are marked handled');
+    expect(m.querySelector('input[name=confirm]')).toBeNull();
+    expect(m.querySelector('img')).toBeNull();
+    const ok = buttonIn(m, 'Delete comment');
+    expect(ok.disabled).toBe(false);
+    expect(ok.className).toBe('danger solid');
+    type(m.querySelector('input[name=note]') as HTMLInputElement, 'insults a player');
+    calls = [];
+    ok.click();
+    await settle();
+    expect(posts()).toEqual([
+      {
+        path: '/api/admin/comment/c7Hq2Lm9Vx4T',
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-wc': '1' },
+        body: { action: 'delete', note: 'insults a player' },
+      },
+    ]);
+    expect(modal()).toBeNull();
+    expect($('#mod-status').textContent).toBe('Deleted: comment c7Hq2Lm9Vx4T');
+    expect(calls.filter((c) => c.path === '/api/admin/reports').length).toBe(1);
+  });
+
+  it('Hide and Dismiss on a comment, Restore, Dismiss and Delete on a note: the right paths and actions; Cancel sends nothing', async () => {
+    await boot();
+    const [note, , comment] = cards() as [HTMLElement, HTMLElement, HTMLElement];
+    buttonIn(comment, 'Hide').click();
+    expect(modal()?.querySelector('h3')?.textContent).toBe('Hide this comment?');
+    buttonIn(modal() as HTMLElement, 'Cancel').click();
+    expect(posts()).toEqual([]);
+
+    const act = async (card: HTMLElement, label: string, ok: string) => {
+      buttonIn(card, label).click();
+      buttonIn(modal() as HTMLElement, ok).click();
+      await settle();
+    };
+    await act(comment, 'Hide', 'Hide comment');
+    await act(comment, 'Dismiss reports', 'Dismiss reports');
+    buttonIn(note, 'Restore').click();
+    expect(modal()?.querySelector('h3')?.textContent).toBe('Show this note again?');
+    expect(modal()?.textContent).toContain('By <i>goldmonger7</i> on Random Runes.');
+    buttonIn(modal() as HTMLElement, 'Restore note').click();
+    await settle();
+    buttonIn(note, 'Dismiss reports').click();
+    expect(modal()?.textContent).toContain('stays as it is, hidden');
+    buttonIn(modal() as HTMLElement, 'Dismiss reports').click();
+    await settle();
+    await act(note, 'Delete', 'Delete note');
+    expect(posts().map((c) => [c.path, c.body, c.headers['x-wc']])).toEqual([
+      ['/api/admin/comment/c7Hq2Lm9Vx4T', { action: 'hide' }, '1'],
+      ['/api/admin/comment/c7Hq2Lm9Vx4T', { action: 'dismiss' }, '1'],
+      ['/api/admin/note/n2Xw8Rt5Kq1Z', { action: 'restore' }, '1'],
+      ['/api/admin/note/n2Xw8Rt5Kq1Z', { action: 'dismiss' }, '1'],
+      ['/api/admin/note/n2Xw8Rt5Kq1Z', { action: 'delete' }, '1'],
+    ]);
+  });
+
+  it('Suspend the writer of a note goes to the account action; the log names comments and notes', async () => {
+    log = [
+      { ts: NOW - 3600_000, action: 'comment.delete', target: 'Lp3Vc8Qe1sRt', note: 'insults' },
+      { ts: NOW - 7200_000, action: 'note.hide', target: 'Pe9Dm2Cq6vTa', note: '' },
+    ];
+    await boot();
+    const rows = Array.from(document.querySelectorAll('#log tbody tr')).map((tr) => Array.from(tr.children).map((td) => td.textContent));
+    expect(rows).toEqual([
+      ['2026-11-15 15:40', 'delete', 'comment Lp3Vc8Qe1sRt', 'insults'],
+      ['2026-11-15 14:40', 'hide', 'note Pe9Dm2Cq6vTa', ''],
+    ]);
+    buttonIn(cards()[0] as HTMLElement, 'Suspend <i>goldmonger7</i>').click();
+    buttonIn(modal() as HTMLElement, 'Suspend account').click();
+    await settle();
+    expect(posts().map((c) => [c.path, c.body])).toEqual([['/api/admin/account/%3Ci%3Egoldmonger7%3C%2Fi%3E', { action: 'suspend' }]]);
+  });
+});
