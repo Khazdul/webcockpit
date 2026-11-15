@@ -200,6 +200,19 @@ describe('TimersHub persistence', () => {
     ]);
   });
 
+  it('reads a record put from outside (the sync, ADR 0152) at the next Char.Name', async () => {
+    const t = setup();
+    t.connect();
+    t.login('Gibur');
+    await t.hub.idle();
+    const outside = new TimersArchive(await lazyDb(t.factory)());
+    await outside.put({ character: 'Rasta', savedAt: T, state: { v: 1, trackers: { manual: [cell('armour', { expiresAt: T + 600_000 })] } } });
+    expect(t.hub.view().cells.spell).toEqual([]);
+    t.login('Rasta');
+    await t.hub.idle();
+    expect(t.hub.view().cells.spell.map((c) => c.id)).toEqual(['armour']);
+  });
+
   it('keeps the record on disconnect; a reconnect reloads it; characters are separate', async () => {
     const t = setup();
     t.connect();
