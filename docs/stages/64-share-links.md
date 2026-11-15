@@ -256,6 +256,9 @@ touches staging or production.
       the Worker's checks (auth, suspended, limits, races, states, the
       admin's guard). `/code-review` high of the stage. Fixes with tests
       that fail before them; ADR 0154 "As built (review fixes)".
+      **Partly done: the reviews' findings (S1–S7, CR1–CR10) fixed on
+      `stage64-fixes`** with their tests (ADR 0154 "As built (stage 64,
+      review fixes)"); not merged to `main` yet.
 - [ ] Unit; worker; the full e2e alone at 5 workers (a failure rerun
       alone before it is called one); the benchmark; the entry chunk;
       `npm run test:sync-worker` (grows: a run shared, watched and
