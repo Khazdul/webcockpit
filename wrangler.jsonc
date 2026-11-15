@@ -44,9 +44,9 @@
     "FLAG_ACCOUNTS": true,
     "FLAG_SYNC": true,
     "FLAG_RUNS": true,
-    // Share links (stage 64, ADR 0154): dark in production until the
-    // owner's go-ahead (part F).
-    "FLAG_SHARE": false,
+    // Share links (stage 64, ADR 0154): open in production on the
+    // owner's go-ahead after his test on staging (2026-11-15, release 0.13.0).
+    "FLAG_SHARE": true,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the

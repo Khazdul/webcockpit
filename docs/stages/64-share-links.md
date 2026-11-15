@@ -304,7 +304,10 @@ local Worker and R2, watched by a guest, counted once, removed).
 
 ### F. Share open in production (only on the owner's go-ahead)
 
-- [ ] The owner has tested on staging and said yes.
+- [x] The owner has tested on staging and said yes (2026-11-15:
+      "Fullscreen fungerade fint på desktop och såg bra ut. Share links
+      texten är ok. Öppna i produktionen."; no iPhone to test on; the
+      report mail not confirmed by him).
 - [ ] The release: version, tag, migration 0005 in production,
       `FLAG_SHARE` on in production's vars; `/api/config`; `test:prod`
       against mumecockpit.com.
