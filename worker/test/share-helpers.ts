@@ -71,7 +71,7 @@ export async function signUp(name: string, o: { rules?: boolean } = {}): Promise
 /** The key that proves the password of every account made by `signUp`. */
 export const AUTH_KEY = key(1);
 
-export const META: PubMetaIn = { title: 'Orc fight at the ford', description: 'Two orcs.\nOne troll.', character: 'Olev', level: 26, lengthS: 93.5, listed: false };
+export const META: PubMetaIn = { title: 'Orc fight at the ford', description: 'Two orcs.\nOne troll.', character: 'Olev', level: 26, lengthS: 93, listed: false };
 
 /** A payload of `n` bytes that starts with the gzip magic (the Worker never decompresses it). */
 export function payload(n: number, fill = 1): Uint8Array<ArrayBuffer> {

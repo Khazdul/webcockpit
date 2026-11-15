@@ -35,7 +35,7 @@ async function stored(key: string): Promise<Uint8Array | null> {
 
 const meta = (id: string, o: { cookie?: string; now?: number } = {}): Promise<Response> => call('GET', `/api/pub/${id}`, undefined, o);
 const payloadOf = (id: string): Promise<Response> => call('GET', `/api/pub/${id}/payload`);
-const view = (id: string, dev: string, now = NOW): Promise<Response> => call('POST', `/api/pub/${id}/view`, { device: dev }, { now, csrf: false });
+const view = (id: string, dev: string, now = NOW): Promise<Response> => call('POST', `/api/pub/${id}/view`, { device: dev }, { now, headers: { 'content-type': 'application/json' } });
 
 beforeEach(async () => {
   await emptyTables();
@@ -83,7 +83,7 @@ describe('POST /api/u/pub', () => {
       description: META.description,
       character: 'Olev',
       level: 26,
-      lengthS: 93.5,
+      lengthS: 93,
       listed: false,
       state: 'active',
       created: NOW,
@@ -437,7 +437,7 @@ describe('the public link', () => {
       sender: 'alice',
       character: 'Olev',
       level: 26,
-      lengthS: 93.5,
+      lengthS: 93,
       created: NOW,
       views: 0,
       bytes: 500,
@@ -520,7 +520,7 @@ describe('the public link', () => {
     expect((await ok<PubMeta>(await meta(id))).views).toBe(3);
     expect((await ok<{ pubs: MyPub[] }>(await call('GET', '/api/u/pub', undefined, { cookie: alice }))).pubs[0]?.views).toBe(3);
     for (const bad of [{}, { device: 'not-a-uuid' }, { device: a, more: 1 }, { device: 'ABCDEF00-0000-4000-8000-000000000001' }]) {
-      expect((await call('POST', `/api/pub/${id}/view`, bad)).status).toBe(400);
+      expect((await call('POST', `/api/pub/${id}/view`, bad, { headers: { 'content-type': 'application/json' } })).status).toBe(400);
     }
     expect((await view('AAAAAAAAAAAA', a)).status).toBe(404);
   });
