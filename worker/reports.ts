@@ -26,6 +26,7 @@
 // answer: it never fails or delays the 204.
 import { COMMUNITY_ID_PATTERN, PUB_ID_PATTERN, RANKING_AGE_DAYS, REPORT_KINDS, REPORT_KINDS_OPEN, REPORT_REASONS, REPORT_TEXT_MAX, REPORTS_PER_DAY, REPORTS_TO_HIDE, type ReportKind, type ReportReason } from '../shared/cloud/api.ts';
 import { hasKeys } from './accounts.ts';
+import { COUNTED } from './community.ts';
 import { flags } from './flags.ts';
 import { mailReport } from './mail.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
@@ -103,7 +104,7 @@ function hiding(db: D1, kind: ReportKind, target: string, now: number): D1Statem
       db
         .prepare(
           `UPDATE publication SET comment_count = comment_count - 1
-           WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = 'active' AND reviewed = 0) AND ${enough} AND ?2 IS NOT NULL`,
+           WHERE id = (SELECT c.publication FROM comment c WHERE c.id = ?1 AND c.reviewed = 0 AND ${COUNTED}) AND ${enough} AND ?2 IS NOT NULL`,
         )
         .bind(target, now, REPORTS_TO_HIDE, kind, old),
     );

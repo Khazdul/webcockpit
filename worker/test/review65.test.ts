@@ -142,4 +142,73 @@ describe('S7: a hidden comment or note cannot be removed by its writer or the ru
   });
 });
 
+describe('S8: a suspended writer’s comments and notes are not shown; comment_count follows', () => {
+  const countOf = async (id: string): Promise<number> => (await db.prepare('SELECT comment_count AS n FROM publication WHERE id = ?1').bind(id).first<{ n: number }>())!.n;
+  /** comment_count against a recount: active comments of active writers. */
+  const expectCount = async (id: string): Promise<number> => {
+    const recount = await db
+      .prepare(`SELECT COUNT(*) AS n FROM comment c JOIN account a ON a.id = c.account WHERE c.publication = ?1 AND c.state = 'active' AND a.state = 'active'`)
+      .bind(id)
+      .first<{ n: number }>();
+    const stored = await countOf(id);
+    expect(stored, `comment_count of ${id}`).toBe(recount!.n);
+    return stored;
+  };
+  const suspend = (name: string, action: 'suspend' | 'restore'): Promise<Response> => adminCall(`/api/admin/account/${name}`, { action });
+
+  it('the list, the board, the meta and the news leave them out; Restore brings them back; the counts recount', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const carol = await signUp('carol');
+    const run = await list(alice);
+    const other = await list(carol, { seed: 2 });
+    await commented(bob, run, 'Spam one', { now: NOW + 1 });
+    await commented(bob, run, 'Spam two', { now: NOW + 2 });
+    await commented(bob, other, 'Spam three', { now: NOW + 3 });
+    await commented(carol, run, 'Nice fight.', { now: NOW + 4 });
+    await noted(bob, 'Buy gold');
+    await noted(carol, 'Orcs at the ford');
+    expect(await expectCount(run)).toBe(3);
+    expect((await suspend('bob', 'suspend')).status).toBe(204);
+    // Twice is no second move.
+    expect((await suspend('bob', 'suspend')).status).toBe(204);
+    expect(await expectCount(run)).toBe(1);
+    expect(await expectCount(other)).toBe(0);
+    const page = await ok<{ comments: { writer: string }[]; total: number }>(await ccall('GET', `/api/pub/${run}/comments`));
+    expect(page.comments.map((c) => c.writer)).toEqual(['carol']);
+    expect(page.total).toBe(1);
+    expect((await ok<PubMeta>(await ccall('GET', `/api/pub/${run}`))).comments).toBe(1);
+    const board = await ok<{ notes: { writer: string }[] }>(await ccall('GET', '/api/runes'));
+    expect(board.notes.map((n) => n.writer)).toEqual(['carol']);
+    const news = await ok<{ reactions: number }>(await ccall('GET', '/api/u/community/news', undefined, { cookie: alice }));
+    expect(news.reactions).toBe(1);
+    // The run's sender removes a suspended writer's comment: no count to give back.
+    const spam = (await db.prepare("SELECT id FROM comment WHERE text = 'Spam one'").first<{ id: string }>())!.id;
+    expect((await ccall('DELETE', `/api/u/comments/${spam}`, undefined, { cookie: alice })).status).toBe(204);
+    expect(await expectCount(run)).toBe(1);
+    expect((await suspend('bob', 'restore')).status).toBe(204);
+    expect(await expectCount(run)).toBe(2);
+    expect(await expectCount(other)).toBe(1);
+    expect((await ok<{ notes: unknown[] }>(await ccall('GET', '/api/runes'))).notes).toHaveLength(2);
+  });
+
+  it('the admin’s hide and restore of a suspended writer’s comment, and Delete account of a suspended writer, keep the count', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const run = await list(alice);
+    const c = await commented(bob, run, 'Spam');
+    await commented(alice, run, 'Mine');
+    expect((await suspend('bob', 'suspend')).status).toBe(204);
+    expect((await adminCall(`/api/admin/comment/${c}`, { action: 'hide' })).status).toBe(204);
+    expect(await expectCount(run)).toBe(1);
+    expect((await adminCall(`/api/admin/comment/${c}`, { action: 'restore' })).status).toBe(204);
+    expect(await expectCount(run)).toBe(1);
+    expect((await suspend('bob', 'restore')).status).toBe(204);
+    expect(await expectCount(run)).toBe(2);
+    expect((await suspend('bob', 'suspend')).status).toBe(204);
+    expect((await adminCall('/api/admin/account/bob', { action: 'delete', confirm: 'bob' })).status).toBe(204);
+    expect(await expectCount(run)).toBe(1);
+  });
+});
+
 export { DAY, NOW, call, db, publish, reportOf };

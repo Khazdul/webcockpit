@@ -325,7 +325,7 @@ async function runes(db: D1, now: number): Promise<Response> {
   const { results } = await db
     .prepare(
       `SELECT n.id, a.name AS writer, n.text, n.created FROM note n JOIN account a ON a.id = n.account
-       WHERE n.state = 'active' AND n.created > ?1 ORDER BY n.created DESC, n.id DESC LIMIT ?2`,
+       WHERE n.state = 'active' AND a.state = 'active' AND n.created > ?1 ORDER BY n.created DESC, n.id DESC LIMIT ?2`,
     )
     .bind(now - NOTE_DAYS * DAY_MS, RUNES_SHOWN)
     .all<{ id: string; writer: string; text: string; created: number }>();
@@ -345,7 +345,7 @@ export async function commentsGet(db: D1, id: string, url: URL): Promise<Respons
   const { results } = await db
     .prepare(
       `SELECT c.id, a.name AS writer, c.text, c.created FROM comment c JOIN account a ON a.id = c.account
-       WHERE c.publication = ?1 AND c.state = 'active' ORDER BY c.created, c.id LIMIT ?2 OFFSET ?3`,
+       WHERE c.publication = ?1 AND c.state = 'active' AND a.state = 'active' ORDER BY c.created, c.id LIMIT ?2 OFFSET ?3`,
     )
     .bind(id, COMMENTS_PAGE_SIZE, (page - 1) * COMMENTS_PAGE_SIZE)
     .all<{ id: string; writer: string; text: string; created: number }>();
@@ -515,11 +515,29 @@ export function moveVotes(db: D1, sign: '+' | '-', when: string, binds: unknown[
     .bind(...binds);
 }
 
-/** Suspend (`suspended`) or Restore (`active`): the votes move with the state, only on a change (moderation.ts). */
+/**
+ * A comment counts in its run's `comment_count` (and is shown) only while
+ * it is active and its writer is (review fix S8): the condition on a
+ * comment row `c`.
+ */
+export const COUNTED = `c.state = 'active' AND EXISTS (SELECT 1 FROM account w WHERE w.id = c.account AND w.state = 'active')`;
+
+/**
+ * Suspend (`suspended`) or Restore (`active`): the votes and the
+ * `comment_count` of the account's visible comments move with the state,
+ * only on a change (moderation.ts; review fix S8 for the comments).
+ */
 export function stateChange(db: D1, accountId: string, state: 'active' | 'suspended'): D1Statement[] {
   const from = state === 'suspended' ? 'active' : 'suspended';
+  const sign = state === 'suspended' ? '-' : '+';
   return [
-    moveVotes(db, state === 'suspended' ? '-' : '+', `(SELECT state FROM account WHERE id = ?1) = ?2`, [accountId, from]),
+    moveVotes(db, sign, `(SELECT state FROM account WHERE id = ?1) = ?2`, [accountId, from]),
+    db
+      .prepare(
+        `UPDATE publication SET comment_count = comment_count ${sign} (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.account = ?1 AND c.state = 'active')
+         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND (SELECT state FROM account WHERE id = ?1) = ?2`,
+      )
+      .bind(accountId, from),
     db.prepare('UPDATE account SET state = ?2 WHERE id = ?1').bind(accountId, state),
   ];
 }
@@ -539,7 +557,7 @@ export function deletionStatements(db: D1, still: string, accountId: string, has
     db
       .prepare(
         `UPDATE publication SET comment_count = comment_count - (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.account = ?1 AND c.state = 'active')
-         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND ${still}`,
+         WHERE id IN (SELECT publication FROM comment WHERE account = ?1 AND state = 'active') AND ${still} AND (SELECT state FROM account WHERE id = ?1) <> 'suspended'`,
       )
       .bind(accountId, hash),
     db
@@ -633,7 +651,7 @@ async function commentDelete(c: PubCtx): Promise<Response> {
 function removeComment(db: D1, id: string, now: number): D1Statement[] {
   const active = `EXISTS (SELECT 1 FROM comment WHERE id = ?1 AND state = 'active')`;
   return [
-    db.prepare(`UPDATE publication SET comment_count = comment_count - 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = 'active')`).bind(id),
+    db.prepare(`UPDATE publication SET comment_count = comment_count - 1 WHERE id = (SELECT c.publication FROM comment c WHERE c.id = ?1 AND ${COUNTED})`).bind(id),
     db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'comment' AND target = ?1 AND ${active}`).bind(id, now),
     db.prepare(`UPDATE comment SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
   ];
@@ -693,12 +711,12 @@ async function news(c: PubCtx): Promise<Response> {
   const account = me(c);
   const runs = `FROM publication p WHERE ${LISTED} AND p.listed_at > ?2 AND p.account <> ?1`;
   const votes = `FROM vote v JOIN publication p ON p.id = v.publication WHERE p.account = ?1 AND p.state = 'active' AND v.updated > ?3 AND v.account <> ?1`;
-  const comments = `FROM comment k JOIN publication p ON p.id = k.publication WHERE p.account = ?1 AND p.state = 'active' AND k.state = 'active' AND k.created > ?3 AND k.account <> ?1`;
+  const comments = `FROM comment c JOIN publication p ON p.id = c.publication WHERE p.account = ?1 AND p.state = 'active' AND ${COUNTED} AND c.created > ?3 AND c.account <> ?1`;
   const row = await c.db
     .prepare(
       `SELECT (SELECT COUNT(*) FROM (SELECT 1 ${runs} LIMIT ?4)) AS runs, (SELECT MAX(p.listed_at) ${runs}) AS newest_run,
               (SELECT COUNT(*) FROM (SELECT 1 ${votes} LIMIT ?4)) AS votes, (SELECT MAX(v.updated) ${votes}) AS newest_vote,
-              (SELECT COUNT(*) FROM (SELECT 1 ${comments} LIMIT ?4)) AS comments, (SELECT MAX(k.created) ${comments}) AS newest_comment`,
+              (SELECT COUNT(*) FROM (SELECT 1 ${comments} LIMIT ?4)) AS comments, (SELECT MAX(c.created) ${comments}) AS newest_comment`,
     )
     .bind(account.id, account.gallery_seen, account.reactions_seen, NEWS_MAX)
     .first<{ runs: number; newest_run: number | null; votes: number; newest_vote: number | null; comments: number; newest_comment: number | null }>();

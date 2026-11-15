@@ -731,6 +731,7 @@ export class FakeAccountServer {
     return id;
   }
 
+  /** An active account: its votes count, its comments and notes show (review fix S8). */
   private liveVoter(key: string): boolean {
     return this.accounts.get(key)?.state === 'active';
   }
@@ -748,7 +749,7 @@ export class FakeAccountServer {
   }
 
   commentCount(id: string): number {
-    return [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').length;
+    return [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account)).length;
   }
 
   private seenOf(key: string): { gallery: number; reactions: number } {
@@ -758,7 +759,7 @@ export class FakeAccountServer {
   private withReactions(p: FakePub): MyPub {
     const seen = this.seenOf(p.account).reactions;
     const votes = [...(this.votes.get(p.pub.id) ?? [])].filter(([, v]) => v.updated > seen).length;
-    const comments = [...this.comments.values()].filter((c) => c.pub === p.pub.id && c.state === 'active' && c.created > seen && c.account !== p.account).length;
+    const comments = [...this.comments.values()].filter((c) => c.pub === p.pub.id && c.state === 'active' && this.liveVoter(c.account) && c.created > seen && c.account !== p.account).length;
     return { ...p.pub, stars: this.starsOf(p.pub.id), comments: this.commentCount(p.pub.id), news: { votes: Math.min(NEWS_MAX, votes), comments: Math.min(NEWS_MAX, comments) } };
   }
 
@@ -891,7 +892,7 @@ export class FakeAccountServer {
       }
       if (path === '/api/runes') {
         const notes: Note[] = [...this.notes.values()]
-          .filter((n) => n.state === 'active' && n.created > t - NOTE_DAYS * 86_400_000)
+          .filter((n) => n.state === 'active' && this.liveVoter(n.account) && n.created > t - NOTE_DAYS * 86_400_000)
           .sort((a, b) => b.created - a.created)
           .slice(0, RUNES_SHOWN)
           .map((n) => ({ id: n.id, writer: this.accountName(n.account) ?? '', text: n.text, created: n.created }));
@@ -904,7 +905,7 @@ export class FakeAccountServer {
       if (p.pub.state === 'hidden') return err('hidden', 451);
       const pageText = q.get('page') ?? 'last';
       if (pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
-      const all = [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').sort((a, b) => a.created - b.created);
+      const all = [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active' && this.liveVoter(c.account)).sort((a, b) => a.created - b.created);
       const pages = Math.max(1, Math.ceil(all.length / COMMENTS_PAGE_SIZE));
       const page = pageText === 'last' ? pages : Number(pageText);
       const comments: Comment[] = all
@@ -996,7 +997,7 @@ export class FakeAccountServer {
       const mine = new Set([...this.pubs.values()].filter((p) => p.account === me && p.pub.state === 'active').map((p) => p.pub.id));
       const times = [
         ...[...this.votes].filter(([id]) => mine.has(id)).flatMap(([, v]) => [...v].filter(([k, x]) => k !== me && x.updated > seen.reactions).map(([, x]) => x.updated)),
-        ...[...this.comments.values()].filter((c) => mine.has(c.pub) && c.account !== me && c.state === 'active' && c.created > seen.reactions).map((c) => c.created),
+        ...[...this.comments.values()].filter((c) => mine.has(c.pub) && c.account !== me && c.state === 'active' && this.liveVoter(c.account) && c.created > seen.reactions).map((c) => c.created),
       ];
       return {
         status: 200,

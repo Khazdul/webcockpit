@@ -210,7 +210,8 @@ export const keyOf = (id: string): string => `pub/${id}`;
  */
 export function newsColumns(acc: string, seen: string): string {
   return `MIN(${NEWS_MAX}, (SELECT COUNT(*) FROM vote v WHERE v.publication = publication.id AND v.updated > ${seen} AND v.account <> ${acc})) AS new_votes,
-          MIN(${NEWS_MAX}, (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.created > ${seen} AND c.account <> ${acc} AND c.state = 'active')) AS new_comments`;
+          MIN(${NEWS_MAX}, (SELECT COUNT(*) FROM comment c WHERE c.publication = publication.id AND c.created > ${seen} AND c.account <> ${acc}
+            AND c.state = 'active' AND EXISTS (SELECT 1 FROM account w WHERE w.id = c.account AND w.state = 'active'))) AS new_comments`;
 }
 
 export function myPub(r: PubRow & NewsCols): MyPub {

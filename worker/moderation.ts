@@ -335,7 +335,9 @@ async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env,
   // A comment's run counts its visible comments: the count moves with the state.
   const count = (sign: '+' | '-', from: string): void => {
     if (kind === 'comment') {
-      statements.push(db.prepare(`UPDATE publication SET comment_count = comment_count ${sign} 1 WHERE id = (SELECT publication FROM comment WHERE id = ?1 AND state = '${from}')`).bind(id));
+      // Only a comment whose writer is active counts (review fix S8).
+      const writer = `EXISTS (SELECT 1 FROM account w WHERE w.id = c.account AND w.state = 'active')`;
+      statements.push(db.prepare(`UPDATE publication SET comment_count = comment_count ${sign} 1 WHERE id = (SELECT c.publication FROM comment c WHERE c.id = ?1 AND c.state = '${from}' AND ${writer})`).bind(id));
     }
   };
   if (action === 'delete') {
