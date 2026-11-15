@@ -201,16 +201,25 @@ touches staging or production.
 
 ### D. Checks and staging
 
-- [ ] Two-context e2e: Create account with things, see them on a
+- [x] Two-context e2e: Create account with things, see them on a
       second context; edit on one, find it on the other; a conflict
       keeps both; log out and the device's things back; two accounts
       in turn; a lost session with and without unsynced changes;
       delete account.
-- [ ] A review of the engine and of the spaces by a second agent with
+- [x] A review of the engine and of the spaces by a second agent with
       only the code and ADR 0146, 0150, 0151; `/code-review` of the
       whole stage; fixes.
-- [ ] Unit; the full e2e alone at 5 workers; the benchmark; the entry
+- [x] Unit; the full e2e alone at 5 workers; the benchmark; the entry
       chunk.
+
+Checks (2026-11-15): unit 4783 passed; full e2e at 5 workers alone
+1614 passed, 1 failed under load (`gmcp-demo` in Firefox, passes
+alone), 1 skipped; `npm run test:sync-worker` (two contexts against a
+local Worker) green in the fix branch; the benchmark exits clean (key
+→ send 0.8 / 2.0 / 2.8 ms playing); the entry chunk 30 201 → 30 876
+bytes (+675: the space, the owner row's source, the bundler's chunk
+wiring). Reviews: a second agent (seven confirmed findings) and
+`/code-review` high (ten); fifteen fixes with tests (merge 27a797f5).
 - [ ] Staging: `deploy.yml` to staging, the flag `sync` on there,
       `test:prod` against staging. Nothing released.
 - [ ] Owner test with two devices on staging (test guide below).
