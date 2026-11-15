@@ -252,3 +252,85 @@ map, against 5 MiB; no text or names kept (`notes/research/payload-sizes.md`).
 - The frame's CSP hashes change with every build; the build fills them.
 - Moderation is the owner's work from the day `share` opens in
   production.
+
+## As built (stage 64 B1)
+
+The Worker part, as decided above, with these details and deviations
+(branch `stage64-worker`; the contract's "As built (stage 64 B1)"
+comments in `shared/cloud/api.ts` have the exact answers):
+
+- **The sender's view of a hidden run** is not on the public path: the
+  session cookie's path is `/api/u` (ADR 0145), so `GET /api/pub/<id>`
+  never knows who asks. The sender asks `GET /api/u/pub/<id>` (`PubMeta`
+  with `hidden: true`) and `GET /api/u/pub/<id>/payload` (the bytes,
+  `no-store`). The watch page (C2) asks these after a `451` when logged in.
+- **The reservation.** One batch inserts a `pending` row under the new id
+  only while `account.pub_count < sharedRuns`, and raises `pub_count` and
+  `pub_bytes` only when that row exists; an id that is taken fails the
+  batch (nothing applied) and a new one is drawn (5 tries). The row claims
+  the id before R2, so a collision can never overwrite another run's
+  payload. After R2 the row turns `active` only while still `pending`
+  (Delete account meanwhile → the object goes again, `401`). R2 down, a
+  short body or a stored size that differs → `503`, the count given back;
+  an object that may have been stored leaves a tombstone with its bytes.
+  An isolate that dies between the steps leaves a `pending` row: the
+  daily cron gives its count back after an hour.
+- **Tombstones and R2.** Removing a run (the sender, the admin, Delete
+  account) turns the row into a tombstone (`state 'removed'`, no text) and
+  gives the count back in one batch, then deletes `pub/<id>`; the
+  tombstone keeps `bytes` until R2 confirms, and the daily cron deletes
+  what is left (`publication.bytes > 0` on a tombstone). So the player's
+  and the admin's Delete never fail on R2, and the link says `410` at once.
+  The run's open reports are marked handled with it.
+- **States in the table**: `pending`, `active`, `hidden`, `removed`
+  (`hidden_reason` `reports` or `admin`). `bytes` is spec §7.11's `size`.
+  `vote_sum`, `vote_count`, `comment_count` and `listed` are made now
+  (stage 65).
+- **Text rules** (meta, PATCH, report text, the admin's note): NFC, no
+  control characters (C0, DEL, C1) but `\n` in a description, no lone
+  surrogates, and also no bidi embeddings, overrides or isolates
+  (U+202A–U+202E, U+2066–U+2069), which could make a title read as
+  something else around it. Lengths are in code points. `title` and
+  `character` must come trimmed (refused, not trimmed). `character` 0–40,
+  `level` 0–1000, `lengthS` 0–31 days; the meta JSON at most 8 KiB
+  (`PUB_META_MAX_BYTES`). The declared `Content-Length` alone can answer
+  `413 payload_too_large` before anything is read.
+- **Views**: one batch raises `views` only when no `pub_view` row of the
+  device and UTC day exists, and inserts it. `BEAT_LIMITER` (per address)
+  and `API_LIMITER` (per address, on every `/api/pub/*` path) limit it.
+- **Reports**: the 30 a day are per UTC day and are held in the insert
+  (`INSERT … WHERE (count today) < 30`), so parallel reports never pass
+  them; the hiding is in the same transaction. `comment` and `note` →
+  `400 kind_closed`. A hidden run can still be reported; a removed one is
+  `404`.
+- **Prefs**: `PATCH /api/u/account/prefs` takes either key or both, each
+  set on its own with `json_set`, so a notice change never undoes the
+  tick. `AccountPrefs.rulesAccepted` is no longer optional in the
+  contract (the client reads a missing one as false).
+- **Admin**: the moderation endpoints (`worker/moderation.ts`) are not
+  behind the flag `share`, so the owner can clean up after switching it
+  off. `who` is HMAC-SHA-256 of the Access e-mail under `AUTH_PEPPER`
+  (22 characters; SHA-256 without the secret). The account's Delete is
+  the player's transaction (`worker/deletion.ts`), guarded by the
+  `auth_hash` read just before (a password changed in between → `409
+  conflict`, nothing done), with its log entry under the same guard;
+  `confirm` is compared without regard to case. Suspend and Restore do not
+  mark reports handled (a run's reports are the run's actions' business).
+  The queue lists only items still active or hidden (at most 200).
+- **`/r/*`**: an id of `PUB_ID_PATTERN` gets the site root from `ASSETS`
+  (with `If-None-Match`, so the root's ETag works); any other path under
+  `/r/` goes to `ASSETS` first and becomes the root only on a 404. So
+  `/r/frame.html` is the assets' own answer. Seen in Miniflare: the
+  assets binding serves `/r/frame.html` as `200` and matches a `_headers`
+  rule by the clean path **`/r/frame`**, not by `/r/frame.html` (a rule
+  written for `/r/frame.html` did not apply). B2's frame rule should be
+  written for `/r/frame` (and checked against `wrangler dev`).
+  `scripts/static-server.ts`' `cloudflare` profile routes `/r/*` through
+  the router as well (it answers `/r/frame.html` with its 307 to `/r/frame`).
+- **Not done here**: no client features (the client's `setPrefs` still
+  sends only `galleryNotice`; C1 adds the tick).
+- **Tests**: `worker/test/pub.test.ts` (34), `reports.test.ts` (7), the
+  moderation part of `admin.test.ts` (9), `auth.test.ts` (prefs, 1 new),
+  `tests/unit/static-server-cloudflare.test.ts` (`/r/*`, 1 new). As in
+  stage 63, Miniflare's local R2 logs an uncaught "Network connection
+  lost" of its own in the short-body test; the test passes.
