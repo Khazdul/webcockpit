@@ -127,7 +127,13 @@ export class PageSync implements Runtime {
     onSyncControl({ stop: () => this.stop(), pause: () => this.pause(), resume: () => this.resume() });
     this.offs.push(this.engine.status.subscribe((status) => patchSyncView({ status })));
     patchSyncView({ status: this.engine.status.get() });
-    this.offs.push(onStored(() => this.soon()));
+    // Only profiles and scripts start the 5 s sync for now; stage 62 C wires
+    // the small kinds (ADR 0152 "When the small kinds push").
+    this.offs.push(
+      onStored((kind) => {
+        if (kind === 'profile' || kind === 'script') this.soon();
+      }),
+    );
     this.offs.push(
       onPlaying((on) => {
         if (on) this.period(false);
