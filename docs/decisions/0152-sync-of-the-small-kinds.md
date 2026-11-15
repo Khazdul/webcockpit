@@ -508,3 +508,21 @@ The plumbing that only fed the message is removed:
 
 Kept: the holding itself (in use during play, `state: 'held'`, the status
 count), the seed (`seedRecord`, F1) and the write hook.
+
+## Small fixes (2026-11-15)
+
+- **Comm prune by whole days.** `CommArchive.prune()` deleted records
+  older than seven days by `ts`, while the sync lists a day until its
+  start is 8 days 6 hours old (F9). A prune in a day's last hours
+  shrank a listed day: the engine saw an edit and pushed the smaller
+  piece, the other devices (whose write is additive) pushed the whole
+  day back, and the pruning device took it again until its next prune.
+  `prune()` now deletes only the days past `commDayKept` (records before
+  `commKeptFrom(now)`, the start of the oldest kept day); `COMM_LIST_MS`
+  and `commDayKept` moved to src/gmcp/comm-records.ts (re-exported by
+  src/cloud/space/local.ts). A listed day is never changed by pruning.
+  The pane still shows seven days (`loadRecent`); a device now stores a
+  day's records until the day's start is 8 days 6 hours old (at most
+  about 9 days 6 hours), which the sync's re-adds already did since F9.
+- **`ScriptLibrary.reload()`** drops a data record no longer in the
+  database (a sync delete), unless it holds `store` values not flushed.
