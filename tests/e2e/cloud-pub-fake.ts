@@ -212,6 +212,18 @@ export async function fakePubApi(page: Page, api: FakeAccountApi, pubs = new Fak
       ) {
         return json(400, { error: 'bad_request' });
       }
+      // A note on Random Runes (stage 65 C1): as a run's, against the community's notes in the account fake.
+      if (b.kind === 'note') {
+        if (server.flags.gallery !== true || server.flags.runes !== true) return json(400, { error: 'kind_closed' });
+        const n = server.notes.get(b.target);
+        if (!n || n.state !== 'active') return json(404, { error: 'not_found' });
+        if (n.account === who.name.toLowerCase()) return json(403, { error: 'own' });
+        if (pubs.reports.some((r) => r.target === b!.target && r.account.toLowerCase() === who.name.toLowerCase())) return json(409, { error: 'already_reported' });
+        if (pubs.reports.filter((r) => r.account.toLowerCase() === who.name.toLowerCase()).length >= REPORTS_PER_DAY) return json(429, { error: 'too_many' });
+        pubs.reports.push({ ...(b as unknown as ReportRequest), account: who.name });
+        if (new Set(pubs.reports.filter((r) => r.target === b!.target).map((r) => r.account.toLowerCase())).size >= REPORTS_TO_HIDE) n.state = 'hidden';
+        return route.fulfill({ status: 204 });
+      }
       if (b.kind !== 'run') return json(400, { error: 'kind_closed' });
       const pub = server.pubs.get(b.target);
       if (!pub) return json(404, { error: 'not_found' });

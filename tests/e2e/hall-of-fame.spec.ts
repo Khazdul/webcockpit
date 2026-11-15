@@ -109,21 +109,20 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   expect(meta.listed).toBe(true);
   expect(JSON.parse(gunzipSync(Buffer.from(s.pubUploads[0]!.payload)).toString('utf8'))).toMatchObject({ schema: 1 });
 
-  // Open Community: back to the start menu, its Community row asked for.
+  // Open Community: back to the start menu, its Community row asked for, and so the Community page (stage 65 C1).
   await btn(page, 'COMMUNITY').click();
   await expect(done(page)).toHaveCount(0);
   await expect(exp(page)).toHaveCount(0);
-  await expect(page.locator('.wc-start .wc-sm-item[data-key="enter"]')).toBeVisible();
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-cy')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('Open Community opens the Community row on the start menu (dev ?community: the row is there)', async ({ page }) => {
+test('Open Community opens the Community row on the start menu, and so the Community page', async ({ page }) => {
   const s = await server();
   s.addPub(NAME, { title: 'Before' });
   s.stored(NAME)!.prefs.rulesAccepted = true;
   await startPage(page, s);
-  // The dev server's row (start-main.tsx `devCommunity`) until the page of part C1 is merged.
-  await page.goto(`${page.url()}&community=0`);
+  // The row comes with the flag `gallery` (stage 65 C1).
   await expect(page.locator('.wc-start .wc-sm-item[data-key="community"]')).toBeVisible();
   await openEditor(page);
   await page.keyboard.press('f');
@@ -134,6 +133,7 @@ test('Open Community opens the Community row on the start menu (dev ?community: 
   await btn(page, 'COMMUNITY').click();
   await expect(done(page)).toHaveCount(0);
   await expect(page.locator('.wc-start .wc-sm-item[data-key="community"]')).toHaveClass(/is-sel/);
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-cy')).toBeVisible();
 });
 
 test('the keyboard: the ring reaches Hall of Fame after Link; Enter chooses it', async ({ page }) => {

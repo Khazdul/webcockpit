@@ -212,12 +212,17 @@ touches staging or production.
 
 #### C1. The Community page (worktree `stage65-community`, port 5473)
 
-- [ ] `src/cloud/community/api.ts` (the list, the boxes, random, the
-      board, news, seen) against the contract and the e2e fake.
-- [ ] The page (pick 1) with Random Runes (pick 2); C on the start menu
+- [x] The Worker's part of the round 13 addendum (sorts, `by`, pages of
+      10, `total`, the boxes without top posters and yesterday, `today`'s
+      description, no random, notes 250).
+- [x] `src/cloud/community/api.ts` (the list, `by`, the boxes, the board,
+      a note, its removal and report; news and seen are C3's news.ts)
+      against the contract and the e2e fake.
+- [x] The page (pick 1) with Random Runes (pick 2); C on the start menu
       with `gallery` (the dev `?community=` goes); the counter (pick 5)
-      for guests and accounts.
-- [ ] e2e desktop and phone.
+      for guests and accounts; Back from a run (`?from=community` →
+      `<base>?community`, ADR 0155 "As built (stage 65 C1)").
+- [x] e2e desktop and phone.
 
 #### C2. The watch page and the way in (worktree `stage65-watch`, port 5474)
 

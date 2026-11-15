@@ -43,7 +43,9 @@ describe('the community fake', () => {
     expect(call(alice, 'POST', '/api/u/community/seen', { reactions: server.now() }).status).toBe(200);
     expect(call(alice, 'GET', '/api/u/community/news').body).toMatchObject({ reactions: 0 });
     expect(server.pubsOf('alice').find((p) => p.id === id)).toMatchObject({ stars: { sum: 4, count: 1 }, comments: 1, news: { votes: 0, comments: 0 } });
-    expect(call(bob, 'GET', '/api/community').body).toMatchObject({ topPosters: [{ name: 'Alice', runs: 1 }], hallOfFame: [{ id }] });
+    expect(call(bob, 'GET', '/api/community').body).toMatchObject({ hallOfFame: [{ id }], today: null });
+    expect(call(bob, 'GET', '/api/gallery?by=alice').body).toMatchObject({ rows: [{ id }] });
+    expect(call(bob, 'GET', '/api/gallery?by=bob').body).toMatchObject({ rows: [] });
     expect(server.publicListed()).toHaveLength(1);
     server.flags.runes = false;
     expect(call(bob, 'GET', '/api/runes').status).toBe(404);

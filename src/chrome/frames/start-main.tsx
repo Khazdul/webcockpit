@@ -37,10 +37,13 @@
 // cap). With it a press opens the Account page's Published runs view
 // straight away, which clears it.
 //
-// Community (flag `gallery`, stage 65) has no page and no flag in the
-// client yet: the start page never shows it, and C does nothing. The row
-// and its counter are drawn by the kit gallery (`?kit=menu`), and on the
-// dev server by `?community=<n>` (a press says it comes later).
+// Community (stage 65 C1, ADR 0155): the row comes in with the flags
+// `share` and `gallery` (asked on idle time), C or a press opens the
+// Community page (in the account pages' lazy chunk), and its counter ("3 new",
+// "99+ new") is src/cloud/community/counter.ts's, asked with the sync's
+// cadence while the menu is the top frame (`useCommunityRow`). The address
+// `<base>?community` (the watch page's Back for a run opened from the
+// Community page) opens the page on its kept view after the first render.
 //
 // Scripts needs the script library, which the shell always has; only
 // tests mount the page without it, and then the row is not there. Options
@@ -49,7 +52,7 @@
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type AccountState, accountState, onAccountState, watchAccountState } from '../../cloud/account/state';
-import { whenIdle } from '../../cloud/config';
+import { apiAllowed, flagOn, whenIdle } from '../../cloud/config';
 import { type LockedNotice, type SyncView, onSyncMessage, onSyncView, startSync, syncView, takeSyncMessage } from '../../cloud/sync-view';
 import { currentSpace, lockedCopies, takeSpaceMessage } from '../../core/space';
 import { useServices, useSettings } from '../kit/hooks';
@@ -64,11 +67,10 @@ import { ProfileFrame } from './profiles';
 import { useDoesNotFit, useMoveLine } from './runs-cloud';
 import { ScriptsFrame } from './scripts';
 import { takeLoginReturn } from '../../watch/return';
+import { COUNTER_PERIOD_MS, communityCount as communityRuns, onCommunityCount, refreshCommunityCount } from '../../cloud/community/counter';
 import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 import { communityNews, onCommunityNews, watchCommunityNews } from '../../cloud/community/news';
 import { takeStartRow } from './start-request';
-
-export const LATER = 'Coming in a later stage.';
 
 export interface StartMainProps {
   onEnter: () => void;
@@ -124,8 +126,9 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   useFlashRoom(menu);
   const account = accountRow.row;
   const openAccount = useAccountPages(nav);
-  // Community: the flag `gallery` and the page come in stage 65 (dev: `?community=<n>`).
-  const community = devCommunity();
+  // Community (stage 65): the flags `share` and `gallery`, the counter, the lazy page.
+  const community = useCommunityRow(isTop);
+  const openCommunityPage = useCommunityPage(nav);
   const entries = startMenu({ owner: account !== null, scripts: !!services.scripts, community });
   const sync = useSyncView(services, nav, isTop);
   // Runs in the cloud (stage 63 C2): "does not fit" where the save was asked (after an Exit: here), the move's line.
@@ -145,7 +148,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     profile: { note: profile, activate: () => nav.push(<ProfileFrame />) },
     scripts: { activate: () => nav.push(<ScriptsFrame />) },
     history: { activate: () => openHistory(nav) },
-    community: { count: community ? communityCount(community.count) : null, activate: () => nav.flash(LATER) },
+    community: { count: community ? communityCount(community.count) : null, activate: () => openCommunityPage(false) },
     about: { activate: () => nav.push(<AboutFrame />) },
   };
   const items: StartItem[] = entries.flatMap((e) => (e.kind === 'row' ? [startItem(e.key, does[e.key])] : []));
@@ -153,6 +156,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const kit = useKitGallery(nav);
   usePrivacyAddress(nav);
   useWatchReturn(openAccount);
+  useCommunityAddress(openCommunityPage);
   // A page asked for a row when it popped back here (the share dialog's Open Community, start-request.ts).
   useEffect(() => {
     if (!isTop) return;
@@ -522,14 +526,92 @@ function useWatchReturn(openAccount: (opens: OwnerView['opens']) => void): void 
   }, []);
 }
 
-// Dev only (stage 67): `?community=<n>` shows the Community row with <n>
-// new runs, for the e2e specs and the screenshots, until the flag
-// `gallery` and the page exist (stage 65). A normal build folds it to
-// null.
-function devCommunity(): { count: number } | null {
-  if (!import.meta.env.DEV) return null;
-  const n = new URLSearchParams(globalThis.location?.search ?? '').get('community');
-  return n === null ? null : { count: Number(n) || 0 };
+// ------------------------------------------------------------ Community (stage 65 C1)
+
+/** The Community page may be shown: the page may call the API, `share` and `gallery` are on (never rejects). */
+async function galleryOn(): Promise<boolean> {
+  try {
+    return apiAllowed() && (await flagOn('share')) && (await flagOn('gallery'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The Community row: null until the flags say it is there, then its count.
+ * The count is asked when the menu is shown (and again on its return from
+ * a page), when the tab becomes visible while it is, and every
+ * `COUNTER_PERIOD_MS` while it is the top frame: the sync's cadence, never
+ * during a game (the counter itself checks).
+ */
+function useCommunityRow(isTop: boolean): { count: number } | null {
+  const [on, setOn] = useState(false);
+  const [n, setN] = useState(communityRuns);
+  useEffect(() => {
+    let live = true;
+    const off = onCommunityCount(setN);
+    whenIdle(() => void galleryOn().then((v) => live && setOn(v)));
+    return () => {
+      live = false;
+      off();
+    };
+  }, []);
+  useEffect(() => {
+    if (!on || !isTop) return;
+    void refreshCommunityCount();
+    const t = setInterval(() => void refreshCommunityCount(), COUNTER_PERIOD_MS);
+    const doc = globalThis.document;
+    const vis = (): void => {
+      if (doc.visibilityState === 'visible') void refreshCommunityCount();
+    };
+    doc?.addEventListener('visibilitychange', vis);
+    return () => {
+      clearInterval(t);
+      doc?.removeEventListener('visibilitychange', vis);
+    };
+  }, [on, isTop]);
+  return on ? { count: n } : null;
+}
+
+/** Opens the Community page (its lazy chunk first); `restore`: on the view kept before a run was opened. */
+function useCommunityPage(nav: ReturnType<typeof useNav>): (restore: boolean) => void {
+  const loading = useRef(false);
+  return (restore) => {
+    if (loading.current) return;
+    loading.current = true;
+    const depth = nav.depth();
+    // The page lives in the account pages' chunk (account/index.tsx): a chunk of its own splits the start page's.
+    void import('./account')
+      .then((m) => {
+        if (nav.depth() === depth) m.openCommunity(nav, { restore });
+      })
+      .catch(() => nav.flash('The Community could not be loaded. Check the connection and try again.', 'fail'))
+      .finally(() => {
+        loading.current = false;
+      });
+  };
+}
+
+// `<base>?community` (the watch page's Back for a run opened from the
+// Community page, community-model.ts `communityBackHref`): the page opens
+// over the menu once the flags are known, on its kept view, once per page
+// load; the query leaves the address at once.
+let communityAddressTaken = false;
+function useCommunityAddress(open: (restore: boolean) => void): void {
+  useEffect(() => {
+    if (communityAddressTaken) return;
+    const q = new URLSearchParams(location.search);
+    if (!q.has('community')) return;
+    communityAddressTaken = true;
+    q.delete('community');
+    const rest = q.toString().replace(/=(?=&|$)/g, '');
+    try {
+      history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
+    } catch {
+      /* the address keeps it; a reload opens the page again */
+    }
+    whenIdle(() => void galleryOn().then((on) => on && open(true)));
+  }, []);
 }
 
 // Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit

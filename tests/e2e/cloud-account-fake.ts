@@ -81,11 +81,14 @@ import {
   type Comment,
   type CommunityBoxes,
   COUNTER_RUNS,
+  DAY_RUN_DESCRIPTION_MAX,
+  type DayRun,
   GALLERY_PAGE_SIZE,
   GALLERY_PAGES_MAX,
   GALLERY_PERIOD_DAYS,
   GALLERY_PERIODS,
   GALLERY_SORTS,
+  HALL_OF_FAME_SIZE,
   type GalleryRow,
   type GallerySort,
   type MumeBoxes,
@@ -95,7 +98,6 @@ import {
   type Note,
   RANKING_AGE_DAYS,
   RUNES_SHOWN,
-  TOP_POSTERS,
   TOP_PRIOR_MEAN,
   TOP_PRIOR_VOTES,
 } from '../../shared/cloud/api';
@@ -688,7 +690,7 @@ export class FakeAccountServer {
   // worker/community.ts as an in-memory model (ADR 0155; the contract is
   // "The community" in shared/cloud/api.ts), for the views of part C:
   //
-  //   GET  /api/gallery, /api/gallery/random, /api/community, /api/runes
+  //   GET  /api/gallery (round 13: `by`, five sorts, pages of 10), /api/community, /api/runes
   //   GET  /api/pub/<id>/comments
   //   GET|PUT|DELETE /api/u/pub/<id>/vote, POST /api/u/pub/<id>/comments
   //   DELETE /api/u/comments/<id>, POST /api/u/runes, DELETE /api/u/runes/<id>
@@ -699,8 +701,8 @@ export class FakeAccountServer {
   // Listed runs are the store's `pubs` (seed one with `addPub(name,
   // {listed: true, listedAt})`); votes, comments and notes are seeded with
   // `addVote`, `addComment`, `addNote`. No cache: every answer is fresh.
-  // Not modelled: reports of comments and notes (the pub fake's
-  // `/api/u/report` answers run reports only) and the hiding by reports.
+  // Reports of notes are the pub fake's (`/api/u/report` with `kind: 'note'`,
+  // stage 65 C1); hiding by reports hides a note there.
 
   /** `<pub id>` → account key → the vote. */
   votes = new Map<string, Map<string, { stars: number; updated: number; ranks: boolean }>>();
@@ -826,6 +828,8 @@ export class FakeAccountServer {
     const newer = (a: FakePub, b: FakePub): number => b.pub.listedAt! - a.pub.listedAt! || (a.pub.id < b.pub.id ? -1 : 1);
     if (sort === 'new') return runs.sort(newer);
     if (sort === 'watched') return runs.sort((a, b) => b.pub.views - a.pub.views || newer(a, b));
+    if (sort === 'comments') return runs.sort((a, b) => this.commentCount(b.pub.id) - this.commentCount(a.pub.id) || newer(a, b));
+    if (sort === 'length') return runs.sort((a, b) => b.pub.lengthS - a.pub.lengthS || newer(a, b));
     return runs.sort((a, b) => score(b) - score(a) || ranking(b.pub.id).count - ranking(a.pub.id).count || newer(a, b));
   }
 
@@ -840,7 +844,7 @@ export class FakeAccountServer {
   /** True for a path the community answers (public or under `/api/u/`). */
   static isCommunityPath(path: string): boolean {
     return (
-      ['/api/gallery', '/api/gallery/random', '/api/community', '/api/runes', '/api/u/runes', '/api/u/community/news', '/api/u/community/seen'].includes(path) ||
+      ['/api/gallery', '/api/community', '/api/runes', '/api/u/runes', '/api/u/community/news', '/api/u/community/seen'].includes(path) ||
       /^\/api\/pub\/[^/]+\/comments$/.test(path) ||
       /^\/api\/u\/pub\/[^/]+\/(vote|comments)$/.test(path) ||
       /^\/api\/u\/(comments|runes)\/[^/]+$/.test(path)
@@ -858,36 +862,26 @@ export class FakeAccountServer {
     if (!path.startsWith('/api/u/')) {
       if (req.method !== 'GET') return err('method_not_allowed', 405);
       if (path === '/api/gallery') {
-        const sort = (q.get('sort') ?? 'top') as GallerySort;
+        const sort = (q.get('sort') ?? 'new') as GallerySort;
         const period = q.get('period') ?? 'all';
         const page = Number(q.get('page') ?? '1');
         if (!GALLERY_SORTS.includes(sort) || !(GALLERY_PERIODS as readonly string[]).includes(period) || !Number.isInteger(page) || page < 1 || page > GALLERY_PAGES_MAX) return err('bad_request', 400);
         const days = GALLERY_PERIOD_DAYS[period as keyof typeof GALLERY_PERIOD_DAYS];
-        const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000);
+        const by = q.get('by');
+        const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000).filter((p) => by === null || p.account === by.toLowerCase());
         const rows = runs.slice((page - 1) * GALLERY_PAGE_SIZE, page * GALLERY_PAGE_SIZE).map((p) => this.row(p));
-        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, time: t } };
-      }
-      if (path === '/api/gallery/random') {
-        const runs = this.listed();
-        return { status: 200, body: { id: runs.length ? runs[Math.floor(Math.random() * runs.length)]!.pub.id : null } };
+        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, total: Math.min(runs.length, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX), time: t } };
       }
       if (path === '/api/community') {
-        const counts = new Map<string, number>();
-        for (const p of this.listed()) counts.set(p.account, (counts.get(p.account) ?? 0) + 1);
-        const topPosters = [...counts]
-          .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-          .slice(0, TOP_POSTERS)
-          .map(([k, runs]) => ({ name: this.accountName(k) ?? k, runs }));
         const dayStart = (ms: number): number => Date.parse(`${new Date(ms).toISOString().slice(0, 10)}T00:00:00Z`);
-        const ofDay = (start: number): GalleryRow | null => {
+        const ofDay = (start: number): DayRun | null => {
           const before = this.listed().filter((p) => p.pub.listedAt! < start).sort((a, b) => (a.pub.id < b.pub.id ? -1 : 1));
-          return before.length ? this.row(before[(start / 86_400_000) % before.length]!) : null;
+          const p = before[(start / 86_400_000) % before.length];
+          return p ? { ...this.row(p), description: [...p.pub.description].slice(0, DAY_RUN_DESCRIPTION_MAX).join('') } : null;
         };
         const boxes: CommunityBoxes = {
-          topPosters,
-          hallOfFame: this.sorted('top', 0).slice(0, 8).map((p) => this.row(p)),
+          hallOfFame: this.sorted('top', 0).slice(0, HALL_OF_FAME_SIZE).map((p) => this.row(p)),
           today: ofDay(dayStart(t)),
-          yesterday: ofDay(dayStart(t) - 86_400_000),
           ...(this.mume ? { mume: this.mume } : {}),
           time: t,
         };

@@ -963,7 +963,8 @@ export interface AdminLogEntry {
 export const COMMENT_MAX = 1000;
 /** Line breaks a comment may have. */
 export const COMMENT_NEWLINES_MAX = 20;
-export const NOTE_MAX = 500;
+/** A note's longest text (owner, round 13: 250, was 500). */
+export const NOTE_MAX = 250;
 /** Visible comments a run can have (`409 full`). */
 export const COMMENTS_PER_RUN = 1000;
 /** Comments per page of `GET /api/pub/<id>/comments`. */
@@ -972,9 +973,9 @@ export const COMMENTS_PAGE_SIZE = 50;
 export const RUNES_SHOWN = 50;
 /** A note goes after this many days (the daily cron). */
 export const NOTE_DAYS = 30;
-/** Rows per page of `GET /api/gallery`, and the deepest page. */
-export const GALLERY_PAGE_SIZE = 30;
-export const GALLERY_PAGES_MAX = 34;
+/** Rows per page of `GET /api/gallery`, and the deepest page (round 13: pages of 10, 1 000 runs deep). */
+export const GALLERY_PAGE_SIZE = 10;
+export const GALLERY_PAGES_MAX = 100;
 /** Top's prior (ADR 0148): `(C·m + top_sum) / (C + top_count)`. */
 export const TOP_PRIOR_VOTES = 5;
 /** Top's prior mean when no ranking vote exists. */
@@ -988,7 +989,8 @@ export const COUNTER_RUNS = 99;
 /** The longest time `GET /api/gallery`, `/api/community` and `/api/runes` are cached (s). */
 export const COMMUNITY_CACHE_SECONDS = 60;
 
-export const GALLERY_SORTS = ['top', 'new', 'watched'] as const;
+/** The list's orders (round 13: `new` the default; `comments` and `length` added for the column headings). */
+export const GALLERY_SORTS = ['new', 'top', 'watched', 'comments', 'length'] as const;
 export type GallerySort = (typeof GALLERY_SORTS)[number];
 export const GALLERY_PERIODS = ['week', 'month', 'all'] as const;
 export type GalleryPeriod = (typeof GALLERY_PERIODS)[number];
@@ -1017,17 +1019,26 @@ export interface GalleryRow {
 }
 
 /**
- * `GET /api/gallery?sort=top|new|watched&period=week|month|all&page=N`
- * (public) → `GalleryPage`. Defaults: `top`, `all`, `1`. Only active,
+ * `GET /api/gallery?sort=new|top|watched|comments|length&period=week|month|all&page=N&by=<name>`
+ * (public) → `GalleryPage`. Defaults: `new`, `all`, `1`. Only active,
  * listed runs. **Top**: `(C·m + top_sum) / (C + top_count)` with `C =
  * TOP_PRIOR_VOTES` and `m` the mean of all ranking votes on listed active
  * runs (`TOP_PRIOR_MEAN` without any), then more ranking votes, then the
  * newer `listedAt`. **New**: `listedAt`, newest first. **Most watched**:
- * `views`, then the newer `listedAt`. `period` keeps the runs listed in
- * the last 7 or 30 days. A page past the end is empty (`more: false`).
+ * `views`, then the newer `listedAt`. **Comments**: `comments`, then the
+ * newer `listedAt`. **Length**: `lengthS` (longest first), then the newer
+ * `listedAt`. `period` keeps the runs listed in the last 7 or 30 days. A
+ * page past the end is empty (`more: false`).
+ *
+ * `by=<name>` (round 13, a sender's runs): only that account's listed
+ * active runs, in `sort`'s order (the client asks `new`). A name that is
+ * unknown, deleted or not a valid name gives an empty list, never an
+ * error, so the answer never tells whether a name exists. The name is
+ * matched without regard to case; the cache keeps its lowercase.
  *
  * As built (stage 65 B): a value outside its list, or a `page` that is
- * not a whole number 1–`GALLERY_PAGES_MAX` → `400 bad_request`; unknown
+ * not a whole number 1–`GALLERY_PAGES_MAX` → `400 bad_request` (`by`
+ * is never refused); unknown
  * parameters are ignored. `Cache-Control: public, max-age=60`; the Worker
  * keeps each normalised variant in the Cache API for 60 s, so an answer can
  * be up to a minute old (`time` is when it was made). Ties end on the id.
@@ -1039,26 +1050,37 @@ export interface GalleryPage {
   rows: GalleryRow[];
   /** Another page has rows (and `page < GALLERY_PAGES_MAX`). */
   more: boolean;
+  /**
+   * The runs of this list over every page (round 13: the pager's "Page 1
+   * of N"), at most `GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX`.
+   */
+  total: number;
   time: number;
 }
 
+/** The run of the day: its row and its description, cut to `DAY_RUN_DESCRIPTION_MAX` code points. */
+export interface DayRun extends GalleryRow {
+  description: string;
+}
+
+/** The run of the day's description is cut to this many code points. */
+export const DAY_RUN_DESCRIPTION_MAX = 300;
+
 /**
  * `GET /api/community` (public, cached 60 s as the list) → the Hall of
- * Fame boxes. `today` and `yesterday`: the random run of that UTC day,
- * fixed for the day (among the runs listed before the day began, the one
+ * Fame boxes (round 13: no top posters, no yesterday). `today`: the
+ * random run of the UTC day, with its description cut, fixed for the day (among the runs listed before the day began, the one
  * whose id has the smallest HMAC-SHA-256 under the server's secret and the
  * day); null when there is none. `mume` (ADR 0155, "MUME's lists and
  * player count"; fetched by part C5's cron into `mume_cache`) is present
  * only while the lists were fetched less than `MUME_KEEP_HOURS` ago;
- * `players` only while that probe's row is as fresh.
+ * `players` beside them only while its probe is under 35 minutes old
+ * (worker/mume.ts `readMume`, stage 65 C5).
  */
 export interface CommunityBoxes {
-  /** The `TOP_POSTERS` accounts with most active listed runs, most first (ties: the name). */
-  topPosters: Array<{ name: string; runs: number }>;
   /** Top's first `HALL_OF_FAME_SIZE` over all time. */
   hallOfFame: GalleryRow[];
-  today: GalleryRow | null;
-  yesterday: GalleryRow | null;
+  today: DayRun | null;
   mume?: MumeBoxes;
   time: number;
 }
@@ -1086,13 +1108,7 @@ export const MUME_CACHE_KEYS = ['war', 'players'] as const;
 /** A `mume_cache` row older than this is not shown. */
 export const MUME_KEEP_HOURS = 24;
 
-export const TOP_POSTERS = 5;
 export const HALL_OF_FAME_SIZE = 8;
-
-/** `GET /api/gallery/random` (public, `no-store`) → one random active listed run ("show another"); `id` null when there is none. */
-export interface GalleryRandom {
-  id: string | null;
-}
 
 /**
  * `PUT /api/u/pub/<id>/vote` `{stars: 1–5}` → `VoteAnswer`; `DELETE` takes

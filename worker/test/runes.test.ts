@@ -29,15 +29,15 @@ describe('Random Runes', () => {
     expect(b.time).toBe(NOW + 100);
   });
 
-  it('one line, 1–500 code points, the text rules; suspended and the flags off refused', async () => {
+  it('one line, 1–250 (round 13) code points, the text rules; suspended and the flags off refused', async () => {
     const alice = await signUp('alice');
     await setLimits('alice', { notesPerDay: 100 });
-    for (const text of ['', 'two\nlines', 'x'.repeat(501), ` x`, `a${String.fromCodePoint(0x200b)}b`]) {
+    for (const text of ['', 'two\nlines', 'x'.repeat(251), ` x`, `a${String.fromCodePoint(0x200b)}b`]) {
       const res = await note(alice, text);
       expect(res.status, JSON.stringify(text)).toBe(400);
       expect(await res.json()).toEqual({ error: 'bad_text' });
     }
-    expect((await note(alice, 'x'.repeat(500))).status).toBe(200);
+    expect((await note(alice, '🐉'.repeat(250))).status).toBe(200);
     for (const env of [cenvOf({ FLAG_RUNES: false }), cenvOf({ FLAG_GALLERY: false })]) {
       expect((await note(alice, 'hi', { env })).status).toBe(404);
       expect((await ccall('DELETE', '/api/u/runes/AAAAAAAAAAAA', undefined, { cookie: alice, env })).status).toBe(404);
