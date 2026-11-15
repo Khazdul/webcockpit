@@ -73,6 +73,33 @@ import {
   WRAP_MAX_BYTES,
   WRAP_MIN_BYTES,
 } from '../../shared/cloud/api';
+import {
+  COMMENT_MAX,
+  COMMENT_NEWLINES_MAX,
+  COMMENTS_PAGE_SIZE,
+  COMMENTS_PER_RUN,
+  type Comment,
+  type CommunityBoxes,
+  COUNTER_RUNS,
+  GALLERY_PAGE_SIZE,
+  GALLERY_PAGES_MAX,
+  GALLERY_PERIOD_DAYS,
+  GALLERY_PERIODS,
+  GALLERY_SORTS,
+  type GalleryRow,
+  type GallerySort,
+  type MumeBoxes,
+  NEWS_MAX,
+  NOTE_DAYS,
+  NOTE_MAX,
+  type Note,
+  RANKING_AGE_DAYS,
+  RUNES_SHOWN,
+  TOP_POSTERS,
+  TOP_PRIOR_MEAN,
+  TOP_PRIOR_VOTES,
+} from '../../shared/cloud/api';
+import { isPublicText } from '../../shared/cloud/text';
 import { ServerModel } from '../unit/cloud-sync-model';
 
 /** Cloudflare's published test site key (always passes). */
@@ -521,22 +548,26 @@ export class FakeAccountServer {
         character: o.character ?? 'Rasta',
         ...(o.level !== undefined ? { level: o.level } : {}),
         lengthS: o.lengthS ?? 60,
-        listed: false,
+        listed: o.listed ?? false,
+        ...(o.listedAt !== undefined || o.listed ? { listedAt: o.listedAt ?? t } : {}),
         state: o.state ?? 'active',
         created: o.created ?? t,
         updated: o.updated ?? o.created ?? t,
         views: o.views ?? 0,
         bytes: o.bytes ?? 2,
+        stars: { sum: 0, count: 0 },
+        comments: 0,
+        news: { votes: 0, comments: 0 },
       },
     });
     return id;
   }
 
-  /** The account's runs, newest first (as `GET /api/u/pub`). */
+  /** The account's runs, newest first (as `GET /api/u/pub`), with their stars, comments and what is new (stage 65). */
   pubsOf(name: string): MyPub[] {
     return [...this.pubs.values()]
       .filter((p) => p.account === name.toLowerCase())
-      .map((p) => ({ ...p.pub }))
+      .map((p) => this.withReactions(p))
       .sort((a, b) => b.created - a.created || (a.id < b.id ? -1 : 1));
   }
 
@@ -595,15 +626,17 @@ export class FakeAccountServer {
       if (key !== undefined && (typeof key !== 'string' || !/^[A-Za-z0-9_-]{16,32}$/.test(key))) return err('bad_request', 400);
       const textOk = (v: unknown, min: number, max: number): boolean => typeof v === 'string' && [...v].length >= min && [...v].length <= max && v === v.trim();
       if (!textOk(m.title, 1, PUB_TITLE_MAX) || typeof m.description !== 'string' || [...m.description].length > PUB_DESCRIPTION_MAX || !textOk(m.character, 0, 40)) return err('bad_request', 400);
-      if (m.listed !== false || !Number.isInteger(m.lengthS) || m.lengthS < 0 || (m.level !== undefined && !Number.isInteger(m.level))) return err('bad_request', 400);
+      // Hall of Fame (stage 65): `listed: true` with the flag `gallery` on, at most `listingsPerDay` first listings a UTC day.
+      if (typeof m.listed !== 'boolean' || (m.listed && this.flags.gallery !== true) || !Number.isInteger(m.lengthS) || m.lengthS < 0 || (m.level !== undefined && !Number.isInteger(m.level))) return err('bad_request', 400);
       if (payload[0] !== 0x1f || payload[1] !== 0x8b) return err('bad_request', 400);
       // A repeated key answers the run it made (review fix CR3).
       const made = key === undefined ? undefined : this.pubKeys.get(`${account.key}|${key}`);
       if (made && this.pubs.has(made)) return { status: 200, body: { pub: { ...this.pubs.get(made)!.pub } } };
       if (this.pubsOf(account.key).length >= account.limits.sharedRuns) return { status: 413, body: { error: 'pub_quota', limit: account.limits.sharedRuns } };
-      const id = this.addPub(account.key, { ...m, created: t, updated: t, bytes: payload.length, payload: new Uint8Array(payload) });
+      if (m.listed && this.listingsToday(account.key) >= account.limits.listingsPerDay) return err('too_many', 429);
+      const id = this.addPub(account.key, { ...m, created: t, updated: t, bytes: payload.length, payload: new Uint8Array(payload), ...(m.listed ? { listedAt: t } : {}) });
       if (key !== undefined) this.pubKeys.set(`${account.key}|${key}`, id);
-      return { status: 200, body: { pub: { ...this.pubs.get(id)!.pub } } };
+      return { status: 200, body: { pub: this.withReactions(this.pubs.get(id)!) } };
     }
     const id = req.path.slice('/api/u/pub/'.length);
     const p = /^[A-Za-z0-9]{12}$/.test(id) ? this.pubs.get(id) : undefined;
@@ -624,24 +657,371 @@ export class FakeAccountServer {
           views: pub.views,
           bytes: pub.bytes,
           ...(pub.state === 'hidden' ? { hidden: true } : {}),
+          ...(this.flags.gallery === true ? { listed: pub.listed, stars: this.starsOf(id), comments: this.commentCount(id) } : {}),
         },
       };
     }
     if (req.method === 'DELETE') {
       this.pubs.delete(id);
+      this.dropCommunityOf(id);
       return { status: 204 };
     }
     if (req.method !== 'PATCH') return err('method_not_allowed', 405);
     if (account.state === 'suspended') return err('suspended', 403);
     if (p.pub.state === 'hidden') return err('hidden', 403);
-    const b = this.body(req, [], ['title', 'description']);
+    const b = this.body(req, [], ['title', 'description', 'listed']);
     if (!b || Object.keys(b).length === 0) return err('bad_request', 400);
+    // Stage 65: list (flag `gallery`; a first listing counts against `listingsPerDay`) or unlist; `listedAt` is set once.
+    if (b.listed !== undefined && (typeof b.listed !== 'boolean' || (b.listed && this.flags.gallery !== true))) return err('bad_request', 400);
+    if (b.listed === true && p.pub.listedAt === undefined) {
+      if (this.listingsToday(account.key) >= account.limits.listingsPerDay) return err('too_many', 429);
+      p.pub.listedAt = t;
+    }
     if (b.title !== undefined && (typeof b.title !== 'string' || b.title.trim() === '' || b.title !== b.title.trim() || [...b.title].length > PUB_TITLE_MAX)) return err('bad_request', 400);
     if (b.description !== undefined && (typeof b.description !== 'string' || [...b.description].length > PUB_DESCRIPTION_MAX)) return err('bad_request', 400);
     p.pub = { ...p.pub, ...(b as PubPatch), updated: t };
-    return { status: 200, body: { pub: { ...p.pub } } };
+    return { status: 200, body: { pub: this.withReactions(p) } };
   }
   // =================== end of Share links (stage 64 C1) ===================
+
+  // ===================== The community (stage 65 B) =====================
+  // worker/community.ts as an in-memory model (ADR 0155; the contract is
+  // "The community" in shared/cloud/api.ts), for the views of part C:
+  //
+  //   GET  /api/gallery, /api/gallery/random, /api/community, /api/runes
+  //   GET  /api/pub/<id>/comments
+  //   GET|PUT|DELETE /api/u/pub/<id>/vote, POST /api/u/pub/<id>/comments
+  //   DELETE /api/u/comments/<id>, POST /api/u/runes, DELETE /api/u/runes/<id>
+  //   GET  /api/u/community/news, POST /api/u/community/seen
+  //   `listed` of GET /api/stats/public: `publicStats()`
+  //
+  // Behind `flags.share` and `flags.gallery` (the board `flags.runes` too).
+  // Listed runs are the store's `pubs` (seed one with `addPub(name,
+  // {listed: true, listedAt})`); votes, comments and notes are seeded with
+  // `addVote`, `addComment`, `addNote`. No cache: every answer is fresh.
+  // Not modelled: reports of comments and notes (the pub fake's
+  // `/api/u/report` answers run reports only) and the hiding by reports.
+
+  /** `<pub id>` → account key → the vote. */
+  votes = new Map<string, Map<string, { stars: number; updated: number; ranks: boolean }>>();
+  /** Every comment, by id (`state` 'hidden' is shown to no one). */
+  comments = new Map<string, { id: string; pub: string; account: string; text: string; created: number; state: 'active' | 'hidden' }>();
+  /** Every note, by id. */
+  notes = new Map<string, { id: string; account: string; text: string; created: number; state: 'active' | 'hidden' }>();
+  /** account key → its seen times. */
+  seenTimes = new Map<string, { gallery: number; reactions: number }>();
+  /** MUME's boxes of `GET /api/community` (absent until a test sets them). */
+  mume: MumeBoxes | null = null;
+  /** Every community request fails as if the network were down. */
+  communityOffline = false;
+
+  private listingsToday(key: string): number {
+    const start = Date.parse(`${new Date(this.clock).toISOString().slice(0, 10)}T00:00:00Z`);
+    return [...this.pubs.values()].filter((p) => p.account === key && (p.pub.listedAt ?? -1) >= start).length;
+  }
+
+  private communityId(): string {
+    const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let id = '';
+    for (const b of crypto.getRandomValues(new Uint8Array(12))) id += abc[b % abc.length];
+    return id;
+  }
+
+  private liveVoter(key: string): boolean {
+    return this.accounts.get(key)?.state === 'active';
+  }
+
+  /** A run's stars (suspended accounts' votes out, as the Worker's sums). */
+  starsOf(id: string): { sum: number; count: number } {
+    let sum = 0;
+    let count = 0;
+    for (const [key, v] of this.votes.get(id) ?? []) {
+      if (!this.liveVoter(key)) continue;
+      sum += v.stars;
+      count++;
+    }
+    return { sum, count };
+  }
+
+  commentCount(id: string): number {
+    return [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').length;
+  }
+
+  private seenOf(key: string): { gallery: number; reactions: number } {
+    return this.seenTimes.get(key) ?? { gallery: 0, reactions: 0 };
+  }
+
+  private withReactions(p: FakePub): MyPub {
+    const seen = this.seenOf(p.account).reactions;
+    const votes = [...(this.votes.get(p.pub.id) ?? [])].filter(([, v]) => v.updated > seen).length;
+    const comments = [...this.comments.values()].filter((c) => c.pub === p.pub.id && c.state === 'active' && c.created > seen && c.account !== p.account).length;
+    return { ...p.pub, stars: this.starsOf(p.pub.id), comments: this.commentCount(p.pub.id), news: { votes: Math.min(NEWS_MAX, votes), comments: Math.min(NEWS_MAX, comments) } };
+  }
+
+  private dropCommunityOf(id: string): void {
+    this.votes.delete(id);
+    for (const [k, c] of this.comments) if (c.pub === id) this.comments.delete(k);
+  }
+
+  /** A vote, as if `name` had cast it `ago` ms ago; `ranks` defaults to the account's age (7 days). */
+  addVote(name: string, id: string, stars: number, o: { ago?: number; ranks?: boolean } = {}): void {
+    const key = name.toLowerCase();
+    const at = this.clock - (o.ago ?? 0);
+    const a = this.accounts.get(key);
+    const ranks = o.ranks ?? (a !== undefined && at - a.created >= RANKING_AGE_DAYS * 86_400_000);
+    const m = this.votes.get(id) ?? new Map();
+    m.set(key, { stars, updated: at, ranks });
+    this.votes.set(id, m);
+  }
+
+  /** A comment by `name` on `id`, `ago` ms ago. Returns its id. */
+  addComment(name: string, id: string, text: string, o: { ago?: number; state?: 'active' | 'hidden' } = {}): string {
+    const cid = this.communityId();
+    this.comments.set(cid, { id: cid, pub: id, account: name.toLowerCase(), text, created: this.clock - (o.ago ?? 0), state: o.state ?? 'active' });
+    return cid;
+  }
+
+  /** A note by `name`, `ago` ms ago. Returns its id. */
+  addNote(name: string, text: string, o: { ago?: number; state?: 'active' | 'hidden' } = {}): string {
+    const id = this.communityId();
+    this.notes.set(id, { id, account: name.toLowerCase(), text, created: this.clock - (o.ago ?? 0), state: o.state ?? 'active' });
+    return id;
+  }
+
+  private listed(): FakePub[] {
+    return [...this.pubs.values()].filter((p) => p.pub.listed && p.pub.state === 'active' && p.pub.listedAt !== undefined);
+  }
+
+  private row(p: FakePub): GalleryRow {
+    const { pub } = p;
+    return {
+      id: pub.id,
+      title: pub.title,
+      sender: this.accountName(p.account) ?? '',
+      character: pub.character,
+      ...(pub.level !== undefined ? { level: pub.level } : {}),
+      lengthS: pub.lengthS,
+      listedAt: pub.listedAt!,
+      views: pub.views,
+      stars: this.starsOf(pub.id),
+      comments: this.commentCount(pub.id),
+    };
+  }
+
+  private sorted(sort: GallerySort, since: number): FakePub[] {
+    const runs = this.listed().filter((p) => p.pub.listedAt! >= since);
+    const ranking = (id: string): { sum: number; count: number } => {
+      let sum = 0;
+      let count = 0;
+      for (const [key, v] of this.votes.get(id) ?? []) if (v.ranks && this.liveVoter(key)) (sum += v.stars), count++;
+      return { sum, count };
+    };
+    const all = this.listed().map((p) => ranking(p.pub.id));
+    const total = all.reduce((s, r) => s + r.count, 0);
+    const mean = total > 0 ? all.reduce((s, r) => s + r.sum, 0) / total : TOP_PRIOR_MEAN;
+    const score = (p: FakePub): number => {
+      const r = ranking(p.pub.id);
+      return (TOP_PRIOR_VOTES * mean + r.sum) / (TOP_PRIOR_VOTES + r.count);
+    };
+    const newer = (a: FakePub, b: FakePub): number => b.pub.listedAt! - a.pub.listedAt! || (a.pub.id < b.pub.id ? -1 : 1);
+    if (sort === 'new') return runs.sort(newer);
+    if (sort === 'watched') return runs.sort((a, b) => b.pub.views - a.pub.views || newer(a, b));
+    return runs.sort((a, b) => score(b) - score(a) || ranking(b.pub.id).count - ranking(a.pub.id).count || newer(a, b));
+  }
+
+  /** `listed` of `GET /api/stats/public` (the fake's stats endpoint is the e2e's own; call this from it). */
+  publicListed(): number[] {
+    return this.listed()
+      .map((p) => p.pub.listedAt!)
+      .sort((a, b) => b - a)
+      .slice(0, COUNTER_RUNS);
+  }
+
+  /** True for a path the community answers (public or under `/api/u/`). */
+  static isCommunityPath(path: string): boolean {
+    return (
+      ['/api/gallery', '/api/gallery/random', '/api/community', '/api/runes', '/api/u/runes', '/api/u/community/news', '/api/u/community/seen'].includes(path) ||
+      /^\/api\/pub\/[^/]+\/comments$/.test(path) ||
+      /^\/api\/u\/pub\/[^/]+\/(vote|comments)$/.test(path) ||
+      /^\/api\/u\/(comments|runes)\/[^/]+$/.test(path)
+    );
+  }
+
+  /** One community request (`isCommunityPath`). */
+  community(req: FakeRequest, cookie: string | null): FakeResponse | 'offline' {
+    if (this.communityOffline) return 'offline';
+    const path = req.path;
+    const runes = path === '/api/runes' || path.startsWith('/api/u/runes');
+    if (this.flags.share !== true || this.flags.gallery !== true || (runes && this.flags.runes !== true)) return err('not_found', 404);
+    const t = this.clock;
+    const q = new URLSearchParams(req.search ?? '');
+    if (!path.startsWith('/api/u/')) {
+      if (req.method !== 'GET') return err('method_not_allowed', 405);
+      if (path === '/api/gallery') {
+        const sort = (q.get('sort') ?? 'top') as GallerySort;
+        const period = q.get('period') ?? 'all';
+        const page = Number(q.get('page') ?? '1');
+        if (!GALLERY_SORTS.includes(sort) || !(GALLERY_PERIODS as readonly string[]).includes(period) || !Number.isInteger(page) || page < 1 || page > GALLERY_PAGES_MAX) return err('bad_request', 400);
+        const days = GALLERY_PERIOD_DAYS[period as keyof typeof GALLERY_PERIOD_DAYS];
+        const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000);
+        const rows = runs.slice((page - 1) * GALLERY_PAGE_SIZE, page * GALLERY_PAGE_SIZE).map((p) => this.row(p));
+        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, time: t } };
+      }
+      if (path === '/api/gallery/random') {
+        const runs = this.listed();
+        return { status: 200, body: { id: runs.length ? runs[Math.floor(Math.random() * runs.length)]!.pub.id : null } };
+      }
+      if (path === '/api/community') {
+        const counts = new Map<string, number>();
+        for (const p of this.listed()) counts.set(p.account, (counts.get(p.account) ?? 0) + 1);
+        const topPosters = [...counts]
+          .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+          .slice(0, TOP_POSTERS)
+          .map(([k, runs]) => ({ name: this.accountName(k) ?? k, runs }));
+        const dayStart = (ms: number): number => Date.parse(`${new Date(ms).toISOString().slice(0, 10)}T00:00:00Z`);
+        const ofDay = (start: number): GalleryRow | null => {
+          const before = this.listed().filter((p) => p.pub.listedAt! < start).sort((a, b) => (a.pub.id < b.pub.id ? -1 : 1));
+          return before.length ? this.row(before[(start / 86_400_000) % before.length]!) : null;
+        };
+        const boxes: CommunityBoxes = {
+          topPosters,
+          hallOfFame: this.sorted('top', 0).slice(0, 8).map((p) => this.row(p)),
+          today: ofDay(dayStart(t)),
+          yesterday: ofDay(dayStart(t) - 86_400_000),
+          ...(this.mume ? { mume: this.mume } : {}),
+          time: t,
+        };
+        return { status: 200, body: boxes };
+      }
+      if (path === '/api/runes') {
+        const notes: Note[] = [...this.notes.values()]
+          .filter((n) => n.state === 'active' && n.created > t - NOTE_DAYS * 86_400_000)
+          .sort((a, b) => b.created - a.created)
+          .slice(0, RUNES_SHOWN)
+          .map((n) => ({ id: n.id, writer: this.accountName(n.account) ?? '', text: n.text, created: n.created }));
+        return { status: 200, body: { notes, time: t } };
+      }
+      // /api/pub/<id>/comments
+      const id = path.split('/')[3]!;
+      const p = this.pubs.get(id);
+      if (!p) return err('not_found', 404);
+      if (p.pub.state === 'hidden') return err('hidden', 451);
+      const pageText = q.get('page') ?? 'last';
+      if (pageText !== 'last' && !/^[1-9]\d*$/.test(pageText)) return err('bad_request', 400);
+      const all = [...this.comments.values()].filter((c) => c.pub === id && c.state === 'active').sort((a, b) => a.created - b.created);
+      const pages = Math.max(1, Math.ceil(all.length / COMMENTS_PAGE_SIZE));
+      const page = pageText === 'last' ? pages : Number(pageText);
+      const comments: Comment[] = all
+        .slice((page - 1) * COMMENTS_PAGE_SIZE, page * COMMENTS_PAGE_SIZE)
+        .map((c) => ({ id: c.id, writer: this.accountName(c.account) ?? '', text: c.text, created: c.created }));
+      return { status: 200, body: { comments, page, pages, total: all.length } };
+    }
+
+    if (this.flags.accounts !== true) return err('not_found', 404);
+    if (req.method !== 'GET' && !(req.headers['x-wc'] === '1' && req.headers.origin === req.origin)) return err('forbidden', 403);
+    const session = cookie !== null ? this.sessions.get(cookie) : undefined;
+    if (!session || session.expires <= this.clock) return this.gone(cookie);
+    const account = this.accounts.get(session.account);
+    if (!account) return err('unauthorized', 401);
+    const me = account.key;
+    const hour = (ms: number): boolean => ms > t - 3_600_000;
+
+    let m = /^\/api\/u\/pub\/([^/]+)\/(vote|comments)$/.exec(path);
+    if (m) {
+      const id = m[1]!;
+      const p = this.pubs.get(id);
+      if (m[2] === 'comments') {
+        if (req.method !== 'POST') return err('method_not_allowed', 405);
+        if (account.state === 'suspended') return err('suspended', 403);
+        const b = this.body(req, ['text']);
+        if (!b) return err('bad_request', 400);
+        const text = b.text;
+        if (typeof text !== 'string' || text !== text.trim() || [...text].length < 1 || [...text].length > COMMENT_MAX || !isPublicText(text, { newlines: COMMENT_NEWLINES_MAX })) return err('bad_text', 400);
+        if (!p || p.pub.state !== 'active') return err('not_found', 404);
+        if (this.commentCount(id) >= COMMENTS_PER_RUN) return err('full', 409);
+        if ([...this.comments.values()].filter((c) => c.account === me && hour(c.created)).length >= account.limits.commentsPerHour) return err('too_many', 429);
+        const cid = this.addComment(me, id, text);
+        return { status: 200, body: { comment: { id: cid, writer: account.name, text, created: t } } };
+      }
+      const answer = (): FakeResponse => ({ status: 200, body: { stars: this.starsOf(id), mine: this.votes.get(id)?.get(me)?.stars ?? null } });
+      if (req.method === 'GET') return p && p.pub.state === 'active' ? answer() : err('not_found', 404);
+      if (req.method === 'DELETE') {
+        if (account.state === 'suspended') return err('suspended', 403);
+        if (!p) return err('not_found', 404);
+        this.votes.get(id)?.delete(me);
+        return answer();
+      }
+      if (req.method !== 'PUT') return err('method_not_allowed', 405);
+      if (account.state === 'suspended') return err('suspended', 403);
+      const b = this.body(req, ['stars']);
+      if (!b || typeof b.stars !== 'number' || !Number.isInteger(b.stars) || b.stars < 1 || b.stars > 5) return err('bad_request', 400);
+      if (!p || p.pub.state !== 'active') return err('not_found', 404);
+      if (p.account === me) return err('own', 403);
+      const others = [...this.votes].filter(([pid, v]) => pid !== id && hour(v.get(me)?.updated ?? -Infinity)).length;
+      if (others >= account.limits.votesPerHour) return err('too_many', 429);
+      this.addVote(me, id, b.stars);
+      return answer();
+    }
+    m = /^\/api\/u\/comments\/([^/]+)$/.exec(path);
+    if (m) {
+      if (req.method !== 'DELETE') return err('method_not_allowed', 405);
+      const c = this.comments.get(m[1]!);
+      if (!c || (c.account !== me && this.pubs.get(c.pub)?.account !== me)) return err('not_found', 404);
+      this.comments.delete(c.id);
+      return { status: 204 };
+    }
+    if (path === '/api/u/runes') {
+      if (req.method !== 'POST') return err('method_not_allowed', 405);
+      if (account.state === 'suspended') return err('suspended', 403);
+      const b = this.body(req, ['text']);
+      if (!b) return err('bad_request', 400);
+      const text = b.text;
+      if (typeof text !== 'string' || text !== text.trim() || [...text].length < 1 || [...text].length > NOTE_MAX || !isPublicText(text, { newlines: 0 })) return err('bad_text', 400);
+      const start = Date.parse(`${new Date(t).toISOString().slice(0, 10)}T00:00:00Z`);
+      if ([...this.notes.values()].filter((n) => n.account === me && n.created >= start).length >= account.limits.notesPerDay) return err('too_many', 429);
+      const id = this.addNote(me, text);
+      return { status: 200, body: { note: { id, writer: account.name, text, created: t } } };
+    }
+    m = /^\/api\/u\/runes\/([^/]+)$/.exec(path);
+    if (m) {
+      if (req.method !== 'DELETE') return err('method_not_allowed', 405);
+      const n = this.notes.get(m[1]!);
+      if (!n || n.account !== me) return err('not_found', 404);
+      this.notes.delete(n.id);
+      return { status: 204 };
+    }
+    const seen = this.seenOf(me);
+    if (path === '/api/u/community/news') {
+      if (req.method !== 'GET') return err('method_not_allowed', 405);
+      const runs = this.listed().filter((p) => p.account !== me && p.pub.listedAt! > seen.gallery);
+      const mine = new Set([...this.pubs.values()].filter((p) => p.account === me && p.pub.state === 'active').map((p) => p.pub.id));
+      const times = [
+        ...[...this.votes].filter(([id]) => mine.has(id)).flatMap(([, v]) => [...v].filter(([k, x]) => k !== me && x.updated > seen.reactions).map(([, x]) => x.updated)),
+        ...[...this.comments.values()].filter((c) => mine.has(c.pub) && c.account !== me && c.state === 'active' && c.created > seen.reactions).map((c) => c.created),
+      ];
+      return {
+        status: 200,
+        body: {
+          runs: Math.min(NEWS_MAX, runs.length),
+          reactions: Math.min(NEWS_MAX, times.length),
+          newestRun: runs.length ? Math.max(...runs.map((p) => p.pub.listedAt!)) : null,
+          newestReaction: times.length ? Math.max(...times) : null,
+        },
+      };
+    }
+    // /api/u/community/seen
+    if (req.method !== 'POST') return err('method_not_allowed', 405);
+    const b = this.body(req, [], ['gallery', 'reactions']);
+    const whole = (v: unknown): boolean => v === undefined || (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0);
+    if (!b || Object.keys(b).length === 0 || !whole(b.gallery) || !whole(b.reactions)) return err('bad_request', 400);
+    const next = {
+      gallery: b.gallery === undefined ? seen.gallery : Math.max(seen.gallery, Math.min(b.gallery as number, t)),
+      reactions: b.reactions === undefined ? seen.reactions : Math.max(seen.reactions, Math.min(b.reactions as number, t)),
+    };
+    this.seenTimes.set(me, next);
+    return { status: 200, body: next };
+  }
+  // =================== end of The community (stage 65 B) ===================
 
   // --- The server ---
 
@@ -1063,6 +1443,13 @@ export class FakeBrowser {
     return res;
   }
 
+  /** A community request from this browser (stage 65 B). */
+  communityRequest(req: FakeRequest): FakeResponse | 'offline' {
+    const res = this.server.community(req, this.cookie);
+    if (res !== 'offline' && res.status === 401 && req.path.startsWith('/api/u/')) this.cookie = null;
+    return res;
+  }
+
   /** One request from this browser. `offline`: the connection failed. `hang`: no answer ever comes. */
   request(req: FakeRequest): FakeResponse | 'offline' | 'hang' {
     const { res, cookie } = this.server.handle(req, this.cookie);
@@ -1125,6 +1512,18 @@ export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer
       route.fulfill({ status, contentType: 'application/json', headers: { 'Cache-Control': 'no-store', ...headers }, body: JSON.stringify(body) });
     if (url.pathname === '/api/config') return json(200, server.config());
     if (url.pathname === '/api/beat') return route.fulfill({ status: 204 });
+    // --- The community (stage 65 B): public and `/api/u/` paths ---
+    if (FakeAccountServer.isCommunityPath(url.pathname)) {
+      const r = browser.communityRequest({ method: req.method(), path: url.pathname, search: url.search, headers: await req.allHeaders(), body: req.postData(), origin: url.origin });
+      if (r === 'offline') return route.abort('connectionrefused');
+      if (r.body === undefined) return route.fulfill({ status: r.status });
+      return json(r.status, r.body);
+    }
+    // The guests' counter (stage 65 B): with `gallery` on the fake answers the public stats with `listed`.
+    if (url.pathname === '/api/stats/public' && server.flags.gallery === true && server.flags.share === true) {
+      return json(200, { online: 0, playing: 0, listed: server.publicListed() }, { 'Cache-Control': 'public, max-age=60' });
+    }
+    // --- end of The community ---
     if (!url.pathname.startsWith('/api/auth/') && !url.pathname.startsWith('/api/u/')) return json(404, { error: 'not_found' });
     if (url.pathname.startsWith('/api/u/sync/')) {
       const buf = req.postDataBuffer();
