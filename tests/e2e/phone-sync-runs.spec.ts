@@ -59,7 +59,7 @@ test('phone: a session saved on one phone is in History on another, cloud-only; 
   await b.page.locator('.wc-start .wc-sm-item[data-key="history"]').tap();
   await expect(rows(b.page)).toHaveCount(2);
   await expect(rows(b.page).nth(0)).toHaveClass(/is-on/);
-  await expect(rows(b.page).nth(0).locator('.wc-hist-char')).toHaveText('Gittan');
+  await expect(rows(b.page).nth(0).locator('.wc-hist-char')).toHaveText(/^Gittan/);
   await hist(b.page).locator('.wc-hist-card [data-btn="RUN LOG"]').tap();
   await expect(b.page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1, { timeout: 20_000 });
   expect(await states(b.page)).toEqual(['remote', 'remote', 'up']);

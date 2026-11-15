@@ -3,8 +3,9 @@
 // of tests/unit/cloud-sync-model.ts per account, the flags `accounts`,
 // `sync` and `runs` on). Two pages in two browser contexts on one fake
 // server are two devices of one account. The views (History's marks, the
-// "does not fit" dialog, Log out's words) are stage 63 C2's: here the
-// flows are seen in the stores, the server and src/cloud/runs-view.ts.
+// "does not fit" dialog, Log out's words) are stage 63 C2's
+// (runs-views.spec.ts): here the flows are seen in the stores, the server
+// and src/cloud/runs-view.ts.
 
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { NAME, PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from './account-pages';
@@ -100,7 +101,7 @@ test('save on A uploads; on B the session is in History, opens (fetched) and pla
   await a.page.keyboard.press('Home');
   await a.page.keyboard.press('ArrowDown');
   await a.page.keyboard.press('ArrowDown');
-  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText('Gittan');
+  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText(/^Gittan/);
   await hbtn(a.page, 'SAVE').click();
   await expect(cur(a.page).locator('.wc-hist-exp')).toHaveText('Saved');
   // The saved runs go up (Rasta's two were saved already): three bodies, three items.
@@ -118,11 +119,11 @@ test('save on A uploads; on B the session is in History, opens (fetched) and pla
   await b.page.keyboard.press('Escape');
   await openHistory(b.page, 2);
   // Newest first: Rasta (26th), the saved Gittan (25th).
-  await expect(rows(b.page).nth(0).locator('.wc-hist-char')).toHaveText('Rasta');
+  await expect(rows(b.page).nth(0).locator('.wc-hist-char')).toHaveText(/^Rasta/);
   await expect(rows(b.page).nth(0).locator('.wc-hist-exp')).toHaveText('Saved');
   // Run log on Rasta's session: fetched first, then it plays.
   await b.page.keyboard.press('Home');
-  await expect(cur(b.page).locator('.wc-hist-char')).toHaveText('Rasta');
+  await expect(cur(b.page).locator('.wc-hist-char')).toHaveText(/^Rasta/);
   await hbtn(b.page, 'RUN LOG').click();
   await expect(b.page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1, { timeout: 20_000 });
   const bRows = await cloudRows(b.page);
@@ -133,11 +134,11 @@ test('save on A uploads; on B the session is in History, opens (fetched) and pla
 
   // A deletes the Gittan session: on every device and in the cloud.
   await a.page.keyboard.press('Home');
-  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText('Gittan');
+  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText(/^Gittan/);
   await a.page.keyboard.press('ArrowDown');
   await a.page.keyboard.press('ArrowDown');
   await expect(cur(a.page).locator('.wc-hist-exp')).toHaveText('Saved');
-  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText('Gittan');
+  await expect(cur(a.page).locator('.wc-hist-char')).toHaveText(/^Gittan/);
   await hbtn(a.page, 'DELETE').click();
   await expect(a.page.locator('.wc-lk-dialog[data-dlg="delete"]')).toBeVisible();
   await a.page.keyboard.press('y');
@@ -214,6 +215,13 @@ test('a run over the limit stays on the device, says "does not fit" once where i
   // Gittan's was saved in History; Rasta's two were saved before and are told on the start page.
   expect(told.map((e) => e.where).sort()).toEqual(['history', 'start', 'start']);
   expect(new Set(told.map((e) => e.sessionId)).size).toBe(2);
+  // The views (stage 63 C2) tell each session once in a dialog: Keep closes them.
+  for (let i = 0; i < 2; i++) {
+    await expect(a.page.locator('.wc-start .wc-frame:not([hidden]) [data-dlg="run-full"]')).toBeVisible();
+    await a.page.keyboard.press('Enter');
+    await a.page.waitForTimeout(300);
+  }
+  await expect(a.page.locator('[data-dlg="run-full"]')).toHaveCount(0);
   // Log out: the three saved runs are not in the cloud.
   await toMenu(a.page);
   await account(a.page);
