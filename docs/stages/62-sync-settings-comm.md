@@ -1,11 +1,23 @@
 # Stage 62 — Sync of settings, script data, Comm history and timers
 
-Status: **In progress (night pass 2026-11-15/16).**
+Status: **Built and on staging (night pass 2026-11-15/16); waiting for the owner's test.** Nothing released; the flags stay off in production.
 
 ## Waiting for the owner
 
-(Filled in at the end of the night pass; see the bottom of this list for
-what is decided without you and only needs a yes.)
+1. **The test on staging** (<https://staging.mumecockpit.com>), the
+   test guide below: two desktops (or two browsers), a phone, a session
+   taken up on the next device.
+2. **Yes or a change** to the six points under "For the owner to
+   confirm" below, built as recommended this night. The mockups:
+   <https://claude.ai/artifact/G1zwjmFCu8v8qXkDj2k3xw>.
+3. **`/privacy`'s account section:** read it on staging (About →
+   Privacy, or `/privacy`), approve or say what to change. It shows only
+   with the flag `accounts` on, so nobody in production sees it.
+4. **Then:** stage 63 (runs in the cloud, then accounts open), when you
+   say so.
+
+Nothing here blocks anything else; no question came up that stopped the
+night pass.
 
 ## Goal
 
@@ -190,25 +202,51 @@ touches staging or production.
 - [x] The registration's first point; `/privacy`'s account section behind
       the flag `accounts` (the draft below, checked against the Worker;
       corrected as listed under the draft, C2).
-- [ ] e2e (fake API, two contexts): two desktops share a layout change;
+- [x] e2e (fake API, two contexts): two desktops share a layout change;
       a phone context keeps its own; Comm from context A appears in B's
       Comm pane after A leaves the game; timers of a character go on;
       pulled settings wait during play and apply on the start page; Log
       out lists a settings change made offline. (C1 done:
-      tests/e2e/sync-kinds.spec.ts, all but Log out's list, which is C2's.)
+      tests/e2e/sync-kinds.spec.ts; Log out's kinds line in
+      sync-flows.spec.ts with a profile change, the words for every kind
+      in tests/unit/cloud-unsynced-words.test.ts.)
 - [x] `npm run test:sync-worker` extended with a settings and a Comm item
       against the real local Worker.
 
 ### D. Checks and staging
 
-- [ ] A review of the sync of the four kinds by a second agent with
+- [x] A review of the sync of the four kinds by a second agent with
       only the code and ADR 0146, 0150, 0151, 0152; `/code-review` high
-      of the stage; fixes with tests.
-- [ ] Unit; the full e2e alone at 5 workers; the benchmark; the entry
+      of the stage; fixes with tests. (Five findings from the second
+      agent, ten from `/code-review`, overlapping: eleven fixes, F1–F11,
+      ADR 0152 "As built (stage 62, review fixes)", tests in
+      `tests/unit/cloud-sync-fixes62.test.ts`, 31 tests, 24 of them
+      failing on the code before.)
+- [x] Unit; the full e2e alone at 5 workers; the benchmark; the entry
       chunk; `npm run test:sync-worker`.
-- [ ] Push `main`; `deploy.yml` to staging (environment `staging`);
+
+Checks (2026-11-16, night): unit 4866 passed; full e2e alone at 5
+workers 1625 passed, 1 failed under load (`sync-flows` Log out rows in
+Chromium, a layout measure taken while the dialog moved in; 6/6 alone,
+the test now measures both lines at once), 1 skipped; the benchmark
+exits clean (key → send playing 0.8 / 1.1 / 2.1 ms; burst 82 323
+lines/s, no frame over 50 ms); entry chunk 30 876 (stage 61) → 31 119
+bytes (+243 over the stage: store events, the play flag, the start
+menu's settings line; not split up further; the Comm pane's chunk got
+smaller in the fixes, 10 049 → 5 087, once the sync code was out of it); `npm run test:sync-worker` 2/2.
+- [x] Push `main`; `deploy.yml` to staging (environment `staging`);
       `test:prod` against staging. Nothing released, no tag, nothing to
-      production.
+      production. (Run 43673350330, commit 27ca08f, no new migration;
+      `test:prod` 30/30 against staging.mumecockpit.com; staging's
+      flags `stats`, `accounts`, `sync` on; production untouched,
+      `accounts` off there.)
+
+Known small things, not fixed: the Account page at 1440 × 900 scrolls
+by 12 px (the empty message line under Leaving; more in the offline and
+full states, whose note adds a line); a device that prunes Comm in a
+day's last hours can cause one or two extra pushes of that day;
+`ScriptLibrary.reload()` keeps a script data record the sync deleted
+until the next load.
 
 ## Draft: `/privacy`'s account section (behind `accounts`)
 
@@ -287,7 +325,44 @@ call on the limit is needed from the owner.
 
 ## Test guide (owner)
 
-(Written at the end of part D.)
+On staging (<https://staging.mumecockpit.com>, not the `workers.dev`
+address: Turnstile only works on the domain), with your test account.
+Two desktops can be two browsers on one computer (Firefox and Chrome
+count as two desktops).
+
+1. **Two desktops share.** Log in on both. On the first, change the
+   look (a colour or the font size) and move or resize a pane, then go
+   back to the start menu. On the second, open the start menu (or
+   reload): the line says "Settings from desktop, Firefox." (or the
+   browser you used), and the game has the new look and layout.
+2. **The phone keeps its own.** Log in on the phone: its own phone
+   layout, not the desktop's. Change something on the phone; the
+   desktops are not changed.
+3. **Go on on the next device.** On a desktop, play a while with a
+   character: get a tell or two, have a timer running (a spell, a
+   herb). Leave the game (Exit), or put the tab away. On the phone, go
+   into the game with the same character: Comm shows the conversation
+   from the desktop, and the timers run on.
+4. **Held during play.** Play on the first desktop; change a setting on
+   the second. The first does not change while you play. Leave the game
+   on the first: the line says "Settings from desktop, …, held until the
+   game ended." and the change is there.
+5. **Log out with something not synced.** Take a desktop offline (the
+   browser's offline switch, or pull the network), change a setting,
+   Log out: the row says "1 change not synced", with "settings" on the
+   line under it. Choose Stay logged in, go online again.
+6. **Create account copies.** As a guest on a device with script
+   settings and some Comm, create a new account: Comm and the scripts'
+   settings are in the account; log out, and the device still has its
+   own (point 4 of "For the owner to confirm").
+7. **The words.** Create account's first point names Comm history; the
+   Account page names what follows the account; `/privacy` has
+   "Accounts".
+
+**Feedback wanted:** whether settings moving between desktops is what
+you expect (and the line that says so); whether a session taken up on
+the phone feels continuous (Comm, timers); the six points to confirm;
+the privacy text.
 
 ## Owner feedback
 
