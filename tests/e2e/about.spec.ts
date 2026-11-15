@@ -163,8 +163,9 @@ test('links open in a new tab; the licence and the third-party notices are serve
   await page.setViewportSize({ width: 1440, height: 900 });
   await openStart(page);
   await openAbout(page);
-  // (The privacy page opens in the stack: cloud-stats.spec.ts.)
-  const links = lookBox(page).locator('.wc-about-leaf a:not([href="/privacy"])');
+  // (The privacy page opens in the stack: cloud-stats.spec.ts. The abuse address, stage 64, is a mailto link.)
+  await expect(lookBox(page).locator('[data-sec="knows"] a[href="mailto:abuse@mumecockpit.com"]')).toHaveText('abuse@mumecockpit.com');
+  const links = lookBox(page).locator('.wc-about-leaf a:not([href="/privacy"]):not([href^="mailto:"])');
   expect(await links.count()).toBeGreaterThanOrEqual(8);
   for (const a of await links.all()) {
     await expect(a).toHaveAttribute('target', '_blank');

@@ -32,6 +32,11 @@
 //                           the lantern kit's gallery over the start menu
 //                           (src/chrome/kit/gallery, ADR 0127)
 //
+// Paths: `<base>privacy` opens the privacy leaf over the start menu
+// (src/chrome/frames/about.tsx); `<base>r/<id>` is the watch page of a
+// shared run (stage 64, ADR 0154; src/watch/page.tsx, in the lazy chrome
+// chunk) instead of the start page, with `?admin` the admin's view of it.
+//
 // Start-up order: @font-face rules → settings from the localStorage mirror
 // → theme and font preload → settings from IndexedDB and the look-up of
 // installed local-only fonts (Lucida Console, ADR 0049; ≤ 1 s together) →
@@ -54,7 +59,7 @@ import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
 import { Notices } from './app/notices';
 import { installNotices } from './app/notices-wiring';
-import { Shell } from './app/shell';
+import { Shell, importChrome } from './app/shell';
 import { initKeyLabels } from './script/keys';
 import { SettingsStore } from './settings';
 import { appearanceChanged, applyTheme } from './theme/apply';
@@ -72,6 +77,8 @@ if (device.phone) {
   installPhoneViewport();
 }
 const params = new URLSearchParams(location.search);
+// The app's Shell (startApp); not made on the watch page.
+let shell!: Shell;
 // Macro key labels follow the keyboard layout where the browser says (ADR 0026).
 void initKeyLabels();
 
@@ -110,91 +117,103 @@ preloadFont(settings.get().appearance.font);
 void cells.update(settings.get().appearance);
 bootStep(40, 'Loading interface');
 
-const fixture = import.meta.env.DEV ? params.get('fixture') : null;
-const benchMode = params.has('bench');
-const offline = benchMode || params.has('replay') || fixture !== null;
+// The watch page (`<base>r/<id>`): no start page, no cockpit; it is in the chrome chunk (ADR 0154).
+if (location.pathname.startsWith(`${import.meta.env.BASE_URL}r/`)) {
+  try {
+    (await importChrome()).startWatch(document.getElementById('app') ?? document.body);
+  } finally {
+    bootDone();
+  }
+} else await startApp();
 
-let probe: BenchProbe | null = null;
-if (benchMode) {
-  const { installBenchProbe } = await import('./app/bench-hook');
-  probe = installBenchProbe(settings);
-}
+/** The start page (or the cockpit in the offline modes): everything but the watch page. */
+async function startApp(): Promise<void> {
+  const fixture = import.meta.env.DEV ? params.get('fixture') : null;
+  const benchMode = params.has('bench');
+  const offline = benchMode || params.has('replay') || fixture !== null;
 
-const notices = benchMode ? undefined : new Notices();
-if (notices) installNotices(window, notices, { checkUpdates: !import.meta.env.DEV });
+  let probe: BenchProbe | null = null;
+  if (benchMode) {
+    const { installBenchProbe } = await import('./app/bench-hook');
+    probe = installBenchProbe(settings);
+  }
 
-const root = document.getElementById('app') ?? document.body;
-// Everything but the first paint's start page host, which the Shell adopts (ADR 0083).
-for (const child of [...root.childNodes]) if ((child as Element).id !== 'wc-start-host') child.remove();
-// The start page waits for the selected font's faces (FONT_GATE_MS is only a safety net, ADR 0083).
-const bootFont = settings.get().appearance;
-const fontsReady = offline ? undefined : gate(loadFont(bootFont.font, fontPx(bootFont.font, bootFont.size)), FONT_GATE_MS);
-const shell = new Shell({
-  root,
-  settings,
-  cells,
-  offline,
-  probe,
-  ...(notices ? { notices } : {}),
-  ...(fontsReady ? { fontsReady } : {}),
-});
-if (import.meta.env.DEV) {
-  window.__wc = {
-    // The cockpit is built on Enter MUME (at once in the offline modes).
-    get app() {
-      return shell.app!;
-    },
+  const notices = benchMode ? undefined : new Notices();
+  if (notices) installNotices(window, notices, { checkUpdates: !import.meta.env.DEV });
+
+  const root = document.getElementById('app') ?? document.body;
+  // Everything but the first paint's start page host, which the Shell adopts (ADR 0083).
+  for (const child of [...root.childNodes]) if ((child as Element).id !== 'wc-start-host') child.remove();
+  // The start page waits for the selected font's faces (FONT_GATE_MS is only a safety net, ADR 0083).
+  const bootFont = settings.get().appearance;
+  const fontsReady = offline ? undefined : gate(loadFont(bootFont.font, fontPx(bootFont.font, bootFont.size)), FONT_GATE_MS);
+  shell = new Shell({
+    root,
     settings,
     cells,
-    shell,
-    runs: () => shell.runLibrary(),
-    openPlayer: (id) => openPlayerSession(id),
-    openPlayerLogs: (rels, character) => openPlayerLogs(rels, character),
-    replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
-    watchFrame: async (o) => (await import('./replay/dev')).devWatchFrame(shell, settings, o),
-    weather: async (o) => (await import('./weather/dev')).devWeather(shell.app!, settings, o),
-  };
-}
-try {
-  await shell.boot();
-} finally {
-  bootDone();
-}
-// Phone only (ADR 0097, ADR 0099): the fullscreen button in the top right corner.
-if (!benchMode) installFullscreenButton();
-// The usage beat (spec §7.6, ADR 0147): its chunk on idle time once the first view is up,
-// and only then the flags' request; it decides itself whether it runs (src/cloud/start.ts).
-if (!benchMode) {
-  const cloud = (): void => void import('./cloud/start').then((m) => m.startCloud(shell)).catch(() => undefined);
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(cloud, { timeout: 3000 });
-  else setTimeout(cloud, 1000);
-}
-const playerFixture = import.meta.env.DEV ? params.get('player') : null;
-if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));
-const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;
-if (replayFixture !== null) {
-  void import('./replay/dev').then((m) => m.openReplayFixture(shell, settings, replayFixture, params.get('session')));
-}
-const watchFixture = import.meta.env.DEV ? params.get('watchframe') : null;
-if (watchFixture !== null) {
-  void import('./replay/dev').then((m) => m.openWatchFixture(shell, settings, watchFixture, params.get('session')));
-}
+    offline,
+    probe,
+    ...(notices ? { notices } : {}),
+    ...(fontsReady ? { fontsReady } : {}),
+  });
+  if (import.meta.env.DEV) {
+    window.__wc = {
+      // The cockpit is built on Enter MUME (at once in the offline modes).
+      get app() {
+        return shell.app!;
+      },
+      settings,
+      cells,
+      shell,
+      runs: () => shell.runLibrary(),
+      openPlayer: (id) => openPlayerSession(id),
+      openPlayerLogs: (rels, character) => openPlayerLogs(rels, character),
+      replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
+      watchFrame: async (o) => (await import('./replay/dev')).devWatchFrame(shell, settings, o),
+      weather: async (o) => (await import('./weather/dev')).devWeather(shell.app!, settings, o),
+    };
+  }
+  try {
+    await shell.boot();
+  } finally {
+    bootDone();
+  }
+  // Phone only (ADR 0097, ADR 0099): the fullscreen button in the top right corner.
+  if (!benchMode) installFullscreenButton();
+  // The usage beat (spec §7.6, ADR 0147): its chunk on idle time once the first view is up,
+  // and only then the flags' request; it decides itself whether it runs (src/cloud/start.ts).
+  if (!benchMode) {
+    const cloud = (): void => void import('./cloud/start').then((m) => m.startCloud(shell)).catch(() => undefined);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(cloud, { timeout: 3000 });
+    else setTimeout(cloud, 1000);
+  }
+  const playerFixture = import.meta.env.DEV ? params.get('player') : null;
+  if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));
+  const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;
+  if (replayFixture !== null) {
+    void import('./replay/dev').then((m) => m.openReplayFixture(shell, settings, replayFixture, params.get('session')));
+  }
+  const watchFixture = import.meta.env.DEV ? params.get('watchframe') : null;
+  if (watchFixture !== null) {
+    void import('./replay/dev').then((m) => m.openWatchFixture(shell, settings, watchFixture, params.get('session')));
+  }
 
-// Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`
-// once the cockpit exists (after Enter MUME on the start page); `?weather=<json>` also pins a state (as
-// `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
-if (import.meta.env.DEV && params.has('weather')) {
-  void import('./weather/dev').then((m) => m.weatherFromUrl(params, (fn) => shell.onApp(fn), (o) => void window.__wc?.weather(o)));
-}
+  // Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`
+  // once the cockpit exists (after Enter MUME on the start page); `?weather=<json>` also pins a state (as
+  // `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
+  if (import.meta.env.DEV && params.has('weather')) {
+    void import('./weather/dev').then((m) => m.weatherFromUrl(params, (fn) => shell.onApp(fn), (o) => void window.__wc?.weather(o)));
+  }
 
-const app = shell.app;
-if (app) {
-  probe?.attach(app);
-  if (fixture !== null) {
-    const speed = Number(params.get('speed') ?? '1');
-    void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
-  } else if (!benchMode) {
-    app.bus.emit('sys.message', { text: 'Offline replay mode.' });
+  const app = shell.app;
+  if (app) {
+    probe?.attach(app);
+    if (fixture !== null) {
+      const speed = Number(params.get('speed') ?? '1');
+      void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
+    } else if (!benchMode) {
+      app.bus.emit('sys.message', { text: 'Offline replay mode.' });
+    }
   }
 }
 

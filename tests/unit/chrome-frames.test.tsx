@@ -88,9 +88,11 @@ describe('About text', () => {
         '/wc/LICENSE.txt',
         '/wc/fonts/README.md',
         '/wc/THIRD_PARTY_NOTICES.md',
+        // The abuse address (stage 64).
+        'mailto:abuse@mumecockpit.com',
       ]),
     );
-    expect(links).toHaveLength(12);
+    expect(links).toHaveLength(13);
     expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual([
       'pray to the tower hills',
       'help newbie',

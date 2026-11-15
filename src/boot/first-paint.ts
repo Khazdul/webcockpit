@@ -29,8 +29,9 @@
 // removed (the page's identical ones are under them), the loading panel
 // fades out while the menu fades in; the sky engine then fades its
 // canvases in over the sky. The offline modes (`?replay`, `?bench`,
-// `?fixture=`) go straight to the cockpit: only the line and its label,
-// centred, in an overlay on the terminal background.
+// `?fixture=`) go straight to the cockpit, and the watch page
+// (`<base>r/<id>`) to itself: only the line and its label, centred, in an
+// overlay on the terminal background.
 
 import type { BootLoader } from '../app/boot-progress';
 import { initDevice } from '../core/device';
@@ -89,7 +90,9 @@ function start(win: Window): void {
   const params = new URLSearchParams(win.location.search);
   const flags = initDevice(win);
   if (flags.phone) phoneViewportMeta(doc);
-  const offline = params.has('replay') || params.has('bench') || params.has('fixture');
+  // The watch page (`<base>r/<id>`, stage 64, ADR 0154) has no start page either: the line alone.
+  const watch = /\/r\/[^/]*\/?$/.test(win.location.pathname);
+  const offline = params.has('replay') || params.has('bench') || params.has('fixture') || watch;
   const a = firstAppearance(params.has('safe') ? null : readMirror(), flags.phone || flags.desktopSite);
 
   // The page colours (src/theme/apply.ts sets the same and the rest).
@@ -101,7 +104,7 @@ function start(win: Window): void {
   // The fonts: the terminal font (the gate waits for it, the cockpit uses
   // it; a local-only one has nothing to preload) and the start page's.
   if (!FONTS[a.font]?.local) preloadFont(a.font, doc);
-  if (!offline) preloadStartFaces(doc);
+  if (!offline || watch) preloadStartFaces(doc);
   const style = doc.createElement('style');
   style.id = 'wc-first-geometry';
   style.textContent = geometryCss;

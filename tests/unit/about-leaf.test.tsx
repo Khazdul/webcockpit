@@ -17,9 +17,11 @@ import {
   aboutTokens,
   atPrivacyPath,
 } from '../../src/chrome/frames/about';
-import { LOGIN_TURNSTILE_AFTER, SESSION_SECONDS } from '../../shared/cloud/api';
+import { LOGIN_TURNSTILE_AFTER, REPORTS_TO_HIDE, SESSION_SECONDS } from '../../shared/cloud/api';
+import { KEEP_VIEWS_DAYS } from '../../worker/pub';
 import { PRIVACY_ACCOUNTS, PRIVACY_ACCOUNTS_NAV, withAccounts } from '../../src/chrome/frames/privacy-accounts';
 import { PRIVACY_NAV, PRIVACY_TEXT } from '../../src/chrome/frames/privacy-text';
+import { PRIVACY_SHARE, PRIVACY_SHARE_NAV, withShare } from '../../src/chrome/frames/privacy-share';
 import { BEAT_MINUTES, BEAT_STATES } from '../../shared/cloud/api';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
@@ -91,6 +93,7 @@ describe('aboutTokens', () => {
       ['mume.org/help/newbie', 'https://mume.org/help/newbie'],
       ['mume.org/help/basics', 'https://mume.org/help/basics'],
       ['docs.mume.org/wiki/guides', 'https://docs.mume.org/wiki/guides'],
+      ['abuse@mumecockpit.com', 'mailto:abuse@mumecockpit.com'],
       ['github.com/MUME/MMapper', 'https://github.com/MUME/MMapper'],
       ['fonts/README.md', '/app/fonts/README.md'],
       ['tintin.mudhalla.net', 'https://tintin.mudhalla.net'],
@@ -218,7 +221,10 @@ describe('About: the leaf', () => {
     const privacy = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a[href="/privacy"]')];
     expect(privacy.map((a) => a.textContent)).toEqual(['privacy page']);
     expect(privacy[0]!.target).toBe('');
-    const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a:not([href="/privacy"])')];
+    // The abuse address (stage 64) is a mailto link in the same tab.
+    const mail = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a[href^="mailto:"]')];
+    expect(mail.map((a) => [a.textContent, a.target])).toEqual([['abuse@mumecockpit.com', '']]);
+    const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a:not([href="/privacy"]):not([href^="mailto:"])')];
     expect(links).toHaveLength(12);
     for (const a of links) {
       expect(a.target).toBe('_blank');
@@ -447,6 +453,48 @@ describe("the privacy page's account section (flag `accounts`)", () => {
     expect(PRIVACY_ACCOUNTS).toContain('180 days');
     expect(PRIVACY_ACCOUNTS).toContain('after three failed tries');
     expect(PRIVACY_ACCOUNTS).toContain('never more than ten days');
+  });
+});
+
+// ------------------------------------------------------------ the share links section (stage 64)
+
+describe("the privacy page's share links section (flags `accounts` and `share`)", () => {
+  const acc = withAccounts(PRIVACY_TEXT, PRIVACY_NAV);
+  const { text, nav } = withShare(acc.text, acc.nav);
+  const secs = aboutSections(text, nav);
+
+  it('comes after Accounts and before Who runs it; nothing else changes', () => {
+    const ids = secs.map((x) => x.id);
+    expect(ids.indexOf('share')).toBe(ids.indexOf('who') - 1);
+    expect(ids.indexOf('share')).toBeGreaterThan(ids.indexOf('accounts'));
+    expect(text.replace(`${PRIVACY_SHARE}\n`, '')).toBe(acc.text);
+    expect(nav.find((n) => n.id === 'share')).toBe(PRIVACY_SHARE_NAV);
+    const letters = nav.map((n) => n.letter);
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const n of nav) expect(n.nav.toLowerCase()).toContain(n.letter);
+  });
+
+  it('a paragraph and the four rows, each row one line', () => {
+    const sec = secs.find((x) => x.id === 'share')!;
+    expect(sec.title).toBe('SHARE LINKS');
+    expect(sec.blocks.filter((b) => 'p' in b)).toHaveLength(1);
+    const rows = sec.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
+    expect(rows).toEqual(['Who can watch', 'What is kept', 'Removing it', 'Reports']);
+  });
+
+  it('says what the Worker and the watch page do, and the abuse address', () => {
+    expect(REPORTS_TO_HIDE).toBe(5);
+    expect(KEEP_VIEWS_DAYS).toBe(2);
+    expect(PRIVACY_SHARE).toContain('five accounts');
+    expect(PRIVACY_SHARE).toContain('deleted after two days');
+    expect(PRIVACY_SHARE).toContain('Anyone with the link');
+    expect(aboutTokens(PRIVACY_SHARE)).toContainEqual({ link: 'abuse@mumecockpit.com', href: 'mailto:abuse@mumecockpit.com' });
+  });
+
+  it('About gives the abuse address too', () => {
+    const knows = aboutSections(ABOUT_TEXT).find((x) => x.id === 'knows')!;
+    const p = knows.blocks.map((b) => ('p' in b ? b.p : '')).join(' ');
+    expect(aboutTokens(p)).toContainEqual({ link: 'abuse@mumecockpit.com', href: 'mailto:abuse@mumecockpit.com' });
   });
 });
 

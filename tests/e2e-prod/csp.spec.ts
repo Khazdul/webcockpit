@@ -262,6 +262,18 @@ test('the privacy page and the 404 page', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('the watch page /r/<id>: no start page; without the API it says not yet; no violation', async ({ page }) => {
+  // (An automated browser makes no API request in a production build, src/cloud/config.ts: the flags are off.)
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const csp = await watchCsp(page);
+  await page.goto('r/Ab3dE5fG7hJk');
+  await expect(page.locator('.wc-watch [data-watch="end"] .wc-lk-q')).toHaveText('This link does not work yet.');
+  await expect(page.locator('.wc-start')).toHaveCount(0);
+  await csp.clean();
+  expect(errors).toEqual([]);
+});
+
 test('Scripts: the code editor, the manual', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 820 });
   const w = await start(page);

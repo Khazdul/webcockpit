@@ -32,7 +32,8 @@
 // About's "privacy page" and at the address `<base>privacy`. About's
 // "What the site knows" is its short form. With the server's flag
 // `accounts` on, "Coming later" (C) gives way to "Accounts" (O,
-// privacy-accounts.ts, stage 62), loaded only then.
+// privacy-accounts.ts, stage 62), loaded only then; with `share` on too,
+// "Share links" (L, privacy-share.ts, stage 64) comes before "Who runs it".
 
 import './about.css';
 import type { VNode } from 'preact';
@@ -54,6 +55,7 @@ import {
 import { useKeys, useNav } from '../kit/stack';
 import { LookWordmark } from '../start-surface';
 import { accountsEnabled } from '../../cloud/account/state';
+import { flagOn } from '../../cloud/config';
 import { PRIVACY_NAV, PRIVACY_TEXT, PRIVACY_UPDATED } from './privacy-text';
 
 export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server between you and the game, and your settings, profiles and runs kept only in this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
@@ -99,7 +101,7 @@ SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 WHAT THE SITE KNOWS
-Your game goes straight from this browser to MUME. Nothing you type, no character or account name and no password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. That is all. No IP address is kept, and who is online is never shown. The privacy page has the details: what is kept, for how long, and how to remove it.
+Your game goes straight from this browser to MUME. Nothing you type, no character or account name and no password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. That is all. No IP address is kept, and who is online is never shown. The privacy page has the details: what is kept, for how long, and how to remove it. To report abuse, or to have something removed, write to abuse@mumecockpit.com.
 
 LUA SCRIPTS
 Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. A script's settings are tiles on its panel, and take effect at once. A bundled script opens read-only; Duplicate makes an editable copy. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
@@ -342,7 +344,13 @@ export const PrivacyFrame = lookFrame(function PrivacyFrame(): VNode {
     void (async () => {
       if (!(await accountsEnabled())) return;
       const m = await import('./privacy-accounts');
-      if (alive) setPage({ ...m.withAccounts(PRIVACY_TEXT, PRIVACY_NAV), sub: m.PRIVACY_ACCOUNTS_UPDATED });
+      let next = { ...m.withAccounts(PRIVACY_TEXT, PRIVACY_NAV), sub: m.PRIVACY_ACCOUNTS_UPDATED };
+      // With the flag `share` too (stage 64): what a share link makes public.
+      if (await flagOn('share')) {
+        const sh = await import('./privacy-share');
+        next = { ...sh.withShare(next.text, next.nav), sub: sh.PRIVACY_SHARE_UPDATED };
+      }
+      if (alive) setPage(next);
     })().catch(() => {});
     return () => {
       alive = false;

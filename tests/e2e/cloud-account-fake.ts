@@ -454,6 +454,28 @@ export class FakeAccountServer {
     return this.seen.some((r) => JSON.stringify([r.path, r.search, r.body, r.headers]).includes(text));
   }
 
+  // --- Stage 64 C2 (the watch page, tests/e2e/cloud-pub-fake.ts): sessions as the pub fake needs them ---
+
+  /** The account (its name and state) of a live session token, or null. */
+  sessionAccount(cookie: string | null): { name: string; state: 'active' | 'suspended' } | null {
+    const s = cookie !== null ? this.sessions.get(cookie) : undefined;
+    if (!s || s.expires <= this.clock) return null;
+    const a = this.accounts.get(s.account);
+    return a ? { name: a.name, state: a.state } : null;
+  }
+
+  /** Logs `browser` in to `name` without the pages (a session and its cookie). */
+  logInBrowser(browser: FakeBrowser, name: string, label = 'Firefox on Linux'): void {
+    browser.cookie = this.newSession(name.toLowerCase(), label).token;
+  }
+
+  /** An account's name as it spells it, from its key (the sender of a run), or null. */
+  accountName(key: string): string | null {
+    return this.accounts.get(key.toLowerCase())?.name ?? null;
+  }
+
+  // --- End of stage 64 C2 ---
+
   // ===================== Share links (stage 64 C1) =====================
   // The sender's pub endpoints (worker/pub.ts, ADR 0154): `POST /api/u/pub`
   // (the two-part body), `GET /api/u/pub`, `GET|PATCH|DELETE

@@ -497,6 +497,31 @@ function releaseManifestPlugin(): Plugin {
   };
 }
 
+/**
+ * The watch page `<base>r/<id>` (stage 64, ADR 0154): the dev server
+ * answers any path under `<base>r/` but the frame document with the app's
+ * `index.html`, as the Worker does (worker/index.ts `/r/*`), also where
+ * Vite's own fallback would not (a path with a dot in it). The app sees
+ * the path and boots into the watch page (src/main.ts).
+ */
+function watchPagePlugin(): Plugin {
+  return {
+    name: 'webcockpit-watch-page',
+    apply: 'serve',
+    configureServer(server) {
+      const base = server.config.base.replace(/\/?$/, '/');
+      const frame = new Set([`${base}${FRAME_PATH}`, `${base}${FRAME_FILE}`]);
+      server.middlewares.use((req, _res, next) => {
+        const [path = '', query] = (req.url ?? '').split('?');
+        if ((req.method === 'GET' || req.method === 'HEAD') && path.startsWith(`${base}r/`) && !frame.has(path)) {
+          req.url = query === undefined ? base : `${base}?${query}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 /** The privacy page's file at the site root (src/chrome/frames/about.tsx `PrivacyFrame`). */
 export const PRIVACY_PAGE = 'privacy.html';
 
@@ -676,7 +701,7 @@ export default defineConfig(({ command }) => {
     base: siteBase(),
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), frameDocumentPlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin(), cspHashesPlugin()],
+    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), frameDocumentPlugin(), watchPagePlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin(), cspHashesPlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     // Agent worktrees live under `.claude/` in this checkout: an edit there
