@@ -1042,6 +1042,11 @@ export interface GalleryPage {
   rows: GalleryRow[];
   /** Another page has rows (and `page < GALLERY_PAGES_MAX`). */
   more: boolean;
+  /**
+   * The runs of this list over every page (round 13: the pager's "Page 1
+   * of N"), at most `GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX`.
+   */
+  total: number;
   time: number;
 }
 

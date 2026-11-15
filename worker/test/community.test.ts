@@ -135,11 +135,12 @@ describe('GET /api/gallery', () => {
     await list(bob, { now: NOW - 500, seed: 3 });
     await publish(alice, payload(100, 4), META, { env: CENV });
     expect((await page('?by=alice')).rows.map((r) => r.id)).toEqual([a2, a1]);
+    expect((await page('?by=alice')).total).toBe(2);
     expect((await page('?by=ALICE&sort=new')).rows.map((r) => r.id)).toEqual([a2, a1]);
     for (const q of ['?by=nobody', '?by=', '?by=a%20b', `?by=${'x'.repeat(80)}`, '?by=%3Cb%3E']) {
       const res = await ccall('GET', `/api/gallery${q}`);
       expect(res.status, q).toBe(200);
-      expect(((await res.json()) as GalleryPage).rows, q).toEqual([]);
+      expect((await res.json()) as GalleryPage, q).toMatchObject({ rows: [], total: 0, more: false });
     }
   });
 
@@ -170,6 +171,8 @@ describe('GET /api/gallery', () => {
     const one = await page('?sort=new&page=1');
     expect(one.rows).toHaveLength(10);
     expect(one.more).toBe(true);
+    expect(one.total).toBe(13);
+    expect((await page('?sort=new&period=week')).total).toBe(11);
     const two = await page('?sort=new&page=2');
     expect(two.rows.map((r) => r.title)).toEqual(['week', 'month', 'old']);
     expect(two.more).toBe(false);

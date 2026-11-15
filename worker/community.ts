@@ -196,6 +196,15 @@ async function listRows(db: D1, sort: GallerySort, since: number, limit: number,
   return results.map(galleryRow);
 }
 
+/** How many runs `listRows` can reach (the pager's "of N"), at most GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX. */
+async function countRows(db: D1, since: number, by: string | null): Promise<number> {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM publication p JOIN account a ON a.id = p.account WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR a.name_key = ?2)`)
+    .bind(since, by)
+    .first<{ n: number }>();
+  return Math.min(row?.n ?? 0, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
+}
+
 // --- Public paths ---
 
 const PUBLIC_PATHS = new Set(['/api/gallery', '/api/community', '/api/runes']);
@@ -258,9 +267,11 @@ async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Respo
   return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, async () => {
     const days = GALLERY_PERIOD_DAYS[q.period];
     const since = days === null ? 0 : now - days * DAY_MS;
-    const rows = q.by === '' ? [] : await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, q.by ?? null);
+    const by = q.by ?? null;
+    const rows = by === '' ? [] : await listRows(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by);
     const more = rows.length > GALLERY_PAGE_SIZE && q.page < GALLERY_PAGES_MAX;
-    const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, time: now };
+    const total = by === '' ? 0 : await countRows(db, since, by);
+    const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, time: now };
     return json(answer, 200, PUBLIC_CACHE);
   });
 }

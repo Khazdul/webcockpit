@@ -61,6 +61,9 @@ describe('the start menu: its forms', () => {
     expect(communityCount(0)).toBeNull();
     expect(communityCount(-1)).toBeNull();
     expect(communityCount(Number.NaN)).toBeNull();
+    expect(communityCount(98)).toBe('98 new');
+    expect(communityCount(99)).toBe('99+ new');
+    expect(communityCount(140)).toBe('99+ new');
   });
 });
 

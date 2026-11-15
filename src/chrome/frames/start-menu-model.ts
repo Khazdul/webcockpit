@@ -66,9 +66,13 @@ export function startRows(input: StartMenuInput): Extract<StartEntry, { kind: 'r
   return startMenu(input).filter((e): e is Extract<StartEntry, { kind: 'row' }> => e.kind === 'row');
 }
 
-/** The Community row's counter: "3 new", or nothing when there is no news. */
+/** The counters' cap (`NEWS_MAX`, `COUNTER_RUNS` of the contract): from it on, "99+ new" (round 13's pick 5). */
+export const COUNT_CAP = 99;
+
+/** The Community row's counter (and the owner row's mark): "3 new", "99+ new" from the cap on, or nothing when there is no news. */
 export function communityCount(count: number): string | null {
-  return Number.isFinite(count) && count >= 1 ? `${Math.floor(count)} new` : null;
+  if (!Number.isFinite(count) || count < 1) return null;
+  return count >= COUNT_CAP ? `${COUNT_CAP}+ new` : `${Math.floor(count)} new`;
 }
 
 // ------------------------------------------------------------ the owner row

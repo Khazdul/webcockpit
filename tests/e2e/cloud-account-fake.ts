@@ -870,7 +870,7 @@ export class FakeAccountServer {
         const by = q.get('by');
         const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000).filter((p) => by === null || p.account === by.toLowerCase());
         const rows = runs.slice((page - 1) * GALLERY_PAGE_SIZE, page * GALLERY_PAGE_SIZE).map((p) => this.row(p));
-        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, time: t } };
+        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, total: Math.min(runs.length, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX), time: t } };
       }
       if (path === '/api/community') {
         const dayStart = (ms: number): number => Date.parse(`${new Date(ms).toISOString().slice(0, 10)}T00:00:00Z`);

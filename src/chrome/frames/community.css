@@ -1,0 +1,735 @@
+/* The Community page (stage 65 C1; round 13's pick 1b with the owner's
+ * changes, pick 2): the list and Random Runes on the left, the column with
+ * the run of the day, the Hall of Fame and the warlords on the right; the
+ * phone's tabs. The kit's tokens (--lk-*), History's surfaces. */
+
+.wc-lk-win.wc-cm-win {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-cm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 22px;
+}
+
+.wc-cm-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wc-cm-col {
+  flex: 0 0 330px;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
+@container wc-page (max-width: 1040px) {
+  .wc-cm-col {
+    flex-basis: 270px;
+  }
+  .wc-cm-body {
+    gap: 14px;
+  }
+}
+
+/* ------------------------------------------------------------ the list */
+
+.wc-cm-list {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wc-cm-tbl {
+  --lk-cols: 24px minmax(0, 1fr) 150px 48px 54px;
+}
+
+@container wc-page (max-width: 1040px) {
+  .wc-cm-tbl {
+    --lk-cols: 18px minmax(0, 1fr) 128px 40px 46px;
+  }
+  .wc-cm-tbl .wc-lk-throw,
+  .wc-cm-tbl .wc-lk-tr {
+    gap: 10px;
+  }
+}
+
+.wc-cm-throw {
+  padding-right: 18px;
+}
+
+.wc-cm-th-first {
+  overflow: visible;
+}
+
+.wc-cm-th {
+  display: inline;
+  overflow: visible;
+}
+
+/* A heading cell in the first column: only its words are the target. */
+.wc-cm-th-first > .wc-cm-th {
+  padding: 4px 0;
+}
+
+.wc-cm-th.is-cur {
+  color: var(--lk-on);
+}
+
+.wc-cm-th u.wc-sk {
+  text-decoration-color: var(--lk-sk);
+}
+
+.wc-cm-row {
+  min-height: 46px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.wc-cm-rank {
+  font: 600 12.5px/1 var(--lk-display);
+  color: var(--lk-faint);
+  text-align: right;
+}
+
+.wc-cm-title {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.wc-cm-l1,
+.wc-cm-sub {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-cm-name {
+  font-weight: 600;
+  color: var(--lk-text);
+}
+
+.wc-cm-row.is-on .wc-cm-name {
+  color: var(--lk-on);
+}
+
+.wc-cm-char {
+  font-style: italic;
+  color: var(--lk-dim);
+}
+
+.wc-cm-sub {
+  font: italic 500 14px/1.25 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-cm-sender {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 500 14.5px/1.25 var(--lk-serif);
+  font-style: normal;
+  color: var(--lk-head);
+  cursor: pointer;
+}
+
+.wc-cm-sender:hover {
+  color: var(--lk-on);
+  text-decoration: underline;
+  text-decoration-color: var(--lk-sk);
+  text-underline-offset: 3px;
+}
+
+.wc-cm-row.is-mine .wc-cm-sender {
+  color: var(--lk-gold);
+}
+
+.wc-cm-stars {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.wc-cm-stars .wc-lk-stars {
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.wc-cm-mean {
+  font-weight: 600;
+  color: var(--lk-text);
+}
+
+.wc-cm-mean small {
+  font-size: 0.82em;
+  font-weight: 500;
+  color: var(--lk-faint);
+}
+
+.wc-cm-num {
+  color: var(--lk-dim);
+}
+
+.wc-cm-ic {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  opacity: 0.75;
+}
+
+/* The pager: inside the list, at its bottom right. */
+.wc-cm-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 8px 0 0;
+  font: 500 15px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-cm-paget {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-cm-by {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.wc-cm-by-t {
+  font: 600 13px/1.2 var(--lk-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lk-head);
+}
+
+.wc-cm-by-t b {
+  color: var(--lk-on);
+  text-transform: none;
+  font: 600 18px/1.2 var(--lk-serif);
+  letter-spacing: 0;
+}
+
+.wc-cm-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  padding: 12px;
+  text-align: center;
+}
+
+.wc-cm-wait p {
+  margin: 0;
+}
+
+.wc-cm-wait .wc-lk-q {
+  font: 600 20px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-cm-wait .wc-lk-qn {
+  font: italic 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-cm-load {
+  width: min(360px, 80%);
+}
+
+/* ------------------------------------------------------------ the boxes */
+
+.wc-cm-box {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 11px 14px;
+  border-radius: 6px;
+  background: var(--lk-row);
+  box-shadow: var(--lk-row-sh);
+}
+
+.wc-cm-bh {
+  display: flex;
+  align-items: center;
+  margin: 0 0 7px;
+  font: 700 12px/1.2 var(--lk-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lk-head);
+  white-space: nowrap;
+}
+
+.wc-cm-bic {
+  width: 14px;
+  height: 14px;
+  margin-right: 7px;
+  color: var(--lk-gold);
+}
+
+.wc-cm-bn {
+  margin-left: auto;
+  padding-left: 8px;
+  font: italic 500 13.5px/1 var(--lk-serif);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--lk-faint);
+}
+
+.wc-cm-none {
+  margin: 4px 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-cm-day-r,
+.wc-cm-hofl button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.wc-cm-day-t {
+  display: block;
+  font: 600 16px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-cm-day-r:hover .wc-cm-day-t,
+.wc-cm-hofl button:hover .wc-cm-hof-t {
+  color: var(--lk-on);
+}
+
+.wc-cm-day-d {
+  display: block;
+  font: italic 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The description, as much as fits (three lines). */
+.wc-cm-day-x {
+  display: -webkit-box;
+  margin-top: 3px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  font: 500 14.5px/1.35 var(--lk-serif);
+  color: var(--lk-item);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.wc-cm-hofl,
+.wc-cm-wars ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: n;
+}
+
+.wc-cm-hofl button {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font: 500 15px/1.5 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-cm-hofl button::before,
+.wc-cm-wars li::before {
+  counter-increment: n;
+  content: counter(n);
+  flex: none;
+  width: 14px;
+  text-align: right;
+  font: 600 11.5px/1 var(--lk-display);
+  color: var(--lk-faint);
+}
+
+.wc-cm-hof-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-cm-hof-m {
+  flex: none;
+  color: var(--lk-gold);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-cm-hof-m::before {
+  content: "★ ";
+  font-size: 0.85em;
+}
+
+.wc-cm-war2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.wc-cm-wars h4 {
+  margin: 0 0 3px;
+  font: 600 11px/1.3 var(--lk-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wc-cm-wars.is-west h4 {
+  color: #cfe0ea;
+}
+
+.wc-cm-wars.is-dark h4 {
+  color: #e39a7c;
+}
+
+.wc-cm-wars li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  font: 500 14.5px/1.45 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-cm-wars li b {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wc-cm-wars li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  color: var(--lk-faint);
+}
+
+.wc-cm-players {
+  margin: 8px 0 0;
+  font: italic 500 14.5px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* ------------------------------------------------------------ Random Runes */
+
+.wc-cm-runes {
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-cm-notes {
+  align-self: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
+/* A note, whole: wrapped, never cut, never a link. */
+.wc-cm-note {
+  position: relative;
+  margin: 0;
+  max-width: none;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font: 500 15px/1.45 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-cm-note-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wc-cm-note-t b {
+  font-weight: 600;
+  color: var(--lk-head);
+}
+
+.wc-cm-note-a {
+  flex: none;
+  font: italic 500 13px/1 var(--lk-serif);
+  color: var(--lk-faint);
+  white-space: nowrap;
+}
+
+.wc-cm-note.is-own {
+  box-shadow: inset 2px 0 0 var(--lk-gold);
+}
+
+.wc-cm-note.is-own .wc-cm-note-t b {
+  color: var(--lk-gold);
+}
+
+.wc-cm-note-acts {
+  flex: none;
+  display: none;
+  gap: 6px;
+}
+
+.wc-cm-note-acts .wc-lk-btn.is-small {
+  height: 24px;
+}
+
+.wc-cm-note:hover,
+.wc-cm-note.is-open {
+  background: rgba(255, 220, 170, 0.06);
+}
+
+@media (hover: hover) {
+  .wc-cm-note:hover .wc-cm-note-acts {
+    display: flex;
+  }
+  .wc-cm-note:hover .wc-cm-note-a {
+    display: none;
+  }
+}
+
+.wc-cm-note.is-open .wc-cm-note-acts {
+  display: flex;
+}
+
+.wc-cm-note.is-open .wc-cm-note-a {
+  display: none;
+}
+
+/* Writing: one line; while used, the field grows to show the note. */
+.wc-cm-write {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.wc-cm-write .wc-lk-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.wc-cm-write .wc-lk-lbl {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.wc-cm-write textarea.wc-lk-input {
+  min-height: 36px;
+  height: 36px;
+  max-height: 160px;
+  padding: 7px 12px;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.wc-cm-write .wc-lk-fhint,
+.wc-cm-write .wc-lk-ferr {
+  margin-top: 4px;
+}
+
+.wc-cm-count {
+  display: block;
+  text-align: right;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-cm-write.is-guest {
+  align-items: center;
+  justify-content: space-between;
+  font: italic 500 15px/1.2 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-cm-foot {
+  min-height: 0;
+}
+
+.wc-cm-flash {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------ Report (a note) */
+
+.wc-cm-left {
+  text-align: left;
+}
+
+.wc-cm-small {
+  font-size: 14px !important;
+}
+
+.wc-cm-quote {
+  margin: 6px 0 8px !important;
+  padding: 6px 10px;
+  border-left: 2px solid var(--lk-gold);
+  font: italic 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+  background: rgba(0, 0, 0, 0.25);
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wc-cm-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.wc-lk-check.wc-cm-radio .wc-lk-cbox {
+  border-radius: 50%;
+}
+
+.wc-lk-check.wc-cm-radio.is-on .wc-lk-cbox::after {
+  left: 4px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  transform: none;
+  background: var(--lk-on);
+  box-shadow: 0 0 6px var(--lk-on-glow, rgba(255, 190, 110, 0.5));
+}
+
+/* ------------------------------------------------------------ the phone's tabs */
+
+.wc-cm-tabs .wc-htab {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.wc-cm-body.is-narrow {
+  display: block;
+}
+
+.wc-cm-body.is-narrow.is-hof {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wc-cm-body.is-narrow.is-hof > .wc-cm-col {
+  flex: none;
+  overflow: visible;
+}
+
+.wc-cm-body.is-narrow.is-runes {
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-cm-runes.is-whole {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: none;
+  box-shadow: none;
+  padding: 4px 0 0;
+}
+
+.wc-cm-list.is-narrow .wc-cm-row {
+  display: block;
+  padding: 8px 10px;
+}
+
+.wc-cm-p1 {
+  display: block;
+  font: 600 16px/1.25 var(--lk-serif);
+  color: var(--lk-text);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wc-cm-p2 {
+  display: block;
+  margin: 2px 0 0;
+  font: 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+  white-space: normal;
+}
+
+.wc-cm-p3 {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin: 3px 0 0;
+  font: 500 14px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-cm-p3 .wc-cm-stars {
+  justify-content: flex-start;
+}
+
+.wc-cm-n {
+  white-space: nowrap;
+}
+
+.wc-cm-list.is-narrow .wc-cm-pager {
+  margin-bottom: 4px;
+}

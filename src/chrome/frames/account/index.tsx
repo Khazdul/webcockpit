@@ -14,6 +14,7 @@
 //   published.tsx      Published runs on the Account page, Edit and Remove (stage 64)
 //   ../share-dialog.tsx  the export editor's share dialog (stage 64): here, so
 //                      it adds no chunk of its own (the entry chunk's preload lists)
+//   ../community.tsx   the Community page (stage 65 C1): here for the same reason
 //
 //   form.tsx           the keys of a form, the pages' way to each other (`go`), small pieces
 //   words.ts           every error code's words and the shared sentences
@@ -37,6 +38,7 @@ import type { LockedNotice } from '../../../cloud/sync-view';
 import './account.css';
 
 export { ShareDialog } from '../share-dialog';
+export { openCommunity } from '../community';
 
 registerPages({ login: LoginFrame, create: CreateFrame, recover: RecoverFrame, code: RecoveryCodeFrame, account: AccountFrame });
 
