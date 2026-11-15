@@ -7,21 +7,36 @@
 // editor lays its edits over the new text) and keeps its selected profile
 // (a pulled rename follows by id; a pulled delete falls back to `default`,
 // as the shell's start does).
+//
+// Stage 62 C1 (ADR 0152): `settings` (this device type's: the settings
+// store reads `main` again; when that changed what shows, the start menu's
+// line says where they came from), `scriptData` (the library reloads),
+// `timers` and `comm` (nothing to follow: the hub reads at `Char.Name`,
+// the Comm pane at open).
 
 import { type Space, spaceId } from '../../core/space';
 import { DEFAULT_PROFILE } from '../../profiles/names';
 import type { ProfileStore } from '../../profiles/store';
 import type { ScriptLibrary } from '../../scripts/library';
 import type { SettingsStore } from '../../settings/store';
+import { postSyncMessage } from '../sync-view';
 import type { ProfileChanges } from './local';
+import { settingsFromWords } from './words';
 
-export type WrittenKind = 'profile' | 'script';
+export type WrittenKind = 'profile' | 'script' | 'settings' | 'scriptData' | 'timers' | 'comm';
+
+const WRITTEN_KINDS: readonly string[] = ['profile', 'script', 'settings', 'scriptData', 'timers', 'comm'];
 
 export interface SyncWrite {
   kind: WrittenKind;
   /** The profiles' changes, when known (else only the selected profile is checked). */
   profiles?: ProfileChanges;
+  /** `settings`: this device type's were pulled; from whom, and whether they waited for the game. */
+  settings?: { from: string | null; held?: boolean };
 }
+
+/** How long the start menu's line says where pulled settings came from. */
+const SETTINGS_MESSAGE_MS = 8000;
 
 /** The page's caches that follow a write. */
 export interface CacheHost {
@@ -45,7 +60,7 @@ function channel(space: Space): { c: BroadcastChannel; fns: Set<(w: SyncWrite) =
     const fns = new Set<(w: SyncWrite) => void>();
     c.onmessage = (ev: MessageEvent<unknown>) => {
       const w = ev.data as SyncWrite | null;
-      if (!w || (w.kind !== 'profile' && w.kind !== 'script')) return;
+      if (!w || !WRITTEN_KINDS.includes(w.kind)) return;
       for (const fn of [...fns]) fn(w);
     };
     ch = { c, fns };
@@ -82,10 +97,17 @@ export function resetChannelsForTests(): void {
 /** Brings this page's caches up to a write of the sync (here or in another tab). Never rejects. */
 export async function applyWritten(host: CacheHost, w: SyncWrite): Promise<void> {
   try {
-    if (w.kind === 'script') {
+    if (w.kind === 'script' || w.kind === 'scriptData') {
       await host.scripts?.reload();
       return;
     }
+    if (w.kind === 'settings') {
+      if (!w.settings) return;
+      const r = await host.settings.reload();
+      if (r === 'applied') postSyncMessage({ text: settingsFromWords(w.settings.from, w.settings.held), ms: SETTINGS_MESSAGE_MS, tag: 'settings' });
+      return;
+    }
+    if (w.kind !== 'profile') return;
     const ch = w.profiles;
     for (const p of ch?.put ?? []) host.profiles.announce(p.name, p.text);
     const sel = host.settings.get().profile;

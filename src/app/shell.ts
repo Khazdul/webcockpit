@@ -1123,6 +1123,7 @@ export class Shell {
       maps: this.maps,
       scripts: this.scripts,
       scriptRunning: (name) => this.appRef?.scriptRunning(name) ?? null,
+      playedCharacter: () => this.appRef?.game.timers.characterName ?? null,
       scriptPanes: {
         list: () => this.appRef?.cockpit.scriptPanes() ?? [],
         subscribe: (fn) => this.appRef?.cockpit.onScriptPanes(fn) ?? (() => {}),
