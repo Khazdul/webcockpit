@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { deriveKeys, makeRoot, seal, toBase64Url } from '../../src/cloud/crypto';
 import { SyncEngine } from '../../src/cloud/sync/engine';
-import { type KindSpec, profileSpec } from '../../src/cloud/sync/items';
+import { type KindSpec, SYNC_SPECS, profileSpec, utcDay } from '../../src/cloud/sync/items';
+import { SETTINGS_VERSION } from '../../src/settings/types';
 import type { Body, Remote, SyncKeys, SyncStatus } from '../../src/cloud/sync/types';
 import { Device, MemoryLocal, MemoryRecords, ServerModel, remoteFor, newLink } from './cloud-sync-model';
 
@@ -592,5 +593,163 @@ describe('the engine around a sync', () => {
     expect(item.blob).toBeDefined();
     expect(Buffer.from(item.blob!, 'base64url').toString('latin1')).not.toContain('secret');
     expect(item.blob).not.toBe(toBase64Url(new TextEncoder().encode('secret text')));
+  });
+});
+
+// Stage 62 (ADR 0152): the small kinds in the engine.
+describe('the small kinds', () => {
+  const msg = (ts: number, text: string, character = 'Gandalf') => ({ character, ts, channel: 'tell', talker: 'Frodo', talkerType: null, destination: null, text });
+  const pieceOf = (d: Device, day: string) => d.local.items('comm').find((b) => b.day === day);
+  const settingsOf = (look: string, from: string) => ({ type: 'desktop', record: { version: SETTINGS_VERSION, look }, from });
+
+  it('comm edited on both sides: the union is written on both and pushed once on the remote rev', async () => {
+    const { server, clock, devices: [a, b] } = await account();
+    const day = utcDay(clock.t);
+    a!.local.append(day, msg(1, 'one'));
+    await a!.sync();
+    await b!.sync();
+    a!.local.append(day, msg(2, 'a says', 'Aragorn'));
+    b!.local.append(day, msg(3, 'b says'));
+    await a!.sync();
+    const revs = server.all()[0]!.rev;
+    await b!.sync();
+    expect(server.all()[0]!.rev).toBe(revs + 1);
+    await a!.sync();
+    const want = { day, records: [msg(1, 'one'), msg(2, 'a says', 'Aragorn'), msg(3, 'b says')] };
+    expect(pieceOf(a!, day)).toEqual(want);
+    expect(pieceOf(b!, day)).toEqual(want);
+    expect(a!.local.rawComm(day)).toHaveLength(3);
+    expect(a!.events).toEqual([]);
+    expect(b!.events).toEqual([]);
+    const seq = server.seq;
+    await a!.sync();
+    await b!.sync();
+    expect(server.seq).toBe(seq);
+  });
+
+  it('comm: a message the game writes while the engine writes is kept and pushed at the next sync', async () => {
+    const { clock, devices: [a, b] } = await account();
+    const day = utcDay(clock.t);
+    a!.local.append(day, msg(1, 'one'));
+    await a!.sync();
+    b!.local.append(day, msg(2, 'two'));
+    await b!.sync();
+    a!.local.beforeWrite = () => a!.local.append(day, msg(3, 'meanwhile'));
+    await a!.sync(); // takes b's piece; the game appends during the write
+    a!.local.beforeWrite = undefined;
+    expect(pieceOf(a!, day)!.records).toHaveLength(3);
+    expect(a!.engine.status.get().state).toBe('synced');
+    await a!.sync();
+    await b!.sync();
+    expect(pieceOf(b!, day)).toEqual(pieceOf(a!, day));
+  });
+
+  it('comm: a day older than seven days is deleted on the server, and not stored from a pull', async () => {
+    const { server, clock, devices: [a, b] } = await account();
+    const day = utcDay(clock.t);
+    a!.local.append(day, msg(clock.t, 'old soon'));
+    await a!.sync();
+    clock.t += 8 * 24 * 3600_000;
+    await b!.sync(); // pulls it, does not store it
+    expect(b!.local.items('comm')).toEqual([]);
+    await b!.sync();
+    expect(server.all().filter((x) => x.kind === 'comm' && !x.deleted)).toEqual([]);
+    await a!.sync();
+    expect(a!.local.items('comm')).toEqual([]);
+    expect(a!.engine.status.get()).toMatchObject({ state: 'synced', waiting: 0 });
+  });
+
+  it('settings are last writer, and `from` alone is not a change', async () => {
+    const { server, devices: [a, b] } = await account();
+    a!.local.set('settings', settingsOf('amber', 'desktop, Firefox'));
+    await a!.sync();
+    await b!.sync();
+    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber', 'desktop, Firefox'));
+    // The phone's adapter lists it with its own label: still in step.
+    b!.local.set('settings', settingsOf('amber', 'phone'));
+    const seq = server.seq;
+    await b!.sync();
+    expect(server.seq).toBe(seq);
+    // Both change it: the later sync wins whole, no copy.
+    a!.local.set('settings', settingsOf('steel', 'desktop, Firefox'));
+    b!.local.set('settings', settingsOf('green', 'phone'));
+    await a!.sync();
+    await b!.sync();
+    await a!.sync();
+    expect(a!.local.get('settings', 'desktop')).toEqual(settingsOf('green', 'phone'));
+    expect(a!.local.items('settings')).toHaveLength(1);
+    expect(b!.events).toEqual([]);
+  });
+
+  it('settings from a newer client are left untouched; this device type in use waits for the start page', async () => {
+    const { server, keys, devices: [a, b] } = await account();
+    a!.local.set('settings', settingsOf('amber', 'desktop, Firefox'));
+    await a!.sync();
+    await b!.sync();
+    const sid = [...a!.records.recs.values()][0]!.serverId;
+    const newer = { v: 1, type: 'desktop', record: { version: SETTINGS_VERSION + 1, look: 'future' } };
+    expect(server.put('settings', sid, 1, await seal(keys.dataKey, 'settings', sid, new TextEncoder().encode(JSON.stringify(newer)))).status).toBe(200);
+    await b!.sync();
+    expect(b!.local.get('settings', 'desktop')).toEqual(settingsOf('amber', 'desktop, Firefox'));
+    expect(b!.engine.status.get().state).toBe('update');
+    expect(b!.events).toEqual([{ type: 'newer', kind: 'settings', serverId: sid }]);
+
+    // In use: a pulled change waits.
+    const { devices: [c, d] } = await account();
+    c!.local.set('timers', { character: 'Gandalf', savedAt: 1, state: { n: 1 } });
+    await c!.sync();
+    await d!.sync();
+    c!.local.set('timers', { character: 'Gandalf', savedAt: 2, state: { n: 2 } });
+    await c!.sync();
+    d!.using.set('timers', new Set(['Gandalf']));
+    await d!.sync();
+    expect(d!.local.get('timers', 'Gandalf')).toMatchObject({ savedAt: 1 });
+    expect(d!.engine.status.get()).toMatchObject({ held: 1 });
+    d!.using.clear();
+    await d!.sync();
+    expect(d!.local.get('timers', 'Gandalf')).toMatchObject({ savedAt: 2 });
+  });
+
+  it('scriptData follows by name; a delete and a create are two items', async () => {
+    const { devices: [a, b] } = await account();
+    a!.local.set('scriptData', { name: 'finder', settings: { r: 1 }, store: {} });
+    await a!.sync();
+    await b!.sync();
+    b!.local.del('scriptData', 'finder');
+    b!.local.set('scriptData', { name: 'seeker', settings: { r: 1 }, store: {} });
+    await b!.sync();
+    await a!.sync();
+    expect(a!.list('scriptData').map((x) => x.name)).toEqual(['seeker']);
+  });
+
+  it('yields to the game between kinds and between pushes (setTimeout 0 by default)', async () => {
+    const server = new ServerModel();
+    const keys = await deriveKeys(makeRoot());
+    const local = new MemoryLocal();
+    for (let i = 0; i < 3; i++) local.set('timers', { character: `c${i}`, savedAt: i, state: null });
+    const engine = new SyncEngine({ local, records: new MemoryRecords(), remote: remoteFor(server, newLink()), keys, specs: SYNC_SPECS });
+    let macrotasks = 0;
+    const timer = setInterval(() => macrotasks++, 0);
+    try {
+      expect(await engine.sync()).toEqual({ type: 'synced' });
+    } finally {
+      clearInterval(timer);
+    }
+    expect(server.seq).toBe(3);
+    // 5 kind boundaries + 2 between the 3 pushes, each a macrotask the interval could run in.
+    expect(macrotasks).toBeGreaterThanOrEqual(3);
+    const yields: string[] = [];
+    const counted = new SyncEngine({
+      local,
+      records: new MemoryRecords(),
+      remote: remoteFor(new ServerModel(), newLink()),
+      keys,
+      specs: SYNC_SPECS,
+      yieldToGame: async () => {
+        yields.push('y');
+      },
+    });
+    await counted.sync();
+    expect(yields).toHaveLength(5 + 2);
   });
 });

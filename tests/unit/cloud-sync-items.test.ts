@@ -6,20 +6,31 @@ import { ItemCodec } from '../../src/cloud/sync/codec';
 import {
   PROFILE_NAMES,
   SCRIPT_NAMES,
+  SYNC_SPECS,
   canonicalJson,
+  commIdentity,
+  commSpec,
   contentHash,
   copyKey,
   decodeBody,
   deviceWord,
   encodeBody,
   freeName,
+  gunzip,
+  gzip,
+  itemHashes,
   keepBothName,
   profileSpec,
+  scriptDataSpec,
   scriptSpec,
+  settingsSpec,
+  timersSpec,
+  utcDay,
   shortDate,
   syncDeviceLabel,
 } from '../../src/cloud/sync/items';
 import { backoffMs } from '../../src/cloud/sync/status';
+import { SETTINGS_VERSION } from '../../src/settings/types';
 import { ServerModel, validName } from './cloud-sync-model';
 
 const profile = { id: 'p-1', name: 'warrior', text: '#alias {k} {kill %1}', created: 1, modified: 2 };
@@ -69,6 +80,106 @@ describe('bodies', () => {
 
   it('drop fields they do not know at v1 (a new field must raise v)', async () => {
     expect(await decodeBody(profileSpec, enc.encode(JSON.stringify({ ...profile, v: 1, extra: 1 })))).toEqual({ ok: true, body: profile });
+  });
+});
+
+// Stage 62 (ADR 0152): the small kinds.
+describe('the small kinds', () => {
+  const j = (x: unknown) => enc.encode(JSON.stringify(x));
+  const settings = { type: 'phone', record: { version: SETTINGS_VERSION, appearance: { font: 'x' } }, from: 'desktop, Chrome' };
+  const data = { name: 'finder', enabled: true, settings: { range: 3 }, store: { seen: ['a'] } };
+  const timers = { character: 'Gandalf', savedAt: 5, state: { v: 1, groups: [] } };
+  const msg = (ts: number, text: string, character = 'Gandalf') => ({ character, ts, channel: 'tell', talker: 'Frodo', talkerType: null, destination: null, text });
+
+  it('are synced in the order profile, script, settings, scriptData, timers, comm; none has names', () => {
+    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm']);
+    for (const sp of [settingsSpec, scriptDataSpec, timersSpec, commSpec]) {
+      expect(sp.version).toBe(1);
+      expect(sp.names).toBeUndefined();
+      expect(sp.policy).toBe(sp === commSpec ? 'merge' : 'lastWriter');
+    }
+  });
+
+  it('settings: keyed by the device type; a newer settings version is newer, an older one is taken as it is', async () => {
+    expect(settingsSpec.key(settings)).toBe('phone');
+    expect(await decodeBody(settingsSpec, await encodeBody(settingsSpec, settings))).toEqual({ ok: true, body: settings });
+    const { from: _f, ...noFrom } = settings;
+    expect(await decodeBody(settingsSpec, j({ ...noFrom, v: 1 }))).toEqual({ ok: true, body: noFrom });
+    expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, record: { version: SETTINGS_VERSION + 1 } }))).toEqual({ ok: false, why: 'newer' });
+    expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, record: { version: 2, old: true } }))).toEqual({ ok: true, body: { ...settings, record: { version: 2, old: true } } });
+    expect(await decodeBody(settingsSpec, j({ ...settings, v: 2 }))).toEqual({ ok: false, why: 'newer' });
+    for (const bad of [{ type: 'watch' }, { record: [] }, { record: { version: 'six' } }, { record: { version: 0 } }, { from: 3 }, { record: null }]) {
+      expect(await decodeBody(settingsSpec, j({ ...settings, v: 1, ...bad })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+    }
+  });
+
+  it('settings: `from` is not in the hashes (two devices with the same settings are in step)', async () => {
+    const a = await itemHashes(settingsSpec, settings);
+    expect(await itemHashes(settingsSpec, { ...settings, from: 'phone' })).toEqual(a);
+    const { from: _f, ...noFrom } = settings;
+    expect(await itemHashes(settingsSpec, noFrom)).toEqual(a);
+    expect((await itemHashes(settingsSpec, { ...settings, record: { version: SETTINGS_VERSION, appearance: { font: 'y' } } })).hash).not.toBe(a.hash);
+  });
+
+  it('scriptData: keyed by the script name; enabled optional; unknown fields dropped', async () => {
+    expect(scriptDataSpec.key(data)).toBe('finder');
+    expect(await decodeBody(scriptDataSpec, await encodeBody(scriptDataSpec, data))).toEqual({ ok: true, body: data });
+    const { enabled: _e, ...bare } = data;
+    expect(await decodeBody(scriptDataSpec, j({ ...bare, v: 1, extra: 1 }))).toEqual({ ok: true, body: bare });
+    for (const bad of [{ name: '' }, { name: 3 }, { enabled: 'yes' }, { settings: [] }, { store: null }]) {
+      expect(await decodeBody(scriptDataSpec, j({ ...data, v: 1, ...bad })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+    }
+  });
+
+  it('timers: keyed by the character; any state', async () => {
+    expect(timersSpec.key(timers)).toBe('Gandalf');
+    expect(await decodeBody(timersSpec, await encodeBody(timersSpec, timers))).toEqual({ ok: true, body: timers });
+    expect(await decodeBody(timersSpec, j({ character: 'Frodo', savedAt: 1, v: 1 }))).toEqual({ ok: true, body: { character: 'Frodo', savedAt: 1, state: null } });
+    for (const bad of [{ character: '' }, { savedAt: '1' }, { savedAt: null }]) {
+      expect(await decodeBody(timersSpec, j({ ...timers, v: 1, ...bad })), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+    }
+  });
+
+  it('comm: gzip of the canonical JSON; the hash over the JSON', async () => {
+    const piece = { day: '2026-11-14', records: [msg(1, 'hi'), msg(2, 'there')] };
+    const plain = await encodeBody(commSpec, piece);
+    expect(plain[0]).toBe(0x1f); // gzip's magic
+    expect(new TextDecoder().decode(await gunzip(plain))).toBe(canonicalJson({ ...piece, v: 1 }));
+    expect(await decodeBody(commSpec, plain)).toEqual({ ok: true, body: piece });
+    // Not gzip, or gzip of what is not a body: unreadable.
+    expect(await decodeBody(commSpec, j({ ...piece, v: 1 }))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(commSpec, await gzip(enc.encode('{nope')))).toEqual({ ok: false, why: 'unreadable' });
+    expect(await decodeBody(commSpec, await gzip(j({ ...piece, v: 2 })))).toEqual({ ok: false, why: 'newer' });
+    expect(await itemHashes(commSpec, piece)).toEqual({ hash: await contentHash('comm', piece), bare: await contentHash('comm', piece) });
+    // A body that would open to more than the cap is refused.
+    await expect(gunzip(await gzip(new Uint8Array(2000)), 1000)).rejects.toThrow();
+    // A sealed comm item round-trips through the codec.
+    const keys = await deriveKeys(makeRoot());
+    const codec = new ItemCodec(keys);
+    const sid = await codec.serverId('comm', piece.day);
+    expect(await codec.open(commSpec, sid, toBase64Url(await codec.seal(commSpec, sid, piece)))).toEqual({ ok: true, body: piece });
+  });
+
+  it('comm: decode sorts by ts then identity, drops seq and duplicates, checks every record and the day', async () => {
+    const day = '2026-11-14.2';
+    const a = msg(5, 'a');
+    const b = msg(5, 'b');
+    const c = msg(1, 'c');
+    const d = await decodeBody(commSpec, await gzip(j({ v: 1, day, records: [{ ...b, seq: 9 }, a, c, { ...a, seq: 3 }] })));
+    const sorted = [c, ...[a, b].sort((x, y) => (commIdentity(x) < commIdentity(y) ? -1 : 1))];
+    expect(d).toEqual({ ok: true, body: { day, records: sorted } });
+    for (const bad of [{ day: '14 Nov' }, { day: '2026-11-14.1' }, { day: '2026-11-14.02' }, { records: {} }, { records: [{ ...a, ts: 'x' }] }, { records: [{ ...a, talkerType: 1 }] }, { records: [7] }]) {
+      expect(await decodeBody(commSpec, await gzip(j({ v: 1, day, records: [a], ...bad }))), JSON.stringify(bad)).toEqual({ ok: false, why: 'unreadable' });
+    }
+    expect(commSpec.key({ day, records: [] })).toBe(day);
+    expect(utcDay(Date.UTC(2026, 10, 14, 23, 59))).toBe('2026-11-14');
+  });
+
+  it('comm: merge is the union by identity, sorted', () => {
+    const day = '2026-11-14';
+    const [m1, m2, m3] = [msg(1, 'one'), msg(2, 'two', 'Frodo'), msg(3, 'three')];
+    expect(commSpec.merge!({ day, records: [m1, m3] }, { day, records: [m2, m3] })).toEqual({ day, records: [m1, m2, m3] });
+    expect(commSpec.merge!({ day, records: [] }, { day, records: [m1] })).toEqual({ day, records: [m1] });
   });
 });
 
@@ -202,7 +313,9 @@ describe('the server model', () => {
 
   it('refuses closed kinds and bad ids; an ended session answers 401', () => {
     const s = new ServerModel();
-    expect(s.put('settings', id(1), 0, b(1))).toMatchObject({ status: 400, body: { error: 'kind_closed' } });
+    expect(s.put('run', id(1), 0, b(1))).toMatchObject({ status: 400, body: { error: 'kind_closed' } });
+    expect(s.put('exportDoc', id(1), 0, b(1))).toMatchObject({ status: 400, body: { error: 'kind_closed' } });
+    for (const kind of ['settings', 'scriptData', 'comm', 'timers']) expect(s.put(kind, id(1), 0, b(1)).status, kind).toBe(200);
     expect(s.put('profile', 'short', 0, b(1))).toMatchObject({ status: 400 });
     s.ended = 'password';
     expect(s.changes(0)).toEqual({ status: 401, body: { error: 'session_ended', reason: 'password' } });
