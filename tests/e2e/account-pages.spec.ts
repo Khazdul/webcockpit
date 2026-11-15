@@ -228,6 +228,9 @@ test('a life: create account, the recovery code (copy, download, the last group)
   expect((await ts.state(page)).last).toMatchObject({ sitekey: api.server.siteKey, theme: 'dark', size: 'normal' });
   await expect(btn(page, 'CREATE')).toHaveAttribute('aria-disabled', 'true');
   await expect(frame(page).locator('.wc-ac-points li')).toHaveCount(6);
+  await expect(frame(page).locator('.wc-ac-points li').first()).toContainText(
+    'Your profiles, scripts, settings, saved runs and Comm history, encrypted on this device before they are sent.',
+  );
   await shot(page, 'create-empty', 'desktop');
   // Nothing scrolls at 1440 × 900: the whole box is inside the window.
   const box = (await frame(page).locator('.wc-lk-box').boundingBox())!;

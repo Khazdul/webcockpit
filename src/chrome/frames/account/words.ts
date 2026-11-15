@@ -31,7 +31,7 @@ export type FlowPlace = 'login' | 'register' | 'recover' | 'account';
 
 /** The six points of Create account (ADR 0145 "What the player is told at registration"): a lead-in and its sentence. */
 export const POINTS: readonly (readonly [lead: string, text: string])[] = [
-  ['What is stored', 'Your profiles, scripts, settings and saved runs, encrypted on this device before they are sent.'],
+  ['What is stored', 'Your profiles, scripts, settings, saved runs and Comm history, encrypted on this device before they are sent.'],
   ['What we can see', 'Your user name, when you were last here, and how much you store. Not the contents.'],
   ['What is never stored', 'Your MUME name and password.'],
   ['What is public', 'Your user name, if you publish a run or comment on one.'],
