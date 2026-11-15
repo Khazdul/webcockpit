@@ -198,6 +198,8 @@ export interface BuildReplayOptions {
   runMapTool?: EmbedMapOptions['runTool'];
   /** The map tileset to embed the tiles from (ADR 0082); absent: the default pixmaps. */
   tileset?: TilesetOverlay;
+  /** A share link's map: no room notes, a neutral name (review fix S6; the HTML file keeps both). */
+  forLink?: boolean;
 }
 
 async function get(f: (url: string) => Promise<Response>, url: string): Promise<Response> {
@@ -262,6 +264,7 @@ export async function withReplayMap(payload: ReplayPayload, opts: BuildReplayOpt
     fetch: f,
     ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
     ...(opts.tileset ? { tileset: opts.tileset } : {}),
+    ...(opts.forLink ? { forLink: true } : {}),
   });
 }
 

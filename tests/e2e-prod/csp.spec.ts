@@ -117,7 +117,7 @@ test('the policy is sent with every static file and names the inline scripts of 
 
 /** The shared replay's frame policy (ADR 0154), its two hashes filled in. */
 const FRAME_POLICY =
-  /^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/]+=*'; style-src 'sha256-[A-Za-z0-9+/]+=*' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'$/;
+  /^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/]+=*'; style-src 'sha256-[A-Za-z0-9+/]+=*' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'; sandbox allow-scripts$/;
 
 test('the shared replay frame /r/frame has its own policy, naming its one script and one style', async ({ request }) => {
   const r = await request.get('r/frame');

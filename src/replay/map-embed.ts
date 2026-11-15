@@ -38,7 +38,15 @@ export interface EmbedMapOptions {
    * and `ReplayMap.tints`.
    */
   tileset?: TilesetOverlay;
+  /**
+   * A share link's map (review fix S6): the subset without the player's own
+   * room notes, and a neutral name instead of the map file's.
+   */
+  forLink?: boolean;
 }
+
+/** The map name a share link carries (the file's own name may be the player's). */
+export const LINK_MAP_NAME = 'map.mm2';
 
 const MIME: Readonly<Record<string, string>> = { png: 'image/png', fnt: 'text/plain' };
 
@@ -47,7 +55,7 @@ export async function embedReplayMap(payload: ReplayPayload, source: MapSource, 
   const visits = extractVisits(payload.runs.map((r) => r.text), payload.cuts);
   if (visits.rooms.length === 0 && visits.mapIds.length === 0) return payload;
   const run = o.runTool ?? (async (req: MapToolRequest) => (await import('../map/tools-client')).runMapTool(req));
-  const res = await run({ t: 'subset', source, visits });
+  const res = await run({ t: 'subset', source, visits, ...(o.forLink ? { notes: false as const } : {}) });
   if (!res.ok || res.t !== 'subset') {
     console.warn(`WebCockpit: the replay's map was left out (${res.ok ? 'unexpected answer' : res.message})`);
     return payload;
@@ -71,7 +79,7 @@ export async function embedReplayMap(payload: ReplayPayload, source: MapSource, 
     return payload;
   }
   const map: ReplayMap = {
-    name: r.name,
+    name: o.forLink ? LINK_MAP_NAME : r.name,
     rooms: r.rooms,
     visited: r.visited,
     mm2: toBase64(r.mm2),

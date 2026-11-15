@@ -139,7 +139,7 @@ describe('the Content-Security-Policy of the static files (ADR 0144, stage 60)',
 });
 
 describe('the shared replay frame’s policy (ADR 0154, stage 64 B2)', () => {
-  const FRAME = "default-src 'none'; script-src 'sha256-FRAME-SCRIPT'; style-src 'sha256-FRAME-STYLE' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
+  const FRAME = "default-src 'none'; script-src 'sha256-FRAME-SCRIPT'; style-src 'sha256-FRAME-STYLE' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'; sandbox allow-scripts";
 
   it('public/_headers: /r/frame has the ADR’s policy alone, the app’s removed, as built and once enforced', () => {
     for (const text of [HEADERS, enforceCsp(fillCspHashes(HEADERS, ['<script>one()</script>']))]) {

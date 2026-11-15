@@ -8,7 +8,7 @@
 import { type Frame, type Page, expect, test } from '@playwright/test';
 
 const POLICY =
-  /^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/]+=*'; style-src 'sha256-[A-Za-z0-9+/]+=*' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'$/;
+  /^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/]+=*'; style-src 'sha256-[A-Za-z0-9+/]+=*' 'unsafe-inline'; img-src data: blob:; font-src data:; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'; sandbox allow-scripts$/;
 
 /** The frame's console lines that report a CSP violation (Chromium and Firefox word them differently). */
 function cspLog(page: Page): string[] {
