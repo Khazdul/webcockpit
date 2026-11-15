@@ -35,10 +35,9 @@ import {
   type SyncConflict,
   type SyncItem,
   type SyncKind,
-  type SyncUsage,
   type SyncWritten,
 } from '../shared/cloud/api.ts';
-import { limitsOf } from './accounts.ts';
+import { limitsOf, usageOf } from './accounts.ts';
 import { toB64url } from './bytes.ts';
 import { flags } from './flags.ts';
 import type { D1, Deps, Env } from './runtime.ts';
@@ -160,8 +159,6 @@ function itemOf(r: ItemRow): SyncItem {
   if (r.deleted === 0 && r.blob !== null) out.blob = toB64url(new Uint8Array(r.blob));
   return out;
 }
-
-const usageOf = (r: UsageRow): SyncUsage => ({ items: r.item_count, itemBytes: r.item_bytes, runBytes: r.run_bytes });
 
 // --- GET /api/u/sync/changes ---
 

@@ -509,3 +509,54 @@ describe('Delete account and the R2 prefix', () => {
     expect(await r2Keys()).toEqual(['u/ab/1']);
   });
 });
+
+// Stage 63's review (ADR 0153, "As built (stage 63, review fixes)"): the
+// Worker's two. run_body always names bodies R2 holds, and run_bytes is
+// their sum.
+describe('stage 63 review: finding 7, a DELETE racing a PUT of the same id', () => {
+  it('the object gone under the PUT: its row and bytes go too (503, the client puts again)', async () => {
+    const cookie = await signUp('alice');
+    const id = idOf(1);
+    await ok(await put(cookie, id, body(50, 1)));
+    // Between the PUT's store and its row, a DELETE of the id (another tab's, another device's) runs whole.
+    const racing: R2 = {
+      ...faultyBucket(),
+      async put(k, value, options) {
+        const head = await bucket.put(k, value, options);
+        expect((await call('DELETE', runPath(id), undefined, { cookie })).status).toBe(200);
+        return head;
+      },
+    };
+    const res = await put(cookie, id, body(70, 2), { env: envOf({ FILES: racing }) });
+    expect(res.status).toBe(503);
+    expect(await r2Keys()).toEqual([]);
+    expect(await count('run_body')).toBe(0);
+    expect(await runBytes('alice')).toBe(0);
+    // The client's retry stores it.
+    await ok(await put(cookie, id, body(70, 2)));
+    expect(await runBytes('alice')).toBe(70);
+    expect((await list(cookie)).bodies.map((b) => b.size)).toEqual([70]);
+  });
+});
+
+describe('stage 63 review: CR5, R2 took the object but the request’s stream failed', () => {
+  it('the object is not trusted: it goes with its row and its bytes (503)', async () => {
+    const cookie = await signUp('alice');
+    const id = idOf(1);
+    await ok(await put(cookie, id, body(50, 1)));
+    // R2 stores the object and answers, while the stream that fed it fails (a cut connection after the put ended).
+    const early: R2 = {
+      ...faultyBucket(),
+      async put(k, value, options) {
+        const head = await bucket.put(k, body(70, 2), options);
+        if (typeof (value as ReadableStream).cancel === 'function') await (value as ReadableStream).cancel(new Error('the connection was cut')).catch(() => {});
+        return head;
+      },
+    };
+    const res = await put(cookie, id, body(70, 2), { env: envOf({ FILES: early }) });
+    expect(res.status).toBe(503);
+    expect(await r2Keys()).toEqual([]);
+    expect(await count('run_body')).toBe(0);
+    expect(await runBytes('alice')).toBe(0);
+  });
+});
