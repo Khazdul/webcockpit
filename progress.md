@@ -67,7 +67,7 @@
 | 61 | Sync of profiles and scripts, on the two spaces | Done, released 0.12.0 | `docs/stages/61-sync-profiles-scripts.md` |
 | 62 | Sync of settings, script data, Comm history and timers | Done, released 0.12.0 | `docs/stages/62-sync-settings-comm.md` |
 | 63 | Runs in the cloud; then accounts open | Done, released 0.12.0 (accounts, sync, runs on in production) | `docs/stages/63-runs-in-the-cloud.md` |
-| 64 | Share links | Planned (spec §7.12) | |
+| 64 | Share links | In progress (mockups round 12, foundations) | `docs/stages/64-share-links.md` |
 | 65 | The community | Planned (spec §7.12) | |
 | 66 | The admin panel | Planned (spec §7.12) | |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |

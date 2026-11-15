@@ -8,7 +8,7 @@ export interface ApiError {
 }
 
 /** Server flags that open cloud features (spec §7.0 rule 5). A missing flag is off. */
-export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs';
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -69,7 +69,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
@@ -218,13 +218,13 @@ export interface AccountLimits {
   itemBytes: number;
   /** One small item, bytes. */
   itemMaxBytes: number;
-  /** Run bodies and shared payloads together, bytes. The default is the Worker's var `RUN_BYTES_LIMIT` when set (stage 63). */
+  /** Run bodies, bytes (published payloads are not counted: ADR 0148 addendum, ADR 0154). The default is the Worker's var `RUN_BYTES_LIMIT` when set (stage 63). */
   runBytes: number;
   /** One run body, bytes. */
   runMaxBytes: number;
-  /** One shared payload, bytes. */
+  /** One published payload (gzip), bytes. */
   payloadMaxBytes: number;
-  /** Shared runs, count. */
+  /** Published runs (links and listed together), count. */
   sharedRuns: number;
 }
 
@@ -235,7 +235,7 @@ export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = {
   runBytes: 50 * 1024 * 1024,
   runMaxBytes: 20 * 1024 * 1024,
   payloadMaxBytes: 5 * 1024 * 1024,
-  sharedRuns: 50,
+  sharedRuns: 150,
 };
 
 export interface AccountUsage {
@@ -256,8 +256,10 @@ export interface AccountSession {
 }
 
 export interface AccountPrefs {
-  /** The notice of new runs in the gallery (stage 65). */
+  /** The notice of new runs in the gallery (unused; removed in stage 65, ADR 0148 addendum). */
   galleryNotice: boolean;
+  /** The sharing rules were ticked once (ADR 0154); `POST /api/u/pub` answers `403 rules` until then. */
+  rulesAccepted?: boolean;
 }
 
 export type AccountState = 'active' | 'suspended';
@@ -345,7 +347,9 @@ export interface DeleteAccountRequest {
 
 /** `PATCH /api/u/account/prefs` → `PrefsAnswer`. */
 export interface PrefsRequest {
-  galleryNotice: boolean;
+  galleryNotice?: boolean;
+  /** One way: only `true` is accepted (ADR 0154). */
+  rulesAccepted?: true;
 }
 
 /** What register and the second recover call answer. */
@@ -552,3 +556,180 @@ export interface RunBodyList {
 /** The header line of a run body's plaintext (ADR 0153, "The body"). */
 export const RUN_BODY_TYPE = 'webcockpit-run-body';
 export const RUN_BODY_VERSION = 1;
+
+// --- Share links (stage 64, spec §7.7, §7.9, ADR 0148, ADR 0154) ---
+//
+// A published run is a copy of its own: the export editor's
+// `ReplayPayload` (schema 1) as gzip JSON, unencrypted, in R2 under
+// `pub/<id>`, and a `publication` row. Behind the flag `share`: off, every
+// path below answers `404 not_found`. The Worker never decompresses a
+// payload; the watch page treats it as hostile (ADR 0154).
+
+/** A publication's id: 12 random characters. */
+export const PUB_ID_PATTERN = /^[A-Za-z0-9]{12}$/;
+export const PUB_TITLE_MAX = 100;
+export const PUB_DESCRIPTION_MAX = 500;
+export const REPORT_TEXT_MAX = 500;
+export const REPORTS_PER_DAY = 30;
+/** Reports from this many different accounts hide an item until the admin has looked. */
+export const REPORTS_TO_HIDE = 5;
+
+/** The meta the client sends with a payload. */
+export interface PubMetaIn {
+  /** 1–`PUB_TITLE_MAX` characters, no control characters. */
+  title: string;
+  /** 0–`PUB_DESCRIPTION_MAX` characters; `\n` is the only control character allowed. */
+  description: string;
+  character: string;
+  level?: number;
+  /** The cut's played length, seconds. */
+  lengthS: number;
+  /** Stage 65; `true` is refused until then. */
+  listed: false;
+}
+
+/**
+ * `POST /api/u/pub` (`X-WC: 1`, `application/octet-stream`,
+ * `Content-Length` required): the body is a 4-byte big-endian length of
+ * the meta's UTF-8 JSON (`PubMetaIn`), that JSON, then the payload's gzip
+ * bytes. `200` → `PubWritten`. `400 bad_request` (meta, not gzip), `403
+ * suspended`, `403 rules` (not ticked), `413 payload_too_large`
+ * (`PayloadTooLarge`), `413 pub_quota` (`PubQuota`). The count is
+ * reserved before R2, so two parallel posts never pass `sharedRuns`.
+ */
+export interface PubWritten {
+  pub: MyPub;
+}
+
+export interface PayloadTooLarge {
+  error: 'payload_too_large';
+  limit: number;
+}
+
+export interface PubQuota {
+  error: 'pub_quota';
+  limit: number;
+}
+
+export type PubState = 'active' | 'hidden';
+
+/** One of the account's published runs (`GET /api/u/pub` → `{pubs: MyPub[]}`, newest first). */
+export interface MyPub {
+  id: string;
+  title: string;
+  description: string;
+  character: string;
+  level?: number;
+  lengthS: number;
+  listed: boolean;
+  state: PubState;
+  created: number;
+  updated: number;
+  views: number;
+  /** The payload, bytes. */
+  bytes: number;
+}
+
+/** `PATCH /api/u/pub/<id>` (`X-WC: 1`) → `PubWritten`. `listed` is refused until stage 65. */
+export interface PubPatch {
+  title?: string;
+  description?: string;
+}
+
+/** `DELETE /api/u/pub/<id>` (`X-WC: 1`) → 204; the link then answers `410 gone`. */
+
+/**
+ * `GET /api/pub/<id>` (public): `PubMeta`. `404 not_found`, `410 gone`
+ * (removed), `451 hidden` (`{error: 'hidden'}`; the owner's session gets
+ * the meta with `hidden: true`).
+ * `GET /api/pub/<id>/payload`: the stored bytes, `application/octet-stream`,
+ * `Cache-Control: private, max-age=604800, immutable`; the same state
+ * answers.
+ */
+export interface PubMeta {
+  id: string;
+  title: string;
+  description: string;
+  /** The sender's account name. */
+  sender: string;
+  character: string;
+  level?: number;
+  lengthS: number;
+  created: number;
+  views: number;
+  bytes: number;
+  /** Only for the sender of a hidden run. */
+  hidden?: true;
+}
+
+/** `POST /api/pub/<id>/view` → 204: counted once per device and UTC day. */
+export interface PubView {
+  /** The usage statistics' device id (ADR 0147). */
+  device: string;
+}
+
+export const REPORT_KINDS = ['run', 'comment', 'note'] as const;
+export type ReportKind = (typeof REPORT_KINDS)[number];
+/** Stage 64 accepts only `run`. */
+export const REPORT_KINDS_OPEN: readonly ReportKind[] = ['run'];
+export const REPORT_REASONS = ['harassment', 'real_life', 'rules', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+/**
+ * `POST /api/u/report` (`X-WC: 1`) → 204. `409 already_reported`, `429
+ * too_many` (`REPORTS_PER_DAY`), `403 suspended`, `403 own` (one's own run),
+ * `404 not_found`.
+ */
+export interface ReportRequest {
+  kind: ReportKind;
+  target: string;
+  reason: ReportReason;
+  text?: string;
+}
+
+// The admin's side (behind Access, `X-WC: 1` and a matching `Origin` on writes).
+
+/** `GET /api/admin/reports`: open reports, one entry per item, most reports first. */
+export interface AdminReports {
+  items: AdminReportItem[];
+  /** Published runs in total. */
+  pubs: { count: number; bytes: number; today: number };
+}
+
+export interface AdminReportItem {
+  kind: ReportKind;
+  target: string;
+  title: string;
+  sender: string;
+  state: PubState;
+  reasons: Partial<Record<ReportReason, number>>;
+  /** Different accounts. */
+  reporters: number;
+  newest: number;
+  /** The newest report's text, if any. */
+  text?: string;
+}
+
+export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'delete'] as const;
+export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete'] as const;
+
+/** `POST /api/admin/pub/<id>` → 204. Marks the item's reports handled; writes `admin_log`. */
+export interface AdminPubAction {
+  action: (typeof ADMIN_PUB_ACTIONS)[number];
+  note?: string;
+}
+
+/** `POST /api/admin/account/<name>` → 204. `delete` needs `confirm` equal to the name. */
+export interface AdminAccountAction {
+  action: (typeof ADMIN_ACCOUNT_ACTIONS)[number];
+  confirm?: string;
+  note?: string;
+}
+
+/** `GET /api/admin/log` → `{entries: AdminLogEntry[]}`, newest 100. */
+export interface AdminLogEntry {
+  ts: number;
+  action: string;
+  target: string;
+  note: string;
+}
