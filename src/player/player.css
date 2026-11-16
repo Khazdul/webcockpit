@@ -555,8 +555,9 @@ html.wc-phone .wc-player-head-left {
   min-width: 32px;
 }
 
-/* Too narrow even compact (view.ts fitBox): no Fullscreen, no To the start. */
-.wc-player-box[data-tight] [data-act="extra"],
+/* Too narrow even compact (view.ts fitBox): no To the start; tighter
+ * still (a 320 px phone), no Fullscreen either. */
+.wc-player-box[data-tighter] [data-act="extra"],
 .wc-player-box[data-tight] [data-act="start"] {
   display: none;
 }

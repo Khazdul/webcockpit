@@ -152,3 +152,25 @@ test('phone portrait: Map, Timers and Group each show alone and together', async
   expect(map.width).toBeGreaterThan(100);
   expect(map.height).toBeGreaterThan(100);
 });
+
+// Stage 65 feedback round 2: on a 360 px phone the narrow box dropped Fullscreen with To the start.
+// Now To the start goes first; Fullscreen stays down to a 360 px portrait phone.
+for (const width of [360, 390]) {
+  test(`phone portrait ${width} px: the player's box keeps Fullscreen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 780 });
+    await setUp(page, { gallery: true });
+    await openWatch(page);
+    await playing(page);
+    await replay(page).locator('.wc-player').tap();
+    const fsButton = replay(page).locator('.wc-player-box [data-act="extra"]');
+    await expect(fsButton).toBeVisible();
+    await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    // The whole box inside the frame.
+    const frame = (await page.locator('.wc-watch-slot iframe').boundingBox())!;
+    const b = (await replay(page).locator('.wc-player-box').boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(frame.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(frame.x + frame.width);
+    await fsButton.tap();
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+  });
+}
