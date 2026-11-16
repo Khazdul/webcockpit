@@ -9,11 +9,12 @@
 //                  whose value changed are forwarded. Absent = indoors,
 //                  no fog, normal light, standing.
 //   Event.Sun      rise | light | set | dark → 'sun.<what>' (the engine
-//                  derives day / night from it: day from `rise` (the sun
-//                  is up from the dawn hour; `light` an hour later keeps
-//                  it), night from `dark`; `set` opens the dusk hour, still
-//                  day, and starts the sunset when the clock cannot time
-//                  it, ADR 0093 and its 2026-11-01 addendum)
+//                  derives day / night from it: day from `light` (the
+//                  sun shines from the hour after the dawn hour; `rise`
+//                  opens the dawn hour, still night, and starts the sunrise
+//                  when the clock cannot time it), night from `set` (the
+//                  dusk hour; `dark` an hour later keeps it), ADR 0093 and
+//                  its 2026-11-16 addendum)
 //   Event.Moon     rise | set → 'moon.<what>'
 //   Event.Darkness start | grow | shrink | end-soon | end → 'darkness.<what>'
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
@@ -271,12 +272,12 @@ export class WeatherSignals {
     const ev = gmcpEvent(key, data);
     if (!ev) return;
     // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
-    // The day (sunlight) comes with `rise`, the dawn hour (`light` an hour later keeps it); `set` opens the
-    // dusk hour, still day; the night comes with `dark` (ADR 0093, addendum 2026-11-01).
-    if (ev === 'sun.rise' || ev === 'sun.light') {
+    // `rise` opens the dawn hour, still night; the day (sunlight) comes with `light`, the hour after. The
+    // night comes with `set`, the dusk hour (`dark` an hour later keeps it) (ADR 0093, addendum 2026-11-16).
+    if (ev === 'sun.light') {
       this.sky.clock = 'day';
       if (this.sky.sunU < 0) this.sky.sunU = 0;
-    } else if (ev === 'sun.dark') {
+    } else if (ev === 'sun.set' || ev === 'sun.dark') {
       this.sky.clock = 'night';
       this.sky.sunU = -1;
     }
@@ -292,9 +293,9 @@ export class WeatherSignals {
       return;
     }
     // held (item 85): the state above is applied on release
-    // (only a sunset follows its event; a sunrise ends at `rise`)
-    if (ev === 'sun.set') this.heldTurn = { kind: 'set', at: this.now() };
-    else if (ev === 'sun.rise' || ev === 'sun.light' || ev === 'sun.dark') this.heldTurn = null;
+    // (only a sunrise follows its event; a sunset ends at `set`)
+    if (ev === 'sun.rise') this.heldTurn = { kind: 'rise', at: this.now() };
+    else if (ev === 'sun.light' || ev === 'sun.set' || ev === 'sun.dark') this.heldTurn = null;
     else if (ev.startsWith('darkness.')) this.heldDark = ev;
   }
 

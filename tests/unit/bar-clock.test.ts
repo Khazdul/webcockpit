@@ -118,29 +118,29 @@ describe('BarClock', () => {
 
   it('minute precision: the sun in a ring of the part of the day left, ticking each second', () => {
     const t = setup();
-    // Astron: day 7:00 (the dawn hour) → 20:00; at 13:30 half of it is left.
+    // Astron: day 8:00 (dawn + 1) → 19:00 (the dusk hour); at 13:30, 5.5 of 11 h are left.
     t.set(13, 30, 'minute');
     expect(t.el.dataset.sync).toBe('minute');
     expect(t.el.dataset.period).toBe('day');
     expect(t.glyph()).toBe(GHOST_SUN);
     // (300 ms into the second.)
-    expect(t.arc()).toBe(ringPath((390_000 - 300) / 780_000));
+    expect(t.arc()).toBe(ringPath((330_000 - 300) / 660_000));
     expect(t.tilde().hidden).toBe(true);
     expect(t.clock.cells).toBe(CLOCK_CELLS);
     expect(t.timers.at(-1)!.ms).toBe(705);
     t.tick(705);
-    expect(t.arc()).toBe(ringPath((389_000 - 5) / 780_000));
+    expect(t.arc()).toBe(ringPath((329_000 - 5) / 660_000));
     expect(t.cells).toEqual([]);
   });
 
   it('turns to the moon at the change with a full ring', () => {
     const t = setup();
-    t.set(19, 59, 'minute');
+    t.set(18, 59, 'minute');
     expect(t.el.dataset.period).toBe('day');
     t.tick(705);
     expect(t.el.dataset.period).toBe('night');
     expect(t.glyph()).toBe(GHOST_MOON);
-    expect(t.arc()).toBe(ringPath((720_000 - 5) / 720_000));
+    expect(t.arc()).toBe(ringPath((780_000 - 5) / 780_000));
   });
 
   it('hour precision: the ring and a grey ~, one cell wider; back to minute narrows it', () => {
@@ -148,8 +148,8 @@ describe('BarClock', () => {
     t.set(23, 0, 'hour');
     expect(t.el.dataset.sync).toBe('hour');
     expect(t.el.dataset.period).toBe('night');
-    // Night 20:00 → 7:00 (the dawn hour): 3 of 11 game hours gone.
-    expect(t.arc()).toBe(ringPath((480_000 - 300) / 660_000));
+    // Night 19:00 (the dusk hour) → 8:00 (dawn + 1): 4 of 13 game hours gone.
+    expect(t.arc()).toBe(ringPath((540_000 - 300) / 780_000));
     expect(t.tilde().hidden).toBe(false);
     expect(t.tilde().textContent).toBe('~');
     expect(t.clock.cells).toBe(CLOCK_APPROX_CELLS);

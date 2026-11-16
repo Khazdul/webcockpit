@@ -119,28 +119,28 @@ export function weekdayOf(month: number, day: number): number {
 }
 
 /**
- * Day (sunlight): dawn ≤ hour < dusk + 1 of the month; everything else is
- * night. The sun is up from the dawn hour ("The sun rises in the east.",
- * `Event.Sun rise`) through the dusk hour ("The sun slowly disappears in
- * the west.", `set`) and down from the hour after ("The night has
- * begun.", `dark`). "The day has begun." (`light`, the hour after the dawn
- * hour) changes nothing: the sun is already up. The owner's logs show the
- * prompt's light symbol turning `*` at the dawn tick and `o` at dusk + 1
- * (ADR 0093, addendum 2026-11-01). One rule for the clock, the sky, the
- * almanac and the scripts: trolls die in sunlight.
+ * Day (sunlight): dawn + 1 ≤ hour < dusk of the month; everything else is
+ * night. Dawn ("The sun rises in the east.", `Event.Sun rise`) comes one
+ * game hour before the sunlight; the sun shines from the hour after
+ * ("The day has begun.", `light`). Dusk ("The sun slowly disappears in the
+ * west.", `set`) is the hour the sunlight ends; "The night has begun."
+ * (`dark`, the hour after) changes nothing: it is already dark. Verified
+ * in-game by the owner (Wedmath, dawn 4, dusk 22: sun from 5:00 am, dark
+ * from 10:00 pm; ADR 0093, addendum 2026-11-16). One rule for the clock,
+ * the sky, the almanac and the scripts: trolls die in sunlight.
  */
 export function isDay(month: number, hour: number): boolean {
   return hour >= dayHour(month) && hour < nightHour(month);
 }
 
-/** The hour the day (sunlight) begins in `month` (`Event.Sun rise`): the dawn hour. */
+/** The hour the day (sunlight) begins in `month` (`Event.Sun light`): the hour after the dawn hour. */
 export function dayHour(month: number): number {
-  return DAWN[month]!;
+  return DAWN[month]! + 1;
 }
 
-/** The hour the night begins in `month` (`Event.Sun dark`): the hour after the dusk hour. */
+/** The hour the night begins in `month` (`Event.Sun set`): the dusk hour. */
 export function nightHour(month: number): number {
-  return DUSK[month]! + 1;
+  return DUSK[month]!;
 }
 
 /** 12-hour clock → 0–23 (`12 am` = 0, `12 pm` = 12). */

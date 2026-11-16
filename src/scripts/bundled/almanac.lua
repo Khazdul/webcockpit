@@ -306,9 +306,9 @@ for _, m in ipairs(MONTHS) do
   WORDS[m[2]:lower()] = { "month", { m[1] } }
 end
 for _, p in ipairs({ "dawn", "day", "dusk", "night" }) do WORDS[p] = { "period", { p } } end
--- Sunlight from the dawn hour through the dusk hour (ADR 0093, addendum 2026-11-01).
-WORDS.daylight = { "period", { "dawn", "day", "dusk" } }
-WORDS.dark = { "period", { "night" } }
+-- Sunlight from the hour after the dawn hour until the dusk hour (ADR 0093, addendum 2026-11-16).
+WORDS.daylight = { "period", { "day" } }
+WORDS.dark = { "period", { "dawn", "dusk", "night" } }
 WORDS.sunrise = { "at", "dawn" }
 WORDS.sunset = { "at", "dusk" }
 WORDS["at dawn"] = { "at", "dawn" }
@@ -1039,13 +1039,13 @@ local function memoized(key, make)
 end
 
 local NIGHT, NIGHT_DEEP, DAY_LO, DAY_HI = { 22, 33, 62 }, { 12, 18, 40 }, { 214, 170, 70 }, { 255, 228, 130 }
--- Sunlit from the dawn hour (sunrise) through the dusk hour (sunset).
+-- Sunlit from the hour after the dawn hour (sunrise) until the dusk hour (sunset).
 local function hourColour(h, dawn, dusk)
   if h == dawn then return { 227, 146, 74 } end
   if h == dusk then return { 196, 96, 104 } end
   if h > dawn and h < dusk then
-    local mid = (dawn + dusk + 1) / 2
-    return mix(DAY_LO, DAY_HI, 1 - math.abs(h + 0.5 - mid) / ((dusk + 1 - dawn) / 2))
+    local mid = (dawn + 1 + dusk) / 2
+    return mix(DAY_LO, DAY_HI, 1 - math.abs(h + 0.5 - mid) / ((dusk - dawn - 1) / 2))
   end
   return mix(NIGHT_DEEP, NIGHT, math.abs(((h + 12) % 24) - 12) / 12)
 end
@@ -1084,7 +1084,7 @@ local function drawNow(g, t)
   clockSpot = g.precision == "minute" and { row = 6, col = X, hour = g.hour } or nil
   local x2 = put(X, 6, clockText(g), { fg = C.glow, b = true,
     tip = "Game time " .. pad2(g.hour) .. ":00–" .. pad2(g.hour) .. ":59; a game hour is a real minute" })
-  local sun = g.period ~= "night"
+  local sun = g.period == "day"
   put(x2 + 1, 6, (sun and "☼ " or "☾ ") .. g.period, { fg = sun and C.gold or C.night })
 
   local m = g.moon
@@ -1112,16 +1112,16 @@ local function drawNow(g, t)
   -- Daylight: 24 game hours.
   local cph = W >= 50 and 2 or 1
   local dx = put(2, 11, "DAYLIGHT", { fg = C.dim, b = true })
-  local light = g.dusk + 1 - g.dawn
+  local light = g.dusk - g.dawn - 1
   if not rightAfter(11, dx, "dawn " .. pad2(g.dawn) .. " · dusk " .. pad2(g.dusk) .. " · " .. light .. "h light", { fg = C.dim }) then
     rightAfter(11, dx, pad2(g.dawn) .. "–" .. pad2(g.dusk) .. " · " .. light .. "h", { fg = C.dim,
-      tip = "Dawn " .. pad2(g.dawn) .. ":00, dusk " .. pad2(g.dusk) .. ":00: " .. light .. " hours of light, " .. pad2(g.dawn) .. ":00–" .. pad2(g.dusk) .. ":59" })
+      tip = "Dawn " .. pad2(g.dawn) .. ":00, dusk " .. pad2(g.dusk) .. ":00: " .. light .. " hours of light, " .. pad2(g.dawn + 1) .. ":00–" .. pad2(g.dusk - 1) .. ":59" })
   end
   local band = memoized("day:" .. g.dawn .. ":" .. g.dusk .. ":" .. cph, function()
     local list = {}
     for h = 0, 23 do
       list[#list + 1] = { 2 + h * cph, string.rep(" ", cph), { bg = hex(hourColour(h, g.dawn, g.dusk)),
-        tip = pad2(h) .. ":00 " .. ((h >= g.dawn and h <= g.dusk) and "day" or "night") } }
+        tip = pad2(h) .. ":00 " .. ((h > g.dawn and h < g.dusk) and "day" or "night") } }
     end
     return list
   end)
@@ -1141,9 +1141,11 @@ local function drawNow(g, t)
     local xx = put(2, 14, rise and ("☼ Sunrise " .. ampm(hh)) or ("☾ Sunset " .. ampm(hh)),
       { fg = rise and C.gold or C.night, b = true })
     local left = at - t
-    local hot = rise and left <= 60
+    -- sunlight comes an hour (a real minute) after the dawn hour begins
+    local hot = rise and left <= 120
     put(xx + 2, 14, "in " .. dur(left), { fg = hot and C.red or C.text, b = hot,
-      tip = (hot and "Trolls: get indoors, the sun is coming.\n" or "") .. "At " .. hm(at) .. " local time" })
+      tip = (hot and "Trolls: get indoors, the sun is coming.\n" or "") .. "At " .. hm(at) .. " local time"
+        .. (rise and ("; sunlight from " .. hm(at + 60)) or "; dark from then") })
   end
 
   -- The year: 12 months.
