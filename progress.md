@@ -68,13 +68,20 @@
 | 62 | Sync of settings, script data, Comm history and timers | Done, released 0.12.0 | `docs/stages/62-sync-settings-comm.md` |
 | 63 | Runs in the cloud; then accounts open | Done, released 0.12.0 (accounts, sync, runs on in production) | `docs/stages/63-runs-in-the-cloud.md` |
 | 64 | Share links | Done, released 0.13.0 (`share` on in production) | `docs/stages/64-share-links.md` |
-| 65 | The community | On staging after feedback round 2; release 0.14.0 prepared, not tagged (permission); `gallery`, `runes` off in production | `docs/stages/65-community.md` |
+| 65 | The community | On staging after feedback round 3; release 0.14.0 prepared, not tagged (permission); `gallery`, `runes` off in production | `docs/stages/65-community.md` |
 | 66 | The admin panel | Planned (spec §7.12) | |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-16 (late) — Stage 65: the owner's feedback, round 3
+
+- Map pinch-zoom by touch (the watch page's frame took a finger as a mouse; the lens gets pinch steps; ADR 0156); Back inside the window in every mode and on every start-menu page incl. the run log player (`back-placement.spec.ts`, ten modes); the Community's list rule and Log of the day on one line.
+- Also fixed: the Spotlights viewer's player blocked the run log after a History tab change ("Another player is open").
+- Checks: unit 5 354; full e2e 1 893 passed, 1 failed (passed alone 5/5); entry chunk 31 362; `test:sync-worker` 6/6; staging deployed, `test:prod` 36/36.
+- Next: the owner's look (test guide 22–24); release 0.14.0 by the owner; production flags only on his word.
 
 ### 2026-11-16 (evening) — Stage 65: the owner's feedback, round 2
 

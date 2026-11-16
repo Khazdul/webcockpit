@@ -555,3 +555,9 @@ edges equal at 1440, 1280, 1100 and the tablet.
 Checks: unit 5 353; full e2e alone at 5 workers 1 893 passed, 1 failed
 (Firefox smoke:64, passed alone 5/5); entry chunk 31 362 bytes;
 `test:sync-worker` 6/6.
+
+Found on the way (a test agent's note): History → Spotlights → a card →
+Back → Sessions → Run log failed with "Another player is open". The
+viewer's parked player was disposed only when its frame left the page,
+and History's tabs keep the frame; it now goes with the page's own box
+(`spotlights-viewer.tsx`, a regression test in `history-tabs.spec.ts`).
