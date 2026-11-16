@@ -1214,3 +1214,32 @@ the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
   (`needsShared`), `community-model` (too long, `from`, the hrefs),
   `watch-page`, `about-leaf`; e2e `phone-community-page.spec.ts` (+3: CR1,
   CR2, CR3).
+
+## As built — feedback round 2, start-menu chrome
+
+- **Back on a phone (owner's point 8).** A box's Back lay on the iron
+  frame: on a coarse pointer it grew to 40 px upward from `top: 3px`, so
+  its top edge sat 5 px above the lit window's inner edge (9 px into the
+  box). The rule now, on a phone-size window (`html.wc-phone`, short side
+  under 600 px; look-glass.css): Back is drawn **inside the window's inner
+  border with air** (`top: 14px`, 6 px below the window's inner edge, 8 px
+  right of it), 28 px high and a little smaller (10 px type, 12 px icon);
+  its **40 px touch target is an invisible `::before`** that grows upward
+  over the frame only, never down over the page's first line (its bottom
+  edge is where the old Back's was). The window sub-pages' inline Back
+  (`.wc-lk-iback`) and the tablet (44 px, ADR 0140) are unchanged. The
+  watch page's Back has the same classes and follows without a change in
+  `src/watch/page.tsx`. Test: e2e `phone-back-placement.spec.ts` (Profile,
+  Scripts, History, About and the watch page, 390×844 and 844×390: Back's
+  box ≥ 4 px inside the window's inner border box, a tap 40 px above its
+  bottom lands on it).
+- **No "N online" on the start page (owner's point 11).** The almanac's
+  line and the client code that only served it (`src/chrome/start-online.ts`,
+  `onlineNow`, `onlineText`, the `.wc-alm-o` CSS) are gone; the owner reads
+  the number on `/admin` (`/api/admin/stats`, unchanged). The client asks
+  `GET /api/stats/public` only for the guests' Community counter, so only
+  with `gallery` and `share` on (`publicStats`); the endpoint is unchanged
+  and still answers `online` and `playing`, now unread by the client
+  (harmless). /privacy drops "The start page may show how many are
+  online." (`PRIVACY_UPDATED` 16 November 2026); spec §7.6 says the start
+  page shows no number.
