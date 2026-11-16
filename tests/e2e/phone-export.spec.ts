@@ -103,7 +103,7 @@ test('export editor on the phone: both formats download', async ({ page }) => {
   const txt = page.waitForEvent('download');
   await btn(page, 'EXPORT').tap();
   expect((await txt).suggestedFilename()).toMatch(/^mume-Rasta-.*\.txt$/);
-  await expect(frame(page).locator('.wc-lk-flash')).toHaveText(/^Exported mume-Rasta-.*\.txt$/);
+  await expect(frame(page).locator('.wc-lk-flash')).toHaveText(/^Downloaded mume-Rasta-.*\.txt$/);
   // The HTML replay.
   await opt(page, 'HTML').tap();
   await expect(opt(page, 'HTML')).toHaveAttribute('aria-checked', 'true');

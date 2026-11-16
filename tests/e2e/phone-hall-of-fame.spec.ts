@@ -18,6 +18,7 @@ test('phone: the four formats fit; a guest taps Hall of Fame and is told to log 
   await openEditorPhone(page);
   for (const id of ['HTML', 'TEXT', 'LINK', 'HOF']) await inView(page, opt(page, id));
   await inView(page, btn(page, 'EXPORT'));
+  await expect(btn(page, 'EXPORT')).toHaveText('Download');
   await opt(page, 'HOF').tap({ force: true });
   await expect(frame(page).locator('.wc-exp-flash')).toContainText('Log in to publish. Account is on the start page.');
   await expect(exp(page)).toHaveAttribute('data-format', 'html');
@@ -31,6 +32,7 @@ test('phone: publish to the Hall of Fame by taps', async ({ page }) => {
   await openEditorPhone(page);
   await opt(page, 'HOF').tap();
   await expect(exp(page)).toHaveAttribute('data-format', 'hof');
+  await expect(btn(page, 'EXPORT')).toHaveText('Share');
   await btn(page, 'EXPORT').tap();
   await expect(share(page).locator('.wc-lk-hood-t')).toHaveText('Publish to the Hall of Fame');
   await inView(page, share(page));

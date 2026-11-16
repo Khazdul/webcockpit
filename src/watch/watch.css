@@ -162,7 +162,7 @@
   align-items: center;
 }
 
-/* The band's flash (Download's progress and outcome), under the actions. */
+/* The band's flash, under the actions. */
 .wc-watch-flash {
   position: absolute;
   right: 20px;

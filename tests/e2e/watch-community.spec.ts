@@ -96,9 +96,9 @@ test('logged in: rate, change, take back; the vote is there again after a reload
   // The stars sit in the band, between the details and the buttons.
   const id = (await band(page).locator('.wc-watch-id').boundingBox())!;
   const r = (await st.boundingBox())!;
-  const dl = (await watchBtn(page, 'DOWNLOAD').boundingBox())!;
+  const rep = (await watchBtn(page, 'REPORT').boundingBox())!;
   expect(r.x).toBeGreaterThan(id.x + id.width - 1);
-  expect(r.x + r.width).toBeLessThan(dl.x);
+  expect(r.x + r.width).toBeLessThan(rep.x);
 
   await st.locator('[data-v="2"]').click();
   await expect(st.locator('[data-watch="stars-mine"]')).toHaveText('Your stars: two');

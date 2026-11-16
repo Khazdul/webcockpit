@@ -152,7 +152,7 @@ const ACTION: Record<ActionId, { label: string; letter: string; icon: IconName }
   STATS: { label: 'Stats', letter: 't', icon: 'stats' },
   RATE: { label: 'Rate', letter: 'a', icon: 'star' },
   SAVE: { label: 'Save', letter: 's', icon: 'save' },
-  EXPORT: { label: 'Export', letter: 'x', icon: 'export' },
+  EXPORT: { label: 'Share', letter: 'h', icon: 'export' },
   DELETE: { label: 'Delete', letter: 'd', icon: 'trash' },
   BACKUP: { label: 'Backup', letter: 'b', icon: 'backup' },
   RESTORE: { label: 'Restore', letter: 'o', icon: 'restore' },
@@ -422,7 +422,7 @@ export function SessionsPage(): VNode {
     }
   };
 
-  /** Stats or Export of `s`, fetched first when it is in the cloud. */
+  /** Stats or Share (the export editor) of `s`, fetched first when it is in the cloud. */
   const openAfterFetch = (s: Session, node: () => VNode): void => {
     // On this device (a guest's always): at once, as before.
     if (marks.get(s.id)?.kind !== 'remote') {

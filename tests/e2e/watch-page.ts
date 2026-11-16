@@ -65,6 +65,11 @@ export async function playing(page: Page): Promise<void> {
   await expect(replay(page).locator('.wc-player')).toBeVisible({ timeout: 20_000 });
 }
 
+/** The replay in the frame is paused (`data-playing` of its Play key, src/player/view.ts). */
+export async function pausedInFrame(page: Page): Promise<void> {
+  await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'false', { timeout: 20_000 });
+}
+
 /** The state box's two lines. */
 export async function expectEnd(page: Page, first: string, second?: string): Promise<void> {
   await expect(endBox(page).locator('.wc-lk-q')).toHaveText(first);
@@ -77,9 +82,11 @@ export async function guestWatches(page: Page, s: WatchSetup): Promise<void> {
   await openWatch(page);
   await playing(page);
   await expect(band(page).locator('[data-watch="title"]')).toHaveText('Clearing the ranger camp');
-  await expect(band(page).locator('[data-watch="meta"]')).toHaveText(/^Rasta Level 42·1 h 15 min·26 September 2026·37 views·shared by fenwick$/);
+  // No level (owner's feedback on stage 65, ADR 0155 W1), though the meta has 42.
+  await expect(band(page).locator('[data-watch="meta"]')).toHaveText(/^Rasta·1 h 15 min·26 September 2026·37 views·shared by fenwick$/);
   await expect(watchBtn(page, 'REPORT')).toBeVisible();
-  await expect(watchBtn(page, 'DOWNLOAD')).toBeVisible();
+  // No Download as HTML (W1).
+  await expect(watchBtn(page, 'DOWNLOAD')).toHaveCount(0);
   await expect(watchBtn(page, 'BACK')).toBeVisible();
   // The view, once.
   await expect.poll(() => s.pubs.views.length).toBe(1);

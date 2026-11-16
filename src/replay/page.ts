@@ -117,12 +117,18 @@ function docFullscreen(doc: Document): ReplayFullscreen {
 }
 
 /**
- * Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock).
+ * Plays `payload` in `root` (the page, and tests that skip the decoding;
+ * `wall`: a test's clock; `autoplay: false`: opens paused at the start).
  * A shared run (stage 65): only Map, Timers and Group, each off at the
  * start; a payload made before that (more panes, some on) is played the
  * same way (`sharedPayload`, src/share/shared-panes.ts).
  */
-export function openReplay(doc: Document, root: HTMLElement, given: ReplayPayload, o: { wall?: Wall; fullscreen?: ReplayFullscreen } = {}): ReplayPage {
+export function openReplay(
+  doc: Document,
+  root: HTMLElement,
+  given: ReplayPayload,
+  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean } = {},
+): ReplayPage {
   const payload = sharedPayload(given);
   const fs = o.fullscreen ?? docFullscreen(doc);
   doc.title = replayTitle(payload);
@@ -140,6 +146,7 @@ export function openReplay(doc: Document, root: HTMLElement, given: ReplayPayloa
     { character: payload.character, level: payload.level },
     {
       edits: payloadEdits(payload),
+      ...(o.autoplay === false ? { autoplay: false } : {}),
       ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
       marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
       view: {

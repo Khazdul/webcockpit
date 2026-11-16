@@ -158,6 +158,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   usePrivacyAddress(nav);
   useWatchReturn(openAccount);
   useCommunityAddress(openCommunityPage);
+  useAccountAddress(openAccount);
   // A page asked for a row when it popped back here (the share dialog's Open Community, start-request.ts).
   useEffect(() => {
     if (!isTop) return;
@@ -604,6 +605,35 @@ function useCommunityAddress(open: (restore: boolean) => void): void {
       /* the address keeps it; a reload opens the page again */
     }
     whenIdle(() => void communityAllowed('read').then((on) => on && open(true)));
+  }, []);
+}
+
+// `<base>?account` and `<base>?account=published` (the watch page's Back
+// for a run opened from the Account page or its Published runs view,
+// src/watch/model.ts `accountBackHref`, ADR 0155 W1): that page opens over
+// the menu once the account's state is known, logged in only (else the
+// menu stays), once per page load; the query leaves the address at once.
+let accountAddressTaken = false;
+function useAccountAddress(openAccount: (opens: OwnerView['opens']) => void): void {
+  useEffect(() => {
+    if (accountAddressTaken) return;
+    const q = new URLSearchParams(location.search);
+    if (!q.has('account')) return;
+    accountAddressTaken = true;
+    const view = q.get('account') === 'published' ? 'published' : 'account';
+    q.delete('account');
+    const rest = q.toString().replace(/=(?=&|$)/g, '');
+    try {
+      history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
+    } catch {
+      /* the address keeps it; a reload opens the page again */
+    }
+    whenIdle(
+      () =>
+        void watchAccountState().then((st) => {
+          if (st.enabled === true && accountState().name !== null) openAccount(view);
+        }),
+    );
   }, []);
 }
 

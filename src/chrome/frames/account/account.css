@@ -932,6 +932,28 @@ html.wc-phone .wc-ac-win {
   text-overflow: ellipsis;
 }
 
+/* The title opens the run's watch page (owner's feedback on stage 65, ADR 0155 W1). */
+a.wc-ac-pub-open {
+  text-decoration: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  a.wc-ac-pub-open:hover {
+    color: var(--lk-on);
+    text-decoration: underline;
+    text-decoration-color: var(--lk-sk-on);
+    text-underline-offset: 3px;
+  }
+}
+
+a.wc-ac-pub-open.is-sel {
+  color: var(--lk-on);
+  outline: 1px solid var(--lk-glass-edge-on);
+  outline-offset: 2px;
+}
+
 .wc-ac-pub-fig {
   flex: none;
   font: italic 500 14.5px/1.2 var(--lk-serif);

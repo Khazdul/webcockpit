@@ -70,6 +70,8 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   await expect(exp(page)).toHaveAttribute('data-format', 'hof');
   await expect(frame(page).locator('.wc-exp-flabel')).toHaveText('Title');
   await expect(frame(page).locator('.wc-exp-title')).toHaveText('Rasta · 26 September 2026');
+  // The action reads Share with Hall of Fame chosen (ADR 0155 W1).
+  await expect(btn(page, 'EXPORT')).toHaveText('Share');
 
   const log = apiLog(page);
   await btn(page, 'EXPORT').click();

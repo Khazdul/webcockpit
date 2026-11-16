@@ -39,8 +39,11 @@
 // clipboard and says so on the page's flash. Every text from the server is
 // written as text.
 //
+// A press on a run's title opens its watch page in this tab (`pubWatchHref`;
+// owner's feedback on stage 65, ADR 0155 W1); its Back comes here again.
+//
 // The keyboard: the section's stops (`usePublished().stops`: the rows'
-// `COPY:<id>`, `EDIT:<id>`, `REMOVE:<id>`, or the one row's `PUBLISHED`,
+// `OPEN:<id>` (the title), `COPY:<id>`, `EDIT:<id>`, `REMOVE:<id>`, or the one row's `PUBLISHED`,
 // whose letter is U) join the Account page's ring; the view has its own.
 
 import { touchInteraction } from '../../../core/device';
@@ -97,6 +100,20 @@ export interface PublishedView {
 }
 
 const api = createPubApi();
+
+/**
+ * The run's watch page, `<base>r/<id>?from=<where>` (owner's feedback on
+ * stage 65, ADR 0155 W1): a press on the title opens it in this tab, and
+ * the watch page's Back comes to the Account page (`account`) or the
+ * Published runs view (`published`) again. The dev server keeps the e2e
+ * hook `?cloudtest`, as the Community page's `runHref`.
+ */
+export function pubWatchHref(id: string, from: 'account' | 'published'): string {
+  const keep = import.meta.env?.DEV === true && new URLSearchParams(globalThis.location?.search ?? '').has('cloudtest');
+  return `${linkPath(id)}?from=${from}${keep ? '&cloudtest' : ''}`;
+}
+
+const openRun = (p: MyPub, from: 'account' | 'published'): void => location.assign(pubWatchHref(p.id, from));
 
 
 /** New reactions on the runs, summed (each run's counts are capped at 99 by the server). */
@@ -158,6 +175,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
             ? [{ id: 'PUBLISHED', run: openView }]
             : []
           : (pubs ?? []).flatMap((p) => [
+              { id: `OPEN:${p.id}`, run: () => openRun(p, 'account') },
               { id: `COPY:${p.id}`, run: () => copy(p) },
               // A hidden run cannot be edited until the admin has looked (the Worker's 403 hidden).
               ...(p.state === 'hidden' ? [] : [{ id: `EDIT:${p.id}`, run: () => edit(p) }]),
@@ -256,9 +274,16 @@ function PubList(p: {
             data-listed={p.community ? String(pub.listed) : undefined}
           >
             <div class="wc-ac-pub-l1">
-              <span class="wc-ac-pub-t" data-pub-title="">
+              <a
+                class={'wc-ac-pub-t wc-ac-pub-open' + (at === `OPEN:${pub.id}` ? ' is-sel' : '')}
+                data-pub-title=""
+                href={pubWatchHref(pub.id, p.community ? 'published' : 'account')}
+                title="Watch this run"
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
+              >
                 {pub.title}
-              </span>
+              </a>
               {p.community ? (
                 <span class={'wc-ac-pub-chip' + (pub.listed ? ' is-listed' : '')} data-pub-chip="">
                   <Icon name={pub.listed ? 'star' : 'link'} />
@@ -406,6 +431,7 @@ export const PublishedFrame = lookFrame(function PublishedFrame(props: Published
     stops: [
       ...(error ? [{ id: 'PUBRETRY', run: reload }] : []),
       ...(pubs ?? []).flatMap((p) => [
+        { id: `OPEN:${p.id}`, run: () => openRun(p, 'published') },
         { id: `COPY:${p.id}`, run: () => copy(p) },
         ...(p.state === 'hidden' ? [] : [{ id: `EDIT:${p.id}`, run: () => edit(p) }]),
         { id: `REMOVE:${p.id}`, run: () => remove(p) },

@@ -1,7 +1,10 @@
 // Export editor (Inv §7.7, ADR 0019, ADR 0115; the lantern look, direction
-// B "Verktygsraden": ADR 0128 §43d): History → Export.
+// B "Verktygsraden": ADR 0128 §43d): History → Share. Its title is Share
+// and its action button Download (O) for HTML and Plain text, Share (S) for
+// Link and Hall of Fame (stage 65 owner feedback, ADR 0155 W1); the code
+// keeps the name export (ids, files, `data-btn="EXPORT"`).
 //
-//   ┌──────────────────────────── Export ────────────────────────────┐
+//   ┌──────────────────────────── Share ─────────────────────────────┐
 //   │ ‹ Back                                                         │
 //   │ RASTA Level 72 · 2026-09-25 · 70,098 lines ·…  LINE · 1  [Exclude] [Add comment] [Edit] [Delete]
 //   │ ─────────────────────────────────────────────────────────────── │
@@ -11,7 +14,7 @@
 //   │  ┌ Add comment (the inline composer) ┐                      ▕ ▏ │
 //   │  …                                                          ▕L▏ │
 //   │ ─────────────────────────────────────────────────────────────── │
-//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text|Link|Hall of Fame] [Export]
+//   │ FILE mume-Rasta-2026-09-25T22-03.html [Title]  [HTML replay|Plain text|Link|Hall of Fame] [Download]
 //   │                         (the flash)                            │
 //   └────────────────────────────────────────────────────────────────┘
 //
@@ -169,7 +172,7 @@ const PAD = 8;
 /** Drag auto-scroll: px per frame per line height of distance past the edge, at most … */
 const DRAG_MAX_ROWS = 8;
 
-/** The keyboard's ring after the log: the tools, the title, the formats (Link and Hall of Fame when shown), Export. */
+/** The keyboard's ring after the log: the tools, the title, the formats (Link and Hall of Fame when shown), Download or Share. */
 type ZoneId = 'exclude' | 'comment' | 'edit' | 'delete' | 'title' | 'html' | 'text' | 'link' | 'hof' | 'export';
 const ZONE_IDS: readonly ZoneId[] = ['exclude', 'comment', 'edit', 'delete', 'title', 'html', 'text', 'link', 'hof', 'export'];
 
@@ -254,7 +257,7 @@ const toStack = (el: Element | null): void => {
 export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { session: Session }): VNode {
   const { runs, settings, maps } = useServices();
   const nav = useNav();
-  useWindowChrome({ title: 'Export' });
+  useWindowChrome({ title: 'Share' });
   const s = p.session;
   const [data, setData] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -560,7 +563,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     setShareAs(as);
   };
 
-  /** Export with Link or Hall of Fame: the share dialog over the editor (the account pages' chunk, loaded now). */
+  /** Share (Link or Hall of Fame): the share dialog over the editor (the account pages' chunk, loaded now). */
   const openShare = (): void => {
     const d = docRef.current;
     if (!d || !data || busyRef.current) return;
@@ -606,9 +609,9 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
         });
       }
       downloadBlob(blob, name);
-      nav.flash(`Exported ${name}`);
+      nav.flash(`Downloaded ${name}`);
     } catch (e) {
-      nav.flash(`Export failed: ${errText(e)}`, 'fail');
+      nav.flash(`Download failed: ${errText(e)}`, 'fail');
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -687,7 +690,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     p: () => press('text'),
     l: () => press('link'),
     f: () => press('hof'),
-    o: () => press('export'),
+    // The action's letter follows its word: O for Download (HTML, Text), S for Share (Link, Hall of Fame).
+    [asLink ? 's' : 'o']: () => press('export'),
   };
 
   useKeys((e, nk) => {
@@ -895,7 +899,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   // ------------------------------------------------------------- render
 
   const box = (body: VNode): VNode => (
-    <Box title="Export" size="large" onBack={() => nav.pop()} class="wc-exp-box" winClass="wc-exp-win">
+    <Box title="Share" size="large" onBack={() => nav.pop()} class="wc-exp-box" winClass="wc-exp-win">
       {body}
     </Box>
   );
@@ -1122,7 +1126,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
               </span>
             )}
             {tool('export', (sel, off) => (
-              <GlassButton id="EXPORT" label="Export" letter="o" icon="export" primary selected={sel} disabled={off} onClick={() => press('export')} />
+              <GlassButton id="EXPORT" label={asLink ? 'Share' : 'Download'} letter={asLink ? 's' : 'o'} icon={asLink ? 'export' : 'drop'} primary selected={sel} disabled={off} onClick={() => press('export')} />
             ))}
           </div>
         </div>

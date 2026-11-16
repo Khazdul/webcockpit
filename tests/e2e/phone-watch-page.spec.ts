@@ -1,6 +1,7 @@
 // Stage 64 C2 on a phone (round 12's pick 3a: the band stacks: title,
 // details, the buttons; no description; stage 65: Back at the frame's top left): a guest watches a seeded run,
-// one view; Report logged out and in; a state; Download; Back. The
+// one view; Report logged out and in; a state; no Download, a paused
+// start (stage 65 W1); Back. The
 // desktop's are in watch-page.spec.ts.
 import { expect, test } from '@playwright/test';
 import {
@@ -15,6 +16,7 @@ import {
   logIn,
   noFrameFullscreen,
   openWatch,
+  pausedInFrame,
   playing,
   replay,
   setUp,
@@ -29,14 +31,13 @@ test('phone: a guest watches; the band stacks; Report says log in; Back', async 
   const s = await setUp(page);
   await guestWatches(page, s);
   await expect(page.locator('html')).toHaveClass(/wc-phone/);
-  // Stacked: the buttons under the details, side by side, the short Download.
-  await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download');
+  // Stacked: Report under the details (no Download since W1).
+  await expect(watchBtn(page, 'DOWNLOAD')).toHaveCount(0);
+  await pausedInFrame(page);
   const title = (await band(page).locator('[data-watch="title"]').boundingBox())!;
   const report = (await watchBtn(page, 'REPORT').boundingBox())!;
-  const download = (await watchBtn(page, 'DOWNLOAD').boundingBox())!;
   const back = (await watchBtn(page, 'BACK').boundingBox())!;
   expect(report.y).toBeGreaterThan(title.y + title.height);
-  expect(Math.abs(report.y - download.y)).toBeLessThan(2);
   // Stage 65: Back at the frame's top left, above the title (the start menu's sub-pages' place).
   expect(back.y + back.height).toBeLessThanOrEqual(title.y + 1);
   expect(back.x).toBeLessThan(60);
@@ -53,7 +54,7 @@ test('phone: a guest watches; the band stacks; Report says log in; Back', async 
   expect(errors).toEqual([]);
 });
 
-test('phone: Report logged in, and Download', async ({ page }) => {
+test('phone: Report logged in; the run starts paused and Play starts it', async ({ page }) => {
   const s = await setUp(page);
   await logIn(page, s, WATCHER);
   await openWatch(page);
@@ -65,8 +66,14 @@ test('phone: Report logged in, and Download', async ({ page }) => {
   await expect(dialog(page, 'report-thanks').locator('.wc-lk-q')).toHaveText('Thank you.');
   expect(s.pubs.reports).toEqual([{ kind: 'run', target: ID, reason: 'harassment', account: WATCHER }]);
   await dialog(page, 'report-thanks').locator('[data-btn="CLOSE"]').tap();
-  const [download] = await Promise.all([page.waitForEvent('download'), watchBtn(page, 'DOWNLOAD').tap()]);
-  expect(download.suggestedFilename()).toBe('Clearing the ranger camp.html');
+  await pausedInFrame(page);
+  await expect(replay(page).locator('.wc-player')).toContainText('hardened ranger');
+  await page.waitForTimeout(1_000);
+  await pausedInFrame(page);
+  // Play (the bar shows on a tap) starts it.
+  await replay(page).locator('.wc-player').tap();
+  await replay(page).locator('.wc-pc-play').tap();
+  await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'true');
 });
 
 test('phone: the states keep their box', async ({ page }) => {

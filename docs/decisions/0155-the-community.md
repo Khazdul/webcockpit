@@ -942,3 +942,56 @@ The History player (RUN LOG) and the Text export are unchanged.
   shows alone), `replay`, `viewer` (the HTML replay's settings round starts
   from all off), `script-pane-runs` (the HTML replay has no script pane),
   `map-files` (the viewer turns the map on).
+
+## As built (stage 65, owner's feedback: W1)
+
+Points 1, 2, 3, 6 and 11 of the owner's feedback of 2026-11-16 (the
+stage file). User-facing words only: code identifiers, file names and
+`data-btn="EXPORT"` keep the name export.
+
+- **Share, not Export.** History's card button (desktop and phone), its
+  keys box and the help texts that named it (About, the privacy page's
+  share links section, Published runs' and the Community's empty lines)
+  say Share. Its letter is **H** (S is Save, X stays free; nothing else on
+  History uses H). The export editor's title (hood and window) is Share.
+- **The editor's action button** reads **Download** (letter **O**, the
+  old Export letter, the `drop` arrow) while HTML replay or Plain text is
+  chosen, and **Share** (letter **S**, free in the editor; the `export`
+  icon) while Link or Hall of Fame is; only the shown word's letter works.
+  Its flash says "Downloaded <file>" / "Download failed: …".
+- **Published runs.** A run's title is a link (`<a href>`, so a middle
+  click opens a tab) to `/r/<id>?from=published` in the view, or
+  `?from=account` in stage 64's section (`gallery` off); a press opens it
+  in this tab. It is the row's first stop of the keyboard ring (Tab, then
+  Enter). The watch page's Back goes to `<base>?account=published` or
+  `<base>?account` (`backTarget`, `accountBackHref`), which the start page
+  takes once (`useAccountAddress`): logged in, it opens the Published
+  runs view (its Back then goes to the menu) or the Account page; logged
+  out, the menu. Cheap, so done instead of the start page alone.
+- **The watch page** has no Download as HTML: the button, the D key, the
+  page's exporter import, `downloadName` and `FrameHost.payload` are
+  gone; `buildReplayHtml` stays for History's own export. Without Report
+  (one's own run, `?admin`) the band has no action box.
+- **Paused start.** `wc-play` now carries `prefs: {paused: true}` (the
+  frame host's default; `openFrame({paused: false})` plays at once). The
+  frame honours only `paused === true` (`framePaused`), opens the replay
+  with `autoplay: false` (`openReplay`'s new option, passed to the
+  player) and seeks to 0 so the run's first screen is drawn; Space or
+  Play starts it. The sandbox and the frame CSP are unchanged (the
+  hashes are the build's). The HTML export file keeps playing at once:
+  the owner's point was runs opened from the Community or a link, and a
+  downloaded file is opened to be watched. A view is still counted when
+  the frame has the run, paused or not (opening the run is the view).
+- **No level.** The watch page's band reads "Rasta · 1 h 15 min · …"
+  (`MetaLine` lost `level`); Published runs never showed one. The
+  Community's rows (`community-model.ts` "Char L42") are W2's. The
+  replay's own header inside the frame ("Rasta (L42)", the player's,
+  from the payload) is unchanged.
+- **Tests:** unit `watch-page.test.ts` (no level, Back's targets,
+  `framePaused`), `chrome-export`, `chrome-history`, `history-dialogs`;
+  e2e `watch-page.spec.ts` (no Download, paused start, Space plays),
+  `phone-watch-page.spec.ts` (paused, Play by tap), `published-runs.spec.ts`
+  and `share-link.spec.ts` (the title opens the run, Back returns, Tab
+  reaches it), the words and the button by format in `export`,
+  `share-link`, `hall-of-fame` (desktop and phone), `history-dialogs`,
+  `phone-history-page`, `phone-export`.

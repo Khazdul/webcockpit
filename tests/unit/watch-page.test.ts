@@ -7,7 +7,8 @@ import { DEVICE_KEY } from '../../src/cloud/beat';
 import { countView, fetchMeta, fetchPayload, parseMeta, sendReport, type WatchFetch } from '../../src/watch/api';
 import {
   dateText,
-  downloadName,
+  accountBackHref,
+  backTarget,
   endOf,
   lengthText,
   loadingLine,
@@ -93,16 +94,20 @@ describe('the details', () => {
   });
 
   it('builds the band line from the meta, leaving out what is not there', () => {
-    expect(metaLine(META)).toEqual({ character: 'Rasta', level: 'Level 42', length: '1 h 15 min', date: '26 September 2026', views: '37 views', sender: 'fenwick' });
+    // No level, though the meta has one (owner's feedback on stage 65, ADR 0155 W1).
+    expect(metaLine(META)).toEqual({ character: 'Rasta', length: '1 h 15 min', date: '26 September 2026', views: '37 views', sender: 'fenwick' });
     const { level: _, ...noLevel } = META;
-    expect(metaLine({ ...noLevel, character: '' })).toMatchObject({ character: null, level: null });
+    expect(metaLine({ ...noLevel, character: '' })).toMatchObject({ character: null });
   });
 
-  it('names the download after the title, file-name safe', () => {
-    expect(downloadName('Clearing the ranger camp')).toBe('Clearing the ranger camp.html');
-    expect(downloadName('a/b:c?')).toBe('a-b-c-.html');
-    expect(downloadName('..hidden')).toBe('-hidden.html');
-    expect(downloadName('  ')).toBe('mume-run.html');
+  it("Back's target: the Community, the Account page or Published runs, else the start page", () => {
+    expect(backTarget('?from=community')).toBe('community');
+    expect(backTarget('?from=account')).toBe('account');
+    expect(backTarget('?from=published&cloudtest')).toBe('published');
+    expect(backTarget('?from=elsewhere')).toBe('start');
+    expect(backTarget('')).toBe('start');
+    expect(accountBackHref('account')).toBe('/?account');
+    expect(accountBackHref('published', '/app/', true)).toBe('/app/?account=published&cloudtest');
   });
 });
 
@@ -229,5 +234,16 @@ describe("Report's Log in, and back", () => {
     }
     noteLoginReturn('/sub/r/Ab3dE5fG7hJk', 0, s);
     expect(takeLoginReturn(true, '/sub/', 1, s)).toEqual({ go: '/sub/r/Ab3dE5fG7hJk' });
+  });
+});
+
+describe("the frame's paused start (ADR 0155 W1)", () => {
+  it('only prefs.paused === true asks for it', async () => {
+    const { framePaused } = await import('../../src/replay/frame');
+    expect(framePaused({ paused: true })).toBe(true);
+    expect(framePaused({ paused: 'yes' })).toBe(false);
+    expect(framePaused({})).toBe(false);
+    expect(framePaused(undefined)).toBe(false);
+    expect(framePaused(null)).toBe(false);
   });
 });

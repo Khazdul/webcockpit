@@ -97,8 +97,8 @@ export function loadingLine(done: number, total: number): string {
 
 /** The band's details: each a piece of text (the page puts the dots between). */
 export interface MetaLine {
+  /** The character, without its level (owner's feedback on stage 65, ADR 0155 W1). */
   character: string | null;
-  level: string | null;
   length: string;
   date: string;
   views: string;
@@ -108,19 +108,11 @@ export interface MetaLine {
 export function metaLine(m: PubMeta): MetaLine {
   return {
     character: m.character || null,
-    level: typeof m.level === 'number' ? `Level ${m.level}` : null,
     length: lengthText(m.lengthS),
     date: dateText(m.created),
     views: viewsText(m.views),
     sender: m.sender || null,
   };
-}
-
-/** The download's name: the run's title, file-name safe, `.html`. */
-export function downloadName(title: string): string {
-  // eslint-disable-next-line no-control-regex
-  const t = title.replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, '-').trim().replace(/^\.+/, '-');
-  return `${t || 'mume-run'}.html`;
 }
 
 /** The four reasons, in the drawn order and words. */
@@ -273,11 +265,25 @@ export function commentFailText(status: number, code: string): string {
   return 'That did not work. Try again later.';
 }
 
+/** Where the watch page's Back goes. */
+export type BackTarget = 'community' | 'account' | 'published' | 'start';
+
 /**
  * Where Back goes (stage 65): to the start page's Community when the run
  * was opened from it (`?from=community`, which the Community page's
- * `runHref` puts in the address), else to the start page.
+ * `runHref` puts in the address); to the Account page or its Published
+ * runs view when opened from there (`?from=account`, `?from=published`:
+ * published.tsx `pubWatchHref`, ADR 0155 W1); else to the start page.
  */
-export function backTarget(search: string): 'community' | 'start' {
-  return new URLSearchParams(search).get('from') === 'community' ? 'community' : 'start';
+export function backTarget(search: string): BackTarget {
+  const from = new URLSearchParams(search).get('from');
+  return from === 'community' || from === 'account' || from === 'published' ? from : 'start';
+}
+
+/** The start page's query that opens the Account page (`?account`) or its Published runs view (`?account=published`). */
+export const OPEN_ACCOUNT = 'account';
+
+/** `<base>?account` or `<base>?account=published` (on the dev server the e2e hook `cloudtest` kept). */
+export function accountBackHref(view: 'account' | 'published', base = '/', cloudtest = false): string {
+  return `${base}?${OPEN_ACCOUNT}${view === 'published' ? '=published' : ''}${cloudtest ? '&cloudtest' : ''}`;
 }
