@@ -26,6 +26,7 @@
 // the bytes the caller passes, and only from them.
 
 import { type MyPub, NEWS_MAX, PUB_ID_PATTERN, PUB_META_MAX_BYTES, type PubMeta, type PubMetaIn, type PubPatch, type PubWritten } from '../../../shared/cloud/api.ts';
+import { PREVIEW_TYPE } from '../../../shared/cloud/preview.ts';
 import { accountsEnabled } from '../account/state';
 import { flagOn } from '../config';
 
@@ -80,7 +81,7 @@ export type PubResult<T> = { ok: true; value: T } | PubFailure;
 
 /** One request as the transport makes it. */
 export interface PubRequest {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
   headers: Record<string, string>;
   body?: Uint8Array | string;
@@ -110,6 +111,8 @@ export interface PubApi {
   edit(id: string, patch: PubPatch, o?: { signal?: AbortSignal }): Promise<PubResult<MyPub>>;
   /** `DELETE /api/u/pub/<id>`. */
   remove(id: string, o?: { signal?: AbortSignal }): Promise<PubResult<null>>;
+  /** `PUT /api/u/pub/<id>/preview`: the link preview image, PNG bytes (ADR 0158). */
+  preview(id: string, png: Uint8Array, o?: { signal?: AbortSignal }): Promise<PubResult<null>>;
 }
 
 export interface PubApiOptions {
@@ -323,7 +326,7 @@ export function createPubApi(options: PubApiOptions = {}): PubApi {
   async function call<T>(
     method: PubRequest['method'],
     path: string,
-    o: { json?: unknown; bytes?: Uint8Array; onProgress?: (sent: number, total: number) => void; signal?: AbortSignal | undefined },
+    o: { json?: unknown; bytes?: Uint8Array; type?: string; onProgress?: (sent: number, total: number) => void; signal?: AbortSignal | undefined },
     read: (data: unknown) => T | undefined,
   ): Promise<PubResult<T>> {
     let on = false;
@@ -338,7 +341,7 @@ export function createPubApi(options: PubApiOptions = {}): PubApi {
     if (method !== 'GET') headers['X-WC'] = '1';
     let body: Uint8Array | string | undefined;
     if (o.bytes) {
-      headers['Content-Type'] = 'application/octet-stream';
+      headers['Content-Type'] = o.type ?? 'application/octet-stream';
       body = o.bytes;
     } else if (o.json !== undefined) {
       headers['Content-Type'] = 'application/json';
@@ -396,6 +399,10 @@ export function createPubApi(options: PubApiOptions = {}): PubApi {
     remove: async (id, o = {}) => {
       const path = one(id);
       return path ? call('DELETE', path, { signal: o.signal }, () => null) : fail('not_found');
+    },
+    preview: async (id, png, o = {}) => {
+      const path = one(id);
+      return path ? call('PUT', `${path}/preview`, { bytes: png, type: PREVIEW_TYPE, signal: o.signal }, () => null) : fail('not_found');
     },
   };
 }

@@ -104,7 +104,7 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   // The server lists it; the POST said listed: true (and nothing else changed of stage 64's body).
   expect(made).toMatchObject({ title: 'Clearing the ranger camp', listed: true });
   expect(made.listedAt).toBeGreaterThan(0);
-  expect(log.filter((r) => r.method !== 'GET').map((r) => `${r.method} ${r.path}`)).toEqual(['PATCH /api/u/account/prefs', 'POST /api/u/pub']);
+  expect(log.filter((r) => r.method !== 'GET' && !r.path.endsWith('/preview')).map((r) => `${r.method} ${r.path}`)).toEqual(['PATCH /api/u/account/prefs', 'POST /api/u/pub']);
   expect(s.pubUploads).toHaveLength(1);
   const meta = s.pubUploads[0]!.meta as Record<string, unknown>;
   expect(Object.keys(meta).sort()).toEqual(['character', 'description', 'key', 'lengthS', 'level', 'listed', 'title']);

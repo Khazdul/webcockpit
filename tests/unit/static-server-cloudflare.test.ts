@@ -169,8 +169,12 @@ describe('static-server as the Worker (ADR 0144)', () => {
       expect(await res.text(), path).toBe('<!doctype html>');
       expect(headers(res), path).toMatchObject({ ...SECURITY, 'cache-control': 'no-cache' });
     }
-    const etag = (await fetch(`${url}/r/AbCdEfGh1234`)).headers.get('etag') as string;
-    expect((await fetch(`${url}/r/AbCdEfGh1234`, { headers: { 'If-None-Match': etag } })).status).toBe(304);
+    // A log's page carries its own meta tags (ADR 0158): no ETag, never a 304; another page under /r/ revalidates.
+    const etag = (await fetch(`${url}/r/not-an-id`)).headers.get('etag') as string;
+    expect((await fetch(`${url}/r/not-an-id`, { headers: { 'If-None-Match': etag } })).status).toBe(304);
+    const log = await fetch(`${url}/r/AbCdEfGh1234`, { headers: { 'If-None-Match': etag } });
+    expect(log.status).toBe(200);
+    expect(log.headers.get('etag')).toBeNull();
     const frame = await fetch(`${url}/r/frame.html`, { redirect: 'manual' });
     expect(frame.status).toBe(307);
     expect(frame.headers.get('location')).toBe('/r/frame');

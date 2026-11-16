@@ -102,6 +102,7 @@ import {
   TOP_PRIOR_MEAN,
   TOP_PRIOR_VOTES,
 } from '../../shared/cloud/api';
+import { PREVIEW_MAX_BYTES, isPreviewPng } from '../../shared/cloud/preview';
 import { isPublicText, searchText } from '../../shared/cloud/text';
 import { GALLERY_Q_MAX, GALLERY_Q_MIN } from '../../shared/cloud/api';
 // Reports of comments (stage 65 C2).
@@ -520,6 +521,8 @@ export class FakeAccountServer {
   pubs = new Map<string, FakePub>();
   /** Every `POST /api/u/pub` body as it arrived (the meta parsed, the payload bytes as sent), in order. */
   pubUploads: { meta: unknown; payload: Uint8Array; body: Uint8Array }[] = [];
+  /** The link preview images uploaded (ADR 0158), by run id. */
+  pubPreviews = new Map<string, Uint8Array>();
   /** The pub requests fail as if the network were down (the other requests answer). */
   pubOffline = false;
   /** The next POST is done but its answer is lost on the way back (review fix CR3: the dialog's Try again). */
@@ -643,6 +646,17 @@ export class FakeAccountServer {
       const id = this.addPub(account.key, { ...m, created: t, updated: t, bytes: payload.length, payload: new Uint8Array(payload), ...(m.listed ? { listedAt: t } : {}) });
       if (key !== undefined) this.pubKeys.set(`${account.key}|${key}`, id);
       return { status: 200, body: { pub: this.withReactions(this.pubs.get(id)!) } };
+    }
+    // The link preview image (ADR 0158): a PNG of the preview's size, the sender's active run.
+    const prev = /^\/api\/u\/pub\/([A-Za-z0-9]{12})\/preview$/.exec(req.path);
+    if (prev) {
+      const q = this.pubs.get(prev[1]!);
+      if (!q || q.account !== account.key) return err('not_found', 404);
+      if (req.method !== 'PUT') return err('method_not_allowed', 405);
+      if ((req.headers['content-type'] ?? '') !== 'image/png' || bytes === null || !isPreviewPng(bytes) || bytes.length > PREVIEW_MAX_BYTES) return err('bad_request', 400);
+      if (q.pub.state === 'hidden') return err('hidden', 403);
+      this.pubPreviews.set(prev[1]!, new Uint8Array(bytes));
+      return { status: 204 };
     }
     const id = req.path.slice('/api/u/pub/'.length);
     const p = /^[A-Za-z0-9]{12}$/.test(id) ? this.pubs.get(id) : undefined;
