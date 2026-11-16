@@ -362,7 +362,7 @@ export class PlayerHost {
     this.phoneBar = this.opts.phone !== undefined && !opts.view?.bare;
     this.dock = null;
     const tl = buildTimeline(chain, opts.edits);
-    this.scriptIds = this.opts.panes ? [] : scriptPaneIdsOf(tl).filter(isScriptPaneId);
+    this.scriptIds = scriptPaneIdsOf(tl).filter((id): id is ScriptPaneId => isScriptPaneId(id) && this.paneAvailable(id));
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
     const engine = new PlayerEngine({
       timeline: tl,
@@ -530,7 +530,7 @@ export class PlayerHost {
       if (!temp && !isScriptPaneId(rec.id)) return;
       if (temp && this.tempHidden) return;
       // A shared run shows no script pane (its payload carries none).
-      if (this.opts.panes) return;
+      if (!this.paneAvailable(rec.id)) return;
       const id = rec.id as ScriptPaneId;
       const cur = spanes.get(id);
       // At most as many panes as the settings keep (a hostile log could name thousands, ADR 0154).
@@ -634,7 +634,7 @@ export class PlayerHost {
       settings: this.phoneSettings(),
       replay: {
         // The pages that show the live session, not the recording (Statistics).
-        omitPages: [...LIVE_ONLY, ...(this.opts.panes ? PANE_IDS.filter((id) => !this.opts.panes!.includes(id)) : [])],
+        omitPages: [...LIVE_ONLY, ...PANE_IDS.filter((id) => !this.paneAvailable(id))],
         clear: this.phoneClear,
         state: this.phoneState,
         onState: (s) => {
@@ -787,8 +787,7 @@ export class PlayerHost {
         const d = JSON.parse(JSON.stringify(base)) as Settings;
         applyViewer(d, o);
         // Only these panes (a shared run): the rest stay off whatever the VIEW records and the viewer say.
-        const only = this.opts.panes;
-        if (only) for (const id of Object.keys(d.panes) as PaneId[]) if (!(only as readonly PaneId[]).includes(id)) d.panes[id]!.on = false;
+        for (const id of Object.keys(d.panes) as PaneId[]) if (!this.paneAvailable(id)) d.panes[id]!.on = false;
         if (tweak) {
           const ansi = d.appearance.ansi.slice();
           for (const [i, c] of Object.entries(tweak)) {
@@ -802,6 +801,17 @@ export class PlayerHost {
     } finally {
       this.applying = false;
     }
+  }
+
+  /**
+   * May the player show pane `id`? Every pane, unless the host was given
+   * `panes` (a shared run): then only those, never a script or temporary
+   * pane. The one filter of the script panes built and listed, the pane
+   * records, the phone's pages and the settings composed (review fix 2 CR7).
+   */
+  paneAvailable(id: string): boolean {
+    const only = this.opts.panes;
+    return !only || (only as readonly string[]).includes(id);
   }
 
   /**
@@ -825,7 +835,7 @@ export class PlayerHost {
         ? {
             panes: {
               list: () => [
-                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id) && (!this.opts.panes || this.opts.panes.includes(id))).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id) && this.paneAvailable(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
                 ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
               ],
               toggle: (id: string) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),

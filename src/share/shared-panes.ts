@@ -36,6 +36,7 @@ import type { ReplayPayload } from './payload';
 export const SHARED_PANES: readonly BuiltinPaneId[] = ['timers', 'group', 'map'];
 
 const SHARED: ReadonlySet<string> = new Set(SHARED_PANES);
+const BUILTIN: ReadonlySet<string> = new Set(PANE_IDS);
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -60,12 +61,18 @@ export function sharedPanes(raw: unknown): PaneSettingsMap {
 /** A valid layout of `raw` without script panes (their ids name the scripts). */
 export function sharedLayout(raw: unknown): LayoutModel {
   const l = migrateLayout(raw);
-  const drop = new Set<PaneId>();
-  for (const dock of Object.values(l.docks)) {
-    for (const p of [...dock.head, ...dock.lanes.flatMap((x) => x.panes), ...dock.tail]) if (!isBuiltinPaneId(p.id)) drop.add(p.id);
-  }
-  for (const f of l.floating) if (!isBuiltinPaneId(f.id)) drop.add(f.id);
+  const drop = scriptPanesOf(l);
   return drop.size > 0 ? migrateLayout(l, drop) : l;
+}
+
+/** The panes of a layout that are not built-in ones (script panes). */
+function scriptPanesOf(l: LayoutModel): Set<PaneId> {
+  const out = new Set<PaneId>();
+  for (const dock of Object.values(l.docks)) {
+    for (const p of [...dock.head, ...dock.lanes.flatMap((x) => x.panes), ...dock.tail]) if (!isBuiltinPaneId(p.id)) out.add(p.id);
+  }
+  for (const f of l.floating) if (!isBuiltinPaneId(f.id)) out.add(f.id);
+  return out;
 }
 
 /** A shared payload's settings (see the file header). */
@@ -104,4 +111,27 @@ export function sharedRunText(text: string): string {
 /** `p` as a shared run carries it: Map, Timers and Group only, every pane off (see the file header). */
 export function sharedPayload(p: ReplayPayload): ReplayPayload {
   return { ...p, settings: sharedSettings(p.settings), runs: p.runs.map((r) => ({ meta: r.meta, text: sharedRunText(r.text) })) };
+}
+
+/**
+ * A record `sharedRunText` changes or the player must not see on: a script
+ * pane's (SPANE), a Comm GMCP record, a VIEW that turns a pane on. Any
+ * case, so it finds at least what the filter takes.
+ */
+const SHARED_CHANGES = /\x1b(?:SPANE|GMCP +comm\.|VIEW [^\n]*"on" *: *true)/i;
+
+/**
+ * Does `p` need `sharedPayload` before it is played (review fix 2 CR6)? A
+ * cheap look, no parse of the runs: a settings pane entry that is not a built-in pane,
+ * one that is missing or on (a missing one would come back on with its
+ * default), a script pane in the layout, or a record of SHARED_CHANGES.
+ * False for what `sharedPayload` made (a run shared since stage 65 W3).
+ */
+export function needsShared(p: ReplayPayload): boolean {
+  const panes: unknown = p.settings?.panes;
+  if (!isObj(panes)) return true;
+  for (const [id, x] of Object.entries(panes)) if (!BUILTIN.has(id) || !isObj(x) || x.on !== false) return true;
+  if (Object.keys(panes).length !== PANE_IDS.length) return true;
+  if (scriptPanesOf(migrateLayout(p.settings.layout)).size > 0) return true;
+  return p.runs.some((r) => SHARED_CHANGES.test(r.text));
 }

@@ -30,7 +30,7 @@ import type { Wall } from '../player/engine';
 import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
-import { SHARED_PANES, sharedPayload } from '../share/shared-panes';
+import { SHARED_PANES, needsShared, sharedPayload } from '../share/shared-panes';
 import { applyTheme } from '../theme/apply';
 import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
@@ -124,7 +124,7 @@ function docFullscreen(doc: Document): ReplayFullscreen {
  * `wall`: a test's clock; `autoplay: false`: opens paused at the start).
  * A shared run (stage 65): only Map, Timers and Group, each off at the
  * start; a payload made before that (more panes, some on) is played the
- * same way (`sharedPayload`, src/share/shared-panes.ts).
+ * same way (`sharedPayload`, src/share/shared-panes.ts, when `needsShared`).
  */
 export function openReplay(
   doc: Document,
@@ -132,7 +132,8 @@ export function openReplay(
   given: ReplayPayload,
   o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean } = {},
 ): ReplayPage {
-  const payload = sharedPayload(given);
+  // A payload shared since W3 is already as a shared run carries it: no second pass over its text (review fix 2 CR6).
+  const payload = needsShared(given) ? sharedPayload(given) : given;
   const fs = o.fullscreen ?? docFullscreen(doc);
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
