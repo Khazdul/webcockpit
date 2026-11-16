@@ -72,7 +72,7 @@ import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
-import { DAY_MS, type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
+import { type CacheLike, DAY_MS, type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
@@ -87,7 +87,12 @@ const EMPTY_HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': '
 const done = (): Response => new Response(null, { status: 204, headers: EMPTY_HEADERS });
 const notFound = (): Response => error('not_found', 404);
 const badRequest = (): Response => error('bad_request', 400);
-const PUBLIC_CACHE = { 'Cache-Control': `public, max-age=${COMMUNITY_CACHE_SECONDS}` };
+/**
+ * The public reads' header for the browser: never used without asking
+ * again (stage 65, owner's feedback W4). Only the Cache API keeps them,
+ * 60 s (`cached`), so a reload always asks the Worker.
+ */
+const PUBLIC_CACHE = { 'Cache-Control': 'no-cache' };
 
 async function bodyOf(request: Request, max: number, required: string[], optional: string[] = []): Promise<Record<string, unknown> | null> {
   const text = await readCapped(request, max);
@@ -107,32 +112,105 @@ export function publicTextOf(v: unknown, max: number, newlines: number): string 
   return n >= 1 && n <= max && isPublicText(v, { newlines }) ? v : null;
 }
 
-// --- The cache (ADR 0155: 60 s per normalised variant) ---
+// --- The cache (ADR 0155: 60 s per normalised variant; "As built (stage 65, owner's feedback: W4, freshness)") ---
+
+/** The stored copy's own time (ms): an entry is believed `COMMUNITY_CACHE_SECONDS` from it, whatever the cache keeps. */
+const KEPT_HEADER = 'X-WC-Kept';
+const KEPT_MS = COMMUNITY_CACHE_SECONDS * 1000;
+/** The key of the community's mark (never a path the Worker answers): a write's time, part of every kept answer's key. */
+const MARK_PATH = '/api/community/~mark';
+const MARK_PATTERN = /^[0-9a-z]{1,40}$/;
+
+/** The mark in this place's cache, or null (none, or a cache that fails). */
+async function markOf(cache: CacheLike, origin: string): Promise<string | null> {
+  try {
+    const hit = await cache.match(new Request(`${origin}${MARK_PATH}`, { method: 'GET' }));
+    const v = hit ? (await hit.text()).trim() : '';
+    return MARK_PATTERN.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * The answer kept under `key` (a normalised URL) in the Cache API, or
- * `make()`'s, stored when it is a 200. Without a cache (Deps.cache: the
- * static server, the tests), or with one that fails, `make()` answers.
+ * A write changed what the public reads show: a new mark, so every answer
+ * this place's cache kept before it is not found again (the next read of
+ * each variant asks the database). The Cache API is per data centre: the
+ * writer's place (and so the writer) sees the change at once, others
+ * within the 60 s.
+ */
+export async function communityChanged(deps: Deps, origin: string): Promise<void> {
+  const cache = deps.cache;
+  if (!cache) return;
+  const mark = `${deps.now().toString(36)}${Math.floor(Math.random() * 36 ** 6).toString(36)}`;
+  try {
+    await cache.put(
+      new Request(`${origin}${MARK_PATH}`, { method: 'GET' }),
+      // Longer than the answers it marks: gone sooner, the answers under no mark are at most 60 s old anyway.
+      new Response(mark, { headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'public, max-age=86400' } }),
+    );
+  } catch {
+    // Not marked: the change shows within the 60 s.
+  }
+}
+
+/** Does a request to the account API (or the admin's) that succeeded change what the public reads show? */
+export function changesCommunity(method: string, path: string): boolean {
+  if (method === 'GET' || method === 'HEAD') return false;
+  return (
+    path === '/api/u/runes' ||
+    path.startsWith('/api/u/runes/') ||
+    path === '/api/u/pub' ||
+    path.startsWith('/api/u/pub/') ||
+    path.startsWith('/api/u/comments/') ||
+    path === '/api/u/report' ||
+    path === '/api/u/account' ||
+    path.startsWith('/api/admin/')
+  );
+}
+
+/** `res` for the browser: the kept copy's own headers off, `no-cache` on. */
+function served(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.delete(KEPT_HEADER);
+  headers.set('Cache-Control', PUBLIC_CACHE['Cache-Control']);
+  return new Response(res.body, { status: res.status, headers });
+}
+
+/**
+ * The answer kept under `key` (a normalised URL, with the community's mark
+ * when there is one) in the Cache API and not older than 60 s by its own
+ * time, or `make()`'s, stored when it is a 200 (a copy that says
+ * `max-age=60` to the cache; the browser gets `no-cache`). Without a cache
+ * (Deps.cache: the static server, the tests), or with one that fails,
+ * `make()` answers.
  */
 export async function cached(deps: Deps, key: string, make: () => Promise<Response>): Promise<Response> {
   const cache = deps.cache;
   if (!cache) return make();
-  const req = new Request(key, { method: 'GET' });
+  const now = deps.now();
+  const mark = await markOf(cache, new URL(key).origin);
+  const req = new Request(mark === null ? key : `${key}${key.includes('?') ? '&' : '?'}mark=${mark}`, { method: 'GET' });
   try {
     const hit = await cache.match(req);
-    if (hit) return hit;
+    const kept = Number(hit?.headers.get(KEPT_HEADER));
+    if (hit && Number.isSafeInteger(kept) && kept <= now && now - kept < KEPT_MS) return served(hit);
   } catch {
     // A cache that fails is no cache.
   }
   const res = await make();
   if (res.status === 200) {
     try {
-      await cache.put(req, res.clone());
+      const copy = res.clone();
+      const headers = new Headers(copy.headers);
+      headers.set('Cache-Control', `public, max-age=${COMMUNITY_CACHE_SECONDS}`);
+      headers.set(KEPT_HEADER, String(now));
+      await cache.put(req, new Response(copy.body, { status: 200, headers }));
     } catch {
       // Not kept: the next request reads the database again.
     }
   }
-  return res;
+  return served(res);
 }
 
 // --- Rows of the lists ---

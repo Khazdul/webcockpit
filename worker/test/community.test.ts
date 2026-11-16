@@ -197,7 +197,7 @@ describe('GET /api/gallery', () => {
     const alice = await signUp('alice');
     await list(alice);
     const first = await get('?page=1&utm=x');
-    expect(first.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(first.headers.get('cache-control')).toBe('no-cache');
     expect([...store.keys()]).toEqual([`${ORIGIN}/api/gallery?sort=new&period=all&page=1`]);
     await list(alice, { seed: 2 });
     // The same variant spelled otherwise: the kept answer.

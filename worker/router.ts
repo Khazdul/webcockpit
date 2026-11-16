@@ -46,7 +46,7 @@ import { accountApi, isAccountPath, sameSite } from './auth.ts';
 import { adminFlags, flags, isFlagName, setFlag } from './flags.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
 import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
-import { communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
+import { changesCommunity, communityChanged, communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
 import { isPublicPubPath, publicPub } from './pub.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
 
@@ -232,6 +232,16 @@ async function dispatch(request: Request, env: Env, url: URL, deps: Deps, route:
   return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
 }
 
+/**
+ * `res` after the community's mark is moved when the write changed what the
+ * public reads show (stage 65, owner's feedback W4: the writer and this
+ * place see it at once, not after the cache's 60 s).
+ */
+async function written(request: Request, url: URL, deps: Deps, res: Response): Promise<Response> {
+  if (res.ok && changesCommunity(request.method, url.pathname)) await communityChanged(deps, url.origin);
+  return res;
+}
+
 async function route(request: Request, env: Env, deps: Deps): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -239,11 +249,11 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
     // Every admin path, known or not, answers only after the Access check.
     const access = await verifyAccess(request, env, deps);
     if (!access.ok) return access.response;
-    return dispatch(request, env, url, deps, adminRoute(path), await whoOf(env, access.email));
+    return written(request, url, deps, await dispatch(request, env, url, deps, adminRoute(path), await whoOf(env, access.email)));
   }
   if (path.startsWith('/r/')) return watchPage(request, env, url);
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
-  if (isAccountPath(path)) return accountApi(request, env, url, deps);
+  if (isAccountPath(path)) return written(request, url, deps, await accountApi(request, env, url, deps));
   if (isPublicPubPath(path)) return publicPub(request, env, url, deps);
   if (isCommunityPublicPath(path)) return communityPublic(request, env, url, deps);
   return dispatch(request, env, url, deps, Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined);

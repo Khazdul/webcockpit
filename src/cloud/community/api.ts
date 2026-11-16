@@ -109,8 +109,15 @@ export interface CommunityRequest {
   path: string;
   headers: Record<string, string>;
   body?: string;
-  /** `omit` for the public reads (cacheable, no cookie), `same-origin` for `/api/u/`. */
+  /** `omit` for the public reads (no cookie), `same-origin` for `/api/u/`. */
   credentials: 'omit' | 'same-origin';
+  /**
+   * `no-store` for every read: the browser neither answers it from its cache
+   * nor keeps it (stage 65, owner's feedback W4: a reload or a page opened
+   * again always asks; only the Worker's own cache keeps an answer, 60 s at
+   * most, and a write moves past it).
+   */
+  cache?: 'no-store';
   timeoutMs: number;
 }
 
@@ -292,6 +299,7 @@ export const fetchTransport: CommunityTransport = async (req) => {
       method: req.method,
       headers: req.headers,
       credentials: req.credentials,
+      ...(req.cache ? { cache: req.cache } : {}),
       ...(req.body !== undefined ? { body: req.body } : {}),
       ...(ctl ? { signal: ctl.signal } : {}),
     });
@@ -343,6 +351,7 @@ export function communityApi(o: CommunityApiOptions = {}): CommunityApi {
         headers,
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         credentials: user ? 'same-origin' : 'omit',
+        ...(method === 'GET' ? { cache: 'no-store' as const } : {}),
         timeoutMs,
       });
     } catch (e) {
