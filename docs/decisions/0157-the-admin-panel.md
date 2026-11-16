@@ -220,3 +220,141 @@ Mockups: <https://claude.ai/artifact/9yMSTQ4zgef5q1deSduTFC>.
   that equals the default at the time it is saved is not stored, so it
   follows later default changes. `GET`/`PUT /api/admin/limits`, logged
   as `limits.default`. Same value rules (0 … 20 × the built-in value).
+
+## As built (stage 66 B)
+
+The Worker's part, branch `stage66-worker`. The contract in
+`shared/cloud/api.ts` is unchanged in shape; only the comment of
+`AdminDailyMetric` was extended with the exact meaning of each metric.
+
+### Files
+
+- `worker/migrations/0007_admin_panel.sql`: `admin_log.prev`, `mac`;
+  triggers `admin_log_no_update`, `admin_log_no_delete` (`RAISE(ABORT,
+  'admin_log_append_only')`) and `admin_log_chain` (BEFORE INSERT, aborts
+  `admin_log_chain` when `NEW.prev IS NOT` the newest row's `mac`, or when
+  `NEW.mac` is NULL once the newest `mac` is not); `limit_default(name,
+  value) WITHOUT ROWID`; the backfill (below). Works in workerd's D1
+  (checked in the tests).
+- `worker/auditlog.ts`: `sealedBatch(env, db, line, build, guard?)` is the
+  only `INSERT INTO admin_log` in the Worker. It reads the head `mac`,
+  seals, and runs `build(entry)` as one batch; on `admin_log_chain` it
+  builds again on the new head, up to `RETRIES` = 3 more times, then
+  throws (nothing of the action is written). `guard` keeps the account
+  delete's `EXISTS (… auth_hash …)` condition (placeholders from `?8`).
+  `logKey` = HMAC(AUTH_PEPPER, `wc-admin-log`); with a pepper under 16
+  characters SHA-256 of the label (as `whoOf`). **Deviation:** the sealed
+  text is `JSON.stringify([prev ?? '', ts, who, action, target, note])`,
+  not the fields joined with `|`, so a `|` in a note cannot shift fields.
+  `mac` is base64url (43 characters).
+- `verifyChain`: rows by id; rows before the first sealed one are
+  `unsealed`; from it on, each row must be sealed, have `prev` equal to the
+  previous row's `mac` and a matching seal; the first that does not is
+  `brokenAt` (a changed row at its own id, a removed row at the next one).
+  `head` is the newest row's `mac`, 12 characters ('' when none).
+- `worker/limits.ts`: `builtInLimits(env)` (DEFAULT_ACCOUNT_LIMITS with
+  RUN_BYTES_LIMIT), `loadLimitDefaults(env, now)` (30 s per isolate per
+  D1 binding, as the flags; never throws), `currentDefaults(env)` (sync).
+  `defaultLimits`/`limitsOf` in `accounts.ts` now include the overrides.
+  Loaded in `accountApi` after its rate limit (an address over its limit
+  still costs no database read), in `/api/config`, and after the Access
+  check on admin paths. `limitsInput` (known keys, whole numbers 0 … 20 ×
+  built-in), `differing`, `changeNote` (`runBytes 50 MB → 200 MB, items
+  2000 → 3000`, bytes in B/KB/MB/GB of 1024, `no change` when none; the
+  admin's note follows after ` — `).
+- `worker/panel.ts`: the panel's routes; `router.ts` merges them with
+  moderation's (`/api/admin/account/<name>`: GET in panel, POST in
+  moderation). `GET /api/admin/log` moved here from moderation.ts.
+- `worker/stats.ts`: `PANEL_METRICS` in the roll-up; `adminGraphs`.
+- `worker/flags.ts`: `setFlag` replaced by `flagStatement` (the router
+  batches it with the log entry).
+
+### Exact behaviour
+
+- **Accounts:** `q` trimmed, lowercased, at most 20 characters, matched
+  with `name_key LIKE %q% ESCAPE '\'`; `state` all|active|suspended; sort
+  `runs` is by run-body count, `items` by item count, `pubs` by published
+  count, `bytes` by the total; ties by name; a bad parameter is 400; a
+  page past the end is empty. `total` is the filter's count, `totals`
+  every account's. Sessions are live ones (`expires > now`).
+- **One account:** `community.comments`/`notes` count active and hidden
+  ones; `reportsMade` every report it made; `reportsOpen` open report rows
+  on its runs, comments and notes. `log`: the newest 20 entries whose
+  target is the name (any case) or one of its runs, comments or notes,
+  never `flag.*` or `limits.default`.
+- **PUT …/limits** replaces the account's own set (fields not sent are
+  not its own any more); fields equal to the current default are dropped;
+  nothing left stores NULL. `{limits, note?}` only; otherwise 400. The
+  answer is `AdminLimits` with `own` and `effective`.
+- **PUT /api/admin/limits** replaces the overrides the same way against
+  the built-in values; logged `limits.default`, target `defaults`.
+- **end-sessions**: `ended(… 'ended' …)` for every session of the account
+  and `account.end-sessions` in one batch; 204.
+- **Flags:** `flag.on` / `flag.off`, target the flag, note ''; every PUT
+  is logged, also one that sets the value it had.
+- **Log:** every row is read (the chain needs them all); `kind` and `q`
+  (part of the target, any case, ≤ 64) filter in the Worker; `total` is
+  the filtered count; `next` the last id of the page when more remain.
+  Bad `before`/`kind`/`q` is 400. `by` is `who`'s first 8 characters.
+- **Graphs:** online for 24h/7d/30d/90d from `stat_sample` (`ts > now −
+  range`), the highest per bucket, bucket start as `ts`; for `all` the
+  rolled-up days' `peak_online`/`peak_playing` plus today's samples' peak.
+  `days`: `stat_daily` rows (key '') from the range's first day (24h: two
+  days, 7d: 7, …) to yesterday, `final: true`, plus today live (`final:
+  false`) with every metric. `split`: the range's rolled-up splits plus
+  today's. `largest`: accounts with any bytes, by total. `sharing.pubs`
+  active and hidden runs, `listed` active listed, `votes` every vote row,
+  `comments`/`notes` active ones, `openReports` open report rows. Five
+  batches, no query per row.
+- **Daily metrics** (roll-up and backfill alike, per UTC day):
+  `devices_7d`/`devices_30d` distinct devices in the 7/30 days ending with
+  the day; `new_accounts` accounts created; `accounts`, `item_bytes`,
+  `run_bytes`, `pub_bytes` totals when rolled up (no backfill: storage
+  history starts with the deploy); `pubs_new` publications created that
+  day, link or listed, not `pending` (removed ones count); `listed_new`
+  runs whose `listed_at` (first listing) falls on the day; `votes` by
+  `vote.updated`; `comments`, `notes`, `reports` by `created`; `views`
+  rows of `pub_view`. The backfill covers days before `date('now')`.
+
+### Deletion gaps found and closed (`worker/deletion.ts`)
+
+- `session_end` kept the account's id on every ended session (the new
+  `deleted` ones and older `logout` ones): now set to `''` in the same
+  transaction; the reasons stay for the cookies still out there.
+- `pub_view` kept the views of its runs (by run id) until the two-day
+  prune: now deleted with the account.
+
+### Tests
+
+- `worker/test/admin-access.test.ts`: "every admin route and method, and
+  unknown admin paths: 403 without the token, for another e-mail, a
+  service token, a wrong audience" (17 route samples + 9 unknown paths × 7
+  methods × 4 credentials; asserts nothing written); "every admin write
+  without X-WC, or from another Origin, is 403 and writes nothing" (the 7
+  write routes read from `adminRoute`, 6 header variants).
+- `worker/test/deletion-guard.test.ts`: "every column that may hold an
+  account id is one deletion handles" (column names from
+  `pragma_table_info` over `sqlite_master` against a named list: a new
+  account column fails it); "an account with every kind of row, deleted by
+  the admin…" (searches every column of every table for the account's id,
+  name and its things' ids; allowed: tombstones, `r2_sweep`,
+  `reserved_name`, `admin_log.target`, handled reports without text or
+  reporter; R2 empty under `u/<id>/` and no `pub/<id>`).
+- `worker/test/audit-log.test.ts`: UPDATE/DELETE/REPLACE refused (and a
+  batch rolled back); out-of-line inserts refused; the 0.14.0 inserts
+  before the first seal; a changed row `broken` at its id; a removed row
+  at the next; a re-seal with another key found; the head; racing
+  batches retried (and failing after 3 retries with nothing written);
+  every router action sealed; "the Worker's source has no UPDATE, DELETE,
+  REPLACE or DROP on admin_log" (Vite `import.meta.glob` over `worker/**`
+  and the migrations; also only one `INSERT INTO admin_log`, in
+  auditlog.ts).
+- `worker/test/admin-panel.test.ts`: accounts (search, `_`/`%` escaped,
+  filter, sort, pages of 50, 400s), one account, limits per account and
+  defaults (stored only when differing, 400s writing nothing, below use
+  deletes nothing then `413 pub_quota`, `/api/config`, 30 s per isolate),
+  end-sessions, flags logged, the log's paging/kind/q, graphs per range,
+  and the migration's backfill run on fixture rows.
+- Test support: `helpers.ts` `emptyAdminLog`/`withoutLogTriggers` (drop
+  and restore the triggers, as the D1 console could); `access-helpers.ts`;
+  `admin-call.ts` now goes through the router's `adminRoute`.
