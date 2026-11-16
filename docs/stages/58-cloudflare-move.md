@@ -138,8 +138,10 @@ In the repository (session):
       §7.12; `vite.config.ts`, `update-check.ts`, `deploy.yml`, …);
       ADR 0028 marked superseded; ADR 0144 addendum.
 - [x] typecheck, unit, `build:site`; staging deployed and `test:prod`
-      against <https://staging.mumecockpit.com> (results below).
-      No release: nothing in the app changed (comments only).
+      against <https://staging.mumecockpit.com>: unit 5454 passed,
+      `build:site --skip-live` smoke 36/36, deploy run 43970978853
+      (a71de9b), `test:prod` 36/36 on staging. No release: nothing in
+      the app changed (comments only).
 
 **Owner: what to click (about 5 minutes).** What was looked up
 (read-only) on 2026-11-16: the GitHub Pages site is still published
