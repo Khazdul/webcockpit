@@ -804,3 +804,41 @@ everywhere:
 This replaces the Decision's "Day = dawn + 1 ≤ hour < dusk + 1" and its
 "the dawn hour is dark": the clock, the scripts' periods and the weather
 still agree, now on the dawn hour.
+
+## Addendum 2026-11-16: sunlight is dawn + 1 ≤ hour < dusk
+
+The owner checked the sunlight carefully in-game and decided: the sun
+shines from the hour after the dawn hour until the dusk hour. In Wedmath
+(dawn 4, dusk 22) it is dark at 4:59 am, sunlit from 5:00 am, sunlit at
+9:59 pm and dark from 10:00 pm. Dawn ("The sun rises in the east.",
+`Event.Sun rise`) comes one game hour (one real minute) before the
+sunlight; dusk ("The sun slowly disappears in the west.", `set`) is the
+hour the sunlight ends. This replaces the 2026-11-01 addendum. Its
+evidence (the prompt's light symbol turning at the dawn tick and at
+dusk + 1) is set aside on the owner's word: he trusts his own in-game
+check over GMCP and the prompt here.
+
+- **Clock.** `dayHour` = dawn + 1, `nightHour` = dusk; `isDay`,
+  `nextTransition`, `dayBeginsAt`, `nightBeginsAt` follow. The menu bar's
+  ring, the phone strip and their tooltips turn at those hours.
+- **The sky.** The sunrise runs over the dawn hour and ends at dawn + 1:00;
+  the sunset runs over the hour before the dusk hour and ends at dusk:00.
+  Each still starts 60 s before its turn. `sunU` is 0 at dawn + 1, 1 at
+  dusk.
+- **The events.** `light` brings the day (`clock: 'day'`, `sunU` 0);
+  `set` brings the night (`clock: 'night'`, `sunU` -1) and starts nothing
+  (only the demo's `sun.set` with a `from` starts a sunset); `dark` keeps
+  the night. Without minute precision `rise` starts the sunrise at -60;
+  a `rise` held back by a pin joins at its place on release when the clock
+  does not time it, a held `set` is not replayed. `syncSun`'s hour anchors
+  stay (rise dawn, light dawn + 1, set dusk, dark dusk + 1): they set the
+  clock, not the sunlight.
+- **The start page.** Its sky (`src/start/sky/look.ts`) puts sunrise at
+  dawn + 1 and sunset at dusk; the dawn fog follows the sunrise.
+- **The scripts.** `periodOf` keeps its four periods; now only `day` is
+  sunlit, `dawn`, `dusk` and `night` are dark. The almanac's words follow
+  (`daylight` = day; `dark` = dawn, dusk, night), its sun icon (☼ only by
+  day), its daylight band and its hours of light (dusk − dawn − 1: 17 h in
+  Wedmath). The script manual and the Lua API reference say so.
+- The demo's captions name `light` as the day's start and `set` as the
+  night's.
