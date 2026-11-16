@@ -11,12 +11,14 @@
 //   POST /api/beat            a usage beat (ADR 0147); 204
 //   GET  /api/stats/public    { online, playing } (public, max-age 60)
 //   GET  /api/admin/stats     the admin page's numbers (Access)
-//   PUT  /api/admin/flags/<n> { value } (Access, X-WC: 1, same Origin)
+//   PUT  /api/admin/flags/<n> { value } (Access, X-WC: 1, same Origin; logged)
 //   GET  /admin               the admin page (Access); /admin/admin.css,
 //                             /admin/admin.js
-//   /api/admin/reports, /log, /pub/<id>[/payload], /account/<name>
-//                             moderation (worker/moderation.ts; Access, and
+//   /api/admin/reports, /pub/<id>[/payload], /account/<name>, /comment/<id>,
+//   /note/<id>                moderation (worker/moderation.ts; Access, and
 //                             X-WC: 1 and the same Origin on writes)
+//   /api/admin/accounts, /account/<name>[/limits], /limits, /graphs, /log
+//                             the admin panel (worker/panel.ts, stage 66; the same)
 //   /api/pub/<id>[/payload|/view|/comments]
 //                             a published run, public (worker/pub.ts; flag `share`;
 //                             the comments `gallery` too)
@@ -43,7 +45,10 @@ import { defaultLimits } from './accounts.ts';
 import { verifyAccess } from './access.ts';
 import { ADMIN_CSP, ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from './admin/page.ts';
 import { accountApi, isAccountPath, sameSite } from './auth.ts';
-import { adminFlags, flags, isFlagName, setFlag } from './flags.ts';
+import { adminFlags, flagStatement, flags, forgetFlags, isFlagName } from './flags.ts';
+import { sealedBatch } from './auditlog.ts';
+import { loadLimitDefaults } from './limits.ts';
+import { panelRoute } from './panel.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
 import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
 import { afterWrite, communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
@@ -136,6 +141,7 @@ async function statsPublic(_request: Request, env: Env, _url: URL, deps: Deps): 
  */
 async function config(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();
+  await loadLimitDefaults(env, now);
   const answer: Required<Config> = {
     flags: await flags(env, now),
     turnstileSiteKey: typeof env.TURNSTILE_SITE_KEY === 'string' ? env.TURNSTILE_SITE_KEY : '',
@@ -183,7 +189,7 @@ async function adminStatsRoute(_request: Request, env: Env, _url: URL, deps: Dep
   return json(await adminStats(env, env.DB, deps.now()));
 }
 
-async function adminFlagRoute(request: Request, env: Env, url: URL, deps: Deps): Promise<Response> {
+async function adminFlagRoute(request: Request, env: Env, url: URL, deps: Deps, who: string): Promise<Response> {
   const name = url.pathname.slice('/api/admin/flags/'.length);
   if (!isFlagName(name)) return error('not_found', 404);
   if (!sameSite(request, url)) return error('forbidden', 403);
@@ -198,7 +204,10 @@ async function adminFlagRoute(request: Request, env: Env, url: URL, deps: Deps):
   const keys = typeof body === 'object' && body !== null ? Object.keys(body) : [];
   const value = (body as { value?: unknown } | null)?.value;
   if (keys.length !== 1 || typeof value !== 'boolean') return error('bad_request', 400);
-  await setFlag(env.DB, name, value);
+  // Stage 66: the switch is logged in the same transaction (ADR 0157).
+  const db = env.DB;
+  await sealedBatch(env, db, { ts: deps.now(), who, action: value ? 'flag.on' : 'flag.off', target: name, note: '' }, (entry) => [flagStatement(db, name, value), entry]);
+  forgetFlags(db);
   return json((await adminFlags(env, deps.now()))[name] satisfies AdminFlag);
 }
 
@@ -216,9 +225,13 @@ function isAdmin(path: string): boolean {
   return path === '/admin' || path.startsWith('/admin/') || path === '/api/admin' || path.startsWith('/api/admin/');
 }
 
-function adminRoute(path: string): Record<string, Handler> | undefined {
+export function adminRoute(path: string): Record<string, Handler> | undefined {
   if (Object.hasOwn(ADMIN_ROUTES, path)) return ADMIN_ROUTES[path];
-  if (isModerationPath(path)) return moderationRoute(path);
+  // Stage 66: the panel's routes (worker/panel.ts); `/api/admin/account/<name>`
+  // has its GET there and its POST in moderation.ts.
+  const panel = panelRoute(path);
+  const moderation = isModerationPath(path) ? moderationRoute(path) : undefined;
+  if (panel || moderation) return { ...moderation, ...panel };
   if (path.startsWith('/api/admin/flags/') && path.length > '/api/admin/flags/'.length) return ADMIN_ROUTES['/api/admin/flags/'];
   return undefined;
 }
@@ -251,10 +264,13 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
     // Every admin path, known or not, answers only after the Access check.
     const access = await verifyAccess(request, env, deps);
     if (!access.ok) return access.response;
+    // The default limits (ADR 0157 pick 4b), for the panel's limits.
+    await loadLimitDefaults(env, deps.now());
     return written(url, deps, await dispatch(request, env, url, deps, adminRoute(path), await whoOf(env, access.email)));
   }
   if (path.startsWith('/r/')) return watchPage(request, env, url);
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
+  // (accountApi loads the default limits after its rate limit, before any handler checks one.)
   if (isAccountPath(path)) return written(url, deps, await accountApi(request, env, url, deps));
   if (isPublicPubPath(path)) return publicPub(request, env, url, deps);
   if (isCommunityPublicPath(path)) return communityPublic(request, env, url, deps);

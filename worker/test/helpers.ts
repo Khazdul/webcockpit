@@ -2,6 +2,7 @@
 // Env, a fixed clock, and an empty database before each test.
 import { env } from 'cloudflare:workers';
 import { forgetFlags } from '../flags.ts';
+import { forgetLimitDefaults } from '../limits.ts';
 import type { D1, Deps, Env, R2 } from '../runtime.ts';
 
 export const realEnv = env as unknown as Env;
@@ -28,9 +29,33 @@ export function at(now: number, fetch?: Deps['fetch']): Deps {
 export const T = (iso: string): number => Date.parse(iso);
 
 export async function emptyTables(): Promise<void> {
-  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end', 'run_body', 'r2_sweep', 'publication', 'pub_view', 'report', 'admin_log', 'vote', 'comment', 'note', 'mume_cache'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end', 'run_body', 'r2_sweep', 'publication', 'pub_view', 'report', 'vote', 'comment', 'note', 'mume_cache', 'limit_default'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await emptyAdminLog();
   forgetFlags(db);
+  forgetLimitDefaults(db);
   await emptyBucket();
+}
+
+/**
+ * Empties `admin_log`, which the database refuses (migration 0007's
+ * triggers): the tests only, by dropping the triggers for the moment, as
+ * someone with the D1 console could. The triggers come back as they were.
+ */
+export async function emptyAdminLog(): Promise<void> {
+  await withoutLogTriggers(async () => {
+    await db.prepare('DELETE FROM admin_log').run();
+  });
+}
+
+/** Runs `f` with admin_log's triggers dropped (as the D1 console could), then puts them back. */
+export async function withoutLogTriggers(f: () => Promise<void>): Promise<void> {
+  const { results } = await db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'admin_log'").all<{ name: string; sql: string }>();
+  if (results.length) await db.batch(results.map((t) => db.prepare(`DROP TRIGGER ${t.name}`)));
+  try {
+    await f();
+  } finally {
+    if (results.length) await db.batch(results.map((t) => db.prepare(t.sql)));
+  }
 }
 
 export const bucket = realEnv.FILES as R2;

@@ -74,6 +74,7 @@ import { GUESS_WINDOW_MS, type GuessKind, HOUR_MS, addressCounters, countRegistr
 import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json, publicChange } from './runtime.ts';
+import { loadLimitDefaults } from './limits.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
 import { communityUserRoute } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
@@ -587,6 +588,8 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
   if (pepper.length < MIN_PEPPER_LENGTH || !env.TURNSTILE_SECRET) return error('accounts_not_configured', 503);
   const db = env.DB;
   if (!db) return error('unavailable', 503);
+  // The admin's default limits (stage 66, worker/limits.ts), before any handler checks one.
+  await loadLimitDefaults(env, now);
 
   let auth: Authed | null = null;
   if (user) {

@@ -457,7 +457,8 @@ describe('moderation (stage 64, ADR 0154)', () => {
     await db.batch(Array.from({ length: 105 }, (_, i) => db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (?1, 'w', 'pub.hide', ?2, '')").bind(i, `t${i}`)));
     const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
     expect(entries.length).toBe(100);
-    expect(entries[0]).toEqual({ ts: 104, action: 'pub.hide', target: 't104', note: '' });
+    // Stage 66: the entries of AdminLogPage (these unsealed, written as the 0.14.0 Worker did).
+    expect(entries[0]).toEqual({ id: 105, ts: 104, action: 'pub.hide', target: 't104', note: '', by: 'w', sealed: false });
   });
 
   it('works with the flag share off (the admin can clean up)', async () => {
