@@ -1,6 +1,6 @@
 # Stage 65 — The community
 
-Status: **On staging after the owner's feedback round 1 (2026-11-16,
+Status: **On staging after the owner's feedback round 2 (2026-11-16; round 1 in the
 night pass)**; the release 0.14.0 is prepared but not made (the session
 was not allowed to tag a release). `gallery` and `runes` on in staging,
 off in production.
