@@ -195,12 +195,17 @@ async function accountGet(_request: Request, env: Env, db: D1, url: URL, now: nu
                 (SELECT COUNT(*) FROM report r WHERE r.handled = 0 AND (${mine})) AS open`,
       )
       .bind(id),
-    // Its entries: the account by name, or one of its runs, comments or notes (a flag's or the defaults' never).
+    // Its entries (review fix S6): an account action by its name (any case,
+    // as names are), or an action on one of its runs, comments or notes by
+    // the thing's id (exact case). A name may equal another one's public
+    // id, so a name never matches a thing's entry.
     db
       .prepare(
-        `SELECT ${LOG_COLUMNS} FROM admin_log WHERE action NOT LIKE 'flag.%' AND action <> 'limits.default'
-         AND (target = ?2 COLLATE NOCASE OR target IN (SELECT id FROM publication WHERE account = ?1)
-              OR target IN (SELECT id FROM comment WHERE account = ?1) OR target IN (SELECT id FROM note WHERE account = ?1))
+        `SELECT ${LOG_COLUMNS} FROM admin_log WHERE
+            (action LIKE 'account.%' AND target = ?2 COLLATE NOCASE)
+         OR (action LIKE 'pub.%' AND target IN (SELECT id FROM publication WHERE account = ?1))
+         OR (action LIKE 'comment.%' AND target IN (SELECT id FROM comment WHERE account = ?1))
+         OR (action LIKE 'note.%' AND target IN (SELECT id FROM note WHERE account = ?1))
          ORDER BY id DESC LIMIT ?3`,
       )
       .bind(id, found.name_key, ACCOUNT_LOG_ENTRIES),

@@ -132,6 +132,20 @@ describe('GET /api/admin/account/<name>', () => {
     expect((await admin('/api/admin/account/nobody')).status).toBe(404);
     expect((await admin('/api/admin/account/%E0%A4%A')).status).toBe(404);
   });
+
+  it('S6: an account named like another one’s run id does not get that run’s entries; its own account entries it does', async () => {
+    const bob = await signUp('bob');
+    const run = await publish(bob);
+    // A name equal to the run's id, its case swapped (names are any case; ids are not).
+    const lookalike = [...run].map((ch) => (ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase())).join('');
+    await signUp(lookalike);
+    expect((await admin(`/api/admin/pub/${run}`, { body: { action: 'hide' } })).status).toBe(204);
+    expect((await admin(`/api/admin/account/${lookalike}`, { body: { action: 'suspend' } })).status).toBe(204);
+    const d = await adminJson<AdminAccountDetail>(`/api/admin/account/${lookalike}`);
+    expect(d.log.map((e) => [e.action, e.target])).toEqual([['account.suspend', lookalike]]);
+    const b = await adminJson<AdminAccountDetail>('/api/admin/account/bob');
+    expect(b.log.map((e) => [e.action, e.target])).toEqual([['pub.hide', run]]);
+  });
 });
 
 describe('limits', () => {
