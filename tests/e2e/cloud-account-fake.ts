@@ -102,7 +102,8 @@ import {
   TOP_PRIOR_MEAN,
   TOP_PRIOR_VOTES,
 } from '../../shared/cloud/api';
-import { isPublicText } from '../../shared/cloud/text';
+import { isPublicText, searchText } from '../../shared/cloud/text';
+import { GALLERY_Q_MAX, GALLERY_Q_MIN } from '../../shared/cloud/api';
 // Reports of comments (stage 65 C2).
 import { REPORTS_PER_DAY, REPORTS_TO_HIDE } from '../../shared/cloud/api';
 import { ServerModel } from '../unit/cloud-sync-model';
@@ -693,7 +694,7 @@ export class FakeAccountServer {
   // worker/community.ts as an in-memory model (ADR 0155; the contract is
   // "The community" in shared/cloud/api.ts), for the views of part C:
   //
-  //   GET  /api/gallery (round 13: `by`, five sorts, pages of 10), /api/community, /api/runes
+  //   GET  /api/gallery (round 13: `by`, five sorts, pages of 10; W2: `q`), /api/community, /api/runes
   //   GET  /api/pub/<id>/comments
   //   GET|PUT|DELETE /api/u/pub/<id>/vote, POST /api/u/pub/<id>/comments
   //   DELETE /api/u/comments/<id>, POST /api/u/runes, DELETE /api/u/runes/<id>
@@ -877,9 +878,15 @@ export class FakeAccountServer {
         if (!GALLERY_SORTS.includes(sort) || !(GALLERY_PERIODS as readonly string[]).includes(period) || !Number.isInteger(page) || page < 1 || page > GALLERY_PAGES_MAX) return err('bad_request', 400);
         const days = GALLERY_PERIOD_DAYS[period as keyof typeof GALLERY_PERIOD_DAYS];
         const by = q.get('by');
-        const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000).filter((p) => by === null || p.account === by.toLowerCase());
+        // A search (stage 65, owner's feedback W2): title, character or sender, ASCII case, a substring.
+        const raw = q.get('q');
+        const text = raw === null ? null : searchText(raw, GALLERY_Q_MIN, GALLERY_Q_MAX);
+        if (raw !== null && text === null) return err('bad_request', 400);
+        const low = (v: string): string => v.replace(/[A-Z]/g, (c) => c.toLowerCase());
+        const found = (p: FakePub): boolean => text === null || [p.pub.title, p.pub.character, this.row(p).sender].some((v) => low(v).includes(low(text)));
+        const runs = this.sorted(sort, days === null ? 0 : t - days * 86_400_000).filter((p) => (by === null || p.account === by.toLowerCase()) && found(p));
         const rows = runs.slice((page - 1) * GALLERY_PAGE_SIZE, page * GALLERY_PAGE_SIZE).map((p) => this.row(p));
-        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, total: Math.min(runs.length, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX), time: t } };
+        return { status: 200, body: { sort, period, page, rows, more: runs.length > page * GALLERY_PAGE_SIZE && page < GALLERY_PAGES_MAX, total: Math.min(runs.length, GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX), ...(text === null ? {} : { q: text }), time: t } };
       }
       if (path === '/api/community') {
         const dayStart = (ms: number): number => Date.parse(`${new Date(ms).toISOString().slice(0, 10)}T00:00:00Z`);
