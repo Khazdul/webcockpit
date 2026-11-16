@@ -32,6 +32,10 @@ export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, 
     db.prepare(`SELECT id FROM publication WHERE account = ?1 AND state IN ('active', 'hidden') AND ${STILL}`).bind(row.id, hash),
     db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${STILL}`).bind(row.id, hash, row.name_key),
     ...ended(db, `account = ?1 AND ${STILL}`, [row.id, hash], 'deleted', now),
+    // Stage 66 (the deletion guard test): the reasons stay for the cookies
+    // still out there (`401 session_ended`, reason `deleted`), without the
+    // account's id.
+    db.prepare(`UPDATE session_end SET account = '' WHERE account = ?1 AND ${STILL}`).bind(row.id, hash),
     db.prepare(`DELETE FROM item WHERE account = ?1 AND ${STILL}`).bind(row.id, hash),
     // Stage 63: the run bodies' rows, and the R2 prefix noted for the
     // daily sweep (R2 is not in the transaction; the objects go after it).
@@ -43,6 +47,8 @@ export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, 
     // objects go after the transaction (`afterDeletion`), and the daily
     // cron deletes what R2 failed on (a tombstone keeps its bytes until then).
     ...tombstones(db, now, pubWhere, [row.id, hash]),
+    // Stage 66: the views of its runs (pruned after two days anyway).
+    db.prepare(`DELETE FROM pub_view WHERE pub IN (SELECT id FROM publication WHERE account = ?1) AND ${STILL}`).bind(row.id, hash),
     db.prepare(`UPDATE publication SET ${TOMBSTONE_SET}, updated = ?3 WHERE account = ?1 AND state = 'pending' AND ${STILL}`).bind(row.id, hash, now),
     // The account's own reports (review fix S4): the open ones go, the
     // handled ones stay for the record without their text or the account.

@@ -6,23 +6,22 @@
 //
 //   GET  /api/admin/reports              open reports by item, the published runs' and the community's totals
 //   POST /api/admin/pub/<id>             {action: hide|restore|dismiss|delete, note?} → 204
-//   POST /api/admin/account/<name>       {action: suspend|restore|delete, confirm?, note?} → 204
-//   GET  /api/admin/log                  the newest 100 entries of admin_log
+//   POST /api/admin/account/<name>       {action: suspend|restore|delete|end-sessions, confirm?, note?} → 204
 //   GET  /api/admin/pub/<id>             PubMeta, also of a hidden run
 //   GET  /api/admin/pub/<id>/payload     its payload, also of a hidden run
 //   POST /api/admin/comment/<id>         {action: hide|restore|dismiss|delete, note?} → 204 (stage 65)
 //   POST /api/admin/note/<id>            the same for a note on Random Runes (stage 65)
 //
 // Every action writes `admin_log(ts, who, action, target, note)` in the
-// same transaction; `who` is an HMAC of the Access e-mail (under
-// AUTH_PEPPER), never the address. An action on a run marks its reports
+// same transaction, sealed (worker/auditlog.ts `sealedBatch`, stage 66);
+// `who` is an HMAC of the Access e-mail (under AUTH_PEPPER), never the
+// address. The log itself is read by worker/panel.ts (`GET /api/admin/log`). An action on a run marks its reports
 // handled; deleting an account marks the reports on its runs handled.
 import {
   ADMIN_ACCOUNT_ACTIONS,
   ADMIN_ITEM_ACTIONS,
   COMMUNITY_ID_PATTERN,
   ADMIN_PUB_ACTIONS,
-  type AdminLogEntry,
   type AdminReportItem,
   type AdminReports,
   PUB_ID_PATTERN,
@@ -33,9 +32,11 @@ import {
 } from '../shared/cloud/api.ts';
 import { accountByKey, hasKeys, nameOf } from './accounts.ts';
 import { sameSite } from './auth.ts';
+import { type LogLine, sealedBatch } from './auditlog.ts';
 import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
 import { stateChange } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
+import { ended } from './sessions.ts';
 import { dropObjects, keyOf, payloadResponse, pubMeta, pubWithSender, textOf, tombstones } from './pub.ts';
 import { type D1, type D1Statement, type Deps, type Env, dayStart, error, json, publicChange, utcDay } from './runtime.ts';
 import { readCapped } from './stats.ts';
@@ -43,7 +44,6 @@ import { readCapped } from './stats.ts';
 const MAX_ACTION_BYTES = 4096;
 /** Items the report queue lists at most. */
 const QUEUE_MAX = 200;
-export const LOG_ENTRIES = 100;
 
 const PUB_PREFIX = '/api/admin/pub/';
 const ACCOUNT_PREFIX = '/api/admin/account/';
@@ -58,7 +58,7 @@ export async function whoOf(env: Env, email: string): Promise<string> {
   return toB64url(mac).slice(0, 22);
 }
 
-async function bodyOf(request: Request, required: string[], optional: string[]): Promise<Record<string, unknown> | null> {
+export async function bodyOf(request: Request, required: string[], optional: string[]): Promise<Record<string, unknown> | null> {
   const text = await readCapped(request, MAX_ACTION_BYTES);
   let b: unknown = null;
   try {
@@ -70,14 +70,13 @@ async function bodyOf(request: Request, required: string[], optional: string[]):
 }
 
 /** An action's note: text of at most REPORT_TEXT_MAX characters, '' when absent; null when it is not one. */
-function noteOf(v: unknown): string | null {
+export function noteOf(v: unknown): string | null {
   return v === undefined ? '' : textOf(v, 0, REPORT_TEXT_MAX, { newlines: true });
 }
 
 export function isModerationPath(path: string): boolean {
   return (
     path === '/api/admin/reports' ||
-    path === '/api/admin/log' ||
     path.startsWith(PUB_PREFIX) ||
     path.startsWith(ACCOUNT_PREFIX) ||
     path.startsWith(ITEM_PREFIXES.comment) ||
@@ -90,7 +89,6 @@ type AdminHandler = (request: Request, env: Env, url: URL, deps: Deps, who: stri
 /** The route of a moderation path: method → handler, or undefined (404). */
 export function moderationRoute(path: string): Record<string, AdminHandler> | undefined {
   if (path === '/api/admin/reports') return { GET: guarded(reports) };
-  if (path === '/api/admin/log') return { GET: guarded(log) };
   if (path.startsWith(PUB_PREFIX)) {
     const rest = path.slice(PUB_PREFIX.length);
     if (/^[^/]+$/.test(rest)) return { GET: guarded(pubGet), POST: guarded(pubAction) };
@@ -106,7 +104,7 @@ export function moderationRoute(path: string): Record<string, AdminHandler> | un
 }
 
 /** The database, the CSRF rule on writes, and a failing database as 503. */
-function guarded(h: (request: Request, env: Env, db: D1, url: URL, now: number, who: string) => Promise<Response>): AdminHandler {
+export function guarded(h: (request: Request, env: Env, db: D1, url: URL, now: number, who: string) => Promise<Response>): AdminHandler {
   return async (request, env, url, deps, who) => {
     if (request.method !== 'GET' && request.method !== 'HEAD' && !sameSite(request, url)) return error('forbidden', 403);
     const db = env.DB;
@@ -199,15 +197,8 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
   } satisfies AdminReports);
 }
 
-// --- GET /api/admin/log ---
-
-async function log(_request: Request, _env: Env, db: D1): Promise<Response> {
-  const { results } = await db.prepare('SELECT ts, action, target, note FROM admin_log ORDER BY ts DESC, id DESC LIMIT ?1').bind(LOG_ENTRIES).all<AdminLogEntry>();
-  return json({ entries: results } satisfies { entries: AdminLogEntry[] });
-}
-
-const logEntry = (db: D1, now: number, who: string, action: string, target: string, note: string) =>
-  db.prepare('INSERT INTO admin_log (ts, who, action, target, note) VALUES (?1, ?2, ?3, ?4, ?5)').bind(now, who, action, target, note);
+/** An entry of the log, for `sealedBatch`. */
+const lineOf = (now: number, who: string, action: string, target: string, note: string): LogLine => ({ ts: now, who, action, target, note });
 
 // --- /api/admin/pub/<id> ---
 
@@ -247,10 +238,10 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
   const row = await adminRow(db, url);
   if (row instanceof Response) return row;
   const id = row.id;
-  const entry = logEntry(db, now, who, `pub.${action}`, id, note);
+  const line = lineOf(now, who, `pub.${action}`, id, note);
   if (action === 'delete') {
     // (`tombstones` marks the run's reports handled.)
-    await db.batch([...tombstones(db, now, 'id = ?2', [id]), entry]);
+    await sealedBatch(env, db, line, (entry) => [...tombstones(db, now, 'id = ?2', [id]), entry]);
     await dropObjects(env, [id]);
     return publicChange(done(), true);
   }
@@ -264,7 +255,7 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
       : action === 'restore'
         ? db.prepare(`UPDATE publication SET state = 'active', hidden_reason = NULL, reviewed = 1, updated = ?2 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id, now)
         : db.prepare(`UPDATE publication SET reviewed = 1 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id);
-  await db.batch([change, handled, entry]);
+  await sealedBatch(env, db, line, (entry) => [change, handled, entry]);
   // Hide and Restore change what the public reads show; Dismiss does not.
   return action === 'dismiss' ? done() : publicChange(done(), true);
 }
@@ -292,26 +283,32 @@ async function accountAction(request: Request, env: Env, db: D1, url: URL, now: 
     // The name typed (in any case) is the confirmation.
     if (typeof b.confirm !== 'string' || b.confirm.toLowerCase() !== row.name_key) return error('confirm_required', 400);
     // The log entry holds only while the account does (the batch's guard).
-    const guardedEntry = db
-      .prepare('INSERT INTO admin_log (ts, who, action, target, note) SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM account WHERE id = ?6 AND auth_hash = ?7)')
-      .bind(now, who, 'account.delete', row.name, note, row.id, row.auth_hash);
-    const results = await db.batch(deletionBatch(db, row, row.auth_hash, now, [guardedEntry]));
+    const results = await sealedBatch(env, db, lineOf(now, who, 'account.delete', row.name, note), (entry) => deletionBatch(db, row, row.auth_hash, now, [entry]), {
+      where: 'EXISTS (SELECT 1 FROM account WHERE id = ?8 AND auth_hash = ?9)',
+      binds: [row.id, row.auth_hash],
+    });
     const { deleted, pubs } = deletedBy(results);
     // The password changed between the read and the batch: nothing was done.
     if (!deleted) return error('conflict', 409);
     await afterDeletion(env, row.id, pubs);
     return publicChange(done(), true);
   }
+  const line = lineOf(now, who, `account.${action}`, row.name, note);
+  if (action === 'end-sessions') {
+    // Stage 66: every session ends as by the player's own "End all" (a lost device, a shared password).
+    await sealedBatch(env, db, line, (entry) => [...ended(db, 'account = ?1', [row.id], 'ended', now), entry]);
+    return done();
+  }
   const state = action === 'suspend' ? 'suspended' : 'active';
   // Stage 65: the account's votes leave both sums with Suspend and come back with Restore (only on a change).
-  await db.batch([...stateChange(db, row.id, state), logEntry(db, now, who, `account.${action}`, row.name, note)]);
+  await sealedBatch(env, db, line, (entry) => [...stateChange(db, row.id, state), entry]);
   // The account's votes, comments and notes leave or come back.
   return publicChange(done(), true);
 }
 
 // --- /api/admin/comment/<id>, /api/admin/note/<id> (stage 65) ---
 
-async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env, db: D1, url: URL, now: number, who: string): Promise<Response> {
+async function itemAction(kind: 'comment' | 'note', request: Request, env: Env, db: D1, url: URL, now: number, who: string): Promise<Response> {
   const b = await bodyOf(request, ['action'], ['note']);
   const note = b ? noteOf(b.note) : null;
   if (!b || note === null || !(ADMIN_ITEM_ACTIONS as readonly unknown[]).includes(b.action)) return error('bad_request', 400);
@@ -343,7 +340,6 @@ async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env,
     statements.push(db.prepare(`UPDATE ${kind} SET reviewed = 1 WHERE id = ?1 AND ${live}`).bind(id));
   }
   statements.push(db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = ?3 AND target = ?1`).bind(id, now, kind));
-  statements.push(logEntry(db, now, who, `${kind}.${action}`, id, note));
-  await db.batch(statements);
+  await sealedBatch(env, db, lineOf(now, who, `${kind}.${action}`, id, note), (entry) => [...statements, entry]);
   return action === 'dismiss' ? done() : publicChange(done(), true);
 }

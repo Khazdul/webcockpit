@@ -10,7 +10,7 @@
 // /api/config on top).
 import { FLAG_NAMES, type FlagName } from '../shared/cloud/api.ts';
 import type { AdminFlag } from '../shared/cloud/api.ts';
-import { type D1, type Env, truthy } from './runtime.ts';
+import { type D1, type D1Statement, type Env, truthy } from './runtime.ts';
 
 export const FLAG_CACHE_MS = 30_000;
 
@@ -69,11 +69,10 @@ export async function flags(env: Env, now: number): Promise<Record<FlagName, boo
   return out;
 }
 
-/** Sets a flag's override row. */
-export async function setFlag(db: D1, name: FlagName, value: boolean): Promise<void> {
-  await db
-    .prepare('INSERT INTO flag (name, value) VALUES (?1, ?2) ON CONFLICT (name) DO UPDATE SET value = excluded.value')
-    .bind(name, value ? 1 : 0)
-    .run();
-  forgetFlags(db);
+/**
+ * The statement that sets a flag's override row, for the caller's batch
+ * (the router's, with the log's entry: stage 66); `forgetFlags` after it.
+ */
+export function flagStatement(db: D1, name: FlagName, value: boolean): D1Statement {
+  return db.prepare('INSERT INTO flag (name, value) VALUES (?1, ?2) ON CONFLICT (name) DO UPDATE SET value = excluded.value').bind(name, value ? 1 : 0);
 }
