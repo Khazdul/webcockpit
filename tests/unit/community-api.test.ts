@@ -2,7 +2,7 @@
 // (src/cloud/community/api.ts) against a fake transport: what it asks
 // (paths, X-WC on writes, the cookie only for /api/u/), the flags it
 // needs, the answers read against the contract, and the failures.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GALLERY_SORTS, NOTE_MAX } from '../../shared/cloud/api';
 import {
   type CommunityAnswer,
@@ -10,6 +10,7 @@ import {
   type CommunityRequest,
   communityApi,
   communityFailureOf,
+  fetchTransport,
   parseBoard,
   parseBoxes,
   parseGalleryPage,
@@ -112,6 +113,8 @@ describe('the requests', () => {
     for (const r of reqs) {
       expect(r.credentials).toBe('omit');
       expect(r.headers['X-WC']).toBeUndefined();
+      // Owner's feedback W4: never answered from the browser's cache, never kept there.
+      expect(r.cache).toBe('no-store');
     }
   });
 
@@ -124,6 +127,7 @@ describe('the requests', () => {
     for (const r of reqs) {
       expect(r.headers['X-WC']).toBe('1');
       expect(r.credentials).toBe('same-origin');
+      expect(r.cache).toBeUndefined();
     }
     expect(JSON.parse(reqs[0]!.body!)).toEqual({ text: 'Moria tonight?' });
     expect(JSON.parse(reqs[2]!.body!)).toEqual({ kind: 'note', target: NOTE.id, reason: 'rules', text: 'spam' });
@@ -157,5 +161,25 @@ describe('the requests', () => {
     expect(await api.writeNote('hi')).toEqual({ ok: false, code: 'too_many', status: 429 });
     next = { status: 200, data: { nonsense: true } };
     expect(await api.board()).toEqual({ ok: false, code: 'bad_answer', status: 200 });
+  });
+});
+
+describe('the transport (owner\u2019s feedback W4: the reads are fresh)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('hands `cache` to fetch for a read, and nothing for a write', async () => {
+    const inits: RequestInit[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      inits.push(init);
+      return new Response(JSON.stringify({ notes: [], time: 5 }), { status: 200 });
+    });
+    const api = communityApi({ allowed: async () => true });
+    expect((await api.board()).ok).toBe(true);
+    await fetchTransport({ method: 'POST', path: '/api/u/runes', headers: {}, body: '{}', credentials: 'same-origin', timeoutMs: 1000 });
+    expect(inits[0]!.cache).toBe('no-store');
+    expect(inits[0]!.credentials).toBe('omit');
+    expect('cache' in inits[1]!).toBe(false);
   });
 });
