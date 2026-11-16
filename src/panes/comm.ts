@@ -60,6 +60,7 @@ import './panes.css';
 import './comm.css';
 import { CommArchive } from '../gmcp/comm-archive';
 import {
+  ACTION_CHANNELS,
   type ChannelInfo,
   type CommMessage,
   DEFAULT_CAPTIONS,
@@ -1478,22 +1479,11 @@ export class CommPane extends PaneShell {
     }
     const e = entryOf(it)!;
     if (open === PUBLIC || open === GROUP) wrap.append(this.buildLine(e));
-    // A chat: a bubble only for talk between you and that person (`direct`,
-    // ADR 0134 addendum "Bubbles only for talk to you"). A group tell in
-    // the sender's chat is a bubble too (it still opens, raises and counts
-    // nothing: the model's rule). Everything else is a line as in Public.
-    else if (e.direct || e.groupTell) {
-      wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
-      // Told to the whole group, maybe not meant for you: always marked
-      // under the bubble (owner's feedback, round 2).
-      if (e.groupTell) {
-        const gt = this.ctx.doc.createElement('div');
-        gt.className = `wc-cm-gt${e.mine ? ' is-me' : ''}`;
-        gt.textContent = 'grouptell';
-        wrap.append(gt);
-      }
-    }
-    else wrap.append(this.buildOverheard(e));
+    // A chat holds only talk between you two (ADR 0134 addendum "Private
+    // chats hold only talk to you"): words as bubbles, an emote or social
+    // (at you, or yours naming them) as the whole action on a line.
+    else if (ACTION_CHANNELS.has(e.msg.channel)) wrap.append(this.buildAction(e));
+    else wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
     return wrap;
   }
 
@@ -1537,7 +1527,7 @@ export class CommPane extends PaneShell {
     return row;
   }
 
-  /** Talk to you (or yours to them) and group tells in a chat: theirs left in their colour, yours right in the flat lamp tone. */
+  /** Words between you two in a chat: theirs left in their colour, yours right in the flat lamp tone. */
   private buildBubble(e: ChatEntry, prev: ChatEntry | null): HTMLElement {
     const doc = this.ctx.doc;
     const m = e.msg;
@@ -1546,9 +1536,9 @@ export class CommPane extends PaneShell {
     bb.dataset.channel = m.channel;
     const ink = e.mine ? 'var(--cm-self)' : personInk(this.chats.colorOf(m.talker), this.inks.light, this.inks.bg, 'var(--cm-self)');
     bb.style.setProperty('--pc', ink);
-    if (prev && (prev.direct || prev.groupTell) && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
+    if (prev && !ACTION_CHANNELS.has(prev.msg.channel) && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
     if (m.channel === 'whispers') bb.classList.add('is-wh');
-    // Never an action (emotes and socials are lines): the message only.
+    // Never an action (emotes and socials are lines, `buildAction`): the message only.
     const b = bubbleText(m);
     const bt = doc.createElement('div');
     bt.className = 'wc-cm-bt';
@@ -1558,7 +1548,7 @@ export class CommPane extends PaneShell {
     const bm = doc.createElement('span');
     bm.className = 'wc-cm-bm';
     const w = doc.createElement('span');
-    w.textContent = e.groupTell ? 'group' : channelWord(m.channel);
+    w.textContent = channelWord(m.channel);
     const sep = doc.createElement('span');
     sep.className = 'wc-cm-bmsep';
     sep.textContent = ' · ';
@@ -1570,13 +1560,11 @@ export class CommPane extends PaneShell {
   }
 
   /**
-   * Everything in a person's chat that is not talk between the two of you:
-   * says, emotes and socials (the whole action), undirected whispers and
-   * questions, narrates, yells, songs, prayers, and your own emotes and
-   * socials placed there. Left-aligned and whole, formatted as in Public
-   * (the verb in the channel colour), with no bubble: maybe not to you.
+   * An emote or social in a person's chat (theirs at you, yours naming
+   * them): the whole action, left-aligned, formatted as in Public (the verb
+   * in the channel colour), on a line of its own rather than a bubble.
    */
-  private buildOverheard(e: ChatEntry): HTMLElement {
+  private buildAction(e: ChatEntry): HTMLElement {
     const d = this.buildLine(e);
     d.className = 'wc-cm-oh';
     return d;
