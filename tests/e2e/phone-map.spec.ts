@@ -2,14 +2,15 @@
 // live game's layout: the cockpit's one map pane, borderless in a square
 // of whole cells and clipped to a circle, dressed by the phone layer. It
 // follows the player from the first room; a tap steps four fixed zoom
-// levels (round 53k); no pan, no pinch, no hover box; Shimrod on black whatever the
+// levels (round 53k), and so does a pinch (feedback round 3, ADR 0156,
+// clamped); no pan, no hover box; Shimrod on black whatever the
 // Mapper settings say, which are never written; the fullscreen key only
 // where the browser can; the Map lens settings.
 //
 // (Until stage 51a this spec covered the MAP tab of the tab strip, ADR
 // 0075 §3.3: tracking while hidden, pinch and pan, the long-press hover
 // box. The tab is gone from the live game; tracking from the first room is
-// asserted on the lens, and pinch, pan and hover are asserted absent.)
+// asserted on the lens, and pan and hover are asserted absent.)
 //
 // `?replay&phone=1` on the `phone` project (Pixel 7), walking
 // tests/fixtures/map-demo.log (Bree to Hill Road, room 26971).
@@ -257,7 +258,60 @@ test('a tap steps the zoom one level out through four levels and back to the nea
   await expect.poll(() => playerCentred(page), { timeout: 15_000 }).toBe(true);
 });
 
-test('no pan, no pinch, no wheel zoom, no hover box: only the tap', async ({ page }) => {
+// Feedback round 3 (ADR 0156): a pinch on the lens steps the same four levels as the tap, clamped
+// at the nearest and the furthest; its release is no tap.
+test('a pinch on the lens steps the zoom levels: together further, apart nearer, clamped', async ({ page }) => {
+  test.setTimeout(60_000);
+  await recordWorker(page);
+  await openCockpit(page);
+  await expect(content(page)).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
+  const box = (await lens(page).boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', pts: { x: number; y: number }[]) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p.x, y: p.y, id: i })) });
+  /** Two fingers on the glass from `from` px apart to `to`, in steps. */
+  const pinch = async (from: number, to: number): Promise<void> => {
+    await touch('touchStart', [{ x: cx - from / 2, y: cy }, { x: cx + from / 2, y: cy }]);
+    for (let i = 1; i <= 8; i++) {
+      const d = from + ((to - from) * i) / 8;
+      await touch('touchMove', [{ x: cx - d / 2, y: cy }, { x: cx + d / 2, y: cy }]);
+    }
+    await touch('touchEnd', []);
+  };
+  const zooms = async (): Promise<number[]> => (await sent(page)).filter((m) => m.t === 'zoomTo').map((m) => m.zoom!);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z1');
+  const n = (await zooms()).length;
+  // Fingers together to about half the distance: one level further (1.35 a level).
+  await pinch(120, 70);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z2');
+  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (10 * 44), 4);
+  // Much closer: two more, then clamped at the furthest (no wrap to the nearest).
+  await pinch(140, 20);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z4');
+  await pinch(140, 20);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z4');
+  // Apart: nearer, clamped at the nearest.
+  await pinch(40, 60);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z3');
+  await pinch(20, 160);
+  await expect(lens(page)).toHaveAttribute('data-level', 'z1');
+  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (5 * 44), 4);
+  // Each step one absolute zoom; no relative zoom or pan reached the worker.
+  expect((await zooms()).length).toBe(n + 6);
+  expect((await sent(page)).filter((m) => m.t === 'zoom' || m.t === 'pan')).toEqual([]);
+  // The lens did not move, and a tap still steps one level.
+  const after = (await lens(page).boundingBox())!;
+  expect(after.x).toBeCloseTo(box.x, 0);
+  expect(after.y).toBeCloseTo(box.y, 0);
+  await glass(page).tap();
+  await expect(lens(page)).toHaveAttribute('data-level', 'z2');
+  // The page itself never zoomed.
+  expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+});
+
+test('no pan, no wheel zoom, no hover box; a spreading pinch at the nearest level steps nothing', async ({ page }) => {
   test.setTimeout(60_000);
   await recordWorker(page);
   await openCockpit(page);
@@ -286,7 +340,7 @@ test('no pan, no pinch, no wheel zoom, no hover box: only the tap', async ({ pag
   await page.mouse.move(cx, cy);
   await page.mouse.wheel(0, -300);
   await settle();
-  // Pinch, drag and wheel on the lens: nothing went to the worker, and the level did not step.
+  // Pinch (apart, at the nearest level: clamped), drag and wheel on the lens: nothing went to the worker, and the level did not step.
   expect(await views()).toEqual(before);
   await expect(lens(page)).toHaveAttribute('data-level', 'z1');
   // The same gestures straight on the map's canvas (the glass normally covers it): the pane itself refuses them.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ZOOM_MAX, ZOOM_MIN, pxPerRoom } from '../../src/map/view';
-import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_RING_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensReplayPx, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
+import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_RING_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensReplayPx, lensZoom, nextLevel, pinchLevel } from '../../src/phone/lens-zoom';
 import { PHONE_LENS_LEVELS } from '../../src/settings/types';
 
 /** Diameters the lens can have: from its least, shrunk, to the largest full size, and sizes a user sets (round 53k). */
@@ -118,5 +118,15 @@ describe('the lens zoom levels', () => {
     expect(lensLevel('far')).toBe('z1');
     expect(lensLabel('z1')).toBe('Map, near zoom (1 of 4). Tap to zoom');
     expect(lensLabel('z4')).toBe('Map, area zoom (4 of 4). Tap to zoom');
+  });
+});
+
+describe('a pinch steps the levels without a wrap (ADR 0156)', () => {
+  it('apart is one nearer, together one further, clamped at both ends', () => {
+    expect(pinchLevel('z2', 1)).toBe('z1');
+    expect(pinchLevel('z1', 1)).toBe('z1');
+    expect(pinchLevel('z1', -1)).toBe('z2');
+    expect(pinchLevel('z3', -1)).toBe('z4');
+    expect(pinchLevel('z4', -1)).toBe('z4');
   });
 });

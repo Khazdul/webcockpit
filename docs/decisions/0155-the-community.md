@@ -1359,3 +1359,12 @@ The owner's second round on the watch page (branch `fb2-watch`).
   390 px), `watch-page.spec.ts` (the tablet in landscape: the column; a
   960 px window: the band on top), `watch-community.spec.ts` (the frame
   and the stars in the wide layout).
+
+## As built — feedback round 3, map zoom
+
+- **Pinch on the watch page's map.** The replay's frame decides no device
+  flags, so its map pane took a finger for a mouse and a pinch only
+  panned. The pane now takes a `touch` pointer on the touch path whatever
+  the flags (ADR 0156 §1): pinch and pan work on a phone and a tablet;
+  the desktop wheel already zoomed there. The lens of the live game and
+  the run log player now pinches through its four levels (ADR 0156 §2).
