@@ -6,6 +6,10 @@
 import type { PubMeta, ReportKind, ReportReason, Stars } from '../../shared/cloud/api.ts';
 import { cleanPublicText, cleanText, publicTextToSend } from '../../shared/cloud/text.ts';
 import { ageText as communityAge, dateText, meanStars, meanText } from '../cloud/community/format';
+import type { WatchFrom } from './href';
+
+export { backHref, keepCloudtest, watchHref } from './href';
+export type { WatchFrom } from './href';
 
 // The contract's PUB_ID_PATTERN and REPORT_TEXT_MAX (shared/cloud/api.ts), written out so the chrome
 // chunk, which holds this page, does not load that module for two values (a unit test holds them together).
@@ -266,24 +270,16 @@ export function commentFailText(status: number, code: string): string {
 }
 
 /** Where the watch page's Back goes. */
-export type BackTarget = 'community' | 'account' | 'published' | 'start';
+export type BackTarget = WatchFrom | 'start';
 
 /**
  * Where Back goes (stage 65): to the start page's Community when the run
- * was opened from it (`?from=community`, which the Community page's
- * `runHref` puts in the address); to the Account page or its Published
- * runs view when opened from there (`?from=account`, `?from=published`:
- * published.tsx `pubWatchHref`, ADR 0155 W1); else to the start page.
+ * was opened from it (`?from=community`); to the Account page or its
+ * Published runs view when opened from there (`?from=account`,
+ * `?from=published`, ADR 0155 W1): what `watchHref` puts in the address;
+ * else to the start page.
  */
 export function backTarget(search: string): BackTarget {
   const from = new URLSearchParams(search).get('from');
   return from === 'community' || from === 'account' || from === 'published' ? from : 'start';
-}
-
-/** The start page's query that opens the Account page (`?account`) or its Published runs view (`?account=published`). */
-export const OPEN_ACCOUNT = 'account';
-
-/** `<base>?account` or `<base>?account=published` (on the dev server the e2e hook `cloudtest` kept). */
-export function accountBackHref(view: 'account' | 'published', base = '/', cloudtest = false): string {
-  return `${base}?${OPEN_ACCOUNT}${view === 'published' ? '=published' : ''}${cloudtest ? '&cloudtest' : ''}`;
 }

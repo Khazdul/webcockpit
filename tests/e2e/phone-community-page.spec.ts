@@ -136,6 +136,68 @@ test.describe('390 × 844', () => {
     await expect(dash(page)).toBeVisible();
   });
 
+  test('All runs from the dashboard carries its field: the search, or an empty field; also after a restored view (review fix 2 CR1)', async ({ page }) => {
+    const s = await setUp(page);
+    const fords = [...s.server.pubs.values()].filter((p) => /ford/i.test(p.pub.title)).length;
+    await openCommunity(page, PHONE_Q);
+    await search(page).tap();
+    await search(page).fill('ford');
+    await page.waitForTimeout(500);
+    await btnIn(box(page, 'newest'), 'ALL').tap();
+    await expect(title(page)).toContainText('All runs');
+    await expect(search(page)).toHaveValue('ford');
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} runs`);
+    // Back (the dashboard, the field emptied); one letter is no search: All runs empties the field.
+    await cm(page).locator('.wc-lk-back').tap();
+    await search(page).fill('f');
+    await btnIn(box(page, 'newest'), 'ALL').tap();
+    await expect(search(page)).toHaveValue('');
+    await expect(cm(page).locator('.wc-cy-q')).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(10);
+    // A view kept with a search but no sub-page (as the desktop keeps it): the dashboard's field shows it, All runs searches it.
+    await page.evaluate(() => sessionStorage.setItem('wc.community.view', JSON.stringify({ sort: 'new', page: 1, q: 'ford' })));
+    await page.goto(`/?cloudtest${PHONE_Q}&community`);
+    await expect(dash(page)).toBeVisible();
+    await expect(search(page)).toHaveValue('ford');
+    await btnIn(box(page, 'newest'), 'ALL').tap();
+    await expect(search(page)).toHaveValue('ford');
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} runs`);
+  });
+
+  test('the search field takes 60 characters; a longer text says so instead of a silent whole list (review fix 2 CR2)', async ({ page }) => {
+    await setUp(page);
+    await openCommunity(page, PHONE_Q);
+    await btnIn(box(page, 'newest'), 'ALL').tap();
+    await expect(search(page)).toHaveAttribute('maxlength', '60');
+    await search(page).fill('x'.repeat(70));
+    await expect(search(page)).toHaveValue('x'.repeat(60));
+    // A text longer than a search takes (set by script, past the attribute): the line says so.
+    await search(page).evaluate((el: HTMLInputElement) => {
+      el.value = 'y'.repeat(61);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await expect(cm(page).locator('.wc-cy-by[data-state="too-long"]')).toHaveText('A search takes at most 60 characters.');
+    await btnIn(cm(page), 'CLEAR').tap();
+    await expect(search(page)).toHaveValue('');
+    await expect(cm(page).locator('.wc-cy-by')).toHaveCount(0);
+  });
+
+  test('Hall of Fame → a sender’s runs → Back returns to the Hall of Fame (review fix 2 CR3)', async ({ page }) => {
+    await setUp(page);
+    await openCommunity(page, PHONE_Q);
+    await btnIn(box(page, 'newest'), 'HOF').tap();
+    await expect(title(page)).toContainText('Hall of Fame');
+    const sender = (await box(page, 'hof').locator('.wc-cy-row').first().locator('.wc-cy-sender').textContent())!;
+    await box(page, 'hof').locator('.wc-cy-row').first().locator('.wc-cy-sender').tap();
+    await expect(title(page)).toContainText('All runs');
+    await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Runs by ${sender}`);
+    await cm(page).locator('.wc-lk-back').tap();
+    await expect(title(page)).toContainText('Hall of Fame');
+    await expect(box(page, 'hof').locator('.wc-cy-row')).toHaveCount(8);
+    await cm(page).locator('.wc-lk-back').tap();
+    await expect(dash(page)).toBeVisible();
+  });
+
   test('runes off: no board on the dashboard; the guest’s counter on the menu clears when the page is opened', async ({ page }) => {
     await setUp(page, { flags: { runes: false } });
     await openStart(page, PHONE_Q);

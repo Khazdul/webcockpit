@@ -39,7 +39,7 @@
 // clipboard and says so on the page's flash. Every text from the server is
 // written as text.
 //
-// A press on a run's title opens its watch page in this tab (`pubWatchHref`;
+// A press on a run's title opens its watch page in this tab (`watchHref`;
 // owner's feedback on stage 65, ADR 0155 W1); its Back comes here again.
 //
 // The keyboard: the section's stops (`usePublished().stops`: the rows'
@@ -56,6 +56,7 @@ import { communityNews, markCommunitySeen, refreshCommunityNews } from '../../..
 import { type PubErrorCode, createPubApi, shareEnabled } from '../../../cloud/pub/api';
 import { communityAllowed } from '../../../cloud/community/allowed';
 import { cleanDescription, cleanTitle, codePointCount, linkPath, linkUrl, sizeWords, typedDescription, typedTitle } from '../../../share/link';
+import { watchHref } from '../../../watch/href';
 import { copyText } from '../../kit/clipboard';
 import { Box, BoxBody, Dialog, Field, GlassButton, Icon, LookFlash, Rule, Stars, TextArea, Toggle, lookFrame } from '../../kit/look';
 import { type Nav, useNav } from '../../kit/stack';
@@ -101,19 +102,7 @@ export interface PublishedView {
 
 const api = createPubApi();
 
-/**
- * The run's watch page, `<base>r/<id>?from=<where>` (owner's feedback on
- * stage 65, ADR 0155 W1): a press on the title opens it in this tab, and
- * the watch page's Back comes to the Account page (`account`) or the
- * Published runs view (`published`) again. The dev server keeps the e2e
- * hook `?cloudtest`, as the Community page's `runHref`.
- */
-export function pubWatchHref(id: string, from: 'account' | 'published'): string {
-  const keep = import.meta.env?.DEV === true && new URLSearchParams(globalThis.location?.search ?? '').has('cloudtest');
-  return `${linkPath(id)}?from=${from}${keep ? '&cloudtest' : ''}`;
-}
-
-const openRun = (p: MyPub, from: 'account' | 'published'): void => location.assign(pubWatchHref(p.id, from));
+const openRun = (p: MyPub, from: 'account' | 'published'): void => location.assign(watchHref(p.id, from));
 
 
 /** New reactions on the runs, summed (each run's counts are capped at 99 by the server). */
@@ -277,7 +266,7 @@ function PubList(p: {
               <a
                 class={'wc-ac-pub-t wc-ac-pub-open' + (at === `OPEN:${pub.id}` ? ' is-sel' : '')}
                 data-pub-title=""
-                href={pubWatchHref(pub.id, p.community ? 'published' : 'account')}
+                href={watchHref(pub.id, p.community ? 'published' : 'account')}
                 title="Watch this run"
                 tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
