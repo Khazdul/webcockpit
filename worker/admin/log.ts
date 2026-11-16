@@ -73,13 +73,24 @@ export const LOG_JS = String.raw`
     t.append(thead, tbody);
     return t;
   }
-  /** The chain's state: intact (green) or broken at an entry (red), with the counts and the head. */
+  /**
+   * The chain's state: intact (green), broken (red, with every entry that
+   * does not match, as many as the Worker lists, and their count), or
+   * unkeyed (red: the Worker has no secret key, so the seals prove only order).
+   */
   function chainBadge(c) {
     var b = el('span', null, 'seal ' + (c.state === 'intact' ? 'ok' : 'bad'));
     b.setAttribute('role', 'status');
-    var parts = c.state === 'intact'
-      ? ['Sealed and intact · ' + plural(c.sealed, 'sealed entry', 'sealed entries')]
-      : ['Broken at entry #' + (c.brokenAt === null ? '?' : c.brokenAt) + ' · ' + plural(c.sealed, 'sealed entry', 'sealed entries')];
+    var sealedText = plural(c.sealed, 'sealed entry', 'sealed entries');
+    var parts;
+    if (c.state === 'intact') parts = ['Sealed and intact · ' + sealedText];
+    else if (c.state === 'unkeyed') parts = ['Not keyed: the Worker has no AUTH_PEPPER, so anyone could have made these seals · ' + sealedText];
+    else {
+      var ids = Array.isArray(c.broken) && c.broken.length ? c.broken : c.brokenAt === null || c.brokenAt === undefined ? [] : [c.brokenAt];
+      var n = typeof c.brokenCount === 'number' ? c.brokenCount : ids.length;
+      var list = ids.map(function (id) { return '#' + id; }).join(', ');
+      parts = ['Broken: ' + plural(n, 'entry does', 'entries do') + ' not match' + (list ? ' (' + list + (n > ids.length ? ', …' : '') + ')' : '') + ' · ' + sealedText];
+    }
     if (c.unsealed) parts.push(fmt(c.unsealed) + ' not sealed (before stage 66)');
     b.append(parts.join(' · '));
     if (c.head) {

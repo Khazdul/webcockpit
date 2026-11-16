@@ -1494,16 +1494,50 @@ export interface AdminLogRow extends AdminLogEntry {
   sealed: boolean;
 }
 
+/** The most ids of broken entries a chain's check lists (`AdminLogChain.broken`). */
+export const ADMIN_LOG_BROKEN_SHOWN = 20;
+/** The most entries of `GET /api/admin/log?chain=0&limit=`. */
+export const ADMIN_LOG_LIMIT_MAX = ADMIN_LOG_PAGE;
+
+/**
+ * The audit log's check over every entry (ADR 0157; review fixes S2, S3).
+ * `intact`: every entry after the ones written before migration 0007 is
+ * sealed and matches. `broken`: some entry does not (a changed one at its
+ * own id, a removed one at the next, an unsealed one at its id); the check
+ * goes on past a break, so a later change shows too. `unkeyed`: nothing
+ * broken found, but the Worker has no AUTH_PEPPER of 16 characters, so the
+ * seals prove only order (anyone could have made them).
+ */
+export interface AdminLogChain {
+  state: 'intact' | 'broken' | 'unkeyed';
+  sealed: number;
+  /** Entries written before migration 0007 (no seal, and none needed). */
+  unsealed: number;
+  /** The first entry that does not match (the oldest), null for none. */
+  brokenAt: number | null;
+  /** The entries that do not match, oldest first, at most ADMIN_LOG_BROKEN_SHOWN. */
+  broken: number[];
+  /** How many entries do not match in all. */
+  brokenCount: number;
+  /** The newest entry's seal, shortened to 12 ('' for none). */
+  head: string;
+}
+
 /**
  * `GET /api/admin/log?before=<id>&kind=<AdminLogKind>&q=` → newest first,
- * 100 a page; `q` a part of the target. `chain` checks every sealed entry
- * (not only the page): `intact`, or `broken` with the first id that does
- * not match. `head` is the newest entry's seal (shortened to 12).
+ * 100 a page; `q` a part of the target; `chain` checks every entry (not
+ * only the page). The Log view's read.
+ *
+ * `GET /api/admin/log?chain=0&limit=<1…100>[&before=<id>]` → the newest
+ * `limit` entries without the check (`chain` null), reading only those
+ * rows: the Reports view's card, which reloads every minute (review fix
+ * S4). `kind` and `q` are refused with it (400). `total` is then every
+ * entry.
  */
 export interface AdminLogPage {
   entries: AdminLogRow[];
   /** The id to pass as `before` for the next page, null at the end. */
   next: number | null;
   total: number;
-  chain: { state: 'intact' | 'broken'; sealed: number; unsealed: number; brokenAt: number | null; head: string };
+  chain: AdminLogChain | null;
 }

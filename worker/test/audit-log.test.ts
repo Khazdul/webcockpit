@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdminLogPage } from '../../shared/cloud/api.ts';
 import { RETRIES, macOf, sealedBatch } from '../auditlog.ts';
 import type { D1 } from '../runtime.ts';
-import { count, db, emptyTables, realEnv, withoutLogTriggers } from './helpers.ts';
-import { admin, adminJson, forgetAccessKeys } from './access-helpers.ts';
+import { count, db, emptyTables, realEnv, setLegacyMax, withoutLogTriggers } from './helpers.ts';
+import { admin, adminEnv, adminJson, forgetAccessKeys } from './access-helpers.ts';
 
 // Vite's import.meta.glob, which the worker's tsconfig has no types for (vite/client).
 declare global {
@@ -23,7 +23,7 @@ async function seal(n: number): Promise<void> {
   for (let i = 0; i < n; i++) await sealedBatch(realEnv, db, line(i), (e) => [e]);
 }
 
-const page = (q = ''): Promise<AdminLogPage> => adminJson<AdminLogPage>(`/api/admin/log${q}`);
+const page = (q = '', o: Parameters<typeof adminJson>[1] = {}): Promise<AdminLogPage> => adminJson<AdminLogPage>(`/api/admin/log${q}`, o);
 
 async function fails(sql: string, ...binds: unknown[]): Promise<string> {
   try {
@@ -63,18 +63,36 @@ describe('the database refuses a change', () => {
     expect(await count('admin_log')).toBe(2);
   });
 
-  it('the 0.14.0 Worker’s inserts work until the first sealed entry, which starts the chain; those are "not sealed"', async () => {
-    await db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (1, 'oldwho', 'pub.hide', 'old1', '')").run();
-    await db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (2, 'oldwho', 'account.suspend', 'old2', '')").run();
+  it('entries written before migration 0007 are "not sealed"; the chain starts after them', async () => {
+    // As the 0.14.0 Worker wrote them, before the migration (its triggers did not exist yet).
+    await withoutLogTriggers(async () => {
+      await db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (1, 'oldwho', 'pub.hide', 'old1', '')").run();
+      await db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (2, 'oldwho', 'account.suspend', 'old2', '')").run();
+    });
+    const ids = (await db.prepare('SELECT id FROM admin_log ORDER BY id').all<{ id: number }>()).results.map((r) => r.id);
+    await setLegacyMax(ids[1] ?? 0);
     await seal(2);
     const p = await page();
-    expect(p.chain).toMatchObject({ state: 'intact', sealed: 2, unsealed: 2, brokenAt: null });
+    expect(p.chain).toMatchObject({ state: 'intact', sealed: 2, unsealed: 2, brokenAt: null, broken: [], brokenCount: 0 });
     expect(p.entries.map((e) => [e.target, e.sealed])).toEqual([
       ['t1', true],
       ['t0', true],
       ['old2', false],
       ['old1', false],
     ]);
+  });
+
+  it('S2: after migration 0007 an unsealed insert is refused, even before the first sealed entry', async () => {
+    expect(await fails("INSERT INTO admin_log (ts, who, action, target, note) VALUES (5, 'w', 'pub.hide', 'x', '')")).toMatch(/admin_log_chain/);
+    expect(await count('admin_log')).toBe(0);
+  });
+
+  it('S2: where the chain starts is kept as written: a change, a removal or a second row is refused', async () => {
+    expect(await db.prepare('SELECT legacy_max FROM admin_log_meta').all()).toMatchObject({ results: [{ legacy_max: 0 }] });
+    expect(await fails('UPDATE admin_log_meta SET legacy_max = 99')).toMatch(/admin_log_append_only/);
+    expect(await fails('DELETE FROM admin_log_meta')).toMatch(/admin_log_append_only/);
+    expect(await fails('INSERT INTO admin_log_meta (legacy_max) VALUES (99)')).toMatch(/admin_log_append_only/);
+    expect(await db.prepare('SELECT legacy_max FROM admin_log_meta').all()).toMatchObject({ results: [{ legacy_max: 0 }] });
   });
 });
 
@@ -110,11 +128,57 @@ describe('a change from the console is found', () => {
   });
 
   it('the head is the newest seal, shortened to 12', async () => {
-    expect((await page()).chain).toEqual({ state: 'intact', sealed: 0, unsealed: 0, brokenAt: null, head: '' });
+    expect((await page()).chain).toEqual({ state: 'intact', sealed: 0, unsealed: 0, brokenAt: null, broken: [], brokenCount: 0, head: '' });
     await seal(2);
     const mac = (await db.prepare('SELECT mac FROM admin_log ORDER BY id DESC LIMIT 1').first<{ mac: string }>())?.mac ?? '';
-    expect((await page()).chain.head).toBe(mac.slice(0, 12));
+    expect((await page()).chain?.head).toBe(mac.slice(0, 12));
     expect(mac).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it('S2: every seal removed from the console reads broken, not intact (no key needed to unseal)', async () => {
+    await seal(4);
+    const ids = (await db.prepare('SELECT id FROM admin_log ORDER BY id').all<{ id: number }>()).results.map((r) => r.id);
+    await withoutLogTriggers(async () => {
+      await db.prepare('UPDATE admin_log SET prev = NULL, mac = NULL').run();
+      await db.prepare("UPDATE admin_log SET note = 'rewritten' WHERE id = ?1").bind(ids[0]).run();
+    });
+    expect((await page()).chain).toMatchObject({ state: 'broken', sealed: 0, unsealed: 0, brokenAt: ids[0], broken: ids, brokenCount: 4, head: '' });
+    // The start moved up from the console to hide it: the meta table refuses that without its triggers dropped too.
+    expect(await fails('UPDATE admin_log_meta SET legacy_max = 999')).toMatch(/admin_log_append_only/);
+  });
+
+  it('S2: without a pepper of 16 characters the check says unkeyed, not intact', async () => {
+    for (const AUTH_PEPPER of [undefined, 'short']) {
+      await emptyTables();
+      // Sealed by such a Worker: its seals match, but anyone could have made them.
+      for (let i = 0; i < 2; i++) await sealedBatch({ AUTH_PEPPER }, db, line(i), (e) => [e]);
+      expect((await page('', { env: adminEnv({ AUTH_PEPPER }) })).chain, String(AUTH_PEPPER)).toMatchObject({ state: 'unkeyed', sealed: 2, brokenCount: 0 });
+    }
+  });
+
+  it('S3: the check goes on after a break: a later change shows, every broken id is listed (20 at most) and counted', async () => {
+    await seal(30);
+    const ids = (await db.prepare('SELECT id FROM admin_log ORDER BY id').all<{ id: number }>()).results.map((r) => r.id);
+    await withoutLogTriggers(async () => {
+      await db.prepare("UPDATE admin_log SET note = 'first' WHERE id = ?1").bind(ids[2]).run();
+    });
+    expect((await page()).chain).toMatchObject({ state: 'broken', brokenAt: ids[2], broken: [ids[2]], brokenCount: 1 });
+    await withoutLogTriggers(async () => {
+      await db.prepare("UPDATE admin_log SET note = 'later' WHERE id = ?1").bind(ids[5]).run();
+    });
+    expect((await page()).chain).toMatchObject({ state: 'broken', brokenAt: ids[2], broken: [ids[2], ids[5]], brokenCount: 2 });
+    // A removed row breaks only the next one (anchored on its stored prev).
+    await withoutLogTriggers(async () => {
+      await db.prepare('DELETE FROM admin_log WHERE id = ?1').bind(ids[8]).run();
+    });
+    expect((await page()).chain).toMatchObject({ broken: [ids[2], ids[5], ids[9]], brokenCount: 3 });
+    // Many changed: the first 20 ids and the count.
+    await withoutLogTriggers(async () => {
+      await db.prepare("UPDATE admin_log SET note = 'all'").run();
+    });
+    const c = (await page()).chain;
+    expect(c?.brokenCount).toBe(29);
+    expect(c?.broken).toEqual(ids.filter((id) => id !== ids[8]).slice(0, 20));
   });
 });
 

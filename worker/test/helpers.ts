@@ -43,13 +43,26 @@ export async function emptyTables(): Promise<void> {
  */
 export async function emptyAdminLog(): Promise<void> {
   await withoutLogTriggers(async () => {
-    await db.prepare('DELETE FROM admin_log').run();
+    await db.batch([db.prepare('DELETE FROM admin_log'), db.prepare('DELETE FROM admin_log_meta'), db.prepare('INSERT INTO admin_log_meta (legacy_max) VALUES (0)')]);
   });
 }
 
-/** Runs `f` with admin_log's triggers dropped (as the D1 console could), then puts them back. */
+/**
+ * Sets where the chain starts (`admin_log_meta.legacy_max`, which
+ * migration 0007 writes once and the database then keeps): entries up to
+ * `id` count as written before stage 66.
+ */
+export async function setLegacyMax(id: number): Promise<void> {
+  await withoutLogTriggers(async () => {
+    await db.prepare('UPDATE admin_log_meta SET legacy_max = ?1').bind(id).run();
+  });
+}
+
+/** Runs `f` with admin_log's and admin_log_meta's triggers dropped (as the D1 console could), then puts them back. */
 export async function withoutLogTriggers(f: () => Promise<void>): Promise<void> {
-  const { results } = await db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'admin_log'").all<{ name: string; sql: string }>();
+  const { results } = await db
+    .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name IN ('admin_log', 'admin_log_meta')")
+    .all<{ name: string; sql: string }>();
   if (results.length) await db.batch(results.map((t) => db.prepare(`DROP TRIGGER ${t.name}`)));
   try {
     await f();

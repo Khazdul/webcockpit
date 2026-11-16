@@ -1,10 +1,11 @@
 -- The admin panel (spec §7.9, ADR 0157; stage 66): the audit log's seal
 -- and the triggers that keep it append-only, the default limits edited
 -- from /admin (owner's pick 4b), and a backfill of the roll-up's new
--- metrics. Additive: the 0.14.0 Worker still running knows none of it and
--- keeps working (its admin_log inserts carry no `prev`, which the chain
--- trigger lets in only while the newest row's `mac` is NULL, so they work
--- until the first sealed entry of the new Worker).
+-- metrics. Additive for the reads and writes of the 0.14.0 Worker still
+-- running, except its admin_log inserts (no seal): from this migration on
+-- every entry must be sealed, so an admin action of the old Worker in the
+-- seconds before the new one is deployed fails whole (nothing applied) and
+-- can be done again (review fix S2, ADR 0157).
 --
 -- Times are milliseconds since the epoch, days 'YYYY-MM-DD', both UTC.
 
@@ -27,13 +28,41 @@ BEGIN
   SELECT RAISE(ABORT, 'admin_log_append_only');
 END;
 
--- An entry goes only at the end of the chain: its `prev` is the newest
--- entry's `mac` (NULL while that is NULL: the old Worker's inserts), and
--- once the chain has begun every entry is sealed. Two actions racing: the
--- later batch rolls back and the Worker tries again with the new head.
+-- Where the chain starts (review fix S2): the highest id of an entry
+-- written before this migration (0 for none). Those entries are the only
+-- ones that may be unsealed; any later entry without a seal is a broken
+-- chain, so removing every seal from the console reads broken, not intact.
+-- One row, written here once: the database refuses a second, a change and
+-- a removal, as for admin_log.
+CREATE TABLE admin_log_meta (
+  legacy_max INTEGER NOT NULL
+);
+
+INSERT INTO admin_log_meta (legacy_max) SELECT COALESCE(MAX(id), 0) FROM admin_log;
+
+CREATE TRIGGER admin_log_meta_one BEFORE INSERT ON admin_log_meta
+WHEN (SELECT COUNT(*) FROM admin_log_meta) > 0
+BEGIN
+  SELECT RAISE(ABORT, 'admin_log_append_only');
+END;
+
+CREATE TRIGGER admin_log_meta_no_update BEFORE UPDATE ON admin_log_meta
+BEGIN
+  SELECT RAISE(ABORT, 'admin_log_append_only');
+END;
+
+CREATE TRIGGER admin_log_meta_no_delete BEFORE DELETE ON admin_log_meta
+BEGIN
+  SELECT RAISE(ABORT, 'admin_log_append_only');
+END;
+
+-- An entry goes only at the end of the chain: it is sealed, and its `prev`
+-- is the newest entry's `mac` (NULL for the first sealed entry, after the
+-- unsealed ones of before). Two actions racing: the later batch rolls back
+-- and the Worker tries again with the new head.
 CREATE TRIGGER admin_log_chain BEFORE INSERT ON admin_log
-WHEN NEW.prev IS NOT (SELECT mac FROM admin_log ORDER BY id DESC LIMIT 1)
-  OR (NEW.mac IS NULL AND (SELECT mac FROM admin_log ORDER BY id DESC LIMIT 1) IS NOT NULL)
+WHEN NEW.mac IS NULL
+  OR NEW.prev IS NOT (SELECT mac FROM admin_log ORDER BY id DESC LIMIT 1)
 BEGIN
   SELECT RAISE(ABORT, 'admin_log_chain');
 END;

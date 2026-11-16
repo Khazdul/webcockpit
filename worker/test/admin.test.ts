@@ -9,7 +9,7 @@ import { ADMIN_JS_MODULES } from '../admin/page.ts';
 import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { recordBeat, rollUp } from '../stats.ts';
-import { T, at, count, db, device, emptyTables, envWith, faultyBucket, r2Keys, realEnv } from './helpers.ts';
+import { T, at, count, db, device, emptyTables, envWith, faultyBucket, r2Keys, realEnv, setLegacyMax, withoutLogTriggers } from './helpers.ts';
 import { call as userCall, payload, post as userPost, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
 
 const NOW = T('2026-11-14T12:00:00Z');
@@ -454,7 +454,11 @@ describe('moderation (stage 64, ADR 0154)', () => {
   });
 
   it('the log keeps the newest 100', async () => {
-    await db.batch(Array.from({ length: 105 }, (_, i) => db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (?1, 'w', 'pub.hide', ?2, '')").bind(i, `t${i}`)));
+    // Written as the 0.14.0 Worker did, before migration 0007 (whose triggers now refuse an unsealed entry).
+    await withoutLogTriggers(async () => {
+      await db.batch(Array.from({ length: 105 }, (_, i) => db.prepare("INSERT INTO admin_log (ts, who, action, target, note) VALUES (?1, 'w', 'pub.hide', ?2, '')").bind(i, `t${i}`)));
+    });
+    await setLegacyMax(105);
     const { entries } = await read<{ entries: AdminLogEntry[] }>('/api/admin/log');
     expect(entries.length).toBe(100);
     // Stage 66: the entries of AdminLogPage (these unsealed, written as the 0.14.0 Worker did).

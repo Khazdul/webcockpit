@@ -14,7 +14,7 @@
 //     again with the new head (up to RETRIES times).
 //   - `GET /api/admin/log` checks the whole chain: a row changed or removed
 //     from the console (with the triggers dropped) no longer matches.
-import { ADMIN_LOG_PAGE, type AdminLogKind, type AdminLogPage, type AdminLogRow } from '../shared/cloud/api.ts';
+import { ADMIN_LOG_BROKEN_SHOWN, ADMIN_LOG_PAGE, type AdminLogChain, type AdminLogKind, type AdminLogPage, type AdminLogRow } from '../shared/cloud/api.ts';
 import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import type { D1, D1Result, D1Statement, Env } from './runtime.ts';
 
@@ -39,15 +39,19 @@ export interface LogRecord extends LogLine {
 
 const keys = new Map<string, Promise<CryptoKey>>();
 
+/** Whether the log has a secret key: AUTH_PEPPER of 16 characters or more. */
+export function isKeyed(env: Pick<Env, 'AUTH_PEPPER'>): boolean {
+  return (env.AUTH_PEPPER ?? '').length >= 16;
+}
+
 /**
  * The log's key: HMAC(AUTH_PEPPER, 'wc-admin-log'), so the pepper itself
  * never keys two things. Without a pepper of 16 characters (a local
  * Worker) SHA-256 of the label, as `whoOf` does: such a seal shows order
- * and accidents, not tampering.
+ * and accidents, not tampering, and the check says `unkeyed`.
  */
 function logKey(env: Pick<Env, 'AUTH_PEPPER'>): Promise<CryptoKey> {
-  const pepper = env.AUTH_PEPPER ?? '';
-  const id = pepper.length >= 16 ? pepper : '';
+  const id = isKeyed(env) ? (env.AUTH_PEPPER ?? '') : '';
   let k = keys.get(id);
   if (!k) {
     k = (async () => {
@@ -116,38 +120,44 @@ export async function logOnly(env: Pick<Env, 'AUTH_PEPPER'>, db: D1, line: LogLi
 
 // --- Reading it ---
 
-export type ChainState = AdminLogPage['chain'];
+export type ChainState = AdminLogChain;
 
 /**
- * The chain's check over every row, oldest first. Rows before the first
- * sealed one are "not sealed" (written before stage 66). From the first
- * sealed row on, each row must be sealed, name the row before as its
- * `prev`, and carry the seal of its fields; the first that does not is
- * `brokenAt`. A row removed shows as the next one's wrong `prev`; a row
- * changed as its own wrong seal. (The tail cut off cannot be seen here:
- * the page shows the head and the count, ADR 0157.)
+ * The chain's check over every row, oldest first (review fixes S2, S3).
+ * Rows up to `legacy` (written before migration 0007) without a seal are
+ * "not sealed"; every other row must be sealed, name the row before as its
+ * `prev` (null after the unsealed ones) and carry the seal of its fields.
+ * Each row that does not is broken: a row changed at its own id, a row
+ * removed at the next one, a seal removed at its row. The check goes on
+ * after a break, anchored on each row's stored seal, so a later change
+ * shows even when an older one does. (The tail cut off cannot be seen
+ * here: the page shows the head and the count, ADR 0157.)
  */
-export async function verifyChain(env: Pick<Env, 'AUTH_PEPPER'>, rows: LogRecord[]): Promise<ChainState> {
+export async function verifyChain(env: Pick<Env, 'AUTH_PEPPER'>, rows: LogRecord[], legacy: number): Promise<ChainState> {
   const key = await logKey(env);
   let sealed = 0;
   let unsealed = 0;
-  let brokenAt: number | null = null;
-  let begun = false;
+  const broken: number[] = [];
+  let brokenCount = 0;
+  const brk = (id: number): void => {
+    brokenCount++;
+    if (broken.length < ADMIN_LOG_BROKEN_SHOWN) broken.push(id);
+  };
   let before: string | null = null;
   for (const r of rows) {
     if (r.mac === null) {
-      if (begun) brokenAt ??= r.id;
-      else unsealed++;
+      if (r.id <= legacy) unsealed++;
+      else brk(r.id);
       before = null;
       continue;
     }
-    begun = true;
     sealed++;
-    if (brokenAt === null && ((r.prev ?? null) !== before || (await sealOf(key, r.prev, r)) !== r.mac)) brokenAt = r.id;
+    if ((r.prev ?? null) !== before || (await sealOf(key, r.prev, r)) !== r.mac) brk(r.id);
     before = r.mac;
   }
   const last = rows.at(-1);
-  return { state: brokenAt === null ? 'intact' : 'broken', sealed, unsealed, brokenAt, head: (last?.mac ?? '').slice(0, 12) };
+  const state = brokenCount ? 'broken' : isKeyed(env) ? 'intact' : 'unkeyed';
+  return { state, sealed, unsealed, brokenAt: broken[0] ?? null, broken, brokenCount, head: (last?.mac ?? '').slice(0, 12) };
 }
 
 /** The actions of a kind of the Log view's filter. */
@@ -169,11 +179,16 @@ export const LOG_COLUMNS = 'id, ts, who, action, target, note, prev, mac';
  * `GET /api/admin/log?before=&kind=&q=`: every row is read once (the
  * chain's check needs them all; the log grows by the admin's hand, a few
  * rows a day), then filtered and cut here. `total` counts the entries the
- * filter matches.
+ * filter matches. The Log view's read; it does not poll.
  */
 export async function logPage(env: Pick<Env, 'AUTH_PEPPER'>, db: D1, o: { before: number | null; kind: AdminLogKind | null; q: string }): Promise<AdminLogPage> {
-  const { results } = await db.prepare(`SELECT ${LOG_COLUMNS} FROM admin_log ORDER BY id`).all<LogRecord>();
-  const chain = await verifyChain(env, results);
+  const [all, meta] = await db.batch<Record<string, unknown>>([
+    db.prepare(`SELECT ${LOG_COLUMNS} FROM admin_log ORDER BY id`),
+    // Where the chain starts (migration 0007; a missing row reads 0, so every unsealed entry is broken).
+    db.prepare('SELECT MAX(legacy_max) AS n FROM admin_log_meta'),
+  ]);
+  const results = (all?.results ?? []) as unknown as LogRecord[];
+  const chain = await verifyChain(env, results, Number(meta?.results[0]?.n ?? 0));
   const q = o.q.toLowerCase();
   const matching = results.filter((r) => (!o.kind || kindOf(r.action) === o.kind) && (!q || r.target.toLowerCase().includes(q))).reverse();
   const from = o.before === null ? matching : matching.filter((r) => r.id < o.before!);

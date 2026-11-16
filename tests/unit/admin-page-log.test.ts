@@ -19,7 +19,7 @@ describe('the admin page: the audit log', () => {
       entry(3, { action: 'flag.on', target: 'gallery' }),
       entry(2, { action: 'note.hide', target: '9fA2Lw0q', note: 'Real name' }),
       entry(1, { action: 'pub.hide', target: '3mQ0aZ1x', note: '', by: '', sealed: false }),
-    ], { total: 57, chain: { state: 'intact', sealed: 56, unsealed: 1, brokenAt: null, head: 'q3Zt8pLm09wE' } })));
+    ], { total: 57, chain: { state: 'intact', sealed: 56, unsealed: 1, brokenAt: null, broken: [], brokenCount: 0, head: 'q3Zt8pLm09wE' } })));
     await boot('#log');
     expect(gets()).toContain('/api/admin/log');
     const t = $('table.audit', view());
@@ -47,14 +47,29 @@ describe('the admin page: the audit log', () => {
     noMarkup();
   });
 
-  it('a broken chain: the badge turns red and names the first entry that does not match', async () => {
-    route('GET', '/api/admin/log', json(logPage([entry(3)], { chain: { state: 'broken', sealed: 40, unsealed: 0, brokenAt: 17, head: `ab${HOSTILE}` } })));
+  it('a broken chain: the badge turns red and names every entry that does not match (S3)', async () => {
+    route('GET', '/api/admin/log', json(logPage([entry(3)], { chain: { state: 'broken', sealed: 40, unsealed: 0, brokenAt: 17, broken: [17, 23], brokenCount: 2, head: `ab${HOSTILE}` } })));
     await boot('#log');
     const badge = $('.seal', view());
     expect(badge.className).toBe('seal bad');
-    expect(badge.textContent).toBe(`Broken at entry #17 · 40 sealed entries · newest seal ab${HOSTILE}`);
+    expect(badge.textContent).toBe(`Broken: 2 entries do not match (#17, #23) · 40 sealed entries · newest seal ab${HOSTILE}`);
     expect($('code', badge).textContent).toBe(`ab${HOSTILE}`);
     noMarkup();
+  });
+
+  it('more broken entries than listed: the count and an ellipsis', async () => {
+    const broken = Array.from({ length: 20 }, (_, i) => i + 1);
+    route('GET', '/api/admin/log', json(logPage([entry(3)], { chain: { state: 'broken', sealed: 0, unsealed: 0, brokenAt: 1, broken, brokenCount: 31, head: '' } })));
+    await boot('#log');
+    expect($('.seal', view()).textContent).toBe(`Broken: 31 entries do not match (${broken.map((i) => `#${i}`).join(', ')}, …) · 0 sealed entries`);
+  });
+
+  it('S2: an unkeyed chain is shown red, not as intact', async () => {
+    route('GET', '/api/admin/log', json(logPage([entry(3)], { chain: { state: 'unkeyed', sealed: 4, unsealed: 0, brokenAt: null, broken: [], brokenCount: 0, head: 'q3Zt8pLm09wE' } })));
+    await boot('#log');
+    const badge = $('.seal', view());
+    expect(badge.className).toBe('seal bad');
+    expect(badge.textContent).toMatch(/^Not keyed: the Worker has no AUTH_PEPPER/);
   });
 
   it('Older asks with before=next and adds the rows; the end hides it', async () => {

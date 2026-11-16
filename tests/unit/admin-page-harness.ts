@@ -199,7 +199,7 @@ export function logPage(entries: AdminLogRow[], over: Partial<AdminLogPage> = {}
     entries,
     next: null,
     total: entries.length,
-    chain: { state: 'intact', sealed: entries.length, unsealed: 0, brokenAt: null, head: 'q3Zt8pLm09wE' },
+    chain: { state: 'intact', sealed: entries.length, unsealed: 0, brokenAt: null, broken: [], brokenCount: 0, head: 'q3Zt8pLm09wE' },
     ...over,
   };
 }
