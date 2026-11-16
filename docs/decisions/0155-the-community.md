@@ -1359,3 +1359,63 @@ The owner's second round on the watch page (branch `fb2-watch`).
   390 px), `watch-page.spec.ts` (the tablet in landscape: the column; a
   960 px window: the band on top), `watch-community.spec.ts` (the frame
   and the stars in the wide layout).
+
+## As built — feedback round 3, Back everywhere and the community's alignment
+
+The owner's points of 2026-11-16 after round 2 (stage 65).
+
+- **Back on the desktop site (A).** On a phone in the browser's "Desktop
+  site" mode (`desktopSite`: `wc-touch`, no `wc-phone`) Back still lay on
+  the frame, as it had on the phone: round 2 moved it only under
+  `html.wc-phone`, and the older coarse-pointer rule (stage 42 wave 3,
+  ADR 0127) still drew a box's Back 40 px high from `top: 3px`, its top
+  edge 5 px above the window's inner edge. The same held for a tablet on
+  the desktop cockpit (`?tablet=desktop`) and for every coarse pointer
+  without the phone flag. **One rule now** (look-glass.css): a box's Back
+  (`.wc-lk-box > .wc-lk-back`, not the window sub-pages' inline Back) is
+  drawn where the desktop draws it, inside the lit window's inner border
+  with air (6 px below its inner edge, 7 px right of it), in every mode;
+  only its size follows the device (27 px; 28 px on a phone, 30 px on a
+  tablet with the phone flag, both 14 px from the box's top so the bottom
+  edge stays on one line). Its target is always the invisible `::before`,
+  grown upward from its bottom edge over the frame only, `--lk-back-hit`
+  high: 40 px on a coarse pointer and on a phone, 44 px on a tablet,
+  Back's own height with a mouse. The coarse rule's `top: 3px` is gone and
+  it sets `min-height: 0` on a box's Back (other glass buttons keep their
+  40 px). The watch page's Back follows (the same classes). Not changed:
+  the run log player's own Back (`.wc-pv-back`, src/player), which lies in
+  the player's header row (another change was under way there).
+- **A landscape phone on the desktop site** has a window under 600 px
+  high, so src/core/device.ts gives it the phone flag after all (the
+  phone's layout); only an upright one keeps the desktop cockpit.
+- **The community's two columns (B).** On the wide page the list's rule
+  (the heading row's bottom edge, over the first log) and the top edge of
+  Log of the day lie on one line. Three custom properties on the wide
+  `.wc-cy-body`: `--cy-drop` (the list comes down, clear of Back: 13 px;
+  4 px on a tablet, whose window padding is 2 px more), `--cy-thead` (the
+  heading row's set height: 40 px; 54 px on a tablet, its 44 px search
+  field) and `--cy-lift` (the column rises into the window's top padding:
+  36 px; 38 px on a tablet), which puts the players' figure's line box
+  10 px below the window's inner edge. The figure's block is
+  `lift + drop + thead − 12 px` high (the column's gap), so Log of the day
+  starts on the rule whatever the figure's font does; with no figure the
+  column starts on the rule. A search or a sender's logs puts its line over
+  the headings and the rule moves down with it (a state, not the page).
+- **Tests.** e2e `back-placement.spec.ts` replaces
+  `phone-back-placement.spec.ts`: a matrix of ten modes (a desktop at
+  1440 × 900 and 1280 × 800; the desktop site on a phone, 980 × 2120 on a
+  412 × 915 screen and 980 × 440 on its side; the phone 390 × 844 and
+  844 × 390; the tablet 820 × 1180 and 1180 × 820; a tablet on the desktop
+  cockpit, both ways) × every page with a box's Back (Profile, Import, the
+  profile editor, Scripts, the Script Manual, the script editor, History's
+  Sessions, Spotlights and Diary, a session's Stats and Share, About,
+  /privacy, Log in, Create account, Recovery, the Account page, Published
+  logs, Community and the phone's All logs and Hall of Fame, the watch
+  page): Back ≥ 4 px inside the window's inner border, drawn ≤ 30 px high,
+  over none of the page's text or controls nor the hood's title, and on
+  touch a tap `--lk-back-hit` px above its bottom lands on it. Chromium
+  only (mobile emulation). `community.ts` `columnsAligned` (±0.5 px, the
+  figure ≥ 10 px down, Back ≥ 4 px above the headings and clear of the
+  figure) runs in `community-page.spec.ts` at 1440 × 900, 1280 × 800 and
+  1100 × 800, in `phone-community-page.spec.ts` at 1180 × 820 and in the
+  matrix wherever the page is wide.
