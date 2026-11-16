@@ -376,4 +376,31 @@ so a new run can take a minute to show for others.
 
 ## Owner feedback
 
-(None yet.)
+2026-11-16, after the test on staging (night pass to follow; "Imorgon
+vill jag vakna till en ny publicerad version"):
+
+1. History's Export becomes **Share**; the editor's action button says
+   **Download** (HTML, Text) or **Share** (Link, Hall of Fame); Export
+   elsewhere follows.
+2. Published runs: a press on a run opens it.
+3. The watch page: no Download as HTML.
+4. A Firefox private window logged in as another account showed one
+   note on the board until it logged out; a guest's private window did
+   not see a newly listed run after reloads and re-entering the page
+   (a new private window did). To be found and fixed.
+5. Random Runes at most about 30–50 % of the height under the list, at
+   the bottom.
+6. A run opened from the Community or a link starts **paused**.
+7. "N players on MUME" out of the Warlords box: a large free-standing
+   figure at the top right.
+8. The phone: no tabs as the first view; a dashboard (the newest runs,
+   Random Runes, Warlords, players on MUME); Hall of Fame and the full
+   list on sub-pages or tabs.
+9. A **search box** for runs.
+10. Column headings short: Run, Stars, Com., Views.
+11. No level: "the title (Char)"; the watch page without "Level NN".
+12. The note field without "Write a note: everyone sees it with your
+    name": empty or a sparse hint.
+13. Shared runs (Hall of Fame, link, HTML export) carry only the panes
+    **Map, Timers and Group**, all **off by default** in the replay.
+
