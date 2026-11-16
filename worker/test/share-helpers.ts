@@ -5,7 +5,7 @@ import { expect } from 'vitest';
 import { DEFAULT_KDF, type PubMetaIn, type PubWritten } from '../../shared/cloud/api.ts';
 import { toB64url } from '../bytes.ts';
 import { handle } from '../router.ts';
-import type { Deps, Env } from '../runtime.ts';
+import type { CacheLike, Deps, Env } from '../runtime.ts';
 import { T, at, db, envWith } from './helpers.ts';
 
 export const ORIGIN = 'https://example.test';
@@ -33,6 +33,8 @@ export interface Opts {
   csrf?: boolean;
   body?: BodyInit;
   ip?: string;
+  /** The Cache API's stand-in (Deps.cache; none by default). */
+  cache?: CacheLike;
 }
 
 export function call(method: string, path: string, json?: unknown, o: Opts = {}): Promise<Response> {
@@ -45,7 +47,7 @@ export function call(method: string, path: string, json?: unknown, o: Opts = {})
   const init: RequestInit = { method, headers: { ...headers, ...o.headers } };
   if (o.body !== undefined) init.body = o.body;
   else if (json !== undefined) init.body = JSON.stringify(json);
-  return handle(new Request(`${ORIGIN}${path}`, init), o.env ?? ENV, at(o.now ?? NOW, siteverify));
+  return handle(new Request(`${ORIGIN}${path}`, init), o.env ?? ENV, { ...at(o.now ?? NOW, siteverify), ...(o.cache ? { cache: o.cache } : {}) });
 }
 
 function cookieOf(res: Response): string {
