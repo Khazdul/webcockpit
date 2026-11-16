@@ -532,3 +532,16 @@ Group are unchanged.
   Socials and Questions off in Public by default (round 2), an
   undirected social or question is now in no Comm view unless the owner
   turns that channel on in the gear.
+
+## Addendum 2026-11-17: questions and socials on in Public
+
+- Owner's decision: since private chats hold only talk aimed at you,
+  undirected questions and socials would otherwise show nowhere, so
+  they are **on** in Public by default. Only tells stay off
+  (`COMM_PUBLIC_DEFAULT_OFF = ['tells']`).
+- Settings version 7: stored settings older than v7 drop
+  `questions: false` and `socials: false` from `comm.filters` once
+  (`migrateComm`). Turned off again at v7 or newer, they stay off. Synced
+  settings (stage 62) go through the same `migrateSettings`.
+- Related: the share link preview (ADR 0158) now draws the MUME Cockpit
+  logo alone, about 96 px, at the bottom right, with no wordmark.
