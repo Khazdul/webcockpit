@@ -18,6 +18,30 @@
   gap: 22px;
 }
 
+/* The two columns' top edges (owner's feedback round 3, ADR 0155): the
+ * list's rule (under its headings, over the first log) and the top edge
+ * of Log of the day lie on one line. The list comes down a little
+ * (`--cy-drop`), clear of Back; the column rises into the window's top
+ * padding (`--cy-lift`), the players' figure still well below the
+ * window's inner edge; the heading row has a set height (`--cy-thead`)
+ * and the figure's block fills what is left above Log of the day (the
+ * column's 12 px gap below it). No figure: Log of the day starts on the
+ * rule. (Searching or a sender's logs puts a line over the headings and
+ * the list's rule moves down with it.) */
+.wc-cy-body:not(.is-narrow) {
+  --cy-lift: 36px;
+  --cy-drop: 13px;
+  --cy-thead: 40px;
+}
+
+/* The tablet (the phone flag; its 44 px search field): Back is 2 px
+ * lower and the window's top padding 2 px more. */
+html.wc-phone .wc-cy-body:not(.is-narrow) {
+  --cy-lift: 38px;
+  --cy-drop: 4px;
+  --cy-thead: 54px;
+}
+
 .wc-cy-main {
   flex: 1 1 auto;
   min-width: 0;
@@ -25,6 +49,12 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-top: var(--cy-drop, 0px);
+}
+
+.wc-cy-main > .wc-cy-list > .wc-cy-tbl > .wc-cy-throw {
+  box-sizing: border-box;
+  min-height: var(--cy-thead, 0px);
 }
 
 .wc-cy-col {
@@ -34,9 +64,19 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: calc(-1 * var(--cy-lift, 0px));
   padding-right: 2px;
   scrollbar-width: thin;
   scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
+.wc-cy-col > .wc-cy-players {
+  box-sizing: border-box;
+  height: calc(var(--cy-lift) + var(--cy-drop) + var(--cy-thead) - 12px);
+}
+
+.wc-cy-col:not(:has(> .wc-cy-players)) {
+  margin-top: calc(var(--cy-drop, 0px) + var(--cy-thead, 0px));
 }
 
 @container wc-page (max-width: 1040px) {

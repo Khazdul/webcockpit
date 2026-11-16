@@ -172,3 +172,35 @@ export async function shot(page: Page, name: string): Promise<void> {
   mkdirSync(dir, { recursive: true });
   await page.screenshot({ path: join(dir, `${name}.jpg`), type: 'jpeg', quality: 72, scale: 'css' });
 }
+
+/**
+ * The wide page's two columns (owner's feedback round 3, ADR 0155): the
+ * list's rule (the heading row's bottom edge, over the first log) and the
+ * top edge of Log of the day on one line (±0.5 px); the players' figure at
+ * least 10 px below the window's inner top edge; Back clear of the
+ * headings (4 px of air above them) and of the figure.
+ */
+export async function columnsAligned(page: Page): Promise<void> {
+  await expect(box(page, 'day')).toBeVisible();
+  await expect(box(page, 'players')).toBeVisible();
+  const g = await cm(page).evaluate((el) => {
+    const r = (q: string) => el.querySelector(q)!.getBoundingClientRect();
+    const win = el.querySelector(':scope > .wc-lk-win')!;
+    const inner = win.getBoundingClientRect().top + parseFloat(getComputedStyle(win).borderTopWidth);
+    const back = r(':scope > .wc-lk-back');
+    const heads = [...el.querySelectorAll('.wc-cy-throw .wc-cy-th, .wc-cy-throw .wc-cy-search')].map((e) => e.getBoundingClientRect().top);
+    const pl = r('[data-box="players"]');
+    return {
+      rule: r('.wc-cy-throw').bottom,
+      day: r('[data-box="day"]').top,
+      figure: r('.wc-cy-players-n').top - inner,
+      backBottom: back.bottom,
+      headsTop: Math.min(...heads),
+      backMeetsFigure: back.right > pl.left && back.left < pl.right && back.bottom > pl.top && back.top < pl.bottom,
+    };
+  });
+  expect(Math.abs(g.rule - g.day), `the list's rule (${g.rule}) and Log of the day (${g.day}) on one line`).toBeLessThanOrEqual(0.5);
+  expect(g.figure, 'the players’ figure below the window’s inner top').toBeGreaterThanOrEqual(10);
+  expect(g.headsTop - g.backBottom, 'air between Back and the headings').toBeGreaterThanOrEqual(4);
+  expect(g.backMeetsFigure, 'Back clear of the players’ figure').toBe(false);
+}
