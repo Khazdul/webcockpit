@@ -1428,6 +1428,17 @@ export interface AdminGraphDay {
  * Daily metrics of `stat_daily` the graphs use (ADR 0147 and ADR 0157).
  * Stage 66 adds devices_7d … views; storage metrics exist from stage 66's
  * deploy on, the others are backfilled where the tables still know them.
+ * As built (stage 66 B), per UTC day:
+ *   devices_7d / devices_30d  distinct devices of `device_day` in the 7 / 30 days ending with the day
+ *   new_accounts              accounts created that day (still existing)
+ *   accounts, item_bytes, run_bytes, pub_bytes  totals over `account` when rolled up (00:10 the day after)
+ *   pubs_new    every publication created that day, link or listed (`created`; only `pending` ones,
+ *               an upload never finished, are left out; removed ones count)
+ *   listed_new  runs whose first listing (`listed_at`, set once) falls on that day; so
+ *               max(0, pubs_new − listed_new) approximates the link-only runs of the day
+ *   votes       votes cast or changed that day (`vote.updated`)
+ *   comments, notes, reports  rows created that day (still existing at the roll-up)
+ *   views       rows of `pub_view` of the day (one per run, device and day)
  */
 export type AdminDailyMetric =
   | 'devices'
