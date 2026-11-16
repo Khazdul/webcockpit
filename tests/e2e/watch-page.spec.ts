@@ -1,10 +1,9 @@
 // Stage 64 C2 (spec §7.7, ADR 0154 "The watch page"; round 12's picks 3a
 // and 5): `/r/<id>` boots straight into the watch page, a band over the
 // sandboxed replay. A guest watches a seeded run; every state; one view
-// per page load; Report logged in and out; Download as HTML makes a file
-// that plays; Back; `?admin`. Desktop (Chromium and Firefox); the phone's
+// per page load; Report logged in and out; no Download, a paused start
+// (stage 65 W1); Back; `?admin`. Desktop (Chromium and Firefox); the phone's
 // in phone-watch-page.spec.ts.
-import { readFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
 import {
@@ -21,6 +20,7 @@ import {
   noFrameFullscreen,
   logIn,
   openWatch,
+  pausedInFrame,
   playing,
   replay,
   setUp,
@@ -51,6 +51,50 @@ test('a guest watches a seeded run: no start page, the band, the replay, one vie
   await watchBtn(page, 'BACK').click();
   await expect(page).toHaveURL(/\/\?cloudtest$/);
   await expect(page.locator('.wc-start .wc-sm-item').first()).toBeVisible({ timeout: 15_000 });
+  expect(errors).toEqual([]);
+});
+
+// Stage 65 (owner's feedback 13): a shared run shows Map, Timers and Group
+// only, all off at the start; a payload published before that (Comm, UI
+// and a script pane on, their records in it) plays the same way.
+test('a published run plays with no pane; the Panes popup has Map, Timers and Group, off; one turned on shows, nothing else', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const s = await setUp(page);
+  const view = JSON.stringify({ panes: { comm: { on: true }, ui: { on: true }, character: { on: true }, map: { on: true }, 'evil/pane': { on: true } } });
+  const spane = JSON.stringify({ title: 'Old script pane', lines: [{ spans: [{ text: 'pane text' }] }], links: [] });
+  s.pubs.add({
+    id: 'Old3dE5fG7hJ',
+    owner: SENDER,
+    title: 'An old run',
+    payload: demoPayload({
+      lines: [
+        `\x1bVIEW ${view}`,
+        '\x1bGMCP Comm.Channel.Text {"channel":"tells","talker":"Kuzzim","text":"Kuzzim tells you \'psst\'"}',
+        `\x1bSPANE evil/pane ${spane}`,
+        'You attack the hardened ranger.',
+      ],
+    }),
+  });
+  await openWatch(page, 'Old3dE5fG7hJ');
+  await playing(page);
+  const r = replay(page);
+  await expect(r.locator('.wc-player')).toContainText('hardened ranger');
+  await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(0);
+  await r.locator('.wc-player').hover();
+  const box = r.locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeVisible();
+  expect(await pop.locator('[data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
+    'timers:false',
+    'group:false',
+    'map:false',
+  ]);
+  await pop.locator('[data-pane="timers"]').click();
+  await expect(r.locator('.wc-pane[data-pane="timers"]')).toBeVisible();
+  await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
+  await expect(r.locator('.wc-pane[data-pane="evil/pane"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -177,7 +221,7 @@ test.describe('the states', () => {
     await openWatch(page);
     await expect(band(page).locator('[data-watch="title"]')).toHaveText('Clearing the ranger camp');
     await expect(page.locator('.wc-watch-wait .wc-lk-load-l')).toHaveText(/^Loading the run…/);
-    await expect(watchBtn(page, 'DOWNLOAD')).toHaveAttribute('aria-disabled', 'true');
+    await expect(watchBtn(page, 'REPORT')).toBeVisible();
     release();
     await playing(page);
     await expect(page.locator('.wc-watch-wait')).toHaveCount(0);
@@ -268,20 +312,27 @@ test.describe('Report', () => {
   });
 });
 
-test('Download as HTML makes the exporter\'s file, and it plays', async ({ page, context }, info) => {
-  await setUp(page);
+// The owner's feedback on stage 65 (ADR 0155 W1): no Download as HTML on
+// the watch page, and the run starts paused; Space (or Play) in the frame
+// starts it.
+test('no Download: no button, D does nothing; the run starts paused and Space plays it', async ({ page }) => {
+  const s = await setUp(page);
   await openWatch(page);
   await playing(page);
-  const [download] = await Promise.all([page.waitForEvent('download'), watchBtn(page, 'DOWNLOAD').click()]);
-  expect(download.suggestedFilename()).toBe('Clearing the ranger camp.html');
-  const file = info.outputPath('replay.html');
-  await download.saveAs(file);
-  const html = readFileSync(file, 'utf8');
-  expect(html).toMatch(/^<!doctype html>/i);
-  const p2 = await context.newPage();
-  await p2.goto(`file://${file}`);
-  await expect(p2.locator('.wc-player')).toBeVisible({ timeout: 20_000 });
-  await expect(p2.locator('.wc-player')).toContainText('hardened ranger');
+  await expect(watchBtn(page, 'DOWNLOAD')).toHaveCount(0);
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await page.keyboard.press('d');
+  // Paused at the start, and it stays so.
+  await pausedInFrame(page);
+  await page.waitForTimeout(1_500);
+  await pausedInFrame(page);
+  expect(downloads).toBe(0);
+  // Opening the run counts its view, paused or not.
+  await expect.poll(() => s.pubs.viewRequests.length).toBe(1);
+  // Space in the frame plays it (the page gives the frame the keys once the run is in).
+  await page.keyboard.press(' ');
+  await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'true');
 });
 
 // The owner's test of stage 64: the replay's Fullscreen did nothing on the
@@ -423,7 +474,7 @@ test('a tablet-sized window: the band in one row, the replay under it', async ({
   expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
   // Stage 65: inside the start page's frame (its margin, hood and Back take about 80 px).
   expect(f.height).toBeGreaterThan(540);
-  await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download as HTML');
+  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
 });
 
 test('/privacy says what a share link makes public with the flag share on; About gives the abuse address', async ({ page }) => {

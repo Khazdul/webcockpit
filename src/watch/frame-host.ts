@@ -14,14 +14,14 @@
 // `openFrame` reads the payload once on the page too (bounded gunzip and
 // `validatePayload`, src/replay/codec.ts `readSharedPayload`): the page
 // needs its fonts (fetched from the page's own origin as the exporter
-// fetches them, only families of `FONTS`) and the watch page's Download as
-// HTML builds from that validated payload. A payload the page refuses
+// fetches them, only families of `FONTS`). A payload the page refuses
 // never reaches the frame.
 //
 // Messages are taken only from the frame's own window with the origin
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
-// `wc-play`, the payload's bytes and the fonts transferred), `wc-error`
-// and `wc-fullscreen`.
+// `wc-play`, the payload's bytes and the fonts transferred, and `prefs`:
+// `{paused: true}` unless `paused: false` is asked, so the replay starts
+// paused, ADR 0155 W1), `wc-error` and `wc-fullscreen`.
 //
 // Fullscreen: `allow="fullscreen *"`, not the attribute's default `'src'`
 // (the origin of the frame's URL): the sandbox makes the frame's origin
@@ -38,7 +38,6 @@
 
 import { PayloadReadError, readSharedPayload } from '../replay/shared';
 import { fetchReplayFonts } from '../replay/export';
-import type { ReplayPayload } from '../share/payload';
 
 /** The frame document's path under the site's base (scripts/frame-html.ts `FRAME_PATH`). */
 export const FRAME_PATH = 'r/frame';
@@ -59,12 +58,12 @@ export interface FrameHostOptions {
   onError?: (text: string) => void;
   /** The frame has the payload (after `wc-play` is posted). */
   onPlay?: () => void;
+  /** The replay starts paused (default true: the watch page's, ADR 0155 W1); Play or Space in the frame starts it. */
+  paused?: boolean;
 }
 
 export interface FrameHost {
   frame: HTMLIFrameElement;
-  /** The validated payload (Download as HTML builds from it). */
-  payload: ReplayPayload;
   /** Removes the frame and stops listening. */
   dispose(): void;
 }
@@ -118,7 +117,8 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
         const target = frame.contentWindow;
         if (!target) return;
         const bytes = src.slice().buffer;
-        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list }, '*', [bytes, ...list.map((x) => x.data)]);
+        const prefs = { paused: o.paused !== false };
+        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
       });
     } else if (d.t === 'wc-error') {
@@ -135,7 +135,6 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
   o.container.appendChild(frame);
   return {
     frame,
-    payload,
     dispose: () => {
       win.removeEventListener('message', onMessage);
       o.container.classList.remove('is-filled');

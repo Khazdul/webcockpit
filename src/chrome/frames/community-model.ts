@@ -1,39 +1,42 @@
 // The Community page's pure parts (stage 65 C1, spec §7.8, ADR 0155;
-// round 13's picks 1b with the owner's changes, 2 and 5): the list's
+// round 13's picks 1b with the owner's changes, 2 and 5; the owner's
+// feedback W2: short headings, search, the phone's dashboard): the list's
 // columns and their sorts, the words of a row, the boxes and the board,
 // the page's remembered view, and the address of a run opened from here.
 // No DOM, no requests (community.tsx draws, src/cloud/community/api.ts
 // asks).
 
 import type { GalleryRow, GallerySort, Note } from '../../../shared/cloud/api.ts';
-import { cleanPublicText, publicTextToSend } from '../../../shared/cloud/text.ts';
+import { cleanPublicText, publicTextToSend, searchText } from '../../../shared/cloud/text.ts';
 import { ageText } from '../../cloud/community/format';
 
 // ------------------------------------------------------------ the list
 
+/** The sorts the page offers (owner's feedback W2: one per column; the API's `length` is not offered). */
+export type HeadSort = Exclude<GallerySort, 'length'>;
+
 /** A sortable heading of the list (desktop and tablet): its sort, its label and its key. */
 export interface SortHead {
-  sort: GallerySort;
+  sort: HeadSort;
   label: string;
   letter: string;
 }
 
-/** The sorts by their column: Listed (New, the default), Length, Stars (Top), Comments, Views (Most watched). */
-export const SORT_HEADS: Readonly<Record<GallerySort, SortHead>> = {
-  new: { sort: 'new', label: 'Listed', letter: 'l' },
-  length: { sort: 'length', label: 'Length', letter: 'e' },
-  top: { sort: 'top', label: 'Stars · votes', letter: 's' },
+/** The sorts by their column (short headings): Run (New, the default), Stars (Top), Com. (Comments), Views (Most watched). */
+export const SORT_HEADS: Readonly<Record<HeadSort, SortHead>> = {
+  new: { sort: 'new', label: 'Run', letter: 'n' },
+  top: { sort: 'top', label: 'Stars', letter: 's' },
   comments: { sort: 'comments', label: 'Com.', letter: 'm' },
   watched: { sort: 'watched', label: 'Views', letter: 'v' },
 };
 
-export const DEFAULT_SORT: GallerySort = 'new';
+export const DEFAULT_SORT: HeadSort = 'new';
 
 /** The sort a key chooses (a heading's letter, no modifier), or null. */
-export function sortOfKey(e: { key: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean }): GallerySort | null {
+export function sortOfKey(e: { key: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean }): HeadSort | null {
   if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return null;
   const k = e.key.toLowerCase();
-  return (Object.values(SORT_HEADS).find((h) => h.letter === k)?.sort as GallerySort | undefined) ?? null;
+  return Object.values(SORT_HEADS).find((h) => h.letter === k)?.sort ?? null;
 }
 
 /** The pages of a list of `total` runs, at least 1. */
@@ -44,9 +47,25 @@ export function pagesOf(total: number, size = 10): number {
 /** The pager's words: "Page 1 of 3". */
 export const pagerText = (page: number, pages: number): string => `Page ${page} of ${pages}`;
 
-/** "Gibur L41", "Gibur" without a level. */
-export function characterText(r: Pick<GalleryRow, 'character' | 'level'>): string {
-  return r.level !== undefined ? `${r.character} L${r.level}` : r.character;
+/** "Title (Char)": the run's title and its character, no level (owner's feedback 11); the title alone without a character. */
+export function runName(r: Pick<GalleryRow, 'title' | 'character'>): string {
+  return r.character ? `${r.title} (${r.character})` : r.title;
+}
+
+// ------------------------------------------------------------ search
+
+/** A search's shortest and longest text (the contract's GALLERY_Q_MIN, GALLERY_Q_MAX; a unit test holds them equal). */
+export const SEARCH_MIN = 2;
+export const SEARCH_MAX = 60;
+
+/** The text a search field asks for, or null (nothing to search: the whole list). */
+export function searchOf(field: string): string | null {
+  return searchText(field, SEARCH_MIN, SEARCH_MAX);
+}
+
+/** The search's line over the list: 'Search: "ford" — 3 runs'. */
+export function searchLine(q: string, total: number): string {
+  return `Search: “${q}” — ${total} ${total === 1 ? 'run' : 'runs'}`;
 }
 
 /** A run's length: "37 min", "4 h 04 min", "under a minute". */
@@ -150,19 +169,22 @@ export function noteReportFailText(code: string, status = 0): string {
 
 /** The page's view: kept in this tab while a run is watched, so Back on the watch page finds it again. */
 export interface CommunityView {
-  sort: GallerySort;
+  sort: HeadSort;
   page: number;
   /** A sender's runs (the name as shown). */
   by?: string;
-  /** The phone's tab. */
-  tab?: CommunityTab;
+  /** A search's text (as `searchOf` gives it). */
+  q?: string;
+  /** The phone's sub-page (none: the dashboard). */
+  sub?: CommunitySub;
 }
 
-export type CommunityTab = 'runs' | 'hof' | 'runes';
+/** The phone's sub-pages over its dashboard: the whole list, the Hall of Fame. */
+export type CommunitySub = 'runs' | 'hof';
 
 export const VIEW_KEY = 'wc.community.view';
 
-const SORTS: readonly string[] = ['new', 'top', 'watched', 'comments', 'length'];
+const SORTS: readonly string[] = ['new', 'top', 'watched', 'comments'];
 const NAME = /^[A-Za-z0-9_-]{3,20}$/;
 
 /** A kept view, or the default when it is not one. */
@@ -175,7 +197,11 @@ export function parseView(raw: string | null): CommunityView {
     if (typeof v.sort === 'string' && SORTS.includes(v.sort)) out.sort = v.sort;
     if (typeof v.page === 'number' && Number.isInteger(v.page) && v.page >= 1 && v.page <= 100) out.page = v.page;
     if (typeof v.by === 'string' && NAME.test(v.by)) out.by = v.by;
-    if (v.tab === 'runs' || v.tab === 'hof' || v.tab === 'runes') out.tab = v.tab;
+    if (typeof v.q === 'string') {
+      const q = searchOf(v.q);
+      if (q !== null) out.q = q;
+    }
+    if (v.sub === 'runs' || v.sub === 'hof') out.sub = v.sub;
     return out;
   } catch {
     return out;

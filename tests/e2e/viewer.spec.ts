@@ -58,8 +58,12 @@ const panesPop = (page: Page) => box(page).locator('.wc-pc-pop[data-pop="panes"]
 const displayPop = (page: Page) => box(page).locator('.wc-pc-pop[data-pop="display"]');
 const pane = (page: Page, id: string) => player(page).locator(`.wc-pane[data-pane="${id}"]`);
 
-/** The settings round every mode runs: toggles, themes, font. */
-async function settingsRound(page: Page): Promise<void> {
+/**
+ * The settings round every mode runs: toggles, themes, font. `shared`: a
+ * shared run's replay (stage 65): only Map, Timers and Group, all off at
+ * the start; Timers is turned on first.
+ */
+async function settingsRound(page: Page, shared = false): Promise<void> {
   await expect(panesPop(page)).toBeHidden();
   await box(page).locator('[data-act="panes"]').click();
   await expect(panesPop(page)).toBeVisible();
@@ -68,6 +72,15 @@ async function settingsRound(page: Page): Promise<void> {
 
   // Pane toggle: off and on again.
   const timers = panesPop(page).locator('[data-pane="timers"]');
+  if (shared) {
+    expect(await panesPop(page).locator('[data-pane]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.pane))).toEqual(['timers', 'group', 'map']);
+    await expect(panesPop(page).locator('[data-pane][aria-checked="true"]')).toHaveCount(0);
+    await expect(player(page).locator('.wc-pane:visible')).toHaveCount(0);
+    await timers.click();
+    await expect(timers).toHaveAttribute('aria-checked', 'true');
+    // The pane turned on shows; nothing else does.
+    await expect(player(page).locator('.wc-pane:visible')).toHaveCount(1);
+  }
   await expect(pane(page, 'timers')).toBeVisible();
   await timers.click();
   await expect(pane(page, 'timers')).toBeHidden();
@@ -197,7 +210,7 @@ test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Re
   expect(errors).toEqual([]);
 });
 
-test('the HTML replay has Panes and Display and the same settings (file://, no storage)', async ({ page, browser }, info) => {
+test('the HTML replay has Panes (Map, Timers, Group, all off) and Display and the same settings (file://, no storage)', async ({ page, browser }, info) => {
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   const html = await page.evaluate(async () => {
@@ -235,7 +248,7 @@ test('the HTML replay has Panes and Display and the same settings (file://, no s
   // The replay's own button (Fullscreen) is in the box; no Close.
   await expect(box(p).locator('[data-act="extra"]')).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(box(p).locator('[data-act="close"]')).toHaveCount(0);
-  await settingsRound(p);
+  await settingsRound(p, true);
   await expect(pane(p, 'timers').locator('.wc-tm-add:not([hidden])')).toHaveCount(0);
   expect(await p.evaluate(() => (window as unknown as { __touched: string[] }).__touched)).toEqual([]);
   expect(errors).toEqual([]);

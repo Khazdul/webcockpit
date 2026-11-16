@@ -19,7 +19,7 @@ import { deflateSync } from 'node:zlib';
 const us = (s: number) => BASE_US + Math.round(s * 1e6);
 
 function payloadOf(text: string) {
-  return buildReplayPayload([{ meta: meta('Evil/a', BASE_US), text }], [], defaultExportDoc('Evil/a'), defaultSettings());
+  return buildReplayPayload([{ meta: meta('Evil/a', BASE_US), text }], [], defaultExportDoc('Evil/a'), defaultSettings(), { allPanes: true });
 }
 
 /** Plays `text` to its end in a PlayerHost on a fake wall. */

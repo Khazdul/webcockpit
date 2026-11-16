@@ -120,7 +120,7 @@ test('Delete: any other key cancels, Y deletes; the keys box from the "?" button
   await hist(page).locator('[data-btn="KEYS"]').click();
   const keys = dialog(page, 'keys');
   await expect(keys).toBeVisible();
-  await expect(keys.locator('.wc-lk-kh-row', { hasText: 'Export' }).locator('dt')).toHaveText('X');
+  await expect(keys.locator('.wc-lk-kh-row', { hasText: 'Share' }).locator('dt')).toHaveText('H');
   await expect(keys.locator('.wc-lk-kh-row', { hasText: 'Character' }).locator('dt')).toHaveText('← →');
   await page.mouse.click(5, 450);
   await expect(keys).toHaveCount(0);

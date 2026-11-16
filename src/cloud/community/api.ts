@@ -2,7 +2,7 @@
 // contract is shared/cloud/api.ts "The community", the server
 // worker/community.ts):
 //
-//   GET    /api/gallery?sort=&period=all&page=&by=   the list → `GalleryPage`
+//   GET    /api/gallery?sort=&period=all&page=&by=&q=   the list → `GalleryPage`
 //   GET    /api/community                            the boxes → `CommunityBoxes`
 //   GET    /api/runes                                the board → `RunesBoard`
 //   POST   /api/u/runes                              a note → `Note`
@@ -139,11 +139,13 @@ export interface CommunityApiOptions {
 
 export const COMMUNITY_TIMEOUT_MS = 10_000;
 
-/** The list's question: the sort (the client always asks `period=all`), the page, and a sender. */
+/** The list's question: the sort (the client always asks `period=all`), the page, a sender, and a search's text. */
 export interface ListQuery {
   sort: GallerySort;
   page: number;
   by?: string;
+  /** A search (as `searchText` gives it). */
+  q?: string;
 }
 
 export interface CommunityApi {
@@ -200,14 +202,15 @@ function rowsOf(v: unknown): GalleryRow[] | undefined {
 
 export function parseGalleryPage(v: unknown): GalleryPage | undefined {
   if (!isObject(v)) return undefined;
-  const { sort, period, page, rows, more, total, time } = v;
+  const { sort, period, page, rows, more, total, time, q } = v;
   if (typeof sort !== 'string' || !(GALLERY_SORTS as readonly string[]).includes(sort)) return undefined;
   if (period !== 'week' && period !== 'month' && period !== 'all') return undefined;
   const list = rowsOf(rows);
   if (!list || !whole(page) || page < 1 || typeof more !== 'boolean' || !whole(time)) return undefined;
   // `total` came with round 13; an answer without it counts what it can see.
   const n = whole(total) ? total : (page - 1) * 10 + list.length + (more ? 1 : 0);
-  return { sort: sort as GallerySort, period, page, rows: list, more, total: n, time };
+  if (q !== undefined && !text(q, 400)) return undefined;
+  return { sort: sort as GallerySort, period, page, rows: list, more, total: n, ...(q !== undefined ? { q } : {}), time };
 }
 
 function warlords(v: unknown): Warlord[] | undefined {
@@ -365,7 +368,8 @@ export function communityApi(o: CommunityApiOptions = {}): CommunityApi {
     list(q) {
       const page = Math.max(1, Math.floor(q.page));
       const by = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
-      return call('read', 'GET', `/api/gallery?sort=${q.sort}&period=all&page=${page}${by}`, parseGalleryPage);
+      const text = q.q === undefined ? '' : `&q=${encodeURIComponent(q.q)}`;
+      return call('read', 'GET', `/api/gallery?sort=${q.sort}&period=all&page=${page}${by}${text}`, parseGalleryPage);
     },
     boxes() {
       return call('read', 'GET', '/api/community', parseBoxes);

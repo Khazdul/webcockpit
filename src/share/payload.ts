@@ -53,6 +53,12 @@
 // range's last entry, so the file holds the panes' state at the cut's end
 // but nothing they showed in between.
 //
+// Shared panes (stage 65, ADR 0155 "As built … W3"; src/share/
+// shared-panes.ts): the payload carries the panes Map, Timers and Group
+// only, every pane off: no SPANE or Comm GMCP record, no other pane's
+// settings, the VIEW records rewritten the same way (`allPanes` keeps
+// everything: tests of the fold).
+//
 // Timers (ADR 0033): the Timers pane is derived from text, so each cut's
 // end inside a run gets a `WebCockpit.Timers` GMCP record with the timers
 // state there (src/share/timers-state.ts), before the first entry after it.
@@ -76,6 +82,7 @@ import { migrateSettings } from '../settings/migrate';
 import { type CaptureEntry, captureEntries, isCommText, isVisible } from './capture';
 import { type ExcludeRange, type ExportDoc, commentHoldMs, isExcluded } from './edits';
 import { type FoldStats, foldExcludedState, pace, paceRecord } from './fold';
+import { sharedPayload } from './shared-panes';
 import { systemLines } from './system-lines';
 import { TIMERS_GMCP, timersStatesAt } from './timers-state';
 
@@ -218,6 +225,12 @@ export interface PayloadOptions {
   dropRuns?: boolean;
   /** Counters of the fold. */
   foldStats?: FoldStats;
+  /**
+   * Keep every pane's data and settings (tests of the fold; default false:
+   * a shared run carries Map, Timers and Group only, all off,
+   * `sharedPayload`).
+   */
+  allPanes?: boolean;
 }
 
 /** The run metadata the payload keeps: what the player reads. */
@@ -395,7 +408,7 @@ export function buildReplayPayload(
   for (const r of runs) if (r.meta.summary?.level !== undefined) level = r.meta.summary.level;
   // The header: the first run played (the chain's first when none is).
   const first = chain[index.indexOf(0)]?.meta ?? chain[0]?.meta;
-  return {
+  const payload: ReplayPayload = {
     schema: PAYLOAD_SCHEMA,
     title: doc.title.trim(),
     character: first?.character ?? '',
@@ -408,6 +421,7 @@ export function buildReplayPayload(
     markers,
     ...(hiddenSys.length > 0 ? { hiddenSys } : {}),
   };
+  return opts.allPanes ? payload : sharedPayload(payload);
 }
 
 /**

@@ -30,6 +30,7 @@ import type { Wall } from '../player/engine';
 import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
+import { SHARED_PANES, sharedPayload } from '../share/shared-panes';
 import { applyTheme } from '../theme/apply';
 import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
@@ -53,9 +54,12 @@ function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-/** The replay's header: `<title> · <char> (L<lvl>) · YYYY-MM-DD` and the replay hints. */
+/**
+ * The replay's header: `<title> · <char> · YYYY-MM-DD` and the replay hints.
+ * No level (owner, stage 65): a shared run names the character only.
+ */
 export function replayHeader(p: ReplayPayload): PlayerHeaderModel {
-  const who = p.character + (p.level !== undefined ? ` (L${p.level})` : '');
+  const who = p.character;
   const left = p.title
     ? [{ text: clip(p.title, HEADER_TITLE_MAX), cls: 'wc-player-name' }, { text: who }]
     : [{ text: who, cls: 'wc-player-name' }];
@@ -115,8 +119,20 @@ function docFullscreen(doc: Document): ReplayFullscreen {
   };
 }
 
-/** Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock). */
-export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall; fullscreen?: ReplayFullscreen } = {}): ReplayPage {
+/**
+ * Plays `payload` in `root` (the page, and tests that skip the decoding;
+ * `wall`: a test's clock; `autoplay: false`: opens paused at the start).
+ * A shared run (stage 65): only Map, Timers and Group, each off at the
+ * start; a payload made before that (more panes, some on) is played the
+ * same way (`sharedPayload`, src/share/shared-panes.ts).
+ */
+export function openReplay(
+  doc: Document,
+  root: HTMLElement,
+  given: ReplayPayload,
+  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean } = {},
+): ReplayPage {
+  const payload = sharedPayload(given);
   const fs = o.fullscreen ?? docFullscreen(doc);
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
@@ -126,13 +142,14 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), ...(o.wall ? { wall: o.wall } : {}) });
+  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), panes: SHARED_PANES, ...(o.wall ? { wall: o.wall } : {}) });
   host.openChain(
     payload.runs,
     [],
     { character: payload.character, level: payload.level },
     {
       edits: payloadEdits(payload),
+      ...(o.autoplay === false ? { autoplay: false } : {}),
       ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
       marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
       view: {

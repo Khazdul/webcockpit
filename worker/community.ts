@@ -2,7 +2,7 @@
 // community" in shared/cloud/api.ts). Behind the flags `share` and
 // `gallery`; Random Runes behind `runes` as well.
 //
-//   GET    /api/gallery?sort=&period=&page=&by=   the list (public, cached 60 s)
+//   GET    /api/gallery?sort=&period=&page=&by=&q=   the list (public, cached 60 s; a search `q` is not cached)
 //   GET    /api/community                     the Hall of Fame boxes (public, cached 60 s)
 //   GET    /api/runes                         the board (public, cached 60 s; `runes`)
 //   GET    /api/pub/<id>/comments?before=     a run's comments, newest page first (public; reached through worker/pub.ts)
@@ -41,6 +41,8 @@ import {
   COUNTER_RUNS,
   GALLERY_PAGE_SIZE,
   GALLERY_PAGES_MAX,
+  GALLERY_Q_MAX,
+  GALLERY_Q_MIN,
   GALLERY_PERIOD_DAYS,
   GALLERY_PERIODS,
   GALLERY_SORTS,
@@ -63,7 +65,7 @@ import {
   type VoteAnswer,
   NAME_PATTERN,
 } from '../shared/cloud/api.ts';
-import { isPublicText } from '../shared/cloud/text.ts';
+import { isPublicText, searchText } from '../shared/cloud/text.ts';
 import { hasKeys, limitsOf } from './accounts.ts';
 import { addressKey } from './address.ts';
 import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
@@ -260,22 +262,35 @@ const ORDER: Record<GallerySort, string> = {
 };
 
 /**
- * Listed active runs, listed at or after `since`, in `sort`'s order; only
- * the account `by` (its id) when it is given.
+ * A search (`q`, bound as ?Q): the title, the character or the sender's
+ * name holds the text, both sides through SQLite's `lower()` (ASCII case),
+ * as a plain substring (`instr`: no LIKE pattern, nothing to escape).
  */
-function listRowsQuery(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null): D1Statement {
+const SEARCH = (n: number): string =>
+  `(?${n} IS NULL OR instr(lower(p.title), lower(?${n})) > 0 OR instr(lower(p.character), lower(?${n})) > 0 OR instr(lower(a.name), lower(?${n})) > 0)`;
+
+/**
+ * Listed active runs, listed at or after `since`, in `sort`'s order; only
+ * the account `by` (its id) when it is given, only those a search `q`
+ * finds when it is given.
+ */
+function listRowsQuery(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null, q: string | null = null): D1Statement {
   const mean = sort === 'top' ? `, (SELECT ${MEAN} AS mean) m` : '';
   return db
     .prepare(
       `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account${mean}
-       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
+       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) AND ${SEARCH(5)} ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
     )
-    .bind(since, limit, offset, by);
+    .bind(since, limit, offset, by, q);
 }
 
 /** How many runs `listRows` can reach (the pager's "of N", cut to GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX by the caller). */
-function countRowsQuery(db: D1, since: number, by: string | null): D1Statement {
-  return db.prepare(`SELECT COUNT(*) AS n FROM publication p WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR p.account = ?2)`).bind(since, by);
+function countRowsQuery(db: D1, since: number, by: string | null, q: string | null = null): D1Statement {
+  // The sender's name only for a search (the join is by the primary key).
+  const join = q === null ? '' : ' JOIN account a ON a.id = p.account';
+  return db
+    .prepare(`SELECT COUNT(*) AS n FROM publication p${join} WHERE ${LISTED} AND p.listed_at >= ?1 AND (?2 IS NULL OR p.account = ?2)${q === null ? '' : ` AND ${SEARCH(3)}`}`)
+    .bind(...(q === null ? [since, by] : [since, by, q]));
 }
 
 // --- Public paths ---
@@ -320,23 +335,27 @@ function oneOf<T extends string>(list: readonly T[], v: string | null, fallback:
  * The list's parameters, normalised (defaults filled, unknown parameters
  * dropped), or null (400). `by` is never refused: the name's lowercase
  * when it is a valid name, else `''`, which matches no account (an empty
- * list, as for an unknown name).
+ * list, as for an unknown name). `q`, a search, is `searchText`'s text,
+ * and refused (400) outside GALLERY_Q_MIN–GALLERY_Q_MAX code points.
  */
-export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPeriod; page: number; by?: string } | null {
+export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPeriod; page: number; by?: string; q?: string } | null {
   const sort = oneOf(GALLERY_SORTS, url.searchParams.get('sort'), 'new');
   const period = oneOf(GALLERY_PERIODS, url.searchParams.get('period'), 'all');
   const p = url.searchParams.get('page') ?? '1';
   const page = /^[1-9]\d{0,2}$/.test(p) ? Number(p) : 0;
   if (!sort || !period || page < 1 || page > GALLERY_PAGES_MAX) return null;
+  const raw = url.searchParams.get('q');
+  const q = raw === null ? undefined : searchText(raw, GALLERY_Q_MIN, GALLERY_Q_MAX);
+  if (q === null) return null;
   const by = url.searchParams.get('by');
-  if (by === null) return { sort, period, page };
-  return { sort, period, page, by: NAME_PATTERN.test(by) ? by.toLowerCase() : '' };
+  return { sort, period, page, ...(by === null ? {} : { by: NAME_PATTERN.test(by) ? by.toLowerCase() : '' }), ...(q === undefined ? {} : { q }) };
 }
 
 async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Response> {
   const q = galleryParams(url);
   if (!q) return badRequest();
-  const empty = (): Response => json({ sort: q.sort, period: q.period, page: q.page, rows: [], more: false, total: 0, time: now } satisfies GalleryPage, 200, PUBLIC_CACHE);
+  const search = q.q === undefined ? {} : { q: q.q };
+  const empty = (): Response => json({ sort: q.sort, period: q.period, page: q.page, rows: [], more: false, total: 0, ...search, time: now } satisfies GalleryPage, 200, PUBLIC_CACHE);
   // A sender's list (review fix S9): the name first, one indexed lookup; an
   // unknown (or deleted) name is an empty page, without the list's queries
   // and without a cache entry of its own, so made-up names cost little.
@@ -346,20 +365,26 @@ async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Respo
     if (!row) return empty();
     by = row.id;
   }
-  const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
-  return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, async () => {
+  const make = async (): Promise<Response> => {
     const days = GALLERY_PERIOD_DAYS[q.period];
     const since = days === null ? 0 : now - days * DAY_MS;
+    const text = q.q ?? null;
     const [list, count] = await db.batch<Record<string, unknown>>([
-      listRowsQuery(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by),
-      countRowsQuery(db, since, by),
+      listRowsQuery(db, q.sort, since, GALLERY_PAGE_SIZE + 1, (q.page - 1) * GALLERY_PAGE_SIZE, by, text),
+      countRowsQuery(db, since, by, text),
     ]);
     const rows = ((list?.results ?? []) as unknown as ListRow[]).map(galleryRow);
     const more = rows.length > GALLERY_PAGE_SIZE && q.page < GALLERY_PAGES_MAX;
     const total = Math.min(Number(count?.results[0]?.n ?? 0), GALLERY_PAGE_SIZE * GALLERY_PAGES_MAX);
-    const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, time: now };
+    const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, ...search, time: now };
     return json(answer, 200, PUBLIC_CACHE);
-  });
+  };
+  // A search is not kept in the Cache API (ADR 0155 "owner's feedback: W2"):
+  // any text is a variant of its own, so a hit is rare and the entries would
+  // grow without bound; its two reads scan only the listed active runs.
+  if (q.q !== undefined) return make();
+  const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
+  return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, make);
 }
 
 /**

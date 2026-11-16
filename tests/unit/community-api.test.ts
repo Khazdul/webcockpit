@@ -60,6 +60,9 @@ describe('the answers, read against the contract', () => {
     expect(parseGalleryPage({ ...old, more: true })!.total).toBe(2);
     expect(parseGalleryPage({ ...page, sort: 'best' })).toBeUndefined();
     expect(parseGalleryPage({ ...page, rows: [{ ...ROW, id: 1 }] })).toBeUndefined();
+    // A search's answer carries its text (owner's feedback W2); a malformed one is refused.
+    expect(parseGalleryPage({ ...page, q: 'ford' })!.q).toBe('ford');
+    expect(parseGalleryPage({ ...page, q: 5 })).toBeUndefined();
     for (const s of GALLERY_SORTS) expect(parseGalleryPage({ ...page, sort: s })?.sort).toBe(s);
   });
 
@@ -95,18 +98,21 @@ describe('the requests', () => {
     const { api, reqs } = setup((r) => ({
       status: 200,
       data: r.path.startsWith('/api/gallery')
-        ? { sort: 'top', period: 'all', page: 2, rows: [ROW], more: false, total: 11, time: 5 }
+        ? { sort: 'top', period: 'all', page: 2, rows: [ROW], more: false, total: 11, ...(r.path.includes('q=') ? { q: 'ford' } : {}), time: 5 }
         : r.path === '/api/community'
           ? { hallOfFame: [], today: null, time: 5 }
           : { notes: [], time: 5 },
     }));
     expect((await api.list({ sort: 'top', page: 2 })).ok).toBe(true);
     await api.list({ sort: 'new', page: 1, by: 'brego' });
+    // A search (owner's feedback W2): the text escaped.
+    expect(await api.list({ sort: 'watched', page: 3, q: '100% & ford' })).toMatchObject({ ok: true, value: { q: 'ford' } });
     await api.boxes();
     await api.board();
     expect(reqs.map((r) => `${r.method} ${r.path}`)).toEqual([
       'GET /api/gallery?sort=top&period=all&page=2',
       'GET /api/gallery?sort=new&period=all&page=1&by=brego',
+      'GET /api/gallery?sort=watched&period=all&page=3&q=100%25%20%26%20ford',
       'GET /api/community',
       'GET /api/runes',
     ]);

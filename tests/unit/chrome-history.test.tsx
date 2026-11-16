@@ -572,11 +572,11 @@ describe('History frame', () => {
     expect(flash(host)).toBe(NO_PLAYER);
   });
 
-  it('Export (X) opens the export editor; Back returns to History', async () => {
+  it('Share (H) opens the export editor; Back returns to History', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
     await key('ArrowDown');
-    await key('x');
+    await key('h');
     expect(frame(host).querySelector('.wc-exp')).not.toBeNull();
     await key('Escape');
     await until(() => hood(host) === 'History', 'History again');
