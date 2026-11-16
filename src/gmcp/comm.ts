@@ -372,6 +372,34 @@ export function toYou(m: CommText): boolean {
   return TO_YOU_RE.test(plain.slice(0, plain.indexOf("'")));
 }
 
+/** `you`, `your`, `yours`, `yourself` (and `you're`, `you'll`) as a whole word. */
+const AT_YOU_RE = /\b(you|your|yours|yourself)\b/i;
+/** A quoted part of an action: an apostrophe after a space (or at the start) to the next one. */
+const ACTION_QUOTE_RE = /(^|\s)'[^']*'/g;
+
+/**
+ * An incoming emote or social is directed at you (ADR 0134 addendum
+ * "Private chats hold only talk to you"). GMCP carries no target for
+ * actions; MUME writes the target as `you` in the text the target sees
+ * (`Huxulu pokes you in the ribs.`, `Thurn bows before you.`: the owner's
+ * Cockpit archives). So: the word `you` (`your`, `yours`, `yourself`) or
+ * your character's name (`self`, lower case; a free emote may name you)
+ * outside quoted words (`Dori emotes 'are you all ready?'` speaks to the
+ * room). False for your own and for other channels.
+ */
+export function actionAtYou(m: CommText, self = ''): boolean {
+  if (!ACTION_CHANNELS.has(m.channel) || isYou(m.talker)) return false;
+  const talker = m.talker.trim().toLowerCase();
+  if (self !== '' && talker === self) return false;
+  let plain = stripAnsi(m.text).trim();
+  // The talker's own name first (a name is never the target).
+  if (talker !== '' && plain.toLowerCase().startsWith(talker)) plain = plain.slice(talker.length);
+  plain = plain.replace(ACTION_QUOTE_RE, ' ');
+  if (AT_YOU_RE.test(plain)) return true;
+  if (self === '') return false;
+  return plain.toLowerCase().split(/[^a-zà-ɏ]+/).includes(self);
+}
+
 /**
  * An incoming message's own words: a bare whisper or question whole (its
  * apostrophes are the speaker's), else the text between the quotes.

@@ -2,32 +2,26 @@
 // chat per person, derived incrementally from the `Comm.Channel.Text`
 // history and the group roster. Pure TS, no DOM.
 //
-// Who a message belongs to:
-// - Your own (`talker` "you", or your character's name): a tell or whisper
-//   goes to its `destination`'s chat; a `destination` of "group" / "the
-//   group" (a `tell group …`, form not seen in captures yet) or a text
-//   `You tell the group '…'` is a group tell. An own emote or social that
-//   names a person with a chat (whole word, case-insensitive) goes to that
-//   chat too (GMCP carries no target for emotes; a heuristic). Own says
-//   and the rest are in Public only (and Group).
-// - Another player's (any `talker-type` but `npc`): kept in that person's
-//   record on every channel. The "near" channels (tells, whispers, says,
-//   emotes, socials, questions: MUME's `ask`) open the person's chat, raise
-//   it (newest last) and, when it is not open, count as unread. The other
-//   channels (narrates, yells, songs, prayers) are "overheard": in the
-//   chat, quiet, no raise, no unread. Prayers go to the Valar, never to you.
-// - `direct` (ADR 0134 addendum "Bubbles only for talk to you"): private
-//   talk between you and that person, the only talk a chat draws as a
-//   bubble (with group tells). Theirs: a tell that is not a group tell; a
-//   whisper or a question to you (`toYou`: MUME sends those with the bare
-//   message as text; a whole line counts when it says `you`). Yours:
-//   a tell, whisper or question with that person as `destination`. Says,
-//   emotes, socials, undirected whispers and questions are near but not
-//   direct: they open, raise and count as before, drawn as plain lines.
+// Who a message belongs to (ADR 0134 addendum "Private chats hold only
+// talk to you", 2026-11-16; before it a chat held everything the person
+// said, overheard channels quietly):
+// - A person's chat holds only talk between you two, and all of it opens
+//   the chat, raises it (newest last) and, when it is not open, counts as
+//   unread. Theirs: a tell that is not a group tell; a whisper or a
+//   question to you (`toYou`: MUME sends those with the bare message as
+//   text); an emote or social at you (`actionAtYou`: the word `you` or
+//   your name outside quotes). Yours: a tell, whisper or question with
+//   that person as `destination`; an own emote or social that names a
+//   person with a chat (whole word, case-insensitive; GMCP carries no
+//   target for actions, a heuristic). A chat draws all of it as bubbles.
+// - Everything else (says, narrates, yells, songs, prayers, undirected
+//   whispers, questions and actions) is in Public only (and Group): never
+//   in a chat. Stored history is the raw messages, so the archive needs
+//   nothing: the model sorts them again by this rule on every load.
 // - Group tells: MUME sends them on `tells` with no destination and the
 //   text `<Name> tells the group '…'` (the owner's Cockpit archives,
-//   2026-09/10). They go to Group and to the sender's record as overheard:
-//   they never open, raise or count in a private chat.
+//   2026-09/10); your own carry `destination` "group" / "the group" or the
+//   text `You tell the group '…'`. They go to Group only.
 // - NPCs (`talker-type` `npc`, e.g. Gwaihir's says) are in Public only.
 //
 // Group: messages from the roster's players at arrival time, group tells,
@@ -43,10 +37,18 @@
 // shift per array at the cap); `chats` sorts the chats (tens); `search`
 // scans at most `max` messages with the lower-case text cached per entry.
 
-import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, stripAnsi, toYou } from './comm';
-
-/** Channels whose talk is directed at the people near you: they open chats. */
-export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials', 'questions']);
+import {
+  ACTION_CHANNELS,
+  type CommMessage,
+  GROUP_DEST_RE,
+  GROUP_TELL_IN_RE,
+  GROUP_TELL_OUT_RE,
+  actionAtYou,
+  cleanName,
+  commPlain,
+  stripAnsi,
+  toYou,
+} from './comm';
 
 /** Channels that can be private talk between two people (`ChatEntry.direct`). */
 const DIRECT_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'questions']);
@@ -63,15 +65,15 @@ export interface ChatEntry {
   msg: CommMessage;
   /** Yours. */
   mine: boolean;
-  /** The other person's chat key (yours: the destination's), or null. */
+  /** The chat it is in (the other person's key), or null: only talk between you two is in a chat. */
   person: string | null;
-  /** Talk that opens a chat (a near channel, not a group tell). */
+  /** In a chat (opens and raises it): `person !== null`. */
   near: boolean;
   /**
-   * Private talk between you and that person: their tell, their whisper or
-   * question that says it is to you, your tell, whisper or question to
-   * them. Never a group tell. A chat draws only this (and group tells) as
-   * bubbles.
+   * Private talk between you and that person (the same as `near` since
+   * every message in a chat is such talk): their tell, their whisper,
+   * question, emote or social to you; your tell, whisper or question to
+   * them, your action that names them. Never a group tell.
    */
   direct: boolean;
   /** A group tell (in or out). */
@@ -97,9 +99,9 @@ export interface Chat {
   /** Display name (`cleanName`). */
   name: string;
   color: PersonColor;
-  /** Everything from and to this person, oldest first. */
+  /** The talk between you and this person, oldest first. */
   entries: ChatEntry[];
-  /** Last near activity (ms), 0 when none: no chat yet. */
+  /** Last message in the chat (ms), 0 when none: no chat yet. */
   lastNear: number;
   unread: number;
 }
@@ -298,22 +300,24 @@ export class CommChats {
     const plain = stripAnsi(m.text);
     let groupTell = false;
     let person: string | null = null;
-    let near = false;
-    let direct = false;
+    /** Who the message is with, for Group: the other person (yours: the one it names), else null. */
+    let other: string | null = null;
     if (mine) {
       const dest = m.destination?.trim() ?? '';
       if (m.channel === 'tells' && (GROUP_DEST.test(dest) || GROUP_TELL_OUT.test(plain))) groupTell = true;
       else if (dest && !isYou(dest)) {
-        person = keyOf(dest);
-        direct = DIRECT_CHANNELS.has(m.channel);
-      } else if (m.channel === 'emotes' || m.channel === 'socials') person = this.namedChat(plain);
-      near = person !== null && NEAR_CHANNELS.has(m.channel);
+        other = keyOf(dest);
+        if (DIRECT_CHANNELS.has(m.channel)) person = other;
+      } else if (ACTION_CHANNELS.has(m.channel)) person = other = this.namedChat(plain);
     } else if (m.talkerType !== 'npc' && talker.trim() !== '') {
-      person = keyOf(talker);
+      other = keyOf(talker);
       groupTell = m.channel === 'tells' && GROUP_TELL_IN.test(plain);
-      near = !groupTell && NEAR_CHANNELS.has(m.channel);
-      direct = m.channel === 'tells' ? !groupTell : toYou(m);
+      const toMe = m.channel === 'tells' ? !groupTell : toYou(m) || actionAtYou(m, this.self);
+      if (toMe) person = other;
     }
+    // Only talk between you two is in a chat: it all opens and raises it.
+    const near = person !== null;
+    const direct = near;
     // Your own lines go to Group only while there is a group (an empty
     // known roster is no group).
     const inGroup =
@@ -321,7 +325,7 @@ export class CommChats {
       (groupTell ||
         (this.rosterKnown &&
           this.roster.size > 0 &&
-          (mine ? person === null || this.roster.has(person) : person !== null && this.roster.has(person))));
+          (mine ? other === null || this.roster.has(other) : other !== null && this.roster.has(other))));
     const entry: ChatEntry = { seq: ++this.seq, msg: m, mine, person, near, direct, groupTell, group: inGroup };
     this.push(this.all, entry);
     if (inGroup) {

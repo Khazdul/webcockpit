@@ -16,37 +16,41 @@ const tell = (who: string, text = 'hi') => msg('tells', who, `${who} tells you '
 const keys = (c: CommChats, w: number | 'all' = 'all') => c.chats(w, t).map((x) => x.key);
 
 describe('CommChats (ADR 0134)', () => {
-  it('near channels open chats, newest last; others are overheard', () => {
+  it('only talk to you opens a chat, newest last; says, narrates and the rest stay out (ADR 0134 addendum 2026-11-16)', () => {
     const c = new CommChats();
     c.add(tell('Lindir'));
     c.add(msg('says', 'Haldis', "Haldis says 'hello'"));
     c.add(msg('tales', 'Morwen', "Morwen narrates 'orcs at the ford'"));
+    c.add(msg('whispers', 'Haldis', 'psst'));
     expect(keys(c)).toEqual(['lindir', 'haldis']);
-    const r = c.add(msg('emotes', 'Lindir the Elf', 'Lindir grins.'));
+    const r = c.add(msg('emotes', 'Lindir the Elf', 'Lindir grins at you.'));
     expect(r).toMatchObject({ raised: true, created: false });
     expect(keys(c)).toEqual(['haldis', 'lindir']);
-    // Morwen narrated only: a record, no chat; her later tell opens it with the narrate in it.
+    // Lindir's say and undirected emote are not in his chat.
+    c.add(msg('says', 'Lindir', "Lindir says 'hi all'"));
+    c.add(msg('emotes', 'Lindir', 'Lindir grins.'));
+    expect(c.chat('lindir')!.entries.map((e) => e.msg.channel)).toEqual(['tells', 'emotes']);
+    expect(keys(c)).toEqual(['haldis', 'lindir']);
+    // Morwen narrated only: no chat, and her later tell opens one without the narrate.
+    expect(c.chat('morwen')).toBeUndefined();
     c.add(tell('Morwen'));
-    const m = c.chat('morwen')!;
-    expect(m.entries.map((e) => [e.msg.channel, e.near])).toEqual([
-      ['tales', false],
-      ['tells', true],
-    ]);
-    for (const ch of ['whispers', 'socials', 'questions']) {
-      const k = new CommChats();
-      k.add(msg(ch, 'Ruel', 'Ruel whispers to you something'));
-      expect(keys(k)).toEqual(['ruel']);
-    }
+    expect(c.chat('morwen')!.entries.map((e) => [e.msg.channel, e.near])).toEqual([['tells', true]]);
     const p = new CommChats();
     p.add(msg('prayers', 'Ruel', "Ruel prays 'Elbereth'"));
     p.add(msg('yells', 'Ruel', "Ruel yells 'help'"));
+    p.add(msg('songs', 'Ruel', "Ruel sings 'la'"));
+    p.add(msg('says', 'Ruel', "Ruel says to you 'hello'"));
+    p.add(msg('questions', 'Ruel', "Ruel asks 'anyone?'"));
+    p.add(msg('socials', 'Ruel', 'Ruel smiles happily.'));
     expect(keys(p)).toEqual([]);
+    expect(p.publicEntries).toHaveLength(6);
   });
 
   it('counts unread for near talk to a chat that is not open; your messages and quiet loads do not', () => {
     const c = new CommChats();
     c.add(tell('Lindir'));
     c.add(msg('tales', 'Lindir', "Lindir narrates 'x'"));
+    c.add(msg('says', 'Lindir', "Lindir says 'x'"));
     expect(c.chat('lindir')!.unread).toBe(1);
     c.add(msg('tells', 'you', 'back at you', { destination: 'Lindir' }));
     expect(c.chat('lindir')!.unread).toBe(1);
@@ -69,42 +73,57 @@ describe('CommChats (ADR 0134)', () => {
     expect(c.chat('tarnil')!.entries[0]!.mine).toBe(true);
     c.add(msg('emotes', 'Gibur', 'You hug Tarnil.'));
     expect(c.chat('tarnil')!.entries).toHaveLength(2);
+    // Your say with a destination (\`say to\`) is not private talk.
+    c.add(msg('says', 'you', 'hello', { destination: 'Tarnil' }));
+    expect(c.chat('tarnil')!.entries).toHaveLength(2);
     const say = c.add(msg('says', 'you', 'hello all'));
     expect(say.entry.person).toBeNull();
-    expect(c.publicEntries).toHaveLength(3);
+    expect(c.publicEntries).toHaveLength(4);
   });
 
-  it('direct: their tell, a whisper or question that says it is to you; near is unchanged', () => {
+  it('in a chat: their tell, a whisper, question, emote or social to you; nothing else', () => {
     const c = new CommChats();
+    c.setSelf('Rasta');
     const flags = (m: CommMessage) => {
       const e = c.add(m).entry;
-      return [e.near, e.direct];
+      return [e.person, e.near, e.direct];
     };
-    expect(flags(tell('Dori'))).toEqual([true, true]);
-    expect(flags(msg('whispers', 'Dori', "Dori whispers to you 'hi'"))).toEqual([true, true]);
-    expect(flags(msg('whispers', 'Dori', "\x1b[33mDori whispers to you 'hi'\x1b[0m"))).toEqual([true, true]);
-    expect(flags(msg('questions', 'Ecthel', "Ecthel asks you 'where?'"))).toEqual([true, true]);
+    const IN = (k: string) => [k, true, true];
+    const OUT = [null, false, false];
+    expect(flags(tell('Dori'))).toEqual(IN('dori'));
+    expect(flags(msg('whispers', 'Dori', "Dori whispers to you 'hi'"))).toEqual(IN('dori'));
+    expect(flags(msg('whispers', 'Dori', "\x1b[33mDori whispers to you 'hi'\x1b[0m"))).toEqual(IN('dori'));
+    expect(flags(msg('questions', 'Ecthel', "Ecthel asks you 'where?'"))).toEqual(IN('ecthel'));
     // The form MUME sends (owner's run log, 2026-11-10): the bare message.
-    expect(flags(msg('whispers', 'Domon', 'test'))).toEqual([true, true]);
-    expect(flags(msg('questions', 'Domon', "don't you know?"))).toEqual([true, true]);
-    // Undirected: still near (opens, raises, counts), not direct.
-    expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'anyone near Rivendell?'"))).toEqual([true, false]);
-    expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'are you there?'"))).toEqual([true, false]);
-    expect(flags(msg('whispers', 'A shadow', "A shadow whispers 'I won't allow you'"))).toEqual([true, false]);
-    expect(flags(msg('says', 'Dori', "Dori says 'hello you'"))).toEqual([true, false]);
-    expect(flags(msg('says', 'Dori', "Dori says to you 'hello'"))).toEqual([true, false]);
-    expect(flags(msg('emotes', 'Dori', 'Dori grins at you.'))).toEqual([true, false]);
-    expect(flags(msg('socials', 'Dori', 'Dori bows before you.'))).toEqual([true, false]);
-    expect(flags(msg('tales', 'Dori', "Dori narrates 'you there'"))).toEqual([false, false]);
-    expect(flags(msg('yells', 'Dori', "Dori yells 'help'"))).toEqual([false, false]);
-    // A group tell is neither; an NPC's tell has no chat.
-    expect(flags(msg('tells', 'Dori', "Dori tells the group 'you all ready?'"))).toEqual([false, false]);
-    expect(flags(msg('tells', 'Vit the innkeeper', "Vit tells you 'welcome'", { talkerType: 'npc' }))).toEqual([false, false]);
+    expect(flags(msg('whispers', 'Domon', 'test'))).toEqual(IN('domon'));
+    expect(flags(msg('questions', 'Domon', "don't you know?"))).toEqual(IN('domon'));
+    // Actions at you: MUME writes the target as "you" (the owner's archives), or your name.
+    expect(flags(msg('emotes', 'Dori', 'Dori grins at you.'))).toEqual(IN('dori'));
+    expect(flags(msg('socials', 'Dori', '\x1b[1mDori\x1b[0m bows before you.'))).toEqual(IN('dori'));
+    expect(flags(msg('socials', 'Huxulu', 'Huxulu pokes you in the ribs.'))).toEqual(IN('huxulu'));
+    expect(flags(msg('socials', 'Dori', 'Dori pats your head.'))).toEqual(IN('dori'));
+    expect(flags(msg('emotes', 'Dori', 'Dori waves at Rasta.'))).toEqual(IN('dori'));
+    // Undirected: Public only.
+    expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'anyone near Rivendell?'"))).toEqual(OUT);
+    expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'are you there?'"))).toEqual(OUT);
+    expect(flags(msg('whispers', 'A shadow', "A shadow whispers 'I won't allow you'"))).toEqual(OUT);
+    expect(flags(msg('says', 'Dori', "Dori says 'hello you'"))).toEqual(OUT);
+    expect(flags(msg('says', 'Dori', "Dori says to you 'hello'"))).toEqual(OUT);
+    expect(flags(msg('emotes', 'Dori', 'Dori grins.'))).toEqual(OUT);
+    expect(flags(msg('emotes', 'Dori', "Dori says 'are you all ready?'"))).toEqual(OUT);
+    expect(flags(msg('socials', 'Dori', 'Dori grins evilly, showing his teeth.'))).toEqual(OUT);
+    expect(flags(msg('emotes', 'Dori', 'Dori smiles at Haldis.'))).toEqual(OUT);
+    expect(flags(msg('tales', 'Dori', "Dori narrates 'you there'"))).toEqual(OUT);
+    expect(flags(msg('yells', 'Dori', "Dori yells 'help'"))).toEqual(OUT);
+    // A group tell is neither; an NPC's tell or emote at you has no chat.
+    expect(flags(msg('tells', 'Dori', "Dori tells the group 'you all ready?'"))).toEqual(OUT);
+    expect(flags(msg('tells', 'Vit the innkeeper', "Vit tells you 'welcome'", { talkerType: 'npc' }))).toEqual(OUT);
+    expect(flags(msg('socials', 'Thurn', 'Thurn bows before you.', { talkerType: 'npc' }))).toEqual(OUT);
     expect(c.chat('dori')!.unread).toBe(7);
-    expect(c.chat('ecthel')!.unread).toBe(3);
+    expect(c.chat('ecthel')!.unread).toBe(1);
   });
 
-  it('direct: your tell, whisper or question to a person; not your emote in a chat or a group tell', () => {
+  it('in a chat: your tell, whisper or question to a person, your action naming one; not a group tell', () => {
     const c = new CommChats();
     c.setSelf('Rasta');
     const own = (channel: string, text: string, destination: string | null = null, talker = 'you') =>
@@ -113,9 +132,10 @@ describe('CommChats (ADR 0134)', () => {
     expect(own('whispers', 'stay behind me', 'Dori')).toMatchObject({ person: 'dori', near: true, direct: true });
     expect(own('questions', 'where?', 'Dori')).toMatchObject({ person: 'dori', near: true, direct: true });
     expect(own('tells', 'by name', 'Dori', 'Rasta')).toMatchObject({ mine: true, direct: true });
-    // An emote or social naming a person with a chat lands there, as a line.
-    expect(own('emotes', 'You hug Dori.')).toMatchObject({ person: 'dori', near: true, direct: false });
-    expect(own('socials', 'You bow before Dori.')).toMatchObject({ person: 'dori', near: true, direct: false });
+    // An emote or social naming a person with a chat lands there (the pane draws it as a line).
+    expect(own('emotes', 'You hug Dori.')).toMatchObject({ person: 'dori', near: true, direct: true });
+    expect(own('socials', 'You bow before Dori.')).toMatchObject({ person: 'dori', near: true, direct: true });
+    expect(own('emotes', 'You hug Haldis.')).toMatchObject({ person: null, direct: false });
     expect(own('tells', 'coming', 'group')).toMatchObject({ groupTell: true, person: null, direct: false });
     expect(own('tells', "You tell the group 'ok'")).toMatchObject({ groupTell: true, direct: false });
     expect(own('questions', 'anyone near you?')).toMatchObject({ person: null, direct: false });
@@ -134,9 +154,9 @@ describe('CommChats (ADR 0134)', () => {
     c.setSelf('Gibur');
     c.setRoster(['Gibur', 'Norsy', 'Lindir'], t);
     const g = c.add(msg('tells', 'Norsy', "\x1b[32mNorsy tells the group 'trans'\x1b[0m"));
-    expect(g.entry).toMatchObject({ groupTell: true, near: false, direct: false, group: true, person: 'norsy' });
+    expect(g.entry).toMatchObject({ groupTell: true, near: false, direct: false, group: true, person: null });
     expect(keys(c)).toEqual([]);
-    expect(c.chat('norsy')!.unread).toBe(0);
+    expect(c.chat('norsy')).toBeUndefined();
     expect(c.groupUnread).toBe(1);
     const mine = c.add(msg('tells', 'you', 'coming', { destination: 'group' }));
     expect(mine.entry).toMatchObject({ groupTell: true, group: true, person: null });

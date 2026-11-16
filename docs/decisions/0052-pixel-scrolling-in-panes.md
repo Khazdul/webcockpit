@@ -104,3 +104,47 @@ after a switch from a chat, with no `↓ N new` row.
 - **Not verified in WebKit:** no WebKit build on the dev machine (the
   Playwright download timed out). A unit test models the 32-bit write;
   the owner checks on the iPad.
+
+## Addendum: live is left only by scrolling up (2026-11-16)
+
+The owner: the Comm pane did not keep to the newest message as talk came
+in, and Group once seemed to scroll the wrong way. Wanted, in every view
+and layout: always at the newest, unless scrolled up; then the view holds
+still until the bottom is reached again or `↓ N new` is pressed.
+
+- **Cause:** the Comm thread shows the newest `THREAD_PAGE` (200) items
+  of a view, so past 200 every message trims the oldest and the new first
+  item gets its time separator (`fixSeps`). That ran *after*
+  `AnchoredList.render` had written the bottom (live) or made up for the
+  trimmed items (scrolled back). Live, the separator above pushed the
+  view about a line off the bottom, and the scroll event of the render's
+  own write, which comes a frame later, read that as the reader scrolling
+  up: the thread stopped following and showed `↓ N new`. Scrolled back,
+  the view slid down a separator per message ("the wrong way"). It
+  struck every view once it held over 200 items (Public and Group soon,
+  a chat seldom), on the desktop and the phone alike. A burst in one
+  frame rendered once and never showed it, which is why the old e2e
+  tests (bursts of 40) passed.
+- **Fix, in `AnchoredList`:**
+  - `render(…, after)`: the owner's changes to the elements once they are
+    in place (Comm's separators) run before the view is put back.
+  - Scrolled back, the view is held by an anchor item (the first one in
+    view that stays; the one after it when that is the first kept item,
+    whose separator may change) and its distance from the view's top,
+    read before the render and restored after it: trims, items put in
+    front and `after`'s changes are all made up for by one write.
+  - Live is left only by a move up: a scroll event that finds a live
+    view off the bottom while `scrollTop` did not drop below the last
+    written or seen position (content grew under it) keeps it live and
+    writes the bottom again. The bottom (within `LIVE_SLACK_PX`) is
+    still live from any direction.
+  - A scroll event while the list is hidden (0 high: a covering search,
+    a hidden pane) is ignored; the next render puts the view back.
+    `toBottom` records the position it wrote.
+- **Tests:** `tests/e2e/comm-scroll.spec.ts` (Public, Group and a chat,
+  messages one per frame past 200: live follows, scrolled back holds the
+  same item at the same pixel, `↓ N new`, a view switch, the search) and
+  `tests/e2e/phone-comm-scroll.spec.ts` (the phone's Comm, also opened
+  again after talk came while it was closed); unit cases in
+  `panes-comm-ui.test.ts`. The UI pane uses the same list and gains the
+  same rules (it has no `after`).

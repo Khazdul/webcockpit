@@ -63,7 +63,7 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('Comm: Public without tells, questions and socials, a chat per person, and never archives a replay', async ({ page }) => {
+test('Comm: Public without tells, questions and socials, a chat per person you talk with, and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
   const rows = await commRows(page).allTextContents();
@@ -76,9 +76,11 @@ test('Comm: Public without tells, questions and socials, a chat per person, and 
     "Lindir sings 'A Elbereth Gilthoniel'",
     "You say 'ready when you are'",
   ]);
-  // Public, Group, Gibur, Dori and Ecthel (a question opens a chat).
-  await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(5);
-  await expect(entry(page, 'ecthel')).toBeVisible();
+  // Public, Group, Gibur and Dori (your whisper to her). Ecthel's ask to
+  // anyone opens no chat: a chat holds only talk between you two (ADR 0134
+  // addendum "Private chats hold only talk to you").
+  await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(4);
+  await expect(entry(page, 'ecthel')).toHaveCount(0);
   await expect(entry(page, 'gibur')).toBeVisible();
   await expect(entry(page, 'dori')).toBeVisible();
   // A replay has no reply line.
@@ -116,11 +118,11 @@ test('a chat: bubbles for talk between you two, yours on the right, the unread c
   await expect(meta).toHaveCSS('position', 'absolute');
   await comm(page).locator('.wc-cm-bb.is-me').first().hover();
   await expect(meta).toHaveCSS('opacity', '1');
-  // His narrate is in his chat as in Public: left-aligned and whole, no bubble.
-  await expect(comm(page).locator('.wc-cm-oh').first()).toHaveText("Gibur narrates 'orcs gathering at the ford'");
-  // So is his emote: only talk to you is a bubble (ADR 0134 addendum "Bubbles only for talk to you").
-  await expect(comm(page).locator('.wc-cm-oh[data-channel="emotes"]')).toHaveText('Gibur grins at the scout wickedly.');
-  await expect(comm(page).locator('.wc-cm-bb[data-channel="emotes"]')).toHaveCount(0);
+  // His narrate and his emote at someone else are not in his chat: it holds
+  // only talk between you two (ADR 0134 addendum "Private chats hold only talk to you").
+  await expect(comm(page).locator('.wc-cm-thread')).not.toContainText('orcs gathering at the ford');
+  await expect(comm(page).locator('.wc-cm-thread')).not.toContainText('grins at the scout');
+  await expect(comm(page).locator('.wc-cm-oh')).toHaveCount(0);
   // Text is selectable (no mousedown is taken).
   const sel = await comm(page)
     .locator('.wc-cm-bb .wc-cm-bt')

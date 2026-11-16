@@ -781,27 +781,6 @@ textarea.wc-cm-rinput {
   color: var(--cm-fg);
 }
 
-/* Under a group tell's bubble in a person's chat: always shown, small and
- * very quiet, on a little line of its own (it was said to the whole group,
- * maybe not meant for you). */
-.wc-cm-gt {
-  margin: 0.05em 0 0 0.7em;
-  font-size: 0.66em;
-  line-height: 1.2;
-  letter-spacing: 0.03em;
-  color: color-mix(in srgb, var(--cm-dim) 65%, transparent);
-  user-select: none;
-}
-
-.wc-comm[data-light] .wc-cm-gt {
-  color: color-mix(in srgb, var(--cm-dim) 75%, transparent);
-}
-
-.wc-cm-gt.is-me {
-  margin: 0.05em 0.7em 0 0;
-  text-align: right;
-}
-
 /* The channel and time: beside the bubble (outside it, in the thread's
  * free side), shown only while that bubble is hovered; it takes no height,
  * so a bubble is one text line tall. Small and quiet, the word over the
@@ -841,9 +820,8 @@ textarea.wc-cm-rinput {
   }
 }
 
-/* Everything else in a chat (say, emote, social, an undirected whisper or
- * question, narrate, yell, song, prayer): a line as in Public, left-aligned
- * and whole, with no bubble (maybe not to you): a little smaller and
+/* An emote or social in a chat (at you, or yours naming them): a line as
+ * in Public, left-aligned and whole, with no bubble: a little smaller and
  * quieter, on the card backing only; your own with Public's faint tint. */
 .wc-cm-oh {
   margin: 0.4em 0 0.05em;

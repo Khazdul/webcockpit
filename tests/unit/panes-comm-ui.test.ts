@@ -149,7 +149,7 @@ describe('AnchoredList', () => {
     let items = Array.from({ length: count }, (_, i) => i);
     let built = 0;
     let key = 'k';
-    const render = () =>
+    const render = (after?: () => void) =>
       al.render(
         items,
         (i) => {
@@ -161,6 +161,7 @@ describe('AnchoredList', () => {
         },
         key,
         (k) => `↓ ${k}`,
+        after,
       );
     render();
     /** The items wholly or partly in view. */
@@ -174,6 +175,7 @@ describe('AnchoredList', () => {
     return {
       al,
       m,
+      heights,
       render,
       inView,
       top: () => m.scrollTop(al.el),
@@ -304,6 +306,54 @@ describe('AnchoredList', () => {
     expect(t.inView()).toEqual(seen);
   });
 
+  it('scrolled back: a height changed above the view by the render\'s `after` is made up for (Comm separators)', () => {
+    const l = list(12, 5);
+    l.scroll(-4 * CELL_H);
+    const view = l.inView();
+    // The window slides: one item off the top, one new; the new first item
+    // gets a taller head (its time separator) after it is in place.
+    l.trim(1);
+    l.add(1);
+    l.render(() => l.heights.set(l.al.elements[0]!, 2));
+    expect(l.inView()).toEqual(view);
+    expect(l.al.live).toBe(false);
+  });
+
+  it('live: content that grows under the view after the render does not leave live', () => {
+    const l = list(10, 5);
+    expect(l.al.live).toBe(true);
+    // A height grows after the write to the bottom; the scroll event for
+    // that write comes late and finds the view off the bottom.
+    l.heights.set(l.al.elements[0]!, 3);
+    l.al.el.dispatchEvent(new Event('scroll'));
+    expect(l.al.live).toBe(true);
+    expect(l.al.more.hidden).toBe(true);
+    expect(l.inView().at(-1)).toBe('m9');
+    expect(l.top() + l.m.clientHeight(l.al.el)).toBe(l.m.scrollHeight(l.al.el));
+    // A move up still leaves live.
+    l.scroll(-3);
+    expect(l.al.live).toBe(false);
+  });
+
+  it('a scroll event while hidden (0 high) changes nothing', () => {
+    let client = 5 * CELL_H;
+    const m = model(() => CELL_H, () => client);
+    const al = new AnchoredList<number>(document, () => {}, { metrics: m, settleMs: 0 });
+    document.createElement('div').append(al.el, al.more);
+    const items = Array.from({ length: 20 }, (_, i) => i);
+    al.render(items, () => document.createElement('div'), 'k', (n) => `↓ ${n}`);
+    scrollBy(al.el, m, -2 * CELL_H);
+    expect(al.live).toBe(false);
+    const top = m.scrollTop(al.el);
+    client = 0;
+    al.el.dispatchEvent(new Event('scroll'));
+    expect(al.live).toBe(false);
+    client = 5 * CELL_H;
+    al.render(items, () => document.createElement('div'), 'k', (n) => `↓ ${n}`);
+    expect(m.scrollTop(al.el)).toBe(top);
+    al.dispose();
+  });
+
   it('keepView holds the top item while heights change', () => {
     const tall = new Set<number>();
     const l = list(10, 5, (i) => (tall.has(i) ? 2 : 1));
@@ -387,7 +437,7 @@ describe('CommPane (ADR 0134)', () => {
     expect(c.rows()).toEqual(["Gwaihir says 'ride me'", "Gibur says 'hi'"]);
   });
 
-  it('a tell opens a chat with an unread count; its bubbles and the overheard lines', () => {
+  it('a tell opens a chat with an unread count and its bubbles; his narrate and group tell stay out', () => {
     const c = comm({ cols: 60, rows: 20 });
     c.emit('tales', 'Gibur', "Gibur narrates 'first'");
     expect(c.entries()).toEqual(['public', 'group']);
@@ -408,44 +458,41 @@ describe('CommPane (ADR 0134)', () => {
     expect(bubbles.map((b) => b.classList.contains('is-me'))).toEqual([false, false, true]);
     expect(bubbles[1]!.classList.contains('is-cont')).toBe(true);
     expect(bubbles[2]!.querySelector('.wc-cm-bm')!.textContent).toMatch(/^tell · \d\d:\d\d$/);
-    // The narrate before the chat opened is in it as an overheard line:
-    // whole, as in Public, the verb in the channel colour; no channel icon.
-    const oh = c.q('.wc-cm-oh')!;
-    expect(oh.textContent).toBe("Gibur narrates 'first'");
-    expect(oh.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');
+    // The narrate before the chat opened is not in it (ADR 0134 addendum 2026-11-16).
+    expect(c.qa('.wc-cm-oh')).toHaveLength(0);
     expect(c.qa('.wc-cm-thread svg')).toHaveLength(0);
-    // A group tell from him: a bubble marked "group", no unread, no raise.
+    // A group tell from him: Group only; no unread, no raise, not in his chat.
     c.open('public');
     c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
     c.flush();
     expect(row.querySelector<HTMLElement>('.wc-cm-badge')!.hidden).toBe(true);
     c.open('gibur');
-    const last = c.qa('.wc-cm-bb').at(-1)!;
-    expect(last.querySelector('.wc-cm-bt')!.textContent).toBe('regroup');
-    expect(last.querySelector('.wc-cm-bm')!.textContent).toMatch(/^group · /);
-    // Always marked under the bubble; other bubbles are not.
-    expect(c.qa('.wc-cm-gt').map((e) => e.textContent)).toEqual(['grouptell']);
-    expect(last.parentElement!.lastElementChild!.classList.contains('wc-cm-gt')).toBe(true);
+    expect(c.qa('.wc-cm-bb .wc-cm-bt').map((e) => e.textContent)).toEqual(['hi', 'there', 'ok']);
   });
 
-  it('a chat draws bubbles only for talk between the two of you; the rest are lines as in Public', () => {
+  it('a chat holds only talk between the two of you: words as bubbles, actions at you as lines', () => {
     const c = comm({ cols: 60, rows: 30 });
     c.emit('says', 'Gibur', "Gibur says 'hello all'");
     c.emit('emotes', 'Gibur', 'Gibur grins at the scout wickedly.');
     c.emit('socials', 'Gibur', 'Gibur nods solemnly.');
     c.emit('questions', 'Gibur', "Gibur asks 'anyone near Rivendell?'");
     c.emit('whispers', 'Gibur', "Gibur whispers 'I won't allow you'");
+    c.emit('tales', 'Gibur', "Gibur narrates 'orcs!'");
+    // Nothing of that is talk to you: no chat yet.
+    c.flush();
+    expect(c.entries()).toEqual(['public', 'group']);
     c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
     c.emit('whispers', 'Gibur', 'psst');
     c.emit('questions', 'Gibur', "where's the inn?");
+    c.emit('socials', 'Gibur', 'Gibur pokes you in the ribs.');
     c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
+    c.emit('says', 'Gibur', "Gibur says 'more'");
     c.emit('tells', 'you', 'ok', { destination: 'Gibur' });
     c.emit('emotes', 'you', 'You hug Gibur.');
     c.emit('tells', 'you', 'coming', { destination: 'Gibur' });
     c.flush();
-    // Says, emotes, socials and undirected asks still open the chat and count (near is unchanged).
     expect(c.entries()).toEqual(['public', 'group', 'gibur']);
-    expect(c.q('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.textContent).toBe('8');
+    expect(c.q('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.textContent).toBe('4');
     c.open('gibur');
     const kinds = c.qa('.wc-cm-thread .wc-cm-item').map((it) => {
       const el = it.querySelector<HTMLElement>('.wc-cm-bb, .wc-cm-oh')!;
@@ -453,34 +500,26 @@ describe('CommPane (ADR 0134)', () => {
       return `${bubble ? (el.classList.contains('is-me') ? 'me' : 'them') : 'line'}: ${(bubble ? el.querySelector('.wc-cm-bt')! : el).textContent}`;
     });
     expect(kinds).toEqual([
-      "line: Gibur says 'hello all'",
-      'line: Gibur grins at the scout wickedly.',
-      'line: Gibur nods solemnly.',
-      "line: Gibur asks 'anyone near Rivendell?'",
-      "line: Gibur whispers 'I won't allow you'",
       'them: hi',
       'them: psst',
       "them: where's the inn?",
-      'them: regroup',
+      'line: Gibur pokes you in the ribs.',
       'me: ok',
       'line: You hug Gibur.',
       'me: coming',
     ]);
-    // The group tell keeps its mark; no line is a bubble and none is marked.
-    expect(c.qa('.wc-cm-gt').map((e) => e.textContent)).toEqual(['grouptell']);
-    expect(c.qa('.wc-cm-gt')[0]!.previousElementSibling!.querySelector('.wc-cm-bt')!.textContent).toBe('regroup');
     const bubbles = c.qa('.wc-cm-bb');
-    expect(bubbles.map((b) => b.dataset.channel)).toEqual(['tells', 'whispers', 'questions', 'tells', 'tells', 'tells']);
-    expect(bubbles.map((b) => b.classList.contains('is-wh'))).toEqual([false, true, false, false, false, false]);
-    // A run continues over bubbles only: not after a line (his first, yours after your emote).
-    expect(bubbles.map((b) => b.classList.contains('is-cont'))).toEqual([false, true, true, true, false, false]);
+    expect(bubbles.map((b) => b.dataset.channel)).toEqual(['tells', 'whispers', 'questions', 'tells', 'tells']);
+    expect(bubbles.map((b) => b.classList.contains('is-wh'))).toEqual([false, true, false, false, false]);
+    // A run continues over bubbles only: not after a line.
+    expect(bubbles.map((b) => b.classList.contains('is-cont'))).toEqual([false, true, true, false, false]);
     // Lines: the verb in the channel colour, yours marked, no bubble meta.
     const lines = c.qa('.wc-cm-oh');
-    expect(lines.map((l) => l.dataset.channel)).toEqual(['says', 'emotes', 'socials', 'questions', 'whispers', 'emotes']);
-    expect(lines.map((l) => l.hasAttribute('data-mine'))).toEqual([false, false, false, false, false, true]);
-    expect(lines[0]!.querySelector('.wc-cm-vb')!.textContent).toBe(' says');
-    expect(lines[1]!.querySelector('.wc-cm-nm')!.textContent).toBe('Gibur');
+    expect(lines.map((l) => l.dataset.channel)).toEqual(['socials', 'emotes']);
+    expect(lines.map((l) => l.hasAttribute('data-mine'))).toEqual([false, true]);
+    expect(lines[0]!.querySelector('.wc-cm-nm')!.textContent).toBe('Gibur');
     expect(c.qa('.wc-cm-oh .wc-cm-bm')).toHaveLength(0);
+    expect(c.qa('.wc-cm-gt')).toHaveLength(0);
     // One time separator: the thread's first item (no gaps between the rest).
     expect(c.qa('.wc-cm-thread .wc-cm-sep')).toHaveLength(1);
   });

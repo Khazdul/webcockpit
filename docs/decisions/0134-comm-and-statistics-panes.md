@@ -485,3 +485,50 @@ you does not look as if it was.
   players at all, and in what form, has not been seen (none in the
   owner's archives and run logs). If one comes as a bare text it would
   be taken as to you; `toYou` is the one place to change.
+
+## Addendum: Private chats hold only talk to you (2026-11-16)
+
+The owner changed his mind on the content of a person's chat (it held
+everything that person said, overheard channels as quiet lines): a
+private chat should hold only communication directed at you. Public and
+Group are unchanged.
+
+- **Rule** (`CommChats.add`, `src/gmcp/comm-chats.ts`): a message is in a
+  person's chat only when it is talk between you two.
+  - Theirs: a tell that is not a group tell; a whisper or a question
+    (`ask`) to you (`toYou`, as in the addendum "Bubbles only for talk to
+    you"); an emote or social at you (`actionAtYou`, below).
+  - Yours: a tell, whisper or question with that person as
+    `destination`; an emote or social that names a person who has a chat
+    (the old name heuristic, kept as the mirror of an action at you).
+  - Never: says (also a `say` with a destination), narrates, yells,
+    songs, prayers, undirected whispers, questions and actions, group
+    tells (Group only; the group tell bubble and its `grouptell` mark in
+    a chat are gone), NPCs.
+  Everything in a chat opens it, raises it and counts as unread when it
+  is not open: `near` and `direct` are the same now (`person !== null`).
+  Who a message is "with" for Group (the talker, or the person your line
+  names) is kept apart from the chat, so Group's content is as before.
+- **An action at you** (`actionAtYou`, `src/gmcp/comm.ts`): GMCP gives
+  emotes and socials no target, but MUME writes the target as `you` in
+  the text the target sees (`Huxulu pokes you in the ribs.`, `Thurn bows
+  before you.`: the owner's Cockpit archives). An incoming emote or social
+  from a player is at you when, after the talker's own name and with
+  quoted words taken out (`Dori emotes 'are you ready?'` speaks to the
+  room), it holds the word `you`, `your`, `yours` or `yourself`, or your
+  character's name (a free emote may name you). One string scan per
+  action; `add` stays O(1).
+- **Drawing:** in a chat, words (tells, whispers, questions) are bubbles;
+  an action (theirs at you, yours naming them) is the whole action on a
+  line as in Public (`buildAction`, the old overheard style), not a
+  bubble.
+- **History:** the archive (and its sync, stage 62) keeps the raw
+  messages, and the model sorts them again on every load, so older says
+  and narrates that were in a chat drop out of it with no migration. A
+  chat whose person only said or narrated things no longer appears.
+- **Open:** an emote at someone else that mentions `you` in passing
+  (`Dori points at Haldis and grins at you all`) is taken as at you;
+  MUME's own wording for targeted socials is not otherwise marked. With
+  Socials and Questions off in Public by default (round 2), an
+  undirected social or question is now in no Comm view unless the owner
+  turns that channel on in the gear.
