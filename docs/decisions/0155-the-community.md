@@ -885,3 +885,56 @@ the client's in `tests/unit/review65.test.ts` unless named.
 - **CR8 (queue).** The admin's queue is one `UNION ALL` statement over
   runs, comments and notes, ordered and cut in SQL (it stays readable).
 - **CR9.** `worker/mume.ts`'s cache comment names the row key `war`.
+
+## As built (stage 65, owner's feedback: W4, freshness)
+
+Feedback point 4 (staging, Firefox): a private window logged in as B
+showed one note through reloads and a restart until B logged out; a
+guest's private window did not see a run A had just listed through a
+wait, reloads and re-entering the page, while a new window did.
+
+**The cause (reproduced against the local Worker, Chromium and Firefox).**
+Nothing in the client keeps data between visits (no service worker; the
+page fetches the list, the boxes and the board on every mount; the
+sessionStorage view holds only sort/page/tab/by; the counter's
+localStorage and online.ts's 55 s reuse feed only the menu's count). The
+staleness was the Worker's own Cache API entry: kept 60 s per variant
+(staging: `Age` counts up and the entry turns over at 60 s, so it is not
+kept longer) and **never passed by a write**. Whoever opened the page
+first in that minute fixed what everybody in the same data centre saw:
+B's reload got the board kept from before A's and B's notes (B's own note
+was on screen only through the page's local insert, so a reload "lost"
+it), and the guest's re-entry and reloads got the list kept from before
+A's listing. Neither a reload nor a new window can pass a server-side
+entry; the "new window" and "log out" only let the minute run out. The
+browser's `public, max-age=60` added a second layer that a server-side
+change could not reach. The e2e below fails on both counts without the fix.
+
+**The fix.**
+- **The browser keeps nothing:** the three public reads answer
+  `Cache-Control: no-cache` (miss and hit alike), and the client asks
+  them with `cache: 'no-store'` (`src/cloud/community/api.ts`), so a
+  reload and a re-entry always reach the Worker.
+- **The edge copy has an explicit expiry:** `cached()` stores a copy with
+  `public, max-age=60` and `X-WC-Kept: <ms>`, and believes a hit only
+  while `now − kept < 60 s` by that time, whatever the cache does. D1 is
+  still read at most once a minute per variant and place.
+- **A write moves the cache on:** a successful non-GET to `/api/u/runes*`,
+  `/api/u/pub*` (listing, unlisting, removal, votes, comments),
+  `/api/u/comments/*`, `/api/u/report`, `/api/u/account` (DELETE) or any
+  `/api/admin/*` puts a new **mark** (`<origin>/api/community/~mark`, a
+  write's time and 6 random characters, kept a day) into the Cache API
+  (`communityChanged`, called by `worker/router.ts`); every kept key
+  carries `&mark=<mark>` (none before the first write), so the next read
+  of each variant in that place reads D1. The Cache API is per data
+  centre: the writer (and everybody served by the same place) sees the
+  change at once, others within 60 s. The writes are rate limited, so the
+  extra reads are bounded by them.
+
+Tests: `worker/test/community-fresh.test.ts` (no-cache on miss and hit,
+the stored copy's headers, a cache that never expires believed 60 s, a
+note, its removal and a listing seen at once, a refused write marks
+nothing); `tests/unit/community-api.test.ts` (`cache: 'no-store'` on the
+reads, not on writes, handed to `fetch`);
+`tests/e2e-worker/community-fresh.spec.ts` (Chromium and Firefox against
+the local Worker: (a) and (b) as the owner met them).
