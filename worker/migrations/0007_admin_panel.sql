@@ -48,7 +48,7 @@ CREATE TABLE limit_default (
 
 -- The backfill of the new daily metrics, for the days before today, from
 -- what the tables still know (the daily roll-up writes them from now on,
--- worker/stats.ts). Deleted rows are gone, so the past is a floor; the
+-- worker/stats.ts). Deleted rows are gone, so the past is a floor. The
 -- device windows reach back only as far as device_day (35 days).
 INSERT OR IGNORE INTO stat_daily (day, metric, key, value)
 SELECT d.day, 'devices_7d', '', (SELECT COUNT(DISTINCT x.device) FROM device_day x WHERE x.day > date(d.day, '-7 days') AND x.day <= d.day)

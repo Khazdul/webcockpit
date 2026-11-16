@@ -509,7 +509,10 @@ export async function adminGraphs(db: D1, range: AdminGraphRange, now: number): 
            FROM stat_daily WHERE metric IN ('peak_online', 'peak_playing') AND key = '' AND day < ?1 GROUP BY day ORDER BY day`,
         ).bind(today)
       : db
-          .prepare('SELECT (ts / ?2) * ?2 AS ts, MAX(online) AS online, MAX(playing) AS playing FROM stat_sample WHERE ts > ?1 AND ts <= ?3 GROUP BY ts / ?2 ORDER BY 1')
+          // (The bucket cast: a bound number may arrive as REAL, and the division must be whole.)
+          .prepare(
+            'SELECT (ts / CAST(?2 AS INTEGER)) * CAST(?2 AS INTEGER) AS ts, MAX(online) AS online, MAX(playing) AS playing FROM stat_sample WHERE ts > ?1 AND ts <= ?3 GROUP BY ts / CAST(?2 AS INTEGER) ORDER BY 1',
+          )
           .bind(now - r.ms, bucketMs, now),
     db.prepare("SELECT day, metric, value FROM stat_daily WHERE day >= ?1 AND day < ?2 AND key = '' ORDER BY day").bind(since, today),
     db.prepare("SELECT metric, key, SUM(value) AS n FROM stat_daily WHERE day >= ?1 AND day < ?2 AND metric IN ('type', 'browser', 'version') GROUP BY metric, key").bind(since, today),
