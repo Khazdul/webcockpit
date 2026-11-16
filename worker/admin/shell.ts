@@ -276,14 +276,17 @@ export const SHELL_JS = String.raw`
 
   // --- The views by the URL's hash ---
 
-  /** name → {title, group, render(root, params), nav?: the link it lights, box?: a kept element's id} */
-  var views = {};
+  /**
+   * name → {title, group, render(root, params), nav?: the link it lights, box?: a kept element's id}.
+   * No prototype, so a hash such as #constructor or #__proto__ names no view (review fix S7).
+   */
+  var views = Object.create(null);
   var viewOrder = [];
   var GROUPS = [['look', 'Look after'], ['numbers', 'Numbers'], ['site', 'Site']];
   var current = null;
   var keepStatus = false;
   function registerView(name, view) {
-    if (!views[name]) viewOrder.push(name);
+    if (!Object.prototype.hasOwnProperty.call(views, name)) viewOrder.push(name);
     views[name] = view;
   }
   /** Goes to a hash; the status line stays (the result of an action). */
@@ -310,7 +313,7 @@ export const SHELL_BOOT_JS = String.raw`
     var name = i < 0 ? h : h.slice(0, i);
     var rest = i < 0 ? '' : h.slice(i + 1);
     try { rest = decodeURIComponent(rest); } catch (e) { /* kept as written */ }
-    return views[name] ? { name: name, params: rest } : { name: 'reports', params: '' };
+    return Object.prototype.hasOwnProperty.call(views, name) ? { name: name, params: rest } : { name: 'reports', params: '' };
   }
 
   var navLinks = {};

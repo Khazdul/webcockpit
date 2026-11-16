@@ -46,6 +46,20 @@ describe('the admin page: the shell', () => {
     expect(document.title).toBe('WebCockpit admin · Reports');
   });
 
+  it('S7: a hash naming an inherited property (#constructor, #__proto__, #toString) falls back to Reports and the page still loads', async () => {
+    for (const hash of ['#constructor', '#__proto__', '#toString', '#hasOwnProperty', '#valueOf/x']) {
+      state.calls = [];
+      await boot(hash);
+      expect($('#v-reports').hidden, hash).toBe(false);
+      expect(on(), hash).toEqual(['#reports']);
+      expect(gets(), hash).toContain('/api/admin/stats');
+      await go('#__proto__');
+      expect($('#v-reports').hidden, hash).toBe(false);
+      teardown();
+      setup();
+    }
+  });
+
   it('no open reports: the count is empty', async () => {
     await boot();
     expect($('#nav-count').textContent).toBe('');
