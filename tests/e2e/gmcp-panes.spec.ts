@@ -50,19 +50,19 @@ test('the game output keeps MUME’s blank lines', async ({ page }) => {
   expect(texts[i + 2]).toBe('*=>');
 });
 
-test('the clock is day from the dawn hour, counting down to the night, and the room clock', async ({ page }) => {
+test('the clock is night through the dawn hour, counting down to the day, and the room clock', async ({ page }) => {
   await demoDone(page);
   const clock = page.locator('.wc-mb-clock');
-  // 7:03 am in Astron: the sun rose at the dawn hour, 7:00 (ADR 0093, addendum
-  // 2026-11-01); the night begins at 20:00, the hour after the dusk hour.
+  // 7:03 am in Astron: the dawn hour (7) is still dark; the sunlight comes at
+  // 8:00, the hour after (ADR 0093, addendum 2026-11-16).
   // In the menu bar (stage 31a) the clock is a sun in a time-left ring; the countdown is its tooltip.
   await expect(clock).toHaveAttribute('data-sync', 'minute');
-  await expect(clock).toHaveAttribute('data-period', 'day');
+  await expect(clock).toHaveAttribute('data-period', 'night');
   const arc = page.locator('.wc-mb-ring-arc');
   const first = await arc.getAttribute('d');
   await expect.poll(() => arc.getAttribute('d'), { timeout: 3000 }).not.toBe(first);
   await clock.hover();
-  await expect(page.locator('.wc-mb-tip')).toHaveText(/^Night in 12:5\d$/);
+  await expect(page.locator('.wc-mb-tip')).toHaveText(/^Day in 0:5\d$/);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('wc.clock') ?? 'null'));
   expect(saved).toMatchObject({ precision: 'minute', reason: 'room_clock' });
 });

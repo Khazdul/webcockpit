@@ -122,7 +122,7 @@ test('clock synced to the minute: the sun in a time-left ring, no text, the coun
   // No countdown text: the only text is the hidden `~`.
   expect(await clock.evaluate((e) => (e as HTMLElement).innerText.trim())).toBe('');
   await expect(page.locator('.wc-mb-tilde')).toBeHidden();
-  // 6 of the day's 13 hours (7:00, the dawn hour, → 20:00) are left at 14:00: the arc from about 6 o'clock up to 12.
+  // 5 of the day's 11 hours (8:00, dawn + 1, → 19:00, the dusk hour) are left at 14:00: the arc from about 6 o'clock up to 12.
   const d = (await page.locator('.wc-mb-ring-arc').getAttribute('d'))!;
   expect(d).toMatch(/A11 11 0 0 1 12 1$/);
   // The ring is as tall as the cell and centred on the bar.
@@ -134,7 +134,7 @@ test('clock synced to the minute: the sun in a time-left ring, no text, the coun
   expect(geo.clock).toBeCloseTo(3, 2);
   expect(whole(geo.bar) && whole(geo.field)).toBe(true);
   await clock.hover();
-  await expect(tip(page)).toHaveText(/^Night in [5-6]:\d\d$/);
+  await expect(tip(page)).toHaveText(/^Night in [4-5]:\d\d$/);
 });
 
 test('clock synced to the hour only: the ring and a grey ~, one cell wider, on whole cells', async ({ page }) => {
@@ -156,8 +156,8 @@ test('clock synced to the hour only: the ring and a grey ~, one cell wider, on w
   expect(t.x).toBeGreaterThan(ring.x + ring.width - 2);
   expect(t.x + t.width).toBeLessThanOrEqual(dot.x + 1);
   await clock.hover();
-  // Astron: the night 20:00 → 7:00 (the dawn hour): 8 game hours left at 23:00.
-  await expect(tip(page)).toHaveText('Day in ~8 game hours');
+  // Astron: the night 19:00 (the dusk hour) → 8:00 (dawn + 1): 9 game hours left at 23:00.
+  await expect(tip(page)).toHaveText('Day in ~9 game hours');
 });
 
 test('clock not synced: an empty slot that keeps its width and its tooltip', async ({ page }) => {

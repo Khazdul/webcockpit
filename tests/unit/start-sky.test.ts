@@ -21,7 +21,7 @@ describe('start sky look', () => {
 
   it('dayness rises smoothly and never falls from deep night through dawn to noon', () => {
     for (let m = 0; m < 12; m++) {
-      const rise = DAWN[m]!;
+      const rise = DAWN[m]! + 1;
       let prev = -1;
       for (let h = rise - 3; h <= 12.5; h += 1 / 60) {
         const d = skyLookAt(at(m, h), { weather: 'clear' }).dayness;
@@ -36,8 +36,9 @@ describe('start sky look', () => {
 
   it('the sun enters just off-screen left, crosses left to right and sets off-screen right', () => {
     for (const m of [0, 6]) {
-      const rise = DAWN[m]!;
-      const set = DUSK[m]! + 1;
+      // sunlight dawn + 1 ≤ h < dusk (ADR 0093, addendum 2026-11-16)
+      const rise = DAWN[m]! + 1;
+      const set = DUSK[m]!;
       const first = skySceneAt(at(m, rise));
       expect(first.sun.x).toBeLessThan(0);
       expect(first.sun.y).toBeCloseTo(horizonOf(DEFAULT_VIEW), 5);
@@ -51,6 +52,18 @@ describe('start sky look', () => {
       }
       expect(skySceneAt(at(m, set)).sun.x).toBeGreaterThan(1);
     }
+  });
+
+  it('Wedmath (dawn 4, dusk 22): the sun is down through 4:59 am, up from 5:00 am to 9:59 pm, down from 10:00 pm (owner, in-game)', () => {
+    const W = 7;
+    expect(skySceneAt(at(W, 4.5)).sun.drawn).toBe(false);
+    expect(skySceneAt(at(W, 5)).sun.x).toBeLessThan(0);
+    expect(skySceneAt(at(W, 5)).sun.y).toBeCloseTo(horizonOf(DEFAULT_VIEW), 5);
+    expect(skySceneAt(at(W, 13)).sun.drawn).toBe(true);
+    expect(skySceneAt(at(W, 20)).sun.x).toBeLessThan(1);
+    expect(skySceneAt(at(W, 22)).sun.x).toBeGreaterThan(1);
+    expect(skySceneAt(at(W, 22.5)).sun.drawn).toBe(false);
+    expect(skyLookAt(at(W, 4.5)).dayness).toBeLessThan(skyLookAt(at(W, 6)).dayness);
   });
 
   it('the sun is clearly larger than the moon', () => {
@@ -214,8 +227,8 @@ describe('start sky weather director', () => {
         any = true;
         expect(seasonOf(month)).not.toBe('winter');
         const h = (g - g0) / 60;
-        expect(h).toBeGreaterThan(DAWN[month]! - 1.6);
-        expect(h).toBeLessThan(DAWN[month]! + 2.1);
+        expect(h).toBeGreaterThan(DAWN[month]! + 1 - 1.6);
+        expect(h).toBeLessThan(DAWN[month]! + 1 + 2.1);
       }
       if (any) foggy++;
     }

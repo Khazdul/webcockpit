@@ -131,7 +131,7 @@ export function dawnFogAt(g: number): number {
   const d = Math.floor(g / DAY_S);
   const month = mod(Math.floor(g / MONTH_S), 12);
   if (seasonOf(month) === 'winter' || hash01(d, SEED + 5) >= 0.27) return 0;
-  const rise = DAWN[month]! * 60;
+  const rise = (DAWN[month]! + 1) * 60; // the sun comes at dawn + 1 (ADR 0093, addendum 2026-11-16)
   const local = g - d * DAY_S;
   const k = sstep(rise - 90, rise - 30, local) * (1 - sstep(rise + 60, rise + 120, local));
   if (k <= 0) return 0;

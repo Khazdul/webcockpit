@@ -26,10 +26,10 @@
 //   its stars too, owner items 76, 77, 81); from 0 the settled clock is
 //   the new one. A resync glides `s` toward the clock's time (a big one
 //   snaps, never back over the turn); a page load or sync mid-turn joins at
-//   its place. Without minute precision `Event.Sun set` starts the sunset
-//   at -60 and it runs on its own; `rise` (the day begins at the dawn hour:
-//   nothing comes before it to start a sunrise, ADR 0093 addendum
-//   2026-11-01) and `dark` without one fade over 12 s. One turn of a kind at a time and none twice in one dawn or dusk:
+//   its place. Without minute precision `Event.Sun rise` (the dawn hour)
+//   starts the sunrise at -60 and it runs on its own; `set` (the night
+//   begins at the dusk hour: nothing comes before it to start a sunset, ADR
+//   0093 addendum 2026-11-16) and `light` without one fade over 12 s. One turn of a kind at a time and none twice in one dawn or dusk:
 //   none starts within TURN_GUARD_MS after one of its kind reached its
 //   second (reset by `jump` and a speed change; the demo's turns never count).
 // - A game flash line (ADR 0094; the 'strike' event with `{ storm: true }`)

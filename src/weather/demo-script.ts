@@ -70,7 +70,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   {
     title: 'Night · stars',
     look: 'a clear, moonless night sky full of stars; a shooting star, the frame lines glinting where it passes',
-    signal: 'Event.Sun dark · the almanac',
+    signal: 'Event.Sun set · the almanac',
     dur: 7,
     acts: [
       [0, { pin: { ...SCENE, clock: 'night', moonUp: false, moonU: -1, moonPhase: 0.85, sunU: -1 }, instant: true }],
@@ -82,7 +82,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     {
       title: 'Sunrise · the first light',
       look: 'the sun\'s hazy light grows at the right, faint rays and beams with it, the frame lines glinting where they cross; the stars fade',
-      signal: 'the clock: the last game hour of the night, before "The sun rises in the east."',
+      signal: 'the clock: the dawn hour ("The sun rises in the east."), the last game hour of the night',
       acts: [],
     },
     {
@@ -94,7 +94,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   {
     title: 'Morning · birds',
     look: 'the sun is up: a soft ray of sun, a flock of birds crossing the sky, an insect buzzing by',
-    signal: 'Event.Sun rise ("The sun rises in the east.")',
+    signal: 'Event.Sun light ("The day has begun.")',
     dur: Math.max(TURN_FULL.rise, 10),
     acts: [
       [0, pin({ clock: 'day', sunU: 0.15 })],
@@ -126,7 +126,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     {
       title: 'Sunset · the first rays',
       look: 'faint rays from the sun at the left come in one at a time; the blue turns to a warm dusk, a red-orange glow round the sun',
-      signal: 'the clock: the last game hour of the day ("The sun slowly disappears in the west.")',
+      signal: 'the clock: the last game hour of the day, before "The sun slowly disappears in the west."',
       acts: [],
     },
     {
@@ -138,7 +138,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   {
     title: 'Night · the moon rises',
     look: 'the stars fill in; the moon comes up at the right edge and climbs slowly',
-    signal: 'Event.Sun dark · Event.Moon rise',
+    signal: 'Event.Sun set · Event.Moon rise',
     dur: Math.max(TURN_FULL.set, 10),
     acts: [
       [0, pin({ clock: 'night', sunU: -1 })],
@@ -215,7 +215,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   {
     title: 'A new day',
     look: 'the clear blue sky, the pale moon',
-    signal: 'Event.Sun rise',
+    signal: 'Event.Sun light',
     dur: 3,
     acts: [
       [0, pin({ clock: 'day', sunU: 0.15 })],
@@ -288,7 +288,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
     title: 'Night · before the sunrise',
     look: 'a clear starry night without a moon; the clock says the day begins in a minute and five seconds',
-    signal: "Event.Sun dark · Char.Vitals weather = ' '",
+    signal: "Event.Sun set · Char.Vitals weather = ' '",
     dur: TURN_LEAD,
     acts: [
       [0, { pin: { ...SCENE, clock: 'night', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: -1 }, instant: true }],
@@ -298,7 +298,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
     title: 'Sunrise · the first light',
     look: 'the sun\'s hazy light grows slowly at the right, its faint rays with it, from level to steeply down, the frame lines glinting more and more; the stars fade, half gone 10 seconds in, barely there after 30',
-    signal: 'the clock: the last game hour of the night, before "The sun rises in the east."',
+    signal: 'the clock: the dawn hour ("The sun rises in the east."), the last game hour of the night',
     dur: 30,
     acts: [],
   },
@@ -312,7 +312,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
     title: 'The day begins',
     look: 'the clear blue sky; the morning sun\'s rays pulse very faintly, about every 20 seconds',
-    signal: 'Event.Sun rise ("The sun rises in the east.")',
+    signal: 'Event.Sun light ("The day has begun.")',
     dur: Math.max(TURN_FULL.rise, 12),
     acts: [
       [0, pin({ clock: 'day', sunU: 0 })],
@@ -333,7 +333,7 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   {
     title: 'Day · before the sunset',
     look: 'a clear day sky late in the day; the clock says the night begins in a minute and five seconds',
-    signal: "Event.Sun rise · Char.Vitals weather = ' '",
+    signal: "Event.Sun light · Char.Vitals weather = ' '",
     dur: TURN_LEAD,
     acts: [
       [0, { pin: { ...SCENE, clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.93 }, instant: true }],
@@ -343,7 +343,7 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   {
     title: 'Sunset · the first rays',
     look: 'faint rays from the sun 40° up at the left come in softly, one at a time, from level to straight down into the lower corner; from 10 seconds in the blue sky fades slowly into a warm dusk',
-    signal: 'the clock: the last game hour of the day ("The sun slowly disappears in the west.")',
+    signal: 'the clock: the last game hour of the day, before "The sun slowly disappears in the west."',
     dur: 30,
     acts: [],
   },
@@ -357,7 +357,7 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   {
     title: 'The night begins',
     look: 'the sun has set; the first stars are just perceptible, and fill in over the first 10 seconds of the night',
-    signal: 'Event.Sun dark ("The night has begun.")',
+    signal: 'Event.Sun set ("The sun slowly disappears in the west.")',
     dur: Math.max(TURN_FULL.set, 10),
     acts: [[0, pin({ clock: 'night', sunU: -1 })]],
   },
@@ -400,7 +400,7 @@ export const SNOW_STEPS: readonly DemoStep[] = [
   {
     title: 'Night · snow',
     look: 'the same snow at night: the flakes glide, the sky darkens over the first seconds',
-    signal: 'Event.Sun dark · Char.Vitals weather = *',
+    signal: 'Event.Sun set · Char.Vitals weather = *',
     dur: 25,
     acts: [[0, pin({ clock: 'night', sunU: -1 })]],
   },

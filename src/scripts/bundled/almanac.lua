@@ -308,7 +308,7 @@ end
 for _, p in ipairs({ "dawn", "day", "dusk", "night" }) do WORDS[p] = { "period", { p } } end
 -- Sunlight from the hour after the dawn hour until the dusk hour (ADR 0093, addendum 2026-11-16).
 WORDS.daylight = { "period", { "day" } }
-WORDS.dark = { "period", { "night" } }
+WORDS.dark = { "period", { "dawn", "dusk", "night" } }
 WORDS.sunrise = { "at", "dawn" }
 WORDS.sunset = { "at", "dusk" }
 WORDS["at dawn"] = { "at", "dawn" }

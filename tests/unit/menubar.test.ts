@@ -159,10 +159,10 @@ describe('menu bar layout', () => {
     at(14, 'hour');
     expect(t.bar.bar.style.width).toBe(`calc(${barCells(false, true)} * var(--cell-w))`);
     expect(t.clockEl.dataset.sync).toBe('hour');
-    expect(t.tip(t.clockEl)).toBe('Night in ~6 game hours');
+    expect(t.tip(t.clockEl)).toBe('Night in ~5 game hours');
     at(14, 'minute');
     expect(t.bar.bar.style.width).toBe(`calc(${barCells(false)} * var(--cell-w))`);
-    expect(t.tip(t.clockEl)).toBe('Night in 5:59');
+    expect(t.tip(t.clockEl)).toBe('Night in 4:59');
     expect(t.cells).toEqual([barCells(false), barCells(false, true), barCells(false)]);
   });
 
@@ -243,9 +243,9 @@ describe('menu bar tooltips', () => {
   it('counts the clock down live, with the capture state while the dot is hidden', () => {
     const t = setup();
     expect(t.tip(t.clockEl)).toBe('Game clock unknown: type time');
-    // 19:55 in Astron: 5 game minutes (real seconds) to the night.
+    // 18:55 in Astron (dusk 19): 5 game minutes (real seconds) to the night.
     t.game.clock.state = {
-      epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, 19, 55),
+      epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, 18, 55),
       precision: 'minute',
       lastSync: T / 1000,
       reason: 't',

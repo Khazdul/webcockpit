@@ -9,11 +9,12 @@
 //                  whose value changed are forwarded. Absent = indoors,
 //                  no fog, normal light, standing.
 //   Event.Sun      rise | light | set | dark → 'sun.<what>' (the engine
-//                  derives day / night from it: day from `rise` (the sun
-//                  is up from the dawn hour; `light` an hour later keeps
-//                  it), night from `dark`; `set` opens the dusk hour, still
-//                  day, and starts the sunset when the clock cannot time
-//                  it, ADR 0093 and its 2026-11-01 addendum)
+//                  derives day / night from it: day from `light` (the
+//                  sun shines from the hour after the dawn hour; `rise`
+//                  opens the dawn hour, still night, and starts the sunrise
+//                  when the clock cannot time it), night from `set` (the
+//                  dusk hour; `dark` an hour later keeps it), ADR 0093 and
+//                  its 2026-11-16 addendum)
 //   Event.Moon     rise | set → 'moon.<what>'
 //   Event.Darkness start | grow | shrink | end-soon | end → 'darkness.<what>'
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
