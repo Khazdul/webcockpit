@@ -5,6 +5,7 @@ import { exports } from 'cloudflare:workers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AdminFlag, AdminLogEntry, AdminReports, AdminStats, PubMeta } from '../../shared/cloud/api.ts';
 import { forgetAccessKeys } from '../access.ts';
+import { ADMIN_JS_MODULES } from '../admin/page.ts';
 import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
 import { recordBeat, rollUp } from '../stats.ts';
@@ -247,6 +248,18 @@ describe('the admin page', () => {
     const js = await (await call('/admin/admin.js')).text();
     for (const s of ['/api/admin/reports', '/api/admin/log', '/api/admin/pub/', '/api/admin/account/', "'X-WC': '1'", "'?admin'"]) expect(js, s).toContain(s);
     expect(js).not.toMatch(/innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(/);
+  });
+
+  it('stage 66: every module of the script is served in admin.js and none has an HTML sink', async () => {
+    const js = await (await call('/admin/admin.js')).text();
+    const html = await (await call('/admin')).text();
+    for (const id of ['nav', 'view', 'v-reports', 'env', 'online-now', 'status']) expect(html, id).toContain(`id="${id}"`);
+    expect(Object.keys(ADMIN_JS_MODULES)).toEqual(['shell', 'reports', 'limits', 'accounts', 'log', 'flags', 'graphs', 'boot']);
+    for (const [name, mod] of Object.entries(ADMIN_JS_MODULES)) {
+      expect(js, name).toContain(mod);
+      expect(mod, name).not.toMatch(/innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function|DOMParser|createContextualFragment/);
+    }
+    for (const s of ['/api/admin/accounts?', '/api/admin/account/', '/limits', '/api/admin/limits', '/api/admin/log', "'X-WC': '1'"]) expect(js, s).toContain(s);
   });
 });
 
