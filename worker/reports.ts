@@ -70,17 +70,24 @@ export async function report(c: PubCtx): Promise<Response> {
     (await c.db.prepare('SELECT 1 AS x FROM report WHERE kind = ?1 AND target = ?2 AND account = ?3').bind(b.kind, target, account.id).first()) !== null;
   if (await dup()) return error('already_reported', 409);
   // The insert holds only while the day's count is under the limit (two at
-  // once cannot both be the 30th), and the hiding is in the same transaction.
+  // once cannot both be the 30th) and the account still exists (a delete
+  // racing it would leave the report behind: stage 66 review fix S5), and
+  // the hiding is in the same transaction.
   const [inserted, ...hid] = await c.db.batch([
     c.db
       .prepare(
         `INSERT OR IGNORE INTO report (kind, target, account, reason, text, created)
-         SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM report WHERE account = ?3 AND created >= ?7) < ?8`,
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM report WHERE account = ?3 AND created >= ?7) < ?8
+         AND EXISTS (SELECT 1 FROM account WHERE id = ?3)`,
       )
       .bind(b.kind, target, account.id, b.reason, note, c.now, since, REPORTS_PER_DAY),
     ...hiding(c.db, kind, target, c.now),
   ]);
-  if (inserted?.meta.changes !== 1) return (await dup()) ? error('already_reported', 409) : error('too_many', 429);
+  if (inserted?.meta.changes !== 1) {
+    if (await dup()) return error('already_reported', 409);
+    const still = await c.db.prepare('SELECT 1 AS x FROM account WHERE id = ?1').bind(account.id).first();
+    return still ? error('too_many', 429) : error('unauthorized', 401);
+  }
   mailReport(c.env, c.deps, c.url.origin, { kind, target, reason: b.reason, text: note });
   const answer = new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   // The report that hides the item changes what the public reads show (the item's own UPDATE is the last).

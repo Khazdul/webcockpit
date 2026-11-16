@@ -3,7 +3,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { REPORTS_PER_DAY } from '../../shared/cloud/api.ts';
 import { count, db, emptyTables } from './helpers.ts';
-import { DAY, NOW, call, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
+import type { D1, D1Statement } from '../runtime.ts';
+import { AUTH_KEY, DAY, NOW, call, envOf, pubRow, publish, reportOf, oldSignUp, signUp } from './share-helpers.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -68,6 +69,30 @@ describe('POST /api/u/report', () => {
     expect((await call('POST', '/api/u/report', { kind: 'run', target: id, reason: 'rules' }, { cookie: bob, csrf: false })).status).toBe(403);
     expect((await call('POST', '/api/u/report', { kind: 'run', target: id, reason: 'rules' })).status).toBe(401);
     expect(await count('report')).toBe(0);
+  });
+
+  it('S5 (stage 66 review): the account deleted between its check and the insert leaves no report (401)', async () => {
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const id = await publish(alice);
+    // A database whose report batch comes after bob's account was deleted (his own delete, racing).
+    const inserts = new WeakSet<D1Statement>();
+    const racing: D1 = {
+      prepare(sql) {
+        const st = db.prepare(sql);
+        if (!sql.includes('INSERT OR IGNORE INTO report')) return st;
+        // (bind gives a new statement: mark that one.)
+        return { bind: (...v: unknown[]) => { const b = st.bind(...v); inserts.add(b); return b; } } as D1Statement;
+      },
+      async batch(st) {
+        if (st.some((x) => inserts.has(x))) expect((await call('DELETE', '/api/u/account', { authKey: AUTH_KEY }, { cookie: bob })).status).toBe(204);
+        return db.batch(st);
+      },
+    };
+    const res = await reportOf(bob, id, { text: 'Private words.' }, { env: envOf({ DB: racing }) });
+    expect(res.status).toBe(401);
+    expect(await count('report')).toBe(0);
+    expect(await db.prepare("SELECT 1 FROM account WHERE name_key = 'bob'").first()).toBeNull();
   });
 
   it('a suspended account cannot report (403 suspended)', async () => {
