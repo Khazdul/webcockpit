@@ -70,6 +70,11 @@ export const ADMIN_GRAPHS_JS = `
     for (var i = 0; i <= count; i++) t.push(i * step);
     return t;
   }
+  /** Ticks of a byte axis: round steps of the largest binary unit under max (0, 50 MB, 100 MB …), as size() shows them. */
+  function grByteTicks(max, n) {
+    var unit = max >= 1073741824 ? 1073741824 : max >= 1048576 ? 1048576 : max >= 1024 ? 1024 : 1;
+    return grTicks(max / unit, n, unit === 1).map(function (t) { return t * unit; });
+  }
   function grPct(v, total) {
     if (!total) return '0 %';
     var p = (100 * v) / total;
@@ -210,7 +215,7 @@ export const ADMIN_GRAPHS_JS = `
       });
       if (stack && sum > max) max = sum;
     }
-    var ticks = grTicks(max > 0 ? max : 1, large ? 4 : 2, m.f === fmt);
+    var ticks = m.f === size ? grByteTicks(max > 0 ? max : 1, large ? 4 : 2) : grTicks(max > 0 ? max : 1, large ? 4 : 2, m.f === fmt);
     var top = ticks[ticks.length - 1];
     var tlabs = ticks.map(function (t) { return m.f(t); });
     var cw = large ? 7 : 6.6;

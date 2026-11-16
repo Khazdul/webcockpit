@@ -133,7 +133,7 @@ export const FLAGS_JS = String.raw`
       acts.append(save, reset);
       var box = el('div', null, 'tbox');
       box.append(t);
-      dbody.replaceChildren(box, el('p', 'Empty: the built-in value holds. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. At most 20 × the built-in value.', 'muted small limits-help'), msg, acts);
+      dbody.replaceChildren(box, el('p', 'Empty: the built-in value holds. Sizes in MB (1 MB = 1,048,576 bytes, as everywhere on this page); B, KB and GB work too. At most 20 × the built-in value.', 'muted small limits-help'), msg, acts);
     }
 
     loadFlags();

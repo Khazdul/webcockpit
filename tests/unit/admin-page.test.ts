@@ -159,7 +159,7 @@ describe('the admin page: the report queue', () => {
     // Reasons in a fixed order with their counts.
     expect(Array.from(first?.querySelectorAll('.rq-r') ?? []).map((r) => r.textContent)).toEqual(['Harassment 2', 'Real-life information about someone 3']);
     // The details from the run's meta, the character as text.
-    expect(first?.querySelector('.rq-who')?.textContent).toBe(`by fenwick · Zp6Wd3Fg5uNa · ${HOSTILE} (L28) · 1.9 MB · 21 views · 2026-11-03`);
+    expect(first?.querySelector('.rq-who')?.textContent).toBe(`by fenwick · Zp6Wd3Fg5uNa · ${HOSTILE} (L28) · 1.8 MB · 21 views · 2026-11-03`);
     expect(second?.querySelector('.rq-who b')?.textContent).toBe('<b>marrow</b>');
     // No markup from the API anywhere.
     expect(document.querySelector('img')).toBeNull();
@@ -177,7 +177,7 @@ describe('the admin page: the report queue', () => {
     expect(texts(first)).toEqual(['Restore', 'Delete', 'Dismiss reports', 'Suspend fenwick']);
     expect(texts(second)).toEqual(['Hide', 'Delete', 'Dismiss reports', 'Suspend <b>marrow</b>']);
 
-    expect(Array.from(document.querySelectorAll('#pubs dd')).map((d) => d.textContent)).toEqual(['1,284', '1.31 GB', '47']);
+    expect(Array.from(document.querySelectorAll('#pubs dd')).map((d) => d.textContent)).toEqual(['1,284', '1.22 GB', '47']);
     expect($('#pubs-r2').textContent).toBe('R2 holds 10 GB free; published runs use 13.1 % of it.');
 
     const rows = Array.from(document.querySelectorAll('#log tbody tr')).map((tr) => Array.from(tr.children).map((td) => td.textContent));
@@ -198,7 +198,7 @@ describe('the admin page: the report queue', () => {
     expect($('#reports-count').textContent).toBe('none open');
     expect(cards()).toEqual([]);
     expect($('#queue').textContent).toBe('No open reports. The last action on a run: 2026-11-15 13:40 UTC.');
-    expect(Array.from(document.querySelectorAll('#pubs dd')).map((d) => d.textContent)).toEqual(['3', '2.5 MB', '0']);
+    expect(Array.from(document.querySelectorAll('#pubs dd')).map((d) => d.textContent)).toEqual(['3', '2.4 MB', '0']);
     expect(document.querySelectorAll('#log tbody tr').length).toBe(2);
 
     log = [];
@@ -287,7 +287,7 @@ describe('the admin page: the actions ask first', () => {
     await boot();
     buttonIn(cards()[0] as HTMLElement, 'Delete').click();
     const m = modal() as HTMLElement;
-    expect(m.textContent).toContain('1.9 MB');
+    expect(m.textContent).toContain('1.8 MB');
     expect(m.textContent).toContain('cannot be undone');
     const ok = buttonIn(m, 'Delete run');
     expect(ok.disabled).toBe(true);

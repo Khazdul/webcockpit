@@ -59,7 +59,7 @@ describe('the admin page: default limits', () => {
     buttonIn(v, 'Save defaults').click();
     const m = modal() as HTMLElement;
     expect(m.querySelector('h3')?.textContent).toBe('Change the default limits?');
-    expect(Array.from(m.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['Runs, bytes 100 MB → 0.5 MB', 'Published runs 150 → 300']);
+    expect(Array.from(m.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['Runs, bytes 100 MB → 512 KB', 'Published runs 150 → 300']);
     type(m.querySelector('input[name=note]') as HTMLInputElement, 'more room');
     state.calls = [];
     buttonIn(m, 'Save defaults').click();
@@ -69,6 +69,23 @@ describe('the admin page: default limits', () => {
     ]);
     expect($('#mod-status').textContent).toBe('Default limits saved.');
     expect(gets()).toEqual(expect.arrayContaining(['/api/admin/stats', '/api/admin/limits']));
+  });
+
+  it('CR1: a default byte limit shown exactly survives a save that changes another field', async () => {
+    route('GET', '/api/admin/limits', json(limits({ itemMaxBytes: 102_400, itemBytes: 1000 })));
+    route('PUT', '/api/admin/limits', json(limits()));
+    await boot('#flags');
+    const v = view();
+    expect($<HTMLInputElement>('input[name=itemMaxBytes]', v).value).toBe('100 KB');
+    expect($<HTMLInputElement>('input[name=itemBytes]', v).value).toBe('1,000 B');
+    type($<HTMLInputElement>('input[name=sharedRuns]', v), '300');
+    buttonIn(v, 'Save defaults').click();
+    const m = modal() as HTMLElement;
+    expect(Array.from(m.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['Published runs 150 → 300']);
+    state.calls = [];
+    buttonIn(m, 'Save defaults').click();
+    await settle();
+    expect(writes().map((w) => w.body)).toEqual([{ defaults: { itemBytes: 1000, itemMaxBytes: 102_400, sharedRuns: 300 } }]);
   });
 
   it('a value over 20 × the built-in or not a number stops before anything is sent', async () => {

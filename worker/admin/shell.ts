@@ -86,6 +86,40 @@ input, select { font: inherit; padding: 2px 6px; }
 .modal-btns { text-align: right; margin: 6px 0 0 !important; }
 `;
 
+/**
+ * The page's one byte formatter (review fixes CR1, CR8): binary units, as
+ * the Worker's limits are (1 MB = 1,048,576 bytes), on every view. `size`
+ * rounds for reading ('50 MB', '1.5 GB'); `exactSize` is what a limit's
+ * input shows: the largest unit that holds the value without loss, else
+ * bytes, so that reading it back gives the same number. Its own string so
+ * the graphs' test can run the real one.
+ */
+export const BYTES_JS = String.raw`
+  function fmt(n) { return Number(n).toLocaleString('en-GB'); }
+  var KIB = 1024;
+  var MIB = 1048576;
+  var GIB = 1073741824;
+  var BYTE_UNITS = [[GIB, 'GB', 2], [MIB, 'MB', 1], [KIB, 'KB', 0]];
+  function size(n) {
+    n = Number(n);
+    for (var i = 0; i < BYTE_UNITS.length; i++) {
+      var u = BYTE_UNITS[i];
+      if (Math.abs(n) >= u[0]) return (n / u[0]).toLocaleString('en-GB', { maximumFractionDigits: u[2] }) + ' ' + u[1];
+    }
+    return fmt(n) + ' B';
+  }
+  function exactSize(n) {
+    n = Number(n);
+    for (var i = 0; i < BYTE_UNITS.length; i++) {
+      var u = BYTE_UNITS[i];
+      if (Math.abs(n) < u[0]) continue;
+      var t = Number((n / u[0]).toFixed(3));
+      if (t * u[0] === n) return t.toLocaleString('en-GB', { maximumFractionDigits: 3 }) + ' ' + u[1];
+    }
+    return fmt(n) + ' B';
+  }
+`;
+
 export const SHELL_JS = String.raw`
   // --- The shell (stage 66): helpers, the modal, the views ---
   var statusEl = document.getElementById('status');
@@ -105,14 +139,7 @@ export const SHELL_JS = String.raw`
     if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, String(attrs[k])); });
     return e;
   }
-  function fmt(n) { return Number(n).toLocaleString('en-GB'); }
-  function size(n) {
-    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GB';
-    if (n >= 1e6) return (n / 1e6).toFixed(1) + ' MB';
-    if (n >= 1e3) return Math.round(n / 1e3) + ' KB';
-    return n + ' B';
-  }
-  function utc(ms) { return new Date(ms).toISOString().replace('T', ' ').slice(0, 16); }
+${BYTES_JS}  function utc(ms) { return new Date(ms).toISOString().replace('T', ' ').slice(0, 16); }
   function dayOf(ms) { return ms ? new Date(ms).toISOString().slice(0, 10) : '—'; }
   function ago(ms) {
     var s = Math.max(0, (Date.now() - ms) / 1000);

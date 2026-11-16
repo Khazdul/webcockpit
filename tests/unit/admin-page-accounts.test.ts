@@ -26,15 +26,15 @@ describe('the admin page: Accounts', () => {
       ['Name', 'none'], ['State', 'none'], ['Created', 'none'], ['Last seen ▾', 'descending'], ['Items', 'none'], ['Runs', 'none'], ['Published', 'none'], ['Bytes', 'none'], ['Sessions', null],
     ]);
     expect(cells(t)).toEqual([
-      [HOSTILE + 'limits', 'active', '2026-11-15', '3 h ago', '204', '27', '15', '187.7 MB', '2'],
-      ['loud_orc', 'suspended', '2026-11-15', '2 days ago', '204', '27', '15', '6.0 MB', '2'],
+      [HOSTILE + 'limits', 'active', '2026-11-15', '3 h ago', '204', '27', '15', '179 MB', '2'],
+      ['loud_orc', 'suspended', '2026-11-15', '2 days ago', '204', '27', '15', '5.7 MB', '2'],
       ['nobody123', 'active', '2026-11-15', 'never', '0', '0', '0', '0 B', '0'],
     ]);
     const a = t.querySelector('tbody a') as HTMLAnchorElement;
     expect(a.textContent).toBe(HOSTILE);
     expect(a.getAttribute('href')).toBe('#account/%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E');
     expect($('.tag.s', t).textContent).toBe('suspended');
-    expect($('.totals', view()).textContent).toBe('12 accounts · 126.1 MB in all');
+    expect($('.totals', view()).textContent).toBe('12 accounts · 120.3 MB in all');
     expect($('.pager', view()).textContent).toContain('1–3 of 3 · page 1 of 1');
     noMarkup();
   });
@@ -103,7 +103,7 @@ describe('the admin page: one account', () => {
     expect($('.acct-head', v).textContent).toContain('active · created 2026-11-15 · last seen 3 h ago');
     expect($('.acct-head .tag', v).textContent).toBe('limits of its own');
     const use = Array.from(v.querySelectorAll('.use .v')).map((x) => x.textContent);
-    expect(use).toEqual(['204 of 2,000', '0.7 MB of 2 MB', '172 MB of 200 MB', '15 of 150']);
+    expect(use).toEqual(['204 of 2,000', '717 KB of 2 MB', '172 MB of 200 MB', '15 of 150']);
     const fills = Array.from(v.querySelectorAll<HTMLElement>('.use .fill')).map((f) => [f.style.width, f.classList.contains('hi')]);
     expect(fills).toEqual([['10.2%', false], ['35.0%', false], ['86.0%', true], ['10.0%', false]]);
 
@@ -124,12 +124,12 @@ describe('the admin page: one account', () => {
     ]);
     expect(cells(t).map((r) => [r[0], r[1], r[3]]).slice(0, 4)).toEqual([
       ['Small items', '2,000', '204'],
-      ['Small items, bytes', '2 MB', '0.7 MB'],
+      ['Small items, bytes', '2 MB', '717 KB'],
       ['One small item', '1 MB', ''],
       ['Runs, bytes', '50 MB', '172 MB'],
     ]);
     const kv = Array.from(v.querySelectorAll('dl.kv dd')).map((d) => d.textContent);
-    expect(kv).toEqual(['15 (9 in the Hall of Fame) · 6.6 MB', '41', '12', '3', '1', '0', '2 · last used 3 h ago']);
+    expect(kv).toEqual(['15 (9 in the Hall of Fame) · 6.3 MB', '41', '12', '3', '1', '0', '2 · last used 3 h ago']);
     const log = cells($('table.audit', v));
     expect(log).toEqual([['2026-11-16 13:53', 'account.limits', 'moria-runner', `runBytes 50 MB → 200 MB ${HOSTILE}`]]);
     noMarkup();
@@ -181,6 +181,32 @@ describe('the admin page: one account', () => {
     expect($('#mod-status').textContent).toBe('Limits saved: moria-runner');
     // The account is read again.
     expect(gets().filter((p) => p === PATH).length).toBe(2);
+  });
+
+  it('CR1: own byte limits shown exactly survive a save that changes another field (100 KB, 1,000 B, 1.5 MB)', async () => {
+    route('GET', PATH, json(detail({ own: { itemMaxBytes: 102_400, itemBytes: 1000, runMaxBytes: 1.5 * MB, payloadMaxBytes: 5 * MB + 1 } })));
+    route('PUT', `${PATH}/limits`, json({}));
+    await boot('#account/moria-runner');
+    const v = view();
+    const input = (n: string) => $<HTMLInputElement>(`input[name=${n}]`, v);
+    expect(['itemMaxBytes', 'itemBytes', 'runMaxBytes', 'payloadMaxBytes'].map((n) => input(n).value)).toEqual(['100 KB', '1,000 B', '1.5 MB', '5,242,881 B']);
+    type(input('items'), '3000');
+    buttonIn(v, 'Save limits').click();
+    const m = modal() as HTMLElement;
+    expect(Array.from(m.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['Small items 2,000 → 3,000']);
+    buttonIn(m, 'Save limits').click();
+    await settle();
+    expect(writes().map((w) => w.body)).toEqual([{ limits: { items: 3000, itemBytes: 1000, itemMaxBytes: 102_400, runMaxBytes: 1.5 * MB, payloadMaxBytes: 5 * MB + 1 } }]);
+  });
+
+  it('CR8: an account at 50 MiB reads 50 MB in the list, in its bars and its limits', async () => {
+    route('GET', '/api/admin/accounts', json(accounts([row({ itemBytes: 0, pubBytes: 0, runBytes: 50 * MB, bytes: 50 * MB })])));
+    await boot('#accounts');
+    expect(cells($('table.accounts', view()))[0]).toContain('50 MB');
+    route('GET', PATH, json(detail({ account: { itemBytes: 0, pubBytes: 0, runBytes: 50 * MB, bytes: 50 * MB } })));
+    await go('#account/moria-runner');
+    expect(Array.from(view().querySelectorAll('.use .v')).map((x) => x.textContent)[2]).toBe('50 MB of 50 MB');
+    expect(cells($('table.limits', view()))[3]).toEqual(['Runs, bytes', '50 MB', '', '50 MB']);
   });
 
   it('a bad value or one over 20 × the built-in stops before anything is sent', async () => {

@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AdminGraphDay, AdminGraphs } from '../../shared/cloud/api.ts';
 import { ADMIN_GRAPHS_CSS, ADMIN_GRAPHS_JS } from '../../worker/admin/graphs.ts';
+import { BYTES_JS } from '../../worker/admin/shell.ts';
 
 const HOSTILE = '<img src=x onerror=alert(1)>';
 const NOW = Date.UTC(2026, 10, 16, 14, 2);
@@ -102,9 +103,8 @@ function boot(): void {
     for (const k in attrs ?? {}) e.setAttribute(k, String(attrs![k]));
     return e;
   };
-  const fmt = (n: number) => Number(n).toLocaleString('en-GB');
-  const size = (n: number) =>
-    n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? Math.round(n / 1e3) + ' KB' : n + ' B';
+  // The shell's own formatters (review fix CR8: one byte formatter, binary units).
+  const { fmt, size } = new Function(`${BYTES_JS}; return { fmt: fmt, size: size };`)() as { fmt: (n: number) => string; size: (n: number) => string };
   const utc = (ms: number) => new Date(ms).toISOString().replace('T', ' ').slice(0, 16);
   const api = (path: string) => {
     calls.push(path);
@@ -300,13 +300,17 @@ describe('Use', () => {
 describe('Storage', () => {
   it('shows the figures, the stacked total with its history gap, and the largest accounts', async () => {
     const root = await show('storage');
-    expect(root.querySelector('.gr-figs')!.textContent).toContain('126.1 MB');
+    expect(root.querySelector('.gr-figs')!.textContent).toContain('120.3 MB');
     const total = card(root, 'storage');
-    expect(total.querySelector('.gr-big')!.textContent).toMatch(/^126\.1 MB/);
+    expect(total.querySelector('.gr-big')!.textContent).toMatch(/^120\.3 MB/);
     expect(total.textContent).toContain('History begins with stage 66');
+    // The byte axis steps in whole binary units, as size() shows them (CR8).
+    const ticks = [...total.querySelectorAll('.gr-ylab')].map((t) => t.textContent);
+    expect(ticks.length).toBeGreaterThan(1);
+    for (const t of ticks) expect(t).toMatch(/^(0 B|\d+ (KB|MB|GB))$/);
     const rows = tableOf(open(root, 'storage'));
     expect(rows[0]).toEqual(['Day', 'Runs', 'Published', 'Small items', 'Total']);
-    expect(rows[1]!.slice(1)).toEqual(['94.0 MB', '22.3 MB', '9.8 MB', '126.1 MB']);
+    expect(rows[1]!.slice(1)).toEqual(['89.6 MB', '21.3 MB', '9.3 MB', '120.3 MB']);
     expect(rows.at(-1)!.slice(1)).toEqual(['–', '–', '–', '–']);
 
     const largest = card(root, 'largest');

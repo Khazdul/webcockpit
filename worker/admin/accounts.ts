@@ -195,7 +195,7 @@ export const ACCOUNTS_JS = String.raw`
     var fill = el('div', null, 'fill' + (pct >= 80 ? ' hi' : ''));
     fill.style.width = Math.min(100, pct).toFixed(1) + '%';
     track.append(fill);
-    var v = el('span', limitText(kind, used) + ' of ' + limitText(kind, limit), 'v' + (used > limit ? ' over' : ''));
+    var v = el('span', useText(kind, used) + ' of ' + useText(kind, limit), 'v' + (used > limit ? ' over' : ''));
     return [el('span', name), track, v];
   }
 
@@ -282,7 +282,7 @@ export const ACCOUNTS_JS = String.raw`
   function limitsCard(a, lim) {
     var s = panel('Limits');
     var t = el('table', null, 'limits');
-    var help = el('p', 'Empty: the default holds and follows it. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. A limit under what the account uses removes nothing; writes that would grow past it are refused.', 'muted small limits-help');
+    var help = el('p', 'Empty: the default holds and follows it. Sizes in MB (1 MB = 1,048,576 bytes, as everywhere on this page); B, KB and GB work too. A limit under what the account uses removes nothing; writes that would grow past it are refused.', 'muted small limits-help');
     var hr = el('tr');
     ['Limit', 'Default', 'This account', 'In use'].forEach(function (h) { hr.append(el('th', h)); });
     var thead = el('thead');
@@ -295,7 +295,7 @@ export const ACCOUNTS_JS = String.raw`
       inputs[def[0]] = input;
       var td = el('td');
       td.append(input);
-      tr.append(el('td', def[1]), el('td', limitText(def[2], lim.defaults[def[0]])), td, el('td', def[3] ? limitText(def[2], a[def[3]]) : ''));
+      tr.append(el('td', def[1]), el('td', limitText(def[2], lim.defaults[def[0]])), td, el('td', def[3] ? useText(def[2], a[def[3]]) : ''));
       tbody.append(tr);
     });
     t.append(thead, tbody);
@@ -323,7 +323,7 @@ export const ACCOUNTS_JS = String.raw`
       }
       var warnings = [];
       LIMITS.forEach(function (def) {
-        if (def[3] && eff[def[0]] < a[def[3]]) warnings.push(def[1] + ' ' + limitText(def[2], eff[def[0]]) + ' is under what ' + a.name + ' uses (' + limitText(def[2], a[def[3]]) + '). Nothing is removed; writes that would grow past it are refused.');
+        if (def[3] && eff[def[0]] < a[def[3]]) warnings.push(def[1] + ' ' + limitText(def[2], eff[def[0]]) + ' is under what ' + a.name + ' uses (' + useText(def[2], a[def[3]]) + '). Nothing is removed; writes that would grow past it are refused.');
       });
       var body = [para(['The limits of ', el('b', a.name), ' change:']), lines.length ? changeList(lines) : el('p', 'Its own values are set equal to the defaults; they follow the defaults from now on.')];
       warnings.forEach(function (w) { body.push(el('p', w, 'warn')); });

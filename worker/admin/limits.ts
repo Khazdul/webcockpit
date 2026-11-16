@@ -5,8 +5,8 @@
 // (accounts.ts) and the default limits (flags.ts).
 //
 // Byte limits are binary (50 MB = 50 × 1 048 576 bytes), as the Worker's
-// defaults are; a bare number in a byte field means MB; B, KB, MB and GB
-// are understood.
+// defaults are, and shown exactly (shell.ts `exactSize`); a bare number in
+// a byte field means MB; B, KB, MB and GB are understood.
 
 export const LIMITS_CSS = `.limits td input { width: 8em; text-align: right; }
 .limits td input.own { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -34,15 +34,21 @@ export const LIMITS_JS = String.raw`
     ['notesPerDay', 'Notes a day', 'n', null],
     ['listingsPerDay', 'Hall of Fame listings a day', 'n', null],
   ];
-  var MIB = 1048576;
   var LIMIT_MAX = 20;
-  var UNITS = { b: 1, kb: 1024, mb: MIB, gb: 1024 * MIB };
+  var UNITS = { b: 1, kb: KIB, mb: MIB, gb: GIB };
 
-  /** A limit's value in its unit: '2,000' or '50 MB'. */
+  /**
+   * A limit's value in its unit, exactly (review fix CR1): '2,000', '50 MB',
+   * '100 KB', '1,000 B'. parseLimit reads it back to the same number, so a
+   * field nobody edited sends its stored value unchanged.
+   */
   function limitText(kind, v) {
     if (typeof v !== 'number') return '';
-    if (kind !== 'b') return fmt(v);
-    return (Math.round((v / MIB) * 100) / 100).toLocaleString('en-GB', { maximumFractionDigits: 2 }) + ' MB';
+    return kind === 'b' ? exactSize(v) : fmt(v);
+  }
+  /** What an account uses, rounded for reading: '2,000' or '12.3 MB'. */
+  function useText(kind, v) {
+    return kind === 'b' ? size(v) : fmt(v);
   }
   /** Typed text → {value} or {error}; '' → {value: null}. */
   function parseLimit(kind, text) {
