@@ -1,10 +1,10 @@
 # Stage 58 — Move to Cloudflare
 
-Status: **Done in the repository** (planned 2026-11-13; part A built,
+Status: **Done** (2026-11-16). Planned 2026-11-13; part A built,
 merged and deployed to staging 2026-11-14; **the domain switched to the
 Worker 2026-11-14**; part C done, the owner's first check fine (see
-Owner feedback); part D's repository side done 2026-11-16). Left: the
-owner's clicks in GitHub, part D below.
+Owner feedback); part D done 2026-11-16, the owner's GitHub clicks
+included.
 
 ## Goal
 
@@ -153,21 +153,21 @@ pages project list` is empty).
 
 GitHub (<https://github.com/Khazdul/webcockpit>):
 
-- [ ] Settings → Pages → *Custom domain*: **Remove**.
-- [ ] Same page, at the top ("Your site is live at …"): the **⋯** menu
+- [x] Settings → Pages → *Custom domain*: **Remove**.
+- [x] Same page, at the top ("Your site is live at …"): the **⋯** menu
       → **Unpublish site**. (If GitHub asks to choose a source
       afterwards, leave it; nothing deploys there any more.)
-- [ ] Settings → Environments → `github-pages` → **Delete
+- [x] Settings → Environments → `github-pages` → **Delete
       environment**. It has no secrets of its own.
-- [ ] Secrets: **nothing to remove.** `CLOUDFLARE_API_TOKEN` and
+- [x] Secrets: **nothing to remove.** `CLOUDFLARE_API_TOKEN` and
       `CLOUDFLARE_ACCOUNT_ID` are used by `deploy.yml`.
 
 Cloudflare (<https://dash.cloudflare.com>):
 
-- [ ] **Nothing to delete under Workers & Pages:** there is no Pages
+- [x] **Nothing to delete under Workers & Pages:** there is no Pages
       project; `webcockpit` and `webcockpit-staging` are the Workers
       and stay.
-- [ ] DNS of `mumecockpit.com`: the GitHub Pages records (four A, four
+- [x] DNS of `mumecockpit.com`: the GitHub Pages records (four A, four
       AAAA, the `www` CNAME) were already deleted at the switch. Leave
       the TXT record `_github-pages-challenge-Khazdul`: it keeps the
       domain verified to your GitHub account, so no one else can point
@@ -209,6 +209,12 @@ Pages still had the last release and the domain setting.
 Feedback wanted: anything at all that differs from yesterday.
 
 ## Owner feedback
+
+- **2026-11-16, part D:** the owner removed the Pages custom domain,
+  unpublished the site and deleted the `github-pages` environment.
+  Checked read-only the same evening: no custom domain, the old
+  `khazdul.github.io/webcockpit/` answers 404, no environments left;
+  mumecockpit.com unaffected (`/api/health` 0.15.0).
 
 - **2026-11-14, after the switch and 0.9.3:** the update notice came
   in an open tab; History is still there; logged in to MUME and
