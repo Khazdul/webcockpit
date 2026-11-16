@@ -431,3 +431,55 @@ The Worker's part, branch `stage66-worker`. The contract in
 - Test support: `helpers.ts` `emptyAdminLog`/`withoutLogTriggers` (drop
   and restore the triggers, as the D1 console could); `access-helpers.ts`;
   `admin-call.ts` now goes through the router's `adminRoute`.
+
+## As built (stage 66, review fixes)
+
+From the security review (`notes/research/stage66-security-review.md`,
+S1–S11) and the code review (CR1–CR8). Each fix has a test that failed
+before it.
+
+| Finding | Fix | Test |
+|---|---|---|
+| S2 unsealing read as intact | Migration 0007 (not deployed anywhere yet, so amended) adds `admin_log_meta(legacy_max)`: one row, written at migration time with the highest `admin_log` id then (0 for none); triggers refuse its update, delete and a second insert. Any row with `id > legacy_max` and no `mac` is broken. The chain trigger now refuses every unsealed insert (see below). With `AUTH_PEPPER` missing or under 16 characters the state is `unkeyed`, shown red on the Log view. | `audit-log.test.ts` "S2: every seal removed…", "S2: … unkeyed", "S2: where the chain starts is kept…", "S2: after migration 0007 an unsealed insert is refused"; `admin-page-log.test.ts` "S2: an unkeyed chain…" |
+| S3 the check stopped at the first break | `verifyChain` goes on, anchored on each row's stored `prev`/`mac`; `AdminLogChain` gains `broken` (the first 20 ids, `ADMIN_LOG_BROKEN_SHOWN`) and `brokenCount`; `brokenAt` stays the oldest. The badge lists them ("Broken: 2 entries do not match (#17, #23)", "…" past 20). | `audit-log.test.ts` "S3: the check goes on after a break…"; `admin-page-log.test.ts` "a broken chain…", "more broken entries than listed…" |
+| S4 / CR2 the Reports view verified the chain every minute | `GET /api/admin/log?chain=0&limit=1…100[&before=]` reads only `limit` rows (no check, `chain: null`) and counts every entry from the lowest and highest id (two rowid seeks; rows are never removed and an INTEGER PRIMARY KEY leaves no gap, so a console removal makes it low, which the Log view's check finds). `kind`/`q` with it, or `limit` without it, are 400. The Reports card reads the newest 20 that way; "Show all" is gone (the link to the Log view stays). The Log view still checks the whole chain, only when opened or reloaded. | `admin-panel.test.ts` "GET /api/admin/log?chain=0 (review fix S4)" (rows read ≤ 25 for 300 entries, the full read ≥ 300); `admin-page.test.ts` "a long log shows the newest 20 of the total…" |
+| S5 a report outlived its author's racing delete | The report insert holds only `AND EXISTS (SELECT 1 FROM account WHERE id = ?3)`; a lost race answers 401. | `reports.test.ts` "S5 (stage 66 review)…" |
+| S6 an account named like a run id got its entries | One account's log: `account.*` actions by name (any case), `pub.*`/`comment.*`/`note.*` by the ids of its own things (exact case). | `admin-panel.test.ts` "S6: an account named like another one's run id…" |
+| S7 `#constructor` broke the page | `views = Object.create(null)`, looked up with `hasOwnProperty`; an inherited name falls back to Reports. | `admin-page-shell.test.ts` "S7: a hash naming an inherited property…" |
+| S9 a failing certs endpoint was asked on every request | The cache records the last try; a failed fetch is tried again after `CERTS_REFETCH_MS` (1 min), with or without keys. Keys more than `CERTS_MAX_STALE_MS` (24 h) past the 1 h TTL are no longer used. | `admin.test.ts` "S9 (stage 66 review)…" (three tests) |
+| S10 the defaults fail open on a fresh isolate's read error | Accepted as is: the request's own writes most likely fail too, and the window is now at most the cache's 30 s (CR4). To keep in mind if a lowered default is ever used as an abuse brake. | — |
+| S11 the flag switch was not wrapped | A failed `sealedBatch` (D1 down, chain retries run out) answers `503 unavailable`; nothing is applied. | `audit-log.test.ts` "S11: the flag switch…" |
+| CR1 byte limits lost precision through the inputs | A byte limit is shown exactly (`exactSize`: the largest of GB/MB/KB that holds it without loss, up to 3 decimals, else bytes) and parsed back to the same number, in one account's limits and in the defaults. | `admin-page-accounts.test.ts` "CR1: own byte limits shown exactly survive…" (102 400 → "100 KB", 1 000 → "1,000 B"); `admin-page-flags.test.ts` "CR1: a default byte limit…" |
+| CR3 a slow answer could overwrite a newer one | Accounts and Log count their reads; only the newest draws (as graphs.ts). | `admin-page-accounts.test.ts`, `admin-page-log.test.ts` "CR3: a slow answer…" (harness `holdNext`) |
+| CR4 a failed defaults load was retried on every request | The failure is cached for `LIMITS_CACHE_MS` with the last good rows (or none). | `admin-panel.test.ts` "CR4: a failed read is kept for the 30 s too…" |
+| CR5 the graphs read today one batch after another | The range's batch and today's three reads go out at once (`Promise.all`). | `admin-panel.test.ts` "CR5: the range and today are read at once…" |
+| CR6 the Reports card counted the rows it had read | It shows the Worker's `total`. | covered by the S4 page test |
+| CR7 two copies of `oneOf` | `oneOf` and `isOneOf` live in `runtime.ts`, used by panel, community, reports and stats. One behaviour change: an empty gallery `sort=` or `period=` now means the default (as in the panel) instead of 400. | `admin-panel.test.ts` "CR7: one oneOf for every route" |
+| CR8 decimal and binary sizes mixed | One byte formatter (`BYTES_JS` in `shell.ts`: `size` rounded, `exactSize` exact), binary units on every view (1 MB = 1 048 576 bytes, as the Worker's limits), the graphs' storage figures and their axis ticks (whole binary units) included. The use bars and "In use" columns show `size`, the limit inputs `exactSize`. | `admin-page-accounts.test.ts` "CR8: an account at 50 MiB reads 50 MB…"; `admin-graphs.test.ts` Storage (runs the shell's real `size`, axis ticks) |
+
+- **Unsealed inserts after migration 0007 (a change of "Consequences"
+  above).** With a fixed `legacy_max`, an entry the 0.14.0 Worker wrote
+  between the migration and the new Worker's deploy would read broken
+  forever. The chain trigger therefore refuses every unsealed insert from
+  the migration on: an admin action of the old Worker in those seconds
+  fails whole (its batch rolls back) and can be done again. The old Worker
+  writes the log only for admin actions, so players are not affected.
+- **Use covers the Reports view's folded part.** The 30-day table (devices,
+  new, peaks, play minutes) and the splits were a stop-gap until the Use
+  view; they are removed. Not carried over: beats a day, a cost diagnostic
+  (today's beats stay in the estimate at the top of Reports).
+- **Test support:** `helpers.ts` `setLegacyMax(id)` (drops `admin_log_meta`'s
+  triggers for the moment); `withoutLogTriggers` covers both tables;
+  `emptyAdminLog` resets `legacy_max` to 0.
+
+### Open for the owner (Cloudflare configuration)
+
+- **S1** the admin API shares an origin with the app that shows reported
+  content. Fix: serve `/admin` and `/api/admin/*` on their own host (e.g.
+  `admin.mumecockpit.com`, one Access application over the whole host),
+  so the app's origin holds no admin power. Needs a DNS record, a route and
+  an Access application.
+- **S8** staging and production accept each other's Access tokens (same
+  `ACCESS_AUD`). Fix: one Access application per environment, each with
+  its own AUD in `wrangler.jsonc`; optionally `workers_dev: false` in
+  production.
