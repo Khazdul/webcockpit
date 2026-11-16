@@ -462,7 +462,11 @@ test('a phone-size window keeps the phone\'s compact buttons (10 px type, no ico
   expect(await b.evaluate((el) => getComputedStyle(el).fontSize)).toBe('10px');
   expect((await b.boundingBox())!.height).toBe(40);
   await expect(b.locator('.wc-lk-ic')).toBeHidden();
-  expect((await hist.locator('.wc-lk-back').boundingBox())!.height).toBe(40);
+  // Back is drawn smaller, inside the window (stage 65 feedback round 2); its 40 px target grows upward.
+  const back = (await hist.locator('.wc-lk-back').boundingBox())!;
+  expect(back.height).toBe(28);
+  const target = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-lk-back') !== null, [back.x + 10, back.y + back.height - 39]);
+  expect(target).toBe(true);
 });
 
 test.describe('a tablet\'s buttons', () => {

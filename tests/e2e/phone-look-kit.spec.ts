@@ -1,6 +1,6 @@
 // Stage 42, wave 3 (ADR 0127): the kit on a phone (touch, 390 px wide).
 // A dialog in the ESC menu lies over its page, which stays drawn; a box's
-// Back (40 px high for a finger) never reaches the page's first line; the
+// Back (a 40 px target for a finger) never reaches the page's first line; the
 // fullscreen button steps aside while a large box is up; the run log
 // player has no Back at the top left (stage 55: the first key of its docked
 // bar is the way out); a sortable table head is a finger's height.
@@ -38,7 +38,9 @@ async function enterMume(page: Page): Promise<() => WebSocketRoute> {
 /** Back's bottom edge is above the first row of the page under it (`row`), and a tap at the row's top lands on the row. */
 async function backClears(page: Page, box: Locator, row: Locator): Promise<void> {
   const back = (await box.locator('.wc-lk-back').first().boundingBox())!;
-  expect(back.height).toBeGreaterThanOrEqual(40);
+  // Its 40 px touch target grows upward from its bottom edge (its ::before; stage 65 feedback round 2).
+  const target = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-lk-back') !== null, [back.x + 10, back.y + back.height - 39]);
+  expect(target).toBe(true);
   const r = (await row.boundingBox())!;
   expect(back.y + back.height).toBeLessThanOrEqual(r.y + 0.5);
   const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-lk-back') !== null, [back.x + 10, r.y + 2]);
