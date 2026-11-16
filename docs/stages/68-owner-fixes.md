@@ -22,9 +22,12 @@ scroll and private chats, the tablet's landscape keyboard, link previews).
       at share time (first lines, play button, the logo bottom right), a
       generic image for older shares (ADR 0158).
 - [x] Full e2e alone at 5 workers: 1915 passed, 51 skipped.
-- [ ] Staging deploy, the owner's test, then a release on his word.
+- [x] Staging deploy; `test:prod` 36/36 on staging.
+- [x] Release 0.16.0 on the owner's word, before his test (tag `v0.16.0`);
+      `test:prod` 36/36 on mumecockpit.com.
+- [ ] The owner's test (in production).
 
-## Test guide (staging: https://staging.mumecockpit.com)
+## Test guide (production: https://mumecockpit.com)
 
 1. **Sun:** in Wedmath (or any month) the clock shows the sun from dawn+1
    (5:00 am) and the moon from dusk (10:00 pm); the sunrise ends at 5:00,
