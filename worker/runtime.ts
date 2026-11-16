@@ -207,9 +207,14 @@ export const DEFAULT_DEPS: Deps = {
  */
 export const PUBLIC_CHANGE_HEADER = 'X-WC-Public-Change';
 
-/** `res`, marked as a change of what the public reads show. */
-export function publicChange(res: Response): Response {
-  res.headers.set(PUBLIC_CHANGE_HEADER, '1');
+/**
+ * `res`, marked as a change of what the public reads show. `now`: the mark
+ * moves at once, not held by the few seconds between marks: for changes
+ * that are bounded by a daily limit or are the admin's (a run listed for
+ * the first time, a listed run removed, Delete account, moderation).
+ */
+export function publicChange(res: Response, now = false): Response {
+  res.headers.set(PUBLIC_CHANGE_HEADER, now ? 'now' : '1');
   return res;
 }
 

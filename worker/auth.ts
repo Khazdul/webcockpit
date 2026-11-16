@@ -497,7 +497,7 @@ async function remove(c: Ctx): Promise<Response> {
   // answer does not wait on more than one pass.
   await afterDeletion(c.env, row.id, pubs);
   // Its runs, votes, comments and notes leave the public reads.
-  return publicChange(empty({ 'Set-Cookie': clearedCookie() }));
+  return publicChange(empty({ 'Set-Cookie': clearedCookie() }), true);
 }
 
 // --- Routes ---

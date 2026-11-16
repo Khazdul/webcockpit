@@ -468,7 +468,9 @@ async function patch(c: PubCtx): Promise<Response> {
   const answer = json({ pub: myPub(row) } satisfies PubWritten);
   // The lists show it before or after: listed or unlisted, or its words changed while listed.
   const shown = now !== null && (now.listed === 1 || row.listed === 1);
-  return shown && (now.listed !== row.listed || now.title !== row.title || now.description !== row.description) ? publicChange(answer) : answer;
+  if (!shown || (now.listed === row.listed && now.title === row.title && now.description === row.description)) return answer;
+  // A first listing is bounded by listingsPerDay: at once; listing again, unlisting and words wait their turn.
+  return publicChange(answer, now.listed_at === null && row.listed === 1);
 }
 
 async function remove(c: PubCtx): Promise<Response> {
@@ -483,7 +485,8 @@ async function remove(c: PubCtx): Promise<Response> {
   await c.db.batch(tombstones(c.db, c.now, 'id = ?2 AND account = ?3', [id, account.id]));
   await dropObjects(c.env, [id]);
   // Only a listed run the lists showed (a hidden one is not shown).
-  return row.state === 'active' && row.listed === 1 ? publicChange(answer) : answer;
+  // At once: each listed run removed was one of the day's listings.
+  return row.state === 'active' && row.listed === 1 ? publicChange(answer, true) : answer;
 }
 
 // --- POST /api/u/pub ---
@@ -702,7 +705,8 @@ async function create(c: PubCtx): Promise<Response> {
     return error('unauthorized', 401);
   }
   const answer = json({ pub: myPub(row) } satisfies PubWritten);
-  return row.listed === 1 ? publicChange(answer) : answer;
+  // A listed run is one of the day's listings (listingsPerDay): at once.
+  return row.listed === 1 ? publicChange(answer, true) : answer;
 }
 
 // --- /api/pub/* (public) ---

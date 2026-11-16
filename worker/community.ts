@@ -141,8 +141,8 @@ interface MarkMemory {
   read: number;
   /** When this isolate last made a mark; -1: never. */
   made: number;
-  /** A later mark is on its way (a write inside MARK_EVERY_MS of the last). */
-  pending: boolean;
+  /** A change since the last mark has no mark yet (it came inside MARK_EVERY_MS of the last). */
+  dirty: boolean;
 }
 
 // Per cache object, so a test's own cache stand-in starts with nothing.
@@ -152,7 +152,7 @@ function memoryOf(cache: CacheLike, origin: string): MarkMemory {
   let byOrigin = memories.get(cache);
   if (!byOrigin) memories.set(cache, (byOrigin = new Map()));
   let m = byOrigin.get(origin);
-  if (!m) byOrigin.set(origin, (m = { mark: null, read: -1, made: -1, pending: false }));
+  if (!m) byOrigin.set(origin, (m = { mark: null, read: -1, made: -1, dirty: false }));
   return m;
 }
 
@@ -172,8 +172,10 @@ async function markOf(cache: CacheLike, origin: string): Promise<string | null> 
  * MARK_READ_MS. A mark made here that the cache does not show yet (its
  * put still running) is kept over an older one read.
  */
-async function currentMark(cache: CacheLike, origin: string, now: number): Promise<string | null> {
+async function currentMark(deps: Deps, cache: CacheLike, origin: string, now: number): Promise<string | null> {
   const m = memoryOf(cache, origin);
+  // A change still without its mark, and its time is up: the mark now (should the timer not have run).
+  if (m.dirty && markWait(m, now) <= 0) newMark(deps, cache, origin, m);
   if (m.read >= 0 && now >= m.read && now - m.read < MARK_READ_MS) return m.mark;
   const read = await markOf(cache, origin);
   if (m.mark === null || (read !== null && markTime(read) >= markTime(m.mark))) m.mark = read;
@@ -188,6 +190,7 @@ function newMark(deps: Deps, cache: CacheLike, origin: string, m: MarkMemory): v
   m.mark = mark;
   m.read = now;
   m.made = now;
+  m.dirty = false;
   later(
     deps,
     cache.put(
@@ -208,32 +211,40 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  * change inside it gets one later mark when the time is up, so it shows
  * within seconds. The Cache API is per data centre: the writer's place
  * sees the change at once (or within MARK_EVERY_MS), others within the 60 s.
+ * `atOnce` (a change bounded by a daily limit, or the admin's): no wait.
  */
-export function communityChanged(deps: Deps, origin: string): void {
+export function communityChanged(deps: Deps, origin: string, atOnce = false): void {
   const cache = deps.cache;
   if (!cache) return;
   const m = memoryOf(cache, origin);
   const now = deps.now();
-  const wait = Math.max(m.made, markTime(m.mark)) + MARK_EVERY_MS - now;
-  // (A clock that went back, as in tests, is no reason to wait.)
-  if (wait <= 0 || wait > MARK_EVERY_MS) {
+  const wait = markWait(m, now);
+  if (wait <= 0 || atOnce) {
     newMark(deps, cache, origin, m);
     return;
   }
-  if (m.pending) return;
-  m.pending = true;
+  // One later mark for every change inside the time: by a timer after the
+  // answer, or by the first read here once the time is up (`currentMark`).
+  if (m.dirty) return;
+  m.dirty = true;
   later(
     deps,
     (deps.sleep ?? sleep)(wait).then(() => {
-      m.pending = false;
-      newMark(deps, cache, origin, m);
+      if (m.dirty) newMark(deps, cache, origin, m);
     }),
   );
 }
 
+/** How long until the next mark may be made (ms); 0 or less: now. A clock that went back (tests) is no reason to wait. */
+function markWait(m: MarkMemory, now: number): number {
+  const wait = Math.max(m.made, markTime(m.mark)) + MARK_EVERY_MS - now;
+  return wait > MARK_EVERY_MS ? 0 : wait;
+}
+
 /** `res` without the internal header, and the mark moved when it had it (and succeeded). */
 export function afterWrite(deps: Deps, origin: string, res: Response): Response {
-  if (!res.headers.has(PUBLIC_CHANGE_HEADER)) return res;
+  const flag = res.headers.get(PUBLIC_CHANGE_HEADER);
+  if (flag === null) return res;
   let out = res;
   try {
     out.headers.delete(PUBLIC_CHANGE_HEADER);
@@ -241,7 +252,7 @@ export function afterWrite(deps: Deps, origin: string, res: Response): Response 
     out = new Response(res.body, res);
     out.headers.delete(PUBLIC_CHANGE_HEADER);
   }
-  if (out.ok) communityChanged(deps, origin);
+  if (out.ok) communityChanged(deps, origin, flag === 'now');
   return out;
 }
 
@@ -265,7 +276,7 @@ export async function cached(deps: Deps, key: string, make: () => Promise<Respon
   const cache = deps.cache;
   if (!cache) return make();
   const now = deps.now();
-  const mark = await currentMark(cache, new URL(key).origin, now);
+  const mark = await currentMark(deps, cache, new URL(key).origin, now);
   const req = new Request(mark === null ? key : `${key}${key.includes('?') ? '&' : '?'}mark=${mark}`, { method: 'GET' });
   try {
     const hit = await cache.match(req);

@@ -1165,8 +1165,14 @@ the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
   **At most one mark per 5 s** (`MARK_EVERY_MS`) per isolate, and per place
   by the mark's own time (`<time36>.<random>`; an older mark without a time
   counts as 0); a change inside the 5 s schedules one later mark for when
-  they are up (`Deps.sleep` in `waitUntil`), so it shows within 5 s rather
-  than after the 60 s. The put runs after the answer (`waitUntil`); the new
+  they are up (`Deps.sleep` in `waitUntil`, and should that timer not run,
+  the first read here after them makes it), so it shows within 5 s rather
+  than after the 60 s. **At once, past the 5 s** (header value `now`): a run
+  listed for the first time (created listed, or its first PATCH to listed)
+  and a listed run removed, which `listingsPerDay` bounds; Delete account;
+  every admin action. So the writer and this place see a new or removed
+  listing at once, as W4's e2e asks; listing again, unlisting, words,
+  votes, comments and notes wait their turn. The put runs after the answer (`waitUntil`); the new
   mark is in the isolate's memory at once, so the writer's next read there
   is fresh. **The mark is kept in isolate memory** (per cache object and
   origin) and read from the Cache API at most every 2 s; a mark made here

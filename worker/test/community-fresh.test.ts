@@ -195,6 +195,35 @@ describe('the mark (review fix 2: R2-2, CR4, CR5)', () => {
     expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 6100))).notes.map((n) => n.text)).toEqual(['Three.', 'Two.', 'One.']);
   });
 
+  it('a run listed or removed is marked at once, even inside the 5 s (bounded by the day’s listings)', async () => {
+    const cache = counted();
+    const alice = await signUp('alice');
+    const o = { cache, sleep: () => new Promise<void>(() => {}) };
+    await noted(alice, 'One.', { ...o, now: NOW });
+    const id = await publish(alice, payload(100, 4), { ...META, listed: true }, { env: CENV, ...o, now: NOW + 1000 });
+    expect(cache.markPuts).toBe(2);
+    expect((await ok<GalleryPage>(await read('/api/gallery', cache, NOW + 1500))).rows.map((r) => r.id)).toEqual([id]);
+    expect((await ccall('DELETE', `/api/u/pub/${id}`, undefined, { cookie: alice, ...o, now: NOW + 2000 })).status).toBe(204);
+    expect(cache.markPuts).toBe(3);
+    expect((await ok<GalleryPage>(await read('/api/gallery', cache, NOW + 2500))).rows).toEqual([]);
+  });
+
+  it('a change inside the 5 s whose timer never runs gets its mark from the first read after them', async () => {
+    const cache = counted();
+    const alice = await signUp('alice');
+    await setLimits('alice', { notesPerDay: 100 });
+    const o = (now: number) => ({ cache, now, sleep: () => new Promise<void>(() => {}) });
+    await noted(alice, 'One.', o(NOW));
+    await noted(alice, 'Two.', o(NOW + 1000));
+    expect(cache.markPuts).toBe(1);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 1500))).notes.map((n) => n.text)).toEqual(['Two.', 'One.']);
+    // (That read was a miss after the first mark; kept from here on until the next.)
+    await noted(alice, 'Three.', o(NOW + 2000));
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 4000))).notes).toHaveLength(2);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 5000))).notes.map((n) => n.text)).toEqual(['Three.', 'Two.', 'One.']);
+    expect(cache.markPuts).toBe(2);
+  });
+
   it('the answer does not wait for the put; a hit costs one cache lookup', async () => {
     const alice = await signUp('alice');
     const store = new Map<string, Response>();
@@ -234,10 +263,10 @@ describe("the admin's actions say whether they change a public read", () => {
       return res.headers.get(PUBLIC_CHANGE_HEADER);
     };
     expect(await flagged(`/api/admin/pub/${id}`, { action: 'dismiss' })).toBeNull();
-    expect(await flagged(`/api/admin/pub/${id}`, { action: 'hide' })).toBe('1');
-    expect(await flagged(`/api/admin/pub/${id}`, { action: 'restore' })).toBe('1');
-    expect(await flagged('/api/admin/account/bob', { action: 'suspend' })).toBe('1');
-    expect(await flagged('/api/admin/account/bob', { action: 'restore' })).toBe('1');
-    expect(await flagged(`/api/admin/pub/${id}`, { action: 'delete' })).toBe('1');
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'hide' })).toBe('now');
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'restore' })).toBe('now');
+    expect(await flagged('/api/admin/account/bob', { action: 'suspend' })).toBe('now');
+    expect(await flagged('/api/admin/account/bob', { action: 'restore' })).toBe('now');
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'delete' })).toBe('now');
   });
 });
