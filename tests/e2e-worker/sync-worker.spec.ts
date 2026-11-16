@@ -320,7 +320,7 @@ test('the community on the real Worker: Hall of Fame, the counter, a view, stars
   await playing(b.page);
   const stars = b.page.locator('.wc-watch [data-watch="stars"]');
   await expect(stars).toHaveAttribute('data-role', 'voter');
-  await expect(stars.locator('[data-watch="stars-mine"]')).toHaveText('Rate this run');
+  await expect(stars.locator('[data-watch="stars-mine"]')).toHaveText('Rate this log');
   await stars.locator('[data-v="4"]').click();
   await expect(stars.locator('[data-watch="stars-mine"]')).toHaveText('Your stars: four');
   await expect(stars.locator('[data-watch="stars-mean"]')).toHaveText('4.0 · 1 vote');

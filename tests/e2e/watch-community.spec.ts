@@ -48,7 +48,7 @@ test('the frame: the still sky, the sub-page box with Back at its top left, the 
   expect(await page.locator('.wc-watch').evaluate((e) => getComputedStyle(e).backgroundImage)).toMatch(/gradient/);
   // The box: its hood and Back at its top left; the band and the frame inside its window.
   const box = (await watchBox(page).boundingBox())!;
-  await expect(watchBox(page).locator('.wc-lk-hood-t')).toHaveText('Shared run');
+  await expect(watchBox(page).locator('.wc-lk-hood-t')).toHaveText('Shared log');
   const back = (await watchBtn(page, 'BACK').boundingBox())!;
   expect(back.x - box.x).toBeLessThan(40);
   expect(back.y - box.y).toBeLessThan(40);
@@ -90,7 +90,7 @@ test('logged in: rate, change, take back; the vote is there again after a reload
   await playing(page);
   const st = stars(page);
   await expect(st).toHaveAttribute('data-role', 'voter');
-  await expect(st.locator('[data-watch="stars-mine"]')).toHaveText('Rate this run');
+  await expect(st.locator('[data-watch="stars-mine"]')).toHaveText('Rate this log');
   await expect(st.locator('[data-watch="stars-mean"]')).toHaveText('4.3 · 3 votes');
   await expect(st.locator('button.is-lit')).toHaveCount(0);
   // The stars sit in the band, between the details and the buttons.
@@ -115,7 +115,7 @@ test('logged in: rate, change, take back; the vote is there again after a reload
   await expect(stars(page).locator('button.is-lit')).toHaveCount(5);
   // A click on one's own vote takes it back.
   await stars(page).locator('[data-v="5"]').click();
-  await expect(stars(page).locator('[data-watch="stars-mine"]')).toHaveText('Rate this run');
+  await expect(stars(page).locator('[data-watch="stars-mine"]')).toHaveText('Rate this log');
   await expect(stars(page).locator('[data-watch="stars-mean"]')).toHaveText('4.3 · 3 votes');
   expect(s.api.server.votes.get(ID)!.has(WATCHER.toLowerCase())).toBe(false);
 });
@@ -128,7 +128,7 @@ test('one\'s own run: the mean and "your run", no stars to give; Remove on every
   await playing(page);
   await expect(stars(page)).toHaveAttribute('data-role', 'own');
   await expect(stars(page).locator('[role="radio"]')).toHaveCount(0);
-  await expect(stars(page).locator('.wc-watch-rate-l')).toHaveText('3 votes · your run');
+  await expect(stars(page).locator('.wc-watch-rate-l')).toHaveText('3 votes · your log');
   await expect(stars(page).locator('.wc-watch-rate-static b')).toHaveText('4.3');
   await expect(comments(page).locator('[data-btn="REMOVE"]')).toHaveCount(2);
   await expect(comments(page).locator('[data-btn="REPORT-COMMENT"]')).toHaveCount(0);
@@ -230,8 +230,8 @@ test('a refused comment says why; a refused vote too', async ({ page }) => {
   await comments(page).locator('[data-btn="POST"]').click();
   await expect(comments(page).locator('[data-watch="comments-error"]')).toHaveText('You have written many comments this hour. Try again later.');
   await stars(page).locator('[data-v="3"]').click();
-  await expect(band(page).locator('.wc-watch-flash')).toHaveText('You have rated many runs this hour. Try again later.');
-  await expect(stars(page).locator('[data-watch="stars-mine"]')).toHaveText('Rate this run');
+  await expect(band(page).locator('.wc-watch-flash')).toHaveText('You have rated many logs this hour. Try again later.');
+  await expect(stars(page).locator('[data-watch="stars-mine"]')).toHaveText('Rate this log');
 });
 
 test('no comments yet; markup in a comment stays text', async ({ page }) => {

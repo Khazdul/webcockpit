@@ -33,16 +33,16 @@ export function watchIdOf(path: string, base = '/'): { id: string; valid: boolea
 export type WatchEnd = 'removed' | 'hidden' | 'unknown' | 'notyet';
 
 export const END_WORDS: Record<WatchEnd, readonly [string, string]> = {
-  removed: ['This run was removed by its sender.', 'The link no longer leads anywhere.'],
-  hidden: ['This run is hidden.', 'It was hidden after reports and waits for a look.'],
-  unknown: ['There is no run at this link.', 'Check the address, or ask whoever sent it.'],
-  notyet: ['This link does not work yet.', 'Shared runs open soon. Until then the link leads nowhere.'],
+  removed: ['This log was removed by its sender.', 'The link no longer leads anywhere.'],
+  hidden: ['This log is hidden.', 'It was hidden after reports and waits for a look.'],
+  unknown: ['There is no log at this link.', 'Check the address, or ask whoever sent it.'],
+  notyet: ['This link does not work yet.', 'Shared logs open soon. Until then the link leads nowhere.'],
 };
 
 /** The run could not be fetched (the network, the service): try again. */
-export const FAILED_WORDS: readonly [string, string] = ['The run could not be loaded.', 'Check the connection and try again.'];
+export const FAILED_WORDS: readonly [string, string] = ['The log could not be loaded.', 'Check the connection and try again.'];
 /** The page refused the payload (its `PayloadReadError` text is the first line). */
-export const REFUSED_NOTE = 'The link works, but this run cannot be played. Tell whoever sent it.';
+export const REFUSED_NOTE = 'The link works, but this log cannot be played. Tell whoever sent it.';
 /** `?admin` without the admin's access. */
 export const ADMIN_WORDS: readonly [string, string] = ['This view is for the admin.', 'Open the link without ?admin to watch it as anyone does.'];
 
@@ -94,9 +94,9 @@ export function mbText(bytes: number): string {
   return (bytes > 0 && mb < 0.1 ? 0.1 : mb).toFixed(1);
 }
 
-/** The loading line: "Loading the run… 0.4 of 1.2 MB" (or without the total while it is unknown). */
+/** The loading line: "Loading the log… 0.4 of 1.2 MB" (or without the total while it is unknown). */
 export function loadingLine(done: number, total: number): string {
-  return total > 0 ? `Loading the run… ${mbText(Math.min(done, total))} of ${mbText(total)} MB` : `Loading the run… ${mbText(done)} MB`;
+  return total > 0 ? `Loading the log… ${mbText(Math.min(done, total))} of ${mbText(total)} MB` : `Loading the log… ${mbText(done)} MB`;
 }
 
 /** The band's details: each a piece of text (the page puts the dots between). */
@@ -140,7 +140,7 @@ export function reportText(raw: string): string {
 
 /** What a failed report says (the server's code, or ours for the network); `kind` names the item. */
 export function reportFailText(status: number, code: string, kind: ReportKind = 'run'): string {
-  const what = kind === 'run' ? 'run' : kind;
+  const what = kind === 'run' ? 'log' : kind;
   if (code === 'too_many' || status === 429) return 'You have sent the most reports a day. Try again tomorrow.';
   if (code === 'suspended') return 'This account is suspended: it cannot report.';
   if (code === 'own') return `This is your own ${what}.`;
@@ -244,11 +244,11 @@ export function ageText(t: number, now: number): string {
 
 /** What a failed vote says. */
 export function voteFailText(status: number, code: string): string {
-  if (code === 'too_many' || status === 429) return 'You have rated many runs this hour. Try again later.';
+  if (code === 'too_many' || status === 429) return 'You have rated many logs this hour. Try again later.';
   if (code === 'suspended') return 'This account is suspended: it cannot rate.';
-  if (code === 'own') return 'This is your own run.';
+  if (code === 'own') return 'This is your own log.';
   if (status === 401) return 'Log in again to rate.';
-  if (status === 404) return 'This run can no longer be rated.';
+  if (status === 404) return 'This log can no longer be rated.';
   if (status === 0) return 'Offline: the stars were not saved.';
   return 'The stars could not be saved. Try again later.';
 }
@@ -261,10 +261,10 @@ export function commentFailText(status: number, code: string): string {
   if (code === 'hidden') return HIDDEN_TEXT;
   if (code === 'too_many' || status === 429) return 'You have written many comments this hour. Try again later.';
   if (code === 'suspended') return 'This account is suspended: it cannot comment.';
-  if (code === 'full' || status === 409) return 'This run has as many comments as it can hold.';
+  if (code === 'full' || status === 409) return 'This log has as many comments as it can hold.';
   if (code === 'bad_text') return 'The comment has characters that cannot be posted.';
   if (status === 401) return 'Log in again to comment.';
-  if (status === 404) return 'This comment or run is no longer there.';
+  if (status === 404) return 'This comment or log is no longer there.';
   if (status === 0) return 'Offline: try again when you are online.';
   return 'That did not work. Try again later.';
 }
