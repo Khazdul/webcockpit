@@ -1,13 +1,13 @@
-// "N online" on the start page (spec §7.6, ADR 0147): `GET
-// /api/stats/public` when the flag `stats` is on. Loaded on idle time by
-// the almanac (src/chrome/start-online.ts); null whenever there is nothing
-// to show (the flag off, no API, a failed or malformed answer).
-//
-// Stage 65 (ADR 0155, the guests' counter): the same answer carries
-// `listed` with the flag `gallery` on, and the start menu's Community row
-// counts from it (src/cloud/community/counter.ts). The two readers share
-// one request: an answer is kept `PUBLIC_STATS_KEEP_MS` (under the
-// server's own `max-age`), so the almanac and the counter never ask twice.
+// The public numbers, `GET /api/stats/public` (spec §7.6, ADR 0147).
+// Stage 59 showed "N online" by the start page's almanac from them; stage
+// 65's feedback round 2 removed that line (the owner sees the number on
+// /admin only, ADR 0155). What reads them now is the guests' counter
+// (stage 65, ADR 0155): with the flag `gallery` on the answer carries
+// `listed`, and the start menu's Community row counts from it
+// (src/cloud/community/counter.ts). An answer is kept
+// `PUBLIC_STATS_KEEP_MS` (under the server's own `max-age`), so readers
+// never ask twice; null whenever there is nothing (the flags off, no API,
+// a failed or malformed answer).
 
 import type { PublicStats } from '../../shared/cloud/api.ts';
 import { type FetchLike, apiAllowed, flagOn, getJson } from './config';
@@ -38,13 +38,14 @@ export const PUBLIC_STATS_KEEP_MS = 55_000;
 let kept: { at: number; got: Promise<PublicStats | null> } | null = null;
 
 /**
- * The public numbers when `stats` is on, or `share` and `gallery` (the
- * Worker answers with either), one request per `PUBLIC_STATS_KEEP_MS` for
- * every reader; null otherwise or on any failure. Never rejects.
+ * The public numbers when `share` and `gallery` are on (only then do they
+ * carry `listed`, the one thing the client still reads), one request per
+ * `PUBLIC_STATS_KEEP_MS` for every reader; null otherwise or on any
+ * failure. Never rejects.
  */
 export async function publicStats(now = Date.now()): Promise<PublicStats | null> {
   if (!apiAllowed()) return null;
-  if (!(await flagOn('stats')) && !((await flagOn('gallery')) && (await flagOn('share')))) return null;
+  if (!((await flagOn('gallery')) && (await flagOn('share')))) return null;
   if (!kept || now - kept.at >= PUBLIC_STATS_KEEP_MS || now < kept.at) kept = { at: now, got: fetchPublicStats() };
   const got = kept.got;
   const s = await got;
@@ -53,20 +54,10 @@ export async function publicStats(now = Date.now()): Promise<PublicStats | null>
   return s;
 }
 
-/** The start page's line: the number online when the flag is on and the server answers, else null. */
-export async function onlineNow(): Promise<number | null> {
-  if (!(await flagOn('stats'))) return null;
-  const s = await publicStats();
-  return s && s.online > 0 ? s.online : null;
-}
-
 /** The guests' counter: the newest listed times, or null (the flags off, a failure, an older Worker). */
 export async function listedNow(): Promise<number[] | null> {
   return (await publicStats())?.listed ?? null;
 }
-
-/** The line's text. */
-export const onlineText = (n: number): string => `${n} online`;
 
 /** Tests: forget the kept answer. */
 export function resetPublicStatsForTest(): void {

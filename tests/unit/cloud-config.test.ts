@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BROWSERS } from '../../shared/cloud/api';
 import { automated, cloudTest, fetchConfig, parseConfig } from '../../src/cloud/config';
 import { browserFamily, deviceType } from '../../src/cloud/device-info';
-import { fetchPublicStats, onlineText, parsePublicStats } from '../../src/cloud/online';
+import { fetchPublicStats, parsePublicStats } from '../../src/cloud/online';
 
 const answer = (status: number, body: unknown) =>
   vi.fn(async (_url: string, _init: RequestInit) => ({
@@ -89,11 +89,6 @@ describe('public stats', () => {
     expect(ok.mock.calls[0]![0]).toBe('/api/stats/public');
     expect(await fetchPublicStats(answer(404, { error: 'not_found' }))).toBeNull();
     expect(await fetchPublicStats(vi.fn(() => Promise.reject(new Error('x'))))).toBeNull();
-  });
-
-  it('the line', () => {
-    expect(onlineText(1)).toBe('1 online');
-    expect(onlineText(42)).toBe('42 online');
   });
 });
 

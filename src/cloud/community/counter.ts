@@ -11,8 +11,9 @@
 //   seen time, on every device.
 // - **A guest** (or accounts off): `GET /api/stats/public`'s `listed`, the
 //   newest listed times, counted against this device's `wc.communitySeen`
-//   (localStorage). No extra request: the almanac's "N online" and this
-//   share the one answer (src/cloud/online.ts `publicStats`). Asked on the
+//   (localStorage), through src/cloud/online.ts `publicStats` (the
+//   almanac's "N online" that shared it is gone since stage 65's feedback
+//   round 2). Asked on the
 //   same cadence by the start menu (`refreshCommunityCount`), never while
 //   a game plays.
 //

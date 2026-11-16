@@ -11,7 +11,7 @@
 import type { LeafNav } from './about';
 
 /** Shown under the wordmark at the head of the page. */
-export const PRIVACY_UPDATED = 'Last changed 14 November 2026';
+export const PRIVACY_UPDATED = 'Last changed 16 November 2026';
 
 export const PRIVACY_TEXT = `WebCockpit runs in your browser. Your game goes straight from the browser to MUME, and what you set up here (settings, profiles, scripts, maps and recorded runs) is kept in this browser only. This page says what the site itself learns, and what it does with it.
 
@@ -26,7 +26,7 @@ While the page is open and on screen, or in the game, it sends the site a small 
 Nothing you type, no character, profile or account name and no password is ever sent to the site. The heartbeat carries no cookie.
 
 WHY
-To know how many people use WebCockpit: how many are online now, how many each day, and how that changes over time. The start page may show how many are online. Who is online is never shown, to anyone. Counting this way is in the site's legitimate interest, and it is kept so small that it says nothing about you.
+To know how many people use WebCockpit: how many are online now, how many each day, and how that changes over time. Who is online is never shown, to anyone. Counting this way is in the site's legitimate interest, and it is kept so small that it says nothing about you.
 
 WHAT IS KEPT
   Each device     Its latest heartbeat (the five things above), when it was first and last seen, and how many heartbeats it sent today and the day before. Deleted after 35 days without a heartbeat; a device that comes back after that counts as new.

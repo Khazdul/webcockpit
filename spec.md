@@ -1305,10 +1305,11 @@ ADR 0147.
 - **Server:** tables `presence`, `device_day`, `stat_sample`,
   `stat_daily`; a Cron every 5 minutes samples, and at 00:10 UTC rolls
   up and prunes.
-- `GET /api/stats/public` → `{online, playing}`, cached 60 s.
-- **Start page:** one quiet line, "N online", by the almanac; hidden
-  when the request fails. The owner keeps or removes it after stage
-  59.
+- `GET /api/stats/public` → `{online, playing}`, cached 60 s (with
+  `gallery` on also `listed`, the guests' Community counter, §7.8).
+- **Start page:** no number online. Stage 59's "N online" by the
+  almanac was removed in stage 65's feedback round 2 (owner,
+  2026-11-16; ADR 0155): the owner sees it on `/admin` only.
 - **About:** a "What the site knows" section. A `/privacy` leaf in the
   About look with the full text: the heartbeat, the account, shared
   runs, Cloudflare as processor, the abuse address, how to delete.
