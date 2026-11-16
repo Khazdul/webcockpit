@@ -30,6 +30,7 @@ import type { Wall } from '../player/engine';
 import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
+import { SHARED_PANES, sharedPayload } from '../share/shared-panes';
 import { applyTheme } from '../theme/apply';
 import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
@@ -115,8 +116,14 @@ function docFullscreen(doc: Document): ReplayFullscreen {
   };
 }
 
-/** Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock). */
-export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayload, o: { wall?: Wall; fullscreen?: ReplayFullscreen } = {}): ReplayPage {
+/**
+ * Plays `payload` in `root` (the page, and tests that skip the decoding; `wall`: a test's clock).
+ * A shared run (stage 65): only Map, Timers and Group, each off at the
+ * start; a payload made before that (more panes, some on) is played the
+ * same way (`sharedPayload`, src/share/shared-panes.ts).
+ */
+export function openReplay(doc: Document, root: HTMLElement, given: ReplayPayload, o: { wall?: Wall; fullscreen?: ReplayFullscreen } = {}): ReplayPage {
+  const payload = sharedPayload(given);
   const fs = o.fullscreen ?? docFullscreen(doc);
   doc.title = replayTitle(payload);
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
@@ -126,7 +133,7 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), ...(o.wall ? { wall: o.wall } : {}) });
+  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), panes: SHARED_PANES, ...(o.wall ? { wall: o.wall } : {}) });
   host.openChain(
     payload.runs,
     [],
