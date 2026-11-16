@@ -163,19 +163,19 @@ describe('magical darkness: only its Event.Darkness events (owner feedback 26)',
 });
 
 describe('almanac', () => {
-  it("gives how far the sun is through the day (sunU) for the glimpses: 0 when the day begins, 1 when the night begins, -1 at night (owner feedback 52, ADR 0093 addendum 2026-11-01)", () => {
-    // month 5 (Forelithe): the day from the dawn hour 6 → 21 (the dusk hour 20 still day)
-    expect(sunUpFraction(5, 6, 0)).toBe(0);
+  it("gives how far the sun is through the day (sunU) for the glimpses: 0 when the day begins, 1 when the night begins, -1 at night (owner feedback 52, ADR 0093 addendum 2026-11-16)", () => {
+    // month 5 (Forelithe): dawn 6, dusk 20; the day 7:00 → 20:00
+    expect(sunUpFraction(5, 7, 0)).toBe(0);
     expect(sunUpFraction(5, 13, 30)).toBeCloseTo(0.5, 6);
-    expect(sunUpFraction(5, 20, 59)).toBeLessThan(1);
-    expect(sunUpFraction(5, 21, 0)).toBe(1);
-    // month 0 (Afteryule): the day from the dawn hour 8 → 19
+    expect(sunUpFraction(5, 19, 59)).toBeLessThan(1);
+    expect(sunUpFraction(5, 20, 0)).toBe(1);
+    // month 0 (Afteryule): dawn 8, dusk 18; the day 9 → 18
     expect(sunUpFraction(0, 13, 30)).toBeCloseTo(0.5, 6);
-    expect(almanacState(clockAt(5, 13), NOW_MS).sunU).toBeCloseTo(7 / 15, 6);
-    expect(almanacState(clockAt(5, 20), NOW_MS).sunU).toBeCloseTo(14 / 15, 6);
-    expect(almanacState(clockAt(5, 21), NOW_MS).sunU).toBe(-1);
-    expect(almanacState(clockAt(5, 6), NOW_MS).sunU).toBe(0);
-    expect(almanacState(clockAt(5, 5), NOW_MS).sunU).toBe(-1);
+    expect(almanacState(clockAt(5, 13), NOW_MS).sunU).toBeCloseTo(6 / 13, 6);
+    expect(almanacState(clockAt(5, 19), NOW_MS).sunU).toBeCloseTo(12 / 13, 6);
+    expect(almanacState(clockAt(5, 20), NOW_MS).sunU).toBe(-1);
+    expect(almanacState(clockAt(5, 7), NOW_MS).sunU).toBe(0);
+    expect(almanacState(clockAt(5, 6), NOW_MS).sunU).toBe(-1);
     expect(almanacState(clockAt(5, 2), NOW_MS).sunU).toBe(-1);
     expect(almanacState(clockAt(5, 13, 10, 'unset'), NOW_MS).sunU).toBe(-1);
   });
@@ -184,11 +184,11 @@ describe('almanac', () => {
     const c = clockAt(5, 9);
     const s = sink();
     const sig = new WeatherSignals(s, empty, c, NOW_MS);
-    expect(sig.state().sunU).toBeCloseTo(3 / 15, 6);
+    expect(sig.state().sunU).toBeCloseTo(2 / 13, 6);
     sig.almanac(c, NOW_MS + 30_000);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(0);
-    // the day is 15 game hours = 900 real s; SUN_U_STEP of it later, sent
-    sig.almanac(c, NOW_MS + (Math.ceil(SUN_U_STEP * 900) + 1) * 1000);
+    // the day is 13 game hours = 780 real s; SUN_U_STEP of it later, sent
+    sig.almanac(c, NOW_MS + (Math.ceil(SUN_U_STEP * 780) + 1) * 1000);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(1);
     sig.almanac(c, NOW_MS + 60_000, true);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(2);
@@ -236,10 +236,10 @@ describe('almanac', () => {
     expect(new WeatherSignals(sink(), empty, clockAt(5, 2, 10, 'unset'), NOW_MS).state().moonU).toBe(-1);
   });
 
-  it('the dawn hour is day; the day and dayAt come at the dawn hour, as the sun rises (ADR 0093 addendum 2026-11-01)', () => {
-    // Forelithe (5): dawn hour 6, the day from 6:00; the sunrise runs through 5:00 – 6:00.
-    expect(almanacState(clockAt(5, 6), NOW_MS).sky?.clock).toBe('day');
-    const c = clockAt(5, 5);
+  it('the dawn hour is night; the day and dayAt come at dawn + 1 (ADR 0093 addendum 2026-11-16)', () => {
+    // Forelithe (5): dawn hour 6, the day from 7:00; the sunrise runs through the dawn hour 6:00 – 7:00.
+    expect(almanacState(clockAt(5, 7), NOW_MS).sky?.clock).toBe('day');
+    const c = clockAt(5, 6);
     const a = almanacState(c, NOW_MS);
     expect(a.sky?.clock).toBe('night');
     expect(a.dayAt).toBe(NOW_MS + 60_000);
@@ -248,16 +248,16 @@ describe('almanac', () => {
     // the day has begun: dayAt is its start, until nightfall gives tomorrow's
     const d = almanacState(c, NOW_MS + 60_000);
     expect([d.sky?.clock, d.dayAt, d.sunU]).toEqual(['day', NOW_MS + 60_000, 0]);
-    expect(almanacState(c, NOW_MS + 15 * 60_000).dayAt).toBe(NOW_MS + 60_000);
-    expect(almanacState(c, NOW_MS + 16 * 60_000).dayAt).toBe(NOW_MS + 60_000 + 1440_000);
+    expect(almanacState(c, NOW_MS + 13 * 60_000).dayAt).toBe(NOW_MS + 60_000);
+    expect(almanacState(c, NOW_MS + 14 * 60_000).dayAt).toBe(NOW_MS + 60_000 + 1440_000);
     // below minute precision: no time-driven sunrise
-    expect(almanacState(clockAt(5, 5, 10, 'hour'), NOW_MS).dayAt).toBe(-1);
-    expect(almanacState(clockAt(5, 5, 10, 'unset'), NOW_MS).dayAt).toBe(-1);
+    expect(almanacState(clockAt(5, 6, 10, 'hour'), NOW_MS).dayAt).toBe(-1);
+    expect(almanacState(clockAt(5, 6, 10, 'unset'), NOW_MS).dayAt).toBe(-1);
   });
 
-  it('the dusk hour is day; the night and nightAt come at dusk + 1 (item 61)', () => {
-    // Forelithe (5): dusk hour 20, the night from 21:00.
-    const c = clockAt(5, 20);
+  it('the dusk hour is night; the night and nightAt come at the dusk hour (ADR 0093 addendum 2026-11-16)', () => {
+    // Forelithe (5): dusk hour 20, the night from 20:00; the sunset runs through 19:00 – 20:00.
+    const c = clockAt(5, 19);
     const a = almanacState(c, NOW_MS);
     expect(a.sky?.clock).toBe('day');
     expect(a.nightAt).toBe(NOW_MS + 60_000);
@@ -265,28 +265,39 @@ describe('almanac', () => {
     // the night has begun: nightAt is its start, until daybreak gives the next
     const n = almanacState(c, NOW_MS + 60_000);
     expect([n.sky?.clock, n.nightAt, n.sunU]).toEqual(['night', NOW_MS + 60_000, -1]);
-    expect(almanacState(c, NOW_MS + 9 * 60_000).nightAt).toBe(NOW_MS + 60_000);
-    expect(almanacState(c, NOW_MS + 11 * 60_000).nightAt).toBe(NOW_MS + 60_000 + 1440_000);
-    expect(almanacState(clockAt(5, 20, 10, 'hour'), NOW_MS).nightAt).toBe(-1);
+    expect(almanacState(c, NOW_MS + 11 * 60_000).nightAt).toBe(NOW_MS + 60_000);
+    expect(almanacState(c, NOW_MS + 13 * 60_000).nightAt).toBe(NOW_MS + 60_000 + 1440_000);
+    expect(almanacState(clockAt(5, 19, 10, 'hour'), NOW_MS).nightAt).toBe(-1);
   });
 
-  it('sends nightAt when it changes; Event.Sun set keeps the day, dark brings the night', () => {
+  it('Wedmath (dawn 4, dusk 22): the sunrise runs 4:00 – 5:00 and ends at 5:00, the sunset 21:00 – 22:00 and ends at 22:00 (owner, in-game)', () => {
+    const rise = almanacState(clockAt(7, 4), NOW_MS);
+    expect([rise.sky?.clock, rise.dayAt]).toEqual(['night', NOW_MS + 60_000]);
+    expect(almanacState(clockAt(7, 4), NOW_MS + 59_000).sky?.clock).toBe('night');
+    expect(almanacState(clockAt(7, 4), NOW_MS + 60_000).sky?.clock).toBe('day');
+    const set = almanacState(clockAt(7, 21), NOW_MS);
+    expect([set.sky?.clock, set.nightAt]).toEqual(['day', NOW_MS + 60_000]);
+    expect(almanacState(clockAt(7, 21), NOW_MS + 59_000).sky?.clock).toBe('day');
+    expect(almanacState(clockAt(7, 21), NOW_MS + 60_000).sky?.clock).toBe('night');
+  });
+
+  it('sends nightAt when it changes; Event.Sun set brings the night, dark keeps it', () => {
     const s = sink();
-    const c = clockAt(5, 20);
+    const c = clockAt(5, 19);
     const sig = new WeatherSignals(s, empty, c, NOW_MS);
     expect(sig.state()).toMatchObject({ clock: 'day', nightAt: NOW_MS + 60_000 });
     sig.almanac({ ...c, epoch: c.epoch - 3 }, NOW_MS + 10_000, true);
     expect(s.states.at(-1)!.s).toMatchObject({ nightAt: NOW_MS + 57_000 });
     sig.gmcp('event.sun', { what: 'set' });
     expect(s.events.at(-1)).toBe('sun.set');
-    expect(sig.state().clock).toBe('day');
+    expect(sig.state()).toMatchObject({ clock: 'night', sunU: -1 });
     sig.gmcp('event.sun', { what: 'dark' });
     expect(sig.state()).toMatchObject({ clock: 'night', sunU: -1 });
   });
 
-  it('sends dayAt at start and when it changes; Event.Sun rise brings the day, light keeps it', () => {
+  it('sends dayAt at start and when it changes; Event.Sun rise keeps the night, light brings the day', () => {
     const s = sink();
-    const c = clockAt(5, 5);
+    const c = clockAt(5, 6);
     const sig = new WeatherSignals(s, empty, c, NOW_MS);
     expect(sig.state()).toMatchObject({ clock: 'night', dayAt: NOW_MS + 60_000 });
     sig.almanac(c, NOW_MS + 30_000);
@@ -297,7 +308,7 @@ describe('almanac', () => {
     expect(s.states.at(-1)!.s).toMatchObject({ dayAt: NOW_MS + 62_000 });
     sig.gmcp('event.sun', { what: 'rise' });
     expect(s.events.at(-1)).toBe('sun.rise');
-    expect(sig.state()).toMatchObject({ clock: 'day', sunU: 0 });
+    expect(sig.state()).toMatchObject({ clock: 'night', sunU: -1 });
     sig.gmcp('event.sun', { what: 'light' });
     expect(s.events.at(-1)).toBe('sun.light');
     expect(sig.state()).toMatchObject({ clock: 'day', sunU: 0 });
@@ -336,8 +347,8 @@ describe('almanac', () => {
 
   it('starts from the almanac and applies only its predicted changes; an event wins in between', () => {
     const s = sink();
-    // 1 Forelithe (month 5): dusk hour 20, night from 21. Start at 20:00, day.
-    const clock = clockAt(5, 20);
+    // 1 Forelithe (month 5): dusk hour 20, night from 20. Start at 19:00, day.
+    const clock = clockAt(5, 19);
     const sig = new WeatherSignals(s, empty, clock, NOW_MS);
     expect(sig.state().clock).toBe('day');
     // An Event.Sun dark arrives early: night.
@@ -557,25 +568,25 @@ describe('game events held back while a pin holds (owner item 85)', () => {
     expect(s.events).toEqual([{ e: 'strike', data: { storm: true } }]);
   });
 
-  it('a sunset the game opened during the pin joins at its place on release when the clock does not time it', () => {
+  it('a sunrise the game opened during the pin joins at its place on release when the clock does not time it', () => {
     const s = rec();
     let now = NOW_MS;
     const sig = new WeatherSignals(s, empty, unsynced, NOW_MS, () => now);
-    sig.pin({ ...DEMO_PIN, clock: 'day' }, true);
-    sig.gmcp('event.sun', { what: 'set' });
-    now += 20_000;
-    sig.pin(null, true);
-    expect(s.events).toEqual([{ e: 'sun.set', data: { from: -40 } }]);
-  });
-
-  it('a game Event.Sun rise during the pin is the day begun: no sunrise is replayed, the release brings the day', () => {
-    const s = rec();
-    const sig = new WeatherSignals(s, empty, unsynced, NOW_MS, () => NOW_MS);
     sig.pin(DEMO_PIN, true);
     sig.gmcp('event.sun', { what: 'rise' });
+    now += 20_000;
+    sig.pin(null, true);
+    expect(s.events).toEqual([{ e: 'sun.rise', data: { from: -40 } }]);
+  });
+
+  it('a game Event.Sun set during the pin is the night begun: no sunset is replayed, the release brings the night', () => {
+    const s = rec();
+    const sig = new WeatherSignals(s, empty, unsynced, NOW_MS, () => NOW_MS);
+    sig.pin({ ...DEMO_PIN, clock: 'day' }, true);
+    sig.gmcp('event.sun', { what: 'set' });
     sig.pin(null, true);
     expect(s.events).toEqual([]);
-    expect(s.states.at(-1)).toMatchObject({ clock: 'day', sunU: 0 });
+    expect(s.states.at(-1)).toMatchObject({ clock: 'night', sunU: -1 });
   });
 
   it('no replay when the clock times the turn, or once its minute is over', () => {
@@ -583,7 +594,7 @@ describe('game events held back while a pin holds (owner item 85)', () => {
     let now = NOW_MS;
     const timed = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS, () => now);
     timed.pin(DEMO_PIN, true);
-    timed.gmcp('event.sun', { what: 'set' });
+    timed.gmcp('event.sun', { what: 'rise' });
     timed.pin(null, true);
     const late = new WeatherSignals(s, empty, unsynced, NOW_MS, () => now);
     late.pin(DEMO_PIN, true);

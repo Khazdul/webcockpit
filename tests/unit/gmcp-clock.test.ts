@@ -59,23 +59,20 @@ describe('calendar', () => {
     expect([hour24(12, 'am'), hour24(1, 'am'), hour24(12, 'pm'), hour24(11, 'PM')]).toEqual([0, 1, 12, 23]);
     expect(DAWN).toHaveLength(12);
     expect(DUSK).toHaveLength(12);
-    // Astron: sunlight from the dawn hour 7 through the dusk hour 19, night from 20 (ADR 0093, addendum 2026-11-01)
-    expect(isDay(3, 7)).toBe(true);
+    // Astron (dawn 7, dusk 19): sunlight dawn + 1 ≤ h < dusk, 8:00 → 19:00 (ADR 0093, addendum 2026-11-16)
+    expect(isDay(3, 7)).toBe(false);
     expect(isDay(3, 8)).toBe(true);
     expect(isDay(3, 18)).toBe(true);
-    expect(isDay(3, 19)).toBe(true);
-    expect(isDay(3, 6)).toBe(false);
-    expect(isDay(3, 20)).toBe(false);
-    expect(nightHour(3)).toBe(20);
-    // Solmath: "The sun rises in the east." at 9 (the prompt turns `*`); "The day has begun." at 10 changes nothing
-    expect(isDay(1, 8)).toBe(false);
-    expect(isDay(1, 9)).toBe(true);
-    expect(isDay(1, 10)).toBe(true);
-    expect(dayHour(1)).toBe(9);
-    // "The sun slowly disappears in the west." at 17 is still sunlit; "The night has begun." at 18 (the prompt turns `o`)
-    expect(isDay(1, 17)).toBe(true);
-    expect(isDay(1, 18)).toBe(false);
-    expect(nightHour(1)).toBe(18);
+    expect(isDay(3, 19)).toBe(false);
+    expect(dayHour(3)).toBe(8);
+    expect(nightHour(3)).toBe(19);
+    // Wedmath (dawn 4, dusk 22), the owner's in-game check: sun from 5:00 am, dark from 10:00 pm
+    expect(isDay(7, 4)).toBe(false);
+    expect(isDay(7, 5)).toBe(true);
+    expect(isDay(7, 21)).toBe(true);
+    expect(isDay(7, 22)).toBe(false);
+    expect(dayHour(7)).toBe(5);
+    expect(nightHour(7)).toBe(22);
     expect(periodIcon('day')).toBe('☼');
     expect(periodIcon('night')).toBe('☾');
   });
@@ -172,116 +169,116 @@ describe('sync sources', () => {
 });
 
 describe('transitions and the strip text', () => {
-  it('counts down to the night (dusk + 1) by day, to the day (the dawn hour) by night, across midnight', () => {
-    // Astron (3): dawn hour 7, dusk hour 19, the day 7:00 → 20:00.
-    const day = clockAt(2973, 3, 12, 19, 55, 'minute').nextTransition(T)!;
-    expect(day).toEqual({ period: 'day', at: T + 5 * 1000, from: T - 775 * 1000, precision: 'minute' });
-    // the dusk hour is still day
+  it('counts down to the night (the dusk hour) by day, to the day (dawn + 1) by night, across midnight', () => {
+    // Astron (3): dawn hour 7, dusk hour 19, the day 8:00 → 19:00.
+    const day = clockAt(2973, 3, 12, 18, 55, 'minute').nextTransition(T)!;
+    expect(day).toEqual({ period: 'day', at: T + 5 * 1000, from: T - 655 * 1000, precision: 'minute' });
+    // the dusk hour is night
     const dusk = clockAt(2973, 3, 12, 19, 0, 'minute').nextTransition(T)!;
-    expect(dusk).toEqual({ period: 'day', at: T + 60 * 1000, from: T - 720 * 1000, precision: 'minute' });
-    const night = clockAt(2973, 3, 12, 20, 0, 'minute').nextTransition(T)!;
-    expect(night).toEqual({ period: 'night', at: T + 11 * 60 * 1000, from: T, precision: 'minute' });
-    const early = clockAt(2973, 3, 12, 5, 30, 'minute').nextTransition(T)!;
+    expect(dusk).toEqual({ period: 'night', at: T + 13 * 60 * 1000, from: T, precision: 'minute' });
+    const early = clockAt(2973, 3, 12, 6, 30, 'minute').nextTransition(T)!;
     expect(early.period).toBe('night');
     expect(early.at).toBe(T + 90 * 1000);
     const late = clockAt(2973, 3, 12, 22, 0, 'minute').nextTransition(T)!;
-    expect(late.at).toBe(T + (2 * 60 + 7 * 60) * 1000);
-    // Day 30: the dawn hour of the next month (Astron, dawn 7).
+    expect(late.at).toBe(T + (2 * 60 + 8 * 60) * 1000);
+    // Day 30: the day of the next month (Astron, dawn 7: 8:00).
     const eom = clockAt(2973, 2, 30, 23, 0, 'minute').nextTransition(T)!;
-    expect(eom.at).toBe(T + (60 + DAWN[3]! * 60) * 1000);
+    expect(eom.at).toBe(T + (60 + (DAWN[3]! + 1) * 60) * 1000);
   });
 
-  it('the dawn hour is day: the sun rises at its first minute (ADR 0093, addendum 2026-11-01)', () => {
-    // Solmath (1): dawn hour 9 ("The sun rises in the east."), dusk 17; the day 9:00 → 18:00.
-    const before = clockAt(2973, 1, 11, 8, 59, 'minute').nextTransition(T)!;
-    expect(before).toEqual({ period: 'night', at: T + 1000, from: T - 899 * 1000, precision: 'minute' });
-    const dawn = clockAt(2973, 1, 11, 9, 0, 'minute').nextTransition(T)!;
-    expect(dawn).toEqual({ period: 'day', at: T + 9 * 60 * 1000, from: T, precision: 'minute' });
-    // "The day has begun." (10:00) changes nothing
+  it('Wedmath, the owner in-game: 4:59 am night, 5:00 am day, 9:59 pm day, 10:00 pm night (ADR 0093, addendum 2026-11-16)', () => {
+    // Wedmath (7): dawn 4, dusk 22.
+    expect(clockAt(2973, 7, 11, 4, 59, 'minute').nextTransition(T)!).toEqual({ period: 'night', at: T + 1000, from: T - (6 * 60 + 59) * 1000, precision: 'minute' });
+    expect(clockAt(2973, 7, 11, 5, 0, 'minute').nextTransition(T)!).toEqual({ period: 'day', at: T + 17 * 60_000, from: T, precision: 'minute' });
+    expect(clockAt(2973, 7, 11, 21, 59, 'minute').nextTransition(T)!).toEqual({ period: 'day', at: T + 1000, from: T - (16 * 60 + 59) * 1000, precision: 'minute' });
+    expect(clockAt(2973, 7, 11, 22, 0, 'minute').nextTransition(T)!).toEqual({ period: 'night', at: T + 7 * 60_000, from: T, precision: 'minute' });
+    expect(dayBeginsAt(clockAt(2973, 7, 11, 4, 59, 'minute').state, T)).toBe(T + 1000);
+    expect(nightBeginsAt(clockAt(2973, 7, 11, 21, 59, 'minute').state, T)).toBe(T + 1000);
+  });
+
+  it('the dawn hour is night: the sun shines from the hour after (ADR 0093, addendum 2026-11-16)', () => {
+    // Solmath (1): dawn hour 9 ("The sun rises in the east."), dusk 17; the day 10:00 → 17:00.
+    const before = clockAt(2973, 1, 11, 9, 59, 'minute').nextTransition(T)!;
+    expect(before).toEqual({ period: 'night', at: T + 1000, from: T - (16 * 60 + 59) * 1000, precision: 'minute' });
     const light = clockAt(2973, 1, 11, 10, 0, 'minute').nextTransition(T)!;
-    expect(light).toEqual({ period: 'day', at: T + 8 * 60 * 1000, from: T - 60 * 1000, precision: 'minute' });
-    // hour precision the hour before dawn: ~1 to the day; in the dawn hour it is day
-    expect(clockAt(2973, 1, 11, 8, 0, 'hour').nextTransition(T)!).toMatchObject({ period: 'night', at: T + 60 * 1000 });
-    expect(clockAt(2973, 1, 11, 9, 0, 'hour').nextTransition(T)!).toMatchObject({ period: 'day', from: T });
+    expect(light).toEqual({ period: 'day', at: T + 7 * 60 * 1000, from: T, precision: 'minute' });
+    // hour precision in the dawn hour: ~1 to the day
+    expect(clockAt(2973, 1, 11, 9, 0, 'hour').nextTransition(T)!).toMatchObject({ period: 'night', at: T + 60 * 1000 });
+    expect(clockAt(2973, 1, 11, 10, 0, 'hour').nextTransition(T)!).toMatchObject({ period: 'day', from: T });
   });
 
   it('dayBeginsAt: the start of this day, or of the next one at night (minute precision only)', () => {
-    // Solmath (1): day from the dawn hour 9:00 to 18:00 (dusk hour 17).
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 8, 0, 'minute').state, T)).toBe(T + 60_000);
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 8, 59, 'minute').state, T + 400)).toBe(T + 1000);
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 0, 'minute').state, T)).toBe(T);
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 17, 59, 'minute').state, T)).toBe(T - (8 * 60 + 59) * 1000);
+    // Solmath (1): day from 10:00 to the dusk hour 17:00.
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 0, 'minute').state, T)).toBe(T + 60_000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 59, 'minute').state, T + 400)).toBe(T + 1000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 10, 0, 'minute').state, T)).toBe(T);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 16, 59, 'minute').state, T)).toBe(T - (6 * 60 + 59) * 1000);
     // after the day: tomorrow's
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 18, 0, 'minute').state, T)).toBe(T + (6 * 60 + 9 * 60) * 1000);
-    // after dusk on day 30: the next month's (Rethe: dawn 8)
-    expect(dayBeginsAt(clockAt(2973, 1, 30, 23, 0, 'minute').state, T)).toBe(T + (60 + 8 * 60) * 1000);
-    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 0, 'hour').state, T)).toBeNull();
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 17, 0, 'minute').state, T)).toBe(T + (7 * 60 + 10 * 60) * 1000);
+    // after dusk on day 30: the next month's (Rethe: dawn 8, day 9)
+    expect(dayBeginsAt(clockAt(2973, 1, 30, 23, 0, 'minute').state, T)).toBe(T + (60 + 9 * 60) * 1000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 10, 0, 'hour').state, T)).toBeNull();
     expect(dayBeginsAt(new ClockModel().state, T)).toBeNull();
   });
 
-  it('the dusk hour is still day; the night begins an hour later (item 61)', () => {
-    // Solmath (1): dusk hour 17 ("The sun slowly disappears"), night from 18:00 ("The night has begun.").
-    const set = clockAt(2973, 1, 11, 17, 0, 'minute').nextTransition(T)!;
-    expect(set).toEqual({ period: 'day', at: T + 60 * 1000, from: T - 480 * 1000, precision: 'minute' });
-    const last = clockAt(2973, 1, 11, 17, 59, 'minute').nextTransition(T)!;
-    expect(last).toEqual({ period: 'day', at: T + 1000, from: T - 539 * 1000, precision: 'minute' });
-    const begun = clockAt(2973, 1, 11, 18, 0, 'minute').nextTransition(T)!;
-    expect(begun).toEqual({ period: 'night', at: T + (6 * 60 + 9 * 60) * 1000, from: T, precision: 'minute' });
+  it('the hour before the dusk hour is the last of the day; the night begins at dusk', () => {
+    // Solmath (1): night from the dusk hour 17:00 ("The sun slowly disappears in the west.").
+    const last = clockAt(2973, 1, 11, 16, 59, 'minute').nextTransition(T)!;
+    expect(last).toEqual({ period: 'day', at: T + 1000, from: T - 419 * 1000, precision: 'minute' });
+    const begun = clockAt(2973, 1, 11, 17, 0, 'minute').nextTransition(T)!;
+    expect(begun).toEqual({ period: 'night', at: T + (7 * 60 + 10 * 60) * 1000, from: T, precision: 'minute' });
   });
 
   it('nightBeginsAt: the start of this night (the evening before, after midnight), or of the coming one by day', () => {
-    // Solmath (1): night from 18:00 to the dawn hour, 9:00.
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 17, 0, 'minute').state, T)).toBe(T + 60_000);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 17, 59, 'minute').state, T + 400)).toBe(T + 1000);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 18, 0, 'minute').state, T)).toBe(T);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 23, 0, 'minute').state, T)).toBe(T - 5 * 60_000);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 10, 0, 'minute').state, T)).toBe(T + 8 * 60_000);
+    // Solmath (1): night from 17:00 to 10:00.
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 16, 0, 'minute').state, T)).toBe(T + 60_000);
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 16, 59, 'minute').state, T + 400)).toBe(T + 1000);
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 17, 0, 'minute').state, T)).toBe(T);
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 23, 0, 'minute').state, T)).toBe(T - 6 * 60_000);
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 10, 0, 'minute').state, T)).toBe(T + 7 * 60_000);
     // after midnight: the evening before
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 2, 0, 'minute').state, T)).toBe(T - 8 * 60_000);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 8, 59, 'minute').state, T)).toBe(T - (14 * 60 + 59) * 1000);
-    // the dawn hour is day: the coming night
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 9, 0, 'minute').state, T)).toBe(T + 9 * 60_000);
-    // after midnight on day 1: the last evening of the month before (Afteryule: dusk 18, night 19)
-    expect(nightBeginsAt(clockAt(2973, 1, 1, 2, 0, 'minute').state, T)).toBe(T - 7 * 60_000);
-    expect(nightBeginsAt(clockAt(2973, 1, 11, 17, 0, 'hour').state, T)).toBeNull();
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 2, 0, 'minute').state, T)).toBe(T - 9 * 60_000);
+    // the dawn hour is night: the evening before
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 9, 59, 'minute').state, T)).toBe(T - (16 * 60 + 59) * 1000);
+    // after midnight on day 1: the last evening of the month before (Afteryule: dusk 18)
+    expect(nightBeginsAt(clockAt(2973, 1, 1, 2, 0, 'minute').state, T)).toBe(T - 8 * 60_000);
+    expect(nightBeginsAt(clockAt(2973, 1, 11, 16, 0, 'hour').state, T)).toBeNull();
   });
 
   it('the period began: minute precision, across midnight and into a new month and year', () => {
-    // Astron (3): day 7:00 → 20:00, night 20:00 → 7:00.
-    expect(clockAt(2973, 3, 12, 7, 0, 'minute').nextTransition(T)!.from).toBe(T);
-    expect(clockAt(2973, 3, 12, 14, 30, 'minute').nextTransition(T + 700)!.from).toBe(T - 450_000);
-    expect(clockAt(2973, 3, 12, 23, 10, 'minute').nextTransition(T)!.from).toBe(T - 190_000);
-    // after midnight: the evening before (20:00), 6 h 10 min ago
-    expect(clockAt(2973, 3, 12, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - 370_000);
-    // the 1st of Astron after midnight: the last evening of Rethe (dusk 18, night 19)
-    expect(clockAt(2973, 3, 1, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - (5 * 60 + 2 * 60 + 10) * 1000);
-    // the 1st of Afteryule: the last evening of Foreyule the year before (dusk 19, night 20)
+    // Astron (3): day 8:00 → 19:00, night 19:00 → 8:00.
+    expect(clockAt(2973, 3, 12, 8, 0, 'minute').nextTransition(T)!.from).toBe(T);
+    expect(clockAt(2973, 3, 12, 14, 30, 'minute').nextTransition(T + 700)!.from).toBe(T - 390_000);
+    expect(clockAt(2973, 3, 12, 23, 10, 'minute').nextTransition(T)!.from).toBe(T - 250_000);
+    // after midnight: the evening before (19:00), 7 h 10 min ago
+    expect(clockAt(2973, 3, 12, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - 430_000);
+    // the 1st of Astron after midnight: the last evening of Rethe (dusk 18)
+    expect(clockAt(2973, 3, 1, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - (6 * 60 + 2 * 60 + 10) * 1000);
+    // the 1st of Afteryule: the last evening of Foreyule the year before (dusk 19)
     const ny = clockAt(2974, 0, 1, 3, 0, 'minute').nextTransition(T)!;
-    expect(ny.from).toBe(T - (4 * 60 + 3 * 60) * 1000);
-    expect(ny.at).toBe(T + (DAWN[0]! - 3) * 60_000);
-    // a night that starts on day 30 ends in the next month: the whole night is one period
-    // the last night of the year runs into Afteryule's dawn (Foreyule night from 20, Afteryule dawn 8)
+    expect(ny.from).toBe(T - (5 * 60 + 3 * 60) * 1000);
+    expect(ny.at).toBe(T + (DAWN[0]! + 1 - 3) * 60_000);
+    // the last night of the year runs into Afteryule's day (Foreyule night from 19, Afteryule day 9)
     const ye = clockAt(2973, 11, 30, 21, 0, 'minute').nextTransition(T)!;
-    expect(ye).toEqual({ period: 'night', at: T + (3 * 60 + 8 * 60) * 1000, from: T - 60_000, precision: 'minute' });
+    expect(ye).toEqual({ period: 'night', at: T + (3 * 60 + 9 * 60) * 1000, from: T - 120_000, precision: 'minute' });
     const eom = clockAt(2973, 2, 30, 23, 0, 'minute').nextTransition(T)!;
-    expect(eom.at - eom.from).toBe((24 - (DUSK[2]! + 1) + DAWN[3]!) * 60_000);
+    expect(eom.at - eom.from).toBe((24 - DUSK[2]! + DAWN[3]! + 1) * 60_000);
   });
 
   it('the period began: hour precision counts from the start of the game hour', () => {
-    // Astron 14:xx, hour precision: the day (from the dawn hour 7) began 7 game hours before :00.
+    // Astron 14:xx, hour precision: the day (from 8) began 6 game hours before :00.
     const h = clockAt(2973, 3, 12, 14, 0, 'hour');
     const t0 = h.nextTransition(T)!;
-    expect(t0.from).toBe(T - 7 * 60_000);
-    expect(t0.at).toBe(T + 6 * 60_000);
-    // 40 s (game minutes) later the same estimate, moved with the wall clock
+    expect(t0.from).toBe(T - 6 * 60_000);
+    expect(t0.at).toBe(T + 5 * 60_000);
     const t1 = h.nextTransition(T + 40_000)!;
-    expect(t1.at - t1.from).toBe(13 * 60_000);
-    expect(periodLeft(t1, T + 40_000)).toBeCloseTo(6 / 13, 12);
-    // after midnight at hour precision, on the 1st (Rethe's last evening: night 19; Astron's dawn 7)
+    expect(t1.at - t1.from).toBe(11 * 60_000);
+    expect(periodLeft(t1, T + 40_000)).toBeCloseTo(5 / 11, 12);
+    // after midnight at hour precision, on the 1st (Rethe's last evening: night 18; Astron's day 8)
     const n = clockAt(2973, 3, 1, 2, 0, 'hour').nextTransition(T)!;
     expect(n.period).toBe('night');
-    expect(n.from).toBe(T - 7 * 60_000);
-    expect(n.at).toBe(T + 5 * 60_000);
+    expect(n.from).toBe(T - 8 * 60_000);
+    expect(n.at).toBe(T + 6 * 60_000);
   });
 
   it('periodLeft: 1 as the period begins, 0 at the change, clamped', () => {
@@ -297,7 +294,7 @@ describe('transitions and the strip text', () => {
   it('hour precision ignores the minute; day and unset have none', () => {
     const h = clockAt(2973, 3, 12, 16, 0, 'hour').nextTransition(T + 20_000)!;
     expect(h.precision).toBe('hour');
-    expect(h.at).toBe(T + 20_000 + 4 * 3600 * 1000 / 60);
+    expect(h.at).toBe(T + 20_000 + 3 * 3600 * 1000 / 60);
     expect(clockAt(2973, 3, 12, 16, 0, 'day').nextTransition(T)).toBeNull();
     expect(new ClockModel().nextTransition(T)).toBeNull();
   });

@@ -317,19 +317,22 @@ describe('Director: the sunrise follows the clock', () => {
 });
 
 describe('Director: the sunrise without minute precision', () => {
-  it('Event.Sun rise is the day begun (the dawn hour): no sunrise starts, the day sky fades in at the sky rate (ADR 0093 addendum 2026-11-01)', () => {
-    const { d, run } = rig({ dayAt: -1 });
-    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
-    // the demo's rise, with a `from`, starts its sunrise instead
-    expect(eventState('sun.rise', { from: -60 })).toBeNull();
-    d.turnEvent('rise');
-    expect(d.riseS).toBeNull();
-    d.set(eventState('sun.rise')!);
-    run(6);
-    expect(d.mix.sun).toBeCloseTo(6 * SKY_RATE, 5);
-    expect(d.riseS).toBeNull();
-    run(10);
-    expect(d.settled.clock).toBe('day');
+  it('Event.Sun rise without minute precision starts the sunrise at -60; light alone fades in the day at the sky rate (ADR 0093 addendum 2026-11-16)', () => {
+    expect(eventState('sun.rise')).toBeNull();
+    expect(eventState('sun.light')).toEqual({ clock: 'day', sunU: 0 });
+    const a = rig({ dayAt: -1 });
+    a.d.turnEvent('rise');
+    expect(a.d.riseS).toBe(-60);
+    a.run(30);
+    a.d.turnEvent('rise');
+    expect(a.d.riseS).toBeCloseTo(-30, 5);
+    a.run(30);
+    expect(a.d.settled.clock).toBe('day');
+    const b = rig({ dayAt: -1 });
+    b.d.set(eventState('sun.light')!);
+    b.run(6);
+    expect(b.d.mix.sun).toBeCloseTo(6 * SKY_RATE, 5);
+    expect(b.d.riseS).toBeNull();
   });
 
   it('a rise event while the clock-driven one runs is ignored', () => {
@@ -339,13 +342,13 @@ describe('Director: the sunrise without minute precision', () => {
     expect(d.riseS).toBeCloseTo(-29, 5);
   });
 
-  it('the clock catching up after the sunset event (a sync to the minute) glides it', () => {
-    const { d, run, wall } = rig({ clock: 'day', nightAt: -1 });
-    d.turnEvent('set');
+  it('the clock catching up after the sunrise event (a sync to the minute) glides it', () => {
+    const { d, run, wall } = rig({ dayAt: -1 });
+    d.turnEvent('rise');
     run(5);
-    d.set({ nightAt: wall() + 56_000 });
+    d.set({ dayAt: wall() + 56_000 });
     run(10);
-    expect(d.setS).toBeCloseTo(-46, 0);
+    expect(d.riseS).toBeCloseTo(-46, 0);
   });
 
   it('light without a sunrise or a rise: the day sky fades in at the sky rate, without the hold', () => {
@@ -382,9 +385,9 @@ describe('Director: the sunrise without minute precision', () => {
     expect(d.riseS).toBeCloseTo(0, 5);
     d.speed = 1;
     run(70);
-    // a `from` outside -60 … 0 is the game's: its rise is the day begun, no sunrise
-    d.turnEvent('rise', -100);
-    expect(d.riseS).toBeNull();
+    // a `from` outside -60 … 0 is the game's: its set is the night begun, no sunset
+    d.turnEvent('set', -100);
+    expect(d.setS).toBeNull();
     d.jump({ clock: 'night', dayAt: wall() + 60_000 });
     expect(d.riseS).toBeCloseTo(-60, 5);
     expect(TURN_GUARD_MS).toBeGreaterThan(60_000 * 5);
@@ -459,22 +462,20 @@ describe('Director: the sunset follows the clock (item 61)', () => {
     expect(d.setS).toBeNull();
   });
 
-  it('Event.Sun set without minute precision starts it at -60; dark alone fades to night at the sky rate', () => {
-    expect(eventState('sun.set')).toBeNull();
+  it('Event.Sun set is the night begun (the dusk hour): no sunset starts, the night sky fades in at the sky rate (ADR 0093 addendum 2026-11-16)', () => {
+    const { d, run } = day({ nightAt: -1 });
+    expect(eventState('sun.set')).toEqual({ clock: 'night', sunU: -1 });
+    // the demo's set, with a `from`, starts its sunset instead
+    expect(eventState('sun.set', { from: -60 })).toBeNull();
     expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
-    const a = day({ nightAt: -1 });
-    a.d.turnEvent('set');
-    expect(a.d.setS).toBe(-60);
-    a.run(30);
-    a.d.turnEvent('set');
-    expect(a.d.setS).toBeCloseTo(-30, 5);
-    a.run(30);
-    expect(a.d.settled.clock).toBe('night');
-    const b = day({ nightAt: -1 });
-    b.d.set(eventState('sun.dark')!);
-    b.run(6);
-    expect(b.d.mix.sun).toBeCloseTo(1 - 6 * SKY_RATE, 5);
-    expect(b.d.setS).toBeNull();
+    d.turnEvent('set');
+    expect(d.setS).toBeNull();
+    d.set(eventState('sun.set')!);
+    run(6);
+    expect(d.mix.sun).toBeCloseTo(1 - 6 * SKY_RATE, 5);
+    expect(d.setS).toBeNull();
+    run(10);
+    expect(d.settled.clock).toBe('night');
   });
 
   it('a sunset starting ends a sunrise still running (the demo), and the other way round', () => {

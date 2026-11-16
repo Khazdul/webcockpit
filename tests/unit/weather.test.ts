@@ -223,10 +223,11 @@ describe('Director', () => {
     expect(d.moving(undefined, true)).toBe(false);
   });
   it('events set the sun and the moon', () => {
-    // the day (sunlight) begins with rise, the dawn hour; light an hour later keeps it (ADR 0093 addendum 2026-11-01)
-    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
-    expect(eventState('sun.rise', { from: -60 })).toBeNull();
-    expect(eventState('sun.light')).toEqual({ clock: 'day' });
+    // rise opens the dawn hour, still night; the day (sunlight) begins with light; the night with set (ADR 0093 addendum 2026-11-16)
+    expect(eventState('sun.rise')).toBeNull();
+    expect(eventState('sun.light')).toEqual({ clock: 'day', sunU: 0 });
+    expect(eventState('sun.set')).toEqual({ clock: 'night', sunU: -1 });
+    expect(eventState('sun.set', { from: -60 })).toBeNull();
     expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
     expect(eventState('moon.set')).toEqual({ moonUp: false });
     expect(eventState('strike')).toBeNull();
