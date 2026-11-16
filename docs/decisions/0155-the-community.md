@@ -1214,3 +1214,56 @@ the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
   (`needsShared`), `community-model` (too long, `from`, the hrefs),
   `watch-page`, `about-leaf`; e2e `phone-community-page.spec.ts` (+3: CR1,
   CR2, CR3).
+
+## As built — feedback round 2, watch page
+
+The owner's second round on the watch page (branch `fb2-watch`).
+
+- **A pane alone in a phone's portrait replay.** The root cause was not the
+  replay but the cockpit's narrow collapse (`src/layout/allocate.ts`). The
+  frame holds a desktop player whose font shrinks to keep the cockpit's
+  least grid, 60 columns, so the game pane (at least 30) leaves 29 for a
+  side dock. In the default layout the Map is a head span over the right
+  dock's two lanes; with no lane shown a span is as wide as all the stored
+  lanes (ADR 0067), 2 × 25 = 50 columns, so the dock did not fit and
+  collapsed whole. Group or Timers alone is one 25-column lane, and beside
+  either the Map is that lane's width: it fit. New `AllocateInput.squeezeSides`
+  (a player App's cockpit, `CockpitOptions.squeezeSides` from `App` with
+  `player`): a side dock fits when its minimum does, and the shown docks give
+  up what the game pane lacks, the right one first, each down to its
+  minimum (its lanes from the inside, as `shrinkLanes` does). The live game
+  keeps the plain collapse (untouched: its narrow windows are another
+  matter); the phone's own player layout does not use `allocate`.
+- **Fullscreen on a phone.** The control box is compact on a narrow player
+  and `data-tight` when even that does not fit; tight dropped Fullscreen
+  and To the start together, which a 360 px phone in portrait (a 324 px
+  frame) hit while a 390 px one did not. Now tight drops To the start only
+  (the rail seeks there too) and `data-tighter`, where that is still not
+  enough (a 320 px phone), drops Fullscreen as well; the freed width is
+  To the start's measured width and one row gap, taken with the compact
+  width. The frame's own fullscreen and the iPhone's fill (frame-host,
+  W1) are unchanged: the button always shows where the box has room.
+- **The info at the right.** From **1000 px** of window width the watch
+  window is a grid: the replay at the left over both rows with the window's
+  whole height, a column of `clamp(300px, 27%, 380px)` at its right with the
+  band (title over up to three lines, the details wrapping between pieces,
+  never inside one, the description in full up to eight lines, the stars
+  between two rules, Report, the flash under it) and the comments under it,
+  scrolling in the column; the page itself no longer scrolls. At 1000 px
+  the replay keeps about 600 px. Below that (phones in landscape are at
+  most about 930 px, a small window) the band stays on top as before. CSS
+  only, the same DOM (`.wc-watch-screen` is `display: contents` there): a
+  media query, not a container query, because the page fills the window
+  (`.wc-watch` is fixed at inset 0) and no ancestor of the replay's frame
+  may be a size container (the fullscreen and fill reasons of C2).
+- **Words.** The watch page says *log*: "Shared log" on the hood and the
+  tab, "Report this log", "Rate this log", "your log", the states ("This
+  log was removed by its sender.", "There is no log at this link.", …),
+  "Loading the log…" and the vote, comment and report failures. The API's
+  kind stays `run`.
+- **Tests:** unit `layout-allocate` (+2: the 60-column player, every pane
+  alone and together; the squeeze order); e2e `phone-watch-page.spec.ts`
+  (+3: each pane alone and together in portrait; Fullscreen at 360 and
+  390 px), `watch-page.spec.ts` (the tablet in landscape: the column; a
+  960 px window: the band on top), `watch-community.spec.ts` (the frame
+  and the stars in the wide layout).
