@@ -69,7 +69,7 @@
 | 63 | Runs in the cloud; then accounts open | Done, released 0.12.0 (accounts, sync, runs on in production) | `docs/stages/63-runs-in-the-cloud.md` |
 | 64 | Share links | Done, released 0.13.0 (`share` on in production) | `docs/stages/64-share-links.md` |
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them | `docs/stages/65-community.md` |
-| 66 | The admin panel | Planned (spec §7.12) | |
+| 66 | The admin panel | In progress (mockups round 14) | `docs/stages/66-admin-panel.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
