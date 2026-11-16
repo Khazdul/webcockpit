@@ -15,9 +15,9 @@ off in production.
    `gallery` and `runes` on from `/admin` → Flags (no release needed),
    or say so and the next session flips `FLAG_GALLERY`/`FLAG_RUNES` in
    production's vars. Kept off by the rule that opening is its own step.
-3. **A look at the feedback round's results** on staging (the test
-   guide's "Second look"), above all the phone's dashboard and the
-   watch page in the frame, which he has not seen.
+3. **A look at the feedback rounds' results** on staging (the test
+   guide's "Second look" and "Third look"), above all the phone's
+   dashboard, the watch page's wide layout and the Back buttons.
 
 ### Release 0.14.0 (for the owner, or a session allowed to tag)
 
@@ -401,6 +401,25 @@ then the phone.
     a listing shows for the other at once on reload (the cause was the
     Worker's own 60-second copy; now every public write clears it).
 
+**Third look (after feedback round 2, 2026-11-16):**
+
+16. **Words:** everything shared is a *log*: the Log heading (key L),
+    Log of the day, All logs, Published logs, Report this log, the share
+    dialog and `/privacy`. History's own recordings stay *runs*.
+17. **The watch page, wide** (desktop, tablet landscape; from 1000 px):
+    the title, sender, stars, Report and comments in a column at the
+    replay's right. Narrower (phones, small windows): on top as before.
+18. **The watch page on a phone:** in portrait, Map alone (or any one
+    pane) shows; Fullscreen is in the player menu (also on a 360 px
+    phone; an iPhone fills the window instead, as before).
+19. **The Community page:** "players online", not clipped at the top;
+    Warlords 1–10; Random Runes says "Write a message…", no gold bar,
+    each writer's name in its own colour (the same everywhere).
+20. **Back** on the phone and the tablet: inside the window with air,
+    a little smaller, the touch area as before.
+21. **The start page:** no "N online" at the bottom right (still on
+    `/admin`).
+
 **Feedback wanted:** the Community page and the watch page in the frame
 in real use (desktop and phone), the counter and the owner row's mark,
 the board's length (250), anything that looked wrong; then yes or no to
@@ -460,3 +479,43 @@ playing 0.8 / 1.1 / 3.5 ms, burst 79 303 lines/s, no frame over 50 ms;
 entry chunk 31 362 bytes; `test:sync-worker` 6/6 (with the freshness
 spec); staging deploy run 43791543857 (694515c5), `test:prod` 36/36.
 
+### Feedback round 2 (2026-11-16)
+
+1. Phone portrait, a published run: toggling only Map shows no map
+   (Group+Map works; landscape fine).
+2. Phone: no Fullscreen in a published run's player menu.
+3. Wide windows (desktop, tablet landscape): the info at the top (name,
+   sender, rating …) to the right of the log instead; as today on a
+   phone or a window too narrow for it.
+4. RUN → LOG everywhere: the concept is "shared logs".
+5. Random Runes: "Write a message…", not "A note…".
+6. The player count is clipped at the top on desktop.
+7. Warlords 1–10, not 1–5.
+8. Back sits on the border on the phone, on several start-menu pages:
+   inside it with air, smaller if needed.
+9. Random Runes: no yellow bar on some messages; each writer's account
+   name in its own colour, a mix that suits the theme.
+10. "players on MUME" → "players online".
+11. Remove "N online" at the start page's bottom right (enough on
+    `/admin`).
+
+**Built (2026-11-16)** by three agents in worktrees (fb2-watch,
+fb2-community, fb2-chrome); ADR 0155 "As built — feedback round 2"
+(watch page, community page, start-menu chrome). Causes: (1) the
+player's layout collapsed a side dock whose stored lanes did not fit a
+60-column portrait grid; a player now squeezes a dock to its minimum
+before collapsing it (`squeezeSides`, the live game unchanged). (2) A
+narrow (360 px) player box dropped Fullscreen together with To the
+start; it now drops To the start first. (6) A negative top margin in a
+clipping column. (8) Back was stretched upward to 40/44 px for a finger
+and so lay on the frame; it is now drawn inside the window (28 px phone,
+30 px tablet) with an invisible touch area over the frame. The tablet
+had the same flaw and is fixed too. (11) The almanac line and its
+client code are gone; the guests' Community counter still reads
+`/api/stats/public`, now only with `gallery` and `share` on.
+
+Checks: an independent review of the diff found nothing; unit 5 350
+passed; full e2e alone at 5 workers 1 838 passed, 2 failed:
+phone-scripts-menu:87 still measured Back's drawn height (fixed to
+check the 40 px touch area, 3/3), profile-place:444 passed alone 3/3;
+entry chunk 31 362 bytes; `test:sync-worker` 6/6.
