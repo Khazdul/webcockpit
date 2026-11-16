@@ -420,6 +420,16 @@ then the phone.
 21. **The start page:** no "N online" at the bottom right (still on
     `/admin`).
 
+**Fourth look (after feedback round 3, 2026-11-16):**
+
+22. **Map zoom by touch:** pinch on the watch page's map (phone, tablet);
+    pinch on the lens in the game and the run log player steps its four
+    levels. Desktop: the wheel, as before.
+23. **Back everywhere** (desktop, the desktop site on a phone or tablet,
+    phone, tablet; the run log player too): inside the window with air.
+24. **The Community page:** the list's rule and Log of the day's top on
+    one line; the right column lifted, the figure clear of the ceiling.
+
 **Feedback wanted:** the Community page and the watch page in the frame
 in real use (desktop and phone), the counter and the owner row's mark,
 the board's length (250), anything that looked wrong; then yes or no to
@@ -519,3 +529,29 @@ passed; full e2e alone at 5 workers 1 838 passed, 2 failed:
 phone-scripts-menu:87 still measured Back's drawn height (fixed to
 check the 40 px touch area, 3/3), profile-place:444 passed alone 3/3;
 entry chunk 31 362 bytes; `test:sync-worker` 6/6.
+
+### Feedback round 3 (2026-11-16)
+
+1. No pinch-zoom on the map on the phone; check desktop and tablet.
+2. The desktop site on the phone: Back on the frame as the phone had;
+   look at the tablet; review Back on every start-menu page.
+3. The Community page: the left list's top rule and Log of the day's top
+   on exactly one line (the left pushed down, room for Back), the right
+   lifted as far as the players figure allows.
+
+**Built (2026-11-16)** (fb3-map, fb3-back, fb3-back2; ADR 0156 and ADR
+0155 "As built — feedback round 3"): (1) the watch page's frame never
+set the touch flag, so a finger was a mouse (one finger panned, the
+second was ignored); the map pane now takes touch pointers as touch
+anywhere. The lens never had pinch (ADR 0136 §4); a pinch now steps its
+levels. Desktop's wheel zoom was fine (now tested). (2) The old
+coarse-pointer rule (`top: 3px`, 40 px high) still drew Back on the
+frame outside the phone flag; one rule now places a box's Back inside
+the window in every mode, the touch area an invisible `::before`; the
+run log player's Back likewise. `back-placement.spec.ts`: ten modes ×
+the start-menu pages. (3) `--cy-drop`, `--cy-thead`, `--cy-lift`: the
+edges equal at 1440, 1280, 1100 and the tablet.
+
+Checks: unit 5 353; full e2e alone at 5 workers 1 893 passed, 1 failed
+(Firefox smoke:64, passed alone 5/5); entry chunk 31 362 bytes;
+`test:sync-worker` 6/6.
