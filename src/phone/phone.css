@@ -1916,6 +1916,56 @@ html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] 
   display: none;
 }
 
+/* A tablet in landscape (`data-okb="row"`; keyboard-model.ts `okbTabletBand`):
+ * the compass at the far right of the band and as high as it
+ * (`--okb-pad-ck`, its own key size: the hot keys keep `--ph-ck`), its
+ * faces grown to match; the hot keys in one row right of the command field,
+ * in the middle of the command row (`--okb-cmd-h`), against the right edge:
+ * K1 rightmost, the higher numbers leftwards, as their columns stand
+ * upright (the second column left of the first). */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-pad {
+  bottom: calc((var(--okb-lift, 0px) - var(--okb-pad-ck, 40px) * 3 - 6px) / 2);
+  grid-template-columns: repeat(3, var(--okb-pad-ck, 40px));
+  grid-auto-rows: var(--okb-pad-ck, 40px);
+  z-index: 4;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-key {
+  border-radius: calc(var(--okb-pad-ck, 40px) * 0.2);
+  font-size: calc(var(--okb-pad-ck, 40px) * 0.34);
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-key .wc-ph-ico {
+  width: calc(var(--okb-pad-ck, 40px) * 0.38);
+  height: calc(var(--okb-pad-ck, 40px) * 0.38);
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-kk {
+  width: calc(var(--okb-pad-ck, 40px) * 0.5);
+  height: calc(var(--okb-pad-ck, 40px) * 0.5);
+  font-size: calc(var(--okb-pad-ck, 40px) * 0.22);
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-hot {
+  bottom: calc(var(--okb-lift, 0px) + (var(--okb-cmd-h, 44px) - var(--ph-ck, 40px)) / 2);
+  flex-direction: row;
+  align-items: stretch;
+  z-index: 4;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="row"] .wc-ph-hot-col {
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  grid-auto-columns: var(--ph-ck, 40px);
+  grid-template-rows: var(--ph-ck, 40px);
+}
+
+/* The field ends left of the hot key row (`--wc-okb-krow-w`, on the page: the
+ * command row is the cockpit's, not the layer's). */
+html.wc-phone.wc-okb.wc-okb-krow .wc-cockpit[data-phone-game] > .wc-input-slot {
+  padding-right: calc(var(--wc-okb-krow-w, 0px) + 16px);
+}
+
 /* No room (keyboard-model.ts: a narrow landscape screen, a very low portrait one): the columns
  * give way first, then the compass. */
 html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nok] .wc-ph-hot,
@@ -1926,12 +1976,12 @@ html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nopad] .
 /* The hot key box with the keyboard typing in it. Landscape: the keys are in
  * the band, so the box has no key to point at and stands at the right
  * edge, on the band. Portrait without the columns: no notch either. */
-html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-rb-n,
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer:is([data-okb="band"], [data-okb="row"]) .wc-ph-rb-n,
 html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nok] .wc-ph-rb-n {
   display: none;
 }
 
-html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-rb {
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer:is([data-okb="band"], [data-okb="row"]) .wc-ph-rb {
   right: 8px;
   width: min(420px, calc(100% - var(--ph-side-w, 0px) - 16px));
 }

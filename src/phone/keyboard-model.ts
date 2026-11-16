@@ -53,7 +53,10 @@
 //   towards the middle, with the hot keys K1 to K3 in a column left of it,
 //   K4 to K6 right of it and the compass at the far right, all in the
 //   keyboard's band. Too narrow for that, the parts give way in a fixed
-//   order.
+//   order. A tablet-size window in landscape (`okbTabletBand`; the owner,
+//   2026-11-16) has no hot keys in the band (they stand in a row right of
+//   the command field): the compass is as high as the band, the block takes
+//   the rest, with a larger cap per key.
 // - Portrait (`okbPortraitSide`): the compass and the hot key columns keep
 //   their places from the keyboard's top edge up; on a screen too low for
 //   them the columns go first, then the compass.
@@ -563,6 +566,65 @@ export function okbBand(input: OkbBandInput): OkbBand {
   const noK = fit(false, true);
   if (noK.unit >= OKB_UNIT_MIN_LAND) return noK;
   return fit(false, false);
+}
+
+/** Tablet, landscape (`okbTabletBand`): the widest a letter key gets, px. */
+export const OKB_UNIT_MAX_TABLET_LAND = 84;
+/** Tablet, landscape: the compass's margin above and below its keys in the band (the block's padding and a cap's inset, so their tops line up), px. */
+export const OKB_TABLET_PAD_Y = 4;
+/** Tablet, landscape: the least compass key (the landscape compass's usual size), px. */
+export const OKB_TABLET_PAD_MIN = 44;
+/** Tablet, landscape: between the block's room and the compass, px. */
+export const OKB_TABLET_PAD_GAP = 12;
+
+export interface OkbTabletBandInput {
+  /** The screen's width, px. */
+  width: number;
+  /** The band's height (the keyboard's lift), px. */
+  lift: number;
+  layout: OkbLayout;
+  /** The compass's gap between keys, px. */
+  keyGap: number;
+}
+
+export interface OkbTabletBand {
+  /** The block's left edge and width, px. */
+  x: number;
+  w: number;
+  /** A letter key's width, px. */
+  unit: number;
+  /** A compass key's side, px: the compass fills the band's height. */
+  padKey: number;
+}
+
+/**
+ * A tablet-size window in landscape (the owner, 2026-11-16): the hot keys
+ * leave the band for the command row (the layer puts them right of the
+ * field), and the band holds only the block and the compass. The compass
+ * stands at the far right and fills the band's height (three square keys,
+ * `OKB_TABLET_PAD_Y` above and below), unless the letter keys would then be
+ * narrower than `OKB_UNIT_MAX_TABLET` (a narrower tablet): it is then
+ * smaller, down to `OKB_TABLET_PAD_MIN`, and centred in the band's height.
+ * The block takes the room left of it, its letter keys at most
+ * `OKB_UNIT_MAX_TABLET_LAND`, centred in that room when the cap leaves
+ * some over. Null where the keys would get
+ * narrower than `OKB_UNIT_MIN_LAND` (no tablet-size window does): the
+ * caller lays the band out as a phone's (`okbBand`).
+ */
+export function okbTabletBand(input: OkbTabletBandInput): OkbTabletBand | null {
+  const { width, lift, keyGap } = input;
+  const cols = okbCols(input.layout);
+  const fill = Math.floor((lift - 2 * OKB_TABLET_PAD_Y - 2 * keyGap) / 3);
+  // The compass gives way before the letter keys get narrower than a tablet's elsewhere (72 px),
+  // down to the landscape compass's usual keys.
+  const spare = Math.floor((width - 2 * OKB_BAND_MARGIN - OKB_TABLET_PAD_GAP - (cols * OKB_UNIT_MAX_TABLET + 2 * OKB_PAD_X) - 2 * keyGap) / 3);
+  const padKey = Math.max(0, Math.min(fill, Math.max(OKB_TABLET_PAD_MIN, spare)));
+  const padW = 3 * padKey + 2 * keyGap;
+  const room = width - 2 * OKB_BAND_MARGIN - padW - OKB_TABLET_PAD_GAP;
+  const unit = Math.min(OKB_UNIT_MAX_TABLET_LAND, (room - 2 * OKB_PAD_X) / cols);
+  if (!(unit >= OKB_UNIT_MIN_LAND)) return null;
+  const w = unit * cols + 2 * OKB_PAD_X;
+  return { x: OKB_BAND_MARGIN + (room - w) / 2, w, unit, padKey };
 }
 
 /**

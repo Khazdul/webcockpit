@@ -93,7 +93,7 @@ import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
 import { type PhoneCommandLine, OwnKeyboard } from './keyboard';
-import { type OkbLayout, OKB_PAD_Y, OKB_ROW_LEAST, okbBand, okbFromQuery, okbHeightPx, okbLayout, okbPortraitSide, okbPortraitWidth, okbRowCount, okbTabletSize } from './keyboard-model';
+import { type OkbLayout, OKB_PAD_Y, OKB_ROW_LEAST, okbBand, okbFromQuery, okbTabletBand, okbHeightPx, okbLayout, okbPortraitSide, okbPortraitWidth, okbRowCount, okbTabletSize } from './keyboard-model';
 import { installKeyboardReadout } from './keyboard-readout';
 import { type TextField, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField, markField } from './keyboard-fields';
 import { pulse } from './haptics';
@@ -267,6 +267,17 @@ export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
 export type PhoneLayerDeps = PhoneLiveDeps | PhoneReplayDeps;
 
 /** A drag of the lens while the finger is down (`PhoneLayer.dragLens`). */
+/**
+ * Our keyboard on a tablet in landscape (`okbTabletBand`): the compass's key
+ * side as high as the band, the command row's height, and the width of the
+ * hot key row right of the field (0: no keys shown).
+ */
+interface OkbRowMode {
+  padKey: number;
+  cmdH: number;
+  krow: number;
+}
+
 interface LensDragState {
   /** The lens's box when the drag began, and where it is shown now. */
   spot: LensSpot;
@@ -405,6 +416,8 @@ class Layer {
   private okbPad = false;
   /** While it is open: its height on screen in either shape, px (the hot key box stands above it). */
   private okbBandLift = 0;
+  /** A tablet in landscape with our keyboard up: the command row's height, which holds the hot keys (the box stands above it); else 0. */
+  private okbRowCmdH = 0;
   /** The field it types in, other than the command line (Comm's reply or search, the hot key box, a script pane's); null: the command line. */
   private okbField: TextField | null = null;
   private okbFieldTarget: OkbTarget | null = null;
@@ -1207,6 +1220,10 @@ class Layer {
    *   column left of it, K4 to K6 right of it, the compass at the far right,
    *   all in the band (`okbBand`, which also says what gives way on a narrow
    *   screen).
+   * - Landscape on a tablet-size window (the owner, 2026-11-16;
+   *   `okbTabletBand`): the hot keys in one row at the command row's right
+   *   end (the field ends left of them), the compass at the far right as high
+   *   as the band, the block in the room left of it (`data-okb="row"`).
    *
    * On a screen with no room for the block it closes.
    */
@@ -1226,7 +1243,14 @@ class Layer {
     const kOn = !this.hot.el.hidden;
     // A tablet-size window (ADR 0140): the block uses the width, with larger keys.
     const tablet = okbTabletSize(W, H);
-    if (g.landscape) {
+    // A tablet in landscape (the owner, 2026-11-16): the hot keys in a row right of the command
+    // field, the compass as high as the band, the block in the rest (`okbTabletBand`).
+    const tb = g.landscape && tablet ? okbTabletBand({ width: W, lift, layout: this.okbLayout, keyGap: KEY_GAP }) : null;
+    if (tb) {
+      okb.place({ top, left: tb.x, width: tb.w, tablet });
+      const krow = kOn ? this.hotRowWidth(this.keyPx) : 0;
+      this.arrangeOwnKeyboard({ lift, band: true, pad: true, k: true, kLeftX: null, kRightX: null, ck: null, row: { padKey: tb.padKey, cmdH: g.input.h * cellH, krow } });
+    } else if (g.landscape) {
       // A band lower than three large keys and their gaps (a screen 300 to some 312 px high): the
       // small keys in it, so the compass does not stand out over the band's top edge.
       const px = lift < 3 * this.keyPx + 2 * KEY_GAP ? Math.min(this.keyPx, KEY_PX_PORTRAIT) : this.keyPx;
@@ -1242,6 +1266,18 @@ class Layer {
       // Comm typed in on a short screen reaches under the columns' place (`overLimit`): they give way.
       this.arrangeOwnKeyboard({ lift, band: false, pad: side.pad, k: side.k && !g.overLimit, kLeftX: null, kRightX: null, ck: null });
     }
+  }
+
+  /**
+   * What the hot keys take as one row (a tablet in landscape with the
+   * keyboard up, phone.css): every key of both columns side by side, one gap
+   * apart; an empty first column keeps its one key's place, as it does
+   * upright, so K4 to K6 never move.
+   */
+  private hotRowWidth(px: number): number {
+    const second = this.hot.rowsIn(1);
+    const n = (second > 0 ? Math.max(1, this.hot.rowsIn(0)) : this.hot.rowsIn(0)) + second;
+    return n > 0 ? n * px + (n - 1) * KEY_GAP : 0;
   }
 
   /**
@@ -1261,14 +1297,16 @@ class Layer {
    * The layer's parts for the open keyboard (phone.css reads these), or as
    * without it (null): `--okb-lift` (the keyboard's height on screen),
    * `data-okb` (`up`: portrait, the keys lifted; `band`: landscape, the keys
-   * beside the block at `--okb-k1-x` / `--okb-k4-x`), `data-okb-nopad` and
+   * beside the block at `--okb-k1-x` / `--okb-k4-x`; `row`: a tablet in
+   * landscape, with `--okb-pad-ck`, `--okb-cmd-h` and, on the page,
+   * `--wc-okb-krow-w` and `html.wc-okb-krow`), `data-okb-nopad` and
    * `data-okb-nok` (no room), `html.wc-okb-wide` while the compass is
    * not at the command row's end (the field then takes the full width),
    * `--ph-ck` on the layer for a low band's small keys, and `--wc-okb-h` on
    * the page for the ground under the safe area. Restyled only on a change;
    * nothing here asks the cockpit for a layout.
    */
-  private arrangeOwnKeyboard(a: { lift: number; band: boolean; pad: boolean; k: boolean; kLeftX: number | null; kRightX: number | null; ck: number | null } | null): void {
+  private arrangeOwnKeyboard(a: { lift: number; band: boolean; pad: boolean; k: boolean; kLeftX: number | null; kRightX: number | null; ck: number | null; row?: OkbRowMode } | null): void {
     const sig = a ? JSON.stringify(a) : '';
     if (sig === this.okbSig) return;
     this.okbSig = sig;
@@ -1287,13 +1325,22 @@ class Layer {
     const root = el.ownerDocument.documentElement;
     if (a) root.style.setProperty('--wc-okb-h', px(a.lift));
     else root.style.removeProperty('--wc-okb-h');
-    if (a) el.dataset.okb = a.band ? 'band' : 'up';
+    // A tablet in landscape (`row`): the compass's own key size, the command row's height (the
+    // hot keys stand in its middle) and what the hot key row takes from the field's right end.
+    const row = a?.row ?? null;
+    set('--okb-pad-ck', row ? px(row.padKey) : '');
+    set('--okb-cmd-h', row ? px(row.cmdH) : '');
+    if (row && row.krow > 0) root.style.setProperty('--wc-okb-krow-w', px(row.krow));
+    else root.style.removeProperty('--wc-okb-krow-w');
+    root.classList.toggle('wc-okb-krow', row !== null && row.krow > 0);
+    if (a) el.dataset.okb = row ? 'row' : a.band ? 'band' : 'up';
     else delete el.dataset.okb;
     el.toggleAttribute('data-okb-nopad', a !== null && !a.pad);
     el.toggleAttribute('data-okb-nok', a !== null && !a.k);
-    el.ownerDocument.documentElement.classList.toggle('wc-okb-wide', a !== null && (a.band || !a.pad));
+    root.classList.toggle('wc-okb-wide', a !== null && (a.band || !a.pad) && !(row && row.krow > 0));
     this.okbLift = a && !a.band ? a.lift : 0;
     this.okbBandLift = a ? a.lift : 0;
+    this.okbRowCmdH = row ? row.cmdH : 0;
     this.okbNoK = a !== null && !a.k;
     this.okbPad = a !== null && a.pad;
   }
@@ -1731,7 +1778,8 @@ class Layer {
   private boxBottom(): number {
     const g = this.deps.cockpit.phoneGameLayout;
     if (g && this.okbOpen && this.okbBandLift > 0) {
-      if (g.landscape) return this.okbBandLift + BOX_GAP;
+      // (A tablet in landscape: above the command row, whose end holds the hot keys.)
+      if (g.landscape) return this.okbBandLift + this.okbRowCmdH + BOX_GAP;
       return this.okbLift + (this.okbPad ? hotBottom(this.keyPx) : g.input.h * this.deps.cells.get().h + BOX_GAP);
     }
     return hotBottom(this.keyPx);
@@ -1748,8 +1796,13 @@ class Layer {
     if (!kbd || g.bottom === 0) return hotBottom(px);
     const cellH = this.deps.cells.get().h;
     const top = (g.input.y + g.input.h) * cellH;
-    const lift = this.el.clientHeight - top;
-    if (g.landscape) return lift + BOX_GAP;
+    const H = this.el.clientHeight;
+    const lift = H - top;
+    if (g.landscape) {
+      // A tablet in landscape: the hot keys are at the command row's end; the box stands above it.
+      const row = okbTabletSize(this.el.clientWidth, H) && okbTabletBand({ width: this.el.clientWidth, lift, layout: this.okbLayout, keyGap: KEY_GAP }) !== null;
+      return lift + (row ? g.input.h * cellH : 0) + BOX_GAP;
+    }
     return lift + (okbPortraitSide(top, compassHeight(px), hotTop(px, 3)).pad ? hotBottom(px) : g.input.h * cellH + BOX_GAP);
   }
 
