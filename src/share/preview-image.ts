@@ -222,7 +222,7 @@ async function markImage(): Promise<HTMLImageElement | null> {
 /** The MUME Cockpit mark alone (no wordmark), large, in the bottom right corner. */
 function drawMark(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null): void {
   if (!img) return;
-  const size = 96;
+  const size = 192;
   const margin = 20;
   ctx.save();
   ctx.globalAlpha = 0.9;

@@ -544,4 +544,4 @@ Group are unchanged.
   (`migrateComm`). Turned off again at v7 or newer, they stay off. Synced
   settings (stage 62) go through the same `migrateSettings`.
 - Related: the share link preview (ADR 0158) now draws the MUME Cockpit
-  logo alone, about 96 px, at the bottom right, with no wordmark.
+  logo alone, about 192 px, at the bottom right, with no wordmark.

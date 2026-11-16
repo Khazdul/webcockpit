@@ -71,4 +71,4 @@ the log with a play button and a small mark. Crawlers run no script.
   in the app's document (same-origin favicon and fonts), not the frame.
 
 **Addendum 2026-11-17:** the mark is the logo alone (no "MUME COCKPIT"
-wordmark or pill), about 96 px, at the bottom right.
+wordmark or pill), about 192 px, at the bottom right.
