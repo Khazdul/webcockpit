@@ -119,7 +119,7 @@ test('a suspended account says so in one line', async ({ page }) => {
   await seedAccount(server, NAME, PASSWORD, { state: 'suspended' });
   await fakeAccountApi(page, { server });
   await logIn(page);
-  await expect(frame(page).locator('[data-suspended]')).toHaveText('This account is suspended. It cannot publish runs or comment. Everything else works as before.');
+  await expect(frame(page).locator('[data-suspended]')).toHaveText('This account is suspended. It cannot publish logs or comment. Everything else works as before.');
 });
 
 test('devices: listed with this device first; a label is text; End one, End all others', async ({ page }) => {

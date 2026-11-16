@@ -1,8 +1,8 @@
 // Stage 65 C1 (round 13's pick 1b, the phone's form), changed by the
 // owner's feedback (W2, point 8): the Community page on a phone opens on a
 // dashboard, not tabs: the search field and the players' figure, the
-// newest five runs with All runs and Hall of Fame (sub-pages with Back),
-// Run of the day, Random Runes (the latest notes, the field), the
+// newest five logs with All logs and Hall of Fame (sub-pages with Back),
+// Log of the day, Random Runes (the latest notes, the field), the
 // Warlords. All runs shows New only, with the search field and the pager.
 // Against the fake of the account API (community.ts), at 390 × 844 and
 // 320 × 568. The desktop: community-page.spec.ts.
@@ -38,10 +38,10 @@ test.describe('390 × 844', () => {
     // The rest of the dashboard, in its order.
     const order = await dash(page).locator(':scope > *').evaluateAll((els) => els.map((e) => e.getAttribute('data-box') ?? e.className));
     expect(order).toEqual(['wc-cy-dtop', 'newest', 'day', 'runes', 'war']);
-    await expect(box(page, 'war').locator('.is-west li')).toHaveCount(5);
+    await expect(box(page, 'war').locator('.is-west li')).toHaveCount(10);
     await expect(box(page, 'war')).not.toContainText('players');
     await expect(notes(page)).toHaveCount(3);
-    await expect(noteField(page)).toHaveAttribute('placeholder', 'A note…');
+    await expect(noteField(page)).toHaveAttribute('placeholder', 'Write a message…');
     expect(await noSideways(page)).toBe(true);
     await shot(page, 'dash.phone');
     await cm(page).locator('.wc-lk-bbody').evaluate((e) => e.scrollTo({ top: e.scrollHeight }));
@@ -64,7 +64,7 @@ test.describe('390 × 844', () => {
     const s = await setUp(page);
     await openCommunity(page, PHONE_Q);
     await btnIn(box(page, 'newest'), 'ALL').tap();
-    await expect(title(page)).toContainText('All runs');
+    await expect(title(page)).toContainText('All logs');
     await expect(dash(page)).toHaveCount(0);
     await expect(rows(page)).toHaveCount(10);
     await expect(cm(page).locator('.wc-cy-th')).toHaveCount(0);
@@ -79,7 +79,7 @@ test.describe('390 × 844', () => {
     // A sender's runs, then Back: the whole list, then the dashboard.
     const sender = (await rows(page).first().locator('.wc-cy-sender').textContent())!;
     await rows(page).first().locator('.wc-cy-sender').tap();
-    await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Runs by ${sender}`);
+    await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Logs by ${sender}`);
     await cm(page).locator('.wc-lk-back').tap();
     await expect(cm(page).locator('.wc-cy-by')).toHaveCount(0);
     await expect(rows(page)).toHaveCount(10);
@@ -99,22 +99,22 @@ test.describe('390 × 844', () => {
     // Still the dashboard until Enter (or the go mark).
     await expect(dash(page)).toBeVisible();
     await btnIn(cm(page), 'SEARCH').tap();
-    await expect(title(page)).toContainText('All runs');
+    await expect(title(page)).toContainText('All logs');
     const fords = [...s.server.pubs.values()].filter((p) => /ford/i.test(p.pub.title)).length;
-    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} runs`);
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} logs`);
     await expect(rows(page)).toHaveCount(fords);
     await expect(search(page)).toHaveValue('ford');
     await shot(page, 'search.phone');
     // As typed on the sub-page.
     await search(page).fill('hollin');
     const hollins = [...s.server.pubs.values()].filter((p) => p.account === 'hollin').length;
-    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “hollin” — ${hollins} runs`);
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “hollin” — ${hollins} logs`);
     // Kept across a run.
     await rows(page).first().locator('.wc-cy-p1').tap();
     await expect(page).toHaveURL(/\/r\/.*from=community/);
     await page.goto(`/?cloudtest${PHONE_Q}&community`);
     await expect(cm(page).locator('.wc-cy-q')).toContainText('hollin');
-    await expect(title(page)).toContainText('All runs');
+    await expect(title(page)).toContainText('All logs');
     // ✕ clears: the whole list; Back: the dashboard with an empty field.
     await btnIn(cm(page), 'CLEAR').tap();
     await expect(rows(page)).toHaveCount(10);
@@ -144,9 +144,9 @@ test.describe('390 × 844', () => {
     await search(page).fill('ford');
     await page.waitForTimeout(500);
     await btnIn(box(page, 'newest'), 'ALL').tap();
-    await expect(title(page)).toContainText('All runs');
+    await expect(title(page)).toContainText('All logs');
     await expect(search(page)).toHaveValue('ford');
-    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} runs`);
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} logs`);
     // Back (the dashboard, the field emptied); one letter is no search: All runs empties the field.
     await cm(page).locator('.wc-lk-back').tap();
     await search(page).fill('f');
@@ -161,7 +161,7 @@ test.describe('390 × 844', () => {
     await expect(search(page)).toHaveValue('ford');
     await btnIn(box(page, 'newest'), 'ALL').tap();
     await expect(search(page)).toHaveValue('ford');
-    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} runs`);
+    await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} logs`);
   });
 
   test('the search field takes 60 characters; a longer text says so instead of a silent whole list (review fix 2 CR2)', async ({ page }) => {
@@ -189,8 +189,8 @@ test.describe('390 × 844', () => {
     await expect(title(page)).toContainText('Hall of Fame');
     const sender = (await box(page, 'hof').locator('.wc-cy-row').first().locator('.wc-cy-sender').textContent())!;
     await box(page, 'hof').locator('.wc-cy-row').first().locator('.wc-cy-sender').tap();
-    await expect(title(page)).toContainText('All runs');
-    await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Runs by ${sender}`);
+    await expect(title(page)).toContainText('All logs');
+    await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Logs by ${sender}`);
     await cm(page).locator('.wc-lk-back').tap();
     await expect(title(page)).toContainText('Hall of Fame');
     await expect(box(page, 'hof').locator('.wc-cy-row')).toHaveCount(8);

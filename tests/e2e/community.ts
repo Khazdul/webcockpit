@@ -106,6 +106,11 @@ export async function setUp(page: Page, o: { runs?: number; flags?: Config['flag
         { name: 'Morwen', race: 'Man', class: 'mage' },
         { name: 'Celebrin', race: 'Elf', class: 'cleric' },
         { name: 'Sixth', race: 'Hobbit', class: 'thief' },
+        { name: 'Haldoran', race: 'Elf', class: 'warrior' },
+        { name: 'Beregond', race: 'Man', class: 'warrior' },
+        { name: 'Tolman', race: 'Hobbit', class: 'ranger' },
+        { name: 'Dwalin', race: 'Dwarf', class: 'cleric' },
+        { name: 'Eleventh', race: 'Man', class: 'thief' },
       ],
       dark: [
         { name: 'Grishvak', race: 'Orc', class: 'warrior' },
@@ -113,6 +118,10 @@ export async function setUp(page: Page, o: { runs?: number; flags?: Config['flag
         { name: 'Shagrat', race: 'Orc', class: 'thief' },
         { name: 'Lurtz', race: 'Troll', class: 'warrior' },
         { name: 'Gorbag', race: 'Orc', class: 'mage' },
+        { name: 'Snaga', race: 'Orc', class: 'thief' },
+        { name: 'Mauhur', race: 'Uruk-hai', class: 'warrior' },
+        { name: 'Bolg', race: 'Orc', class: 'warrior' },
+        { name: 'Gothmog', race: 'Troll', class: 'cleric' },
       ],
       players: 38,
     };

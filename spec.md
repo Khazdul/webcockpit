@@ -1067,7 +1067,7 @@ ADR 0145.
 - **Recovery:** name, recovery code, new password. Ends every session.
 - **Account page:** storage in use against the limits; sync state and
   "Sync now"; sessions with "End" and "End all others"; change
-  password; new recovery code; **Published runs**, a view of its own
+  password; new recovery code; **Published logs**, a view of its own
   (§7.7); the existing exports ("Download everything": profiles,
   scripts backup, runs backup); Log out (§7.4, "Log out"); Delete
   account (password, typed confirmation, everything removed from the
@@ -1263,7 +1263,7 @@ ADR 0146, "Runs".
   first, and those that do not fit keep the mark "not in the cloud".
   There is no shelf of runs that survives a log out.
 - **The limit.** 50 MB per account to begin with, for run bodies
-  (published runs have limits of their own, §7.7), 20 MB per body. Stage 63 measures the stored size
+  (published logs have limits of their own, §7.7), 20 MB per body. Stage 63 measures the stored size
   of real saved runs first; the owner then confirms or changes the
   number. The server refuses over-limit uploads
   with `quota` and the numbers.
@@ -1324,14 +1324,14 @@ ADR 0148, "Sharing" and "Watching".
   the same session can be published many times as different cuts. The
   cut is frozen; title and description can be changed. Its sender can
   always remove it. Deleting the account removes the account's
-  published runs.
+  published logs.
 - **Export editor:** the format toggle gets Link beside HTML and Text
   (stage 64: unlisted, for whoever has the link) and, from stage 65,
   Hall of Fame (listed in the community). EXPORT then opens the share
   dialog: title, description, size, the "this will be readable by
   anyone" line, Create link or Publish. The result shows the link
   with Copy.
-- **Limits:** 150 published runs per account (links and listed ones
+- **Limits:** 150 published logs per account (links and listed ones
   together; a safety ceiling), 5 MB each. They do not count against
   the account's 50 MB. Stage 64 measures real payloads; the total
   shows on the admin page.
@@ -1345,7 +1345,7 @@ ADR 0148, "Sharing" and "Watching".
   blob:`). Around it: title, sender, character and level, length,
   date, Report, Download as HTML, and from stage 65 stars and
   comments. Back goes to the gallery (stage 65) or the start page.
-- **Published runs**, a view of its own on the Account page: per run
+- **Published logs**, a view of its own on the Account page: per run
   the title, link, views, stars, comments, listed or link only, Edit
   (title, description, listed) and Remove. The Community page links
   to it. Not reached from History.
@@ -1369,34 +1369,39 @@ ADR 0148, "Sharing" and "Watching".
 
 ADR 0148, "The gallery", with its addendum of 2026-11-14 (the word,
 the counter, Random Runes). The flag keeps the name `gallery`.
+What is shared or public is a **log** in the client's words (owner,
+stage 65 feedback round 2): a shared log, Log of the day, Published
+logs. The History's own recordings stay runs; the code, the API and
+the tables keep `run` and `publication`.
 
 - **Start menu:** the Community row (C), a zone of its own (§2.5).
   Mockups first, in the look of History and Spotlights (stage 45, 46);
   the owner picks the direction. The owner's reference is the old log
   site's front page (`notes/community-reference.md`): by function, in
   our look, with some recognition.
-- **The counter** on the menu row ("3 new"): runs published since the
+- **The counter** on the menu row ("3 new"): logs published since the
   player's last visit to the Community page, for guests too. Own
-  runs, link-only runs, hidden runs and notes are not counted;
+  logs, link-only logs, hidden logs and notes are not counted;
   opening the page clears it. "Last seen" is the account's when
   logged in (`gallery_seen`) and the device's for a guest. The figures
   ride on `GET /api/stats/public` (the times of the latest listed
-  runs), so the start page makes no extra request.
+  logs), so the start page makes no extra request.
 - **No notice in the game** (owner, 2026-11-14: the counter replaces
   the notice and its switch).
-- **Reactions to one's own runs:** a mark on the owner row ("<name> ·
+- **Reactions to one's own logs:** a mark on the owner row ("<name> ·
   synced · 2 new") for new stars and comments; it leads to Published
-  runs (§7.7) and is cleared there (`reactions_seen` on the account).
+  logs (§7.7) and is cleared there (`reactions_seen` on the account).
 - **Hall of Fame** is the top list (the eight best rated, all time),
-  in a column beside the list with the run of the day (today's, with
+  in a column beside the list with the log of the day (today's, with
   its description) and MUME's warlords (White lords, Sauron's
-  minions) with the number of players on MUME, fetched from mume.org
+  minions; ten a side) with the number of players online, fetched from mume.org
   and MUME's MSSP and shown without a source line (owner, stage 65).
   Not wanted: "profile updates", "most occurring", top posters
   (owner, round 13).
 - **Random Runes,** the notice board (flag `runes`, so it can be
   closed alone). Any logged-in, not suspended account writes; guests
-  read. Plain text ≤ 250 characters (owner, round 13) with the account name; no answers
+  read. Plain text ≤ 250 characters (owner, round 13) with the account name, each
+  name in a stable colour of its own (feedback round 2); no answers
   or threads. The board shows the latest 50 notes; a note is removed
   after 30 days. The writer removes their own; Report as for
   comments; 5 notes a day per account. Desktop: under the list,
@@ -1407,14 +1412,14 @@ the counter, Random Runes). The flag keeps the name `gallery`.
   and votes, comments, views. New first; a press on a column heading
   sorts (Top by the weighted mean, Most watched, comments, length);
   the phone shows New only. Pages of 10; a press on a sender lists
-  that account's runs (owner, round 13).
+  that account's logs (owner, round 13).
 - **Stars** on the watch page: 1–5, the client's star control; one's
-  own vote is shown and can be changed; not on one's own run.
+  own vote is shown and can be changed; not on one's own log.
 - **Comments** under the replay: plain text ≤ 1000 characters, newest
-  last, Remove for the writer and the run's owner, Report.
+  last, Remove for the writer and the log's owner, Report.
 - **Rules** shown once per account before the first publication, with
   a tick.
-- **Reports** hide an item (a run, a comment, a note) at five from
+- **Reports** hide an item (a log, a comment, a note) at five from
   different accounts at least 7 days old (younger accounts' reports
   queue it for the admin; stage 65 review fix S6).
 
@@ -1424,9 +1429,9 @@ the counter, Random Runes). The flag keeps the name `gallery`.
 | `GET /api/pub/<id>/comments?page=` | comments (public) |
 | `PUT /api/u/pub/<id>/vote` | 1–5 |
 | `POST /api/u/pub/<id>/comments` | a comment |
-| `DELETE /api/u/comments/<id>` | writer or run owner |
+| `DELETE /api/u/comments/<id>` | writer or log owner |
 | `POST /api/u/community/seen` | moves `gallery_seen` or `reactions_seen` |
-| `GET /api/u/community/news` | the counts for a logged-in player (new runs, new reactions) |
+| `GET /api/u/community/news` | the counts for a logged-in player (new logs, new reactions) |
 | `GET /api/runes` | the board (public, cached 60 s) |
 | `POST /api/u/runes` | a note |
 | `DELETE /api/u/runes/<id>` | the writer |
@@ -1465,11 +1470,11 @@ ADR 0148, "The admin page".
 | API in general | the rate limiting binding, 120 requests a minute per address (an IPv6 /64 is one) and per session; 10 a minute per address on login, recovery and registration |
 | Small items | 1 MB each, 2 MB and 2 000 items per account |
 | Runs | 50 MB per account; 20 MB per run body |
-| Published runs | 150 per account, 5 MB each; not counted against the 50 MB |
+| Published logs | 150 per account, 5 MB each; not counted against the 50 MB |
 | Comments, votes | 20 and 60 an hour per account |
 | Notes on the board | 5 a day per account, 250 characters |
 | Reports | 30 a day per account |
-| Views of a run | once a UTC day per device and per address (an IPv6 /56 is one) |
+| Views of a log | once a UTC day per device and per address (an IPv6 /56 is one) |
 
 Limits live in `/api/config` and per account (`limits` column), so
 the owner changes them without a release.

@@ -10,25 +10,25 @@
 // Desktop and tablet (the list on the left, a column on the right):
 //
 //   [Back]                     ( Community )                          38
-//                                                          players on MUME
-//    RUN ▾          [⌕ Search runs      ]   STARS   COM.  VIEWS │ RUN OF THE DAY
+//                                                           players online
+//    LOG ▾          [⌕ Search logs      ]   STARS   COM.  VIEWS │ LOG OF THE DAY
 //    Gibur and the Witch-king's lieutenant (Gibur)  ★★★★★ 4.8 · 23  11  412 │  the title, its line,
 //    fenwick · 4 h 04 min · 14 Nov                                         │  the description
-//    … ten runs a page (the rows scroll)              ‹ Page 1 of 3 ›     │ HALL OF FAME (8)
+//    … ten logs a page (the rows scroll)              ‹ Page 1 of 3 ›     │ HALL OF FAME (8)
 //   ┌ RANDOM RUNES (at most 40 % of the height; the notes scroll) ──────┐ │ WARLORDS
 //   │ hollin: every note whole, wrapped                           2 min │ │  White lords · Sauron's minions
-//   │ [ A note… ]                                                [Post] │ │
+//   │ [ Write a message… ]                                       [Post] │ │
 //   └───────────────────────────────────────────────────────────────────┘ │
 //
 // The list opens on New (newest listed first); a press on a heading sorts
-// (Run, Stars, Com., Views), and so does its marked letter (N S M V); the
-// current sort is marked (▾). Ten runs a page; the pager sits at the
+// (Log, Stars, Com., Views), and so does its marked letter (L S M V); the
+// current sort is marked (▾). Ten logs a page; the pager sits at the
 // list's bottom right; ← → (and PgUp PgDn) change page. ↑ ↓ Home End move
 // the row cursor; Enter opens the run. A press on a sender's name opens
-// "Runs by <name>" (the same list; R does it for the cursor's run). The
+// "Logs by <name>" (the same list; R does it for the cursor's run). The
 // search field (/ or F) searches as it is typed (2–60 characters, the
 // title, character and sender; `GET /api/gallery?q=`): 'Search: "x" — N
-// runs' with ✕ over the list. Back (Esc) leaves a sender's runs, then a
+// logs' with ✕ over the list. Back (Esc) leaves a sender's runs, then a
 // search, then goes to the menu.
 //
 // A run opens the watch page `<base>r/<id>?from=community` in this tab;
@@ -37,9 +37,9 @@
 // community-model.ts, ADR 0155 "As built (stage 65 C1)").
 //
 // The phone (a narrow page): a dashboard, no tabs. The search field and
-// the players' figure, the newest five runs with All runs and Hall of Fame
-// (the two sub-pages, each with Back), Run of the day, Random Runes (the
-// latest notes, the field), the Warlords. The whole list (All runs) shows
+// the players' figure, the newest five logs with All logs and Hall of Fame
+// (the two sub-pages, each with Back), Log of the day, Random Runes (the
+// latest notes, the field), the Warlords. The whole list (All logs) shows
 // New only, without sorting, with the search field and the pager; it opens
 // on the dashboard field's search (or empties the field). A sender's runs
 // opened from the Hall of Fame go back to it.
@@ -47,10 +47,14 @@
 // Random Runes (flag `runes`; off, the board is gone): every note whole,
 // wrapped, never a link. Logged in: the field grows to several lines while
 // it is used, ≤ 250 characters with a count and the notes left today (5 a
-// day); at the limit the field is off and says when it opens. One's own
-// note in gold with Remove; Report on others' (the stage 64 report dialog,
+// day); at the limit the field is off and says when it opens. Each
+// writer's name in a colour of its own (`writerHue`). One's own
+// note with Remove; Report on others' (the stage 64 report dialog,
 // for a note). A guest reads, and "Log in to write" opens Log in. W puts
 // the keyboard in the field; Enter posts; Esc leaves the field.
+//
+// The page's words call a shared run a "log" (owner's feedback round 2);
+// the code, the API and the store keep "run" (ADR 0155).
 //
 // Opening the page clears the menu's counter: "seen" is set to the newest
 // listed time it showed (src/cloud/community/counter.ts).
@@ -97,6 +101,7 @@ import {
   meanText,
   newestListed,
   noteAge,
+  writerHue,
   noteFailText,
   noteField,
   noteHint,
@@ -120,8 +125,10 @@ import './community.css';
 export const COMMUNITY_NARROW = 700;
 /** The box stops at this width (the sky on both sides). */
 const COMMUNITY_MAX_W = 1320;
-/** The newest runs the phone's dashboard shows. */
+/** The newest logs the phone's dashboard shows. */
 const DASH_RUNS = 5;
+/** The warlords shown a side: all ten the Worker keeps (worker/mume.ts MAX_WARLORDS; owner's feedback round 2). */
+const WARLORDS_SHOWN = 10;
 /** The notes the phone's dashboard shows before "All notes". */
 const DASH_NOTES = 5;
 /** A search waits this long after the last key (ms). */
@@ -177,7 +184,7 @@ export function openCommunity(nav: Nav, o: { restore?: boolean } = {}): void {
   nav.push(<CommunityFrame restore={o.restore} />);
 }
 
-const SUB_TITLES: Record<CommunitySub, string> = { runs: 'All runs', hof: 'Hall of Fame' };
+const SUB_TITLES: Record<CommunitySub, string> = { runs: 'All logs', hof: 'Hall of Fame' };
 
 export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: boolean }): VNode {
   const nav = useNav();
@@ -587,9 +594,9 @@ function SearchField(p: { value: string; inputRef: { current: HTMLInputElement |
         class="wc-lk-input wc-cy-search-in"
         type="search"
         enterkeyhint="search"
-        aria-label="Search runs"
+        aria-label="Search logs"
         aria-keyshortcuts="/ F"
-        placeholder="Search runs"
+        placeholder="Search logs"
         value={p.value}
         maxLength={GALLERY_Q_MAX}
         spellcheck={false}
@@ -728,9 +735,9 @@ function RunList(p: RunListProps): VNode {
     p.by !== null ? (
       <div class="wc-cy-by">
         <span class="wc-cy-by-t">
-          Runs by <b>{p.by}</b>
+          Logs by <b>{p.by}</b>
         </span>
-        <GlassButton id="ALL-RUNS" label="All runs" icon="back" small onClick={p.onLeaveBy} />
+        <GlassButton id="ALL-RUNS" label="All logs" icon="back" small onClick={p.onLeaveBy} />
       </div>
     ) : p.tooLong ? (
       <div class="wc-cy-by is-search" data-state="too-long">
@@ -751,16 +758,16 @@ function RunList(p: RunListProps): VNode {
         onRetry={p.onRetry}
         empty={
           p.by !== null ? (
-            <p class="wc-lk-q">No runs listed by {p.by}.</p>
+            <p class="wc-lk-q">No logs listed by {p.by}.</p>
           ) : p.q !== null ? (
             <>
-              <p class="wc-lk-q">No runs found.</p>
+              <p class="wc-lk-q">No logs found.</p>
               <p class="wc-lk-qn">The search looks in the titles, the characters and the senders.</p>
             </>
           ) : (
             <>
               <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
-              <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
+              <p class="wc-lk-qn">{p.guest ? 'Logs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
             </>
           )
         }
@@ -778,7 +785,7 @@ function RunList(p: RunListProps): VNode {
       </div>
     ) : null;
   return (
-    <section class={'wc-cy-list' + (p.narrow ? ' is-narrow' : '')} aria-label="Runs" data-sort={p.sort} data-state={s.k === 'ok' ? (p.rows.length ? 'list' : 'empty') : s.k}>
+    <section class={'wc-cy-list' + (p.narrow ? ' is-narrow' : '')} aria-label="Logs" data-sort={p.sort} data-state={s.k === 'ok' ? (p.rows.length ? 'list' : 'empty') : s.k}>
       {bar}
       <div class={'wc-lk-tbl wc-cy-tbl' + (p.narrow ? '' : ' is-scroll')} role="table">
         {!p.narrow && (
@@ -824,7 +831,7 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
       type="button"
       class="wc-cy-sender"
       tabIndex={-1}
-      title={`Runs by ${r.sender}`}
+      title={`Logs by ${r.sender}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation();
@@ -887,13 +894,13 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
 
 // ------------------------------------------------------------ the column and the boxes
 
-/** "38 players on MUME": a large free-standing figure (owner's feedback 7); nothing without a count. */
+/** "38 players online": a large free-standing figure (owner's feedback 7); nothing without a count. */
 function Players(p: { n: number | undefined }): VNode | null {
   if (p.n === undefined) return null;
   return (
-    <div class="wc-cy-players" data-box="players" aria-label={`${p.n} players on MUME`}>
+    <div class="wc-cy-players" data-box="players" aria-label={`${p.n} players online`}>
       <b class="wc-cy-players-n">{p.n}</b>
-      <span class="wc-cy-players-l">players on MUME</span>
+      <span class="wc-cy-players-l">players online</span>
     </div>
   );
 }
@@ -903,7 +910,7 @@ function DayBox(p: { day: CommunityBoxes['today'] }): VNode | null {
   if (!day) return null;
   return (
     <section class="wc-cy-box wc-cy-day" data-box="day">
-      <h3 class="wc-cy-bh">Run of the day</h3>
+      <h3 class="wc-cy-bh">Log of the day</h3>
       <button type="button" class="wc-cy-day-r" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(day.id)}>
         <b class="wc-cy-day-t">{day.title}</b>
         <span class="wc-cy-day-d">
@@ -966,7 +973,7 @@ function WarSide(p: { title: string; cls: string; list: { name: string; race: st
     <div class={'wc-cy-wars ' + p.cls}>
       <h4>{p.title}</h4>
       <ol>
-        {p.list.slice(0, 5).map((w, i) => (
+        {p.list.slice(0, WARLORDS_SHOWN).map((w, i) => (
           <li key={i}>
             <b>{w.name}</b>
             <span>
@@ -1025,8 +1032,8 @@ function Dashboard(p: DashProps): VNode {
         {p.search}
         <Players n={b?.mume?.players} />
       </div>
-      <section class="wc-cy-box wc-cy-newest" data-box="newest" aria-label="Newest runs" data-state={p.state.k === 'ok' ? (newest.length ? 'list' : 'empty') : p.state.k}>
-        <h3 class="wc-cy-bh">Newest runs</h3>
+      <section class="wc-cy-box wc-cy-newest" data-box="newest" aria-label="Newest logs" data-state={p.state.k === 'ok' ? (newest.length ? 'list' : 'empty') : p.state.k}>
+        <h3 class="wc-cy-bh">Newest logs</h3>
         {p.state.k === 'ok' && newest.length > 0 ? (
           <ul class="wc-cy-dlist">
             {newest.map((r) => (
@@ -1040,14 +1047,14 @@ function Dashboard(p: DashProps): VNode {
             empty={
               <>
                 <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
-                <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
+                <p class="wc-lk-qn">{p.guest ? 'Logs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
               </>
             }
           />
         )}
         {(p.state.k === 'ok' && newest.length > 0) || hall ? (
           <div class="wc-cy-dbtns">
-            {p.state.k === 'ok' && newest.length > 0 && <GlassButton id="ALL" label="All runs" icon="next" iconAfter keepIcon small onClick={p.onAll} />}
+            {p.state.k === 'ok' && newest.length > 0 && <GlassButton id="ALL" label="All logs" icon="next" iconAfter keepIcon small onClick={p.onAll} />}
             {hall && <GlassButton id="HOF" label="Hall of Fame" icon="star" keepIcon small onClick={p.onHall} />}
           </div>
         ) : null}
@@ -1078,7 +1085,7 @@ function HallPage(p: { boxes: BoxesState; me: string | null; onBy(name: string):
   }
   return (
     <section class="wc-cy-list is-narrow wc-cy-hofpage" data-box="hof" aria-label="Hall of Fame">
-      <p class="wc-cy-hofnote">The best runs of all time, by their stars.</p>
+      <p class="wc-cy-hofnote">The best logs of all time, by their stars.</p>
       <div class="wc-lk-tbl wc-cy-tbl" role="table">
         <div class="wc-lk-tbody wc-cy-rows" role="rowgroup">
           {b.hallOfFame.map((r, i) => (
@@ -1175,7 +1182,7 @@ function RunesBox(p: RunesProps): VNode {
       <div class={'wc-cy-write' + (focused || text ? ' is-open' : '')}>
         <TextArea
           id="note"
-          label="A note"
+          label="Message"
           value={text}
           rows={1}
           maxLength={NOTE_MAX * 2}
@@ -1183,7 +1190,7 @@ function RunesBox(p: RunesProps): VNode {
             p.fieldRef.current = el;
           }}
           disabled={full || busy}
-          placeholder={full ? NOTE_LIMIT_TEXT : 'A note…'}
+          placeholder={full ? NOTE_LIMIT_TEXT : 'Write a message…'}
           error={error}
           hint={focused || text ? <span class="wc-cy-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
           enterSubmits
@@ -1222,7 +1229,7 @@ function RunesBox(p: RunesProps): VNode {
                 onClick={() => setOpen((o) => (o === note.id ? null : note.id))}
               >
                 <span class="wc-cy-note-t">
-                  <b>{note.writer}:</b> {note.text}
+                  <b class="wc-cy-writer" data-hue={writerHue(note.writer)}>{note.writer}:</b> {note.text}
                 </span>
                 <time class="wc-cy-note-a">{noteAge(note.created)}</time>
                 {p.me !== null && (

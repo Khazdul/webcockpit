@@ -23,9 +23,9 @@ export interface SortHead {
   letter: string;
 }
 
-/** The sorts by their column (short headings): Run (New, the default), Stars (Top), Com. (Comments), Views (Most watched). */
+/** The sorts by their column (short headings): Log (New, the default), Stars (Top), Com. (Comments), Views (Most watched). */
 export const SORT_HEADS: Readonly<Record<HeadSort, SortHead>> = {
-  new: { sort: 'new', label: 'Run', letter: 'n' },
+  new: { sort: 'new', label: 'Log', letter: 'l' },
   top: { sort: 'top', label: 'Stars', letter: 's' },
   comments: { sort: 'comments', label: 'Com.', letter: 'm' },
   watched: { sort: 'watched', label: 'Views', letter: 'v' },
@@ -68,9 +68,9 @@ export function searchTooLong(field: string): boolean {
 /** The line over the list for a text too long to search. */
 export const SEARCH_TOO_LONG = `A search takes at most ${GALLERY_Q_MAX} characters.`;
 
-/** The search's line over the list: 'Search: "ford" — 3 runs'. */
+/** The search's line over the list: 'Search: "ford" — 3 logs'. */
 export function searchLine(q: string, total: number): string {
-  return `Search: “${q}” — ${total} ${total === 1 ? 'run' : 'runs'}`;
+  return `Search: “${q}” — ${total} ${total === 1 ? 'log' : 'logs'}`;
 }
 
 /** A run's length: "37 min", "4 h 04 min", "under a minute". */
@@ -101,6 +101,24 @@ export function newestListed(...lists: ReadonlyArray<readonly Pick<GalleryRow, '
 }
 
 // ------------------------------------------------------------ the board
+
+/** The writers' colours on Random Runes (community.css `--cy-w0` … `--cy-w9`; owner's feedback round 2). */
+export const WRITER_HUES = 10;
+
+/**
+ * A writer's colour on Random Runes: 0 … WRITER_HUES - 1, the same for a
+ * name on every device and visit (FNV-1a of the lower-cased name: names
+ * are unique without case), so many writers are told apart at a glance.
+ */
+export function writerHue(name: string): number {
+  let h = 0x811c9dc5;
+  for (const c of name.toLowerCase()) {
+    h ^= c.codePointAt(0)!;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  // FNV's low bits spread poorly over short names: fold the high half in first.
+  return ((h ^ (h >>> 16)) >>> 0) % WRITER_HUES;
+}
 
 /** The age of a note at the right: "just now", "2 min", "3 h", "yesterday", "4 days" (the community's formatter, CR6). */
 export function noteAge(ms: number, now: number = Date.now()): string {

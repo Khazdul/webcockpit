@@ -58,17 +58,17 @@ test('the Account page keeps one row; the view: chips, stars, comments, views, w
   await fakeAccountApi(page, { server: s });
   await logInToAccount(page);
 
-  await expect(frame(page).locator('.wc-lk-sec')).toHaveText(['Published runs', 'Devices', 'Password and recovery', 'Leaving']);
-  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('4 runs · 2 listed · 475 views · 2 new');
+  await expect(frame(page).locator('.wc-lk-sec')).toHaveText(['Published logs', 'Devices', 'Password and recovery', 'Leaving']);
+  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('4 logs · 2 listed · 475 views · 2 new');
   await expect(frame(page).locator('[data-pub-summary] [data-pub-new]')).toHaveText('2 new');
   await expect(frame(page).locator('[data-page="account"] .wc-ac-pub')).toHaveCount(0);
-  await expect(btn(page, 'PUBLISHED')).toHaveText('Published runs');
+  await expect(btn(page, 'PUBLISHED')).toHaveText('Published logs');
 
   const log = apiLog(page);
   // U opens it.
   await page.keyboard.press('u');
   await expect(view(page)).toBeVisible();
-  await expect(frame(page).locator('.wc-lk-hood-t')).toHaveText('Published runs');
+  await expect(frame(page).locator('.wc-lk-hood-t')).toHaveText('Published logs');
   await expect(pubRows(page)).toHaveCount(4);
   await expect(view(page).locator('[data-account-name]')).toHaveText(NAME);
   await expect(view(page).locator('[data-pub-head]')).toHaveText(/^4 of 150 · 6\.\d MB, not counted against your 50 MB · 2 new since you last looked$/);
@@ -123,7 +123,7 @@ test('the Account page keeps one row; the view: chips, stars, comments, views, w
   // Back: the Account page's row has nothing new now.
   await page.keyboard.press('Escape');
   await expect(pageOf(page, 'account')).toBeVisible();
-  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('4 runs · 2 listed · 475 views');
+  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('4 logs · 2 listed · 475 views');
 
   // Again: nothing is new.
   await openView(page);
@@ -182,7 +182,7 @@ test('Edit lists and unlists with the switch; the 10-a-day refusal is said in th
   await row(page, 'Hn4Kc8Vb1sYe').locator('[data-btn="EDIT"]').click();
   await edit.locator('[data-field="listed"]').click();
   await btn(page, 'SAVE').click();
-  await expect(dialogError(page)).toHaveText('You have listed as many runs as you may today. List it tomorrow; turn the switch off to save the rest now.');
+  await expect(dialogError(page)).toHaveText('You have listed as many logs as you may today. List it tomorrow; turn the switch off to save the rest now.');
   expect(s.pubsOf(NAME).find((p) => p.id === 'Hn4Kc8Vb1sYe')!.listed).toBe(false);
   await page.keyboard.press('Escape');
   await expect(edit).toHaveCount(0);
@@ -195,7 +195,7 @@ test('Remove in the view; the last one gone leaves the empty line, and the Accou
   s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Clearing the ranger camp', listed: true });
   await startPage(page, s, { login: false });
   await logInToAccount(page);
-  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('1 run · 1 listed · 0 views');
+  await expect(frame(page).locator('[data-pub-summary]')).toHaveText('1 log · 1 listed · 0 views');
   await openView(page);
   await row(page, 'Ab3dE5fG7hJk').locator('[data-btn="REMOVE"]').click();
   await expect(dialog(page, 'pub-remove')).toBeVisible();

@@ -78,7 +78,7 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   await expect(share(page)).toBeVisible();
   await expect(share(page).locator('.wc-lk-hood-t')).toHaveText('Publish to the Hall of Fame');
   await expect(share(page).locator('.wc-sh-anyone')).toHaveText('Everyone can find this in the Community.');
-  await expect(share(page).locator('.wc-sh-listnote')).toHaveText('Listed under New at once. You can unlist it later under Published runs.');
+  await expect(share(page).locator('.wc-sh-listnote')).toHaveText('Listed under New at once. You can unlist it later under Published logs.');
   await expect(share(page).locator('.wc-sh-rules-l li')).toHaveCount(5);
   await expect(btn(page, 'CREATE')).toHaveCount(0);
   await expect(btn(page, 'PUBLISH')).toHaveText('Publish');
@@ -95,7 +95,7 @@ test('the first publication: the rules, the listed form, listed: true in the POS
   const origin = new URL(page.url()).origin;
   await expect(done(page).locator('[data-field="link"] input')).toHaveValue(`${origin}/r/${made.id}`);
   await expect(done(page).locator('.wc-sh-note')).toHaveText(
-    'It is in the Community now, first under New. Stars and comments show under Published runs on the Account page.',
+    'It is in the Community now, first under New. Stars and comments show under Published logs on the Account page.',
   );
   await expect(done(page).locator('[data-btn]')).toHaveText(['Copy', 'Open Community', 'Done']);
   await btn(page, 'COPY').click();
@@ -174,7 +174,7 @@ test('10 listings a day: the refusal offers Link now and listing later; Publish 
   await btn(page, 'EXPORT').click();
   await expect(share(page).locator('[data-rules]')).toHaveCount(0);
   await btn(page, 'PUBLISH').click();
-  await expect(dialogError(page)).toHaveText('You have listed 10 runs today, the most a day. Choose Link now, and list it tomorrow under Published runs.');
+  await expect(dialogError(page)).toHaveText('You have listed 10 logs today, the most a day. Choose Link now, and list it tomorrow under Published logs.');
   await expect(btn(page, 'PUBLISH')).toHaveAttribute('aria-disabled', 'true');
   expect(s.pubsOf(NAME)).toHaveLength(11);
   await page.keyboard.press('Escape');

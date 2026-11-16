@@ -1,6 +1,6 @@
 /* The Community page (stage 65 C1; round 13's pick 1b with the owner's
  * changes, pick 2; the owner's feedback W2): the list and Random Runes on
- * the left, the column with the players' figure, the run of the day, the
+ * the left, the column with the players' figure, the log of the day, the
  * Hall of Fame and the warlords on the right; the phone's dashboard and
  * its sub-pages. The kit's tokens (--lk-*), History's surfaces. */
 
@@ -506,19 +506,23 @@
   color: var(--lk-faint);
 }
 
-/* The players on MUME: a large free-standing figure, no box (owner's feedback 7). */
+/* The players online: a large free-standing figure, no box (owner's
+ * feedback 7). The column scrolls, so it clips: no negative margin, a
+ * line box taller than Cinzel's capitals and room for the glow above
+ * them, or the digits' tops are cut (owner's feedback round 2). */
 .wc-cy-players {
   flex: none;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
-  margin: -4px 4px 0 0;
+  margin: 0 4px 0 0;
+  padding-top: 6px;
   text-align: right;
 }
 
 .wc-cy-players-n {
-  font: 600 44px/1 var(--lk-display);
+  font: 600 44px/1.15 var(--lk-display);
   letter-spacing: 0.02em;
   color: var(--lk-on);
   text-shadow: 0 0 18px color-mix(in srgb, var(--lk-on) 30%, transparent);
@@ -665,13 +669,47 @@
   white-space: nowrap;
 }
 
-.wc-cy-note.is-own {
-  box-shadow: inset 2px 0 0 var(--lk-gold);
+/* Each writer's name in a colour of its own, the same for a name
+ * everywhere (community-model.ts `writerHue`; owner's feedback round 2):
+ * ten warm lamp-lit hues on the dark glass, ten inks on Paper. One's own
+ * notes are not marked otherwise (no gold bar): Remove tells them apart. */
+.wc-cy-runes {
+  --cy-w0: #e9b872; /* amber */
+  --cy-w1: #a9c98e; /* sage */
+  --cy-w2: #8fc8c2; /* verdigris */
+  --cy-w3: #eb9c9c; /* rose */
+  --cy-w4: #bba8e6; /* heather */
+  --cy-w5: #e8946a; /* copper */
+  --cy-w6: #e2d488; /* straw */
+  --cy-w7: #9cbcea; /* evening sky */
+  --cy-w8: #c8c47c; /* moss */
+  --cy-w9: #dc9ccb; /* foxglove */
 }
 
-.wc-cy-note.is-own .wc-cy-note-t b {
-  color: var(--lk-gold);
+:not(html)[data-light] .wc-cy-runes,
+.wc-look[data-light] .wc-cy-runes {
+  --cy-w0: #8a5a0e;
+  --cy-w1: #3f6a22;
+  --cy-w2: #1d6460;
+  --cy-w3: #9a3040;
+  --cy-w4: #5a3e98;
+  --cy-w5: #9a4416;
+  --cy-w6: #6e6010;
+  --cy-w7: #2c5490;
+  --cy-w8: #556014;
+  --cy-w9: #8a2e72;
 }
+
+.wc-cy-writer[data-hue="0"] { color: var(--cy-w0); }
+.wc-cy-writer[data-hue="1"] { color: var(--cy-w1); }
+.wc-cy-writer[data-hue="2"] { color: var(--cy-w2); }
+.wc-cy-writer[data-hue="3"] { color: var(--cy-w3); }
+.wc-cy-writer[data-hue="4"] { color: var(--cy-w4); }
+.wc-cy-writer[data-hue="5"] { color: var(--cy-w5); }
+.wc-cy-writer[data-hue="6"] { color: var(--cy-w6); }
+.wc-cy-writer[data-hue="7"] { color: var(--cy-w7); }
+.wc-cy-writer[data-hue="8"] { color: var(--cy-w8); }
+.wc-cy-writer[data-hue="9"] { color: var(--cy-w9); }
 
 .wc-cy-note-acts {
   flex: none;

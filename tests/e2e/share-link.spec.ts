@@ -172,7 +172,7 @@ test('the first share: the rules ticked in the dialog, the link with Copy; only 
   const origin = new URL(page.url()).origin;
   await expect(done(page).locator('[data-field="link"] input')).toHaveValue(`${origin}/r/${id}`);
   await expect(done(page).locator('.wc-sh-note')).toHaveText(
-    'Anyone with the link can watch this. You find it again, and can remove it, on the Account page under Published runs.',
+    'Anyone with the link can watch this. You find it again, and can remove it, on the Account page under Published logs.',
   );
   await btn(page, 'COPY').click();
   await expect(done(page).locator('.wc-sh-copied')).toHaveText(/^(Copied\.|Could not copy here: select the link and copy it\.)$/);
@@ -280,7 +280,7 @@ test('the refusals: too large (nothing sent), 150 reached (Open Account), offlin
   await btn(page, 'EXPORT').click();
   await share(page).locator('[data-field="rules"]').click();
   await btn(page, 'CREATE').click();
-  await expect(dialogError(page)).toHaveText('You have 150 published runs, the most an account can hold. Remove one on the Account page first.');
+  await expect(dialogError(page)).toHaveText('You have 150 published logs, the most an account can hold. Remove one on the Account page first.');
   await expect(btn(page, 'ACCOUNT')).toHaveText('Open Account');
   await expect(btn(page, 'CREATE')).toHaveAttribute('aria-disabled', 'true');
   await btn(page, 'CANCEL').click();
@@ -358,7 +358,7 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
   if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await openAccountPage(page, s);
 
-  await expect(frame(page).locator('.wc-lk-sec')).toHaveText(['Published runs', 'Devices', 'Password and recovery', 'Leaving']);
+  await expect(frame(page).locator('.wc-lk-sec')).toHaveText(['Published logs', 'Devices', 'Password and recovery', 'Leaving']);
   await expect(pubRows(page)).toHaveCount(3);
   await expect(pubRows(page).locator('[data-pub-title]')).toHaveText(['Clearing the ranger camp', 'First crossing of the <b>Brandywine</b>', 'Trollshaws hoard run']);
   await expect(pubRows(page).nth(0).locator('.wc-ac-pub-fig')).toHaveText(/^37 views · .+ 20\d\d · 1\.2 MB · link only$/);
@@ -387,7 +387,7 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
   await expect(edit.locator('[data-field="title"] input')).toHaveValue('Clearing the ranger camp');
   await expect(edit.locator('[data-field="desc"] textarea')).toHaveValue('At the ford.');
   await expect(edit.locator('.wc-ac-pub-count')).toHaveText('12 / 500');
-  await expect(edit.locator('.wc-ac-pub-note')).toHaveText(/^The run itself stays as it was cut\. localhost:\d+\/r\/Ab3dE5fG7hJk$/);
+  await expect(edit.locator('.wc-ac-pub-note')).toHaveText(/^The log itself stays as it was cut\. localhost:\d+\/r\/Ab3dE5fG7hJk$/);
   await expect(btn(page, 'SAVE')).toHaveAttribute('aria-disabled', 'true');
   await edit.locator('[data-field="title"] input').fill('The ranger camp, cleared');
   await edit.locator('[data-field="desc"] textarea').fill('At the ford, at dusk.');
@@ -401,7 +401,7 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
   const rm = dialog(page, 'pub-remove');
   await expect(rm.locator('.wc-lk-q')).toHaveText('Remove “First crossing of the <b>Brandywine</b>”?');
   await expect(rm.locator('.wc-lk-qn')).toHaveText(
-    'The link stops working; whoever opens it is told that the run was removed by its sender. This cannot be undone.',
+    'The link stops working; whoever opens it is told that the log was removed by its sender. This cannot be undone.',
   );
   await rm.locator('[data-btn="CANCEL"]').click();
   await expect(pubRows(page)).toHaveCount(3);
@@ -416,7 +416,7 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
     await dialog(page, 'pub-remove').locator('[data-btn="REMOVE"]').click();
     await expect(pubRows(page)).toHaveCount(1 - i);
   }
-  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('No published runs yet. In History, Share a session and choose Link.');
+  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('No published logs yet. In History, Share a session and choose Link.');
   await expect(frame(page).locator('[data-pub-empty] b')).toHaveText('Link');
   expect(errors).toEqual([]);
 });

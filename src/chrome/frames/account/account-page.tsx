@@ -338,7 +338,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
           {published.node(at, account?.limits ?? null)}
           {account?.state === 'suspended' && (
             <p class="wc-ac-suspended" role="status" data-suspended="">
-              <b>This account is suspended.</b> It cannot publish runs or comment. Everything else works as before.
+              <b>This account is suspended.</b> It cannot publish logs or comment. Everything else works as before.
             </p>
           )}
 

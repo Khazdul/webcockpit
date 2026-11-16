@@ -180,7 +180,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
     const fresh = pubs ? newOf(pubs) : 0;
     return (
       <>
-        <Rule title="Published runs" id="published" />
+        <Rule title="Published logs" id="published" />
         <div class={'wc-ac-pubs' + (community ? ' is-row' : '')} data-pubs={pubs === null ? 'asking' : pubs.length}>
           {error ? (
             <div class="wc-ac-noload">
@@ -210,7 +210,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
                     </>
                   )}
                 </span>
-                <GlassButton id="PUBLISHED" label="Published runs" letter="u" icon="link" small selected={at === 'PUBLISHED'} onClick={openView} />
+                <GlassButton id="PUBLISHED" label="Published logs" letter="u" icon="link" small selected={at === 'PUBLISHED'} onClick={openView} />
               </div>
             )
           ) : pubs.length === 0 ? (
@@ -248,7 +248,7 @@ function PubList(p: {
 }): VNode {
   const at = p.at;
   return (
-    <ul class={'wc-lk-rows is-flat wc-ac-publist' + (p.community ? ' is-view' : '')} aria-label="Published runs">
+    <ul class={'wc-lk-rows is-flat wc-ac-publist' + (p.community ? ' is-view' : '')} aria-label="Published logs">
       {p.pubs.map((pub) => {
         const hidden = pub.state === 'hidden';
         const news = p.fresh?.get(pub.id);
@@ -267,7 +267,7 @@ function PubList(p: {
                 class={'wc-ac-pub-t wc-ac-pub-open' + (at === `OPEN:${pub.id}` ? ' is-sel' : '')}
                 data-pub-title=""
                 href={watchHref(pub.id, p.community ? 'published' : 'account')}
-                title="Watch this run"
+                title="Watch this log"
                 tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
               >
@@ -440,7 +440,7 @@ export const PublishedFrame = lookFrame(function PublishedFrame(props: Published
   const total = (pubs ?? []).reduce((n, p) => n + p.bytes, 0);
   const freshAll = fresh ? [...fresh.values()].reduce((n, v) => n + v.votes + v.comments, 0) : 0;
   return (
-    <Box title="Published runs" onBack={back} tall class="wc-ac wc-ac-account wc-ac-pubview" winClass="wc-ac-win">
+    <Box title="Published logs" onBack={back} tall class="wc-ac wc-ac-account wc-ac-pubview" winClass="wc-ac-win">
       <BoxBody class="wc-ac-body" scroll>
         <div class="wc-ac-form wc-ac-acct" data-page="published" ref={formRef}>
           <div class="wc-ac-head">

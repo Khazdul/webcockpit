@@ -38,7 +38,7 @@ YOUR ADDRESS
 No IP address is stored. To stop abuse, the site limits how many heartbeats one address may send; the address is used for that check in passing and then forgotten.
 
 COMING LATER
-Accounts, to keep your profiles and settings in step between devices, and shared runs, to publish a run for others to watch, do not exist yet. When they come, this page will say what they keep before you can use them, and both will be your own choice.
+Accounts, to keep your profiles and settings in step between devices, and shared logs, to publish a log for others to watch, do not exist yet. When they come, this page will say what they keep before you can use them, and both will be your own choice.
 
 WHO RUNS IT
   Hosting         The site runs on Cloudflare, which processes the data above on WebCockpit's behalf. The database that holds it is kept in Cloudflare's EU jurisdiction.
