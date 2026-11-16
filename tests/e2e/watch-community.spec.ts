@@ -58,11 +58,18 @@ test('the frame: the still sky, the sub-page box with Back at its top left, the 
     expect(r.x).toBeGreaterThan(box.x);
     expect(r.x + r.width).toBeLessThan(box.x + box.width);
   }
-  expect(slot.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-  // The band and the replay fill the first view; the comments are under it (the page scrolls).
+  // Wide (feedback round 2): the replay at the left with the window's height, the band a column at its
+  // right, the comments under the band in that column; the page does not scroll.
+  expect(b.x).toBeGreaterThan(slot.x + slot.width);
+  expect(Math.abs(b.y - slot.y)).toBeLessThan(4);
   expect(slot.y + slot.height).toBeLessThanOrEqual(900);
   expect(slot.y + slot.height).toBeGreaterThan(820);
-  expect((await comments(page).boundingBox())!.y).toBeGreaterThan(slot.y + slot.height);
+  const c = (await comments(page).boundingBox())!;
+  expect(c.x).toBeGreaterThan(slot.x + slot.width);
+  expect(c.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+  expect(c.y + c.height).toBeLessThanOrEqual(slot.y + slot.height + 1);
+  const h = await page.locator('.wc-watch-page').evaluate((e) => [e.scrollHeight, e.clientHeight]);
+  expect(h[0]).toBeLessThanOrEqual(h[1]!);
   // Back: the start page.
   await watchBtn(page, 'BACK').click();
   await expect(page).toHaveURL(/\/\?cloudtest$/);
@@ -93,12 +100,12 @@ test('logged in: rate, change, take back; the vote is there again after a reload
   await expect(st.locator('[data-watch="stars-mine"]')).toHaveText('Rate this log');
   await expect(st.locator('[data-watch="stars-mean"]')).toHaveText('4.3 · 3 votes');
   await expect(st.locator('button.is-lit')).toHaveCount(0);
-  // The stars sit in the band, between the details and the buttons.
+  // The stars sit in the band, between the details and the buttons (wide: the column, top down).
   const id = (await band(page).locator('.wc-watch-id').boundingBox())!;
   const r = (await st.boundingBox())!;
   const rep = (await watchBtn(page, 'REPORT').boundingBox())!;
-  expect(r.x).toBeGreaterThan(id.x + id.width - 1);
-  expect(r.x + r.width).toBeLessThan(rep.x);
+  expect(r.y).toBeGreaterThan(id.y + id.height - 1);
+  expect(r.y + r.height).toBeLessThan(rep.y);
 
   await st.locator('[data-v="2"]').click();
   await expect(st.locator('[data-watch="stars-mine"]')).toHaveText('Your stars: two');

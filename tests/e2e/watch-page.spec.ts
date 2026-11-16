@@ -463,18 +463,56 @@ test.describe('?admin', () => {
   });
 });
 
-test('a tablet-sized window: the band in one row, the replay under it', async ({ page }) => {
+// Stage 65 feedback round 2: from 1000 px (a desktop, a tablet in landscape) the info is a column at
+// the replay's right; narrower (a phone in landscape, a small window) the band stays on top.
+test('a tablet in landscape: the info in a column at the right, the replay with the window\'s height', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await setUp(page);
+  await setUp(page, { gallery: true });
+  await openWatch(page);
+  await playing(page);
+  const b = (await band(page).boundingBox())!;
+  const f = (await page.locator('.wc-watch-slot').boundingBox())!;
+  const box = (await page.locator('.wc-watch-box').boundingBox())!;
+  expect(b.x).toBeGreaterThan(f.x + f.width);
+  expect(b.x + b.width).toBeLessThan(box.x + box.width);
+  expect(b.width).toBeGreaterThanOrEqual(290);
+  expect(Math.abs(b.y - f.y)).toBeLessThan(4);
+  // The replay keeps a usable width and the window's height (the frame's margin, hood and Back take about 80 px).
+  expect(f.width).toBeGreaterThan(560);
+  expect(f.height).toBeGreaterThan(640);
+  // Top down in the column: the title, the details, the description, the stars, Report, the comments.
+  const tops = await Promise.all(
+    ['[data-watch="title"]', '[data-watch="meta"]', '[data-watch="description"]', '[data-watch="stars"]', '[data-btn="REPORT"]'].map(
+      async (sel) => (await band(page).locator(sel).boundingBox())!.y,
+    ),
+  );
+  expect([...tops].sort((x, y) => x - y)).toEqual(tops);
+  const c = (await page.locator('.wc-watch [data-watch="comments"]').boundingBox())!;
+  expect(c.x).toBeGreaterThan(f.x + f.width);
+  expect(c.y).toBeGreaterThan(tops[4]!);
+  // The details wrap in the column, the description shows whole.
+  await expect(band(page).locator('[data-watch="description"]')).toBeVisible();
+  const page_ = await page.locator('.wc-watch-page').evaluate((e) => [e.scrollWidth, e.clientWidth, e.scrollHeight, e.clientHeight]);
+  expect(page_[0]).toBeLessThanOrEqual(page_[1]!);
+  expect(page_[2]).toBeLessThanOrEqual(page_[3]!);
+  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
+});
+
+test('a window narrower than 1000 px: the band in one row on top, the replay under it', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await setUp(page, { gallery: true });
   await openWatch(page);
   await playing(page);
   const b = (await band(page).boundingBox())!;
   const f = (await page.locator('.wc-watch-slot').boundingBox())!;
   expect(b.height).toBeLessThan(130);
   expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-  // Stage 65: inside the start page's frame (its margin, hood and Back take about 80 px).
-  expect(f.height).toBeGreaterThan(540);
-  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
+  expect(f.width).toBeGreaterThan(b.width - 30);
+  // The stars and Report in the band's row, right of the details.
+  const id = (await band(page).locator('.wc-watch-id').boundingBox())!;
+  expect((await band(page).locator('[data-watch="stars"]').boundingBox())!.x).toBeGreaterThan(id.x + id.width - 1);
+  // The comments under the replay (the page scrolls to them).
+  expect((await page.locator('.wc-watch [data-watch="comments"]').boundingBox())!.y).toBeGreaterThan(f.y + f.height);
 });
 
 test('/privacy says what a share link makes public with the flag share on; About gives the abuse address', async ({ page }) => {

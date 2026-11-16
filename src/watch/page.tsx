@@ -44,6 +44,13 @@
 // (`?from=community`), to the Account page or its Published runs view when
 // opened from there (`?from=account`, `?from=published`, ADR 0155 W1): the
 // model's `backHref`, the pair of `watchHref` that opened the run.
+//
+// Feedback round 2 (ADR 0155 "As built — feedback round 2, watch page"):
+// from 1000 px (a desktop, a tablet in landscape) the band is a column at
+// the replay's right with the comments under it, scrolling there, and the
+// replay has the window's height (watch.css, CSS only: the same DOM); a
+// narrower window and a phone keep the band on top. The details are
+// `.wc-watch-mi` pieces so the column breaks between them, never inside.
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
@@ -309,17 +316,19 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
                 <p class="wc-watch-meta" data-watch="meta">
                   {line ? (
                     <>
-                      {line.character && <span class="wc-watch-char">{line.character}</span>}
+                      {line.character && <span class="wc-watch-char wc-watch-mi">{line.character}</span>}
                       {line.character ? <i>·</i> : null}
-                      {line.length}
+                      <span class="wc-watch-mi">{line.length}</span>
                       <i>·</i>
-                      {line.date}
+                      <span class="wc-watch-mi">{line.date}</span>
                       <i>·</i>
-                      <span data-watch="views">{line.views}</span>
+                      <span class="wc-watch-mi" data-watch="views">
+                        {line.views}
+                      </span>
                       {line.sender && (
                         <>
                           <i>·</i>
-                          <span class="wc-watch-by">
+                          <span class="wc-watch-by wc-watch-mi">
                             shared by <b data-watch="sender">{line.sender}</b>
                           </span>
                         </>
