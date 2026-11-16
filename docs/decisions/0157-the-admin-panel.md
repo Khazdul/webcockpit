@@ -254,3 +254,43 @@ Mockups: <https://claude.ai/artifact/9yMSTQ4zgef5q1deSduTFC>.
   sent as `limits: null`, an empty override set as `defaults: null`.
 - **Not shown:** the mockup's "Accounts with their own" count per
   default limit; the contract has no such figure.
+
+## As built (stage 66 C2): the graph views
+
+- `worker/admin/graphs.ts` registers `use`, `storage` and `sharing`
+  (group `numbers`) through the shell's `registerView` and uses only the
+  shell names in its header. The range is the hash's first parameter
+  (`#use/90d`, default 30d); a range button writes it with
+  `history.replaceState` (no `hashchange`, so the shell does not render
+  twice) and reads `GET /api/admin/graphs?range=` once; Reload reads it
+  again; nothing polls.
+- Each answer becomes graph models (title, kind line / bars / stack /
+  hbar / top, x points, series of `number | null`). A card draws one
+  small (latest figure, legend for two series or more, a 440×140 SVG);
+  Open or a click on the card draws it large in place over the whole row
+  (one open card a view), its width measured at opening and scaled by
+  `viewBox`: legend, direct end labels for up to four lines, a crosshair
+  (lines) or band (bars) with a tooltip of every series, moved by the
+  pointer or by the arrow keys, Home and End on the focused graph, and a
+  Table toggle with the same numbers, newest first.
+- A metric absent from a day is a gap (a broken line, no bar, `–`), and
+  the online line also breaks where samples are missing for more than
+  1.5 buckets. Today (`final: false`) is labelled "so far", its bars
+  paler and its line segment dashed; the big figure is the newest whole
+  day with today's so far beside it.
+- **Published a day:** stacked, Link = `pubs_new − listed_new` (at least
+  0) and Hall of Fame = `listed_new`, on the reading that `pubs_new`
+  counts every new publication and `listed_new` those of them listed.
+  If the Worker counts a later listing of an older link run in
+  `listed_new`, Link is a floor for that day.
+- Splits fold past seven keys into the six largest and Other (the table
+  lists every key). The ten largest accounts are segmented bars (runs,
+  published, small items) linking to `#account/<name>`.
+- Colours: three categorical tokens `--gr1…3` (light `#2a78d6`,
+  `#eb6834`, `#1baf7a`; dark `#3987e5`, `#d95926`, `#199e70`, checked
+  with the dataviz validator) under the page's `prefers-color-scheme`
+  rule; a series keeps its colour across cards (7 days is always the
+  second). Sizes are set through CSSOM (`style.width`), never a style
+  string; text by `textContent` only.
+- Tests: `tests/unit/admin-graphs.test.ts` (happy-dom, the shell's
+  helpers faked).
