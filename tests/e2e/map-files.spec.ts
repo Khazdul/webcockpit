@@ -145,6 +145,12 @@ test('an HTML replay embeds the map subset and loads it from file://', async ({ 
   p.on('pageerror', (e) => errors.push(e.message));
   await p.goto(`file://${file}`);
   await p.waitForFunction(() => (window as unknown as ReplayWindow).__wcReplay != null);
+  // A shared run's panes start off (stage 65): the viewer turns the map on.
+  await p.evaluate(() =>
+    (window as unknown as { __wcReplay: { host: { viewerControls(d: boolean): { panes: { toggle(id: string): void } } } } }).__wcReplay.host
+      .viewerControls(false)
+      .panes.toggle('map'),
+  );
   const content = p.locator('.wc-pane-map .wc-pane-content');
   await expect(content).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
   await expect(content).toHaveAttribute('data-map-rooms', String(expected.map.roomCount));

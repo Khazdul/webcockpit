@@ -98,6 +98,21 @@ async function openFile(browser: Browser, html: string, path: string): Promise<{
 const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
 
+/** Turns pane `id` on with its row in the control box's Panes popup (and closes the popup). */
+async function paneOn(page: Page, id: string): Promise<void> {
+  const box = chrome(page).locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  await page.mouse.move(400, 400);
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeVisible();
+  const row = pop.locator(`[data-pane="${id}"]`);
+  await expect(row).toHaveAttribute('aria-checked', 'false');
+  await row.click();
+  await expect(row).toHaveAttribute('aria-checked', 'true');
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeHidden();
+}
+
 test('the HTML replay plays from file:// with no network and no storage', async ({ page, browser }, info) => {
   const { html, cut } = await buildHtml(page, true);
   // One file: doctype, GPL notice, fonts inline, payload, script; nothing fetched.
@@ -124,7 +139,19 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   await expect(chrome(p).locator('.wc-pv-back, .wc-lk-back')).toHaveCount(0);
   await expect(chrome(p).locator('.wc-player-clock')).toHaveText(/^\d\d:\d\d \/ 02:02$/);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
-  await expect(player(p).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
+  // A shared run (stage 65): no pane at the start; the Panes popup has Map, Timers and Group, all off.
+  await expect(player(p).locator('.wc-pane[data-pane]:visible')).toHaveCount(0);
+  await chrome(p).locator('.wc-player-box [data-act="panes"]').click();
+  expect(await chrome(p).locator('.wc-pc-pop[data-pop="panes"] [data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
+    'timers:false',
+    'group:false',
+    'map:false',
+  ]);
+  await chrome(p).locator('.wc-player-box [data-act="panes"]').click();
+  // One turned on shows, and nothing else.
+  await paneOn(p, 'map');
+  await expect(player(p).locator('.wc-pane[data-pane="map"]')).toBeVisible();
+  await expect(player(p).locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
   // The kind-icon markers and the A2 chrome, from the file alone (nothing fetched).
   expect(await chrome(p).locator('.wc-player-mark').evaluateAll((ms) => ms.map((m) => (m as HTMLElement).dataset.kinds))).toEqual(['AL', 'K', 'D']);
   await expect(chrome(p).locator('.wc-player-mark[data-kinds="D"] svg')).toHaveAttribute('data-kind', 'death');
@@ -314,8 +341,8 @@ test('system lines: a top comment plays first; an excluded login line is not pri
   const rb = await outputRows(b.page);
   expect(rb[0]).toBe(' | Reconnecting.');
   expect(rb.filter((r) => r === 'wc-sys | [SYSTEM] Rasta logged in.').length).toBe(logins - 1);
-  // The panes still got the login state (Char.Name was kept).
-  await expect(player(b.page).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
+  // The player still got the login state (Char.Name was kept; the Character pane is not in a shared run).
+  expect(await b.page.evaluate(() => (window as unknown as { __wcReplay: { host: { app: { charName: string } } } }).__wcReplay.host.app.charName)).toBe('Rasta');
   expect(b.errors).toEqual([]);
   await b.page.context().close();
 });
