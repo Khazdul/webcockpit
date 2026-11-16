@@ -54,9 +54,12 @@ function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-/** The replay's header: `<title> · <char> (L<lvl>) · YYYY-MM-DD` and the replay hints. */
+/**
+ * The replay's header: `<title> · <char> · YYYY-MM-DD` and the replay hints.
+ * No level (owner, stage 65): a shared run names the character only.
+ */
 export function replayHeader(p: ReplayPayload): PlayerHeaderModel {
-  const who = p.character + (p.level !== undefined ? ` (L${p.level})` : '');
+  const who = p.character;
   const left = p.title
     ? [{ text: clip(p.title, HEADER_TITLE_MAX), cls: 'wc-player-name' }, { text: who }]
     : [{ text: who, cls: 'wc-player-name' }];

@@ -133,7 +133,7 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   for (const line of cut) expect(texts).not.toContain(line);
 
   // Header, hints, the panes, text, markers, no input line.
-  await expect(chrome(p).locator('.wc-player-header')).toContainText('Demo fight · Rasta (L42) · 2026-09-26');
+  await expect(chrome(p).locator('.wc-player-header')).toContainText('Demo fight · Rasta · 2026-09-26');
   await expect(chrome(p).locator('.wc-player-hints')).toHaveText('Space Play · ← → 10 s · ↑↓ Scroll · 1–6 Speed · F Fullscreen');
   // Stage 45 (decision 3): the replay has no Back (the run log player's) and keeps its MM:SS clock.
   await expect(chrome(p).locator('.wc-pv-back, .wc-lk-back')).toHaveCount(0);
@@ -255,7 +255,7 @@ test('?replayhtml= builds the demo replay and opens it', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?replayhtml=runs-demo.jsonl.gz');
   await expect.poll(() => page.url()).toMatch(/^blob:/);
-  await expect(chrome(page).locator('.wc-player-header')).toContainText('Rasta (L42) · 2026-09-26');
+  await expect(chrome(page).locator('.wc-player-header')).toContainText('Rasta · 2026-09-26');
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
   expect(errors).toEqual([]);
 });
