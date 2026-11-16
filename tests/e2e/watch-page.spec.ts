@@ -1,10 +1,9 @@
 // Stage 64 C2 (spec §7.7, ADR 0154 "The watch page"; round 12's picks 3a
 // and 5): `/r/<id>` boots straight into the watch page, a band over the
 // sandboxed replay. A guest watches a seeded run; every state; one view
-// per page load; Report logged in and out; Download as HTML makes a file
-// that plays; Back; `?admin`. Desktop (Chromium and Firefox); the phone's
+// per page load; Report logged in and out; no Download, a paused start
+// (stage 65 W1); Back; `?admin`. Desktop (Chromium and Firefox); the phone's
 // in phone-watch-page.spec.ts.
-import { readFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
 import {
@@ -21,6 +20,7 @@ import {
   noFrameFullscreen,
   logIn,
   openWatch,
+  pausedInFrame,
   playing,
   replay,
   setUp,
@@ -177,7 +177,7 @@ test.describe('the states', () => {
     await openWatch(page);
     await expect(band(page).locator('[data-watch="title"]')).toHaveText('Clearing the ranger camp');
     await expect(page.locator('.wc-watch-wait .wc-lk-load-l')).toHaveText(/^Loading the run…/);
-    await expect(watchBtn(page, 'DOWNLOAD')).toHaveAttribute('aria-disabled', 'true');
+    await expect(watchBtn(page, 'REPORT')).toBeVisible();
     release();
     await playing(page);
     await expect(page.locator('.wc-watch-wait')).toHaveCount(0);
@@ -268,20 +268,27 @@ test.describe('Report', () => {
   });
 });
 
-test('Download as HTML makes the exporter\'s file, and it plays', async ({ page, context }, info) => {
-  await setUp(page);
+// The owner's feedback on stage 65 (ADR 0155 W1): no Download as HTML on
+// the watch page, and the run starts paused; Space (or Play) in the frame
+// starts it.
+test('no Download: no button, D does nothing; the run starts paused and Space plays it', async ({ page }) => {
+  const s = await setUp(page);
   await openWatch(page);
   await playing(page);
-  const [download] = await Promise.all([page.waitForEvent('download'), watchBtn(page, 'DOWNLOAD').click()]);
-  expect(download.suggestedFilename()).toBe('Clearing the ranger camp.html');
-  const file = info.outputPath('replay.html');
-  await download.saveAs(file);
-  const html = readFileSync(file, 'utf8');
-  expect(html).toMatch(/^<!doctype html>/i);
-  const p2 = await context.newPage();
-  await p2.goto(`file://${file}`);
-  await expect(p2.locator('.wc-player')).toBeVisible({ timeout: 20_000 });
-  await expect(p2.locator('.wc-player')).toContainText('hardened ranger');
+  await expect(watchBtn(page, 'DOWNLOAD')).toHaveCount(0);
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await page.keyboard.press('d');
+  // Paused at the start, and it stays so.
+  await pausedInFrame(page);
+  await page.waitForTimeout(1_500);
+  await pausedInFrame(page);
+  expect(downloads).toBe(0);
+  // Opening the run counts its view, paused or not.
+  await expect.poll(() => s.pubs.viewRequests.length).toBe(1);
+  // Space in the frame plays it (the page gives the frame the keys once the run is in).
+  await page.keyboard.press(' ');
+  await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'true');
 });
 
 // The owner's test of stage 64: the replay's Fullscreen did nothing on the
@@ -423,7 +430,7 @@ test('a tablet-sized window: the band in one row, the replay under it', async ({
   expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
   // Stage 65: inside the start page's frame (its margin, hood and Back take about 80 px).
   expect(f.height).toBeGreaterThan(540);
-  await expect(watchBtn(page, 'DOWNLOAD')).toHaveText('Download as HTML');
+  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
 });
 
 test('/privacy says what a share link makes public with the flag share on; About gives the abuse address', async ({ page }) => {

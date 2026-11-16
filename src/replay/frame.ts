@@ -7,6 +7,9 @@
 //   frame → parent   {t: 'wc-ready', v: 1}            once, at start
 //   parent → frame   {t: 'wc-play', v: 1, payload: ArrayBuffer (gzip JSON),
 //                     fonts: [{family, weight, range?, data: ArrayBuffer}], prefs?}
+//                    prefs: {paused?: boolean}: `paused: true` opens the
+//                    replay paused at its start (the watch page's, ADR 0155
+//                    W1); anything else plays at once, as before
 //   frame → parent   {t: 'wc-error', v: 1, text}       when it cannot play
 //   frame → parent   {t: 'wc-fullscreen', v: 1, on}    fill the window (below)
 //   parent → frame   {t: 'wc-fs-state', v: 1, on}      the frame fills it, or not
@@ -129,6 +132,11 @@ export function frameFullscreen(doc: Document, ask: (on: boolean) => void): Repl
   };
 }
 
+/** Whether a `wc-play` message's `prefs` ask for a paused start (only `paused: true` does). */
+export function framePaused(prefs: unknown): boolean {
+  return typeof prefs === 'object' && prefs !== null && (prefs as Record<string, unknown>).paused === true;
+}
+
 export interface FrameOptions {
   /** The window the frame runs in (its `parent` is the only sender it trusts). */
   win: Window;
@@ -164,7 +172,10 @@ export function startFrame(o: FrameOptions): () => void {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
         const [p] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts)]);
-        const page = openReplay(doc, root, p, { fullscreen: fs });
+        const paused = framePaused(d.prefs);
+        const page = openReplay(doc, root, p, { fullscreen: fs, autoplay: !paused });
+        // Paused: what the run shows at its start is drawn (a seek delivers it; play would).
+        if (paused) page.host.engine?.seek(0);
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';
