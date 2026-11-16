@@ -136,6 +136,13 @@ describe('the admin page: the shell', () => {
     expect($('#status').textContent).toBe('Could not read the numbers: HTTP 500');
   });
 
+  it('Reports keeps today and the estimate; the 30 days and the splits are only the Use view’s (no folded copy)', async () => {
+    await boot();
+    expect(document.querySelector('#v-reports #usage')).not.toBeNull();
+    expect(document.querySelector('#v-reports #today')).not.toBeNull();
+    for (const sel of ['#days', '#split', 'details']) expect(document.querySelector(`#v-reports ${sel}`), sel).toBeNull();
+  });
+
   it('the Reports view links to the whole log', async () => {
     route('GET', '/api/admin/log', json(logPage([])));
     await boot();

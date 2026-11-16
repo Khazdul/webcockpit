@@ -2,10 +2,10 @@
 // stage 66 with its behaviour unchanged): the report queue on the left; the
 // community's and the published runs' totals, an account action by name and
 // the newest admin log entries on the right. Stage 66 puts today's figures
-// and the use estimate (stage 59) over the queue, and the 30-day table and
-// the device splits under it, folded, until the Use view's graphs (C2)
-// carry them. The view's element is kept in the page (`.kept`) so the
-// minute's reload can update the side bar's count from any view.
+// and the use estimate (stage 59) over the queue; the 30 days and the device
+// splits are the Use view's graphs (graphs.ts). The view's element is kept
+// in the page (`.kept`) so the minute's reload can update the side bar's
+// count from any view.
 
 export const REPORTS_HTML = `<div id="v-reports" class="kept" hidden>
   <section class="overview" aria-label="Today">
@@ -51,17 +51,6 @@ export const REPORTS_HTML = `<div id="v-reports" class="kept" hidden>
       </section>
     </div>
   </div>
-  <details class="rest">
-    <summary>The last 30 days and the device splits</summary>
-    <section>
-      <h2>The last 30 days</h2>
-      <table id="days"><thead><tr><th>Day (UTC)</th><th>Devices</th><th>New</th><th>Peak online</th><th>Peak playing</th><th>Play minutes</th><th>Beats</th></tr></thead><tbody></tbody></table>
-    </section>
-    <section>
-      <h2>Devices by type, browser and version <span class="muted" id="split-day"></span></h2>
-      <div class="splits" id="split"></div>
-    </section>
-  </details>
 </div>`;
 
 export const REPORTS_CSS = `.overview { display: flex; flex-wrap: wrap; gap: 6px 36px; align-items: flex-start; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
@@ -70,14 +59,10 @@ export const REPORTS_CSS = `.overview { display: flex; flex-wrap: wrap; gap: 6px
 .overview .figures dd { font-size: 1.2rem; }
 .overview p { flex: 1 1 100%; margin: 0; }
 .overview .usage { width: auto; min-width: 28em; font-size: .88rem; }
-.splits { display: flex; flex-wrap: wrap; gap: 24px; }
-.splits table { width: auto; min-width: 12em; }
 .two { display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 0 32px; align-items: start; }
 .col2 .figures { gap: 8px 22px; }
 .col2 .figures div { min-width: 5.5em; }
 @media (max-width: 1200px) { .two { grid-template-columns: minmax(0, 1fr); } .overview .usage { min-width: 0; width: 100%; } }
-.rest { margin-top: 24px; }
-.rest summary { cursor: pointer; color: var(--muted); }
 .rq { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; background: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%); overflow-wrap: anywhere; }
 .rq.is-hidden { border-left: 4px solid var(--warn); }
 .rq-head { display: flex; align-items: baseline; gap: 12px; }
@@ -123,18 +108,6 @@ export const REPORTS_JS = `
     });
   }
   function wrap(node) { var td = el('td'); td.append(node); return td; }
-  function splitTable(title, obj) {
-    var t = el('table');
-    var head = el('tr');
-    head.append(el('th', title), el('th', 'Devices'));
-    t.append(head);
-    Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; }).forEach(function (k) {
-      var tr = el('tr');
-      tr.append(el('td', k), el('td', fmt(obj[k])));
-      t.append(tr);
-    });
-    return t;
-  }
 
   function render(s) {
     document.getElementById('online-now').textContent = fmt(s.online.total) + ' online';
@@ -153,16 +126,6 @@ export const REPORTS_JS = `
       ['D1 rows written', fmt(u.rowsWritten), fmt(u.limits.rowsWritten), share(u.rowsWritten, u.limits.rowsWritten)],
       ['D1 rows read', fmt(u.rowsRead), fmt(u.limits.rowsRead), share(u.rowsRead, u.limits.rowsRead)],
     ]);
-
-    rows('days', s.days.length ? s.days.map(function (d) {
-      return [d.day, fmt(d.devices), fmt(d.newDevices), fmt(d.peakOnline), fmt(d.peakPlaying), fmt(d.playMinutes), fmt(d.beats)];
-    }) : [['No days rolled up yet (the roll-up runs at 00:10 UTC).', '', '', '', '', '', '']]);
-
-    var split = document.getElementById('split');
-    split.replaceChildren();
-    document.getElementById('split-day').textContent = s.split ? s.split.day : '';
-    if (s.split) split.append(splitTable('Type', s.split.type), splitTable('Browser', s.split.browser), splitTable('Version', s.split.version));
-    else split.append(el('p', 'Shown after the first roll-up.', 'muted'));
   }
 
   function load() {
