@@ -3,14 +3,18 @@
 // never kept by the browser (`no-cache`), the Cache API keeps them 60 s at
 // most by their own stored time (a cache that keeps an entry longer is not
 // believed), and a write that changes what they show (a note, a listing, a
-// removal) makes the next read in this place fresh at once.
+// removal) makes the next read in this place fresh at once. Review fix 2:
+// only a write that changes a public read moves the mark, at most every
+// MARK_EVERY_MS, after the answer; the mark is kept in memory a moment.
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CommunityBoxes, GalleryPage, RunesBoard } from '../../shared/cloud/api.ts';
 import { handle } from '../router.ts';
-import type { CacheLike } from '../runtime.ts';
+import { type CacheLike, PUBLIC_CHANGE_HEADER } from '../runtime.ts';
 import { at, emptyTables } from './helpers.ts';
-import { ORIGIN, setLimits, signUp, siteverify } from './share-helpers.ts';
-import { CENV, NOW, ccall, list, note, noted, ok } from './community-helpers.ts';
+import { META, ORIGIN, call, payload, publish, reportOf, setLimits, signUp, siteverify } from './share-helpers.ts';
+import { CENV, NOW, ccall, comment, commented, list, note, noted, ok, vote } from './community-helpers.ts';
+import { MARK_EVERY_MS } from '../community.ts';
+import { adminCall } from './admin-call.ts';
 
 beforeEach(async () => {
   await emptyTables();
@@ -75,28 +79,165 @@ describe('a write makes the next read fresh in this place', () => {
     const bob = await signUp('bob');
     expect((await ok<RunesBoard>(await read('/api/runes', cache))).notes).toEqual([]);
     await noted(alice, 'From alice.', { cache, now: NOW + 1000 });
-    const id = await noted(bob, 'From bob.', { cache, now: NOW + 2000 });
-    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 3000))).notes.map((n) => n.text)).toEqual(['From bob.', 'From alice.']);
-    expect((await ccall('DELETE', `/api/u/runes/${id}`, undefined, { cookie: bob, cache, now: NOW + 4000 })).status).toBe(204);
-    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 5000))).notes.map((n) => n.text)).toEqual(['From alice.']);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 1500))).notes.map((n) => n.text)).toEqual(['From alice.']);
+    // (Marks come at most every MARK_EVERY_MS: these writes are that far apart.)
+    const id = await noted(bob, 'From bob.', { cache, now: NOW + 7000 });
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 7500))).notes.map((n) => n.text)).toEqual(['From bob.', 'From alice.']);
+    expect((await ccall('DELETE', `/api/u/runes/${id}`, undefined, { cookie: bob, cache, now: NOW + 13_000 })).status).toBe(204);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 13_500))).notes.map((n) => n.text)).toEqual(['From alice.']);
   });
 
-  it('a listing: the list and the boxes show it at once; a refused write marks nothing', async () => {
+  it('a listing: the list and the boxes show it at once; a refused write marks nothing; the header stays inside', async () => {
     const cache = forever();
     const alice = await signUp('alice');
     expect((await ok<GalleryPage>(await read('/api/gallery', cache))).rows).toEqual([]);
     expect((await ok<CommunityBoxes>(await read('/api/community', cache))).hallOfFame).toEqual([]);
-    const id = await list(alice, { now: NOW });
-    // (`list` does not pass the cache: the mark comes from a write through it.)
+    // A link-only run (not through the cache): the lists do not show it.
+    const id = await publish(alice, payload(100, 1), { ...META, listed: false }, { env: CENV, now: NOW });
     expect((await ok<GalleryPage>(await read('/api/gallery', cache, NOW + 1000))).rows).toEqual([]);
     const marked = await ccall('PATCH', `/api/u/pub/${id}`, { listed: true }, { cookie: alice, cache, now: NOW + 1000 });
     expect(marked.status).toBe(200);
+    expect(marked.headers.get('x-wc-public-change')).toBeNull();
     expect((await ok<GalleryPage>(await read('/api/gallery', cache, NOW + 2000))).rows.map((r) => r.id)).toEqual([id]);
     expect((await ok<GalleryPage>(await read('/api/gallery?sort=top', cache, NOW + 2000))).rows.map((r) => r.id)).toEqual([id]);
     const keys = cache.store.size;
     // A refused write (400) leaves the kept answers as they are.
-    expect((await note(alice, '', { cache, now: NOW + 3000 })).status).toBe(400);
-    await read('/api/gallery', cache, NOW + 3000);
+    expect((await note(alice, '', { cache, now: NOW + 9000 })).status).toBe(400);
+    await read('/api/gallery', cache, NOW + 9000);
     expect(cache.store.size).toBe(keys);
+  });
+});
+
+/** The marks a cache was given (review fix 2: only a public change makes one). */
+const marks = (cache: { store: Map<string, Response> }): number => [...cache.store.keys()].filter((k) => k.endsWith('/api/community/~mark')).length;
+
+/** A cache that counts its puts of the mark and its lookups. */
+function counted(): CacheLike & { store: Map<string, Response>; markPuts: number; matches: number } {
+  const inner = forever();
+  const c = {
+    store: inner.store,
+    markPuts: 0,
+    matches: 0,
+    async match(r: Request) {
+      c.matches++;
+      return inner.match(r);
+    },
+    async put(r: Request, res: Response) {
+      if (r.url.endsWith('/~mark')) c.markPuts++;
+      return inner.put(r, res);
+    },
+  };
+  return c;
+}
+
+describe('the mark (review fix 2: R2-2, CR4, CR5)', () => {
+  it('moves only when the write changes what the public reads show', async () => {
+    const cache = counted();
+    const alice = await signUp('alice');
+    const bob = await signUp('bob');
+    const listed = await list(alice, { now: NOW - 60_000 });
+    const linkOnly = await publish(alice, payload(100, 2), { ...META, listed: false }, { env: CENV, now: NOW - 60_000 });
+    const quiet = (o: { now: number }): { cache: CacheLike; now: number } => ({ cache, now: o.now });
+    let t = NOW;
+    const step = (): { cache: CacheLike; now: number } => quiet({ now: (t += 10_000) });
+    // None of these changes a public read.
+    expect((await vote(bob, linkOnly, 4, { cookie: bob, ...step() })).status).toBe(200);
+    expect((await ccall('DELETE', `/api/u/pub/${listed}/vote`, undefined, { cookie: bob, ...step() })).status).toBe(200);
+    expect((await comment(bob, linkOnly, 'Nice.', step())).status).toBe(200);
+    expect((await reportOf(bob, listed, {}, { env: CENV, ...step() })).status).toBe(204);
+    expect((await ccall('PATCH', `/api/u/pub/${linkOnly}`, { title: 'Still link only' }, { cookie: alice, ...step() })).status).toBe(200);
+    expect((await ccall('PATCH', `/api/u/pub/${listed}`, { listed: true }, { cookie: alice, ...step() })).status).toBe(200);
+    expect((await call('POST', '/api/u/pub', undefined, { env: CENV, cookie: alice })).status).not.toBe(200);
+    expect(cache.markPuts).toBe(0);
+    // A vote on a listed run: one mark; the same vote again: none.
+    expect((await vote(bob, listed, 4, { cookie: bob, ...step() })).status).toBe(200);
+    expect(cache.markPuts).toBe(1);
+    expect((await vote(bob, listed, 4, { cookie: bob, ...step() })).status).toBe(200);
+    expect(cache.markPuts).toBe(1);
+    // A comment on it, a note, a title change of the listed run, unlisting, listing again, removal: one each.
+    await commented(bob, listed, 'Nice.', step());
+    await noted(bob, 'Orcs.', step());
+    expect((await ccall('PATCH', `/api/u/pub/${listed}`, { title: 'New words' }, { cookie: alice, ...step() })).status).toBe(200);
+    expect((await ccall('PATCH', `/api/u/pub/${listed}`, { listed: false }, { cookie: alice, ...step() })).status).toBe(200);
+    expect((await ccall('PATCH', `/api/u/pub/${listed}`, { listed: true }, { cookie: alice, ...step() })).status).toBe(200);
+    expect((await ccall('DELETE', `/api/u/pub/${listed}`, undefined, { cookie: alice, ...step() })).status).toBe(204);
+    expect(cache.markPuts).toBe(7);
+    // Removing the link-only run: none.
+    expect((await ccall('DELETE', `/api/u/pub/${linkOnly}`, undefined, { cookie: alice, ...step() })).status).toBe(204);
+    expect(cache.markPuts).toBe(7);
+    expect(marks(cache)).toBe(1);
+  });
+
+  it('at most once per MARK_EVERY_MS; a change inside it gets one later mark when the time is up', async () => {
+    const cache = counted();
+    const alice = await signUp('alice');
+    await setLimits('alice', { notesPerDay: 100 });
+    const work: Promise<unknown>[] = [];
+    const waits: number[] = [];
+    const wakes: (() => void)[] = [];
+    const sleep = (ms: number): Promise<void> => {
+      waits.push(ms);
+      return new Promise((resolve) => wakes.push(resolve));
+    };
+    const o = (now: number) => ({ cache, now, waitUntil: (p: Promise<unknown>) => void work.push(p), sleep });
+    expect((await ok<RunesBoard>(await read('/api/runes', cache))).notes).toEqual([]);
+    await noted(alice, 'One.', o(NOW + 1000));
+    expect(cache.markPuts).toBe(1);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 1500))).notes.map((n) => n.text)).toEqual(['One.']);
+    // Inside the 5 s: no mark yet (the read is kept from before), one waits for the rest of it.
+    await noted(alice, 'Two.', o(NOW + 2000));
+    await noted(alice, 'Three.', o(NOW + 3000));
+    expect(waits).toEqual([MARK_EVERY_MS - 1000]);
+    expect(cache.markPuts).toBe(1);
+    for (const wake of wakes) wake();
+    await Promise.all(work);
+    expect(cache.markPuts).toBe(2);
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 6100))).notes.map((n) => n.text)).toEqual(['Three.', 'Two.', 'One.']);
+  });
+
+  it('the answer does not wait for the put; a hit costs one cache lookup', async () => {
+    const alice = await signUp('alice');
+    const store = new Map<string, Response>();
+    let matches = 0;
+    const cache: CacheLike = {
+      async match(r) {
+        matches++;
+        return store.get(r.url)?.clone();
+      },
+      // A put of the mark that never ends.
+      put(r, res) {
+        if (r.url.endsWith('/~mark')) return new Promise(() => {});
+        store.set(r.url, res);
+        return Promise.resolve();
+      },
+    };
+    const timeout = new Promise<'waited'>((resolve) => setTimeout(() => resolve('waited'), 2000));
+    const res = await Promise.race([note(alice, 'Orcs.', { cache, now: NOW }), timeout]);
+    expect(res).not.toBe('waited');
+    expect((res as Response).status).toBe(200);
+    // The writer's place knows the mark at once (from memory), so the first read is a miss with the note.
+    expect((await ok<RunesBoard>(await read('/api/runes', cache, NOW + 100))).notes.map((n) => n.text)).toEqual(['Orcs.']);
+    matches = 0;
+    await read('/api/runes', cache, NOW + 200);
+    expect(matches).toBe(1);
+  });
+});
+
+describe("the admin's actions say whether they change a public read", () => {
+  it('hide, restore, delete and the account actions do; dismiss does not', async () => {
+    const alice = await signUp('alice');
+    await signUp('bob');
+    const id = await list(alice, { now: NOW - 60_000 });
+    const flagged = async (path: string, body: unknown): Promise<string | null> => {
+      const res = await adminCall(path, body);
+      expect(res.status, path).toBe(204);
+      return res.headers.get(PUBLIC_CHANGE_HEADER);
+    };
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'dismiss' })).toBeNull();
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'hide' })).toBe('1');
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'restore' })).toBe('1');
+    expect(await flagged('/api/admin/account/bob', { action: 'suspend' })).toBe('1');
+    expect(await flagged('/api/admin/account/bob', { action: 'restore' })).toBe('1');
+    expect(await flagged(`/api/admin/pub/${id}`, { action: 'delete' })).toBe('1');
   });
 });

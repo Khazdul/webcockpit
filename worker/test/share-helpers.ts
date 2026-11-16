@@ -35,6 +35,9 @@ export interface Opts {
   ip?: string;
   /** The Cache API's stand-in (Deps.cache; none by default). */
   cache?: CacheLike;
+  /** Deps.waitUntil and Deps.sleep (none by default). */
+  waitUntil?: Deps['waitUntil'];
+  sleep?: Deps['sleep'];
 }
 
 export function call(method: string, path: string, json?: unknown, o: Opts = {}): Promise<Response> {
@@ -47,7 +50,12 @@ export function call(method: string, path: string, json?: unknown, o: Opts = {})
   const init: RequestInit = { method, headers: { ...headers, ...o.headers } };
   if (o.body !== undefined) init.body = o.body;
   else if (json !== undefined) init.body = JSON.stringify(json);
-  return handle(new Request(`${ORIGIN}${path}`, init), o.env ?? ENV, { ...at(o.now ?? NOW, siteverify), ...(o.cache ? { cache: o.cache } : {}) });
+  return handle(new Request(`${ORIGIN}${path}`, init), o.env ?? ENV, {
+    ...at(o.now ?? NOW, siteverify),
+    ...(o.cache ? { cache: o.cache } : {}),
+    ...(o.waitUntil ? { waitUntil: o.waitUntil } : {}),
+    ...(o.sleep ? { sleep: o.sleep } : {}),
+  });
 }
 
 function cookieOf(res: Response): string {

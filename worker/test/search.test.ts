@@ -2,14 +2,15 @@
 // feedback; ADR 0155 "As built (stage 65, owner's feedback: W2)"): the
 // title, character and sender of listed active runs, without regard to
 // (ASCII) case, as a plain substring; the bounds after cleaning; the sorts,
-// pages and `by` combined; never a hidden, removed or link-only run; never
-// kept in the Cache API; the flags.
+// pages and `by` combined; never a hidden, removed or link-only run; kept
+// in the Cache API under its lower-case text, pages 1–10 and its own limit
+// (review fix 2 R2-1); the flags.
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GalleryPage } from '../../shared/cloud/api.ts';
+import { GALLERY_Q_PAGES_MAX, type GalleryPage } from '../../shared/cloud/api.ts';
 import { searchText } from '../../shared/cloud/text.ts';
 import { galleryParams } from '../community.ts';
 import { handle } from '../router.ts';
-import type { CacheLike } from '../runtime.ts';
+import type { CacheLike, RateLimiter } from '../runtime.ts';
 import { at, db, emptyTables } from './helpers.ts';
 import { META, ORIGIN, call, payload, publish, setLimits, signUp, siteverify } from './share-helpers.ts';
 import { CENV, NOW, ccall, cenvOf, ok } from './community-helpers.ts';
@@ -74,7 +75,9 @@ describe('GET /api/gallery?q=', () => {
     expect((await search('x'.repeat(60))).total).toBe(0);
     expect((await search('ab')).total).toBe(0);
     // Cleaning: a bidi override goes, NFC composes (e + U+0301 is é: two code points).
-    expect((await search('O‮rcs')).q).toBe('Orcs');
+    // The text as searched: its ASCII letters in lower case (as SQLite's lower() takes them).
+    expect((await search('O‮rcs')).q).toBe('orcs');
+    expect((await search('ÅSA')).q).toBe('Åsa');
     expect((await search('éx')).q).toBe('éx');
     expect(galleryParams(new URL(`${ORIGIN}/api/gallery?q=${encodeURIComponent(' Orc\n fight ')}`))).toMatchObject({ q: 'Orc fight' });
     expect(searchText('ab', 2, 60)).toBe('ab');
@@ -115,7 +118,7 @@ describe('GET /api/gallery?q=', () => {
     expect((await search('ford', '&by=nobody')).total).toBe(0);
   });
 
-  it('is never kept in the Cache API (the list without q still is); 404 with a flag off', async () => {
+  it('is kept in the Cache API under its text in lower case, fresh after a write; 404 with a flag off', async () => {
     const alice = await signUp('alice');
     await run(alice, 'Ford', 'Gibur', 1);
     const store = new Map<string, Response>();
@@ -127,17 +130,48 @@ describe('GET /api/gallery?q=', () => {
         store.set(r.url, res);
       },
     };
-    const get = (q: string): Promise<Response> => handle(new Request(`${ORIGIN}/api/gallery${q}`, { headers: { 'cf-connecting-ip': '203.0.113.1' } }), CENV, { ...at(NOW, siteverify), cache });
+    const get = (q: string, now = NOW): Promise<Response> =>
+      handle(new Request(`${ORIGIN}/api/gallery${q}`, { headers: { 'cf-connecting-ip': '203.0.113.1' } }), CENV, { ...at(now, siteverify), cache });
     expect((await get('?q=ford')).status).toBe(200);
-    expect((await get('?q=ford&sort=top')).status).toBe(200);
-    expect(store.size).toBe(0);
-    await get('');
-    expect([...store.keys()]).toEqual([`${ORIGIN}/api/gallery?sort=new&period=all&page=1`]);
-    // A run listed after a search is found by the next one at once.
+    expect((await get('?q=FORD')).status).toBe(200);
+    expect((await get('?q=%20Ford%20&sort=top')).status).toBe(200);
+    expect([...store.keys()].sort()).toEqual([
+      `${ORIGIN}/api/gallery?sort=new&period=all&page=1&q=ford`,
+      `${ORIGIN}/api/gallery?sort=top&period=all&page=1&q=ford`,
+    ]);
+    // A run listed behind the cache's back: the kept answer for 60 s, then the new one.
     await run(alice, 'Ford again', 'Gibur', 0, { now: NOW });
-    expect(((await (await get('?q=ford')).json()) as GalleryPage).total).toBe(2);
+    expect(((await (await get('?q=Ford', NOW + 1000)).json()) as GalleryPage).total).toBe(1);
+    expect(((await (await get('?q=Ford', NOW + 60_000)).json()) as GalleryPage).total).toBe(2);
+    // A listing through this place: at once.
+    const third = await publish(alice, payload(100, 9), { ...META, title: 'Ford three', listed: false }, { env: CENV, now: NOW });
+    expect((await call('PATCH', `/api/u/pub/${third}`, { listed: true }, { env: CENV, cookie: alice, cache, now: NOW + 61_000 })).status).toBe(200);
+    expect(((await (await get('?q=ford', NOW + 61_500)).json()) as GalleryPage).total).toBe(3);
     for (const env of [cenvOf({ FLAG_GALLERY: false }), cenvOf({ FLAG_SHARE: false })]) {
       expect((await call('GET', '/api/gallery?q=ford', undefined, { env })).status).toBe(404);
     }
+  });
+
+  it(`pages 1–${GALLERY_Q_PAGES_MAX} only (the list goes deeper)`, async () => {
+    expect((await ccall('GET', `/api/gallery?q=ford&page=${GALLERY_Q_PAGES_MAX}`)).status).toBe(200);
+    expect((await ccall('GET', `/api/gallery?q=ford&page=${GALLERY_Q_PAGES_MAX + 1}`)).status).toBe(400);
+    expect((await ccall('GET', `/api/gallery?page=${GALLERY_Q_PAGES_MAX + 1}`)).status).toBe(200);
+  });
+
+  it('has its own limit by address (SEARCH_LIMITER); the list without q does not use it', async () => {
+    const keys: string[] = [];
+    const SEARCH_LIMITER: RateLimiter = {
+      limit: async ({ key }) => {
+        keys.push(key);
+        return { success: false };
+      },
+    };
+    const env = cenvOf({ SEARCH_LIMITER });
+    const res = await call('GET', '/api/gallery?q=ford', undefined, { env, ip: '2001:db8:1:2:3:4:5:6' });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: 'rate_limited' });
+    expect(keys).toEqual(['a|2001:db8:1:2::/64']);
+    expect((await call('GET', '/api/gallery', undefined, { env })).status).toBe(200);
+    expect(keys).toHaveLength(1);
   });
 });

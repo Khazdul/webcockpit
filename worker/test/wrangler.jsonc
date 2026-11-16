@@ -39,6 +39,7 @@
   "ratelimits": [
     { "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } },
     { "name": "API_LIMITER", "namespace_id": "2", "simple": { "limit": 100000, "period": 60 } },
-    { "name": "AUTH_LIMITER", "namespace_id": "3", "simple": { "limit": 100000, "period": 60 } }
+    { "name": "AUTH_LIMITER", "namespace_id": "3", "simple": { "limit": 100000, "period": 60 } },
+    { "name": "SEARCH_LIMITER", "namespace_id": "4", "simple": { "limit": 100000, "period": 60 } }
   ]
 }
