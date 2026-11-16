@@ -1076,8 +1076,11 @@ export class CommPane extends PaneShell {
     }
     if (this.list.size === 0 || key !== this.listKey) this.firstItem = undefined;
     this.listKey = key;
-    this.list.render(shown, (it) => this.buildItem(it, open, now), key, (n) => `↓ ${n} new`);
-    this.fixSeps(shown, now);
+    // The separators are fixed inside the render, before it puts the view
+    // back: a separator added above the view after it moved a live view off
+    // the bottom (it stopped following) and a scrolled-back one down a line
+    // per message (owner's report, 2026-11-16).
+    this.list.render(shown, (it) => this.buildItem(it, open, now), key, (n) => `↓ ${n} new`, () => this.fixSeps(shown, now));
     this.renderReply(open);
 
     if (this.searchOpen && this.searchDirty && this.searchTimer === null) this.scheduleSearch();

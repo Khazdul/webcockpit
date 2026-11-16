@@ -160,8 +160,17 @@ export class AnchoredList<T = unknown> {
    * Shows `items` (oldest first). `build(item)` makes an item's element;
    * `key` names everything `build` depends on besides the item.
    * `moreText(n)` is the indicator text for n items below the view.
+   * `after` (optional) changes the elements once they are in place (the
+   * Comm thread's time separator on a new first item): it runs before the
+   * view is put back, so a height it changes above the view is made up for.
    */
-  render(items: readonly T[], build: (item: T) => HTMLElement, key: string, moreText: (n: number) => string): void {
+  render(
+    items: readonly T[],
+    build: (item: T) => HTMLElement,
+    key: string,
+    moreText: (n: number) => string,
+    after?: () => void,
+  ): void {
     const m = this.metrics;
     this.moreText = moreText;
     // Back on screen after being detached or hidden (scrollTop reset to 0).
@@ -185,8 +194,8 @@ export class AnchoredList<T = unknown> {
     // ones after: build only those; the view keeps its place.
     const pre = trim < 0 && key === this.key ? prependedCount(old, items) : -1;
     if (pre > 0) {
-      const first = this.els[0]!;
-      const before = this._live ? 0 : m.itemTop(first);
+      // Read before writing: where the view is, by an item that stays.
+      const anchor = this.anchor(0);
       const front: HTMLElement[] = [];
       for (let j = 0; j < pre; j++) front.push(build(items[j]!));
       const back: HTMLElement[] = [];
@@ -195,45 +204,74 @@ export class AnchoredList<T = unknown> {
       if (back.length) this.stack.append(...back);
       this.els = front.concat(this.els, back);
       this.items = items.slice();
-      if (this._live) this.toBottom();
-      else {
-        m.setScrollTop(this.el, this.lastTop + (m.itemTop(first) - before));
-        this.lastTop = m.scrollTop(this.el);
-        this.updateMore();
-      }
+      after?.();
+      this.settleView(anchor);
       return;
     }
     if (trim >= 0) {
       const kept = old.length - trim;
       if (trim === 0 && kept === items.length) {
         // Nothing new (a resize or a theme render): follow the bottom, recount.
+        after?.();
         if (this._live) this.toBottom();
         else this.updateMore();
         return;
       }
-      // Read before writing: the height of what goes off the top.
-      const trimH = trim > 0 && !this._live ? m.itemTop(this.els[trim]!) - m.itemTop(this.els[0]!) : 0;
+      // Read before writing: where the view is, by an item that stays.
+      const anchor = this.anchor(trim);
       for (let j = 0; j < trim; j++) this.els[j]!.remove();
       const added: HTMLElement[] = [];
       for (let j = kept; j < items.length; j++) added.push(build(items[j]!));
       if (added.length) this.stack.append(...added);
       this.els = this.els.slice(trim).concat(added);
-      if (trimH > 0) {
-        m.setScrollTop(this.el, this.lastTop - trimH);
-        this.lastTop = m.scrollTop(this.el);
-      }
-    } else {
-      this.key = key;
-      this.els = items.map(build);
-      this.stack.replaceChildren(...this.els);
+      this.items = items.slice();
+      after?.();
+      this.settleView(anchor);
+      return;
     }
+    this.key = key;
+    this.els = items.map(build);
+    this.stack.replaceChildren(...this.els);
     this.items = items.slice();
-    if (this._live) this.toBottom();
-    else this.updateMore();
+    after?.();
+    this.settleView(null);
+  }
+
+  /**
+   * Scrolled back and laid out: the item that holds the view (the first
+   * one at least partly in it, at index `from` or later: one that stays)
+   * and its distance from the view's top. The first item that stays may
+   * get or lose content above its own (the Comm thread's time separator),
+   * so the one after it holds the view then.
+   */
+  private anchor(from: number): { el: HTMLElement; off: number } | null {
+    const m = this.metrics;
+    if (this._live || m.clientHeight(this.el) === 0) return null;
+    const top = m.scrollTop(this.el);
+    let i = Math.max(this.firstBelow(top), from);
+    if (i === from && i + 1 < this.els.length) i++;
+    const el = this.els[i];
+    return el ? { el, off: m.itemTop(el) - top } : null;
+  }
+
+  /**
+   * After a render: live, to the bottom; scrolled back, the anchor back
+   * where it was (whatever went off the top or changed above it).
+   */
+  private settleView(anchor: { el: HTMLElement; off: number } | null): void {
+    if (this._live) return this.toBottom();
+    if (anchor && anchor.el.parentNode === this.stack) {
+      const m = this.metrics;
+      const to = m.itemTop(anchor.el) - anchor.off;
+      if (Math.abs(to - m.scrollTop(this.el)) >= 0.5) m.setScrollTop(this.el, to);
+      this.lastTop = m.scrollTop(this.el);
+    }
+    this.updateMore();
   }
 
   private toBottom(): void {
     this.metrics.setScrollTop(this.el, bottomOf(this.metrics, this.el));
+    this.lastTop = this.metrics.scrollTop(this.el);
     this.setMore(0);
   }
 
@@ -276,8 +314,19 @@ export class AnchoredList<T = unknown> {
 
   private readonly onScroll = (): void => {
     const m = this.metrics;
-    const top = m.scrollTop(this.el);
-    const live = top + m.clientHeight(this.el) >= m.scrollHeight(this.el) - LIVE_SLACK_PX;
+    // Hidden (display: none, nothing high): nothing to read; the view is put back when it shows.
+    if (m.clientHeight(this.el) === 0) return;
+    let top = m.scrollTop(this.el);
+    const bottom = top + m.clientHeight(this.el) >= m.scrollHeight(this.el) - LIVE_SLACK_PX;
+    // Live is left only by a move up. A live view off the bottom that did
+    // not move up had content grow under it (a height changed after the
+    // render's write, which this event reports late): it stays live and
+    // goes back to the bottom.
+    const live = bottom || (this._live && top >= this.lastTop - LIVE_SLACK_PX);
+    if (live && !bottom) {
+      m.setScrollTop(this.el, bottomOf(m, this.el));
+      top = m.scrollTop(this.el);
+    }
     this.lastTop = top;
     this._live = live;
     this.updateMore();

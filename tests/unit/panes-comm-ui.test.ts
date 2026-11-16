@@ -149,7 +149,7 @@ describe('AnchoredList', () => {
     let items = Array.from({ length: count }, (_, i) => i);
     let built = 0;
     let key = 'k';
-    const render = () =>
+    const render = (after?: () => void) =>
       al.render(
         items,
         (i) => {
@@ -161,6 +161,7 @@ describe('AnchoredList', () => {
         },
         key,
         (k) => `↓ ${k}`,
+        after,
       );
     render();
     /** The items wholly or partly in view. */
@@ -174,6 +175,7 @@ describe('AnchoredList', () => {
     return {
       al,
       m,
+      heights,
       render,
       inView,
       top: () => m.scrollTop(al.el),
@@ -302,6 +304,54 @@ describe('AnchoredList', () => {
     expect(t.built() - built).toBe(6);
     expect(t.al.elements[0]!.textContent).toBe('m-5');
     expect(t.inView()).toEqual(seen);
+  });
+
+  it('scrolled back: a height changed above the view by the render\'s `after` is made up for (Comm separators)', () => {
+    const l = list(12, 5);
+    l.scroll(-4 * CELL_H);
+    const view = l.inView();
+    // The window slides: one item off the top, one new; the new first item
+    // gets a taller head (its time separator) after it is in place.
+    l.trim(1);
+    l.add(1);
+    l.render(() => l.heights.set(l.al.elements[0]!, 2));
+    expect(l.inView()).toEqual(view);
+    expect(l.al.live).toBe(false);
+  });
+
+  it('live: content that grows under the view after the render does not leave live', () => {
+    const l = list(10, 5);
+    expect(l.al.live).toBe(true);
+    // A height grows after the write to the bottom; the scroll event for
+    // that write comes late and finds the view off the bottom.
+    l.heights.set(l.al.elements[0]!, 3);
+    l.al.el.dispatchEvent(new Event('scroll'));
+    expect(l.al.live).toBe(true);
+    expect(l.al.more.hidden).toBe(true);
+    expect(l.inView().at(-1)).toBe('m9');
+    expect(l.top() + l.m.clientHeight(l.al.el)).toBe(l.m.scrollHeight(l.al.el));
+    // A move up still leaves live.
+    l.scroll(-3);
+    expect(l.al.live).toBe(false);
+  });
+
+  it('a scroll event while hidden (0 high) changes nothing', () => {
+    let client = 5 * CELL_H;
+    const m = model(() => CELL_H, () => client);
+    const al = new AnchoredList<number>(document, () => {}, { metrics: m, settleMs: 0 });
+    document.createElement('div').append(al.el, al.more);
+    const items = Array.from({ length: 20 }, (_, i) => i);
+    al.render(items, () => document.createElement('div'), 'k', (n) => `↓ ${n}`);
+    scrollBy(al.el, m, -2 * CELL_H);
+    expect(al.live).toBe(false);
+    const top = m.scrollTop(al.el);
+    client = 0;
+    al.el.dispatchEvent(new Event('scroll'));
+    expect(al.live).toBe(false);
+    client = 5 * CELL_H;
+    al.render(items, () => document.createElement('div'), 'k', (n) => `↓ ${n}`);
+    expect(m.scrollTop(al.el)).toBe(top);
+    al.dispose();
   });
 
   it('keepView holds the top item while heights change', () => {
