@@ -63,16 +63,17 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('Comm: Public without tells, questions and socials, a chat per person you talk with, and never archives a replay', async ({ page }) => {
+test('Comm: Public without tells, a chat per person you talk with, and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
   const rows = await commRows(page).allTextContents();
-  // Tells, questions and socials are off in Public by default (ADR 0134,
-  // owner's feedback): they live in the chats.
-  expect(rows.filter((r) => / (tells?|asks?) /.test(r) || r === 'Dori nods solemnly.')).toEqual([]);
+  // Tells are off in Public by default (ADR 0134, owner's feedback): they
+  // live in the chats. Questions and socials show (addendum 2026-11-17).
+  expect(rows.filter((r) => / tells? /.test(r))).toEqual([]);
+  expect(rows).toContain('Dori nods solemnly.');
   expect(rows.slice(-4)).toEqual([
-    "You narrate 'scout down at the ford'",
     "Dori prays 'Mahal, mend my wounds'",
+    "Ecthel asks 'anyone near Rivendell?'",
     "Lindir sings 'A Elbereth Gilthoniel'",
     "You say 'ready when you are'",
   ]);
@@ -194,7 +195,7 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   const tales = pop.locator('.wc-sp-chan[data-channel="tales"] [role=switch]');
   await tales.click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, questions: false, socials: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false });
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();

@@ -402,14 +402,14 @@ describe('CommPane (ADR 0134)', () => {
     return { ...env, pane, q, qa, rows, entries, open, emit, sent };
   }
 
-  it('Public shows formatted lines without tells, questions and socials by default, and blanks while inactive', () => {
+  it('Public shows formatted lines without tells by default (questions and socials shown), and blanks while inactive', () => {
     const c = comm({ cols: 80, defaults: true });
     c.emit('tells', 'Gibur', "Gibur tells you 'np :)'");
     c.emit('whispers', 'you', 'hej', { destination: 'Dori' });
     c.emit('socials', 'Vit the innkeeper', 'Vit the innkeeper bows before you.');
     c.emit('tales', 'Gibur', "Gibur narrates 'orcs!'");
     c.flush();
-    expect(c.rows()).toEqual(["You whisper to Dori 'hej'", "Gibur narrates 'orcs!'"]);
+    expect(c.rows()).toEqual(["You whisper to Dori 'hej'", 'Vit bows before you.', "Gibur narrates 'orcs!'"]);
     // The verb in the channel colour, the name in the person's.
     const line = c.q('.wc-comm-msg[data-channel="tales"]')!;
     expect(line.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');

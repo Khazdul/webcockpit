@@ -289,8 +289,8 @@ describe('gear popup contents', () => {
     const rows = [...t.host.querySelectorAll<HTMLElement>('.wc-sp-chan[data-channel]')];
     expect(rows.map((r) => r.dataset.channel)).toEqual([...COMM_CHANNEL_ORDER]);
     expect(rows[0]!.textContent).toBe('Narrates');
-    // The chat channels start off in Public (they live in the chats).
-    const base = { tells: false, questions: false, socials: false };
+    // Tells start off in Public (they live in the chats); questions and socials are on.
+    const base = { tells: false };
     expect(t.s().comm.filters).toEqual(base);
     const tg = rows[3]!.querySelector('[role=switch]')!;
     expect(tg.getAttribute('aria-checked')).toBe('true');

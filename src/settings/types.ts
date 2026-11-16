@@ -168,12 +168,13 @@ export type CommChatWindow = 10 | 30 | 60 | 'all';
 export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
 /**
  * Channels off in Public by default (ADR 0134, owner's feedback rounds 1
- * and 2): tells, questions and socials, the talk aimed at you that lives in
- * the chats. In the defaults' filters, and turned off
+ * and 2): tells, the talk aimed at you that lives in the chats. Questions
+ * and socials are on since 2026-11-17 (private chats hold only talk to you,
+ * so undirected ones show only in Public). In the defaults' filters, and turned off
  * once in settings stored before version 5 (the old pane's filters hid a
  * channel from the whole pane, so their values do not carry over).
  */
-export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'questions', 'socials'];
+export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells'];
 /** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
 export const COMM_LIST_WIDTH_MIN = 40;
 export const COMM_LIST_WIDTH_MAX = 400;
@@ -671,7 +672,10 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 6: the input colour's default became Amber (ADR 0035, addenda of 2026-11-12):
 //    a stored v5 or older that says Steel (the old default, stored with every
 //    appearance) moves to Amber, once. Steel stored at v6 or newer is a choice.
-export const SETTINGS_VERSION = 6;
+// 7: questions and socials on in Public by default (ADR 0134, addendum of
+//    2026-11-17): a stored v6 or older drops `questions: false` and
+//    `socials: false` from `comm.filters`, once.
+export const SETTINGS_VERSION = 7;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu

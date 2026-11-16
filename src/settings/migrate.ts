@@ -346,6 +346,10 @@ export function migrateGroup(raw: unknown): GroupSettings {
  * automatic width. A stored `showHeader` (the pane before ADR 0134) is
  * dropped.
  */
+/** The settings version that turned questions and socials on in Public (ADR 0134, 2026-11-17). */
+const COMM_PUBLIC_ON_VERSION = 7;
+const COMM_PUBLIC_TURNED_ON: readonly string[] = ['questions', 'socials'];
+
 export function migrateComm(raw: unknown, fromVersion = SETTINGS_VERSION): CommSettings {
   const d = defaultSettings().comm;
   const c = isObj(raw) ? raw : {};
@@ -361,6 +365,9 @@ export function migrateComm(raw: unknown, fromVersion = SETTINGS_VERSION): CommS
   // Settings from before the conversation view (v5): the chat channels go
   // off in Public once (ADR 0134, owner's first test).
   if (isObj(c.filters) && fromVersion < 5) for (const ch of COMM_PUBLIC_DEFAULT_OFF) filters[ch] = false;
+  // Settings from before v7: questions and socials were off in Public by
+  // default; they go on once (ADR 0134, addendum of 2026-11-17).
+  if (fromVersion < COMM_PUBLIC_ON_VERSION) for (const ch of COMM_PUBLIC_TURNED_ON) delete filters[ch];
   const w = c.listWidth;
   const listWidth =
     typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.min(COMM_LIST_WIDTH_MAX, Math.max(COMM_LIST_WIDTH_MIN, w))) : null;
