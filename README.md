@@ -81,7 +81,8 @@ the text stays fast.
 
 **Comm and Statistics.** Comm is a conversation pane: Public (the
 channels you pick in its gear, NPCs' talk only if you turn it on), Group (everything your group's players
-say) and one chat per person who talks to you, with search, a reply line
+say) and one chat per person with only the talk between you two (tells,
+whispers, asks and emotes at you), with search, a reply line
 that sends a tell, and a column that folds away. Statistics follows the
 run live: the last kill rated against the median of your recent kills
 (from poor to superb), the average, the median, XP per hour and XP to the
