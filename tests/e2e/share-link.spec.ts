@@ -61,7 +61,7 @@ async function logIn(page: Page): Promise<void> {
   await expect(accountRow(page)).toHaveText(NAME);
 }
 
-/** Start menu → History → Export on the Rasta session. */
+/** Start menu → History → Share on the Rasta session. */
 async function openEditor(page: Page): Promise<void> {
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const hist = frame(page).locator('.wc-hist');
@@ -111,8 +111,9 @@ test('a guest sees Link greyed: a press, L and a pointer over it say "Log in to 
   await expect(frame(page).locator('.wc-exp-tip')).toHaveCount(0);
   await page.keyboard.press('l');
   await expect(flash(page)).toContainText('Log in to share');
-  // Export still makes the chosen file (no dialog).
+  // The file is still chosen (no dialog); the action reads Download (ADR 0155 W1).
   await expect(exp(page)).toHaveAttribute('data-format', 'html');
+  await expect(btn(page, 'EXPORT')).toHaveText('Download');
   expect(errors).toEqual([]);
 });
 
@@ -137,8 +138,11 @@ test('the first share: the rules ticked in the dialog, the link with Copy; only 
   await expect(frame(page).locator('.wc-exp-title')).toHaveText('Rasta · 26 September 2026');
   await expect(frame(page).locator('.wc-exp-fn em')).toHaveCount(0);
 
+  // The action reads Share with Link chosen, its letter S (ADR 0155 W1).
+  await expect(btn(page, 'EXPORT')).toHaveText('Share');
+  await expect(btn(page, 'EXPORT')).toHaveAttribute('aria-keyshortcuts', 'S');
   const log = apiLog(page);
-  await btn(page, 'EXPORT').click();
+  await page.keyboard.press('s');
   await expect(share(page)).toBeVisible();
   await expect(share(page).locator('.wc-lk-hood-t')).toHaveText('Share as a link');
   await expect(share(page).locator('[data-field="title"] input')).toHaveValue('Rasta · 26 September 2026');
@@ -412,16 +416,19 @@ test('Published runs: the list after Sync, a hidden run, Copy, Edit, Remove, emp
     await dialog(page, 'pub-remove').locator('[data-btn="REMOVE"]').click();
     await expect(pubRows(page)).toHaveCount(1 - i);
   }
-  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('No published runs yet. In History, Export a session and choose Link.');
+  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('No published runs yet. In History, Share a session and choose Link.');
   await expect(frame(page).locator('[data-pub-empty] b')).toHaveText('Link');
   expect(errors).toEqual([]);
 });
 
-test('Published runs by keyboard: Tab reaches a row\'s buttons, Enter opens Edit', async ({ page }) => {
+test('Published runs by keyboard: Tab reaches the title, then a row\'s buttons, Enter opens Edit', async ({ page }) => {
   const s = await server();
   s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Clearing the ranger camp' });
   await openAccountPage(page, s);
   await expect(pubRows(page)).toHaveCount(1);
+  // The title first (it opens the watch page, ADR 0155 W1).
+  await page.keyboard.press('Tab');
+  await expect(pubRows(page).locator('[data-pub-title]')).toHaveClass(/\bis-sel\b/);
   await page.keyboard.press('Tab');
   await expect(pubRows(page).locator('[data-btn="COPY"]')).toHaveClass(/\bis-sel\b/);
   await page.keyboard.press('Tab');
@@ -438,4 +445,20 @@ test('Published runs: no section with share off', async ({ page }) => {
   await expect(frame(page).locator('.wc-ac-head-since')).toContainText('Account since');
   await expect(frame(page).locator('.wc-lk-sec')).toHaveText(['Devices', 'Password and recovery', 'Leaving']);
   expect(s.seen.some((r) => r.path.startsWith('/api/u/pub'))).toBe(false);
+});
+
+// The owner's feedback on stage 65 (ADR 0155 W1), with `gallery` off: the
+// title opens the watch page; its Back comes to the Account page again.
+test('Published runs: a press on the title opens the watch page; Back returns to the Account page', async ({ page }) => {
+  const s = await server();
+  s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Clearing the ranger camp' });
+  await openAccountPage(page, s);
+  const title = pubRows(page).locator('[data-pub-title]');
+  await expect(title).toHaveAttribute('href', '/r/Ab3dE5fG7hJk?from=account&cloudtest');
+  await title.click();
+  await expect(page).toHaveURL(/\/r\/Ab3dE5fG7hJk\?from=account&cloudtest$/);
+  await page.locator('.wc-watch [data-btn="BACK"]').first().click();
+  await expect(pageOf(page, 'account')).toBeVisible({ timeout: 15_000 });
+  await expect(pubRows(page)).toHaveCount(1);
+  await expect(page).toHaveURL(/\/\?cloudtest$/);
 });

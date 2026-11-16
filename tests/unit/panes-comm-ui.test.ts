@@ -697,7 +697,9 @@ describe('CommPane (ADR 0134)', () => {
 
   it('prunes the archive on each live Char.Name, not in a replay', async () => {
     const DAY = 24 * 60 * 60 * 1000;
-    let now = Date.now();
+    // Noon UTC: the archive keeps whole UTC days with a 6-hour margin
+    // (commKeptFrom), so a real clock between 00:00 and 06:00 UTC kept both.
+    let now = Date.UTC(2026, 10, 10, 12);
     const c = comm({ db: true, state: 'idle', now: () => now });
     const db = await openWebcockpitDb(c.factory!);
     const arch = new CommArchive(db);

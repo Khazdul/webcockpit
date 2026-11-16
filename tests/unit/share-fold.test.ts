@@ -398,7 +398,7 @@ describe('buildReplayPayload with folding', () => {
     expect(p.runs[2]!.text).not.toContain('VIEW');
     // Without the achievement, b goes too and run d gets what b set.
     chain[1]!.text = r2.split('\n').filter((l) => !l.includes('Achieved')).join('\n');
-    const q = buildReplayPayload(chain, [], d, defaultSettings());
+    const q = buildReplayPayload(chain, [], d, defaultSettings(), { allPanes: true });
     expect(q.runs).toHaveLength(2);
     expect(q.hiddenSys).toEqual([1]);
     const lines = q.runs[1]!.text.split('\n');
@@ -411,7 +411,7 @@ describe('buildReplayPayload with folding', () => {
       `${String(us(300))} \x1bGMCP Comm.Channel.List [{"name":"tells"},{"name":"tales"}]`,
     ]);
     // It plays like the payload that keeps every run.
-    const all = buildReplayPayload(chain, [], d, defaultSettings(), { dropRuns: false });
+    const all = buildReplayPayload(chain, [], d, defaultSettings(), { dropRuns: false, allPanes: true });
     expect(all.runs).toHaveLength(4);
     const kept = (x: typeof q) => {
       const tl = buildTimeline(x.runs, payloadEdits(x));

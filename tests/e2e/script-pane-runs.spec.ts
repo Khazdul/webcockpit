@@ -1,8 +1,8 @@
 // Script panes in runs (stage 11 P1, ADR 0053): a run recorded on the
 // live mock while a user script shows a pane plays back in the log player
-// and in the exported HTML replay with the pane as the player saw it,
-// without Lua: the content is there, the link's tooltip shows, a click
-// does nothing.
+// with the pane as the player saw it, without Lua: the content is there,
+// the link's tooltip shows, a click does nothing. The exported HTML replay
+// is a shared run (stage 65): it carries no script pane.
 import { NO_STATE } from './legacy-state';
 import { writeFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
@@ -89,7 +89,7 @@ async function checkInertLink(page: Page): Promise<void> {
   await expect(tip).toBeHidden();
 }
 
-test('a run with a script pane plays back with the pane, in the log player and the HTML replay', async ({ page, browser }, info) => {
+test('a run with a script pane plays back with the pane in the log player; the HTML replay has none', async ({ page, browser }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const received: Buffer[] = [];
@@ -188,17 +188,18 @@ test('a run with a script pane plays back with the pane, in the log player and t
   p.on('pageerror', (e) => fileErrors.push(e.message));
   await p.goto(`file://${path}`);
   await p.waitForFunction(() => (window as unknown as { __wcReplay?: unknown }).__wcReplay != null);
-  await expect(pane(p)).toBeVisible();
-  await expect(pane(p).locator('.wc-pane-frame')).toContainText('Rec Pane');
+  // A shared run (stage 65) carries Map, Timers and Group only: no script pane, no SPANE record.
   await p.evaluate(() => {
     const e = (window as unknown as { __wcReplay: { host: { engine: { pause(): void; seek(t: number): void; duration: number } } } }).__wcReplay.host
       .engine;
     e.pause();
     e.seek(e.duration);
   });
-  await expect(prows(p).nth(2)).toHaveText(/^updated/);
-  await expect(prows(p).nth(1)).toHaveText(/^\s+half\s+$/);
-  await checkInertLink(p);
+  await expect
+    .poll(() => p.evaluate(() => (window as unknown as { __wcReplay: { host: { engine: { atEnd: boolean } } } }).__wcReplay.host.engine.atEnd))
+    .toBe(true);
+  await expect(pane(p)).toHaveCount(0);
+  expect(await p.evaluate(() => (window as unknown as { __wcReplay: { payload: { runs: Array<{ text: string }> } } }).__wcReplay.payload.runs.some((r) => r.text.includes('\x1bSPANE')))).toBe(false);
   expect(fileErrors).toEqual([]);
   await context.close();
   expect(errors).toEqual([]);

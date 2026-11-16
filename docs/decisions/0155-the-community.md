@@ -886,6 +886,116 @@ the client's in `tests/unit/review65.test.ts` unless named.
   runs, comments and notes, ordered and cut in SQL (it stays readable).
 - **CR9.** `worker/mume.ts`'s cache comment names the row key `war`.
 
+## As built (stage 65, owner's feedback: W3)
+
+Point 13 of the owner's feedback (branch `stage65-w3`): a shared run —
+the Hall of Fame, a link, the HTML replay — carries the panes **Map,
+Timers and Group** only, and the replay starts with **every pane off**.
+The History player (RUN LOG) and the Text export are unchanged.
+
+- **One pure filter**, `sharedPayload` (`src/share/shared-panes.ts`),
+  idempotent, its result still schema 1. It drops every SPANE record
+  (script panes) and every `Comm.*` GMCP record, any case (the Comm
+  pane's text and channel list; the game prints channel lines itself and
+  those stay); writes the settings' and every VIEW record's `panes` as all
+  seven built-in panes with `on: false` (Map, Timers and Group keep their
+  tint, frame and glass, the others get the defaults; no script pane
+  entry); removes script panes from the layouts (`migrateLayout` with them
+  dropped: their ids name the scripts); sets the settings' `comm` to the
+  defaults and drops a VIEW's `comm` part. Other GMCP (vitals, group,
+  room, events) stays: the game text, the three panes and the markers need
+  it. **Explicit `on: false` for every built-in pane** rather than leaving
+  entries out: `migrateSettings` fills a missing entry with today's default
+  (Comm on), so an older site's player, given a new payload, would show
+  an empty Comm pane; with the entries it starts with every pane off too.
+- **Where it runs.** `buildReplayPayload` applies it at the end (the
+  HTML export, `prepareLinkPayload` and the dev payloads all build through
+  it), so nothing of another pane leaves the device; `PayloadOptions.
+  allPanes` keeps everything (tests of the fold and of the player's
+  hostile-record paths). `openReplay` (`src/replay/page.ts`, the frame's
+  play path after `readSharedPayload`/`validatePayload`, and the HTML file's
+  `startReplay`) applies it again to whatever it plays, so a schema-1
+  payload already published (more panes, some on) plays the same as a new
+  one. `validatePayload`, the frame's sandbox, CSP and handshake are
+  untouched (W1's paused pref stays theirs).
+- **The player**: `PlayerHostOptions.panes` (`SHARED_PANES` from
+  `openReplay`): the Panes popup lists Timers, Group and Map only (in the
+  popup's order); every other pane is forced off in `compose` after the
+  viewer's overrides, whatever a VIEW says; no script pane is built and
+  none is listed; the phone layer's strip omits the other panes. The
+  viewer's toggle turns one on as before (an override, so later VIEW
+  records do not turn it off again).
+- **The export editor** has no player preview (its preview is the
+  comment's `## ` text), so nothing to mirror there.
+- **Sizes**: entry chunk 31 382 bytes (unchanged); `r/frame.html` about
+  +2.5 KB.
+- **Tests**: `tests/unit/shared-panes.test.ts` (a run with Comm GMCP, a
+  script pane, a VIEW with Comm/Statistics/a script pane on and a Comm
+  part: none of it in the payload, every pane off, still valid schema 1,
+  idempotent; the replay lists the three, all off, one turned on shows and
+  nothing else; an old payload through the wire bytes, `readSharedPayload`
+  and `openReplay` the same). Tests that check pane records in the payload
+  pass `allPanes`. e2e: `watch-sandbox` (no pane at the start, the popup's
+  three rows off, Map on shows alone; the hostile old payload shows no
+  pane and builds no script pane), `watch-page` (an old published payload
+  with Comm, UI, Character, Map and a script pane on: no pane; Timers on
+  shows alone), `replay`, `viewer` (the HTML replay's settings round starts
+  from all off), `script-pane-runs` (the HTML replay has no script pane),
+  `map-files` (the viewer turns the map on).
+
+## As built (stage 65, owner's feedback: W1)
+
+Points 1, 2, 3, 6 and 11 of the owner's feedback of 2026-11-16 (the
+stage file). User-facing words only: code identifiers, file names and
+`data-btn="EXPORT"` keep the name export.
+
+- **Share, not Export.** History's card button (desktop and phone), its
+  keys box and the help texts that named it (About, the privacy page's
+  share links section, Published runs' and the Community's empty lines)
+  say Share. Its letter is **H** (S is Save, X stays free; nothing else on
+  History uses H). The export editor's title (hood and window) is Share.
+- **The editor's action button** reads **Download** (letter **O**, the
+  old Export letter, the `drop` arrow) while HTML replay or Plain text is
+  chosen, and **Share** (letter **S**, free in the editor; the `export`
+  icon) while Link or Hall of Fame is; only the shown word's letter works.
+  Its flash says "Downloaded <file>" / "Download failed: …".
+- **Published runs.** A run's title is a link (`<a href>`, so a middle
+  click opens a tab) to `/r/<id>?from=published` in the view, or
+  `?from=account` in stage 64's section (`gallery` off); a press opens it
+  in this tab. It is the row's first stop of the keyboard ring (Tab, then
+  Enter). The watch page's Back goes to `<base>?account=published` or
+  `<base>?account` (`backTarget`, `accountBackHref`), which the start page
+  takes once (`useAccountAddress`): logged in, it opens the Published
+  runs view (its Back then goes to the menu) or the Account page; logged
+  out, the menu. Cheap, so done instead of the start page alone.
+- **The watch page** has no Download as HTML: the button, the D key, the
+  page's exporter import, `downloadName` and `FrameHost.payload` are
+  gone; `buildReplayHtml` stays for History's own export. Without Report
+  (one's own run, `?admin`) the band has no action box.
+- **Paused start.** `wc-play` now carries `prefs: {paused: true}` (the
+  frame host's default; `openFrame({paused: false})` plays at once). The
+  frame honours only `paused === true` (`framePaused`), opens the replay
+  with `autoplay: false` (`openReplay`'s new option, passed to the
+  player) and seeks to 0 so the run's first screen is drawn; Space or
+  Play starts it. The sandbox and the frame CSP are unchanged (the
+  hashes are the build's). The HTML export file keeps playing at once:
+  the owner's point was runs opened from the Community or a link, and a
+  downloaded file is opened to be watched. A view is still counted when
+  the frame has the run, paused or not (opening the run is the view).
+- **No level.** The watch page's band reads "Rasta · 1 h 15 min · …"
+  (`MetaLine` lost `level`); Published runs never showed one. The
+  Community's rows (`community-model.ts` "Char L42") are W2's. The
+  replay's own header inside the frame ("Rasta (L42)", the player's,
+  from the payload) is unchanged.
+- **Tests:** unit `watch-page.test.ts` (no level, Back's targets,
+  `framePaused`), `chrome-export`, `chrome-history`, `history-dialogs`;
+  e2e `watch-page.spec.ts` (no Download, paused start, Space plays),
+  `phone-watch-page.spec.ts` (paused, Play by tap), `published-runs.spec.ts`
+  and `share-link.spec.ts` (the title opens the run, Back returns, Tab
+  reaches it), the words and the button by format in `export`,
+  `share-link`, `hall-of-fame` (desktop and phone), `history-dialogs`,
+  `phone-history-page`, `phone-export`.
+
 ## As built (stage 65, owner's feedback: W2)
 
 The owner's feedback of 2026-11-16 (`docs/stages/65-community.md`, "Owner

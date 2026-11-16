@@ -7,13 +7,13 @@
 // state and the font table out of the chunks the start page loads (ADR
 // 0154 "As built (C2)"); for the same reason it imports the exporter and
 // the frame host statically and writes two of the contract's values out
-// (model.ts).
+// (model.ts). (Since W1 only the frame host: Download as HTML is gone.)
 //
 // The band (the app's own DOM, every value as text): the title, then the
-// character and level, length, date, views and "shared by", the
-// description in one quiet line (the sender's note on their own hidden
-// run, the admin's on `?admin`); Report, Download as HTML and Back at the
-// right. On a phone it stacks and the description is left out. Under it
+// character (no level: ADR 0155 W1), length, date, views and "shared by",
+// the description in one quiet line (the sender's note on their own hidden
+// run, the admin's on `?admin`); Report and Back at the right (Download as
+// HTML is gone: owner's feedback on stage 65, ADR 0155 W1). On a phone it stacks and the description is left out. Under it
 // the replay in its sandboxed frame (src/watch/frame-host.ts) fills the
 // rest; while the payload comes, a loading bar in its place.
 //
@@ -25,12 +25,13 @@
 // refusal of the payload (`PayloadReadError`'s text) and a failed request
 // (Try again). `?admin`: the admin's endpoints (behind Access) instead.
 //
-// A view is counted once per page load when playing starts (the
-// statistics' device id; one is made if there is none). Download as HTML
-// builds the exporter's file from the payload the page validated.
+// The replay starts paused (ADR 0155 W1): the frame host asks the frame
+// for it (`prefs.paused`); Play or Space in the frame starts it. A view
+// is counted once per page load when the frame has the run (the
+// statistics' device id; one is made if there is none).
 //
 // Keys (outside the frame; a click in the replay gives it the keys):
-// R Report, D Download, B Back.
+// R Report, B Back.
 //
 // Stage 65 C2 (round 13's pick 3a with the owner's change, ADR 0155 "As
 // built (stage 65 C2)"): the page sits inside the start page's look: the
@@ -40,21 +41,20 @@
 // `gallery` (the meta carries `stars`), the stars in the band and the
 // comments under the replay (src/watch/community.tsx); the page scrolls.
 // Back goes to the start page's Community when the run was opened from it
-// (`?from=community`; `communityBackHref` of the Community page's model).
+// (`?from=community`; `communityBackHref` of the Community page's model),
+// to the Account page or its Published runs view when opened from there
+// (`?from=account`, `?from=published`; `accountBackHref`, ADR 0155 W1).
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { Dialog, GlassButton, Icon, type IconDraw, LoadBar, LookFlash, TextArea, inTextField, letterAction, lookFrame } from '../chrome/kit/look';
+import { Dialog, GlassButton, Icon, LoadBar, LookFlash, TextArea, inTextField, letterAction, lookFrame } from '../chrome/kit/look';
 import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
-import { downloadBlob } from '../chrome/kit/download';
 import { accountState, accountsEnabled } from '../cloud/account/state';
 import { apiAllowed, configAnswer } from '../cloud/config';
 import type { Comment, PubMeta, ReportKind, ReportReason, Stars } from '../../shared/cloud/api.ts';
 import { skyCss } from '../start/sky/look';
 import { startSkyLook } from '../start/start-look';
-import { device } from '../core/device';
-import { buildReplayHtml } from '../replay/export';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import { Comments, type RaterRole, RunStars } from './community';
@@ -69,8 +69,8 @@ import {
   REPORT_MAX,
   REFUSED_NOTE,
   type WatchEnd,
+  accountBackHref,
   backTarget,
-  downloadName,
   endOf,
   loadingLine,
   metaLine,
@@ -81,17 +81,6 @@ import {
   watchIdOf,
 } from './model';
 import { leaveForLogin } from './return';
-
-// The download arrow, which the kit has not got, drawn in its manner (round 12's mockups); the flag is the kit's.
-const DOWN: IconDraw = {
-  draw: (
-    <>
-      <path d="M8 2.2v8" />
-      <path d="M4.8 7 8 10.2 11.2 7" />
-      <path d="M2.5 13.5h11" />
-    </>
-  ),
-};
 
 /** The site's base path. */
 const base = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? '/';
@@ -106,11 +95,12 @@ function goStart(): void {
   location.assign(startUrl());
 }
 
-/** Back: the start page's Community when the run was opened from it, else the start page (stage 65). */
+/** Back: the start page's Community, Account page or Published runs when the run was opened from one, else the start page (stage 65). */
 function goBack(): void {
-  if (backTarget(location.search) !== 'community') return goStart();
+  const to = backTarget(location.search);
+  if (to === 'start') return goStart();
   const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest');
-  location.assign(communityBackHref(base(), keep));
+  location.assign(to === 'community' ? communityBackHref(base(), keep) : accountBackHref(to, base(), keep));
 }
 
 /** Log in from the watch page (Report's, the stars' and the comments'): the start page's Log in, and back here after it. */
@@ -150,7 +140,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   const [load, setLoad] = useState<{ done: number; total: number } | null>(null);
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [reported, setReported] = useState(false);
   const host = useRef<FrameHost | null>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -244,7 +233,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   const me = loggedInName();
   const self = meta !== null && me?.toLowerCase() === meta.sender.toLowerCase();
   const canReport = meta !== null && mode === 'public' && !self;
-  const canDownload = playing && host.current !== null;
   // Stage 65: the stars and the comments, only as anyone watches and only when the meta carries them (`gallery` on).
   const social = meta !== null && mode === 'public' && meta.stars !== undefined;
   const [stars, setStars] = useState<Stars | null>(null);
@@ -274,22 +262,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       { overlay: true },
     );
   };
-  const download = async (): Promise<void> => {
-    const h = host.current;
-    if (!h || !meta || busy) return;
-    setBusy(true);
-    nav.flash('Building the file…', 'ok');
-    try {
-      const blob = await buildReplayHtml(h.payload, { base: siteBaseUrl() });
-      const name = downloadName(meta.title);
-      downloadBlob(blob, name);
-      nav.flash(`Downloaded ${name}`, 'ok');
-    } catch {
-      nav.flash('The file could not be made. Try again.', 'fail');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   useKeys((e, nk) => {
     // The comment field's keys are its own (Esc lets go of it: the stack's rule).
@@ -302,7 +274,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       letterAction(e, {
         b: goBack,
         ...(canReport ? { r: report } : {}),
-        ...(canDownload ? { d: () => void download() } : {}),
       }) || nk !== null
     );
   });
@@ -310,7 +281,6 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   if (view.k === 'end') return <EndBox lines={END_WORDS[view.end]} />;
   if (view.k === 'failed') return <EndBox lines={view.lines} retry={view.retry ? () => setAttempt((n) => n + 1) : undefined} />;
 
-  const phone = device().phone;
   const line = meta ? metaLine(meta) : null;
   const note =
     mode === 'owner' ? (
@@ -342,8 +312,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
                   {line ? (
                     <>
                       {line.character && <span class="wc-watch-char">{line.character}</span>}
-                      {line.level && <span class="wc-watch-lv"> {line.level}</span>}
-                      {line.character || line.level ? <i>·</i> : null}
+                      {line.character ? <i>·</i> : null}
                       {line.length}
                       <i>·</i>
                       {line.date}
@@ -370,18 +339,11 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
                   ) : null)}
               </div>
               {social && stars && <RunStars id={meta.id} stars={stars} role={role} onLogin={() => logIn()} onStars={setStars} />}
-              <div class="wc-watch-acts">
-                {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />}
-                <GlassButton
-                  id="DOWNLOAD"
-                  label={phone ? 'Download' : 'Download as HTML'}
-                  letter="d"
-                  icon={DOWN}
-                  small
-                  disabled={!canDownload || busy}
-                  onClick={() => void download()}
-                />
-              </div>
+              {canReport && (
+                <div class="wc-watch-acts">
+                  <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />
+                </div>
+              )}
               <LookFlash class="wc-watch-flash" />
             </header>
             <div class="wc-watch-slot" ref={slot}>

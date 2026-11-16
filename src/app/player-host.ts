@@ -53,6 +53,10 @@
 // it, is not in the viewer's toggles, and its close cross hides it until
 // it goes away. Spotlights hide temporary panes too (`hideTempPanes`).
 //
+// A shared run (stage 65, `PlayerHostOptions.panes`): only the panes
+// listed show and are in the viewer's toggles; the others stay off, and no
+// script pane is built.
+//
 // The player core (stage 42f, ADR 0127): `open` fails (rejects) on a
 // session whose logs are not stored or hold nothing, so the shell can say
 // why (`PlayerOpenResult`). The view options `hours`, `back` and `bare`
@@ -86,7 +90,7 @@ import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot, defaultPhoneLensWant } from '../settings';
 import { paneSettingsOf } from '../settings/types';
-import { LIVE_ONLY, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
+import { type BuiltinPaneId, LIVE_ONLY, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
 import { PaneContent, type PaneSnapshot } from '../panes/script-content';
 import { ScriptPane } from '../panes/script-pane';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
@@ -147,6 +151,12 @@ export interface PlayerHostOptions {
   map?: MapPaneHost;
   /** A phone or tablet: the player is laid out as the phone's game (stage 55). Absent: the desktop cockpit. */
   phone?: PlayerPhone;
+  /**
+   * The only panes the player shows and the viewer's Panes popup lists (a
+   * shared run, stage 65: Map, Timers and Group, src/share/shared-panes.ts);
+   * every other pane stays off, script panes too. Absent: every pane.
+   */
+  panes?: readonly BuiltinPaneId[];
 }
 
 /** What the header shows besides the runs (from the History session). */
@@ -352,7 +362,7 @@ export class PlayerHost {
     this.phoneBar = this.opts.phone !== undefined && !opts.view?.bare;
     this.dock = null;
     const tl = buildTimeline(chain, opts.edits);
-    this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
+    this.scriptIds = this.opts.panes ? [] : scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
     const engine = new PlayerEngine({
       timeline: tl,
@@ -519,6 +529,8 @@ export class PlayerHost {
       const temp = isTempPaneId(rec.id);
       if (!temp && !isScriptPaneId(rec.id)) return;
       if (temp && this.tempHidden) return;
+      // A shared run shows no script pane (its payload carries none).
+      if (this.opts.panes) return;
       const id = rec.id as ScriptPaneId;
       const cur = spanes.get(id);
       // At most as many panes as the settings keep (a hostile log could name thousands, ADR 0154).
@@ -622,7 +634,7 @@ export class PlayerHost {
       settings: this.phoneSettings(),
       replay: {
         // The pages that show the live session, not the recording (Statistics).
-        omitPages: [...LIVE_ONLY],
+        omitPages: [...LIVE_ONLY, ...(this.opts.panes ? PANE_IDS.filter((id) => !this.opts.panes!.includes(id)) : [])],
         clear: this.phoneClear,
         state: this.phoneState,
         onState: (s) => {
@@ -774,6 +786,9 @@ export class PlayerHost {
       store.update((draft) => {
         const d = JSON.parse(JSON.stringify(base)) as Settings;
         applyViewer(d, o);
+        // Only these panes (a shared run): the rest stay off whatever the VIEW records and the viewer say.
+        const only = this.opts.panes;
+        if (only) for (const id of Object.keys(d.panes) as PaneId[]) if (!(only as readonly PaneId[]).includes(id)) d.panes[id]!.on = false;
         if (tweak) {
           const ansi = d.appearance.ansi.slice();
           for (const [i, c] of Object.entries(tweak)) {
@@ -810,7 +825,7 @@ export class PlayerHost {
         ? {
             panes: {
               list: () => [
-                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id) && (!this.opts.panes || this.opts.panes.includes(id))).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
                 ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
               ],
               toggle: (id: string) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),

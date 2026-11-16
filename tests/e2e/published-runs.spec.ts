@@ -203,11 +203,11 @@ test('Remove in the view; the last one gone leaves the empty line, and the Accou
   await expect(dialog(page, 'pub-remove')).toHaveCount(0);
   await expect(frame(page).locator('.wc-ac-flash')).toHaveText('Removed. The link now says so.');
   await expect(pubRows(page)).toHaveCount(0);
-  await expect(view(page).locator('[data-pub-empty]')).toHaveText('None yet. In History, Export a session and choose Link or Hall of Fame.');
+  await expect(view(page).locator('[data-pub-empty]')).toHaveText('None yet. In History, Share a session and choose Link or Hall of Fame.');
   expect(s.pubsOf(NAME)).toHaveLength(0);
   await frame(page).locator('.wc-lk-back').first().click();
   await expect(pageOf(page, 'account')).toBeVisible();
-  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('None yet. In History, Export a session and choose Link or Hall of Fame.');
+  await expect(frame(page).locator('[data-pub-empty]')).toHaveText('None yet. In History, Share a session and choose Link or Hall of Fame.');
   await expect(btn(page, 'PUBLISHED')).toHaveCount(0);
   // U does nothing without runs.
   await page.keyboard.press('u');
@@ -257,4 +257,34 @@ test('the owner row stops at 99+; nothing for a guest; nothing asked with galler
   await page2.waitForTimeout(500);
   expect(log.filter((r) => r.path.startsWith('/api/u/community/'))).toEqual([]);
   await page2.close();
+});
+
+// The owner's feedback on stage 65 (ADR 0155 W1): a press on a run's title
+// opens its watch page in this tab; the watch page's Back comes to Published
+// runs again. The title is a stop of the view's ring (Tab, Enter).
+test('a press on the title opens the watch page; its Back returns to Published runs; Tab and Enter reach it too', async ({ page }) => {
+  const errors = watchErrors(page);
+  const s = await server();
+  seedRuns(s);
+  await startPage(page, s, { login: false });
+  await logInToAccount(page);
+  await openView(page);
+  const title = row(page, 'Ab3dE5fG7hJk').locator('[data-pub-title]');
+  await expect(title).toHaveAttribute('href', '/r/Ab3dE5fG7hJk?from=published&cloudtest');
+  await title.click();
+  await expect(page).toHaveURL(/\/r\/Ab3dE5fG7hJk\?from=published&cloudtest$/);
+  await expect(page.locator('.wc-watch')).toBeVisible();
+  await page.locator('.wc-watch [data-btn="BACK"]').first().click();
+  // The start page, then Published runs over it; the query leaves the address.
+  await expect(view(page)).toBeVisible({ timeout: 15_000 });
+  await expect(pubRows(page)).toHaveCount(4);
+  await expect(page).toHaveURL(/\/\?cloudtest$/);
+  // The keyboard: Tab walks to the first run's title (the first stop), Enter opens it.
+  const first = pubRows(page).first().locator('[data-pub-title]');
+  const href = (await first.getAttribute('href'))!;
+  await page.keyboard.press('Tab');
+  await expect(first).toHaveClass(/is-sel/);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`${href.replace(/[?]/g, '\\?')}$`));
+  expect(errors).toEqual([]);
 });

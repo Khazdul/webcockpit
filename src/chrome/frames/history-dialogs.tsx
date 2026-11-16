@@ -285,7 +285,7 @@ export const HISTORY_KEYS_LETTERS: KeyHelpRows = [
   ['T', 'Stats'],
   ['A', 'Rate'],
   ['S', 'Save'],
-  ['X', 'Export'],
+  ['H', 'Share'],
   ['D', 'Delete'],
   ['B', 'Backup'],
   ['O', 'Restore'],
