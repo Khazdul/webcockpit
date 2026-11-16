@@ -1214,3 +1214,60 @@ the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
   (`needsShared`), `community-model` (too long, `from`, the hrefs),
   `watch-page`, `about-leaf`; e2e `phone-community-page.spec.ts` (+3: CR1,
   CR2, CR3).
+
+## As built — feedback round 2, community page
+
+The owner's points 4, 5, 6, 7, 9 and 10 of 2026-11-16 (stage 65).
+
+- **"Log", not "run" (4).** Whatever is shared or public is a *log* in the
+  client's words; the code, the API routes, the tables, the CSS classes and
+  the view's `sub: 'runs'` keep `run`. The History's own recordings stay
+  "runs" (Sessions, saved runs, About's "Runs"), and so do the admin page
+  (the owner's tool) and spec §7.10's 50 MB row (synced runs). Renamed:
+  - Community page: the first heading `Run` → `Log`, sorted by **L** (was N,
+    which "Log" lacks); `Search runs` → `Search logs`; `Search: "x" — N
+    runs` → `… logs`; `Runs by <name>` → `Logs by`; `All runs` (the bar's
+    button, the phone's button and sub-page title) → `All logs`; `No runs
+    listed by` / `No runs found.` / `Runs come here when players publish
+    them.` → logs; the list's aria-label `Runs` → `Logs`; `Run of the day`
+    → `Log of the day`; `Newest runs` → `Newest logs`; `The best runs of
+    all time` → `logs`.
+  - Share words (share-words.ts, the share dialog and the Hall of Fame):
+    the rule "You can take a log down…", `Published runs` → `Published
+    logs` in every note, "listed N logs today", "N published logs",
+    "cannot publish logs", "This log could not be made into a link", "keep
+    the log link only", and the Published logs failures ("That log is gone
+    already", "listed as many logs", "This log is hidden after reports").
+  - Account page: the rule, button, view title and list label `Published
+    logs`; the summary "4 logs · 2 listed · 475 views"; "Watch this log";
+    "The log itself stays as it was cut"; the Remove note's "the log was
+    removed"; "No published logs yet"; the suspended line "cannot publish
+    logs or comment"; What is public: "if you publish a log".
+  - /privacy: the share links and community sections speak of logs (a
+    shared log, a Link log, a Hall of Fame log, Remove a log under
+    Published logs, report a log, stars and comments on a log); the
+    accounts-off line "shared logs, to publish a log". "Nothing else of your
+    runs" (the local ones) stays.
+  - spec §7.7, §7.8, §7.10 likewise. The watch page's own words are its
+    agent's (src/watch).
+- **Random Runes (5, 9).** The field's placeholder is "Write a message…"
+  (its hidden label "Message"); at the limit it still says when it opens.
+  One's own note has no gold bar and no gold name any more (Remove tells it
+  apart). Each writer's name takes one of ten colours: `writerHue(name)`
+  (community-model.ts) is FNV-1a over the lower-cased name, the high half
+  folded in, mod `WRITER_HUES` (10), so a name has the same colour on every
+  device and visit. The palette (`--cy-w0` … `--cy-w9` on `.wc-cy-runes`):
+  warm, lamp-lit hues on the dark glass, amber, sage, verdigris, rose,
+  heather, copper, straw, evening sky, moss, foxglove, at about the
+  lightness of `--lk-head`; on Paper ten inks of the same hues at about
+  `--lk-gold`'s Paper value. Unit tests: stable (case too, fixed values),
+  every colour about evenly over 2 000 names, a dozen names take ≥ 7.
+- **The players' figure (6, 10).** "players online". The digits' tops were
+  cut: the figure sat at `margin-top: -4px` inside the column, which
+  scrolls and so clips, with a 1.0 line box under Cinzel's capitals and
+  their glow. Now no negative margin, `padding-top: 6px` and a 1.15 line
+  box; checked by screenshots at 1440, 1100, 900 and 390 px.
+- **Warlords (7).** All ten a side (`WARLORDS_SHOWN`, as worker/mume.ts
+  `MAX_WARLORDS` keeps), on the desktop column and the phone's dashboard;
+  at 1440 × 900 the column still fits without scrolling (the e2e checks it
+  with 10 and 9). The e2e fixture has 11 White lords and 9 minions.
