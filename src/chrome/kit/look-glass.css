@@ -270,6 +270,36 @@ u.wc-sk {
   html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
     display: none;
   }
+
+  /* A box's Back on a phone (stage 65 feedback round 2, ADR 0155): drawn
+   * inside the lit window, clear of the iron frame, with air on every
+   * side (the window's inner edge is 9 px into the box; Back starts 6 px
+   * below it and 8 px right of it), a little smaller than the desktop's.
+   * Its 40 px touch target is the invisible ::before, which grows upward
+   * over the frame only: never down over the page's first line. */
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
+    top: 14px;
+    height: 28px;
+    min-height: 0;
+    padding: 0 10px 0 6px;
+    gap: 4px;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    right: -4px;
+    top: -12px;
+    bottom: 0;
+  }
+
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) .wc-lk-ic {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 /* Coarse pointers: every target at least 40 px high (and icon-only ones as
@@ -292,7 +322,10 @@ u.wc-sk {
 }
 
 /* A tablet-size window with the phone flag (ADR 0140; stage 56): the
- * targets are 44 px. Back grows up from the 40 px one, 1 px down. */
+ * targets are 44 px. A box's Back is drawn as on a phone, inside the lit
+ * window with air (stage 65 feedback round 2, ADR 0155), at the desktop's
+ * type and 30 px high; its 44 px target is the invisible ::before, grown
+ * upward over the frame only (its bottom edge is where the 44 px Back's was). */
 @media (min-width: 600px) and (min-height: 600px) {
   html.wc-phone .wc-lk-btn,
   html.wc-phone .wc-lk-back {
@@ -304,7 +337,18 @@ u.wc-sk {
   }
 
   html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
-    top: 0;
+    top: 14px;
+    height: 30px;
+    min-height: 0;
+  }
+
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    right: -4px;
+    top: -14px;
+    bottom: 0;
   }
 }
 

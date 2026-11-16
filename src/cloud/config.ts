@@ -3,7 +3,7 @@
 //
 // The flags are fetched once per page load, with a short timeout, and
 // nothing on the game path waits for them: every caller is itself started
-// on idle time (src/cloud/start.ts, src/chrome/start-online.ts). Any
+// on idle time (src/cloud/start.ts, src/cloud/community/counter.ts). Any
 // failure (no API: the dev server without `dev:cloud`, GitHub Pages, the
 // service down; a timeout; an answer that is not the contract's) is
 // "all flags off", silently.

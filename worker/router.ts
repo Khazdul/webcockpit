@@ -109,8 +109,10 @@ async function beat(request: Request, env: Env, _url: URL, deps: Deps): Promise<
 /**
  * `GET /api/stats/public`: online now (flag `stats`) and, with `gallery`
  * on, the times of the newest listed runs (the guests' counter, ADR 0155).
- * With `stats` off and `gallery` on it answers 0 online (the client shows
- * "N online" only with `stats` on).
+ * With `stats` off and `gallery` on it answers 0 online. The client reads
+ * only `listed` since stage 65's feedback round 2 (the start page's
+ * "N online" is gone; the owner's number is /admin's, `/api/admin/stats`);
+ * `online` and `playing` stay in the contract, harmless.
  */
 async function statsPublic(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();

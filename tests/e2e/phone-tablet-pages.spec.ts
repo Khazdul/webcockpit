@@ -89,12 +89,24 @@ async function guard(page: Page, scope: Locator, main: Locator[]): Promise<void>
     (root, min) =>
       [...root.querySelectorAll<HTMLElement>('.wc-lk-btn, .wc-lk-back, .wc-lk-opt, .wc-lk-tab')]
         .filter((el) => !el.closest('[hidden]') && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden')
-        .map((el) => ({ id: `${el.className.split(' ')[0]}[${el.getAttribute('data-btn') ?? el.getAttribute('data-opt') ?? el.textContent}]`, w: el.offsetWidth, h: el.offsetHeight, icon: el.classList.contains('is-icon') }))
+        .map((el) => {
+          // A box's Back is drawn smaller; its target is its ::before, grown upward (stage 65 feedback round 2).
+          const pre = getComputedStyle(el, '::before');
+          const up = pre.content !== 'none' && pre.position === 'absolute' ? -parseFloat(pre.top) || 0 : 0;
+          return { id: `${el.className.split(' ')[0]}[${el.getAttribute('data-btn') ?? el.getAttribute('data-opt') ?? el.textContent}]`, w: el.offsetWidth, h: el.offsetHeight + Math.max(0, up), icon: el.classList.contains('is-icon') };
+        })
         .filter((e) => e.h < min || (e.icon && e.w < min))
         .map((e) => `${e.id} ${e.w}x${e.h}`),
     TARGET,
   );
   expect(low, 'targets under 44 px').toEqual([]);
+}
+
+/** A tap `h` px above Back's bottom edge (inside its target) still lands on Back. */
+async function backTarget(page: Page, back: Locator, h: number): Promise<void> {
+  const b = (await back.boundingBox())!;
+  const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-lk-back') !== null, [b.x + 10, b.y + b.height - h + 1]);
+  expect(hit, `Back's target ${h} px high`).toBe(true);
 }
 
 /** An element's layout height (not what a running transform draws). */
@@ -126,7 +138,7 @@ for (const [name, viewport] of [
       const size = await imp.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(10.5);
       expect((await imp.boundingBox())!.height).toBeGreaterThanOrEqual(TARGET);
-      expect((await f.locator('.wc-lk-back').boundingBox())!.height).toBeGreaterThanOrEqual(TARGET);
+      await backTarget(page, f.locator('.wc-lk-back'), TARGET);
 
       // New: the name dialog with our keyboard up; the field and its buttons stay above it.
       await btn(f, 'NEW').tap();
@@ -462,7 +474,10 @@ test('a phone-size window keeps the phone\'s compact buttons (10 px type, no ico
   expect(await b.evaluate((el) => getComputedStyle(el).fontSize)).toBe('10px');
   expect((await b.boundingBox())!.height).toBe(40);
   await expect(b.locator('.wc-lk-ic')).toBeHidden();
-  expect((await hist.locator('.wc-lk-back').boundingBox())!.height).toBe(40);
+  // Back is drawn smaller, inside the window (stage 65 feedback round 2); its 40 px target grows upward.
+  const back = (await hist.locator('.wc-lk-back').boundingBox())!;
+  expect(back.height).toBe(28);
+  await backTarget(page, hist.locator('.wc-lk-back'), 40);
 });
 
 test.describe('a tablet\'s buttons', () => {
@@ -478,7 +493,9 @@ test.describe('a tablet\'s buttons', () => {
     expect(parseFloat(await b.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThan(10);
     expect((await b.boundingBox())!.height).toBe(TARGET);
     await expect(b.locator('.wc-lk-ic')).toBeVisible();
-    expect((await hist.locator('.wc-lk-back').boundingBox())!.height).toBe(TARGET);
+    // Back: drawn 30 px inside the window, its 44 px target grown upward (stage 65 feedback round 2).
+    expect((await hist.locator('.wc-lk-back').boundingBox())!.height).toBe(30);
+    await backTarget(page, hist.locator('.wc-lk-back'), TARGET);
   });
 });
 

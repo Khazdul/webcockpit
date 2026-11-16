@@ -1,8 +1,8 @@
 // Stage 59 (spec §7.6, ADR 0147): the cloud client against a stubbed API
-// (cloud-stats.ts; `?cloudtest`). "N online" by the almanac when the flag
-// is on and the numbers answer, absent otherwise, and the almanac's own
-// lines never move; the beat's body and its state; no API request at all
-// in an automated browser without the hook. About's "What the site knows"
+// (cloud-stats.ts; `?cloudtest`). No "N online" by the almanac (stage 65
+// feedback round 2, ADR 0155: the owner sees it on /admin only), and the
+// start page never asks for the numbers for it; the beat's body and its
+// state; no API request at all in an automated browser without the hook. About's "What the site knows"
 // and the privacy page, from About and at /privacy. The phone:
 // phone-cloud-stats.spec.ts.
 import { type Page, expect, test } from '@playwright/test';
@@ -10,7 +10,6 @@ import { readFileSync } from 'node:fs';
 import { stubApi } from './cloud-stats';
 import { backTo, lookBox, morphDone, openFromMenu, startTop } from './look';
 
-const online = (page: Page) => page.locator('.wc-start-almanac .wc-alm-o');
 const date = (page: Page) => page.locator('.wc-start-almanac .wc-alm-d');
 const menuSel = (page: Page) => startTop(page).locator('.wc-sm-item.is-sel .wc-sm-label');
 const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
@@ -26,28 +25,11 @@ async function open(page: Page, query = '?cloudtest'): Promise<void> {
   await expect(menuSel(page)).toHaveText('Enter MUME');
 }
 
-test('flag on: "N online" above the almanac\'s date; the date does not move; a menu beat of five fields', async ({ page, browserName }) => {
+test('flag on: no "N online" by the almanac, no request for it; a menu beat of five fields', async ({ page, browserName }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   const api = await stubApi(page, { flags: { stats: true }, stats: { online: 12, playing: 3 } });
   await open(page);
-  await expect(online(page)).toHaveText('12 online');
-  // Above the date, inside the almanac, at its right edge.
-  const o = (await online(page).boundingBox())!;
-  const d = (await date(page).boundingBox())!;
-  expect(o.y + o.height).toBeLessThanOrEqual(d.y + 1);
-  expect(Math.abs(o.x + o.width - (d.x + d.width))).toBeLessThan(2);
-  expect(o.x + o.width).toBeLessThanOrEqual(1440);
-
-  // The same page without the line: the date sits exactly where it was.
-  const other = await page.context().newPage();
-  await other.setViewportSize({ width: 1440, height: 900 });
-  await stubApi(other, { flags: {} });
-  await open(other);
-  await expect(date(other)).toBeVisible();
-  const d2 = (await date(other).boundingBox())!;
-  expect(Math.round(d2.y)).toBe(Math.round(d.y));
-  await other.close();
 
   // The beat: once at load, exactly the five fields.
   await expect.poll(() => api.beats.length).toBeGreaterThanOrEqual(1);
@@ -64,49 +46,34 @@ test('flag on: "N online" above the almanac\'s date; the date does not move; a m
   const req = api.requests.find((r) => r.url().endsWith('/api/beat'))!;
   expect(req.headers()['content-type']).toBe('application/json');
   expect(req.headers().cookie).toBeUndefined();
-  // The flags once; the numbers; nothing else.
+  // The almanac has its own lines only.
+  await page.waitForTimeout(1500);
+  await expect(date(page)).toBeVisible();
+  await expect(page.locator('.wc-start-almanac')).not.toContainText('online');
+  // The flags once; the beat; nothing else (the public numbers are /admin's now).
   expect(api.paths().filter((p) => p === 'GET /api/config')).toHaveLength(1);
-  expect(new Set(api.paths())).toEqual(new Set(['GET /api/config', 'GET /api/stats/public', 'POST /api/beat']));
+  expect(new Set(api.paths())).toEqual(new Set(['GET /api/config', 'POST /api/beat']));
   expect(errors).toEqual([]);
 });
 
-const ABSENT: [string, Parameters<typeof stubApi>[1]][] = [
-  ['the flag off', { flags: {}, stats: { online: 5, playing: 1 } }],
-  ['config 404', { flags: 404, stats: { online: 5, playing: 1 } }],
-  ['config unreachable', { flags: 'abort', stats: { online: 5, playing: 1 } }],
-  ['stats 404', { flags: { stats: true }, stats: 404 }],
-  ['stats 500', { flags: { stats: true }, stats: 500 }],
-  ['stats unreachable', { flags: { stats: true }, stats: 'abort' }],
-];
-
-for (const [name, answers] of ABSENT) {
-  test(`no line with ${name}; the page is as before`, async ({ page }) => {
-    const errors = watchErrors(page);
-    await page.setViewportSize({ width: 1440, height: 900 });
-    const api = await stubApi(page, answers);
-    await open(page);
-    // The flags have been asked (and the numbers, when the flag is on): settled.
-    await expect.poll(() => api.paths().includes('GET /api/config')).toBe(true);
-    if (answers?.flags && typeof answers.flags === 'object' && answers.flags.stats) {
-      await expect.poll(() => api.paths().includes('GET /api/stats/public')).toBe(true);
-    }
-    await page.waitForTimeout(500);
-    await expect(date(page)).toBeVisible();
-    await expect(online(page)).toHaveCount(0);
-    // Without the flag: no numbers and no beat.
-    if (!(answers?.flags && typeof answers.flags === 'object' && answers.flags.stats)) {
-      expect(api.paths()).toEqual(['GET /api/config']);
-    }
-    expect(errors).toEqual([]);
-  });
-}
+test('flag off: the flags only, no beat and no numbers; the almanac as always', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const api = await stubApi(page, { flags: {}, stats: { online: 5, playing: 1 } });
+  await open(page);
+  await expect.poll(() => api.paths().includes('GET /api/config')).toBe(true);
+  await page.waitForTimeout(500);
+  await expect(date(page)).toBeVisible();
+  expect(api.paths()).toEqual(['GET /api/config']);
+  expect(errors).toEqual([]);
+});
 
 test('an automated browser without the test hook makes no API request', async ({ page }) => {
   const api = await stubApi(page, { flags: { stats: true }, stats: { online: 3, playing: 0 } });
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, '');
   await page.waitForTimeout(3500);
-  await expect(online(page)).toHaveCount(0);
+  await expect(page.locator('.wc-start-almanac')).not.toContainText('online');
   expect(api.paths()).toEqual([]);
 });
 
@@ -194,19 +161,8 @@ for (const on of [true, false]) {
       await expect(rail.nth(5)).toHaveAttribute('data-sec-link', 'later');
       await expect(heads).toContainText(['WHAT IS SENT', 'WHY', 'WHAT IS KEPT', 'YOUR ADDRESS', 'COMING LATER', 'WHO RUNS IT', 'REMOVING IT']);
       await expect(lookBox(page).locator('[data-sec="accounts"]')).toHaveCount(0);
-      await expect(lookBox(page).locator('.wc-about-ver')).toHaveText('Last changed 14 November 2026');
+      await expect(lookBox(page).locator('.wc-about-ver')).toHaveText('Last changed 16 November 2026');
     }
     expect(errors).toEqual([]);
   });
 }
-
-test('a tablet (the phone layout on a large window): the line by the almanac, inside the window', async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await stubApi(page, { flags: { stats: true }, stats: { online: 4, playing: 1 } });
-  await open(page, '?cloudtest&tablet=phone');
-  await expect(online(page)).toHaveText('4 online');
-  const o = (await online(page).boundingBox())!;
-  const d = (await date(page).boundingBox())!;
-  expect(o.y + o.height).toBeLessThanOrEqual(d.y + 1);
-  expect(o.x + o.width).toBeLessThanOrEqual(1024);
-});
