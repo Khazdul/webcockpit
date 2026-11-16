@@ -193,3 +193,36 @@ test('the run log and the Spotlights viewer return to the tab they left', async 
   await expect(onTab(page)).toHaveAttribute('data-tab', 'diary');
   expect(errors).toEqual([]);
 });
+
+test('the Spotlights viewer\'s player goes with its tab: the run log opens after it', async ({ page }) => {
+  // The viewer parks its player while the Spotlights page is open (ADR 0131); a tab
+  // change leaves History's frame in place, and the parked player once stayed, so the
+  // shell refused the run log ("Another player is open").
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await pinDemoClock(page);
+  await openStart(page);
+  await restoreDemo(page);
+  await openHistory(page);
+
+  // Spotlights → a card plays → Back: the wall (the player parked).
+  await tab(page, 'spotlights').click();
+  await expect(cards(page)).toHaveCount(5);
+  await morphDone(page);
+  await cards(page).first().click();
+  if (!(await viewer(page).isVisible())) await page.keyboard.press('Enter');
+  await expect(viewer(page)).toBeVisible();
+  await expect(viewer(page).locator('.wc-spv-slot')).toHaveCount(1);
+  await top(page).locator('.wc-lk-back').first().click();
+  await expect(viewer(page)).toHaveCount(0);
+
+  // Sessions → a session → Run log: it opens.
+  await tab(page, 'sessions').click();
+  await expect(onTab(page)).toHaveAttribute('data-tab', 'sessions');
+  await lookBox(page).locator('.wc-lk-tr').nth(1).click();
+  await lookBox(page).locator('.wc-hist-card [data-btn="RUN LOG"]:visible').first().click();
+  await expect(page.locator('.wc-player')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-dlg="runlog-error"]')).toHaveCount(0);
+  await expect(hood(page)).toHaveText('Run log');
+  expect(errors).toEqual([]);
+});

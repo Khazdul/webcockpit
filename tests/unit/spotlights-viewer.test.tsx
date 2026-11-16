@@ -228,17 +228,21 @@ describe('SpotlightsViewer', () => {
     const wall = new FakeWall();
     const made: PlayerHost[] = [];
     const left: number[] = [];
-    const ref: { nav: Nav | null; show: (on: boolean) => void } = { nav: null, show: () => {} };
+    const ref: { nav: Nav | null; show: (on: boolean) => void; tab: (on: boolean) => void } = { nav: null, show: () => {}, tab: () => {} };
     const reel = reelOf();
     const Root = lookFrame(function Root() {
       ref.nav = useNav();
       return <div class="root" />;
     });
+    // The frame's content as History's: the page's box (the wall's) goes on a tab change, the frame stays.
     const Page = lookFrame(function Page() {
       const [on, setOn] = useState(true);
+      const [tabOn, setTabOn] = useState(true);
       ref.show = setOn;
+      ref.tab = setTabOn;
+      if (!tabOn) return <section class="other-tab" />;
       return (
-        <div class="page" style={{ position: 'relative' }}>
+        <div class="page wc-lk-box" style={{ position: 'relative' }}>
           {on && (
             <SpotlightsViewer
               reel={reel}
@@ -275,7 +279,18 @@ describe('SpotlightsViewer', () => {
         wall.advance(ms);
         await frame();
       });
-    return { wall, made, left, reel, host, q, tick, nav: () => ref.nav!, show: (on: boolean) => act(async () => ref.show(on)) };
+    return {
+      wall,
+      made,
+      left,
+      reel,
+      host,
+      q,
+      tick,
+      nav: () => ref.nav!,
+      show: (on: boolean) => act(async () => ref.show(on)),
+      tab: (on: boolean) => act(async () => ref.tab(on)),
+    };
   }
 
   it('shows the head, plays in an embedded bare host, and the controls drive it', async () => {
@@ -389,6 +404,18 @@ describe('SpotlightsViewer', () => {
     // The page leaves the stack: the host goes.
     await act(async () => v.nav().pop());
     await v.tick();
+    expect(h.isClosed).toBe(true);
+    expect(keptSpotlightsHost()).toBeNull();
+  });
+
+  it('disposes the parked host when the page goes but its frame stays (a History tab change)', async () => {
+    const v = await mount();
+    const h = v.host();
+    await v.show(false);
+    expect(keptSpotlightsHost()).toBe(h);
+    await v.tab(false);
+    await v.tick();
+    expect(v.nav().depth()).toBe(2);
     expect(h.isClosed).toBe(true);
     expect(keptSpotlightsHost()).toBeNull();
   });

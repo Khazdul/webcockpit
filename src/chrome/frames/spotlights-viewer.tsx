@@ -41,10 +41,11 @@
 // slot with the paused host is taken out of the document (the view's keys
 // then pass, its root not shown) and kept here; the next card puts it back
 // and seeks (or opens the wall's new reel), so the player chunk and the
-// host are made once. It is disposed when the page's frame leaves the
-// document (a MutationObserver on the direct children of its ancestors,
-// which change only on a push, a pop or a page swap), or at once when
-// there is no page frame.
+// host are made once. It is disposed when the page's box leaves the
+// document (a MutationObserver on the direct children of its ancestors):
+// its frame popped, or History's tab changed (the frame stays, the page
+// goes), or at once when there is no page box. A parked host left behind
+// would hold the shell's one player and the run log could not open.
 //
 // The brighter red (ANSI 1 on the dark wells, Default colours only) is the
 // host's palette tweak, set by spotlight-mode.ts. The start sky pauses
@@ -152,7 +153,7 @@ interface Kept {
   slot: HTMLDivElement;
   reel: BareReel;
   bind: { current: Bind };
-  /** Watches the page's frame while parked. */
+  /** Watches the page's box while parked. */
   watch: MutationObserver | null;
 }
 
@@ -182,23 +183,25 @@ export function keptSpotlightsHost(): PlayerHost | null {
 }
 
 /**
- * Parks `k` (paused, out of the document) until the page's `frame` leaves
- * the document: popped from its stack, or the whole start page unmounted.
- * One MutationObserver watches the direct children of each of the frame's
- * ancestors (they change only on a push, a pop or a page swap); a check
- * after the current task covers an unmount that was under way.
+ * Parks `k` (paused, out of the document) until the page's box (`page`, the
+ * wall's) leaves the document: its frame popped, History's tab changed (the
+ * frame stays, the page in it goes), or the whole start page unmounted.
+ * One MutationObserver watches the direct children of each of the box's
+ * ancestors (a removal of the box or of any ancestor of it is a change in
+ * one of them); a check after the current task covers an unmount that was
+ * under way.
  */
-function park(k: Kept, frame: HTMLElement | null): void {
+function park(k: Kept, page: HTMLElement | null): void {
   const eng = k.host.engine;
   if (eng?.playing) eng.pause();
   k.slot.remove();
-  if (!frame || !frame.isConnected || typeof MutationObserver !== 'function') return disposeKept();
+  if (!page || !page.isConnected || typeof MutationObserver !== 'function') return disposeKept();
   k.watch?.disconnect();
   const check = (): void => {
-    if (kept === k && !k.slot.isConnected && !frame.isConnected) disposeKept();
+    if (kept === k && !k.slot.isConnected && !page.isConnected) disposeKept();
   };
   const watch = new MutationObserver(check);
-  for (let el = frame.parentElement; el; el = el.parentElement) watch.observe(el, { childList: true });
+  for (let el = page.parentElement; el; el = el.parentElement) watch.observe(el, { childList: true });
   k.watch = watch;
   setTimeout(check, 0);
 }
@@ -353,7 +356,8 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
 
   useEffect(() => {
     let dead = false;
-    const frame = rootRef.current?.closest<HTMLElement>('.wc-frame') ?? null;
+    // The wall's box: it goes with the page (a pop, or a History tab change, which keeps the frame).
+    const page = rootRef.current?.parentElement?.closest<HTMLElement>('.wc-lk-box') ?? null;
     const shared = { current: bind };
     const mine = (kk: Kept): void => {
       kk.bind.current = bind;
@@ -375,7 +379,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         well.append(old.slot);
         if (old.reel.reel === reel) old.reel.goTo(start, true);
         else old.reel.open(reel, start);
-        if (dead) return park(old, frame);
+        if (dead) return park(old, page);
         return mine(old);
       }
       disposeKept();
@@ -405,7 +409,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         host.onDispose(() => {
           if (kept === kk) kept = null;
         });
-        if (dead) return park(kk, frame);
+        if (dead) return park(kk, page);
         mine(kk);
       } catch (err) {
         console.error('WebCockpit: the Spotlights viewer could not open', err);
@@ -422,7 +426,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
     return () => {
       dead = true;
       const kk = kRef.current;
-      if (kk && kept === kk) park(kk, frame);
+      if (kk && kept === kk) park(kk, page);
     };
   }, []);
 
