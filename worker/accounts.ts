@@ -21,6 +21,7 @@ import {
   WRAP_MIN_BYTES,
 } from '../shared/cloud/api.ts';
 import { fromB64url, sha256, toB64url } from './bytes.ts';
+import { currentDefaults } from './limits.ts';
 import type { D1, Env } from './runtime.ts';
 
 /** A row of `account`, as far as the Worker reads it. */
@@ -162,27 +163,26 @@ function parsed(text: string | null): Record<string, unknown> {
   }
 }
 
-/** A whole number ≥ 0 from a var (a number or its digits), or null. */
-function wholeVar(v: unknown): number | null {
-  if (typeof v === 'number') return Number.isSafeInteger(v) && v >= 0 ? v : null;
-  return typeof v === 'string' && /^\d{1,15}$/.test(v.trim()) ? Number(v.trim()) : null;
-}
-
 /**
- * The limits of an account that has none of its own: DEFAULT_ACCOUNT_LIMITS,
- * with `runBytes` from the var RUN_BYTES_LIMIT when it is set (so the owner
- * can change the run storage without a client release; ADR 0153).
+ * The limits of an account that has none of its own: the built-in
+ * DEFAULT_ACCOUNT_LIMITS (with `runBytes` from the var RUN_BYTES_LIMIT when
+ * it is set, ADR 0153) and the admin's default overrides (worker/limits.ts,
+ * ADR 0157 pick 4b) as the router last loaded them.
  */
-export function defaultLimits(env: Pick<Env, 'RUN_BYTES_LIMIT'>): AccountLimits {
-  const runBytes = wholeVar(env.RUN_BYTES_LIMIT);
-  return runBytes === null ? { ...DEFAULT_ACCOUNT_LIMITS } : { ...DEFAULT_ACCOUNT_LIMITS, runBytes };
+export function defaultLimits(env: Pick<Env, 'RUN_BYTES_LIMIT' | 'DB'>): AccountLimits {
+  return currentDefaults(env);
 }
 
 /** The defaults (defaultLimits) with what the account's `limits` column overrides (whole numbers ≥ 0 of known names). */
-export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BYTES_LIMIT'>): AccountLimits {
-  const out = defaultLimits(env);
+export function limitsOf(row: Pick<AccountRow, 'limits'>, env: Pick<Env, 'RUN_BYTES_LIMIT' | 'DB'>): AccountLimits {
+  return { ...defaultLimits(env), ...ownLimitsOf(row) };
+}
+
+/** The account's own limits: the fields its `limits` column holds (whole numbers ≥ 0 of known names). */
+export function ownLimitsOf(row: Pick<AccountRow, 'limits'>): Partial<AccountLimits> {
   const own = parsed(row.limits);
-  for (const k of Object.keys(out) as (keyof AccountLimits)[]) {
+  const out: Partial<AccountLimits> = {};
+  for (const k of Object.keys(DEFAULT_ACCOUNT_LIMITS) as (keyof AccountLimits)[]) {
     const v = own[k];
     if (typeof v === 'number' && Number.isInteger(v) && v >= 0) out[k] = v;
   }
@@ -212,7 +212,7 @@ export function usageOf(row: Pick<AccountRow, 'item_count' | 'item_bytes' | 'run
 }
 
 /** The account as its owner sees it, with its live sessions; `idHash` is the asking session's. */
-export async function accountView(db: D1, env: Pick<Env, 'RUN_BYTES_LIMIT'>, row: AccountRow, idHash: string, now: number): Promise<Account> {
+export async function accountView(db: D1, env: Pick<Env, 'RUN_BYTES_LIMIT' | 'DB'>, row: AccountRow, idHash: string, now: number): Promise<Account> {
   const { results } = await db
     .prepare('SELECT id, id_hash, label, created, last_used FROM session WHERE account = ?1 AND expires > ?2 ORDER BY last_used DESC, created DESC, id')
     .bind(row.id, now)

@@ -5,7 +5,11 @@
 // Nothing here stores or logs an address: the rate limit (router.ts) uses
 // it in passing.
 import {
+  type AdminDailyMetric,
   type AdminDay,
+  type AdminGraphDay,
+  type AdminGraphRange,
+  type AdminGraphs,
   type AdminSplit,
   type AdminStats,
   BEAT_MINUTES,
@@ -252,6 +256,58 @@ async function daySplits(db: D1, day: string): Promise<Record<'type' | 'browser'
 const DAILY_METRICS = ['devices', 'new_devices', 'peak_online', 'peak_playing', 'play_minutes', 'beats'] as const;
 
 /**
+ * Stage 66's metrics (ADR 0157 "Graph data"): the devices of the 7 and 30
+ * days up to the day, new accounts, the storage totals (as they are when
+ * read: at the roll-up, a few minutes after the day), and the day's
+ * sharing. Migration 0007 backfilled what the tables still knew.
+ */
+export const PANEL_METRICS = [
+  'devices_7d',
+  'devices_30d',
+  'new_accounts',
+  'accounts',
+  'item_bytes',
+  'run_bytes',
+  'pub_bytes',
+  'pubs_new',
+  'listed_new',
+  'votes',
+  'comments',
+  'notes',
+  'reports',
+  'views',
+] as const;
+type PanelMetric = (typeof PANEL_METRICS)[number];
+
+/** Stage 66's metrics of a day, in one batch (scans of small tables: once a day, and live for today on /admin's graphs). */
+async function panelFigures(db: D1, day: string): Promise<Record<PanelMetric, number>> {
+  const start = dayStart(day);
+  const [counts, totals] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT (SELECT COUNT(DISTINCT device) FROM device_day WHERE day > ?1 AND day <= ?2) AS devices_7d,
+                (SELECT COUNT(DISTINCT device) FROM device_day WHERE day > ?3 AND day <= ?2) AS devices_30d,
+                (SELECT COUNT(*) FROM account WHERE created >= ?4 AND created < ?5) AS new_accounts,
+                (SELECT COUNT(*) FROM publication WHERE state <> 'pending' AND created >= ?4 AND created < ?5) AS pubs_new,
+                (SELECT COUNT(*) FROM publication WHERE listed_at >= ?4 AND listed_at < ?5) AS listed_new,
+                (SELECT COUNT(*) FROM vote WHERE updated >= ?4 AND updated < ?5) AS votes,
+                (SELECT COUNT(*) FROM comment WHERE created >= ?4 AND created < ?5) AS comments,
+                (SELECT COUNT(*) FROM note WHERE created >= ?4 AND created < ?5) AS notes,
+                (SELECT COUNT(*) FROM report WHERE created >= ?4 AND created < ?5) AS reports,
+                (SELECT COUNT(*) FROM pub_view WHERE day = ?2) AS views`,
+      )
+      .bind(utcDay(start - 7 * DAY_MS), day, utcDay(start - 30 * DAY_MS), start, start + DAY_MS),
+    db.prepare(
+      `SELECT COUNT(*) AS accounts, COALESCE(SUM(item_bytes), 0) AS item_bytes, COALESCE(SUM(run_bytes), 0) AS run_bytes, COALESCE(SUM(pub_bytes), 0) AS pub_bytes FROM account`,
+    ),
+  ]);
+  const row = { ...(counts?.results[0] ?? {}), ...(totals?.results[0] ?? {}) };
+  const out = {} as Record<PanelMetric, number>;
+  for (const m of PANEL_METRICS) out[m] = Number(row[m] ?? 0);
+  return out;
+}
+
+/**
  * The roll-up of one UTC day into `stat_daily`. Idempotent: the day's rows
  * are replaced in one transaction, so running it twice (or again after a
  * failure) leaves the same rows. Returns the rows it wrote.
@@ -259,7 +315,9 @@ const DAILY_METRICS = ['devices', 'new_devices', 'peak_online', 'peak_playing', 
 export async function rollUp(db: D1, day: string): Promise<number> {
   const f = await dayFigures(db, day);
   const s = await daySplits(db, day);
-  const plain: Record<(typeof DAILY_METRICS)[number], number> = {
+  const panel = await panelFigures(db, day);
+  const plain: Record<(typeof DAILY_METRICS)[number] | PanelMetric, number> = {
+    ...panel,
     devices: f.devices,
     new_devices: f.newDevices,
     peak_online: f.peakOnline,
@@ -416,4 +474,106 @@ async function rolledSplit(db: D1, day: string): Promise<NonNullable<AdminStats[
   const out = { day, type: {} as AdminSplit, browser: {} as AdminSplit, version: {} as AdminSplit };
   for (const r of results) out[r.metric][r.key] = r.value;
   return out;
+}
+
+// --- The admin panel's graphs (stage 66, ADR 0157 "Graph data") ---
+
+/** Per range: how far back the online graph reaches, its bucket in minutes, and the days shown (null: all). */
+export const GRAPH_RANGES: Record<AdminGraphRange, { ms: number | null; bucket: number; days: number | null }> = {
+  '24h': { ms: DAY_MS, bucket: 5, days: 2 },
+  '7d': { ms: 7 * DAY_MS, bucket: 30, days: 7 },
+  '30d': { ms: 30 * DAY_MS, bucket: 60, days: 30 },
+  '90d': { ms: 90 * DAY_MS, bucket: 180, days: 90 },
+  all: { ms: null, bucket: 1440, days: null },
+};
+
+const GRAPH_METRICS: ReadonlySet<string> = new Set<AdminDailyMetric>([...DAILY_METRICS, ...PANEL_METRICS]);
+const SPLITS = ['type', 'browser', 'version'] as const;
+
+/**
+ * `GET /api/admin/graphs?range=`: the rolled-up days of the range from
+ * `stat_daily` (at most one row per day and metric) and today read live;
+ * online from `stat_sample`, the highest per bucket (at most 25 920 rows
+ * for 90 days), or for `all` the days' peaks. Five batches, no query per
+ * row.
+ */
+export async function adminGraphs(db: D1, range: AdminGraphRange, now: number): Promise<AdminGraphs> {
+  const r = GRAPH_RANGES[range];
+  const today = utcDay(now);
+  const since = r.days === null ? '' : utcDay(now - (r.days - 1) * DAY_MS);
+  const bucketMs = r.bucket * 60_000;
+  const [online, daily, splits, largest, sharing] = await db.batch<Record<string, unknown>>([
+    r.ms === null
+      ? db.prepare(
+          `SELECT day, MAX(CASE WHEN metric = 'peak_online' THEN value END) AS online, MAX(CASE WHEN metric = 'peak_playing' THEN value END) AS playing
+           FROM stat_daily WHERE metric IN ('peak_online', 'peak_playing') AND key = '' AND day < ?1 GROUP BY day ORDER BY day`,
+        ).bind(today)
+      : db
+          .prepare('SELECT (ts / ?2) * ?2 AS ts, MAX(online) AS online, MAX(playing) AS playing FROM stat_sample WHERE ts > ?1 AND ts <= ?3 GROUP BY ts / ?2 ORDER BY 1')
+          .bind(now - r.ms, bucketMs, now),
+    db.prepare("SELECT day, metric, value FROM stat_daily WHERE day >= ?1 AND day < ?2 AND key = '' ORDER BY day").bind(since, today),
+    db.prepare("SELECT metric, key, SUM(value) AS n FROM stat_daily WHERE day >= ?1 AND day < ?2 AND metric IN ('type', 'browser', 'version') GROUP BY metric, key").bind(since, today),
+    db.prepare('SELECT name, item_bytes, run_bytes, pub_bytes FROM account WHERE item_bytes + run_bytes + pub_bytes > 0 ORDER BY item_bytes + run_bytes + pub_bytes DESC, name_key LIMIT 10'),
+    db.prepare(
+      `SELECT (SELECT COUNT(*) FROM publication WHERE state IN ('active', 'hidden')) AS pubs,
+              (SELECT COUNT(*) FROM publication WHERE state = 'active' AND listed = 1) AS listed,
+              (SELECT COUNT(*) FROM publication WHERE state = 'hidden') AS hidden,
+              (SELECT COUNT(*) FROM vote) AS votes,
+              (SELECT COUNT(*) FROM comment WHERE state = 'active') AS comments,
+              (SELECT COUNT(*) FROM note WHERE state = 'active') AS notes,
+              (SELECT COUNT(*) FROM report WHERE handled = 0) AS open_reports`,
+    ),
+  ]);
+  // Today, live.
+  const f = await dayFigures(db, today);
+  const live = await panelFigures(db, today);
+  const todaySplit = await daySplits(db, today);
+  const n = (v: unknown): number => Number(v ?? 0);
+
+  const points = (online?.results ?? []).map((p) => ({ ts: typeof p.day === 'string' ? dayStart(p.day) : n(p.ts), online: n(p.online), playing: n(p.playing) }));
+  if (r.ms === null && f.samples > 0) points.push({ ts: dayStart(today), online: f.peakOnline, playing: f.peakPlaying });
+
+  const byDay = new Map<string, AdminGraphDay>();
+  for (const row of daily?.results ?? []) {
+    const day = String(row.day);
+    const metric = String(row.metric);
+    if (!GRAPH_METRICS.has(metric)) continue;
+    const d = byDay.get(day) ?? { day, final: true, m: {} };
+    d.m[metric as AdminDailyMetric] = n(row.value);
+    byDay.set(day, d);
+  }
+  const days = [...byDay.values()];
+  days.push({
+    day: today,
+    final: false,
+    m: {
+      devices: f.devices,
+      new_devices: f.newDevices,
+      peak_online: f.peakOnline,
+      peak_playing: f.peakPlaying,
+      play_minutes: f.playBeats * BEAT_MINUTES,
+      beats: f.beats,
+      ...live,
+    },
+  });
+
+  const split: AdminGraphs['split'] = { type: {}, browser: {}, version: {} };
+  for (const row of splits?.results ?? []) {
+    const m = row.metric as (typeof SPLITS)[number];
+    if (SPLITS.includes(m)) split[m][String(row.key)] = n(row.n);
+  }
+  for (const m of SPLITS) for (const [k, v] of Object.entries(todaySplit[m])) split[m][k] = (split[m][k] ?? 0) + v;
+
+  const sh = sharing?.results[0] ?? {};
+  return {
+    range,
+    now,
+    bucketMinutes: r.bucket,
+    online: points,
+    days,
+    split,
+    storage: { accounts: live.accounts, itemBytes: live.item_bytes, runBytes: live.run_bytes, pubBytes: live.pub_bytes },
+    largest: (largest?.results ?? []).map((a) => ({ name: String(a.name), itemBytes: n(a.item_bytes), runBytes: n(a.run_bytes), pubBytes: n(a.pub_bytes) })),
+    sharing: { pubs: n(sh.pubs), listed: n(sh.listed), hidden: n(sh.hidden), votes: n(sh.votes), comments: n(sh.comments), notes: n(sh.notes), openReports: n(sh.open_reports) },
+  };
 }

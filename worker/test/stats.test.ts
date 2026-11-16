@@ -287,6 +287,21 @@ describe('cron: sample, roll-up, pruning', () => {
       'browser:chrome': 1,
       'version:0.9.3': 2,
       'version:0.9.2': 1,
+      // Stage 66 (ADR 0157): the device windows, and nothing else yet.
+      devices_7d: 3,
+      devices_30d: 3,
+      new_accounts: 0,
+      accounts: 0,
+      item_bytes: 0,
+      run_bytes: 0,
+      pub_bytes: 0,
+      pubs_new: 0,
+      listed_new: 0,
+      votes: 0,
+      comments: 0,
+      notes: 0,
+      reports: 0,
+      views: 0,
     });
     const rows = await count('stat_daily');
     await runCron(realEnv, DAILY_CRON, rollTime);
