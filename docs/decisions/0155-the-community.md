@@ -885,3 +885,60 @@ the client's in `tests/unit/review65.test.ts` unless named.
 - **CR8 (queue).** The admin's queue is one `UNION ALL` statement over
   runs, comments and notes, ordered and cut in SQL (it stays readable).
 - **CR9.** `worker/mume.ts`'s cache comment names the row key `war`.
+
+## As built (stage 65, owner's feedback: W3)
+
+Point 13 of the owner's feedback (branch `stage65-w3`): a shared run —
+the Hall of Fame, a link, the HTML replay — carries the panes **Map,
+Timers and Group** only, and the replay starts with **every pane off**.
+The History player (RUN LOG) and the Text export are unchanged.
+
+- **One pure filter**, `sharedPayload` (`src/share/shared-panes.ts`),
+  idempotent, its result still schema 1. It drops every SPANE record
+  (script panes) and every `Comm.*` GMCP record, any case (the Comm
+  pane's text and channel list; the game prints channel lines itself and
+  those stay); writes the settings' and every VIEW record's `panes` as all
+  seven built-in panes with `on: false` (Map, Timers and Group keep their
+  tint, frame and glass, the others get the defaults; no script pane
+  entry); removes script panes from the layouts (`migrateLayout` with them
+  dropped: their ids name the scripts); sets the settings' `comm` to the
+  defaults and drops a VIEW's `comm` part. Other GMCP (vitals, group,
+  room, events) stays: the game text, the three panes and the markers need
+  it. **Explicit `on: false` for every built-in pane** rather than leaving
+  entries out: `migrateSettings` fills a missing entry with today's default
+  (Comm on), so an older site's player, given a new payload, would show
+  an empty Comm pane; with the entries it starts with every pane off too.
+- **Where it runs.** `buildReplayPayload` applies it at the end (the
+  HTML export, `prepareLinkPayload` and the dev payloads all build through
+  it), so nothing of another pane leaves the device; `PayloadOptions.
+  allPanes` keeps everything (tests of the fold and of the player's
+  hostile-record paths). `openReplay` (`src/replay/page.ts`, the frame's
+  play path after `readSharedPayload`/`validatePayload`, and the HTML file's
+  `startReplay`) applies it again to whatever it plays, so a schema-1
+  payload already published (more panes, some on) plays the same as a new
+  one. `validatePayload`, the frame's sandbox, CSP and handshake are
+  untouched (W1's paused pref stays theirs).
+- **The player**: `PlayerHostOptions.panes` (`SHARED_PANES` from
+  `openReplay`): the Panes popup lists Timers, Group and Map only (in the
+  popup's order); every other pane is forced off in `compose` after the
+  viewer's overrides, whatever a VIEW says; no script pane is built and
+  none is listed; the phone layer's strip omits the other panes. The
+  viewer's toggle turns one on as before (an override, so later VIEW
+  records do not turn it off again).
+- **The export editor** has no player preview (its preview is the
+  comment's `## ` text), so nothing to mirror there.
+- **Sizes**: entry chunk 31 382 bytes (unchanged); `r/frame.html` about
+  +2.5 KB.
+- **Tests**: `tests/unit/shared-panes.test.ts` (a run with Comm GMCP, a
+  script pane, a VIEW with Comm/Statistics/a script pane on and a Comm
+  part: none of it in the payload, every pane off, still valid schema 1,
+  idempotent; the replay lists the three, all off, one turned on shows and
+  nothing else; an old payload through the wire bytes, `readSharedPayload`
+  and `openReplay` the same). Tests that check pane records in the payload
+  pass `allPanes`. e2e: `watch-sandbox` (no pane at the start, the popup's
+  three rows off, Map on shows alone; the hostile old payload shows no
+  pane and builds no script pane), `watch-page` (an old published payload
+  with Comm, UI, Character, Map and a script pane on: no pane; Timers on
+  shows alone), `replay`, `viewer` (the HTML replay's settings round starts
+  from all off), `script-pane-runs` (the HTML replay has no script pane),
+  `map-files` (the viewer turns the map on).

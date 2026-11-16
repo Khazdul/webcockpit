@@ -131,7 +131,7 @@ describe('buildReplayPayload', () => {
     const d = doc({ title: ' Fight ', excludes: [[us(6), us(9)]], comments: [{ beforeUs: us(7), text: 'x'.repeat(90) }] });
     // The ADR 0078 defaults: the default tileset, which a replay keeps as it is.
     const settings = adr0078Settings();
-    const p = buildReplayPayload(chain(), events, d, settings);
+    const p = buildReplayPayload(chain(), events, d, settings, { allPanes: true });
     expect(p).toMatchObject({ schema: 1, title: 'Fight', character: 'Rasta', level: 42, startUs: BASE_US });
     const all = p.runs.map((r) => r.text).join('');
     for (const gone of ['secret plans', 'Secret line.', 'say secret']) expect(all).not.toContain(gone);
@@ -172,7 +172,7 @@ describe('buildReplayPayload', () => {
       excludes: [[us(0), us(1)], [us(5.5), us(7.5)], [us(9), null]],
       comments: [{ beforeUs: null, text: 'The end.' }, { beforeUs: us(3601), text: 'In the tail.' }],
     });
-    const p = buildReplayPayload(chain(), events, d, defaultSettings());
+    const p = buildReplayPayload(chain(), events, d, defaultSettings(), { allPanes: true });
     expect(p.runs.map((r) => r.meta)).toEqual([{ startedUs: BASE_US, summary: { startUs: BASE_US, level: 41 } }]);
     expect(p.level).toBe(41);
     expect(p.hiddenSys).toBeUndefined();
@@ -194,7 +194,7 @@ describe('buildReplayPayload', () => {
     expect(tl.kind[tl.n - 1]).toBe(ENTRY_COMMENT);
     expect(tl.ts[tl.n - 1]).toBe(us(8));
     // A tail from the start of a later run: that run goes, its login line is no hidden one.
-    const q = buildReplayPayload(chain(), [], doc({ excludes: [[us(3599), null]] }), defaultSettings());
+    const q = buildReplayPayload(chain(), [], doc({ excludes: [[us(3599), null]] }), defaultSettings(), { allPanes: true });
     expect(q.runs).toHaveLength(1);
     expect(q.runs[0]!.text).toBe(chain()[0]!.text);
     expect(q.level).toBe(41);
@@ -218,7 +218,7 @@ describe('buildReplayPayload', () => {
   });
 
   it('leaves out a run before the first kept entry, carrying the VIEW and channels it set', () => {
-    const p = buildReplayPayload(chain(), [], doc({ excludes: [[0, us(3600.5)]] }), defaultSettings());
+    const p = buildReplayPayload(chain(), [], doc({ excludes: [[0, us(3600.5)]] }), defaultSettings(), { allPanes: true });
     expect(p.runs).toHaveLength(1);
     const text = p.runs[0]!.text;
     expect(text).not.toContain('Char.Vitals {"hp":90}');

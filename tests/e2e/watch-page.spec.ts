@@ -54,6 +54,50 @@ test('a guest watches a seeded run: no start page, the band, the replay, one vie
   expect(errors).toEqual([]);
 });
 
+// Stage 65 (owner's feedback 13): a shared run shows Map, Timers and Group
+// only, all off at the start; a payload published before that (Comm, UI
+// and a script pane on, their records in it) plays the same way.
+test('a published run plays with no pane; the Panes popup has Map, Timers and Group, off; one turned on shows, nothing else', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const s = await setUp(page);
+  const view = JSON.stringify({ panes: { comm: { on: true }, ui: { on: true }, character: { on: true }, map: { on: true }, 'evil/pane': { on: true } } });
+  const spane = JSON.stringify({ title: 'Old script pane', lines: [{ spans: [{ text: 'pane text' }] }], links: [] });
+  s.pubs.add({
+    id: 'Old3dE5fG7hJ',
+    owner: SENDER,
+    title: 'An old run',
+    payload: demoPayload({
+      lines: [
+        `\x1bVIEW ${view}`,
+        '\x1bGMCP Comm.Channel.Text {"channel":"tells","talker":"Kuzzim","text":"Kuzzim tells you \'psst\'"}',
+        `\x1bSPANE evil/pane ${spane}`,
+        'You attack the hardened ranger.',
+      ],
+    }),
+  });
+  await openWatch(page, 'Old3dE5fG7hJ');
+  await playing(page);
+  const r = replay(page);
+  await expect(r.locator('.wc-player')).toContainText('hardened ranger');
+  await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(0);
+  await r.locator('.wc-player').hover();
+  const box = r.locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeVisible();
+  expect(await pop.locator('[data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
+    'timers:false',
+    'group:false',
+    'map:false',
+  ]);
+  await pop.locator('[data-pane="timers"]').click();
+  await expect(r.locator('.wc-pane[data-pane="timers"]')).toBeVisible();
+  await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
+  await expect(r.locator('.wc-pane[data-pane="evil/pane"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('a reload counts again only as the server says: one request per page load', async ({ page }) => {
   const s = await setUp(page);
   await openWatch(page);
