@@ -5,10 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GALLERY_Q_MAX, GALLERY_Q_MIN, GALLERY_SORTS } from '../../shared/cloud/api';
 import {
   DEFAULT_SORT,
-  SEARCH_MAX,
-  SEARCH_MIN,
+  SEARCH_TOO_LONG,
   SORT_HEADS,
-  communityBackHref,
   dateText,
   lengthText,
   meanText,
@@ -19,14 +17,15 @@ import {
   pagerText,
   pagesOf,
   parseView,
-  runHref,
   runName,
   searchLine,
   searchOf,
+  searchTooLong,
   sortOfKey,
   starsShown,
 } from '../../src/chrome/frames/community-model';
 import { countListed, readSeen, writeSeen } from '../../src/cloud/community/counter';
+import { backHref, watchHref } from '../../src/watch/href';
 
 const NOW = Date.UTC(2026, 10, 15, 12, 0, 0);
 
@@ -70,13 +69,19 @@ describe('the list', () => {
 
 describe('search', () => {
   it('the bounds are the contract’s; the text as the Worker takes it; the line over the list', () => {
-    expect([SEARCH_MIN, SEARCH_MAX]).toEqual([GALLERY_Q_MIN, GALLERY_Q_MAX]);
+    expect(searchOf('x'.repeat(GALLERY_Q_MIN))).not.toBeNull();
+    expect(searchOf('x'.repeat(GALLERY_Q_MAX))).not.toBeNull();
     expect(searchOf('')).toBeNull();
     expect(searchOf(' a ')).toBeNull();
     expect(searchOf('  ford  ')).toBe('ford');
     expect(searchOf('orc   fight')).toBe('orc fight');
     expect(searchOf('x'.repeat(61))).toBeNull();
     expect(searchOf('\u200b\u200bx')).toBeNull();
+    // Too long is said, not dropped (review fix 2 CR2): the cleaned text counts.
+    expect(searchTooLong('x'.repeat(GALLERY_Q_MAX + 1))).toBe(true);
+    expect(searchTooLong(` ${'x'.repeat(GALLERY_Q_MAX)}   `)).toBe(false);
+    expect(searchTooLong('a')).toBe(false);
+    expect(SEARCH_TOO_LONG).toBe(`A search takes at most ${GALLERY_Q_MAX} characters.`);
     expect(searchLine('ford', 3)).toBe('Search: “ford” — 3 runs');
     expect(searchLine('ford', 1)).toBe('Search: “ford” — 1 run');
     expect(searchLine('ford', 0)).toBe('Search: “ford” — 0 runs');
@@ -108,16 +113,21 @@ describe('the view kept for Back, and the way to a run', () => {
     expect(parseView('{"sort":"top","page":3,"by":"brego","sub":"hof"}')).toEqual({ sort: 'top', page: 3, by: 'brego', sub: 'hof' });
     expect(parseView('{"sort":"watched","page":1,"q":"  ford ","sub":"runs"}')).toEqual({ sort: 'watched', page: 1, q: 'ford', sub: 'runs' });
     expect(parseView('{"sort":"best","page":0,"by":"<b>","sub":"x","q":"a"}')).toEqual({ sort: 'new', page: 1 });
+    // A sender's runs from the Hall of Fame keep where Back goes (review fix 2 CR3); only there.
+    expect(parseView('{"sort":"new","page":1,"by":"brego","sub":"runs","from":"hof"}')).toEqual({ sort: 'new', page: 1, by: 'brego', sub: 'runs', from: 'hof' });
+    expect(parseView('{"sort":"new","page":1,"sub":"runs","from":"hof"}')).toEqual({ sort: 'new', page: 1, sub: 'runs' });
+    expect(parseView('{"sort":"new","page":1,"by":"brego","sub":"runs","from":"x"}')).toEqual({ sort: 'new', page: 1, by: 'brego', sub: 'runs' });
     // Before the owner's feedback: the Length sort and the phone's tabs are gone.
     expect(parseView('{"sort":"length","page":2,"tab":"runes"}')).toEqual({ sort: 'new', page: 2 });
     expect(parseView('not json')).toEqual({ sort: 'new', page: 1 });
   });
 
   it('the run’s address carries from=community; the watch page’s Back goes to <base>?community', () => {
-    expect(runHref('Ab3dE5fG7hJk')).toBe('/r/Ab3dE5fG7hJk?from=community');
-    expect(runHref('Ab3dE5fG7hJk', '/app/', true)).toBe('/app/r/Ab3dE5fG7hJk?from=community&cloudtest');
-    expect(communityBackHref()).toBe('/?community');
-    expect(communityBackHref('/app/', true)).toBe('/app/?community&cloudtest');
+    expect(watchHref('Ab3dE5fG7hJk', 'community')).toBe('/r/Ab3dE5fG7hJk?from=community');
+    expect(watchHref('Ab3dE5fG7hJk', 'community', '/app/', true)).toBe('/app/r/Ab3dE5fG7hJk?from=community&cloudtest');
+    expect(watchHref('Ab3dE5fG7hJk', 'published')).toBe('/r/Ab3dE5fG7hJk?from=published');
+    expect(backHref('community')).toBe('/?community');
+    expect(backHref('community', '/app/', true)).toBe('/app/?community&cloudtest');
   });
 });
 

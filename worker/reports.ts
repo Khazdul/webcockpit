@@ -30,7 +30,7 @@ import { COUNTED } from './community.ts';
 import { flags } from './flags.ts';
 import { mailReport } from './mail.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
-import { DAY_MS, type D1, type D1Statement, dayStart, error, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type D1Statement, dayStart, error, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
@@ -71,7 +71,7 @@ export async function report(c: PubCtx): Promise<Response> {
   if (await dup()) return error('already_reported', 409);
   // The insert holds only while the day's count is under the limit (two at
   // once cannot both be the 30th), and the hiding is in the same transaction.
-  const [inserted] = await c.db.batch([
+  const [inserted, ...hid] = await c.db.batch([
     c.db
       .prepare(
         `INSERT OR IGNORE INTO report (kind, target, account, reason, text, created)
@@ -82,7 +82,9 @@ export async function report(c: PubCtx): Promise<Response> {
   ]);
   if (inserted?.meta.changes !== 1) return (await dup()) ? error('already_reported', 409) : error('too_many', 429);
   mailReport(c.env, c.deps, c.url.origin, { kind, target, reason: b.reason, text: note });
-  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  const answer = new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  // The report that hides the item changes what the public reads show (the item's own UPDATE is the last).
+  return hid.at(-1)?.meta.changes === 1 ? publicChange(answer) : answer;
 }
 
 const TABLE: Record<ReportKind, string> = { run: 'publication', comment: 'comment', note: 'note' };

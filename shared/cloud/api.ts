@@ -982,6 +982,8 @@ export const GALLERY_PAGES_MAX = 100;
  */
 export const GALLERY_Q_MIN = 2;
 export const GALLERY_Q_MAX = 60;
+/** A search's deepest page (review fix 2 R2-1: a search reads every listed run; 100 rows are plenty). */
+export const GALLERY_Q_PAGES_MAX = 10;
 /** Top's prior (ADR 0148): `(C·m + top_sum) / (C + top_count)`. */
 export const TOP_PRIOR_VOTES = 5;
 /** Top's prior mean when no ranking vote exists. */
@@ -1049,9 +1051,11 @@ export interface GalleryRow {
  * `searchText` gives it (the public text rules' cleaning on one line,
  * spaces collapsed, trimmed); `GALLERY_Q_MIN`–`GALLERY_Q_MAX` code points
  * then, or `400 bad_request`. Matched as a plain substring (`instr`): `%`,
- * `_` and a backslash are themselves. The answer carries `q` (the text searched).
- * A search is not kept in the Worker's Cache API (any text makes its own
- * variant); it reads D1 each time, under the public limit by address.
+ * `_` and a backslash are themselves. The answer carries `q` (the text searched:
+ * cleaned, its ASCII letters in lower case). Pages 1–`GALLERY_Q_PAGES_MAX`
+ * only (a deeper `page` → `400 bad_request`). A search is kept in the
+ * Worker's Cache API as the list is (under that text), and has its own
+ * limit by address (20 a minute, `429 rate_limited`) besides the public one.
  *
  * As built (stage 65 B): a value outside its list, or a `page` that is
  * not a whole number 1–`GALLERY_PAGES_MAX` → `400 bad_request` (`by`

@@ -74,7 +74,7 @@ import { randomBytes } from './bytes.ts';
 import { commentsGet } from './community.ts';
 import { flags } from './flags.ts';
 import { lengthOf, storeStream, type Stored } from './runs.ts';
-import { DAY_MS, type D1, type D1Statement, type Deps, type Env, type R2, type R2Body, dayStart, error, json, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type D1Statement, type Deps, type Env, type R2, type R2Body, dayStart, error, json, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { UUID, readCapped } from './stats.ts';
 
@@ -465,21 +465,28 @@ async function patch(c: PubCtx): Promise<Response> {
   const row = read?.results[0];
   if (updated?.meta.changes !== 1 && row?.state === 'active' && listed === 1) return error('too_many', 429);
   if (updated?.meta.changes !== 1 || !row) return notFound();
-  return json({ pub: myPub(row) } satisfies PubWritten);
+  const answer = json({ pub: myPub(row) } satisfies PubWritten);
+  // The lists show it before or after: listed or unlisted, or its words changed while listed.
+  const shown = now !== null && (now.listed === 1 || row.listed === 1);
+  if (!shown || (now.listed === row.listed && now.title === row.title && now.description === row.description)) return answer;
+  // A first listing is bounded by listingsPerDay: at once; listing again, unlisting and words wait their turn.
+  return publicChange(answer, now.listed_at === null && row.listed === 1);
 }
 
 async function remove(c: PubCtx): Promise<Response> {
   const { account } = c.auth as Authed;
   const id = idOf(c);
   if (!id) return notFound();
-  const row = await c.db.prepare('SELECT state FROM publication WHERE id = ?1 AND account = ?2').bind(id, account.id).first<{ state: PubRowState }>();
+  const row = await c.db.prepare('SELECT state, listed FROM publication WHERE id = ?1 AND account = ?2').bind(id, account.id).first<{ state: PubRowState; listed: number }>();
   if (!row || row.state === 'pending') return notFound();
+  const answer = new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   // A tombstone already: done (a retry after a lost answer).
-  if (row.state !== 'removed') {
-    await c.db.batch(tombstones(c.db, c.now, 'id = ?2 AND account = ?3', [id, account.id]));
-    await dropObjects(c.env, [id]);
-  }
-  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  if (row.state === 'removed') return answer;
+  await c.db.batch(tombstones(c.db, c.now, 'id = ?2 AND account = ?3', [id, account.id]));
+  await dropObjects(c.env, [id]);
+  // Only a listed run the lists showed (a hidden one is not shown).
+  // At once: each listed run removed was one of the day's listings.
+  return row.state === 'active' && row.listed === 1 ? publicChange(answer, true) : answer;
 }
 
 // --- POST /api/u/pub ---
@@ -697,7 +704,9 @@ async function create(c: PubCtx): Promise<Response> {
     await dropObjects(c.env, [id]);
     return error('unauthorized', 401);
   }
-  return json({ pub: myPub(row) } satisfies PubWritten);
+  const answer = json({ pub: myPub(row) } satisfies PubWritten);
+  // A listed run is one of the day's listings (listingsPerDay): at once.
+  return row.listed === 1 ? publicChange(answer, true) : answer;
 }
 
 // --- /api/pub/* (public) ---

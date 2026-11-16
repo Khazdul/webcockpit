@@ -12,7 +12,7 @@ import { validatePayload } from '../../src/replay/validate';
 import { defaultSettings } from '../../src/settings';
 import { defaultExportDoc } from '../../src/share/edits';
 import { type ReplayPayload, buildReplayPayload } from '../../src/share/payload';
-import { SHARED_PANES, sharedPayload } from '../../src/share/shared-panes';
+import { SHARED_PANES, needsShared, sharedPayload } from '../../src/share/shared-panes';
 import { BASE_US, FakeWall, makeLog, meta } from './player-helpers';
 
 const us = (s: number) => BASE_US + Math.round(s * 1e6);
@@ -94,6 +94,41 @@ describe('a shared payload carries Map, Timers and Group only', () => {
     expect(v.schema).toBe(1);
     expect(v.runs.map((r) => r.text)).toEqual(p.runs.map((r) => r.text));
     expect(sharedPayload(p)).toEqual(p);
+  });
+});
+
+describe('needsShared (review fix 2 CR6: the replay filters only what needs it)', () => {
+  const with_ = (p: ReplayPayload, text: string): ReplayPayload => ({ ...p, runs: [{ ...p.runs[0]!, text: p.runs[0]!.text + text }] });
+
+  it('is false for a payload shared since W3, true for one made with every pane', () => {
+    expect(needsShared(build())).toBe(false);
+    expect(needsShared(sharedPayload(build(true)))).toBe(false);
+    expect(needsShared(build(true))).toBe(true);
+  });
+
+  it('finds a script pane record, a Comm record (any case) and a VIEW that turns a pane on', () => {
+    const p = build();
+    expect(needsShared(with_(p, formatPaneRecord(us(9), 'myscript/x', SNAP)))).toBe(true);
+    expect(needsShared(with_(p, formatGmcpRecord(us(9), 'Comm.Channel.Text', '{}')))).toBe(true);
+    expect(needsShared(with_(p, formatGmcpRecord(us(9), 'COMM.Channel.List', '[]')))).toBe(true);
+    expect(needsShared(with_(p, formatRecord(us(9), 'VIEW', JSON.stringify({ panes: { comm: { on: true } } }))))).toBe(true);
+    // Other GMCP and a VIEW with every pane off are as a shared run keeps them.
+    expect(needsShared(with_(p, formatGmcpRecord(us(9), 'Char.Vitals', '{"hp":1}')))).toBe(false);
+    expect(needsShared(with_(p, formatRecord(us(9), 'VIEW', JSON.stringify({ panes: { comm: { on: false } }, appearance: { size: 15 } }))))).toBe(false);
+  });
+
+  it('finds a pane on, a pane missing, a script pane entry and a script pane in the layout', () => {
+    const p = build();
+    const settings = (f: (s: Record<string, unknown>) => void): ReplayPayload => {
+      const s = JSON.parse(JSON.stringify(p.settings)) as Record<string, unknown>;
+      f(s);
+      return { ...p, settings: s as unknown as ReplayPayload['settings'] };
+    };
+    expect(needsShared(settings((s) => ((s.panes as Record<string, { on: boolean }>).map!.on = true)))).toBe(true);
+    expect(needsShared(settings((s) => delete (s.panes as Record<string, unknown>).comm))).toBe(true);
+    expect(needsShared(settings((s) => ((s.panes as Record<string, unknown>)['myscript/x'] = { on: false })))).toBe(true);
+    expect(needsShared(settings((s) => (s.layout = { docks: { right: { lanes: [{ size: 30, panes: [{ id: 'myscript/x', desired: 5 }] }] } }, floating: [] })))).toBe(true);
+    expect(needsShared(settings((s) => (s.panes = null)))).toBe(true);
   });
 });
 

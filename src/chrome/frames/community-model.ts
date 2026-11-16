@@ -2,11 +2,12 @@
 // round 13's picks 1b with the owner's changes, 2 and 5; the owner's
 // feedback W2: short headings, search, the phone's dashboard): the list's
 // columns and their sorts, the words of a row, the boxes and the board,
-// the page's remembered view, and the address of a run opened from here.
+// the page's remembered view (the address of a run opened from here is
+// src/watch/model.ts `watchHref`).
 // No DOM, no requests (community.tsx draws, src/cloud/community/api.ts
 // asks).
 
-import type { GalleryRow, GallerySort, Note } from '../../../shared/cloud/api.ts';
+import { GALLERY_Q_MAX, GALLERY_Q_MIN, type GalleryRow, type GallerySort, type Note } from '../../../shared/cloud/api.ts';
 import { cleanPublicText, publicTextToSend, searchText } from '../../../shared/cloud/text.ts';
 import { ageText } from '../../cloud/community/format';
 
@@ -54,14 +55,18 @@ export function runName(r: Pick<GalleryRow, 'title' | 'character'>): string {
 
 // ------------------------------------------------------------ search
 
-/** A search's shortest and longest text (the contract's GALLERY_Q_MIN, GALLERY_Q_MAX; a unit test holds them equal). */
-export const SEARCH_MIN = 2;
-export const SEARCH_MAX = 60;
-
-/** The text a search field asks for, or null (nothing to search: the whole list). */
+/** The text a search field asks for (the contract's GALLERY_Q_MIN–GALLERY_Q_MAX code points), or null (nothing to search: the whole list). */
 export function searchOf(field: string): string | null {
-  return searchText(field, SEARCH_MIN, SEARCH_MAX);
+  return searchText(field, GALLERY_Q_MIN, GALLERY_Q_MAX);
 }
+
+/** Is the field's text longer than a search takes (review fix 2 CR2: said, not dropped)? */
+export function searchTooLong(field: string): boolean {
+  return searchText(field, GALLERY_Q_MAX + 1, Number.MAX_SAFE_INTEGER) !== null;
+}
+
+/** The line over the list for a text too long to search. */
+export const SEARCH_TOO_LONG = `A search takes at most ${GALLERY_Q_MAX} characters.`;
 
 /** The search's line over the list: 'Search: "ford" — 3 runs'. */
 export function searchLine(q: string, total: number): string {
@@ -177,6 +182,8 @@ export interface CommunityView {
   q?: string;
   /** The phone's sub-page (none: the dashboard). */
   sub?: CommunitySub;
+  /** The phone: a sender's runs opened from the Hall of Fame, where Back goes again (review fix 2 CR3). */
+  from?: 'hof';
 }
 
 /** The phone's sub-pages over its dashboard: the whole list, the Hall of Fame. */
@@ -202,29 +209,9 @@ export function parseView(raw: string | null): CommunityView {
       if (q !== null) out.q = q;
     }
     if (v.sub === 'runs' || v.sub === 'hof') out.sub = v.sub;
+    if (v.from === 'hof' && out.sub === 'runs' && out.by !== undefined) out.from = 'hof';
     return out;
   } catch {
     return out;
   }
-}
-
-// ------------------------------------------------------------ the way to a run and back
-
-/**
- * The query that tells the watch page its run was opened from the
- * Community page (ADR 0155 "As built (stage 65 C1)"): its Back then goes
- * to `communityBackHref`.
- */
-export const FROM_COMMUNITY = 'from=community';
-/** The start page's query that opens the Community page (and its kept view). */
-export const OPEN_COMMUNITY = 'community';
-
-/** `<base>r/<id>?from=community` (on the dev server the e2e hook `cloudtest` kept). */
-export function runHref(id: string, base = '/', cloudtest = false): string {
-  return `${base}r/${encodeURIComponent(id)}?${FROM_COMMUNITY}${cloudtest ? '&cloudtest' : ''}`;
-}
-
-/** Where the watch page's Back goes for a run opened from here: `<base>?community`. */
-export function communityBackHref(base = '/', cloudtest = false): string {
-  return `${base}?${OPEN_COMMUNITY}${cloudtest ? '&cloudtest' : ''}`;
 }

@@ -8,7 +8,9 @@
 // Keep it true to what the code does: what is uploaded (ADR 0154 "What is
 // uploaded": the cut payload, its whitelisted settings with the panes'
 // ids, the map subset without room notes and with a neutral name, the
-// meta; src/share/link-payload.ts),
+// meta; src/share/link-payload.ts; ADR 0155 W3: src/share/shared-panes.ts
+// drops only SPANE and Comm records, so Char.StatusVars and Char.Vitals
+// stay; the payload is a public GET; `level` is in PubMeta and the rows),
 // worker/pub.ts (the row, views once per device and UTC day, `pub_view`
 // pruned after two days, Remove and Delete account to tombstones and R2
 // deleted), worker/reports.ts (one per account and run, five accounts
@@ -23,9 +25,9 @@ export const PRIVACY_SHARE_UPDATED = 'Last changed 16 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_SHARE = `SHARE LINKS
-A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included), the Map, Timers and Group panes' records (no other pane goes with it), the map of the rooms it passes when the map is on (without your own room notes or the name of your map file), the display settings the replay needs, and the title and description you give it. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared run is not encrypted: it is meant to be watched.
-  Who can watch   Anyone with the link, without an account. A Link run is not listed anywhere, but whoever has it can pass it on. A Hall of Fame run is listed in the Community for everyone.
-  What is kept    The run as you cut it, its title, description, character, level and length, when it was made, and how many have watched it. A view is counted once a day for each device and network, by the random number of the heartbeat (made for this browser if it has none) and a scrambled form of the address that changes every day; which devices watched is deleted after two days.
+A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included); the game's own status data that the Map, Timers and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), but no channel records and no other pane; the map of the rooms the run passes, if it passes any (without your own room notes or the name of your map file); the display settings the replay needs; and the title and description you give it. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared run is not encrypted: it is meant to be watched.
+  Who can watch   Anyone with the link, without an account. A Link run is not listed anywhere, but whoever has it can pass it on. A Hall of Fame run is listed in the Community for everyone. Whoever can watch a run can also save a copy of it, and a saved copy is theirs: removing the run does not reach it.
+  What is kept    The run as you cut it, its title, description, character, level (not shown on the pages, but part of the run's public data) and length, when it was made, and how many have watched it. A view is counted once a day for each device and network, by the random number of the heartbeat (made for this browser if it has none) and a scrambled form of the address that changes every day; which devices watched is deleted after two days.
   Removing it     Remove a run on the Account page under Published runs, whenever you like: the link then says it was removed, and the run is deleted. Delete account removes all your shared runs.
   Reports         Anyone with an account can report a run, once; the sender is not told who. A run that breaks the rules is removed, and one that five accounts report is hidden until we have looked. A report is kept with the account that sent it. Without an account, write to abuse@mumecockpit.com with the link.`;
 

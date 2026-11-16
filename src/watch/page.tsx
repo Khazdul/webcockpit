@@ -41,9 +41,9 @@
 // `gallery` (the meta carries `stars`), the stars in the band and the
 // comments under the replay (src/watch/community.tsx); the page scrolls.
 // Back goes to the start page's Community when the run was opened from it
-// (`?from=community`; `communityBackHref` of the Community page's model),
-// to the Account page or its Published runs view when opened from there
-// (`?from=account`, `?from=published`; `accountBackHref`, ADR 0155 W1).
+// (`?from=community`), to the Account page or its Published runs view when
+// opened from there (`?from=account`, `?from=published`, ADR 0155 W1): the
+// model's `backHref`, the pair of `watchHref` that opened the run.
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
@@ -58,7 +58,6 @@ import { startSkyLook } from '../start/start-look';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import { Comments, type RaterRole, RunStars } from './community';
-import { communityBackHref } from '../chrome/frames/community-model';
 import {
   ABUSE_ADDRESS,
   ADMIN_WORDS,
@@ -69,9 +68,10 @@ import {
   REPORT_MAX,
   REFUSED_NOTE,
   type WatchEnd,
-  accountBackHref,
+  backHref,
   backTarget,
   endOf,
+  keepCloudtest,
   loadingLine,
   metaLine,
   reportFailText,
@@ -87,8 +87,7 @@ const base = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? 
 
 /** The start page (dev: the e2e hook `?cloudtest` kept, as src/core/space.ts `reloadToStart`). */
 function startUrl(): string {
-  const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest') ? '?cloudtest' : '';
-  return `${base()}${keep}`;
+  return `${base()}${keepCloudtest() ? '?cloudtest' : ''}`;
 }
 
 function goStart(): void {
@@ -99,8 +98,7 @@ function goStart(): void {
 function goBack(): void {
   const to = backTarget(location.search);
   if (to === 'start') return goStart();
-  const keep = import.meta.env?.DEV === true && new URLSearchParams(location.search).has('cloudtest');
-  location.assign(to === 'community' ? communityBackHref(base(), keep) : accountBackHref(to, base(), keep));
+  location.assign(backHref(to, base()));
 }
 
 /** Log in from the watch page (Report's, the stars' and the comments'): the start page's Log in, and back here after it. */

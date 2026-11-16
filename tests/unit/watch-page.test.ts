@@ -7,7 +7,7 @@ import { DEVICE_KEY } from '../../src/cloud/beat';
 import { countView, fetchMeta, fetchPayload, parseMeta, sendReport, type WatchFetch } from '../../src/watch/api';
 import {
   dateText,
-  accountBackHref,
+  backHref,
   backTarget,
   endOf,
   lengthText,
@@ -106,8 +106,8 @@ describe('the details', () => {
     expect(backTarget('?from=published&cloudtest')).toBe('published');
     expect(backTarget('?from=elsewhere')).toBe('start');
     expect(backTarget('')).toBe('start');
-    expect(accountBackHref('account')).toBe('/?account');
-    expect(accountBackHref('published', '/app/', true)).toBe('/app/?account=published&cloudtest');
+    expect(backHref('account')).toBe('/?account');
+    expect(backHref('published', '/app/', true)).toBe('/app/?account=published&cloudtest');
   });
 });
 

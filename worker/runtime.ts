@@ -112,6 +112,8 @@ export interface Env {
   RUN_BYTES_LIMIT?: number | string;
   /** The limit on `/api/auth/*` and `/api/u/*`, keyed by address and by session. Without it: no limit. */
   API_LIMITER?: RateLimiter;
+  /** The limit on a search, `GET /api/gallery?q=`, keyed by address (review fix 2 R2-1). Without it: no limit. */
+  SEARCH_LIMITER?: RateLimiter;
   /** The tight limit on `POST /api/auth/login`, `/recover` and `/register`, keyed by address. Without it: no limit. */
   AUTH_LIMITER?: RateLimiter;
   /**
@@ -163,6 +165,8 @@ export interface Deps {
    * `ctx.waitUntil`). Without it the work runs unawaited.
    */
   waitUntil?(work: Promise<unknown>): void;
+  /** Waits `ms` (a timer); tests replace it. Without it: setTimeout. */
+  sleep?(ms: number): Promise<void>;
   /**
    * Makes the message `REPORT_MAIL.send` takes from a raw RFC 5322 text:
    * worker/index.ts hands over `cloudflare:email`'s EmailMessage (the
@@ -195,6 +199,24 @@ export const DEFAULT_DEPS: Deps = {
   now: () => Date.now(),
   fetch: (input, init) => fetch(input, init),
 };
+
+/**
+ * The internal header by which a handler of `/api/u/*` or `/api/admin/*`
+ * says its write changed what the public reads show; worker/router.ts
+ * takes it off and moves the mark (review fix 2 R2-2: only a real change).
+ */
+export const PUBLIC_CHANGE_HEADER = 'X-WC-Public-Change';
+
+/**
+ * `res`, marked as a change of what the public reads show. `now`: the mark
+ * moves at once, not held by the few seconds between marks: for changes
+ * that are bounded by a daily limit or are the admin's (a run listed for
+ * the first time, a listed run removed, Delete account, moderation).
+ */
+export function publicChange(res: Response, now = false): Response {
+  res.headers.set(PUBLIC_CHANGE_HEADER, now ? 'now' : '1');
+  return res;
+}
 
 /** Runs `work` after the answer (Deps.waitUntil); it never throws into the caller. */
 export function later(deps: Deps, work: Promise<unknown>): void {

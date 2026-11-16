@@ -2,7 +2,7 @@
 // community" in shared/cloud/api.ts). Behind the flags `share` and
 // `gallery`; Random Runes behind `runes` as well.
 //
-//   GET    /api/gallery?sort=&period=&page=&by=&q=   the list (public, cached 60 s; a search `q` is not cached)
+//   GET    /api/gallery?sort=&period=&page=&by=&q=   the list (public, cached 60 s; a search `q` too, pages 1–10, its own limit)
 //   GET    /api/community                     the Hall of Fame boxes (public, cached 60 s)
 //   GET    /api/runes                         the board (public, cached 60 s; `runes`)
 //   GET    /api/pub/<id>/comments?before=     a run's comments, newest page first (public; reached through worker/pub.ts)
@@ -43,6 +43,7 @@ import {
   GALLERY_PAGES_MAX,
   GALLERY_Q_MAX,
   GALLERY_Q_MIN,
+  GALLERY_Q_PAGES_MAX,
   GALLERY_PERIOD_DAYS,
   GALLERY_PERIODS,
   GALLERY_SORTS,
@@ -72,7 +73,7 @@ import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
-import { type CacheLike, DAY_MS, type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
+import { type CacheLike, DAY_MS, type D1, type D1Statement, type Deps, type Env, PUBLIC_CHANGE_HEADER, dayStart, error, json, later, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
@@ -119,7 +120,41 @@ const KEPT_HEADER = 'X-WC-Kept';
 const KEPT_MS = COMMUNITY_CACHE_SECONDS * 1000;
 /** The key of the community's mark (never a path the Worker answers): a write's time, part of every kept answer's key. */
 const MARK_PATH = '/api/community/~mark';
-const MARK_PATTERN = /^[0-9a-z]{1,40}$/;
+/** `<time base 36>.<random>`; a mark of an older build has no time (`<random>` only). */
+const MARK_PATTERN = /^[0-9a-z]{1,40}(?:\.[0-9a-z]{1,12})?$/;
+/** How long an isolate believes the mark it read (review fix 2 CR4: a hit costs one cache lookup). */
+const MARK_READ_MS = 2000;
+/** At most one new mark per this long per isolate (and per place, by the mark's own time): review fix 2 R2-2. */
+export const MARK_EVERY_MS = 5000;
+
+/** The mark's time (ms), 0 when it has none. */
+function markTime(mark: string | null): number {
+  const dot = mark === null ? -1 : mark.indexOf('.');
+  const t = dot > 0 ? Number.parseInt((mark as string).slice(0, dot), 36) : 0;
+  return Number.isSafeInteger(t) ? t : 0;
+}
+
+/** What an isolate keeps of the mark of one cache and origin. */
+interface MarkMemory {
+  mark: string | null;
+  /** When the mark was read from the cache (or made here); -1: never. */
+  read: number;
+  /** When this isolate last made a mark; -1: never. */
+  made: number;
+  /** A change since the last mark has no mark yet (it came inside MARK_EVERY_MS of the last). */
+  dirty: boolean;
+}
+
+// Per cache object, so a test's own cache stand-in starts with nothing.
+const memories = new WeakMap<CacheLike, Map<string, MarkMemory>>();
+
+function memoryOf(cache: CacheLike, origin: string): MarkMemory {
+  let byOrigin = memories.get(cache);
+  if (!byOrigin) memories.set(cache, (byOrigin = new Map()));
+  let m = byOrigin.get(origin);
+  if (!m) byOrigin.set(origin, (m = { mark: null, read: -1, made: -1, dirty: false }));
+  return m;
+}
 
 /** The mark in this place's cache, or null (none, or a cache that fails). */
 async function markOf(cache: CacheLike, origin: string): Promise<string | null> {
@@ -133,40 +168,92 @@ async function markOf(cache: CacheLike, origin: string): Promise<string | null> 
 }
 
 /**
- * A write changed what the public reads show: a new mark, so every answer
- * this place's cache kept before it is not found again (the next read of
- * each variant asks the database). The Cache API is per data centre: the
- * writer's place (and so the writer) sees the change at once, others
- * within the 60 s.
+ * The mark as this isolate knows it: read from the cache at most every
+ * MARK_READ_MS. A mark made here that the cache does not show yet (its
+ * put still running) is kept over an older one read.
  */
-export async function communityChanged(deps: Deps, origin: string): Promise<void> {
-  const cache = deps.cache;
-  if (!cache) return;
-  const mark = `${deps.now().toString(36)}${Math.floor(Math.random() * 36 ** 6).toString(36)}`;
-  try {
-    await cache.put(
+async function currentMark(deps: Deps, cache: CacheLike, origin: string, now: number): Promise<string | null> {
+  const m = memoryOf(cache, origin);
+  // A change still without its mark, and its time is up: the mark now (should the timer not have run).
+  if (m.dirty && markWait(m, now) <= 0) newMark(deps, cache, origin, m);
+  if (m.read >= 0 && now >= m.read && now - m.read < MARK_READ_MS) return m.mark;
+  const read = await markOf(cache, origin);
+  if (m.mark === null || (read !== null && markTime(read) >= markTime(m.mark))) m.mark = read;
+  m.read = now;
+  return m.mark;
+}
+
+/** A new mark, at once in this isolate's memory; the put does not hold the answer (Deps.waitUntil). */
+function newMark(deps: Deps, cache: CacheLike, origin: string, m: MarkMemory): void {
+  const now = deps.now();
+  const mark = `${now.toString(36)}.${Math.floor(Math.random() * 36 ** 6).toString(36)}`;
+  m.mark = mark;
+  m.read = now;
+  m.made = now;
+  m.dirty = false;
+  later(
+    deps,
+    cache.put(
       new Request(`${origin}${MARK_PATH}`, { method: 'GET' }),
       // Longer than the answers it marks: gone sooner, the answers under no mark are at most 60 s old anyway.
       new Response(mark, { headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'public, max-age=86400' } }),
-    );
-  } catch {
-    // Not marked: the change shows within the 60 s.
-  }
+    ),
+  );
 }
 
-/** Does a request to the account API (or the admin's) that succeeded change what the public reads show? */
-export function changesCommunity(method: string, path: string): boolean {
-  if (method === 'GET' || method === 'HEAD') return false;
-  return (
-    path === '/api/u/runes' ||
-    path.startsWith('/api/u/runes/') ||
-    path === '/api/u/pub' ||
-    path.startsWith('/api/u/pub/') ||
-    path.startsWith('/api/u/comments/') ||
-    path === '/api/u/report' ||
-    path === '/api/u/account' ||
-    path.startsWith('/api/admin/')
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A write changed what the public reads show (the handler said so with
+ * `publicChange`): a new mark, so every answer this place's cache kept
+ * before it is not found again (the next read of each variant asks the
+ * database). At most one mark per MARK_EVERY_MS (review fix 2 R2-2): a
+ * change inside it gets one later mark when the time is up, so it shows
+ * within seconds. The Cache API is per data centre: the writer's place
+ * sees the change at once (or within MARK_EVERY_MS), others within the 60 s.
+ * `atOnce` (a change bounded by a daily limit, or the admin's): no wait.
+ */
+export function communityChanged(deps: Deps, origin: string, atOnce = false): void {
+  const cache = deps.cache;
+  if (!cache) return;
+  const m = memoryOf(cache, origin);
+  const now = deps.now();
+  const wait = markWait(m, now);
+  if (wait <= 0 || atOnce) {
+    newMark(deps, cache, origin, m);
+    return;
+  }
+  // One later mark for every change inside the time: by a timer after the
+  // answer, or by the first read here once the time is up (`currentMark`).
+  if (m.dirty) return;
+  m.dirty = true;
+  later(
+    deps,
+    (deps.sleep ?? sleep)(wait).then(() => {
+      if (m.dirty) newMark(deps, cache, origin, m);
+    }),
   );
+}
+
+/** How long until the next mark may be made (ms); 0 or less: now. A clock that went back (tests) is no reason to wait. */
+function markWait(m: MarkMemory, now: number): number {
+  const wait = Math.max(m.made, markTime(m.mark)) + MARK_EVERY_MS - now;
+  return wait > MARK_EVERY_MS ? 0 : wait;
+}
+
+/** `res` without the internal header, and the mark moved when it had it (and succeeded). */
+export function afterWrite(deps: Deps, origin: string, res: Response): Response {
+  const flag = res.headers.get(PUBLIC_CHANGE_HEADER);
+  if (flag === null) return res;
+  let out = res;
+  try {
+    out.headers.delete(PUBLIC_CHANGE_HEADER);
+  } catch {
+    out = new Response(res.body, res);
+    out.headers.delete(PUBLIC_CHANGE_HEADER);
+  }
+  if (out.ok) communityChanged(deps, origin, flag === 'now');
+  return out;
 }
 
 /** `res` for the browser: the kept copy's own headers off, `no-cache` on. */
@@ -189,7 +276,7 @@ export async function cached(deps: Deps, key: string, make: () => Promise<Respon
   const cache = deps.cache;
   if (!cache) return make();
   const now = deps.now();
-  const mark = await markOf(cache, new URL(key).origin);
+  const mark = await currentMark(deps, cache, new URL(key).origin, now);
   const req = new Request(mark === null ? key : `${key}${key.includes('?') ? '&' : '?'}mark=${mark}`, { method: 'GET' });
   try {
     const hit = await cache.match(req);
@@ -311,6 +398,10 @@ export async function communityPublic(request: Request, env: Env, url: URL, deps
   if (!head && request.method !== 'GET') return error('method_not_allowed', 405, { Allow: 'GET' });
   const address = addressKey(request.headers.get('cf-connecting-ip'));
   if (env.API_LIMITER && !(await env.API_LIMITER.limit({ key: `a|${address}` })).success) return error('rate_limited', 429);
+  // A search has its own, tighter limit (review fix 2 R2-1): a text no one asked before reads D1.
+  if (path === '/api/gallery' && url.searchParams.has('q') && env.SEARCH_LIMITER && !(await env.SEARCH_LIMITER.limit({ key: `a|${address}` })).success) {
+    return error('rate_limited', 429);
+  }
   const db = env.DB;
   if (!db) return error('unavailable', 503);
   try {
@@ -346,14 +437,16 @@ export function galleryParams(url: URL): { sort: GallerySort; period: GalleryPer
   if (!sort || !period || page < 1 || page > GALLERY_PAGES_MAX) return null;
   const raw = url.searchParams.get('q');
   const q = raw === null ? undefined : searchText(raw, GALLERY_Q_MIN, GALLERY_Q_MAX);
-  if (q === null) return null;
+  if (q === null || (q !== undefined && page > GALLERY_Q_PAGES_MAX)) return null;
   const by = url.searchParams.get('by');
   return { sort, period, page, ...(by === null ? {} : { by: NAME_PATTERN.test(by) ? by.toLowerCase() : '' }), ...(q === undefined ? {} : { q }) };
 }
 
 async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Response> {
-  const q = galleryParams(url);
-  if (!q) return badRequest();
+  const params = galleryParams(url);
+  if (!params) return badRequest();
+  // A search as SQLite's lower() sees it (ASCII letters only), so every case of a text is one cache variant.
+  const q = params.q === undefined ? params : { ...params, q: params.q.replace(/[A-Z]+/g, (x) => x.toLowerCase()) };
   const search = q.q === undefined ? {} : { q: q.q };
   const empty = (): Response => json({ sort: q.sort, period: q.period, page: q.page, rows: [], more: false, total: 0, ...search, time: now } satisfies GalleryPage, 200, PUBLIC_CACHE);
   // A sender's list (review fix S9): the name first, one indexed lookup; an
@@ -379,12 +472,11 @@ async function gallery(db: D1, url: URL, deps: Deps, now: number): Promise<Respo
     const answer: GalleryPage = { sort: q.sort, period: q.period, page: q.page, rows: rows.slice(0, GALLERY_PAGE_SIZE), more, total, ...search, time: now };
     return json(answer, 200, PUBLIC_CACHE);
   };
-  // A search is not kept in the Cache API (ADR 0155 "owner's feedback: W2"):
-  // any text is a variant of its own, so a hit is rare and the entries would
-  // grow without bound; its two reads scan only the listed active runs.
-  if (q.q !== undefined) return make();
+  // A search is kept as the list is (review fix 2 R2-1), under its text as
+  // searched (the Cache API evicts what is not asked again).
   const byPart = q.by === undefined ? '' : `&by=${encodeURIComponent(q.by)}`;
-  return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}`, make);
+  const qPart = q.q === undefined ? '' : `&q=${encodeURIComponent(q.q)}`;
+  return cached(deps, `${url.origin}/api/gallery?sort=${q.sort}&period=${q.period}&page=${q.page}${byPart}${qPart}`, make);
 }
 
 /**
@@ -551,8 +643,8 @@ function answerOf(p: Record<string, unknown> | undefined, v: Record<string, unkn
   return { stars, mine: v ? Number(v.stars) : null };
 }
 
-async function pubState(db: D1, id: string): Promise<{ account: string; state: PubRowState } | null> {
-  return db.prepare('SELECT account, state FROM publication WHERE id = ?1').bind(id).first<{ account: string; state: PubRowState }>();
+async function pubState(db: D1, id: string): Promise<{ account: string; state: PubRowState; listed: number } | null> {
+  return db.prepare('SELECT account, state, listed FROM publication WHERE id = ?1').bind(id).first<{ account: string; state: PubRowState; listed: number }>();
 }
 
 async function voteGet(c: PubCtx): Promise<Response> {
@@ -585,7 +677,8 @@ async function votePut(c: PubCtx): Promise<Response> {
     AND EXISTS (SELECT 1 FROM publication WHERE id = ?1 AND state = 'active' AND account <> ?2)
     AND (SELECT COUNT(*) FROM vote WHERE account = ?2 AND updated > ?6 AND publication <> ?1) < ?7`;
   const binds = [id, account.id, b.stars, c.now, ranks, c.now - HOUR_MS, limits.votesPerHour];
-  const results = await c.db.batch<Record<string, unknown>>([
+  const [before, ...results] = await c.db.batch<Record<string, unknown>>([
+    c.db.prepare('SELECT stars, ranks FROM vote WHERE publication = ?1 AND account = ?2').bind(id, account.id),
     c.db
       .prepare(
         `UPDATE publication SET
@@ -617,7 +710,10 @@ async function votePut(c: PubCtx): Promise<Response> {
     if (still.state === 'suspended') return error('suspended', 403);
     return error('too_many', 429);
   }
-  return json(answerOf(results[3]?.results[0], results[4]?.results[0]));
+  const answer = json(answerOf(results[3]?.results[0], results[4]?.results[0]));
+  // The list shows a listed run's stars (and Top its ranking ones): a change only when the vote is new or differs.
+  const old = before?.results[0];
+  return row.listed === 1 && (!old || Number(old.stars) !== b.stars || Number(old.ranks) !== ranks) ? publicChange(answer) : answer;
 }
 
 async function voteDelete(c: PubCtx): Promise<Response> {
@@ -640,7 +736,8 @@ async function voteDelete(c: PubCtx): Promise<Response> {
     c.db.prepare(`DELETE FROM vote WHERE publication = ?1 AND account = ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?2 AND state = 'active')`).bind(id, account.id),
     c.db.prepare('SELECT vote_sum, vote_count FROM publication WHERE id = ?1').bind(id),
   ]);
-  return json(answerOf(results[2]?.results[0], undefined));
+  const answer = json(answerOf(results[2]?.results[0], undefined));
+  return row.state === 'active' && row.listed === 1 && results[1]?.meta.changes === 1 ? publicChange(answer) : answer;
 }
 
 /**
@@ -766,7 +863,9 @@ async function commentPost(c: PubCtx): Promise<Response> {
     if (now.comment_count >= COMMENTS_PER_RUN) return error('full', 409);
     return error('too_many', 429);
   }
-  return json({ comment: { id: made.id, writer: account.name, text, created: c.now } } satisfies CommentWritten);
+  const answer = json({ comment: { id: made.id, writer: account.name, text, created: c.now } } satisfies CommentWritten);
+  // The list shows a listed run's comment count.
+  return row.listed === 1 ? publicChange(answer) : answer;
 }
 
 async function commentDelete(c: PubCtx): Promise<Response> {
@@ -774,16 +873,17 @@ async function commentDelete(c: PubCtx): Promise<Response> {
   const id = lastIdOf(c);
   if (!id) return notFound();
   const row = await c.db
-    .prepare('SELECT c.account, c.state, p.account AS owner FROM comment c LEFT JOIN publication p ON p.id = c.publication WHERE c.id = ?1')
+    .prepare('SELECT c.account, c.state, p.account AS owner, p.state AS pub_state, p.listed FROM comment c LEFT JOIN publication p ON p.id = c.publication WHERE c.id = ?1')
     .bind(id)
-    .first<{ account: string; state: string; owner: string | null }>();
+    .first<{ account: string; state: string; owner: string | null; pub_state: string | null; listed: number | null }>();
   if (!row || (row.account !== account.id && row.owner !== account.id)) return notFound();
   // Hidden after reports or by the admin: it stays, with its reports open,
   // until the admin has looked (review fix S7).
   if (row.state === 'hidden') return error('hidden', 403);
   // Removed already: done (a retry after a lost answer).
-  if (row.state !== 'removed') await c.db.batch(removeComment(c.db, id, c.now));
-  return done();
+  if (row.state === 'removed') return done();
+  await c.db.batch(removeComment(c.db, id, c.now));
+  return row.pub_state === 'active' && row.listed === 1 ? publicChange(done()) : done();
 }
 
 /**
@@ -828,7 +928,7 @@ async function notePost(c: PubCtx): Promise<Response> {
     if (!still) return error('unauthorized', 401);
     return still.state === 'suspended' ? error('suspended', 403) : error('too_many', 429);
   }
-  return json({ note: { id: made.id, writer: account.name, text, created: c.now } } satisfies NoteWritten);
+  return publicChange(json({ note: { id: made.id, writer: account.name, text, created: c.now } } satisfies NoteWritten));
 }
 
 async function noteDelete(c: PubCtx): Promise<Response> {
@@ -839,13 +939,14 @@ async function noteDelete(c: PubCtx): Promise<Response> {
   if (!row) return notFound();
   // Hidden: it stays for the admin with its reports open (review fix S7).
   if (row.state === 'hidden') return error('hidden', 403);
-  if (row.state !== 'removed') {
+  if (row.state === 'active') {
     // The row stays, without its text, until the day's limit has passed (the daily cron). Only while active (S7).
     const active = `EXISTS (SELECT 1 FROM note WHERE id = ?1 AND state = 'active')`;
     await c.db.batch([
       c.db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target = ?1 AND ${active}`).bind(id, c.now),
       c.db.prepare(`UPDATE note SET state = 'removed', text = '', hidden_reason = NULL WHERE id = ?1 AND state = 'active'`).bind(id),
     ]);
+    return publicChange(done());
   }
   return done();
 }

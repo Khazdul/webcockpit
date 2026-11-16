@@ -40,7 +40,9 @@
 // the players' figure, the newest five runs with All runs and Hall of Fame
 // (the two sub-pages, each with Back), Run of the day, Random Runes (the
 // latest notes, the field), the Warlords. The whole list (All runs) shows
-// New only, without sorting, with the search field and the pager.
+// New only, without sorting, with the search field and the pager; it opens
+// on the dashboard field's search (or empties the field). A sender's runs
+// opened from the Hall of Fame go back to it.
 //
 // Random Runes (flag `runes`; off, the board is gone): every note whole,
 // wrapped, never a link. Logged in: the field grows to several lines while
@@ -56,12 +58,13 @@
 import { type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { CommunityBoxes, GalleryPage, GalleryRow, Note, ReportReason, RunesBoard } from '../../../shared/cloud/api.ts';
-import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, NOTE_MAX } from '../../../shared/cloud/api.ts';
+import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, GALLERY_Q_MAX, NOTE_MAX } from '../../../shared/cloud/api.ts';
 import { ownFieldAttrs } from '../../core/own-keyboard';
 import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
-import { cloudTest, config } from '../../cloud/config';
+import { config } from '../../cloud/config';
+import { watchHref } from '../../watch/href';
 import { HIDDEN_TEXT, REASONS, REPORT_MAX, reportText } from '../../watch/model';
 import {
   Box,
@@ -86,7 +89,7 @@ import {
   DEFAULT_SORT,
   type HeadSort,
   NOTE_LIMIT_TEXT,
-  SEARCH_MAX,
+  SEARCH_TOO_LONG,
   SORT_HEADS,
   VIEW_KEY,
   dateText,
@@ -103,10 +106,10 @@ import {
   pagerText,
   pagesOf,
   parseView,
-  runHref,
   runName,
   searchLine,
   searchOf,
+  searchTooLong,
   sortOfKey,
   starsShown,
 } from './community-model';
@@ -156,7 +159,7 @@ const base = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? 
 
 /** Opens a run's watch page in this tab (Back there comes here again). */
 function openRun(id: string): void {
-  location.assign(runHref(id, base(), cloudTest()));
+  location.assign(watchHref(id, 'community', base()));
 }
 
 /** Log in: the account chunk's page over this one. */
@@ -338,11 +341,22 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
       return v.q === undefined ? v : { ...rest, page: 1 };
     });
   };
-  /** The phone: a sub-page over the dashboard (All runs keeps a search asked on the dashboard). */
+  /**
+   * The phone: a sub-page over the dashboard. All runs takes the dashboard
+   * field's text (`search`): the search when it is one, else the field is
+   * emptied (one too long stays, with its line), so the field and the list
+   * never disagree (review fix 2 CR1).
+   */
   const openSub = (s: CommunitySub, o: { search?: string } = {}): void => {
     setCursor(0);
     const text = o.search !== undefined ? (searchOf(o.search) ?? undefined) : undefined;
+    if (o.search !== undefined && text === undefined && !searchTooLong(o.search)) setField('');
     setView((v) => ({ sort: v.sort, page: 1, sub: s, ...(text !== undefined ? { q: text } : {}) }));
+  };
+  /** The phone: from a sender's runs opened in the Hall of Fame back to it (review fix 2 CR3). */
+  const backToHall = (): void => {
+    setCursor(0);
+    setView((v) => ({ sort: v.sort, page: 1, sub: 'hof' }));
   };
   const goHome = (): void => {
     setCursor(0);
@@ -352,7 +366,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   /** Back: what it does here, or null when it leaves the page. */
   const backStep = (): (() => void) | null => {
     if (narrow) {
-      if (sub === 'runs' && view.by) return leaveBy;
+      if (sub === 'runs' && view.by) return view.from === 'hof' ? backToHall : leaveBy;
       if (sub) return goHome;
       return null;
     }
@@ -468,6 +482,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
       narrow={narrow}
       by={view.by ?? null}
       q={view.q ?? null}
+      tooLong={!home && searchTooLong(field)}
       me={account.name}
       guest={!loggedIn}
       search={narrow ? null : search}
@@ -508,7 +523,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
     } else if (sub === 'hof') {
       const hallBy = (name: string): void => {
         setField('');
-        setView((v) => ({ sort: v.sort, page: 1, by: name, sub: 'runs' }));
+        setView((v) => ({ sort: v.sort, page: 1, by: name, sub: 'runs', from: 'hof' }));
       };
       content = <HallPage boxes={boxes} me={account.name} onBy={hallBy} />;
     } else {
@@ -521,7 +536,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
           runes={runesPart(true)}
           me={account.name}
           guest={!loggedIn}
-          onAll={() => openSub('runs')}
+          onAll={() => openSub('runs', { search: field })}
           onHall={() => openSub('hof')}
           onRetry={() => setRetry((n) => n + 1)}
         />
@@ -576,7 +591,7 @@ function SearchField(p: { value: string; inputRef: { current: HTMLInputElement |
         aria-keyshortcuts="/ F"
         placeholder="Search runs"
         value={p.value}
-        maxLength={SEARCH_MAX * 2}
+        maxLength={GALLERY_Q_MAX}
         spellcheck={false}
         autocomplete="off"
         autocapitalize="off"
@@ -634,6 +649,8 @@ interface RunListProps {
   narrow: boolean;
   by: string | null;
   q: string | null;
+  /** The field's text is longer than a search takes: a line says so (review fix 2 CR2). */
+  tooLong: boolean;
   me: string | null;
   guest: boolean;
   /** The search field in the list's head (desktop); null on the phone (above the list). */
@@ -714,6 +731,11 @@ function RunList(p: RunListProps): VNode {
           Runs by <b>{p.by}</b>
         </span>
         <GlassButton id="ALL-RUNS" label="All runs" icon="back" small onClick={p.onLeaveBy} />
+      </div>
+    ) : p.tooLong ? (
+      <div class="wc-cy-by is-search" data-state="too-long">
+        <span class="wc-cy-q">{SEARCH_TOO_LONG}</span>
+        <GlassButton id="CLEAR" icon="close" title="Clear the search" small onClick={p.onClearSearch} />
       </div>
     ) : p.q !== null ? (
       <div class="wc-cy-by is-search">

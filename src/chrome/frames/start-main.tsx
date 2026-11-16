@@ -586,48 +586,49 @@ function useCommunityPage(nav: ReturnType<typeof useNav>): (restore: boolean) =>
   };
 }
 
+/**
+ * Takes the start page's query `?<name>` (or `?<name>=<value>`) once per
+ * page load: its value ('' without one), or null when it is not there or
+ * was taken; it leaves the address at once (review fix 2 CR9: the one way
+ * for `?community` and `?account`).
+ */
+const takenQueries = new Set<string>();
+function takeStartQuery(name: string): string | null {
+  if (takenQueries.has(name)) return null;
+  const q = new URLSearchParams(location.search);
+  const value = q.get(name);
+  if (value === null) return null;
+  takenQueries.add(name);
+  q.delete(name);
+  const rest = q.toString().replace(/=(?=&|$)/g, '');
+  try {
+    history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
+  } catch {
+    /* the address keeps it; a reload opens the page again */
+  }
+  return value;
+}
+
 // `<base>?community` (the watch page's Back for a run opened from the
-// Community page, community-model.ts `communityBackHref`): the page opens
-// over the menu once the flags are known, on its kept view, once per page
-// load; the query leaves the address at once.
-let communityAddressTaken = false;
+// Community page, src/watch/href.ts `backHref`): the page opens over the
+// menu once the flags are known, on its kept view.
 function useCommunityAddress(open: (restore: boolean) => void): void {
   useEffect(() => {
-    if (communityAddressTaken) return;
-    const q = new URLSearchParams(location.search);
-    if (!q.has('community')) return;
-    communityAddressTaken = true;
-    q.delete('community');
-    const rest = q.toString().replace(/=(?=&|$)/g, '');
-    try {
-      history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
-    } catch {
-      /* the address keeps it; a reload opens the page again */
-    }
+    if (takeStartQuery('community') === null) return;
     whenIdle(() => void communityAllowed('read').then((on) => on && open(true)));
   }, []);
 }
 
 // `<base>?account` and `<base>?account=published` (the watch page's Back
 // for a run opened from the Account page or its Published runs view,
-// src/watch/model.ts `accountBackHref`, ADR 0155 W1): that page opens over
-// the menu once the account's state is known, logged in only (else the
-// menu stays), once per page load; the query leaves the address at once.
-let accountAddressTaken = false;
+// src/watch/href.ts `backHref`, ADR 0155 W1): that page opens over the
+// menu once the account's state is known, logged in only (else the menu
+// stays).
 function useAccountAddress(openAccount: (opens: OwnerView['opens']) => void): void {
   useEffect(() => {
-    if (accountAddressTaken) return;
-    const q = new URLSearchParams(location.search);
-    if (!q.has('account')) return;
-    accountAddressTaken = true;
-    const view = q.get('account') === 'published' ? 'published' : 'account';
-    q.delete('account');
-    const rest = q.toString().replace(/=(?=&|$)/g, '');
-    try {
-      history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
-    } catch {
-      /* the address keeps it; a reload opens the page again */
-    }
+    const value = takeStartQuery('account');
+    if (value === null) return;
+    const view = value === 'published' ? 'published' : 'account';
     whenIdle(
       () =>
         void watchAccountState().then((st) => {

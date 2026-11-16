@@ -37,7 +37,7 @@ import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
 import { stateChange } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
 import { dropObjects, keyOf, payloadResponse, pubMeta, pubWithSender, textOf, tombstones } from './pub.ts';
-import { type D1, type D1Statement, type Deps, type Env, dayStart, error, json, utcDay } from './runtime.ts';
+import { type D1, type D1Statement, type Deps, type Env, dayStart, error, json, publicChange, utcDay } from './runtime.ts';
 import { readCapped } from './stats.ts';
 
 const MAX_ACTION_BYTES = 4096;
@@ -252,7 +252,7 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
     // (`tombstones` marks the run's reports handled.)
     await db.batch([...tombstones(db, now, 'id = ?2', [id]), entry]);
     await dropObjects(env, [id]);
-    return done();
+    return publicChange(done(), true);
   }
   const handled = db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'run' AND target = ?1`).bind(id, now);
   // Restore and Dismiss mark the run reviewed (review fix S3): later reports
@@ -265,7 +265,8 @@ async function pubAction(request: Request, env: Env, db: D1, url: URL, now: numb
         ? db.prepare(`UPDATE publication SET state = 'active', hidden_reason = NULL, reviewed = 1, updated = ?2 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id, now)
         : db.prepare(`UPDATE publication SET reviewed = 1 WHERE id = ?1 AND state IN ('active', 'hidden')`).bind(id);
   await db.batch([change, handled, entry]);
-  return done();
+  // Hide and Restore change what the public reads show; Dismiss does not.
+  return action === 'dismiss' ? done() : publicChange(done(), true);
 }
 
 // --- POST /api/admin/account/<name> ---
@@ -299,12 +300,13 @@ async function accountAction(request: Request, env: Env, db: D1, url: URL, now: 
     // The password changed between the read and the batch: nothing was done.
     if (!deleted) return error('conflict', 409);
     await afterDeletion(env, row.id, pubs);
-    return done();
+    return publicChange(done(), true);
   }
   const state = action === 'suspend' ? 'suspended' : 'active';
   // Stage 65: the account's votes leave both sums with Suspend and come back with Restore (only on a change).
   await db.batch([...stateChange(db, row.id, state), logEntry(db, now, who, `account.${action}`, row.name, note)]);
-  return done();
+  // The account's votes, comments and notes leave or come back.
+  return publicChange(done(), true);
 }
 
 // --- /api/admin/comment/<id>, /api/admin/note/<id> (stage 65) ---
@@ -343,5 +345,5 @@ async function itemAction(kind: 'comment' | 'note', request: Request, _env: Env,
   statements.push(db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = ?3 AND target = ?1`).bind(id, now, kind));
   statements.push(logEntry(db, now, who, `${kind}.${action}`, id, note));
   await db.batch(statements);
-  return done();
+  return action === 'dismiss' ? done() : publicChange(done(), true);
 }

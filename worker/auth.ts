@@ -73,7 +73,7 @@ import { addressKey } from './address.ts';
 import { GUESS_WINDOW_MS, type GuessKind, HOUR_MS, addressCounters, countRegistration, nameCounter, peek, reserveGuess, takeBack } from './attempts.ts';
 import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
-import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
+import { DAY_MS, type D1, type Deps, type Env, error, json, publicChange } from './runtime.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
 import { communityUserRoute } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
@@ -496,7 +496,8 @@ async function remove(c: Ctx): Promise<Response> {
   // The R2 objects after it (the daily cron catches what fails), so the
   // answer does not wait on more than one pass.
   await afterDeletion(c.env, row.id, pubs);
-  return empty({ 'Set-Cookie': clearedCookie() });
+  // Its runs, votes, comments and notes leave the public reads.
+  return publicChange(empty({ 'Set-Cookie': clearedCookie() }), true);
 }
 
 // --- Routes ---
