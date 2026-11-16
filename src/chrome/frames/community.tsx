@@ -520,7 +520,7 @@ function RunList(p: RunListProps): VNode {
         ) : (
           <>
             <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
-            <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Export a session and choose Hall of Fame.'}</p>
+            <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
           </>
         )}
       </div>

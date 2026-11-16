@@ -94,7 +94,7 @@ WHAT IS INSIDE
   Profile         Your aliases, actions, highlights, macros and timers. Edit them as a form or as text; #help explains every command. Import brings in profiles from TinTin++, JMC, Powwow and Mudlet.
   Map             Reads MMapper maps and follows you as you move.
   Weather         The sky and weather of Middle-earth over the whole client, driven by the game.
-  Runs            Every login is recorded in this browser. History on the start page looks back at your runs (Sessions, Spotlights and the Diary), and Export turns one into an HTML replay anyone can open.
+  Runs            Every login is recorded in this browser. History on the start page looks back at your runs (Sessions, Spotlights and the Diary), and Share turns one into an HTML replay anyone can open.
   Phone           Log in, chat and play lightly from a phone, with a layout for the thumb and its own on-screen keyboard. Real play is for a computer.
 
 SETTINGS

@@ -45,7 +45,8 @@ test('History on a phone: rows, the card under the tapped row, Export, Back', as
   const pills = (await hist(page).locator('.wc-hist-pills').boundingBox())!;
   expect(pills.y).toBeGreaterThanOrEqual(back.y + back.height - 1);
 
-  // Export opens the Export editor on the phone too.
+  // Share (Export until stage 65's feedback, ADR 0155 W1) opens the export editor on the phone too.
+  await expect(hist(page).locator('.wc-hist-card [data-btn="EXPORT"]')).toHaveText('Share');
   await hist(page).locator('.wc-hist-card [data-btn="EXPORT"]').tap();
   await expect(hist(page)).toHaveCount(0);
   await page.keyboard.press('Escape');

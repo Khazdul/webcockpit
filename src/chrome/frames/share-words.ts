@@ -93,12 +93,12 @@ export function createFailureWords(code: PubErrorCode, limit?: number): string {
 
 // --- Published runs ---
 
-export const PUB_EMPTY = 'No published runs yet. In History, Export a session and choose Link.';
+export const PUB_EMPTY = 'No published runs yet. In History, Share a session and choose Link.';
 
 // --- Published runs as a view of its own (stage 65 C3; round 13's pick 6) ---
 
 /** The Account page's one row when nothing is published (the view is not opened). */
-export const PUB_NONE = 'None yet. In History, Export a session and choose Link or Hall of Fame.';
+export const PUB_NONE = 'None yet. In History, Share a session and choose Link or Hall of Fame.';
 export const LISTED = 'Listed';
 export const LINK_ONLY = 'Link only';
 export const LISTED_SWITCH = 'Listed in the Community';

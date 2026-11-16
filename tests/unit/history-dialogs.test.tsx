@@ -124,7 +124,7 @@ describe('History dialogs: helpers', () => {
     expect(ratingWords(4)).toBe('Four stars');
     expect(ratingWords(9)).toBe('Five stars');
     expect(HISTORY_KEYS.map(([k]) => k)).toEqual(
-      expect.arrayContaining(['↑ ↓', '← →', 'Enter', 'R', 'T', 'A', 'S', 'X', 'D', 'B', 'O', 'Tab', '?', 'Esc']),
+      expect.arrayContaining(['↑ ↓', '← →', 'Enter', 'R', 'T', 'A', 'S', 'H', 'D', 'B', 'O', 'Tab', '?', 'Esc']),
     );
   });
 });
@@ -337,7 +337,7 @@ describe('History dialogs: the run-log error box and the keys box', () => {
     expect(box.querySelector('.wc-lk-hood-t')?.textContent).toBe('Keys');
     const listed = [...box.querySelectorAll('.wc-lk-kh-row')].map((r) => r.textContent);
     expect(listed).toContain('← →Character');
-    expect(listed).toContain('XExport');
+    expect(listed).toContain('HShare');
     expect(listed).toContain('EscBack');
     await key('?');
     expect(dlg('keys')).toBeNull();

@@ -177,7 +177,7 @@ describe('Export editor frame', () => {
     const lib = await library();
     const host = await openEditor(lib);
     expect(isExport(host)).toBe(true);
-    expect(hood(host)).toBe('Export');
+    expect(hood(host)).toBe('Share');
     expect(who(host)).toBe('Rasta');
     expect(counts(host)).toMatch(/^\d{4}-\d\d-\d\d · 5 lines · 0 excluded · 0 comments$/);
     expect(logRows(host).map((r) => r.text)).toEqual([
@@ -452,8 +452,10 @@ describe('Export editor frame', () => {
     await until(() => names.length === 1, 'the download');
     expect(names).toEqual(['Big fight.txt']);
     expect(await blobs[0]!.text()).toBe('You are standing in a field.\n## Fight\nAn orc scout is here.\nThe orc scout is dead!\nYou feel better.\n');
-    expect(flash(host)).toBe('Exported Big fight.txt');
-    // The Export button exports too.
+    expect(flash(host)).toBe('Downloaded Big fight.txt');
+    // The action button reads Download (O) for a file format (ADR 0155 W1) and downloads too.
+    expect(btn(host, 'EXPORT')!.textContent).toContain('Download');
+    expect(btn(host, 'EXPORT')!.textContent).not.toContain('Share');
     await act(() => btn(host, 'EXPORT')!.click());
     await until(() => names.length === 2, 'the second download');
     // H chooses HTML again; a click on Plain text chooses text.

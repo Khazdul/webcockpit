@@ -1,7 +1,7 @@
 // Stage 7 P1, stage 33 (ADR 0115), stage 43d (ADR 0128 §43d): the export
-// editor on the demo backup. History → Export on the Rasta session: the
+// editor on the demo backup. History → Share on the Rasta session: the
 // bar, a comment written inline in the log, exclude, the title inline in
-// the foot, the format toggle (H / P only choose) and Export (O), both
+// the foot, the format toggle (H / P only choose) and Download (O), both
 // downloads, the edits back after Back and a reopen; mouse selection with
 // auto-scroll; the page's width cap; a narrow window.
 import { type Page, expect, test } from '@playwright/test';
@@ -36,13 +36,15 @@ async function openHistory(page: Page): Promise<void> {
   await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
 }
 
-/** History → Export on the Rasta session (the History steps: one helper, stage 45 owns them). */
+/** History → Share on the Rasta session (the History steps: one helper, stage 45 owns them). */
 async function openEditor(page: Page): Promise<void> {
   // History loads its sessions asynchronously; keys before that are lost.
   await expect(hist(page).locator('.wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
   await expect(cur(page)).toContainText('Rasta');
+  // Export is Share since the owner's feedback on stage 65 (ADR 0155 W1); its letter is H.
+  await expect(hist(page).locator('[data-btn="EXPORT"]')).toHaveText('Share');
   await hist(page).locator('[data-btn="EXPORT"]').click();
   await expect(exp(page)).toBeVisible();
   await expect(rows(page).first()).toBeVisible();
@@ -58,7 +60,9 @@ test('export editor: comment, exclude, title, both formats, persistence', async 
   await openHistory(page);
   await openEditor(page);
 
-  await expect(frame(page).locator('.wc-lk-hood-t:not(.is-out)')).toHaveText('Export');
+  await expect(frame(page).locator('.wc-lk-hood-t:not(.is-out)')).toHaveText('Share');
+  // The action reads Download for a file format (O).
+  await expect(btn(page, 'EXPORT')).toHaveText('Download');
   await expect(frame(page).locator('.wc-exp-name')).toHaveText('Rasta');
   await expect(counts(page)).toHaveText(/^Level 42 · 2026-09-26 · [\d,]+ lines · 0 excluded · 0 comments$/);
   await expect(docTitle(page)).toHaveText(/^mume-Rasta-2026-09-26T21-00-\d\d$/);
@@ -135,7 +139,7 @@ test('export editor: comment, exclude, title, both formats, persistence', async 
   expect(text.startsWith('## Start of the demo\n[SYSTEM] Rasta logged in.\nReconnecting.\n')).toBe(true);
   expect(text).not.toContain('\x1b');
   expect(text).not.toContain('change width');
-  await expect(frame(page).locator('.wc-lk-flash')).toHaveText('Exported Demo fight.txt');
+  await expect(frame(page).locator('.wc-lk-flash')).toHaveText('Downloaded Demo fight.txt');
 
   // A press on the strip's top jumps there.
   const map = (await frame(page).locator('.wc-exp-map').boundingBox())!;
@@ -189,9 +193,9 @@ test('export editor: Export builds the HTML replay and reports it in the flash',
   await expect(opt(page, 'HTML')).toHaveAttribute('aria-checked', 'true');
   const download = page.waitForEvent('download', { timeout: 60_000 }).catch(() => null);
   await page.keyboard.press('o');
-  await expect(frame(page).locator('.wc-lk-flash')).toHaveText(/^(Exported mume-Rasta-.*\.html|Export failed: .+)$/, { timeout: 60_000 });
+  await expect(frame(page).locator('.wc-lk-flash')).toHaveText(/^(Downloaded mume-Rasta-.*\.html|Download failed: .+)$/, { timeout: 60_000 });
   const flash = (await frame(page).locator('.wc-lk-flash').textContent()) ?? '';
-  if (flash.startsWith('Exported')) expect((await download)?.suggestedFilename()).toMatch(/^mume-Rasta-.*\.html$/);
+  if (flash.startsWith('Downloaded')) expect((await download)?.suggestedFilename()).toMatch(/^mume-Rasta-.*\.html$/);
 });
 
 test('export editor: a drag in the margin selects and scrolls; Shift+click extends; Esc clears first', async ({ page }) => {
