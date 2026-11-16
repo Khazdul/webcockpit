@@ -100,12 +100,15 @@ export const ACCOUNTS_JS = String.raw`
       load();
     });
 
+    // Only the newest read draws (review fix CR3): a slow answer to an older search is dropped.
+    var seq = 0;
     function load() {
+      var mine = ++seq;
       msg.textContent = '';
       return api(accountsPath()).then(function (d) {
-        draw(d);
+        if (mine === seq) draw(d);
       }, function (e) {
-        msg.textContent = 'Could not read the accounts: ' + e.message;
+        if (mine === seq) msg.textContent = 'Could not read the accounts: ' + e.message;
       });
     }
 

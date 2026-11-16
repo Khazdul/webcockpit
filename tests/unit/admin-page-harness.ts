@@ -24,7 +24,20 @@ export const state = {
   calls: [] as Call[],
   /** path (exact, or a prefix ending in '*') + method → answer. */
   routes: new Map<string, Handler>(),
+  /** The next fetch's answer waits until its release is called (a slow answer). */
+  holdNext: false,
+  held: [] as Array<() => void>,
 };
+
+/** Holds the next fetch's answer; returns what lets it arrive. */
+export function holdNext(): () => Promise<void> {
+  state.holdNext = true;
+  const at = state.held.length;
+  return async () => {
+    state.held[at]?.();
+    await settle();
+  };
+}
 
 export const json = (body: unknown, status = 200): Answer => ({ status, body });
 
@@ -52,8 +65,10 @@ async function fakeFetch(input: string, init: RequestInit = {}): Promise<Respons
   state.calls.push(call);
   const h = find(method, input);
   const a = h ? h(call) : method === 'GET' ? { status: 404, body: { error: 'not_found' } } : { status: 204 };
-  if (a.status === 204) return new Response(null, { status: 204 });
-  return new Response(JSON.stringify(a.body ?? {}), { status: a.status, headers: { 'Content-Type': 'application/json' } });
+  const res = a.status === 204 ? new Response(null, { status: 204 }) : new Response(JSON.stringify(a.body ?? {}), { status: a.status, headers: { 'Content-Type': 'application/json' } });
+  if (!state.holdNext) return res;
+  state.holdNext = false;
+  return new Promise((resolve) => state.held.push(() => resolve(res)));
 }
 
 export async function settle(): Promise<void> {
@@ -69,6 +84,8 @@ export function setup(): void {
   vi.useFakeTimers({ toFake: ['setInterval', 'Date'], now: NOW });
   state.calls = [];
   state.routes = new Map();
+  state.holdNext = false;
+  state.held = [];
   history.replaceState(null, '', '/admin');
   route('GET', '/api/admin/stats', json(stats()));
   route('GET', '/api/admin/reports', json(emptyReports()));

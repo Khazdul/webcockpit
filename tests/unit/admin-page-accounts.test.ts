@@ -5,7 +5,7 @@
 // Reset) and clean-up (End all sessions, Suspend / Restore, Delete with
 // the name typed). Every name from the API is hostile: text only.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { $, HOSTILE, MB, NOW, accounts, boot, buttonIn, cells, choose, debounce, detail, entry, gets, go, json, modal, noMarkup, route, row, settle, setup, state, teardown, type, view, writes } from './admin-page-harness.ts';
+import { $, HOSTILE, MB, NOW, accounts, boot, buttonIn, cells, choose, debounce, detail, entry, gets, go, holdNext, json, modal, noMarkup, route, row, settle, setup, state, teardown, type, view, writes } from './admin-page-harness.ts';
 
 beforeEach(setup);
 afterEach(teardown);
@@ -37,6 +37,19 @@ describe('the admin page: Accounts', () => {
     expect($('.totals', view()).textContent).toBe('12 accounts · 120.3 MB in all');
     expect($('.pager', view()).textContent).toContain('1–3 of 3 · page 1 of 1');
     noMarkup();
+  });
+
+  it('CR3: a slow answer that arrives after a newer one is dropped', async () => {
+    route('GET', '/api/admin/accounts', (c) => json(accounts([row({ name: c.path.includes('q=xav') ? 'xavier' : 'stale-one' })])));
+    await boot('#accounts');
+    const release = holdNext();
+    choose($<HTMLSelectElement>('select[name=state]', view()), 'suspended');
+    await settle();
+    type($<HTMLInputElement>('input[name=q]', view()), 'xav');
+    await debounce();
+    expect(cells($('table.accounts', view())).map((r) => r[0])).toEqual(['xavier']);
+    await release();
+    expect(cells($('table.accounts', view())).map((r) => r[0])).toEqual(['xavier']);
   });
 
   it('search (after a pause), the state filter, sorting and pages each ask the server', async () => {

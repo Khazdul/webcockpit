@@ -4,7 +4,7 @@
 // state, entries from before stage 66 marked "not sealed", hostile notes
 // and targets as text.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { $, HOSTILE, boot, buttonIn, cells, choose, debounce, entry, gets, json, logPage, noMarkup, route, settle, setup, teardown, type, view } from './admin-page-harness.ts';
+import { $, HOSTILE, boot, buttonIn, cells, choose, debounce, entry, gets, holdNext, json, logPage, noMarkup, route, settle, setup, teardown, type, view } from './admin-page-harness.ts';
 
 beforeEach(setup);
 afterEach(teardown);
@@ -70,6 +70,20 @@ describe('the admin page: the audit log', () => {
     const badge = $('.seal', view());
     expect(badge.className).toBe('seal bad');
     expect(badge.textContent).toMatch(/^Not keyed: the Worker has no AUTH_PEPPER/);
+  });
+
+  it('CR3: a slow answer that arrives after a newer one is dropped', async () => {
+    route('GET', '/api/admin/log', (c) => json(logPage([entry(1, { target: c.path.includes('q=orc') ? 'orc' : 'stale-one' })])));
+    await boot('#log');
+    const release = holdNext();
+    choose($<HTMLSelectElement>('select[name=kind]', view()), 'flags');
+    await settle();
+    type($<HTMLInputElement>('input[name=q]', view()), 'orc');
+    await debounce();
+    const targets = () => cells($('table.audit', view())).map((r) => r[3]);
+    expect(targets()).toEqual(['orc']);
+    await release();
+    expect(targets()).toEqual(['orc']);
   });
 
   it('Older asks with before=next and adds the rows; the end hides it', async () => {

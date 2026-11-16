@@ -161,10 +161,14 @@ export const LOG_JS = String.raw`
       }, 300);
     });
 
+    // Only the newest read draws (review fix CR3): a slow answer to an older filter is dropped.
+    var seq = 0;
     function load(before) {
+      var mine = ++seq;
       msg.textContent = '';
       older.disabled = true;
       return api(logPath(before)).then(function (d) {
+        if (mine !== seq) return;
         var entries = Array.isArray(d.entries) ? d.entries : [];
         if (before === null) {
           tbody.replaceChildren();
@@ -185,6 +189,7 @@ export const LOG_JS = String.raw`
         older.hidden = next === null || next === undefined;
         older.disabled = false;
       }, function (e) {
+        if (mine !== seq) return;
         msg.textContent = 'Could not read the log: ' + e.message;
         older.disabled = false;
       });
