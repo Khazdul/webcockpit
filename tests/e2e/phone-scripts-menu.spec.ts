@@ -51,6 +51,23 @@ async function tappable(page: Page, l: Locator): Promise<void> {
   expect(b.x + b.width).toBeLessThanOrEqual(page.viewportSize()!.width + 0.5);
 }
 
+/**
+ * Back on a phone is drawn 28 px high inside the window; its 40 px touch
+ * target is an invisible ::before growing upward over the frame (ADR 0155,
+ * feedback round 2): a tap 40 px above its bottom edge still lands on it.
+ */
+async function backTappable(page: Page, l: Locator): Promise<void> {
+  const b = (await l.boundingBox())!;
+  expect(b.x).toBeGreaterThanOrEqual(0);
+  expect(b.x + b.width).toBeLessThanOrEqual(page.viewportSize()!.width + 0.5);
+  const hit = await l.evaluate((el, y) => {
+    const r = el.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + r.width / 2, y);
+    return !!t && (t === el || el.contains(t));
+  }, b.y + b.height - 39.5);
+  expect(hit).toBe(true);
+}
+
 /** Enters MUME on `?phone=1` with the script `phonemenu` on; returns the mocked server. */
 async function enterMume(page: Page): Promise<() => WebSocketRoute> {
   let server: WebSocketRoute | null = null;
@@ -92,7 +109,7 @@ test('the menu sheet → Scripts: the index, a panel by tap, a setting the runni
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Scripts');
   await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'narrow');
   await expect(page.locator('.wc-win')).toHaveCount(0);
-  await tappable(page, back(page));
+  await backTappable(page, back(page));
   for (const r of await f.locator('.wc-scr-row').all()) await tappable(page, r);
   for (const b of ['NEW', 'IMPORT', 'MANUAL']) await tappable(page, f.locator(`.wc-scr-foot [data-btn="${b}"]`));
   expect(await typing(page)).toBe(false);
@@ -128,7 +145,7 @@ test('the menu sheet → Scripts: the index, a panel by tap, a setting the runni
   await ed.locator('.wc-sed-tools [data-btn="MANUAL"]').tap();
   await expect(menuLook(page).locator('.wc-sman')).toBeVisible();
   await expect(menuLook(page).locator('.wc-lk-hood-t')).toHaveText('Script Manual');
-  await tappable(page, back(page));
+  await backTappable(page, back(page));
   expect(await typing(page)).toBe(false);
   await back(page).tap();
   await expect(ed).toBeVisible();
