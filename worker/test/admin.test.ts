@@ -4,7 +4,7 @@
 import { exports } from 'cloudflare:workers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AdminFlag, AdminLogEntry, AdminReports, AdminStats, PubMeta } from '../../shared/cloud/api.ts';
-import { forgetAccessKeys } from '../access.ts';
+import { CERTS_MAX_STALE_MS, CERTS_REFETCH_MS, CERTS_TTL_MS, forgetAccessKeys } from '../access.ts';
 import { ADMIN_JS_MODULES } from '../admin/page.ts';
 import { handle } from '../router.ts';
 import type { Deps, Env } from '../runtime.ts';
@@ -149,6 +149,56 @@ describe('the Access check', () => {
       at(NOW),
     );
     expect(res.status).toBe(403);
+  });
+});
+
+describe('S9 (stage 66 review): the certs endpoint failing', () => {
+  /** Deps whose certs fetch fails (counted), at `now`. */
+  const failing = (now: number): Deps =>
+    at(now, async () => {
+      certFetches++;
+      return new Response('down', { status: 500 });
+    });
+  const asOwner = async (now: number, d: Deps): Promise<number> => {
+    const token = await sign({ ...goodClaims(), iat: now / 1000 - 60, nbf: now / 1000 - 60, exp: now / 1000 + 3600 });
+    return (await handle(new Request(`${ORIGIN}/api/admin/stats`, { headers: { 'Cf-Access-Jwt-Assertion': token } }), adminEnv(), d)).status;
+  };
+
+  it('a failed fetch is tried again at most once a minute, the last keys kept meanwhile', async () => {
+    expect(await asOwner(NOW, deps(NOW))).toBe(200);
+    expect(certFetches).toBe(1);
+    const stale = NOW + CERTS_TTL_MS + 1000;
+    expect(await asOwner(stale, failing(stale))).toBe(200);
+    expect(certFetches).toBe(2);
+    // Within the minute: no fetch, also for a request without a token or with an unknown key.
+    for (const t of [stale + 1000, stale + CERTS_REFETCH_MS - 1000]) {
+      expect(await asOwner(t, failing(t))).toBe(200);
+      const unknownKid = await sign({ ...goodClaims(), exp: t / 1000 + 3600 }, { kid: 'k9' });
+      expect((await handle(new Request(`${ORIGIN}/api/admin/stats`, { headers: { 'Cf-Access-Jwt-Assertion': unknownKid } }), adminEnv(), failing(t))).status).toBe(403);
+    }
+    expect(certFetches).toBe(2);
+    const later = stale + CERTS_REFETCH_MS + 1000;
+    expect(await asOwner(later, failing(later))).toBe(200);
+    expect(certFetches).toBe(3);
+  });
+
+  it('with no keys yet, a failed fetch also waits a minute', async () => {
+    expect(await asOwner(NOW, failing(NOW))).toBe(403);
+    expect(await asOwner(NOW + 1000, failing(NOW + 1000))).toBe(403);
+    expect(certFetches).toBe(1);
+    expect(await asOwner(NOW + CERTS_REFETCH_MS + 1000, deps(NOW + CERTS_REFETCH_MS + 1000))).toBe(200);
+    expect(certFetches).toBe(2);
+  });
+
+  it('keys older than the TTL and CERTS_MAX_STALE_MS are not used any more', async () => {
+    expect(await asOwner(NOW, deps(NOW))).toBe(200);
+    const edge = NOW + CERTS_TTL_MS + CERTS_MAX_STALE_MS - 1000;
+    expect(await asOwner(edge, failing(edge))).toBe(200);
+    const past = NOW + CERTS_TTL_MS + CERTS_MAX_STALE_MS + CERTS_REFETCH_MS;
+    expect(await asOwner(past, failing(past))).toBe(403);
+    // Fetched again: fine.
+    const back = past + CERTS_REFETCH_MS + 1000;
+    expect(await asOwner(back, deps(back))).toBe(200);
   });
 });
 

@@ -21,8 +21,18 @@ import { type Deps, type Env, error } from './runtime.ts';
 
 /** The keys are fetched again after this long, or when a token names a key we do not have. */
 export const CERTS_TTL_MS = 60 * 60_000;
-/** An unknown `kid` fetches the keys again at most this often. */
+/**
+ * The keys are fetched at most this often: for an unknown `kid`, and after
+ * a failed fetch (review fix S9: a failing certs endpoint is not asked on
+ * every request).
+ */
 export const CERTS_REFETCH_MS = 60_000;
+/**
+ * Keys this long past their TTL are not used any more, even while the
+ * certs cannot be fetched (review fix S9). Access keeps a rotated key valid
+ * for 7 days; a day of outage is a day without the admin page at worst.
+ */
+export const CERTS_MAX_STALE_MS = 24 * 60 * 60_000;
 /** Clock skew allowed on `exp` and `nbf`. */
 export const LEEWAY_S = 30;
 
@@ -34,7 +44,8 @@ interface Jwk {
   e?: string;
 }
 
-const keyCache = new Map<string, { at: number; keys: Map<string, CryptoKey> }>();
+/** Per team host: the keys, when they were fetched (`at`), and when a fetch was last tried (`tried`). */
+const keyCache = new Map<string, { at: number; tried: number; keys: Map<string, CryptoKey> }>();
 
 /** Drops the cached keys (tests). */
 export function forgetAccessKeys(): void {
@@ -101,16 +112,19 @@ async function keyFor(host: string, kid: string, deps: Deps): Promise<CryptoKey 
   const now = deps.now();
   let hit = keyCache.get(host);
   const stale = !hit || now - hit.at > CERTS_TTL_MS || now < hit.at;
-  const unknown = hit && !hit.keys.has(kid) && now - hit.at > CERTS_REFETCH_MS;
-  if (stale || unknown) {
+  const unknown = !!hit && !hit.keys.has(kid);
+  const mayTry = !hit || now - hit.tried > CERTS_REFETCH_MS || now < hit.tried;
+  if ((stale || unknown) && mayTry) {
     try {
-      hit = { at: now, keys: await fetchKeys(host, deps) };
-      keyCache.set(host, hit);
+      hit = { at: now, tried: now, keys: await fetchKeys(host, deps) };
     } catch {
-      // Keep what we had, if anything.
+      // Keep what we had, if anything, and wait CERTS_REFETCH_MS before the next try.
+      hit = hit ? { ...hit, tried: now } : { at: -Infinity, tried: now, keys: new Map() };
     }
+    keyCache.set(host, hit);
   }
-  return hit?.keys.get(kid) ?? null;
+  if (!hit || now - hit.at > CERTS_TTL_MS + CERTS_MAX_STALE_MS) return null;
+  return hit.keys.get(kid) ?? null;
 }
 
 export type AccessResult = { ok: true; email: string } | { ok: false; response: Response };
