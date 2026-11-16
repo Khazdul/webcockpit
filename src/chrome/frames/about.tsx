@@ -348,7 +348,7 @@ export const PrivacyFrame = lookFrame(function PrivacyFrame(): VNode {
       // With the flag `share` too (stage 64): what a share link makes public.
       if (await flagOn('share')) {
         const sh = await import('./privacy-share');
-        next = { ...sh.withShare(next.text, next.nav), sub: sh.PRIVACY_SHARE_UPDATED };
+        next = { ...sh.withShare(next.text, next.nav, { community: await flagOn('gallery') }), sub: sh.PRIVACY_SHARE_UPDATED };
       }
       if (alive) setPage(next);
     })().catch(() => {});

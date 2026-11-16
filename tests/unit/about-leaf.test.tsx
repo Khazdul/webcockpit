@@ -21,7 +21,7 @@ import { LOGIN_TURNSTILE_AFTER, REPORTS_TO_HIDE, SESSION_SECONDS } from '../../s
 import { KEEP_VIEWS_DAYS } from '../../worker/pub';
 import { PRIVACY_ACCOUNTS, PRIVACY_ACCOUNTS_NAV, withAccounts } from '../../src/chrome/frames/privacy-accounts';
 import { PRIVACY_NAV, PRIVACY_TEXT } from '../../src/chrome/frames/privacy-text';
-import { PRIVACY_SHARE, PRIVACY_SHARE_NAV, withShare } from '../../src/chrome/frames/privacy-share';
+import { PRIVACY_COMMUNITY, PRIVACY_COMMUNITY_NAV, PRIVACY_SHARE, PRIVACY_SHARE_NAV, withShare } from '../../src/chrome/frames/privacy-share';
 import { BEAT_MINUTES, BEAT_STATES } from '../../shared/cloud/api';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
@@ -485,6 +485,8 @@ describe("the privacy page's share links section (flags `accounts` and `share`)"
   it('says what the Worker and the watch page do, and the abuse address', () => {
     expect(REPORTS_TO_HIDE).toBe(5);
     expect(KEEP_VIEWS_DAYS).toBe(2);
+    expect(PRIVACY_SHARE).toContain('Map, Timers and Group');
+    expect(PRIVACY_SHARE).not.toContain('download');
     expect(PRIVACY_SHARE).toContain('five accounts');
     expect(PRIVACY_SHARE).toContain('deleted after two days');
     expect(PRIVACY_SHARE).toContain('Anyone with the link');
@@ -498,3 +500,19 @@ describe("the privacy page's share links section (flags `accounts` and `share`)"
   });
 });
 
+
+describe('privacy: the community section (stage 65)', () => {
+  it('comes after the share links section, with its rail entry, only when asked for', () => {
+    const base = 'INTRO\nWHO RUNS IT\nus\n';
+    const nav = [{ id: 'who', head: 'WHO RUNS IT', nav: 'Who runs it', letter: 'w' }] as Parameters<typeof withShare>[1];
+    const off = withShare(base, nav);
+    expect(off.text).not.toContain(PRIVACY_COMMUNITY);
+    const on = withShare(base, nav, { community: true });
+    expect(on.text.indexOf(PRIVACY_SHARE)).toBeLessThan(on.text.indexOf(PRIVACY_COMMUNITY));
+    expect(on.text.indexOf(PRIVACY_COMMUNITY)).toBeLessThan(on.text.indexOf('WHO RUNS IT'));
+    expect(on.nav.map((n) => n.id)).toEqual(['share', 'community', 'who']);
+    expect(on.nav[1]).toBe(PRIVACY_COMMUNITY_NAV);
+    expect(PRIVACY_COMMUNITY).toContain('30 days');
+    expect(PRIVACY_COMMUNITY).toContain('account name');
+  });
+});
