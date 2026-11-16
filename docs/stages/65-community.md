@@ -1,18 +1,35 @@
 # Stage 65 — The community
 
-Status: **On staging (2026-11-16)**, waiting for the owner's test.
-`gallery` and `runes` on in staging, off in production; no release.
+Status: **On staging after the owner's feedback round 1 (2026-11-16,
+night pass)**; the release 0.14.0 is prepared but not made (the session
+was not allowed to tag a release). `gallery` and `runes` on in staging,
+off in production.
 
 ## Waiting for the owner
 
-1. **The test on staging** (the test guide below), with two accounts and
-   a private window; the look of the Community page and of the watch page
-   in the start frame (his picks of round 13 are built, not seen by him).
-2. **Words to approve:** none new in `/privacy` yet; say if the board's
-   and the comments' "shown with your account name" should be written
-   there (spec point 11.9 asks for it; proposed in the guide, step 9).
-3. **The go-ahead for part F** (the release with `gallery` and `runes`
-   on in production), a step of its own on his explicit word.
+1. **The release 0.14.0** (the night pass could not tag it: the tool's
+   permission check refused the version bump and tag). Everything is
+   green and on staging; the release is three commands (below, "Release
+   0.14.0").
+2. **Opening the community in production**: after the release, turn
+   `gallery` and `runes` on from `/admin` → Flags (no release needed),
+   or say so and the next session flips `FLAG_GALLERY`/`FLAG_RUNES` in
+   production's vars. Kept off by the rule that opening is its own step.
+3. **A look at the feedback round's results** on staging (the test
+   guide's "Second look"), above all the phone's dashboard and the
+   watch page in the frame, which he has not seen.
+
+### Release 0.14.0 (for the owner, or a session allowed to tag)
+
+```
+npm version 0.14.0 --no-git-tag-version
+git commit -am "chore: release 0.14.0 (stage 65)"
+git tag v0.14.0 && git push origin main v0.14.0
+```
+
+The tag runs `deploy.yml` for production: migration `0006_community.sql`
+(additive), the Worker with `SEARCH_LIMITER`, the site. Then
+`WC_PROD_URL=https://mumecockpit.com npm run test:prod`.
 
 ## Goal
 
@@ -365,6 +382,25 @@ then the phone.
 9. **`/privacy`** (optional now): the board and comments show the
    account name; we propose a short line there before production.
 
+**Second look (after the feedback round, 2026-11-16; deploy run
+43791543857, commit 694515c5; `test:prod` 36/36 against staging):**
+
+10. **Share.** History says Share; the editor's button says Download
+    (HTML, Text) or Share (Link, Hall of Fame).
+11. **Published runs:** a run's title opens it; Back returns to
+    Published runs.
+12. **The watch page:** starts paused; no Download as HTML; no level;
+    only Map, Timers and Group in the replay, all off until toggled.
+13. **The Community page:** short headings (Run, Stars, Com., Views),
+    "Title (Char)", Random Runes at the bottom (at most 40 %), the big
+    "N players on MUME" at the top right, search (in the Run heading;
+    `/` or F), the note field's "A note…".
+14. **The phone:** the dashboard (players, the newest 5, All runs and
+    Hall of Fame as sub-pages, Run of the day, Random Runes, Warlords).
+15. **Freshness:** two windows (one private), as in your test: a note or
+    a listing shows for the other at once on reload (the cause was the
+    Worker's own 60-second copy; now every public write clears it).
+
 **Feedback wanted:** the Community page and the watch page in the frame
 in real use (desktop and phone), the counter and the owner row's mark,
 the board's length (250), anything that looked wrong; then yes or no to
@@ -403,4 +439,24 @@ vill jag vakna till en ny publicerad version"):
     name": empty or a sparse hint.
 13. Shared runs (Hall of Fame, link, HTML export) carry only the panes
     **Map, Timers and Group**, all **off by default** in the replay.
+
+**Built in the night pass (2026-11-16)**, by agents in worktrees W1–W4,
+ADR 0155 "As built (stage 65, owner's feedback: W1 … W4)": all thirteen
+points; point 4's cause was the Worker's own 60-second copy of the
+public answers (a reload could not pass it); now the browser gets
+`no-cache`, the copy is kept 60 s at most and a public write clears it.
+Also: the shared replay's header without a level; `/privacy` rewritten
+for what shared runs carry and a section "The community". A second
+security review (`notes/research/stage65-security-review-2.md`: R2-1
+search cost, R2-2 cache clearing, R2-3 the privacy words) and
+`/code-review` high (ten findings): all fixed ("review fixes 2").
+
+Checks after the round (2026-11-16): unit and worker 5 347 passed;
+full e2e alone at 5 workers 1 837 passed, 2 failed under load: Firefox
+lua-help:94 passed alone 6/6; import:148 (Firefox's drag-over class)
+fails alone too, and fails as often on 6df5fe2f (before this stage, 4
+of 10): an old flake, not this stage's; the benchmark (GPU) key → send
+playing 0.8 / 1.1 / 3.5 ms, burst 79 303 lines/s, no frame over 50 ms;
+entry chunk 31 362 bytes; `test:sync-worker` 6/6 (with the freshness
+spec); staging deploy run 43791543857 (694515c5), `test:prod` 36/36.
 
