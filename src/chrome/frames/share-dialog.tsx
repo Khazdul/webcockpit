@@ -59,6 +59,7 @@ import { DEFAULT_ACCOUNT_LIMITS, PUB_DESCRIPTION_MAX } from '../../../shared/clo
 import { type Account, loadAccount, setPrefs } from '../../cloud/account';
 import { type PubFailure, createPubApi } from '../../cloud/pub/api';
 import type { MyPub } from '../../../shared/cloud/api.ts';
+import { PREVIEW_MAX_BYTES } from '../../../shared/cloud/preview.ts';
 import { cleanTitle, codePointCount, linkMeta, linkUrl, newLinkKey, sizeWords, typedDescription, typedTitle } from '../../share/link';
 import type { LinkPayload } from '../../share/link-payload';
 import { copyText } from '../kit/clipboard';
@@ -105,6 +106,17 @@ type Built = { ok: true; link: LinkPayload } | { ok: false };
 type AcctView = Pick<Account, 'state' | 'limits'> & { rulesAccepted: boolean };
 
 type Phase = 'form' | 'up' | 'done';
+
+/** Draws the link's preview image and uploads it; never rejects. */
+async function uploadPreview(id: string, link: LinkPayload): Promise<void> {
+  try {
+    const { renderPreview } = await import('../../share/preview-image');
+    const png = await renderPreview(link.payload);
+    if (png.length <= PREVIEW_MAX_BYTES) await createPubApi().preview(id, png);
+  } catch {
+    // No preview: the generic one is shown.
+  }
+}
 
 export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): VNode {
   const nav = useNav();
@@ -195,6 +207,9 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
     if (r.ok) {
       setMade(r.value);
       setPhase('done');
+      // The link preview image (ADR 0158), in the background: the link
+      // works without it (the generic image stands in), so a failure is quiet.
+      void uploadPreview(r.value.id, link);
       return;
     }
     setPhase('form');

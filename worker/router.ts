@@ -26,8 +26,10 @@
 //                             the community, public (worker/community.ts; flags
 //                             `share` and `gallery`, the board `runes` too)
 //   /r/<id>                   the watch page: the site's index.html (the app
-//                             boots into it); a static file under /r/ (the
-//                             frame document) is served as it is
+//                             boots into it) with the log's link preview meta
+//                             tags (worker/og.ts, ADR 0158); a static file
+//                             under /r/ (the frame document) is served as it is
+//   GET  /r/<id>/preview.png  the log's preview image (worker/og.ts)
 //   other /api/*              404 { error: "not_found" }; a wrong method is
 //                             405 { error: "method_not_allowed" }
 //   anything else             the static assets (only reached when no file
@@ -52,6 +54,7 @@ import { panelRoute } from './panel.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
 import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
 import { afterWrite, communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
+import { isPreviewPath, previewImage, watchHtml } from './og.ts';
 import { isPublicPubPath, publicPub } from './pub.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
 
@@ -274,7 +277,8 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
     await loadLimitDefaults(env, deps.now());
     return written(url, deps, await dispatch(request, env, url, deps, adminRoute(path), await whoOf(env, access.email)));
   }
-  if (path.startsWith('/r/')) return watchPage(request, env, url);
+  if (isPreviewPath(path)) return previewImage(request, env, url, deps);
+  if (path.startsWith('/r/')) return watchPage(request, env, url, deps);
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
   // (accountApi loads the default limits after its rate limit, before any handler checks one.)
   if (isAccountPath(path)) return written(url, deps, await accountApi(request, env, url, deps));
@@ -292,20 +296,32 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
  * of `html_handling` to `/r/frame`) is served as it is; only what the
  * assets do not have becomes `index.html` (the app shows the error).
  */
-async function watchPage(request: Request, env: Env, url: URL): Promise<Response> {
+async function watchPage(request: Request, env: Env, url: URL, deps: Deps): Promise<Response> {
   const method = request.method;
   if (method !== 'GET' && method !== 'HEAD') return env.ASSETS.fetch(request);
   const id = url.pathname.slice('/r/'.length);
-  if (!PUB_ID_PATTERN.test(id)) {
+  const isId = PUB_ID_PATTERN.test(id);
+  if (!isId) {
     const file = await env.ASSETS.fetch(request);
     if (file.status !== 404) return file;
   }
+  // A log's page carries its own meta tags (ADR 0158): no conditional
+  // request, so a cached page never keeps another log's (or an old) title.
   const headers = new Headers();
-  for (const name of ['if-none-match', 'if-modified-since', 'accept', 'accept-encoding']) {
+  for (const name of isId ? ['accept'] : ['if-none-match', 'if-modified-since', 'accept', 'accept-encoding']) {
     const v = request.headers.get(name);
     if (v !== null) headers.set(name, v);
   }
-  return env.ASSETS.fetch(new Request(new URL('/', url), { method, headers }));
+  const page = await env.ASSETS.fetch(new Request(new URL('/', url), { method: 'GET', headers }));
+  if (!isId || page.status !== 200 || !(page.headers.get('content-type') ?? '').includes('text/html')) {
+    return method === 'HEAD' ? new Response(null, { status: page.status, headers: page.headers }) : page;
+  }
+  const html = await page.text();
+  const tagged = (await watchHtml(env, html, url.origin, id, deps.now())) ?? html;
+  const out = new Headers(page.headers);
+  for (const name of ['etag', 'last-modified', 'content-length', 'content-encoding']) out.delete(name);
+  out.set('Cache-Control', 'no-cache');
+  return new Response(method === 'HEAD' ? null : tagged, { status: 200, headers: out });
 }
 
 export async function handle(request: Request, env: Env, deps: Deps = DEFAULT_DEPS): Promise<Response> {

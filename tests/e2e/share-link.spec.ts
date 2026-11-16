@@ -15,7 +15,9 @@
 //   150 reached (with Open Account), offline (Try again).
 // - Published runs: the list (a hidden run's note), Copy, Edit, Remove,
 //   empty; no section with `share` off.
+import { writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
+import { PREVIEW_MAX_BYTES, isPreviewPng } from '../../shared/cloud/preview';
 import { type Page, type Request, expect, test } from '@playwright/test';
 import { REPLAY_SETTINGS_KEYS } from '../../src/share/replay-settings';
 import { validatePayload } from '../../src/replay/validate';
@@ -187,7 +189,8 @@ test('the first share: the rules ticked in the dialog, the link with Copy; only 
   expect(s.pubsOf(NAME)[0]).toMatchObject({ title: 'Clearing the ranger camp', description: 'Norsy and Kuzzim join at the ford.', character: 'Rasta', listed: false });
 
   // What went to the API while the dialog was up: the account (a GET), the tick, the one POST.
-  const writes = log.filter((r) => r.method !== 'GET');
+  // (The preview image's PUT comes after the link, in the background: checked below.)
+  const writes = log.filter((r) => r.method !== 'GET' && !r.path.endsWith('/preview'));
   expect(writes.map((r) => `${r.method} ${r.path}`)).toEqual(['PATCH /api/u/account/prefs', 'POST /api/u/pub']);
   expect(log.filter((r) => r.method === 'GET').map((r) => r.path)).toEqual(['/api/u/account']);
   expect(JSON.parse(writes[0]!.body!.toString('utf8'))).toEqual({ rulesAccepted: true });
@@ -208,6 +211,15 @@ test('the first share: the rules ticked in the dialog, the link with Copy; only 
   // Nothing of the export doc, the run library's records or the account's keys.
   expect(json).not.toMatch(/"sessionId"|"excludes"|"runId"|"sealed"|"endedUs"|wrapPw|authKey|dataKey|"profile"|"spotlights"|"phone"/);
   expect(body.length).toBe(4 + n + gz.length);
+
+  // The link preview image (ADR 0158): drawn here after the link and sent as one PUT of a PNG.
+  await expect.poll(() => s.pubPreviews.has(id), { timeout: 15_000 }).toBe(true);
+  const preview = s.pubPreviews.get(id)!;
+  expect(preview.length).toBeLessThanOrEqual(PREVIEW_MAX_BYTES);
+  expect(isPreviewPng(preview)).toBe(true);
+  expect(log.filter((r) => r.path.endsWith('/preview')).map((r) => `${r.method} ${r.path}`)).toEqual([`PUT /api/u/pub/${id}/preview`]);
+  // `WC_PREVIEW_SAMPLE=<file>` keeps the image to look at.
+  if (process.env.WC_PREVIEW_SAMPLE) writeFileSync(process.env.WC_PREVIEW_SAMPLE, preview);
 
   await btn(page, 'DONE').click();
   await expect(done(page)).toHaveCount(0);
@@ -249,7 +261,7 @@ test('the second share: the form alone, Enter creates the link with one POST', a
   await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.press('Enter');
   await expect(done(page)).toBeVisible();
-  expect(log.filter((r) => r.method !== 'GET').map((r) => `${r.method} ${r.path}`)).toEqual(['POST /api/u/pub']);
+  expect(log.filter((r) => r.method !== 'GET' && !r.path.endsWith('/preview')).map((r) => `${r.method} ${r.path}`)).toEqual(['POST /api/u/pub']);
   expect(s.pubsOf(NAME)).toHaveLength(2);
   // A link's doc keeps no link: the export doc's format stays as stored.
   await page.keyboard.press('Escape');
