@@ -128,7 +128,7 @@ test.describe('the states', () => {
     const s = await setUp(page);
     s.pubs.setState(ID, 'removed');
     await openWatch(page);
-    await expectEnd(page, 'This run was removed by its sender.', 'The link no longer leads anywhere.');
+    await expectEnd(page, 'This log was removed by its sender.', 'The link no longer leads anywhere.');
     await expect(page.locator('.wc-watch-slot')).toHaveCount(0);
   });
 
@@ -137,7 +137,7 @@ test.describe('the states', () => {
     s.pubs.setState(ID, 'hidden');
     await logIn(page, s, WATCHER);
     await openWatch(page);
-    await expectEnd(page, 'This run is hidden.', 'It was hidden after reports and waits for a look.');
+    await expectEnd(page, 'This log is hidden.', 'It was hidden after reports and waits for a look.');
     expect(s.pubs.payloadRequests).toEqual([]);
   });
 
@@ -159,17 +159,17 @@ test.describe('the states', () => {
   test('unknown: a 404, and an address that is no id', async ({ page }) => {
     await setUp(page);
     await openWatch(page, 'Zz9Zz9Zz9Zz9');
-    await expectEnd(page, 'There is no run at this link.', 'Check the address, or ask whoever sent it.');
+    await expectEnd(page, 'There is no log at this link.', 'Check the address, or ask whoever sent it.');
     await openWatch(page, 'not-an-id');
-    await expectEnd(page, 'There is no run at this link.');
+    await expectEnd(page, 'There is no log at this link.');
     await page.goto('/r/a.b?cloudtest');
-    await expectEnd(page, 'There is no run at this link.');
+    await expectEnd(page, 'There is no log at this link.');
   });
 
   test('"This link does not work yet." with the flag share off', async ({ page }) => {
     const s = await setUp(page, { share: false });
     await openWatch(page);
-    await expectEnd(page, 'This link does not work yet.', 'Shared runs open soon. Until then the link leads nowhere.');
+    await expectEnd(page, 'This link does not work yet.', 'Shared logs open soon. Until then the link leads nowhere.');
     expect(s.pubs.payloadRequests).toEqual([]);
   });
 
@@ -177,7 +177,7 @@ test.describe('the states', () => {
     const s = await setUp(page);
     s.pubs.failPublic = 503;
     await openWatch(page);
-    await expectEnd(page, 'The run could not be loaded.', 'Check the connection and try again.');
+    await expectEnd(page, 'The log could not be loaded.', 'Check the connection and try again.');
     s.pubs.failPublic = null;
     await endBox(page).locator('[data-btn="RETRY"]').click();
     await playing(page);
@@ -192,7 +192,7 @@ test.describe('the states', () => {
       return route.fallback();
     });
     await openWatch(page);
-    await expectEnd(page, 'The run could not be loaded.', 'Check the connection and try again.');
+    await expectEnd(page, 'The log could not be loaded.', 'Check the connection and try again.');
     await endBox(page).locator('[data-btn="RETRY"]').click();
     await playing(page);
     expect(configs).toBe(2);
@@ -206,7 +206,7 @@ test.describe('the states', () => {
     await expectEnd(page, 'This replay could not be read (damaged data).');
     await expect(page.locator('iframe')).toHaveCount(0);
     await openWatch(page, 'NotReplay000');
-    await expectEnd(page, 'This replay could not be read (not a valid replay).', 'The link works, but this run cannot be played. Tell whoever sent it.');
+    await expectEnd(page, 'This replay could not be read (not a valid replay).', 'The link works, but this log cannot be played. Tell whoever sent it.');
   });
 
   test('loading: the band first, the bar in the frame', async ({ page }) => {
@@ -220,7 +220,7 @@ test.describe('the states', () => {
     });
     await openWatch(page);
     await expect(band(page).locator('[data-watch="title"]')).toHaveText('Clearing the ranger camp');
-    await expect(page.locator('.wc-watch-wait .wc-lk-load-l')).toHaveText(/^Loading the run…/);
+    await expect(page.locator('.wc-watch-wait .wc-lk-load-l')).toHaveText(/^Loading the log…/);
     await expect(watchBtn(page, 'REPORT')).toBeVisible();
     release();
     await playing(page);
@@ -236,7 +236,7 @@ test.describe('Report', () => {
     await watchBtn(page, 'REPORT').click();
     const d = dialog(page, 'report-guest');
     await expect(d.locator('.wc-lk-q')).toHaveText('Log in to report.');
-    await expect(d.locator('.wc-lk-qn')).toHaveText('Reports come from accounts, one per run. Without an account, write to abuse@mumecockpit.com with the link.');
+    await expect(d.locator('.wc-lk-qn')).toHaveText('Reports come from accounts, one per log. Without an account, write to abuse@mumecockpit.com with the link.');
     await expect(d.locator('a.wc-watch-mail')).toHaveAttribute('href', 'mailto:abuse@mumecockpit.com');
     await d.locator('[data-btn="CLOSE"]').click();
     await expect(d).toHaveCount(0);
@@ -255,7 +255,7 @@ test.describe('Report', () => {
     await playing(page);
     await watchBtn(page, 'REPORT').click();
     const d = dialog(page, 'report');
-    await expect(d.locator('.wc-lk-hood-t')).toHaveText('Report this run');
+    await expect(d.locator('.wc-lk-hood-t')).toHaveText('Report this log');
     await expect(d).toContainText('What is wrong with “Clearing the ranger camp”?');
     await expect(d.locator('[role="radio"]')).toHaveText(['Harassment', 'Real-life information about someone', 'Breaks MUME’s rules', 'Other']);
     await expect(d).toContainText('The sender is not told who reported.');
@@ -267,11 +267,11 @@ test.describe('Report', () => {
     await d.locator('[data-btn="SEND"]').click();
     const t = dialog(page, 'report-thanks');
     await expect(t.locator('.wc-lk-q')).toHaveText('Thank you.');
-    await expect(t.locator('.wc-lk-qn')).toHaveText('We look at every report. A run that breaks the rules is removed; one that many report is hidden until then.');
+    await expect(t.locator('.wc-lk-qn')).toHaveText('We look at every report. A log that breaks the rules is removed; one that many report is hidden until then.');
     expect(s.pubs.reports).toEqual([{ kind: 'run', target: ID, reason: 'real_life', text: 'His real name is in the narrates.', account: WATCHER }]);
     await t.locator('[data-btn="CLOSE"]').click();
     await watchBtn(page, 'REPORT').click();
-    await expect(dialog(page, 'report-already').locator('.wc-lk-q')).toHaveText('You have already reported this run.');
+    await expect(dialog(page, 'report-already').locator('.wc-lk-q')).toHaveText('You have already reported this log.');
   });
 
   test('logged in: the server\'s 409 is "already reported"; its 429 is a line in the dialog; the keys', async ({ page }) => {
@@ -448,7 +448,7 @@ test.describe('?admin', () => {
     s.pubs.setState(ID, 'hidden');
     await openWatch(page, ID, '&admin');
     await playing(page);
-    await expect(band(page).locator('[data-watch="admin-note"]')).toHaveText('Admin view. This run is hidden from everyone else.');
+    await expect(band(page).locator('[data-watch="admin-note"]')).toHaveText('Admin view. This log is hidden from everyone else.');
     await expect(watchBtn(page, 'REPORT')).toHaveCount(0);
     expect(s.pubs.payloadRequests).toEqual([`/api/admin/pub/${ID}/payload`]);
     await page.waitForTimeout(500);
@@ -463,18 +463,56 @@ test.describe('?admin', () => {
   });
 });
 
-test('a tablet-sized window: the band in one row, the replay under it', async ({ page }) => {
+// Stage 65 feedback round 2: from 1000 px (a desktop, a tablet in landscape) the info is a column at
+// the replay's right; narrower (a phone in landscape, a small window) the band stays on top.
+test('a tablet in landscape: the info in a column at the right, the replay with the window\'s height', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await setUp(page);
+  await setUp(page, { gallery: true });
+  await openWatch(page);
+  await playing(page);
+  const b = (await band(page).boundingBox())!;
+  const f = (await page.locator('.wc-watch-slot').boundingBox())!;
+  const box = (await page.locator('.wc-watch-box').boundingBox())!;
+  expect(b.x).toBeGreaterThan(f.x + f.width);
+  expect(b.x + b.width).toBeLessThan(box.x + box.width);
+  expect(b.width).toBeGreaterThanOrEqual(290);
+  expect(Math.abs(b.y - f.y)).toBeLessThan(4);
+  // The replay keeps a usable width and the window's height (the frame's margin, hood and Back take about 80 px).
+  expect(f.width).toBeGreaterThan(560);
+  expect(f.height).toBeGreaterThan(640);
+  // Top down in the column: the title, the details, the description, the stars, Report, the comments.
+  const tops = await Promise.all(
+    ['[data-watch="title"]', '[data-watch="meta"]', '[data-watch="description"]', '[data-watch="stars"]', '[data-btn="REPORT"]'].map(
+      async (sel) => (await band(page).locator(sel).boundingBox())!.y,
+    ),
+  );
+  expect([...tops].sort((x, y) => x - y)).toEqual(tops);
+  const c = (await page.locator('.wc-watch [data-watch="comments"]').boundingBox())!;
+  expect(c.x).toBeGreaterThan(f.x + f.width);
+  expect(c.y).toBeGreaterThan(tops[4]!);
+  // The details wrap in the column, the description shows whole.
+  await expect(band(page).locator('[data-watch="description"]')).toBeVisible();
+  const page_ = await page.locator('.wc-watch-page').evaluate((e) => [e.scrollWidth, e.clientWidth, e.scrollHeight, e.clientHeight]);
+  expect(page_[0]).toBeLessThanOrEqual(page_[1]!);
+  expect(page_[2]).toBeLessThanOrEqual(page_[3]!);
+  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
+});
+
+test('a window narrower than 1000 px: the band in one row on top, the replay under it', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await setUp(page, { gallery: true });
   await openWatch(page);
   await playing(page);
   const b = (await band(page).boundingBox())!;
   const f = (await page.locator('.wc-watch-slot').boundingBox())!;
   expect(b.height).toBeLessThan(130);
   expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-  // Stage 65: inside the start page's frame (its margin, hood and Back take about 80 px).
-  expect(f.height).toBeGreaterThan(540);
-  await expect(watchBtn(page, 'REPORT')).toHaveText('Report');
+  expect(f.width).toBeGreaterThan(b.width - 30);
+  // The stars and Report in the band's row, right of the details.
+  const id = (await band(page).locator('.wc-watch-id').boundingBox())!;
+  expect((await band(page).locator('[data-watch="stars"]').boundingBox())!.x).toBeGreaterThan(id.x + id.width - 1);
+  // The comments under the replay (the page scrolls to them).
+  expect((await page.locator('.wc-watch [data-watch="comments"]').boundingBox())!.y).toBeGreaterThan(f.y + f.height);
 });
 
 test('/privacy says what a share link makes public with the flag share on; About gives the abuse address', async ({ page }) => {

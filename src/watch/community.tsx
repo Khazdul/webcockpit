@@ -99,7 +99,7 @@ export function RunStars(p: RunStarsProps): VNode {
             {' · '}
           </span>
           {p.role === 'own' ? (
-            <i data-watch="your-run">your run</i>
+            <i data-watch="your-run">your log</i>
           ) : (
             <button type="button" class="wc-watch-login" data-btn="LOGIN-RATE" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={p.onLogin}>
               Log in to rate
@@ -159,7 +159,7 @@ export function RunStars(p: RunStarsProps): VNode {
       <p class="wc-watch-rate-l">
         <span data-watch="stars-mine">
           {mine === null ? (
-            'Rate this run'
+            'Rate this log'
           ) : (
             <>
               Your stars: <b>{starWord(mine)}</b>

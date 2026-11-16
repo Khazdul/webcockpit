@@ -170,15 +170,15 @@ describe('the words', () => {
   });
 
   it('the refusals', () => {
-    expect(voteFailText(429, 'too_many')).toBe('You have rated many runs this hour. Try again later.');
-    expect(voteFailText(403, 'own')).toBe('This is your own run.');
+    expect(voteFailText(429, 'too_many')).toBe('You have rated many logs this hour. Try again later.');
+    expect(voteFailText(403, 'own')).toBe('This is your own log.');
     expect(voteFailText(0, 'offline')).toBe('Offline: the stars were not saved.');
-    expect(commentFailText(409, 'full')).toBe('This run has as many comments as it can hold.');
+    expect(commentFailText(409, 'full')).toBe('This log has as many comments as it can hold.');
     expect(commentFailText(400, 'bad_text')).toBe('The comment has characters that cannot be posted.');
     expect(commentFailText(403, 'suspended')).toBe('This account is suspended: it cannot comment.');
     expect(reportFailText(403, 'own', 'comment')).toBe('This is your own comment.');
     expect(reportFailText(404, 'not_found', 'comment')).toBe('This comment is no longer there.');
-    expect(reportFailText(404, 'not_found')).toBe('This run is no longer there.');
+    expect(reportFailText(404, 'not_found')).toBe('This log is no longer there.');
   });
 });
 

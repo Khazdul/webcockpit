@@ -36,7 +36,7 @@
 // Stage 65 C2 (round 13's pick 3a with the owner's change, ADR 0155 "As
 // built (stage 65 C2)"): the page sits inside the start page's look: the
 // start page's sky (its still CSS look, no engine, no animation) behind the
-// framed window of the start menu's sub-pages ("Shared run" on its hood,
+// framed window of the start menu's sub-pages ("Shared log" on its hood,
 // Back at its top left); in it the band, the replay and, with the flag
 // `gallery` (the meta carries `stars`), the stars in the band and the
 // comments under the replay (src/watch/community.tsx); the page scrolls.
@@ -44,6 +44,13 @@
 // (`?from=community`), to the Account page or its Published runs view when
 // opened from there (`?from=account`, `?from=published`, ADR 0155 W1): the
 // model's `backHref`, the pair of `watchHref` that opened the run.
+//
+// Feedback round 2 (ADR 0155 "As built — feedback round 2, watch page"):
+// from 1000 px (a desktop, a tablet in landscape) the band is a column at
+// the replay's right with the comments under it, scrolling there, and the
+// replay has the window's height (watch.css, CSS only: the same DOM); a
+// narrower window and a phone keep the band on top. The details are
+// `.wc-watch-mi` pieces so the column breaks between them, never inside.
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
@@ -292,7 +299,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       <p class="wc-watch-note" data-watch="admin-note">
         <FlagIcon />
         <span>
-          <b>Admin view.</b> {meta?.hidden ? 'This run is hidden from everyone else.' : 'Nothing here is counted.'}
+          <b>Admin view.</b> {meta?.hidden ? 'This log is hidden from everyone else.' : 'Nothing here is counted.'}
         </span>
       </p>
     ) : null;
@@ -309,17 +316,19 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
                 <p class="wc-watch-meta" data-watch="meta">
                   {line ? (
                     <>
-                      {line.character && <span class="wc-watch-char">{line.character}</span>}
+                      {line.character && <span class="wc-watch-char wc-watch-mi">{line.character}</span>}
                       {line.character ? <i>·</i> : null}
-                      {line.length}
+                      <span class="wc-watch-mi">{line.length}</span>
                       <i>·</i>
-                      {line.date}
+                      <span class="wc-watch-mi">{line.date}</span>
                       <i>·</i>
-                      <span data-watch="views">{line.views}</span>
+                      <span class="wc-watch-mi" data-watch="views">
+                        {line.views}
+                      </span>
                       {line.sender && (
                         <>
                           <i>·</i>
-                          <span class="wc-watch-by">
+                          <span class="wc-watch-by wc-watch-mi">
                             shared by <b data-watch="sender">{line.sender}</b>
                           </span>
                         </>
@@ -347,7 +356,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
             <div class="wc-watch-slot" ref={slot}>
               {!playing && (
                 <div class="wc-watch-wait">
-                  <LoadBar done={load?.done ?? 0} total={load?.total ?? meta?.bytes ?? 0} line={load ? loadingLine(load.done, load.total) : 'Loading the run…'} />
+                  <LoadBar done={load?.done ?? 0} total={load?.total ?? meta?.bytes ?? 0} line={load ? loadingLine(load.done, load.total) : 'Loading the log…'} />
                 </div>
               )}
             </div>
@@ -369,13 +378,13 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
  */
 function WatchBox(p: { children: ComponentChildren }): VNode {
   return (
-    <section class="wc-lk-box wc-lk-box-large wc-watch-box" aria-label="Shared run">
+    <section class="wc-lk-box wc-lk-box-large wc-watch-box" aria-label="Shared log">
       <i class="wc-lk-br wc-lk-b1" />
       <i class="wc-lk-br wc-lk-b2" />
       <i class="wc-lk-br wc-lk-b3" />
       <i class="wc-lk-br wc-lk-b4" />
       <div class="wc-lk-hood">
-        <span class="wc-lk-hood-t">Shared run</span>
+        <span class="wc-lk-hood-t">Shared log</span>
       </div>
       <button
         type="button"
@@ -423,13 +432,13 @@ function storage(): Storage | null {
 function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | undefined }): VNode {
   return (
     <div class="wc-lk-page wc-watch-page is-end">
-      <section class="wc-lk-dialog wc-watch-endbox" aria-label="Shared run" data-watch="end">
+      <section class="wc-lk-dialog wc-watch-endbox" aria-label="Shared log" data-watch="end">
         <i class="wc-lk-br wc-lk-b1" />
         <i class="wc-lk-br wc-lk-b2" />
         <i class="wc-lk-br wc-lk-b3" />
         <i class="wc-lk-br wc-lk-b4" />
         <div class="wc-lk-hood">
-          <span class="wc-lk-hood-t">Shared run</span>
+          <span class="wc-lk-hood-t">Shared log</span>
         </div>
         <div class="wc-lk-dwin">
           <div class="wc-lk-dialog-b">
@@ -516,7 +525,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
     step === 'form',
   );
 
-  const what = p.kind === 'comment' ? 'comment' : 'run';
+  const what = p.kind === 'comment' ? 'comment' : 'log';
   const head = `Report this ${what}`;
   if (step === 'thanks') {
     return (
@@ -626,7 +635,7 @@ export const ReportFrame = lookFrame(function ReportFrame(p: ReportProps): VNode
 export function startWatch(root: HTMLElement, path: string = location.pathname, search: string = location.search): void {
   const at = watchIdOf(path, base()) ?? { id: '', valid: false };
   const admin = new URLSearchParams(search).has('admin');
-  document.title = 'Shared run · WebCockpit';
+  document.title = 'Shared log · WebCockpit';
   root.replaceChildren();
   const host = document.createElement('div');
   host.className = 'wc-chrome wc-look wc-watch';

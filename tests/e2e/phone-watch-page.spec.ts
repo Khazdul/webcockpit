@@ -80,7 +80,7 @@ test('phone: the states keep their box', async ({ page }) => {
   const s = await setUp(page);
   s.pubs.setState(ID, 'removed');
   await openWatch(page);
-  await expectEnd(page, 'This run was removed by its sender.', 'The link no longer leads anywhere.');
+  await expectEnd(page, 'This log was removed by its sender.', 'The link no longer leads anywhere.');
   const box = (await page.locator('.wc-watch [data-watch="end"]').boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
@@ -110,3 +110,67 @@ test('phone: Fullscreen puts the frame alone in fullscreen; without element full
   await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(band(page)).toBeVisible();
 });
+
+// Stage 65 feedback round 2: in portrait the replay is a 60-column player; the Map alone (a span
+// over both default lanes) collapsed its dock, beside Group it showed. Every pane alone and
+// together shows now (src/layout/allocate.ts `squeezeSides`).
+test('phone portrait: Map, Timers and Group each show alone and together', async ({ page }) => {
+  await setUp(page);
+  await openWatch(page);
+  await playing(page);
+  const r = replay(page);
+  const box = r.locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  const shown = (): Promise<string[]> =>
+    r.locator('.wc-pane[data-pane]:visible').evaluateAll((ps) => ps.map((p) => (p as HTMLElement).dataset.pane!).sort());
+  const toggle = async (id: string): Promise<void> => {
+    if (!(await pop.isVisible())) {
+      await r.locator('.wc-player').tap();
+      await box.locator('[data-act="panes"]').tap();
+    }
+    await pop.locator(`[data-pane="${id}"]`).tap();
+  };
+  expect(page.viewportSize()!.width).toBeLessThan(page.viewportSize()!.height);
+  await expect.poll(shown).toEqual([]);
+  for (const [id, want] of [
+    ['map', ['map']],
+    ['map', []],
+    ['timers', ['timers']],
+    ['map', ['map', 'timers']],
+    ['timers', ['map']],
+    ['group', ['group', 'map']],
+    ['map', ['group']],
+    ['group', []],
+  ] as const) {
+    await toggle(id);
+    await expect.poll(shown, `${id} → ${want.join('+')}`).toEqual([...want]);
+  }
+  // The map has room to draw in.
+  await toggle('map');
+  await expect.poll(shown).toEqual(['map']);
+  const map = (await r.locator('.wc-pane[data-pane="map"]').boundingBox())!;
+  expect(map.width).toBeGreaterThan(100);
+  expect(map.height).toBeGreaterThan(100);
+});
+
+// Stage 65 feedback round 2: on a 360 px phone the narrow box dropped Fullscreen with To the start.
+// Now To the start goes first; Fullscreen stays down to a 360 px portrait phone.
+for (const width of [360, 390]) {
+  test(`phone portrait ${width} px: the player's box keeps Fullscreen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 780 });
+    await setUp(page, { gallery: true });
+    await openWatch(page);
+    await playing(page);
+    await replay(page).locator('.wc-player').tap();
+    const fsButton = replay(page).locator('.wc-player-box [data-act="extra"]');
+    await expect(fsButton).toBeVisible();
+    await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
+    // The whole box inside the frame.
+    const frame = (await page.locator('.wc-watch-slot iframe').boundingBox())!;
+    const b = (await replay(page).locator('.wc-player-box').boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(frame.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(frame.x + frame.width);
+    await fsButton.tap();
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+  });
+}

@@ -89,8 +89,8 @@ describe('the details', () => {
     expect(viewsText(1)).toBe('1 view');
     expect(viewsText(37)).toBe('37 views');
     expect(viewsText(12345)).toBe('12,345 views');
-    expect(loadingLine(400_000, 1_200_000)).toBe('Loading the run… 0.4 of 1.2 MB');
-    expect(loadingLine(1, 0)).toBe('Loading the run… 0.1 MB');
+    expect(loadingLine(400_000, 1_200_000)).toBe('Loading the log… 0.4 of 1.2 MB');
+    expect(loadingLine(1, 0)).toBe('Loading the log… 0.1 MB');
   });
 
   it('builds the band line from the meta, leaving out what is not there', () => {
@@ -123,8 +123,8 @@ describe("a report's text", () => {
   it('words the refusals', () => {
     expect(reportFailText(429, 'too_many')).toBe('You have sent the most reports a day. Try again tomorrow.');
     expect(reportFailText(403, 'suspended')).toBe('This account is suspended: it cannot report.');
-    expect(reportFailText(403, 'own')).toBe('This is your own run.');
-    expect(reportFailText(404, 'not_found')).toBe('This run is no longer there.');
+    expect(reportFailText(403, 'own')).toBe('This is your own log.');
+    expect(reportFailText(404, 'not_found')).toBe('This log is no longer there.');
     expect(reportFailText(0, 'offline')).toBe('Offline: the report could not be sent. Try again when you are online.');
     expect(reportFailText(500, '')).toBe('The report could not be sent. Try again later.');
   });

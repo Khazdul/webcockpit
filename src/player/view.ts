@@ -334,6 +334,10 @@ export class PlayerView {
   private compact = false;
   /** The compact box's width, px, once measured (before `data-tight` hides anything). */
   private compactBoxW = 0;
+  /** What `data-tight` frees, px: To the start and one gap of the row, measured with `compactBoxW`. */
+  private startW = 0;
+  /** To the start (the first key `data-tight` hides). */
+  private readonly startBtn: HTMLButtonElement;
   private fullBoxW = 0;
   /** The box is a docked bar now (option `dock` gave a rectangle); its signature. */
   private docked = false;
@@ -381,7 +385,7 @@ export class PlayerView {
     this.boxEl = div('wc-player-box');
     const row = (this.rowEl = div('wc-pc-row'));
     const seekKey = (dir: string): string => (opts.shiftSeek ? `Shift+${dir}` : dir);
-    const start = this.button('start', 'To the start (Home)', playerIcon(doc, 'start'));
+    const start = (this.startBtn = this.button('start', 'To the start (Home)', playerIcon(doc, 'start')));
     const back = this.button('back', `Back 10 s (${seekKey('←')})`, tenIcon(doc, 'back'));
     this.btnPlay = this.button('play', 'Play / pause (Space)', playerIcon(doc, 'pause'), 'wc-pc-play');
     const fwd = this.button('fwd', `Forward 10 s (${seekKey('→')})`, tenIcon(doc, 'fwd'));
@@ -932,15 +936,22 @@ export class PlayerView {
       this.compact = compact;
       this.boxEl.toggleAttribute('data-compact', compact);
     }
-    // Still too wide when compact (a 320 px phone, a very narrow window):
-    // tight drops Fullscreen and To the start (the rail seeks there too).
+    // Still too wide when compact (a phone in portrait, a very narrow
+    // window): tight drops To the start (the rail seeks there too); only
+    // where that is not enough (a 320 px phone) tighter drops Fullscreen
+    // too (stage 65 feedback round 2: a 360 px phone kept no Fullscreen).
     if (compact && !this.boxEl.hasAttribute('data-tight')) {
       const bw = this.boxEl.offsetWidth;
-      if (bw > 0) this.compactBoxW = bw;
+      if (bw > 0) {
+        this.compactBoxW = bw;
+        this.startW = this.startBtn.offsetWidth + (parseFloat(this.win.getComputedStyle(this.rowEl).columnGap) || 0);
+      }
     }
     const tightRoom = W - RAIL_W - BOX_RIGHT_COMPACT - BOX_MARGIN;
     const tight = compact && this.compactBoxW > 0 && tightRoom < this.compactBoxW;
+    const tighter = tight && tightRoom < this.compactBoxW - this.startW;
     if (tight !== this.boxEl.hasAttribute('data-tight')) this.boxEl.toggleAttribute('data-tight', tight);
+    if (tighter !== this.boxEl.hasAttribute('data-tighter')) this.boxEl.toggleAttribute('data-tighter', tighter);
     const right = RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT);
     this.boxEl.style.right = `${right}px`;
     this.boxEl.style.bottom = `${BOX_BOTTOM}px`;
@@ -966,6 +977,7 @@ export class PlayerView {
         this.compact = false;
         this.boxEl.removeAttribute('data-compact');
         this.boxEl.removeAttribute('data-tight');
+        this.boxEl.removeAttribute('data-tighter');
         st.right = st.bottom = '';
       } else {
         this.boxEl.removeAttribute('data-narrow');
