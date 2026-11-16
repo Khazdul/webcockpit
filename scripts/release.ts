@@ -45,9 +45,9 @@ export function isAssetName(name: string): boolean {
  * `live` (null = no live release), or null when it may.
  *
  * The live commit under the live version is that release again and is
- * allowed: while GitHub Pages and Cloudflare are both deployed from one
- * tag (ADR 0144), the slower workflow finds the release already live, and
- * a failed deploy can be run again. Commits are abbreviated hashes whose
+ * allowed: a failed or interrupted deploy can be run again (until stage
+ * 58 part D also the second of two workflows deployed from one tag,
+ * ADR 0144). Commits are abbreviated hashes whose
  * length git chooses per checkout, so one being the start of the other
  * is the same commit.
  */

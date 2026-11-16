@@ -1,6 +1,6 @@
 # Response headers of the static files on Cloudflare (ADR 0144; Workers
 # static assets read this file from the build's root and do not serve it).
-# GitHub Pages ignores it. Not applied to what the Worker answers (/api/*,
+# Not applied to what the Worker answers (/api/*,
 # /admin: worker/router.ts sets those; the admin page has a policy of its own).
 # Every rule that matches a path applies; a header set by two rules would
 # be joined with a comma, hence `! Cache-Control` first where the default

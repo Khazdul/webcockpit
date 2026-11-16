@@ -1,7 +1,6 @@
-// Builds the WebCockpit site for its host, locally or in CI: Cloudflare
-// (ADR 0144; .github/workflows/deploy.yml runs `wrangler deploy` on the
-// result) and, until it is retired, GitHub Pages (ADR 0028;
-// .github/workflows/pages.yml uploads the result).
+// Builds the WebCockpit site for its host, the Cloudflare Worker, locally
+// or in CI (ADR 0144; .github/workflows/deploy.yml runs `wrangler deploy`
+// on the result).
 //
 //   npm run build:site                       for the production Worker → dist-site/
 //   npm run build:site -- --target staging   for the staging Worker: no version
@@ -12,9 +11,6 @@
 //                                            `CSP_ENFORCED` in scripts/csp.ts
 //   npm run build:site -- --skip-live        no request to the live site (offline):
 //                                            no version check against it, nothing carried
-//   npm run build:pages                      the same build for GitHub Pages
-//                                            (`--pages`) → dist-pages/, smoke-tested
-//                                            with Pages' headers
 //
 // A production build's package.json version must differ from the live
 // release's, unless it is the live commit being built again (ADR 0025,
@@ -25,7 +21,7 @@
 //   1. version checks (live release.json, tag)
 //   2. typecheck and unit tests
 //   3. `vite build` with the base taken from the live URL (`/`)
-//   4. the smoke test (playwright.prod.config.ts) in the host's profile
+//   4. the smoke test (playwright.prod.config.ts)
 //   5. carry the live release's own hashed assets (fetched from the live
 //      site), so a tab opened before the deploy still finds its lazy chunks
 //   6. the full release.json
@@ -33,9 +29,8 @@
 // $WEBCOCKPIT_SITE_URL overrides the live site
 // (default https://mumecockpit.com/, ADR 0029); its path is the base.
 // $WEBCOCKPIT_SITE_DIR overrides the output directory.
-// The earlier names $WEBCOCKPIT_PAGES_URL and $WEBCOCKPIT_PAGES_DIR still work.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { CSP_ENFORCED, CSP_SCRIPT_HASHES, enforceCsp } from './csp.ts';
 import { MANIFEST, type Release, isAssetName, parseRelease, releaseJson, versionGuard } from './release.ts';
@@ -45,20 +40,17 @@ const FETCH_TIMEOUT_MS = 20_000;
 
 const argv = process.argv.slice(2);
 const skipLive = argv.includes('--skip-live');
-/** `--pages`: the build for GitHub Pages (`npm run build:pages`). */
-const pages = argv.includes('--pages');
-const NAME = pages ? 'build:pages' : 'build:site';
+const NAME = 'build:site';
 const targetAt = argv.indexOf('--target');
 const target = targetAt >= 0 ? argv[targetAt + 1] : 'production';
 if (target !== 'production' && target !== 'staging') fail(`--target is production or staging, not ${target}`);
-if (pages && target !== 'production') fail('--pages is always the production site');
 for (const [i, a] of argv.entries()) {
-  if (!['--skip-live', '--pages', '--target'].includes(a) && argv[i - 1] !== '--target') fail(`unknown argument ${a}`);
+  if (!['--skip-live', '--target'].includes(a) && argv[i - 1] !== '--target') fail(`unknown argument ${a}`);
 }
 
-const LIVE = `${(process.env.WEBCOCKPIT_SITE_URL ?? process.env.WEBCOCKPIT_PAGES_URL ?? 'https://mumecockpit.com/').replace(/\/+$/, '')}/`;
+const LIVE = `${(process.env.WEBCOCKPIT_SITE_URL ?? 'https://mumecockpit.com/').replace(/\/+$/, '')}/`;
 const BASE = new URL(LIVE).pathname;
-const OUT = resolve(ROOT, process.env.WEBCOCKPIT_SITE_DIR ?? process.env.WEBCOCKPIT_PAGES_DIR ?? (pages ? 'dist-pages' : 'dist-site'));
+const OUT = resolve(ROOT, process.env.WEBCOCKPIT_SITE_DIR ?? 'dist-site');
 
 function step(title: string): void {
   console.log(`\n== ${title}`);
@@ -70,7 +62,7 @@ function run(cmd: string, args: string[], env: Record<string, string> = {}): voi
 }
 
 function fail(msg: string): never {
-  console.error(`\n${pages ? 'build:pages' : 'build:site'}: ${msg}`);
+  console.error(`\n${NAME}: ${msg}`);
   process.exit(1);
 }
 
@@ -121,10 +113,6 @@ run('npx', ['vitest', 'run']);
 step(`build (base ${BASE})`);
 run('npx', ['vite', 'build', '--outDir', OUT, '--emptyOutDir'], { WEBCOCKPIT_BASE: BASE });
 const own = readdirSync(join(OUT, 'assets')).sort();
-// Cloudflare's own files stay out of the Pages build: GitHub Pages would
-// serve `_headers` as a file and use a root `404.html` as its 404 page,
-// and the Pages site is to stay as it is until it is retired (ADR 0144).
-if (pages) for (const name of ['_headers', '404.html']) rmSync(join(OUT, name), { force: true });
 // Staging is not for search engines (ADR 0144, addendum): the Worker sets
 // X-Robots-Tag on its own answers (the NOINDEX var), and this rule sets it
 // on the static files, which the Worker never sees. A rule of the staging
@@ -138,7 +126,7 @@ if (target === 'staging') {
 // (vite.config.ts `cspHashesPlugin`); the policy stays report-only or is
 // enforced, as scripts/csp.ts `CSP_ENFORCED` says for this target. The
 // smoke test below (csp.spec.ts in it) runs on the result.
-if (!pages) {
+{
   const headers = join(OUT, '_headers');
   const text = readFileSync(headers, 'utf8');
   if (text.includes(CSP_SCRIPT_HASHES)) fail('_headers still has the placeholder of the inline scripts\' hashes');
@@ -146,11 +134,10 @@ if (!pages) {
   console.log(`Content-Security-Policy: ${CSP_ENFORCED[target] ? 'enforced' : 'report-only'} (${target})`);
 }
 
-step(`smoke test (${pages ? 'pages' : 'cloudflare'} profile)`);
+step('smoke test');
 run('npx', ['playwright', 'test', '-c', 'playwright.prod.config.ts'], {
   WC_PROD_DIR: OUT,
   WC_PROD_BASE: BASE,
-  WC_PROD_PROFILE: pages ? 'pages' : 'cloudflare',
   // The smoke test is of this build, whatever the caller's shell points at.
   WC_PROD_URL: '',
 });

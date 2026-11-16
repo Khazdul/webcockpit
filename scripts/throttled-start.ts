@@ -12,7 +12,7 @@
 // `--kbit`/`--latency` default to the profile's. The server: dist/ on
 // scripts/static-server.ts (port 4187; `npm run build` first), or with
 // --dev a vite dev server (port 5199), or --url. --gzip makes the proxy
-// compress text like GitHub Pages.
+// compress text like Cloudflare.
 // Profiles: 3g = Regular 3G (750 kbit/s down, 100 ms latency), 4g = Regular
 // 4G (4 Mbit/s, 20 ms), none = unthrottled.
 // Screenshots wait for the web fonts, so they never show text that a

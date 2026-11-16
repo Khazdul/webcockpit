@@ -31,7 +31,7 @@
     // (stage 64, ADR 0154): `/r/<id>` answers the site's index.html, and a
     // file under /r/ (the frame document) is handed to the assets as it is.
     "run_worker_first": ["/api/*", "/admin", "/admin/*", "/r/*"],
-    // Unknown paths answer 404 with 404.html, as on GitHub Pages.
+    // Unknown paths answer 404 with 404.html.
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
   },

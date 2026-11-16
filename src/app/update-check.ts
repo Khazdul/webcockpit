@@ -1,14 +1,12 @@
 // Update check (ADR 0025): is the site serving a newer build than the one
 // running in this tab?
 //
-// `npm run build:site` (and its alias `build:pages`, while GitHub Pages is
-// still the live host; ADR 0144) writes `release.json`
+// `npm run build:site` (ADR 0144) writes `release.json`
 // ({ version, commit, … }) at the site root (under Vite's `base`, ADR 0028;
 // `/` at mumecockpit.com, ADR 0029), and every build emits one too
-// (vite.config.ts). On Cloudflare it is served `no-cache`
-// (public/_headers); Pages caches it for 10 minutes. The checker fetches it
-// with `cache: 'no-store'`, compares it with the running build
-// (src/core/build-info.ts) and calls `onNewVersion` once per different
+// (vite.config.ts). The Worker serves it `no-cache` (public/_headers).
+// The checker fetches it with `cache: 'no-store'`, compares it with the
+// running build (src/core/build-info.ts) and calls `onNewVersion` once per different
 // release. Failures (offline, 404, bad JSON) are silent.
 //
 // This module is pure: fetch and the clock are injected. The page wiring

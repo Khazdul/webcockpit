@@ -13,8 +13,6 @@
 # A deploy applies the target's D1 migrations first (stage 59). `triggers`
 # also applies the cron triggers, and attaches staging.mumecockpit.com to
 # the staging Worker.
-# pages.yml still deploys the old Pages site from the same tag until it is
-# retired.
 # Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (the stage file).
 name: deploy
 
@@ -58,7 +56,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       # No GPU on the runner: Firefox's map worker gets no WebGL, so the
       # smoke test runs in Chromium here; Firefox is checked against the
-      # deployed site afterwards (ADR 0028).
+      # deployed site afterwards (`npm run test:prod`).
       - if: env.ACTION == 'deploy'
         run: npm run build:site -- --target "$TARGET"
         env:

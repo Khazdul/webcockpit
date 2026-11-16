@@ -28,10 +28,6 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { type Browser, type BrowserContext, type Page, devices, expect, test } from '@playwright/test';
 import { type CspWatch, keepQuiet, mockMume, watchCsp } from './csp.ts';
-import { cloudflare } from './profile.ts';
-
-test.skip(!cloudflare, 'GitHub Pages sends no policy');
-
 /** The demo backup (two characters, five spotlights) and the day after it: later, its unsaved runs are swept (14 days). */
 const DEMO_BACKUP = new URL('../fixtures/runs-demo.jsonl.gz', import.meta.url);
 const DEMO_NOW = new Date(2026, 8, 28, 12, 0, 0);

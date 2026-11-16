@@ -10,9 +10,8 @@ import { fillCspHashes, fillFrameHashes, framePolicy } from './scripts/csp.ts';
 import { FRAME_FILE, FRAME_PATH, frameHtml } from './scripts/frame-html.ts';
 
 // Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
-// and `vite preview` send these headers. Production does not: GitHub Pages
-// (ADR 0028, the live host until the switch of stage 58) cannot, and the
-// Cloudflare Worker that takes over (ADR 0144) could but sends no COEP.
+// and `vite preview` send these headers. Production does not: the
+// Cloudflare Worker (ADR 0144) could but sends no COEP.
 // COEP does not apply to WebSocket connections, so the direct
 // wss://mume.org/ws-play/ socket (ADR 0002) is unaffected.
 // Turnstile on the account pages (`npm run dev:cloud`) works under
@@ -527,8 +526,8 @@ export const PRIVACY_PAGE = 'privacy.html';
 
 /**
  * `privacy.html` (stage 59): the built `index.html` once more, with its own
- * title, so `<base>privacy` answers 200 on both hosts. Cloudflare's
- * `html_handling: auto-trailing-slash` and GitHub Pages serve `/privacy`
+ * title, so `<base>privacy` answers 200. Cloudflare's
+ * `html_handling: auto-trailing-slash` serves `/privacy`
  * from `privacy.html` (and redirect `/privacy.html` to `/privacy`); the
  * page's asset URLs are absolute, so the copy loads the same files. The app
  * sees the path and opens the privacy leaf over the start menu
@@ -606,7 +605,7 @@ function cspHashesPlugin(): Plugin {
 function licencePlugin(): Plugin {
   const files = [
     { name: LICENCE_FILE, file: resolve(ROOT, 'LICENSE'), type: 'text/plain; charset=utf-8' },
-    // The type GitHub Pages and Cloudflare give `.md` (as `public/fonts/README.md`).
+    // The type Cloudflare gives `.md` (as `public/fonts/README.md`).
     { name: 'THIRD_PARTY_NOTICES.md', file: resolve(ROOT, 'THIRD_PARTY_NOTICES.md'), type: 'text/markdown; charset=utf-8' },
   ];
   return {
@@ -633,8 +632,7 @@ function licencePlugin(): Plugin {
 
 /**
  * The public path the app is served under: `$WEBCOCKPIT_BASE`, default `/`
- * (mumecockpit.com, ADR 0029: GitHub Pages until the switch of stage 58,
- * then the Cloudflare Worker, ADR 0144). A subpath works too (ADR 0028).
+ * (mumecockpit.com, ADR 0029: the Cloudflare Worker, ADR 0144). A subpath works too (ADR 0028).
  * Always with a leading and a trailing slash.
  */
 export function siteBase(raw = process.env.WEBCOCKPIT_BASE): string {

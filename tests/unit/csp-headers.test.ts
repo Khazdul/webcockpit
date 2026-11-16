@@ -116,7 +116,7 @@ describe('the Content-Security-Policy of the static files (ADR 0144, stage 60)',
     writeFileSync(join(dir, 'index.html'), page);
     writeFileSync(join(dir, '_headers'), fillCspHashes(HEADERS, [page]));
     const get = async (enforce: boolean): Promise<Headers> => {
-      const server = serve(dir, 0, { profile: 'cloudflare', enforceCsp: enforce });
+      const server = serve(dir, 0, { enforceCsp: enforce });
       await new Promise((r) => server.once('listening', r));
       try {
         return (await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`)).headers;

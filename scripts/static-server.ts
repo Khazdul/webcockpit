@@ -1,19 +1,13 @@
 // A plain static file server that stands in for the production host:
 // files from one directory under a base path, no dev middleware.
 //
-//   node scripts/static-server.ts [dir] [--port n] [--base path] [--profile pages|cloudflare] [--csp enforce]
-//                                  (defaults: dist, 4180, /, pages)
+//   node scripts/static-server.ts [dir] [--port n] [--base path] [--csp enforce]
+//                                  (defaults: dist, 4180, /)
 //
-// Two profiles, one per host:
+// Only paths under the base are served; the base without its trailing
+// slash redirects (301) to it, everything else is 404.
 //
-// `pages`: GitHub Pages (ADR 0028, ADR 0029), the live host until the
-// switch of stage 58. No COOP/COEP (so not cross-origin isolated) and
-// `Cache-Control: max-age=600` on everything, MIME types by extension, no
-// fallback but `/x` → `x.html`. Only paths under the base are served; the
-// base without its trailing slash redirects to it (as Pages does),
-// everything else is 404.
-//
-// `cloudflare`: the Worker with static assets of wrangler.jsonc (ADR 0144),
+// The host is the Worker with static assets of wrangler.jsonc (ADR 0144),
 // as `wrangler dev` 4.162 answers (compared header by header):
 //   - /api/*, /admin, /admin/* and /r/* are answered by the real router
 //     (worker/router.ts; /r/<id> is the site's index.html, a file under /r/
@@ -39,18 +33,13 @@
 // and line-length limits of `_headers` (wrangler checks those at deploy).
 //
 // Used by the smoke test (playwright.prod.config.ts) and by
-// `npm run build:site` / `build:pages` to check a build before it goes live.
+// `npm run build:site` to check a build before it goes live.
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { type Env, handle } from '../worker/router.ts';
 import { enforceCsp, reportOnlyPolicy } from './csp.ts';
-
-export type Profile = 'pages' | 'cloudflare';
-
-/** The headers of every response, as GitHub Pages sends them. */
-export const PAGES_HEADERS: Record<string, string> = { 'Cache-Control': 'max-age=600' };
 
 /** Cloudflare's `Cache-Control` of a static asset that no `_headers` rule changes. */
 export const CLOUDFLARE_CACHE = 'public, max-age=0, must-revalidate';
@@ -80,10 +69,6 @@ const CLOUDFLARE_MIME: Record<string, string | null> = {
   '.ico': 'image/vnd.microsoft.icon',
   '.mm2': null,
 };
-
-export function mimeType(path: string): string {
-  return MIME[extname(path).toLowerCase()] ?? 'application/octet-stream';
-}
 
 /** The Content-Type Cloudflare gives a static asset, or null when it sends none. */
 export function cloudflareMimeType(path: string): string | null {
@@ -167,13 +152,11 @@ export function applyHeaderRules(rules: HeaderRule[], path: string, headers: Rec
 export interface ServeOptions {
   /** URL path prefix the directory is served under (default `/`). */
   base?: string;
-  /** Which host to stand in for (default `pages`). */
-  profile?: Profile;
-  /** `cloudflare` only: serve the report-only Content-Security-Policy of `_headers` as the enforced one. */
+  /** Serve the report-only Content-Security-Policy of `_headers` as the enforced one. */
   enforceCsp?: boolean;
 }
 
-/** What the `cloudflare` profile answers for a path: a file, a redirect, or nothing. */
+/** What Cloudflare's static assets answer for a path: a file, a redirect, or nothing. */
 interface AssetAnswer {
   status: number;
   /** Lower-case names. */
@@ -184,7 +167,7 @@ interface AssetAnswer {
 /** Files Cloudflare reads as configuration and never serves. */
 const CLOUDFLARE_PRIVATE = new Set(['/_headers', '/_redirects']);
 
-/** The `cloudflare` profile's static assets over `root`. */
+/** Cloudflare's static assets over `root`. */
 function cloudflareAssets(root: string, enforce = false): (method: string, path: string, search: string, ifNoneMatch: string | undefined) => AssetAnswer {
   const headersFile = join(root, '_headers');
   const text = existsSync(headersFile) ? readFileSync(headersFile, 'utf8') : '';
@@ -245,7 +228,7 @@ function body(req: IncomingMessage): Promise<Buffer> {
   });
 }
 
-/** The `cloudflare` profile: the Worker's router for /api/*, the assets for the rest. */
+/** The Worker: its router for /api/*, the assets for the rest. */
 function cloudflareHandler(root: string, enforce = false): (req: IncomingMessage, res: ServerResponse, path: string, search: string) => Promise<void> {
   const assets = cloudflareAssets(root, enforce);
   const env: Env = {
@@ -285,54 +268,33 @@ function cloudflareHandler(root: string, enforce = false): (req: IncomingMessage
 export function serve(dir: string, port: number, opts: ServeOptions = {}): ReturnType<typeof createServer> {
   const root = realpathSync(dir);
   const base = normaliseBase(opts.base ?? '/');
-  const cloudflare = opts.profile === 'cloudflare' ? cloudflareHandler(root, opts.enforceCsp === true) : null;
+  const worker = cloudflareHandler(root, opts.enforceCsp === true);
   const server = createServer((req, res) => {
-    const notFound = (code = 404): void => {
-      res.writeHead(code, { ...(cloudflare ? {} : PAGES_HEADERS), 'Content-Type': 'text/plain' });
-      res.end(code === 404 ? 'not found' : 'bad request');
+    const badRequest = (): void => {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('bad request');
     };
-    if (!cloudflare && req.method !== 'GET' && req.method !== 'HEAD') return notFound(400);
     let url: URL;
     let full: string;
     try {
       url = new URL(req.url ?? '/', 'http://x');
       full = decodeURIComponent(url.pathname);
     } catch {
-      return notFound(400);
+      return badRequest();
     }
-    if (full.includes('\0')) return notFound(400);
+    if (full.includes('\0')) return badRequest();
     if (base !== '/' && `${full}/` === base) {
-      res.writeHead(301, { ...(cloudflare ? {} : PAGES_HEADERS), Location: `${base}${url.search}` });
+      res.writeHead(301, { Location: `${base}${url.search}` });
       return res.end();
     }
-    if (!full.startsWith(base)) return notFound();
-    let path = full.slice(base.length - 1);
-    if (cloudflare) {
-      cloudflare(req, res, path, url.search).catch((err: unknown) => {
-        if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end(String(err));
-      });
-      return;
+    if (!full.startsWith(base)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      return res.end('not found');
     }
-    if (path.endsWith('/')) path += 'index.html';
-    const inside = (p: string): string | null => {
-      try {
-        const f = realpathSync(resolve(root, `.${p}`));
-        return f.startsWith(root + sep) && statSync(f).isFile() ? f : null;
-      } catch {
-        return null;
-      }
-    };
-    // As Pages: `/x` is `x.html` when there is no file `x` (the privacy page, stage 59).
-    const file = inside(path) ?? (path.endsWith('.html') ? null : inside(`${path}.html`));
-    if (!file) return notFound();
-    res.writeHead(200, {
-      ...PAGES_HEADERS,
-      'Content-Type': mimeType(file),
-      'Content-Length': statSync(file).size,
+    worker(req, res, full.slice(base.length - 1), url.search).catch((err: unknown) => {
+      if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(String(err));
     });
-    if (req.method === 'HEAD') return res.end();
-    createReadStream(file).pipe(res);
   });
   server.listen(port, '127.0.0.1');
   return server;
@@ -346,18 +308,13 @@ if (import.meta.main) {
   };
   const port = Number(option('--port') ?? 4180);
   const base = normaliseBase(option('--base') ?? '/');
-  const profile = option('--profile') ?? 'pages';
   const csp = option('--csp');
   if (csp !== undefined && csp !== 'enforce') {
     console.error(`static: --csp is enforce, not ${csp}`);
     process.exit(1);
   }
-  if (profile !== 'pages' && profile !== 'cloudflare') {
-    console.error(`static: --profile is pages or cloudflare, not ${profile}`);
-    process.exit(1);
-  }
   const dir = resolve(args[0] ?? 'dist');
-  serve(dir, port, { base, profile, enforceCsp: csp === 'enforce' }).on('listening', () =>
-    console.log(`static: ${dir} at http://127.0.0.1:${port}${base} (${profile}${csp ? ', CSP enforced' : ''})`),
+  serve(dir, port, { base, enforceCsp: csp === 'enforce' }).on('listening', () =>
+    console.log(`static: ${dir} at http://127.0.0.1:${port}${base} (Cloudflare${csp ? ', CSP enforced' : ''})`),
   );
 }

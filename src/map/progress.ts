@@ -21,7 +21,7 @@ import type { AssetResolver } from './assets';
 declare const __WC_MAP_BYTES__: number | undefined;
 /**
  * The bundled map's size in bytes, 0 when unknown: the progress total when
- * the host serves it content-encoded (GitHub Pages gzips it; ADR 0083).
+ * the host serves it content-encoded (Cloudflare compresses it; ADR 0083).
  */
 export const BUNDLED_MAP_BYTES: number = typeof __WC_MAP_BYTES__ === 'number' ? __WC_MAP_BYTES__ : 0;
 

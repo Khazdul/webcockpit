@@ -10,7 +10,7 @@
 // (round robin in 1 KB slices every 5 ms, like TCP flows sharing a line);
 // each response starts `--latency` ms after its request (one round trip).
 // Upstream bytes are passed through as they are (vite dev and preview do
-// not compress); `--gzip` compresses text responses like GitHub Pages does.
+// not compress); `--gzip` compresses text responses like Cloudflare does.
 // WebSocket upgrades (vite's HMR) pass through unthrottled.
 // Also usable as a module: `startProxy(opts)` returns the server.
 import { type IncomingMessage, type Server, type ServerResponse, createServer, request } from 'node:http';

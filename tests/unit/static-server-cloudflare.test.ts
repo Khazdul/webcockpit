@@ -1,4 +1,4 @@
-// The `cloudflare` profile of scripts/static-server.ts (ADR 0144): what
+// scripts/static-server.ts as the Cloudflare Worker (ADR 0144): what
 // `wrangler dev` 4.162 answers for the Worker of wrangler.jsonc, with the
 // repository's real `public/_headers`.
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -42,7 +42,7 @@ describe('_headers parsing', () => {
   });
 });
 
-describe('static-server, cloudflare profile (ADR 0144)', () => {
+describe('static-server as the Worker (ADR 0144)', () => {
   let dir: string;
   let url: string;
   let server: ReturnType<typeof serve>;
@@ -62,7 +62,7 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
     writeFileSync(join(dir, 'map', 'arda.mm2'), 'map');
     writeFileSync(join(dir, 'release.json'), '{"version":"1.2.3","commit":"abc1234"}');
     copyFileSync(resolve(import.meta.dirname, '../../public/_headers'), join(dir, '_headers'));
-    server = serve(dir, 0, { profile: 'cloudflare' });
+    server = serve(dir, 0);
     await new Promise((r) => server.once('listening', r));
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -181,7 +181,7 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
 
   it('without a release.json the health says dev', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'wc-static-cf-empty-'));
-    const s = serve(empty, 0, { profile: 'cloudflare' });
+    const s = serve(empty, 0);
     await new Promise((r) => s.once('listening', r));
     try {
       const origin = `http://127.0.0.1:${(s.address() as AddressInfo).port}`;
