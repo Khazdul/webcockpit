@@ -494,15 +494,17 @@ const SPLITS = ['type', 'browser', 'version'] as const;
  * `GET /api/admin/graphs?range=`: the rolled-up days of the range from
  * `stat_daily` (at most one row per day and metric) and today read live;
  * online from `stat_sample`, the highest per bucket (at most 25 920 rows
- * for 90 days), or for `all` the days' peaks. Five batches, no query per
- * row.
+ * for 90 days), or for `all` the days' peaks. Four batches at once, no
+ * query per row.
  */
 export async function adminGraphs(db: D1, range: AdminGraphRange, now: number): Promise<AdminGraphs> {
   const r = GRAPH_RANGES[range];
   const today = utcDay(now);
   const since = r.days === null ? '' : utcDay(now - (r.days - 1) * DAY_MS);
   const bucketMs = r.bucket * 60_000;
-  const [online, daily, splits, largest, sharing] = await db.batch<Record<string, unknown>>([
+  // The range's batch and today's three reads go out at once (review fix CR5): none needs another's answer.
+  const [[online, daily, splits, largest, sharing], f, live, todaySplit] = await Promise.all([
+    db.batch<Record<string, unknown>>([
     r.ms === null
       ? db.prepare(
           `SELECT day, MAX(CASE WHEN metric = 'peak_online' THEN value END) AS online, MAX(CASE WHEN metric = 'peak_playing' THEN value END) AS playing
@@ -526,11 +528,12 @@ export async function adminGraphs(db: D1, range: AdminGraphRange, now: number): 
               (SELECT COUNT(*) FROM note WHERE state = 'active') AS notes,
               (SELECT COUNT(*) FROM report WHERE handled = 0) AS open_reports`,
     ),
+    ]),
+    // Today, live.
+    dayFigures(db, today),
+    panelFigures(db, today),
+    daySplits(db, today),
   ]);
-  // Today, live.
-  const f = await dayFigures(db, today);
-  const live = await panelFigures(db, today);
-  const todaySplit = await daySplits(db, today);
   const n = (v: unknown): number => Number(v ?? 0);
 
   const points = (online?.results ?? []).map((p) => ({ ts: typeof p.day === 'string' ? dayStart(p.day) : n(p.ts), online: n(p.online), playing: n(p.playing) }));

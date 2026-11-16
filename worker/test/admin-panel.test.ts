@@ -12,8 +12,8 @@ import {
   DEFAULT_ACCOUNT_LIMITS,
 } from '../../shared/cloud/api.ts';
 import { LIMITS_CACHE_MS, forgetLimitDefaults, loadLimitDefaults } from '../limits.ts';
-import { recordBeat, rollUp } from '../stats.ts';
-import { DAY_MS } from '../runtime.ts';
+import { adminGraphs, recordBeat, rollUp } from '../stats.ts';
+import { DAY_MS, type D1, type D1Statement } from '../runtime.ts';
 import { count, db, device, emptyTables } from './helpers.ts';
 import { NOW, admin, adminEnv, adminJson, forgetAccessKeys } from './access-helpers.ts';
 import { CENV, commented, list, noted, voted } from './community-helpers.ts';
@@ -388,6 +388,28 @@ describe('GET /api/admin/log?chain=0 (review fix S4)', () => {
 });
 
 describe('GET /api/admin/graphs', () => {
+  it('CR5: the range and today are read at once, not one batch after another', async () => {
+    let inFlight = 0;
+    let most = 0;
+    let batches = 0;
+    const watched: D1 = {
+      prepare: (sql) => db.prepare(sql),
+      batch: async <T,>(st: D1Statement[]) => {
+        batches++;
+        most = Math.max(most, ++inFlight);
+        try {
+          return await db.batch<T>(st);
+        } finally {
+          inFlight--;
+        }
+      },
+    };
+    const g = await adminGraphs(watched, '7d', NOW);
+    expect(g.days.at(-1)?.final).toBe(false);
+    expect(batches).toBe(4);
+    expect(most).toBe(4);
+  });
+
   it('every series for a range: online by bucket, the days rolled up and today live, splits, storage, the largest, sharing', async () => {
     const yesterday = NOW - DAY_MS;
     const a = device();
