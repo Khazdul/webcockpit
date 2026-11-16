@@ -204,9 +204,15 @@ async function adminFlagRoute(request: Request, env: Env, url: URL, deps: Deps, 
   const keys = typeof body === 'object' && body !== null ? Object.keys(body) : [];
   const value = (body as { value?: unknown } | null)?.value;
   if (keys.length !== 1 || typeof value !== 'boolean') return error('bad_request', 400);
-  // Stage 66: the switch is logged in the same transaction (ADR 0157).
+  // Stage 66: the switch is logged in the same transaction (ADR 0157). A
+  // failing database, or the chain's retries run out, is 503 as for the
+  // other admin writes (review fix S11); nothing was applied.
   const db = env.DB;
-  await sealedBatch(env, db, { ts: deps.now(), who, action: value ? 'flag.on' : 'flag.off', target: name, note: '' }, (entry) => [flagStatement(db, name, value), entry]);
+  try {
+    await sealedBatch(env, db, { ts: deps.now(), who, action: value ? 'flag.on' : 'flag.off', target: name, note: '' }, (entry) => [flagStatement(db, name, value), entry]);
+  } catch {
+    return error('unavailable', 503);
+  }
   forgetFlags(db);
   return json((await adminFlags(env, deps.now()))[name] satisfies AdminFlag);
 }

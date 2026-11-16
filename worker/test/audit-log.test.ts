@@ -207,6 +207,20 @@ describe('racing actions', () => {
     expect((await page()).chain).toMatchObject({ state: 'intact', sealed: 4 + RETRIES + 1 });
   });
 
+  it('S11: the flag switch whose chain retries run out answers 503 unavailable, nothing applied', async () => {
+    const always: D1 = {
+      prepare: (sql) => db.prepare(sql),
+      batch: async (st) => {
+        await sealedBatch(realEnv, db, line(900 + (await count('admin_log'))), (e) => [e]);
+        return db.batch(st);
+      },
+    };
+    const res = await admin('/api/admin/flags/stats', { method: 'PUT', body: { value: false }, env: adminEnv({ DB: always }) });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'unavailable' });
+    expect(await db.prepare("SELECT 1 FROM flag WHERE name = 'stats'").first()).toBeNull();
+  });
+
   it('every admin action through the router seals its entry (moderation, accounts, limits, flags)', async () => {
     const { signUp } = await import('./share-helpers.ts');
     await signUp('alice');
