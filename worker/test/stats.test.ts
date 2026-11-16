@@ -340,5 +340,6 @@ describe('cron: sample, roll-up, pruning', () => {
     worker.scheduled(createScheduledController({ cron: SAMPLE_CRON, scheduledTime: at10 + 60_000 }), realEnv, ctx);
     await waitOnExecutionContext(ctx);
     expect(await count('stat_sample')).toBe(1);
-  });
+    // 0.7 s here; a slow CI runner once passed 5 s and stopped the 0.15.0 deploy.
+  }, 30_000);
 });

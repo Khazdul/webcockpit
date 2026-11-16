@@ -1,23 +1,18 @@
 # Stage 66 — The admin panel
 
-Status: **On staging (2026-11-16)**: built as picked in round 14 (1b,
-2b, 3a, 4b), reviewed, fixed and checked; production untouched, no tag.
+Status: **Released as 0.15.0 (2026-11-16)** on the owner's word ("Vi
+nöjer oss så här"), without a test of his own on staging.
 
 ## Waiting for the owner
 
-1. **Your test on staging** (test guide below): <https://staging.mumecockpit.com/admin>.
-   Then say yes or give feedback; the release (0.15.0, migration 0007)
-   goes to production only on your word.
+1. **A look at /admin in production** (<https://mumecockpit.com/admin>),
+   the test guide below, whenever convenient; feedback goes in a later
+   pass.
 2. **S1, an admin host of its own (optional, your Cloudflare setup).**
-   The review's only remark on Access: `/admin` shares its origin with
-   the app, so a script that ever got past the app's CSP could act as
-   the admin. Moving the admin to e.g. `admin.mumecockpit.com` with its
-   own Access application closes that. Low risk today; say if you want
-   it, and the next session writes the clicks.
+   `/admin` shares its origin with the app; `admin.mumecockpit.com` with
+   its own Access application would separate them. Low risk today.
 3. **S8, one Access application per environment (optional).** Staging
-   and production share the Access audience, so a staging admin token is
-   accepted by production too (still only for your e-mail). A second
-   application for staging separates them.
+   and production share the Access audience.
 
 ## Goal
 
@@ -192,14 +187,18 @@ build; the client bundle is the same code, so this is the machine);
 
 ### E. Staging
 
-- [ ] Push `main`; `deploy.yml` to staging with migration 0007;
+- [x] Push `main`; `deploy.yml` to staging with migration 0007;
       `test:prod` against <https://staging.mumecockpit.com>. No tag.
+      (Run 43966514559, 0007 applied, `test:prod` 36/36.)
 
 ### F. Production (only on the owner's word)
 
-- [ ] The owner has tested on staging and said yes.
-- [ ] Release 0.15.0: tag, migration 0007; `test:prod` against
-      mumecockpit.com.
+- [x] The owner said yes (2026-11-16, without his own test on staging).
+- [x] Release 0.15.0: tag `v0.15.0`, deploy run 43968276609 (the first
+      attempt stopped in `build:site` on a Worker test past 5 s on the
+      runner, nothing deployed; rerun green), migration 0007 applied;
+      `test:prod` 36/36 against mumecockpit.com. The slow test got a 30 s
+      timeout afterwards.
 
 ## Test guide (owner)
 
