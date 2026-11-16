@@ -135,7 +135,7 @@ a canvas of ten views; example data). Four questions:
 
 ### C. The page (after the picks; contract from B's first commit)
 
-- [ ] C1 (worktree `stage66-page`, port 5482): the split into modules,
+- [x] C1 (worktree `stage66-page`, port 5482): the split into modules,
       the views and navigation, Accounts, one account, limits, clean-up,
       the Log view, Flags.
 - [ ] C2 (worktree `stage66-graphs`, port 5483): `worker/admin/graphs.ts`

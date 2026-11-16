@@ -220,3 +220,37 @@ Mockups: <https://claude.ai/artifact/9yMSTQ4zgef5q1deSduTFC>.
   that equals the default at the time it is saved is not stored, so it
   follows later default changes. `GET`/`PUT /api/admin/limits`, logged
   as `limits.default`. Same value rules (0 … 20 × the built-in value).
+
+## As built (stage 66 C1, the page)
+
+- **Modules.** `worker/admin/shell.ts` (helpers, the modal, the router,
+  the side bar; its boot part runs last), `reports.ts` (the stage 64/65
+  moderation moved without a change in behaviour), `limits.ts` (the
+  limit fields, units and checks shared by one account and the
+  defaults), `accounts.ts`, `log.ts`, `flags.ts`, and C2's `graphs.ts`;
+  `page.ts` joins them into one IIFE and exports `ADMIN_JS_MODULES` so
+  the unit and Worker tests check every module for HTML sinks.
+- **Router.** `#<view>[/<rest>]`, the rest URI-decoded; an unknown view
+  falls back to Reports. Reports' element stays in the page (hidden off
+  its view) so the side bar's count can be updated; the other views
+  render into a fresh element each time they open. Stats and the queue
+  are read once at the start (for the header and the count), then every
+  60 s only while Reports is open.
+- **The stage 59 numbers.** Online now, today's figures, the 7 and 30
+  day devices and the use estimate sit at the top of Reports; the 30-day
+  table and the splits are below the queue in a folded `<details>`
+  until C2's Use view takes them over. Flags moved to "Flags and
+  limits".
+- **The environment hint** comes from the host name (`staging.*`,
+  localhost, otherwise production); the API does not send one.
+- **Units.** Limits are shown and typed in binary MB (the Worker's
+  defaults are `50 × 1024 × 1024`); a bare number in a byte field means
+  MB, and B/KB/GB are understood. The rest of the page keeps decimal
+  sizes (`size()`). The page checks 0 … 20 × built in before sending.
+- **Every limit change asks first** in the modal, which lists the
+  changes ("Runs, bytes 50 MB → 200 MB"), warns for a value under use,
+  and carries the optional note for the log. A value equal to the
+  default is left out of `own` (as the Worker does); an empty `own` is
+  sent as `limits: null`, an empty override set as `defaults: null`.
+- **Not shown:** the mockup's "Accounts with their own" count per
+  default limit; the contract has no such figure.
