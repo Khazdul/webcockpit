@@ -122,15 +122,15 @@ a canvas of ten views; example data). Four questions:
 
 ### B. Worker (worktree `stage66-worker`, port 5481)
 
-- [ ] Migration `0007_admin_panel.sql`: metrics backfill, `admin_log`
+- [x] Migration `0007_admin_panel.sql`: metrics backfill, `admin_log`
       columns and triggers.
-- [ ] Roll-up of the new metrics; `GET /api/admin/graphs`.
-- [ ] `GET /api/admin/accounts`, `GET /api/admin/account/<name>`,
+- [x] Roll-up of the new metrics; `GET /api/admin/graphs`.
+- [x] `GET /api/admin/accounts`, `GET /api/admin/account/<name>`,
       `PUT …/limits`, `end-sessions`; `GET`/`PUT /api/admin/limits` (the
       defaults, pick 4b) read by every limit check and `/api/config`.
-- [ ] The log's chain on every insert (moderation, deletion, limits,
+- [x] The log's chain on every insert (moderation, deletion, limits,
       flags); `GET /api/admin/log` paged with the chain's check.
-- [ ] Tests: every endpoint; the triggers; the chain broken and found;
+- [x] Tests: every endpoint; the triggers; the chain broken and found;
       the deletion guard test over `sqlite_master`; the Access walk.
 
 ### C. The page (after the picks; contract from B's first commit)
@@ -138,20 +138,45 @@ a canvas of ten views; example data). Four questions:
 - [x] C1 (worktree `stage66-page`, port 5482): the split into modules,
       the views and navigation, Accounts, one account, limits, clean-up,
       the Log view, Flags.
-- [ ] C2 (worktree `stage66-graphs`, port 5483): `worker/admin/graphs.ts`
+- [x] C2 (worktree `stage66-graphs`, port 5483): `worker/admin/graphs.ts`
       — the SVG graphs, ranges, hover, Table, Use / Storage / Sharing.
-- [ ] Unit tests (happy-dom) for both: hostile names and notes as text,
+- [x] Unit tests (happy-dom) for both: hostile names and notes as text,
       every call's path and body, the confirmations.
 
 ### D. Checks
 
-- [ ] An independent security review (Access on every admin path, no
+- [x] An independent security review (Access on every admin path, no
       admin action without Access, deletion removes everything in D1
       and R2, the audit log cannot be changed) and `/code-review` high;
       fixes with tests.
-- [ ] Unit; worker; the full e2e alone at 5 workers (a failure rerun
+- [x] Unit; worker; the full e2e alone at 5 workers (a failure rerun
       alone before it is called one); the benchmark; the entry chunk;
       `npm run test:sync-worker`.
+
+Review (2026-11-16): the security review
+(`notes/research/stage66-security-review.md`) found no high or medium
+findings: Access held against 18 path tricks with GET, HEAD and OPTIONS,
+hostile limits all refused, the deletion guard complete but for one race.
+Low S2–S7, S9, S11 fixed with tests (unsealing now reads broken, every
+broken entry is listed, the Reports card reads 20 rows without the chain
+check, a report racing its author's deletion, a run id posing as a name,
+`#__proto__`, the certs back-off, a 503 for the flag switch); S10
+accepted; **S1 and S8 open for the owner** (below). B also found and
+fixed two deletion gaps itself: `session_end` kept the account id,
+`pub_view` kept views until the prune. `/code-review` high CR1–CR8 all
+fixed (byte limits lost precision through the form, stale answers in
+Accounts and Log, a failed defaults load not cached, sequential graph
+queries, the log count, a duplicated helper, two byte formatters). ADR
+0157 "As built (stage 66, review fixes)".
+
+Checks (2026-11-16): typecheck; unit and worker 5 454 passed, 2 skipped;
+full e2e alone at 5 workers 1 892 passed, 4 failed under load (Firefox
+import:148, loading:84, menubar:182; phone-share-link:68), all four passed
+alone 12/12; entry chunk 31.36 kB (unchanged: no client code changed in
+this stage, `src/` untouched); benchmark key → send median 0.04 ms, burst
+46 528 lines/s at load 1.9 (stage 65's 76 801 was measured right after a
+build; the client bundle is the same code, so this is the machine);
+`test:sync-worker` 6/6.
 
 ### E. Staging
 
