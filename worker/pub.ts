@@ -7,6 +7,8 @@
 //   GET    /api/u/pub/<id>/payload  its payload (also a hidden one)
 //   PATCH  /api/u/pub/<id>          title, description, listed (stage 65)
 //   DELETE /api/u/pub/<id>          removes it (a tombstone; the link answers 410)
+//   PUT    /api/u/pub/<id>/preview  its link preview image (ADR 0158): a PNG of
+//                                   PREVIEW_WIDTH x PREVIEW_HEIGHT, at most PREVIEW_MAX_BYTES
 //   GET    /api/pub/<id>            the public meta
 //   GET    /api/pub/<id>/payload    the public payload
 //   POST   /api/pub/<id>/view       counts a view, once per device and per hashed address a UTC day
@@ -65,6 +67,7 @@ import {
   type PubQuota,
   type PubWritten,
 } from '../shared/cloud/api.ts';
+import { PREVIEW_MAX_BYTES, PREVIEW_TYPE, isPreviewPng } from '../shared/cloud/preview.ts';
 import { isCleanText, isPublicText } from '../shared/cloud/text.ts';
 import { type AccountRow, hasKeys, limitsOf, prefsOf } from './accounts.ts';
 import { addressKey, viewAddressKey } from './address.ts';
@@ -76,7 +79,7 @@ import { flags } from './flags.ts';
 import { lengthOf, storeStream, type Stored } from './runs.ts';
 import { DAY_MS, type D1, type D1Statement, type Deps, type Env, type R2, type R2Body, dayStart, error, json, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
-import { UUID, readCapped } from './stats.ts';
+import { UUID, readBytesCapped, readCapped } from './stats.ts';
 
 /** What a handler here uses of auth.ts's context. */
 export interface PubCtx {
@@ -201,6 +204,8 @@ export const TOMBSTONE_SET =
 export const LIVE = "('active', 'hidden')";
 
 export const keyOf = (id: string): string => `pub/${id}`;
+/** The R2 key of a run's preview image (ADR 0158; worker/og.ts serves it). */
+export const previewKeyOf = (id: string): string => `pubprev/${id}`;
 
 /**
  * The columns of what is new on the sender's runs since its reactions
@@ -336,7 +341,9 @@ export async function dropObjects(env: Env, ids: string[]): Promise<void> {
   for (let i = 0; i < ids.length; i += 1000) {
     const part = ids.slice(i, i + 1000);
     try {
+      // The preview images go with the payloads (ADR 0158; a key without an object is no error).
       await bucket.delete(part.map(keyOf));
+      await bucket.delete(part.map(previewKeyOf));
       await db.prepare(`UPDATE publication SET bytes = 0 WHERE state = 'removed' AND id IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(part)).run();
     } catch {
       // The cron deletes them later.
@@ -354,10 +361,11 @@ export function isPubPath(path: string): boolean {
   return path === LIST_PATH || path.startsWith(ONE_PREFIX);
 }
 
-const ROUTES: Record<'list' | 'one' | 'payload', Record<string, Handler>> = {
+const ROUTES: Record<'list' | 'one' | 'payload' | 'preview', Record<string, Handler>> = {
   list: { GET: list, POST: create },
   one: { GET: mine, PATCH: patch, DELETE: remove },
   payload: { GET: minePayload },
+  preview: { PUT: putPreview },
 };
 
 /** The route of a pub path, or undefined (404). */
@@ -367,6 +375,7 @@ export function pubRoute(path: string): Record<string, Handler> | undefined {
   const rest = path.slice(ONE_PREFIX.length);
   if (/^[^/]+$/.test(rest)) return ROUTES.one;
   if (/^[^/]+\/payload$/.test(rest)) return ROUTES.payload;
+  if (/^[^/]+\/preview$/.test(rest)) return ROUTES.preview;
   return undefined;
 }
 
@@ -487,6 +496,45 @@ async function remove(c: PubCtx): Promise<Response> {
   // Only a listed run the lists showed (a hidden one is not shown).
   // At once: each listed run removed was one of the day's listings.
   return row.state === 'active' && row.listed === 1 ? publicChange(answer, true) : answer;
+}
+
+// --- PUT /api/u/pub/<id>/preview (ADR 0158) ---
+
+/**
+ * The run's link preview image, made by the sender's browser after the
+ * link: `image/png`, a Content-Length of at most PREVIEW_MAX_BYTES, a PNG
+ * head of exactly PREVIEW_WIDTH x PREVIEW_HEIGHT (the bytes are never
+ * decoded here). Only the sender's own active run (a hidden run's image is
+ * not replaced: 403 hidden); a second PUT replaces the image. Not counted
+ * in `pub_bytes` (bounded by one image per run); deleted with the payload.
+ */
+async function putPreview(c: PubCtx): Promise<Response> {
+  const { account } = c.auth as Authed;
+  const id = idOf(c);
+  if (!id) return notFound();
+  const type = (c.request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
+  if (type !== PREVIEW_TYPE) return badRequest();
+  const total = lengthOf(c.request);
+  if (total === null) return error('length_required', 411);
+  if (Number.isNaN(total) || total < 33) return badRequest();
+  if (total > PREVIEW_MAX_BYTES) return json({ error: 'payload_too_large', limit: PREVIEW_MAX_BYTES } satisfies PayloadTooLarge, 413);
+  if (suspended(account)) return error('suspended', 403);
+  const bucket = c.env.FILES;
+  if (!bucket) return error('unavailable', 503);
+  const row = await ownLive(c, id);
+  if (!row) return notFound();
+  if (row.state === 'hidden') return error('hidden', 403);
+  const bytes = await readBytesCapped(c.request, PREVIEW_MAX_BYTES);
+  if (bytes === null) return json({ error: 'payload_too_large', limit: PREVIEW_MAX_BYTES } satisfies PayloadTooLarge, 413);
+  if (bytes.length !== total || !isPreviewPng(bytes)) return badRequest();
+  await bucket.put(previewKeyOf(id), bytes, { httpMetadata: { contentType: PREVIEW_TYPE } });
+  // Removed meanwhile (its sender, the admin, Delete account): the image goes again.
+  const still = await c.db.prepare(`SELECT state FROM publication WHERE id = ?1 AND state = 'active'`).bind(id).first();
+  if (!still) {
+    await bucket.delete(previewKeyOf(id)).catch(() => {});
+    return notFound();
+  }
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
 // --- POST /api/u/pub ---

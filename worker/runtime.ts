@@ -40,6 +40,8 @@ export interface D1 {
 export interface R2Head {
   key: string;
   size: number;
+  /** When it was stored (R2 sets it; the preview image's version, worker/og.ts). */
+  uploaded?: Date;
 }
 
 /** An R2 object with its body. */

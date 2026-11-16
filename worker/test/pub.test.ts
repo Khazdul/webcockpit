@@ -618,9 +618,13 @@ describe('/r/* (the watch page)', () => {
         expect(res.headers.get('x-test-rule'), path).toBe('root');
       }
     }
-    // The root's ETag answers a revalidation.
-    const etag = (await call('GET', '/r/AbCdEfGh1234')).headers.get('etag') as string;
-    expect((await call('GET', '/r/AbCdEfGh1234', undefined, { headers: { 'if-none-match': etag } })).status).toBe(304);
+    // The root's ETag answers a revalidation where the page is not a log's;
+    // a log's page carries its own meta tags (ADR 0158): no ETag, never a 304.
+    const etag = (await call('GET', '/r/not-an-id')).headers.get('etag') as string;
+    expect((await call('GET', '/r/not-an-id', undefined, { headers: { 'if-none-match': etag } })).status).toBe(304);
+    const page = await call('GET', '/r/AbCdEfGh1234', undefined, { headers: { 'if-none-match': etag } });
+    expect(page.status).toBe(200);
+    expect(page.headers.get('etag')).toBeNull();
   });
 
   it('a file under /r/ is the assets’ own answer (the frame document), with its own rule', async () => {
