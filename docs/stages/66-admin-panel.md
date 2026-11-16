@@ -1,14 +1,11 @@
 # Stage 66 — The admin panel
 
-Status: **Planned (2026-11-16)**; mockups round 14 out for the owner's
-picks; nothing built.
+Status: **In progress (2026-11-16)**; the owner picked round 14 (1b, 2b,
+3a, 4b); building.
 
 ## Waiting for the owner
 
-1. **Mockup round 14**: pick the page's layout, the graphs' density,
-   what "clean-up" covers, and whether the default limits are edited
-   from /admin (section "For the owner to choose"). Nothing is built
-   before the picks.
+Nothing yet: round 14 is picked (below); the build is running.
 
 ## Goal
 
@@ -99,23 +96,38 @@ a canvas of ten views; example data). Four questions:
 4. **Default limits**: per account only, the defaults in code (spec as
    written) / also the defaults for everyone edited from /admin.
 
+### The owner's picks (2026-11-16)
+
+- **1b, a side bar**: grouped links (Look after: Reports, Accounts, Log;
+  Numbers: Use, Storage, Sharing; Site: Flags and limits); a row of links
+  over the view on a phone.
+- **2b, a grid of small graphs**: each card the latest figure large and
+  the range as a small graph; a click opens it large with hover and
+  Table (2a's form).
+- **3a, clean-up per account**: End all sessions, Suspend / Restore,
+  Delete on the account's page; no Clean-up list.
+- **4b, the defaults too**: the default limits for every account are
+  edited from /admin (the Flags view, "Flags and limits"), without a
+  release; accounts with their own keep them.
+
 ## Tasks
 
 ### A. Plan and mockups
 
 - [x] This file; ADR 0157.
-- [ ] Mockups round 14 as an artifact; the owner's picks recorded here
+- [x] Mockups round 14 as an artifact; the owner's picks recorded here
       and in ADR 0157's addendum.
+- [x] The contract in `shared/cloud/api.ts` ("The admin panel"), on main
+      before the agents start.
 
 ### B. Worker (worktree `stage66-worker`, port 5481)
 
-- [ ] Contract in `shared/cloud/api.ts` ("The admin panel").
 - [ ] Migration `0007_admin_panel.sql`: metrics backfill, `admin_log`
       columns and triggers.
 - [ ] Roll-up of the new metrics; `GET /api/admin/graphs`.
 - [ ] `GET /api/admin/accounts`, `GET /api/admin/account/<name>`,
-      `PUT …/limits`, `end-sessions` (and the clean-up endpoint if
-      picked).
+      `PUT …/limits`, `end-sessions`; `GET`/`PUT /api/admin/limits` (the
+      defaults, pick 4b) read by every limit check and `/api/config`.
 - [ ] The log's chain on every insert (moderation, deletion, limits,
       flags); `GET /api/admin/log` paged with the chain's check.
 - [ ] Tests: every endpoint; the triggers; the chain broken and found;

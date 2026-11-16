@@ -890,7 +890,8 @@ export interface AdminReportItem {
  * reporters whose account still exists and is not suspended.
  */
 export const ADMIN_PUB_ACTIONS = ['hide', 'restore', 'dismiss', 'delete'] as const;
-export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete'] as const;
+/** Stage 66 (ADR 0157): `end-sessions` ends every session of the account (reason `ended`). */
+export const ADMIN_ACCOUNT_ACTIONS = ['suspend', 'restore', 'delete', 'end-sessions'] as const;
 /**
  * Stage 65: the actions on a comment and on a note, with a run's meaning:
  * `hide` (by the admin), `restore` (shown and reviewed), `dismiss` (reports
@@ -1302,4 +1303,196 @@ export interface CommunitySeen {
 export interface AdminItemAction {
   action: (typeof ADMIN_ITEM_ACTIONS)[number];
   note?: string;
+}
+
+// --- The admin panel (stage 66, spec §7.9, ADR 0157) ---
+//
+// All under /api/admin/: the router's Access check runs first; writes need
+// `X-WC: 1` and the site's own `Origin`. Errors as elsewhere
+// (`{error}`): 400 bad_request, 404 not_found, 403 forbidden.
+
+/** Sort keys of `GET /api/admin/accounts`. */
+export const ADMIN_ACCOUNT_SORTS = ['name', 'created', 'seen', 'items', 'bytes', 'runs', 'pubs', 'state'] as const;
+export type AdminAccountSort = (typeof ADMIN_ACCOUNT_SORTS)[number];
+export const ADMIN_ACCOUNTS_PAGE = 50;
+
+/** One row of the account list. Times in ms; bytes as bytes. */
+export interface AdminAccountRow {
+  name: string;
+  created: number;
+  lastSeen: number;
+  state: 'active' | 'suspended';
+  items: number;
+  itemBytes: number;
+  runs: number;
+  runBytes: number;
+  pubs: number;
+  pubBytes: number;
+  /** itemBytes + runBytes + pubBytes. */
+  bytes: number;
+  /** Live sessions. */
+  sessions: number;
+  /** Whether the account has limits of its own (`account.limits` not NULL). */
+  ownLimits: boolean;
+}
+
+/**
+ * `GET /api/admin/accounts?q=&state=all|active|suspended&sort=<AdminAccountSort>&dir=asc|desc&page=N`
+ * (page from 1; defaults: all, `seen`, desc, 1). `q`: a part of the name,
+ * without regard to case (at most 20 characters; LIKE wildcards escaped).
+ */
+export interface AdminAccounts {
+  total: number;
+  page: number;
+  pageSize: number;
+  accounts: AdminAccountRow[];
+  /** Totals over every account (not only the page). */
+  totals: { accounts: number; bytes: number };
+}
+
+/** Limits as the admin sees them: what holds, where each value comes from. */
+export interface AdminLimits {
+  /** Built into the Worker (DEFAULT_ACCOUNT_LIMITS with `RUN_BYTES_LIMIT`). */
+  builtIn: AccountLimits;
+  /** The defaults now: built-in with the admin's default overrides (owner's pick 4b). */
+  defaults: AccountLimits;
+  /** The account's own values (only the fields it overrides); absent on `GET /api/admin/limits`. */
+  own?: Partial<AccountLimits>;
+  /** What holds for the account; absent on `GET /api/admin/limits`. */
+  effective?: AccountLimits;
+}
+
+/** `GET /api/admin/account/<name>` */
+export interface AdminAccountDetail {
+  account: AdminAccountRow;
+  limits: AdminLimits & { own: Partial<AccountLimits>; effective: AccountLimits };
+  /** Sessions: count and the newest use (ms, 0 when none); never their labels. */
+  sessions: { count: number; lastUsed: number };
+  community: {
+    listed: number;
+    votes: number;
+    comments: number;
+    notes: number;
+    reportsMade: number;
+    /** Open reports on the account's runs, comments and notes. */
+    reportsOpen: number;
+  };
+  /** The newest 20 log entries whose target is the account or one of its things. */
+  log: AdminLogRow[];
+}
+
+/**
+ * `PUT /api/admin/account/<name>/limits` `{limits, note?}` → `AdminLimits`
+ * (with `own` and `effective`). `limits`: some fields of `AccountLimits`
+ * (whole numbers 0 … 20 × the built-in value) or null for none of its own.
+ * A field equal to the current default is not stored. Logged
+ * `account.limits`, the changes in the note.
+ */
+export interface AdminLimitsPut {
+  limits: Partial<AccountLimits> | null;
+  note?: string;
+}
+
+/**
+ * `GET /api/admin/limits` → `AdminLimits` (builtIn, defaults).
+ * `PUT /api/admin/limits` `{defaults, note?}` → `AdminLimits`: the default
+ * overrides for every account (owner's pick 4b); a field equal to the
+ * built-in value is not stored, `null` clears them all. Same value rules as
+ * per account. Logged `limits.default`. Reaches every isolate within 30 s
+ * and `/api/config`'s `limits` with it.
+ */
+export interface AdminDefaultsPut {
+  defaults: Partial<AccountLimits> | null;
+  note?: string;
+}
+
+export const ADMIN_GRAPH_RANGES = ['24h', '7d', '30d', '90d', 'all'] as const;
+export type AdminGraphRange = (typeof ADMIN_GRAPH_RANGES)[number];
+
+/** A point of the online graph: time (ms, the bucket's start) and the highest of its samples. */
+export interface AdminOnlinePoint {
+  ts: number;
+  online: number;
+  playing: number;
+}
+
+/** A day's figures for the graphs: metric → value (absent metric: not known for that day). */
+export interface AdminGraphDay {
+  day: string;
+  /** Rolled up (false only for today, read live). */
+  final: boolean;
+  m: Partial<Record<AdminDailyMetric, number>>;
+}
+
+/**
+ * Daily metrics of `stat_daily` the graphs use (ADR 0147 and ADR 0157).
+ * Stage 66 adds devices_7d … views; storage metrics exist from stage 66's
+ * deploy on, the others are backfilled where the tables still know them.
+ */
+export type AdminDailyMetric =
+  | 'devices'
+  | 'new_devices'
+  | 'peak_online'
+  | 'peak_playing'
+  | 'play_minutes'
+  | 'beats'
+  | 'devices_7d'
+  | 'devices_30d'
+  | 'new_accounts'
+  | 'accounts'
+  | 'item_bytes'
+  | 'run_bytes'
+  | 'pub_bytes'
+  | 'pubs_new'
+  | 'listed_new'
+  | 'votes'
+  | 'comments'
+  | 'notes'
+  | 'reports'
+  | 'views';
+
+/** `GET /api/admin/graphs?range=<AdminGraphRange>` (default 30d). */
+export interface AdminGraphs {
+  range: AdminGraphRange;
+  now: number;
+  /** Bucket of `online` in minutes: 5 (24h), 30 (7d), 60 (30d), 180 (90d), 1440 (all: the days' peaks). */
+  bucketMinutes: number;
+  online: AdminOnlinePoint[];
+  /** Oldest first; for 24h the last two days. */
+  days: AdminGraphDay[];
+  /** Device splits over the range: devices summed per key over the range's days. */
+  split: { type: AdminSplit; browser: AdminSplit; version: AdminSplit };
+  /** Storage now (live). */
+  storage: { accounts: number; itemBytes: number; runBytes: number; pubBytes: number };
+  /** The ten largest accounts by total bytes, now. */
+  largest: { name: string; itemBytes: number; runBytes: number; pubBytes: number }[];
+  /** Sharing now (live). */
+  sharing: { pubs: number; listed: number; hidden: number; votes: number; comments: number; notes: number; openReports: number };
+}
+
+export const ADMIN_LOG_KINDS = ['moderation', 'accounts', 'limits', 'flags'] as const;
+export type AdminLogKind = (typeof ADMIN_LOG_KINDS)[number];
+export const ADMIN_LOG_PAGE = 100;
+
+/** An entry of the audit log as the Log view shows it. */
+export interface AdminLogRow extends AdminLogEntry {
+  id: number;
+  /** A short hash of the Access e-mail (8 characters of `who`). */
+  by: string;
+  /** False for entries written before stage 66 (no seal). */
+  sealed: boolean;
+}
+
+/**
+ * `GET /api/admin/log?before=<id>&kind=<AdminLogKind>&q=` → newest first,
+ * 100 a page; `q` a part of the target. `chain` checks every sealed entry
+ * (not only the page): `intact`, or `broken` with the first id that does
+ * not match. `head` is the newest entry's seal (shortened to 12).
+ */
+export interface AdminLogPage {
+  entries: AdminLogRow[];
+  /** The id to pass as `before` for the next page, null at the end. */
+  next: number | null;
+  total: number;
+  chain: { state: 'intact' | 'broken'; sealed: number; unsealed: number; brokenAt: number | null; head: string };
 }

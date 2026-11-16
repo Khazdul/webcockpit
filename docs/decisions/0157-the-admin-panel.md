@@ -198,3 +198,25 @@ write without `X-WC` or with another `Origin`, expecting `403`.
 - The roll-up writes about 15 more rows a day.
 - `AUTH_PEPPER` now also keys the audit log; rotating it would break
   the chain's check for older rows (it is not rotated today).
+
+## Addendum (owner, round 14, 2026-11-16): the picks
+
+Mockups: <https://claude.ai/artifact/9yMSTQ4zgef5q1deSduTFC>.
+
+- **1b, a side bar** of grouped links (Look after: Reports, Accounts,
+  Log; Numbers: Use, Storage, Sharing; Site: Flags and limits). Under
+  900 px it becomes a row of links over the view.
+- **2b, a grid of small graphs**: a card per graph with the latest
+  figure large and the range small; a click opens the graph large with
+  hover and Table. The range buttons are once over the view.
+- **3a, clean-up per account only**: End all sessions, Suspend /
+  Restore, Delete on the account's page. No list of abandoned accounts.
+- **4b, the default limits are edited from /admin too.** A new table
+  `limit_default(name, value)` (migration 0007) overrides
+  `DEFAULT_ACCOUNT_LIMITS` (and `RUN_BYTES_LIMIT`) field by field; it is
+  read like the flags, kept 30 s per isolate, loaded before any handler
+  that checks a limit, so `limitsOf` stays synchronous. `/api/config`'s
+  `limits` are the defaults with the overrides. An account's own value
+  that equals the default at the time it is saved is not stored, so it
+  follows later default changes. `GET`/`PUT /api/admin/limits`, logged
+  as `limits.default`. Same value rules (0 … 20 × the built-in value).
