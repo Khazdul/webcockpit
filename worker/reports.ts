@@ -30,15 +30,11 @@ import { COUNTED } from './community.ts';
 import { flags } from './flags.ts';
 import { mailReport } from './mail.ts';
 import { type PubCtx, type PubRowState, textOf } from './pub.ts';
-import { DAY_MS, type D1, type D1Statement, dayStart, error, publicChange, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type D1Statement, dayStart, error, isOneOf, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
 const MAX_REPORT_BYTES = 4096;
-
-function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
-  return typeof v === 'string' && (list as readonly string[]).includes(v);
-}
 
 export async function report(c: PubCtx): Promise<Response> {
   const { account } = c.auth as Authed;
@@ -51,7 +47,7 @@ export async function report(c: PubCtx): Promise<Response> {
     b = null;
   }
   if (!hasKeys(b, ['kind', 'target', 'reason'], ['text'])) return error('bad_request', 400);
-  if (!oneOf<ReportKind>(REPORT_KINDS, b.kind) || !oneOf<ReportReason>(REPORT_REASONS, b.reason) || typeof b.target !== 'string') return error('bad_request', 400);
+  if (!isOneOf<ReportKind>(REPORT_KINDS, b.kind) || !isOneOf<ReportReason>(REPORT_REASONS, b.reason) || typeof b.target !== 'string') return error('bad_request', 400);
   const note = b.text === undefined ? '' : textOf(b.text, 0, REPORT_TEXT_MAX, { newlines: true });
   if (note === null) return error('bad_request', 400);
   // Comments and notes are open with their flags (stage 65).

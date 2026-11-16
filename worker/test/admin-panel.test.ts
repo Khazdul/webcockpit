@@ -13,7 +13,7 @@ import {
 } from '../../shared/cloud/api.ts';
 import { LIMITS_CACHE_MS, forgetLimitDefaults, loadLimitDefaults } from '../limits.ts';
 import { adminGraphs, recordBeat, rollUp } from '../stats.ts';
-import { DAY_MS, type D1, type D1Statement } from '../runtime.ts';
+import { DAY_MS, type D1, type D1Statement, isOneOf, oneOf } from '../runtime.ts';
 import { count, db, device, emptyTables } from './helpers.ts';
 import { NOW, admin, adminEnv, adminJson, forgetAccessKeys } from './access-helpers.ts';
 import { CENV, commented, list, noted, voted } from './community-helpers.ts';
@@ -497,3 +497,19 @@ declare global {
 }
 
 export { adminEnv };
+
+describe('CR7: one oneOf for every route', () => {
+  it('is defined once, in runtime.ts, and reads a parameter the same everywhere', () => {
+    const sources = import.meta.glob(['../**/*.ts', '!../test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const defining = Object.entries(sources)
+      .filter(([, text]) => /function (is)?oneOf\b/i.test(text))
+      .map(([file]) => file);
+    expect(defining).toEqual(['../runtime.ts']);
+    expect(oneOf(['a', 'b'] as const, null, 'a')).toBe('a');
+    expect(oneOf(['a', 'b'] as const, '', 'a')).toBe('a');
+    expect(oneOf(['a', 'b'] as const, 'b', 'a')).toBe('b');
+    expect(oneOf(['a', 'b'] as const, 'c', 'a')).toBeNull();
+    expect(isOneOf(['a'], 'a')).toBe(true);
+    expect(isOneOf(['a'], 1)).toBe(false);
+  });
+});

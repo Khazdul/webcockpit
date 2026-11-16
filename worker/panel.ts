@@ -32,7 +32,7 @@ import { type AccountRow, limitsOf, nameOf, ownLimitsOf } from './accounts.ts';
 import { LOG_COLUMNS, type LogRecord, logPage, recentPage, rowOf, sealedBatch } from './auditlog.ts';
 import { builtInLimits, changeNote, currentDefaults, differing, forgetLimitDefaults, limitsInput, loadLimitDefaults } from './limits.ts';
 import { bodyOf, guarded, noteOf } from './moderation.ts';
-import { type D1, type Deps, type Env, error, json } from './runtime.ts';
+import { type D1, type Deps, type Env, error, json, oneOf } from './runtime.ts';
 import { adminGraphs } from './stats.ts';
 
 const ACCOUNT_PREFIX = '/api/admin/account/';
@@ -116,11 +116,6 @@ function accountRowOf(r: ListRow): AdminAccountRow {
 }
 
 const likeEscaped = (q: string): string => q.replace(/[\\%_]/g, (c) => `\\${c}`);
-
-function oneOf<T extends string>(list: readonly T[], v: string | null, fallback: T): T | null {
-  if (v === null || v === '') return fallback;
-  return (list as readonly string[]).includes(v) ? (v as T) : null;
-}
 
 async function accounts(_request: Request, _env: Env, db: D1, url: URL, now: number): Promise<Response> {
   const p = url.searchParams;

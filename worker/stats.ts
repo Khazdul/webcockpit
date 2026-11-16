@@ -25,7 +25,7 @@ import { pruneAttempts } from './attempts.ts';
 import { adminFlags } from './flags.ts';
 import { flushReportMail } from './mail.ts';
 import { refreshMume } from './mume.ts';
-import { DAY_MS, type D1, type Deps, type Env, dayStart, utcDay } from './runtime.ts';
+import { DAY_MS, type D1, type Deps, type Env, dayStart, isOneOf, utcDay } from './runtime.ts';
 import { sweepCommunity } from './community.ts';
 import { sweepPubs } from './pub.ts';
 import { sweepPrefixes } from './runs.ts';
@@ -43,10 +43,6 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z][0-9A-Za-z.-]{0,15})?$/;
 const BEAT_KEYS = ['browser', 'device', 'state', 'type', 'version'];
 
-function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
-  return typeof v === 'string' && (list as readonly string[]).includes(v);
-}
-
 /**
  * A beat from a parsed body, or null when anything is off: not an object,
  * a missing or extra field, a field of the wrong type or outside its list.
@@ -60,7 +56,7 @@ export function parseBeat(body: unknown): Beat | null {
   const { device, version, type, browser, state } = b;
   if (typeof device !== 'string' || !UUID.test(device)) return null;
   if (typeof version !== 'string' || version.length > MAX_VERSION_LENGTH || !VERSION.test(version)) return null;
-  if (!oneOf(DEVICE_TYPES, type) || !oneOf(BROWSERS, browser) || !oneOf(BEAT_STATES, state)) return null;
+  if (!isOneOf(DEVICE_TYPES, type) || !isOneOf(BROWSERS, browser) || !isOneOf(BEAT_STATES, state)) return null;
   return { device, version, type, browser, state };
 }
 

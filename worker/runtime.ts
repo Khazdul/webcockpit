@@ -244,6 +244,21 @@ export function error(code: string, status: number, extra: Record<string, string
   return json({ error: code }, status, extra);
 }
 
+/**
+ * A query parameter from a fixed list (review fix CR7: one for every
+ * route): absent or empty → `fallback`; one of `list` → it; anything else
+ * → null (the caller answers 400).
+ */
+export function oneOf<T extends string>(list: readonly T[], v: string | null, fallback: T): T | null {
+  if (v === null || v === '') return fallback;
+  return (list as readonly string[]).includes(v) ? (v as T) : null;
+}
+
+/** Whether a value of a body is one of a fixed list of strings. */
+export function isOneOf<T extends string>(list: readonly T[], v: unknown): v is T {
+  return typeof v === 'string' && (list as readonly string[]).includes(v);
+}
+
 /** The UTC day of a time: 'YYYY-MM-DD'. */
 export function utcDay(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);

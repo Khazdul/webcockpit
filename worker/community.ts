@@ -73,7 +73,7 @@ import { hmacKey, hmacWith, sha256, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { readMume } from './mume.ts';
 import { type PubCtx, type PubRowState, newPubId, stateAnswer } from './pub.ts';
-import { type CacheLike, DAY_MS, type D1, type D1Statement, type Deps, type Env, PUBLIC_CHANGE_HEADER, dayStart, error, json, later, publicChange, utcDay } from './runtime.ts';
+import { type CacheLike, DAY_MS, type D1, type D1Statement, type Deps, type Env, PUBLIC_CHANGE_HEADER, dayStart, error, json, later, oneOf, publicChange, utcDay } from './runtime.ts';
 import type { Authed } from './sessions.ts';
 import { readCapped } from './stats.ts';
 
@@ -415,11 +415,6 @@ export async function communityPublic(request: Request, env: Env, url: URL, deps
   } catch {
     return error('unavailable', 503);
   }
-}
-
-function oneOf<T extends string>(list: readonly T[], v: string | null, fallback: T): T | null {
-  if (v === null) return fallback;
-  return (list as readonly string[]).includes(v) ? (v as T) : null;
 }
 
 /**
