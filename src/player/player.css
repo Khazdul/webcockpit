@@ -124,15 +124,18 @@
 
 /* ------------------------------------------------------------ Back
  * The kit's Back (`.wc-lk-back`, look-glass.css; the `--lk-*` tokens from
- * its own `.wc-look`), at the top left over the game text, in the header
- * row and as tall as it (stage 42 wave 3): it hides no more of the text
- * than the header does. Opaque, as the header's chips: the canvas colour
- * under the kit's glass edge, no blur (game text moves under it; Firefox
- * and Paper showed the text through the glass). Part of the chrome: it
- * fades and stops taking the pointer with it (`[data-hidden]`). */
+ * its own `.wc-look`), at the top left over the game text, as tall as the
+ * header row (stage 42 wave 3). It is drawn 4 px below the player's top
+ * edge, which in the run log is the window's inner edge (the player fills
+ * History's window up to the frame): inside the window with air, never on
+ * its edge (stage 65 feedback round 3, ADR 0155). Opaque, as the header's
+ * chips: the canvas colour under the kit's glass edge, no blur (game text
+ * moves under it; Firefox and Paper showed the text through the glass).
+ * Part of the chrome: it fades and stops taking the pointer with it
+ * (`[data-hidden]`). */
 
 .wc-player-chrome .wc-pv-back {
-  top: 0;
+  top: 4px;
   left: 10px;
   height: var(--cell-h);
   min-height: 15px;
@@ -156,13 +159,38 @@
   background: var(--term-bg);
 }
 
+/* The air above it in the canvas colour: the game text's first line does
+ * not peek out over Back. */
+.wc-player-chrome .wc-pv-back::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: -5px;
+  height: 4px;
+  background: var(--term-bg);
+  pointer-events: none;
+}
+
 /* A finger (a touch device with the desktop cockpit; a phone or tablet in
- * the phone's layout has no Back here, stage 55): a 40 px target
- * (look-glass.css). */
+ * the phone's layout has no Back here, stage 55): Back stays as drawn; its
+ * 40 px target is an invisible ::before from the window's inner edge down
+ * (the window clips the player, so it cannot grow up over the frame as a
+ * box's Back does; it reaches over the game text's top lines at the left
+ * instead, as the 40 px Back itself used to). */
 @media (pointer: coarse) {
   .wc-player-chrome .wc-pv-back {
-    min-height: 40px;
+    min-height: 15px;
     font-size: 10.5px;
+  }
+
+  .wc-player-chrome .wc-pv-back::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    right: -4px;
+    top: -5px;
+    height: 40px;
   }
 }
 

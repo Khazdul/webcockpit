@@ -155,6 +155,43 @@ async function backPlaced(page: Page, b: Locator, mode: Mode, name: string): Pro
   }
 }
 
+/**
+ * The run log player's Back (`.wc-pv-back`): inside the window's inner
+ * border (the run log's window, which the player fills) with `AIR` px above
+ * and to the left; drawn no taller than 30 px; clear of the header's
+ * chips; on a touch screen its target spans `mode.target` px from the
+ * window's inner edge down (the window clips the player).
+ */
+async function playerBackPlaced(page: Page, mode: Mode): Promise<void> {
+  const b = top(page).locator('.wc-rl-box');
+  const pv = b.locator('.wc-pv-back');
+  await page.mouse.move(400, 400);
+  await expect(pv).toBeVisible();
+  const g = await b.evaluate((el) => {
+    const back = el.querySelector<HTMLElement>('.wc-pv-back')!.getBoundingClientRect();
+    const win = el.querySelector<HTMLElement>(':scope > .wc-lk-win')!;
+    const w = win.getBoundingClientRect();
+    const cs = getComputedStyle(win);
+    const chips = [...el.querySelectorAll<HTMLElement>('.wc-player-head-left, .wc-player-hints')]
+      .filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none')
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.left < back.right - 0.5 && r.right > back.left + 0.5 && r.top < back.bottom - 0.5 && r.bottom > back.top + 0.5);
+    return { winTop: w.top + parseFloat(cs.borderTopWidth), top: back.top - (w.top + parseFloat(cs.borderTopWidth)), left: back.left - (w.left + parseFloat(cs.borderLeftWidth)), h: back.height, x: back.left, bottom: back.bottom, meets: chips.length };
+  });
+  await shoot(page, b, mode, 'run-log');
+  expect(g.top, 'run log: air above Back').toBeGreaterThanOrEqual(AIR);
+  expect(g.left, 'run log: air left of Back').toBeGreaterThanOrEqual(AIR);
+  expect(g.h, 'run log: Back drawn ≤ 30 px high').toBeLessThanOrEqual(30.5);
+  expect(g.meets, 'run log: Back clear of the header').toBe(0);
+  if (mode.target) {
+    // The window clips the player: the target reaches from the window's inner edge down.
+    for (const y of [g.winTop + 1, g.winTop + mode.target - 1]) {
+      const hit = await page.evaluate(([x, yy]) => document.elementFromPoint(x!, yy!)?.closest('.wc-pv-back') !== null, [g.x + 10, y]);
+      expect(hit, `run log: touch target ${mode.target} px high (at ${y - g.winTop})`).toBe(true);
+    }
+  }
+}
+
 /** The shown start-menu page's Back, checked once it has landed. */
 async function here(page: Page, mode: Mode, name: string): Promise<void> {
   await settle(page);
@@ -172,6 +209,21 @@ async function openStart(page: Page, mode: Mode, query = ''): Promise<void> {
   await expect(menuRow(page, 'enter')).toBeVisible();
   await expect(page.locator('html')).toHaveClass(mode.phone ? /\bwc-phone\b/ : /^(?!.*\bwc-phone\b)/);
   if (mode.touch) await expect(page.locator('html')).toHaveClass(/\bwc-touch\b/);
+}
+
+async function seed(page: Page): Promise<void> {
+  await page.evaluate(
+    async ([profile, script]) => {
+      const w = window.__wc!;
+      await w.shell.profiles.init();
+      await w.shell.profiles.create('gimli', profile!);
+      await w.shell.scripts!.init();
+      await w.shell.scripts!.create('varning', script!);
+      const lib = await (w as unknown as { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> }).runs();
+      await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+    },
+    [PROFILE, SCRIPT],
+  );
 }
 
 for (const mode of MODES) {
@@ -192,18 +244,7 @@ for (const mode of MODES) {
       test.slow();
       await pinDemoClock(page);
       await openStart(page, mode);
-      await page.evaluate(
-        async ([profile, script]) => {
-          const w = window.__wc!;
-          await w.shell.profiles.init();
-          await w.shell.profiles.create('gimli', profile!);
-          await w.shell.scripts!.init();
-          await w.shell.scripts!.create('varning', script!);
-          const lib = await (w as unknown as { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> }).runs();
-          await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
-        },
-        [PROFILE, SCRIPT],
-      );
+      await seed(page);
 
       // Profile, Import, the profile editor.
       await menuRow(page, 'profile').click();
@@ -261,6 +302,41 @@ for (const mode of MODES) {
       await back(page);
       await page.goto(`/privacy?${SKY}${mode.q}`);
       await here(page, mode, 'privacy');
+    });
+
+    test('History\'s players: the run log and the Spotlights viewer', async ({ page }) => {
+      test.slow();
+      await pinDemoClock(page);
+      await openStart(page, mode);
+      await seed(page);
+      await menuRow(page, 'history').click();
+      await settle(page);
+      await top(page).locator('.wc-lk-tr').nth(1).click();
+      // The run log: the player fills the window; its own Back (not on a phone or tablet,
+      // where it is the first key of the docked bar).
+      await btn(top(page).locator('.wc-hist-card'), 'RUN LOG').click();
+      const player = top(page).locator('.wc-rl-box .wc-rl-slot > .wc-player');
+      await expect(player).toHaveCount(1, { timeout: 20_000 });
+      await settle(page);
+      if (!mode.phone) {
+        await playerBackPlaced(page, mode);
+        await player.locator('.wc-pv-back').click();
+        await expect(top(page).locator('.wc-hist-card')).toBeVisible();
+        await settle(page);
+      } else await page.keyboard.press('Escape');
+      await expect(top(page).locator('.wc-htab[data-tab="spotlights"]')).toBeVisible();
+      await settle(page);
+      // The Spotlights viewer (a card grown into the window): the box's Back stays.
+      // (A click chooses the card on a desktop, a tap plays it; Enter plays the chosen one.)
+      await top(page).locator('.wc-htab[data-tab="spotlights"]').click();
+      await settle(page);
+      await top(page).locator('.wc-spw-card').first().click();
+      await page.waitForTimeout(300);
+      if (!(await page.locator('.wc-spv').isVisible())) await page.keyboard.press('Enter');
+      await expect(page.locator('.wc-spv')).toBeVisible();
+      await here(page, mode, 'spotlights-viewer');
+      await btn(page.locator('.wc-spv'), 'wall').click();
+
     });
 
     test('the account\'s pages and the Community', async ({ page }) => {
