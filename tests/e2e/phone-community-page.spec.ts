@@ -7,7 +7,7 @@
 // Against the fake of the account API (community.ts), at 390 × 844 and
 // 320 × 568. The desktop: community-page.spec.ts.
 import { type Page, expect, test } from '@playwright/test';
-import { ME, box, btnIn, cm, communityRow, logIn, noteField, notes, openCommunity, openStart, pager, rows, runes, setUp, shot } from './community';
+import { ME, box, btnIn, cm, columnsAligned, communityRow, logIn, noteField, notes, openCommunity, openStart, pager, rows, runes, setUp, shot } from './community';
 
 const PHONE_Q = '&phone=1&kbd=en';
 const dash = (page: Page) => cm(page).locator('.wc-cy-dash');
@@ -253,5 +253,18 @@ test.describe('320 × 568', () => {
     await expect(rows(page)).toHaveCount(10);
     expect(await noSideways(page)).toBe(true);
     await shot(page, 'all.phone320');
+  });
+});
+
+test.describe('a tablet on its side, 1180 × 820', () => {
+  test.use({ viewport: { width: 1180, height: 820 } });
+
+  test('the wide page: the list’s rule and Log of the day on one line; the figure under the window’s top; Back clear (owner’s feedback round 3)', async ({ page }) => {
+    const s = await setUp(page);
+    await logIn(page, s);
+    await openCommunity(page, '&kbd=en');
+    await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
+    await expect(rows(page)).toHaveCount(10);
+    await columnsAligned(page);
   });
 });

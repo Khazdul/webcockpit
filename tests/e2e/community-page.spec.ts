@@ -27,6 +27,7 @@ import {
   box,
   btnIn,
   cm,
+  columnsAligned,
   communityRow,
   dialog,
   head,
@@ -105,6 +106,17 @@ test('the page: ten runs, New first, the pager in the list, the column in view; 
   await expect(cm(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+for (const viewport of [DESKTOP, { width: 1280, height: 800 }, { width: 1100, height: 800 }]) {
+  test(`${viewport.width} × ${viewport.height}: the list's rule and Log of the day on one line; the figure under the window's top; Back clear (owner's feedback round 3)`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const s = await setUp(page);
+    await logIn(page, s);
+    await openCommunity(page);
+    await expect(rows(page)).toHaveCount(10);
+    await columnsAligned(page);
+  });
+}
 
 test('sorting by a press on a heading and by its letter; paging by the pager and the arrows', async ({ page }) => {
   const s = await setUp(page);
