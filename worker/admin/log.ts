@@ -9,7 +9,7 @@ export const LOG_CSS = `.seal { display: inline-flex; align-items: center; gap: 
 .seal.bad { color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); font-weight: 600; }
 .audit td, .audit th { text-align: left; vertical-align: top; }
 .audit td { overflow-wrap: anywhere; }
-.audit td.ts { white-space: nowrap; }
+.audit td.ts, .audit td.act { white-space: nowrap; overflow-wrap: normal; }
 .audit tr.old td { color: var(--muted); }
 .k { font-size: .72rem; font-weight: 700; border-radius: 3px; padding: 1px 6px; text-transform: uppercase; letter-spacing: .04em; background: color-mix(in srgb, var(--fg) 10%, transparent); white-space: nowrap; }
 .k.acc { background: color-mix(in srgb, var(--warn) 20%, transparent); }
@@ -54,7 +54,7 @@ export const LOG_JS = String.raw`
         kc.append(el('span', k[0], 'k' + (k[1] ? ' ' + k[1] : '')));
         tr.append(kc);
       }
-      tr.append(el('td', e.action), logTarget(e));
+      tr.append(el('td', e.action, 'act'), logTarget(e));
       var note = el('td', e.note);
       if (e.sealed === false) note.append(el('span', 'not sealed', 'tag old'));
       tr.append(note);

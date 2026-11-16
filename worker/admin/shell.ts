@@ -13,7 +13,8 @@ export const SHELL_CSS = String.raw`:root { color-scheme: light dark; --fg: #1d1
 * { box-sizing: border-box; }
 body { margin: 0; font: 15px/1.45 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
 .app { display: flex; min-height: 100vh; }
-.side { flex: 0 0 220px; background: var(--side); border-right: 1px solid var(--line); padding: 18px 10px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.side { flex: 0 0 220px; background: var(--side); border-right: 1px solid var(--line); }
+.side-in { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: 18px 10px; }
 .side h1 { font-size: 1.05rem; margin: 0 10px 2px; }
 .side .where { margin: 0 10px 2px; font-size: .82rem; color: var(--muted); }
 .side #status { margin: 0 10px 12px; font-size: .78rem; color: var(--muted); }
@@ -27,7 +28,8 @@ body { margin: 0; font: 15px/1.45 system-ui, sans-serif; color: var(--fg); backg
 .main > * { max-width: 1360px; }
 @media (max-width: 900px) {
   .app { display: block; }
-  .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 10px 12px; }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); }
+  .side-in { position: static; max-height: none; padding: 10px 12px; }
   .side h1, .side .where, .side #status { margin-left: 0; }
   .side #status { margin-bottom: 6px; }
   .nav { display: flex; flex-wrap: wrap; gap: 2px 4px; }
@@ -53,7 +55,7 @@ section { overflow-x: auto; }
 .over { color: var(--warn); font-weight: 600; }
 button { font: inherit; padding: 2px 10px; cursor: pointer; }
 button.primary { color: #fff; background: var(--accent); border: 1px solid var(--accent); border-radius: 3px; }
-button.danger { color: #b3261e; }
+button.danger { color: var(--bad); }
 button.danger.solid { color: #fff; background: #b3261e; border: 1px solid #8c1d17; }
 button:disabled { cursor: default; opacity: .55; }
 a { color: var(--accent); }

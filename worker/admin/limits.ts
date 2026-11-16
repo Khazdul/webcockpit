@@ -12,7 +12,8 @@ export const LIMITS_CSS = `.limits td input { width: 8em; text-align: right; }
 .limits td input.own { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .limits td input.bad { border-color: var(--bad); }
 .limits td:nth-child(n+2), .limits th:nth-child(n+2) { text-align: right; }
-.limits caption { caption-side: bottom; text-align: left; padding-top: 6px; }
+.limits-help { margin: 6px 0 0; }
+@media (max-width: 600px) { .limits td input { width: 5.5em; } .limits td, .limits th { padding: 4px; } }
 .changes { padding-left: 1.2em; }
 `;
 

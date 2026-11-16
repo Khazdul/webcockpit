@@ -69,7 +69,6 @@ export const FLAGS_JS = String.raw`
 
     function drawDefaults(lim) {
       var t = el('table', null, 'limits');
-      t.append(el('caption', 'Empty: the built-in value holds. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. At most 20 × the built-in value.', 'muted small'));
       var hr = el('tr');
       ['Limit', 'Built in', 'Default now'].forEach(function (h) { hr.append(el('th', h)); });
       var thead = el('thead');
@@ -134,7 +133,7 @@ export const FLAGS_JS = String.raw`
       acts.append(save, reset);
       var box = el('div', null, 'tbox');
       box.append(t);
-      dbody.replaceChildren(box, msg, acts);
+      dbody.replaceChildren(box, el('p', 'Empty: the built-in value holds. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. At most 20 × the built-in value.', 'muted small limits-help'), msg, acts);
     }
 
     loadFlags();

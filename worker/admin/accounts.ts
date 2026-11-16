@@ -22,7 +22,7 @@ export const ACCOUNTS_CSS = `.accounts th button { font: inherit; font-weight: 6
 dl.kv { display: grid; grid-template-columns: 10em 1fr; gap: 4px 12px; margin: 0; font-size: .9rem; }
 dl.kv dt { color: var(--muted); }
 dl.kv dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.card .log td { overflow-wrap: anywhere; }
+.card .log td { overflow-wrap: break-word; }
 `;
 
 export const ACCOUNTS_JS = String.raw`
@@ -282,8 +282,7 @@ export const ACCOUNTS_JS = String.raw`
   function limitsCard(a, lim) {
     var s = panel('Limits');
     var t = el('table', null, 'limits');
-    var cap = el('caption', 'Empty: the default holds and follows it. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. A limit under what the account uses removes nothing; writes that would grow past it are refused.', 'muted small');
-    t.append(cap);
+    var help = el('p', 'Empty: the default holds and follows it. Sizes in MB (1 MB = 1,048,576 bytes); KB and GB work too. A limit under what the account uses removes nothing; writes that would grow past it are refused.', 'muted small limits-help');
     var hr = el('tr');
     ['Limit', 'Default', 'This account', 'In use'].forEach(function (h) { hr.append(el('th', h)); });
     var thead = el('thead');
@@ -356,7 +355,7 @@ export const ACCOUNTS_JS = String.raw`
     acts.append(save, reset);
     var box = el('div', null, 'tbox');
     box.append(t);
-    s.append(box, msg, acts);
+    s.append(box, help, msg, acts);
     return s;
   }
   function ownOrdered(own) {

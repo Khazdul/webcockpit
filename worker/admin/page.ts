@@ -43,12 +43,12 @@ export const ADMIN_HTML = `<!doctype html>
 </head>
 <body>
 <div class="app">
-<nav class="side" aria-label="Views">
+<nav class="side" aria-label="Views"><div class="side-in">
   <h1>WebCockpit admin</h1>
   <p class="where"><span id="env"></span> · <span id="online-now">… online</span></p>
   <p id="status">Loading…</p>
   <div class="nav" id="nav"></div>
-</nav>
+</div></nav>
 <main class="main" id="main">
 <p id="mod-status" class="note" role="status"></p>
 ${REPORTS_HTML}

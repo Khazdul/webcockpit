@@ -190,7 +190,7 @@ describe('the admin page: one account', () => {
     type($<HTMLInputElement>('input[name=runBytes]', v), '2 GB');
     buttonIn(v, 'Save limits').click();
     expect(modal()).toBeNull();
-    expect($('.limits + .err, .tbox + .err', v).textContent).toBe('Small items: a whole number. Runs, bytes: at most 1,000 MB (20 × the built-in 50 MB).');
+    expect($('.limits-help + .err', v).textContent).toBe('Small items: a whole number. Runs, bytes: at most 1,000 MB (20 × the built-in 50 MB).');
     expect($<HTMLInputElement>('input[name=items]', v).classList.contains('bad')).toBe(true);
     expect(writes()).toEqual([]);
   });
@@ -199,7 +199,7 @@ describe('the admin page: one account', () => {
     await boot('#account/moria-runner');
     buttonIn(view(), 'Save limits').click();
     expect(modal()).toBeNull();
-    expect($('.tbox + .err', view()).textContent).toBe('Nothing to save: the limits are as they are.');
+    expect($('.limits-help + .err', view()).textContent).toBe('Nothing to save: the limits are as they are.');
   });
 
   it('Reset to defaults asks first and sends limits: null; disabled without limits of its own', async () => {
