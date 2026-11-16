@@ -131,6 +131,13 @@ test('fresh community data: a logged-in player sees the whole board after a relo
   await expect(cm(g.page).locator('.wc-cy-list')).toHaveAttribute('data-state', 'list', { timeout: 10_000 });
   await expect(rows(g.page).first()).toHaveAttribute('data-id', id!);
 
+  // The run goes again: the other spec's guest counts the listed runs ("1 new") on the same Worker.
+  const gone = await a.page.evaluate(
+    async (i) => (await fetch(`/api/u/pub/${i}`, { method: 'DELETE', headers: { 'X-WC': '1' }, credentials: 'same-origin' })).status,
+    id!,
+  );
+  expect(gone).toBeLessThan(300);
+
   for (const e of errors) expect(e).toEqual([]);
   await a.ctx.close();
   await b.ctx.close();
