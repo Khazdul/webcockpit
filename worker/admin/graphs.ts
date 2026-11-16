@@ -47,6 +47,11 @@ export const ADMIN_GRAPHS_JS = `
     var p = String(iso).split('-');
     return Number(p[2]) + ' ' + (GR_MONTHS[Number(p[1]) - 1] || '');
   }
+  /** '15 Nov 16:00', or '15 Nov' for a day. */
+  function grWhen(ms, daily) {
+    var u = utc(ms);
+    return grShortDay(u.slice(0, 10)) + (daily ? '' : ' ' + u.slice(11));
+  }
   function grNum(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
   function grR(v) { return Math.round(v * 10) / 10; }
   /** A round step (1, 2 or 5 × 10^n) at or above raw. */
@@ -148,7 +153,7 @@ export const ADMIN_GRAPHS_JS = `
       var hi = 0;
       for (var i = 1; i < n; i++) if ((pts[i].online || 0) > (pts[hi].online || 0)) hi = i;
       m.big = fmt(pts[n - 1].online || 0);
-      m.sub = 'online at ' + m.xs[n - 1].label + ' · highest ' + fmt(pts[hi].online || 0) + ', ' + m.xs[hi].label;
+      m.sub = 'online, latest · highest ' + fmt(pts[hi].online || 0) + ' at ' + grWhen(pts[hi].ts, daily);
     }
     return grFinish(m);
   }
@@ -521,6 +526,8 @@ export const ADMIN_GRAPHS_JS = `
       return plot;
     }
     function small() {
+      var tb = head.querySelector('.gr-tbtn');
+      if (tb) tb.remove();
       body.replaceChildren();
       if (m.big !== undefined && !m.empty) {
         var big = el('div', m.big, 'gr-big');
@@ -540,7 +547,7 @@ export const ADMIN_GRAPHS_JS = `
       var tb = el('button', 'Table', 'gr-tbtn');
       tb.type = 'button';
       tb.setAttribute('aria-pressed', 'false');
-      bar.append(tb);
+      head.insertBefore(tb, open);
       var holder = el('div', null, 'gr-holder');
       body.append(bar, holder);
       if (m.note) body.append(el('p', m.note, 'muted gr-note'));
@@ -746,14 +753,14 @@ export const ADMIN_GRAPHS_CSS = `
 .gr-head { display: flex; align-items: baseline; gap: 8px; }
 .gr-head h3 { margin: 0; font-size: .92rem; font-weight: 600; }
 .gr-card.is-open .gr-head h3 { font-size: 1rem; }
-.gr-open { margin-left: auto; font-size: .8rem; }
+.gr-open, .gr-tbtn { font-size: .8rem; }
+.gr-head h3 { margin-right: auto; }
 .gr-big { font-size: 1.6rem; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .gr-big small { font-size: .8rem; color: var(--muted); margin-left: 6px; }
 .gr-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: .8rem; margin: 2px 0; }
 .gr-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--c); }
 .gr-ltop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 2px 0 6px; }
 .gr-desc { font-size: .85rem; }
-.gr-tbtn { margin-left: auto; font-size: .85rem; }
 .gr-note, .gr-empty { font-size: .8rem; margin: 4px 0 2px; }
 .gr-empty { font-size: .9rem; margin: 10px 0; }
 .gr-svg { display: block; width: 100%; height: auto; }
