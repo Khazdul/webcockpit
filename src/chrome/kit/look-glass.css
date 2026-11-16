@@ -183,7 +183,14 @@
   height: 14px;
 }
 
-/* Back: the same place on every sub-page (top left, level with the hood). */
+/* Back: the same place on every sub-page (top left, level with the hood),
+ * drawn inside the lit window's inner border with air on every side (the
+ * window's inner edge is 9 px into the box: Back starts 6 px below it and
+ * 7 px right of it), never on the iron frame, in every mode: a mouse, a
+ * finger on the desktop cockpit (a phone's "Desktop site", a tablet with
+ * `?tablet=desktop`), the phone's and the tablet's layouts (below). Only
+ * its size changes with the device, never where it lies (stage 65
+ * feedback rounds 2 and 3, ADR 0155). */
 .wc-lk-back {
   position: absolute;
   left: 16px;
@@ -195,6 +202,20 @@
   font-size: 10.5px;
   letter-spacing: 0.2em;
   color: var(--lk-back-text);
+}
+
+/* A box's Back's target: an invisible ::before grown upward from its
+ * bottom edge, `--lk-back-hit` high (a finger's: 40 px, 44 px on a
+ * tablet; without one, Back's own height). It reaches over the frame
+ * above only, never down over the page's first line, so no page needs
+ * room of its own under Back. */
+.wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -4px;
+  bottom: -1px;
+  height: var(--lk-back-hit, calc(100% + 2px));
 }
 
 .wc-lk-back .wc-lk-ic {
@@ -271,12 +292,8 @@ u.wc-sk {
     display: none;
   }
 
-  /* A box's Back on a phone (stage 65 feedback round 2, ADR 0155): drawn
-   * inside the lit window, clear of the iron frame, with air on every
-   * side (the window's inner edge is 9 px into the box; Back starts 6 px
-   * below it and 8 px right of it), a little smaller than the desktop's.
-   * Its 40 px touch target is the invisible ::before, which grows upward
-   * over the frame only: never down over the page's first line. */
+  /* A box's Back on a phone: in the same place, a little smaller than the
+   * desktop's (its bottom edge on the same line); a 40 px target. */
   html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
     top: 14px;
     height: 28px;
@@ -285,15 +302,7 @@ u.wc-sk {
     gap: 4px;
     font-size: 10px;
     letter-spacing: 0.16em;
-  }
-
-  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
-    content: "";
-    position: absolute;
-    left: -6px;
-    right: -4px;
-    top: -12px;
-    bottom: 0;
+    --lk-back-hit: 40px;
   }
 
   html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) .wc-lk-ic {
@@ -303,9 +312,9 @@ u.wc-sk {
 }
 
 /* Coarse pointers: every target at least 40 px high (and icon-only ones as
- * wide). A box's Back grows upward, to the box's top band, and ends where
- * the 27 px one does: never down over the page's first line, so no page
- * needs room of its own under it (stage 42 wave 3, ADR 0127). */
+ * wide). A box's Back stays as drawn, where it is; its target is the
+ * ::before, 40 px (stage 65 feedback round 3, ADR 0155: it used to grow
+ * to 40 px itself, upward from `top: 3px`, onto the frame). */
 @media (pointer: coarse) {
   .wc-lk-btn,
   .wc-lk-back {
@@ -317,15 +326,14 @@ u.wc-sk {
   }
 
   .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
-    top: 3px;
+    min-height: 0;
+    --lk-back-hit: 40px;
   }
 }
 
 /* A tablet-size window with the phone flag (ADR 0140; stage 56): the
- * targets are 44 px. A box's Back is drawn as on a phone, inside the lit
- * window with air (stage 65 feedback round 2, ADR 0155), at the desktop's
- * type and 30 px high; its 44 px target is the invisible ::before, grown
- * upward over the frame only (its bottom edge is where the 44 px Back's was). */
+ * targets are 44 px. A box's Back in the same place, at the desktop's
+ * type and 30 px high; a 44 px target (its ::before). */
 @media (min-width: 600px) and (min-height: 600px) {
   html.wc-phone .wc-lk-btn,
   html.wc-phone .wc-lk-back {
@@ -340,15 +348,7 @@ u.wc-sk {
     top: 14px;
     height: 30px;
     min-height: 0;
-  }
-
-  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
-    content: "";
-    position: absolute;
-    left: -6px;
-    right: -4px;
-    top: -14px;
-    bottom: 0;
+    --lk-back-hit: 44px;
   }
 }
 
