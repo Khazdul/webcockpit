@@ -86,11 +86,13 @@ for (const [name, viewport] of [
       await expect(field(page)).toHaveValue('kill Orc');
       await frames(page);
 
-      // Letter keys of 72 px in rows of 56 px (as the text rows fall), both shapes.
+      // Letter keys of 72 px upright, 84 px on the side (the room left of the compass; the cap
+      // holds at 1180), in rows of 56 px (as the text rows fall), both shapes.
+      const unit = land ? 84 : 72;
       const k = await box(key(okb(page), 'k'));
-      expect(k.width).toBeCloseTo(72, 0);
+      expect(k.width).toBeCloseTo(unit, 0);
       const b = await box(block(page));
-      expect(b.width).toBeCloseTo(11 * 72 + 4, 0);
+      expect(b.width).toBeCloseTo(11 * unit + 4, 0);
       expect(rowOf(b.height, 4)).toBeGreaterThanOrEqual(54);
       expect(rowOf(b.height, 4)).toBeLessThanOrEqual(59);
       expect(k.height).toBeCloseTo(rowOf(b.height, 4), 0);
@@ -101,11 +103,36 @@ for (const [name, viewport] of [
       expect(f.y + f.height).toBeLessThanOrEqual(band.y + 0.5);
       const compass = await box(pad(page));
       if (land) {
-        // Between the hot key column and the compass, all in the band.
-        const hk = await box(page.locator('.wc-ph-hk').first());
-        expect(hk.x + hk.width).toBeLessThanOrEqual(b.x + 0.5);
+        // The owner, 2026-11-16: the block and the compass alone in the band, the compass as
+        // high as the band (its keys some 4 px in from its edges); the hot keys in one row right of
+        // the command field, K1 rightmost against the edge, in the command row's middle.
         expect(b.x + b.width).toBeLessThanOrEqual(compass.x + 0.5);
-        expect(compass.y).toBeGreaterThanOrEqual(band.y - 0.5);
+        for (const gap of [compass.y - band.y, band.y + band.height - compass.y - compass.height]) {
+          expect(gap).toBeGreaterThanOrEqual(3.5);
+          expect(gap).toBeLessThanOrEqual(6.5);
+        }
+        expect(compass.x + compass.width).toBeCloseTo(viewport.width - 8, 0);
+        const keys = await page.locator('.wc-ph-hk').evaluateAll((els) =>
+          els.map((e) => ({ hk: Number((e as HTMLElement).dataset.hk), ...JSON.parse(JSON.stringify(e.getBoundingClientRect())) as Box })),
+        );
+        expect(keys.length).toBe(3);
+        const byX = [...keys].sort((p, q) => p.x - q.x).map((p) => p.hk);
+        expect(byX).toEqual([2, 1, 0]);
+        const k1 = keys.find((p) => p.hk === 0)!;
+        expect(k1.x + k1.width).toBeCloseTo(viewport.width - 8, 0);
+        const left = Math.min(...keys.map((p) => p.x));
+        expect(f.x + f.width).toBeLessThanOrEqual(left - 8 + 0.5);
+        for (const p of keys) {
+          expect(p.y + p.height).toBeLessThanOrEqual(band.y + 0.5);
+          expect(p.y + p.height / 2).toBeCloseTo(f.y + f.height / 2, -1);
+        }
+        // K hides them: the field takes the row's full width again.
+        await pad(page).locator('.wc-ph-key.is-tog').tap();
+        await expect(page.locator('.wc-ph-hot')).toBeHidden();
+        await frames(page);
+        expect((await box(field(page))).x + (await box(field(page))).width).toBeGreaterThan(viewport.width - 24);
+        await pad(page).locator('.wc-ph-key.is-tog').tap();
+        await expect(page.locator('.wc-ph-hot')).toBeVisible();
       } else {
         // Across the screen, a 12 px margin at each side; the compass above it.
         expect(b.x).toBeCloseTo(12, 0);

@@ -26,6 +26,9 @@ import {
   OKB_UNIT_MAX,
   OKB_UNIT_MAX_LAND,
   OKB_UNIT_MIN_LAND,
+  OKB_UNIT_MAX_TABLET_LAND,
+  OKB_TABLET_PAD_Y,
+  OKB_TABLET_PAD_GAP,
   type OkbRow,
   okbArrowsOnDigitRow,
   okbBand,
@@ -40,6 +43,7 @@ import {
   okbPortraitSide,
   okbPortraitWidth,
   okbTabletSize,
+  okbTabletBand,
   okbUnitMax,
   okbRowCount,
   okbRowPx,
@@ -653,6 +657,46 @@ describe('own keyboard: a tablet-size window', () => {
     expect(mini.unit).toBeLessThan(72);
     expect(mini.unit).toBeGreaterThan(OKB_UNIT_MAX_LAND);
     expect(mini.droppedK).toBe(false);
+  });
+
+  it('a tablet in landscape (the owner, 2026-11-16): the compass as high as the band, the block in the room left of it', () => {
+    const tb = (width: number, lift: number, layout: 'sv' | 'en' = 'sv') => okbTabletBand({ width, lift, layout, keyGap: 3 })!;
+    // 1180 × 820, four rows of 56 px: compass keys of 70 px, letter keys at the cap.
+    const a = tb(1180, 228);
+    expect(a.padKey).toBe(Math.floor((228 - 2 * OKB_TABLET_PAD_Y - 6) / 3));
+    expect(3 * a.padKey + 6 + 2 * OKB_TABLET_PAD_Y).toBeLessThanOrEqual(228);
+    expect(3 * a.padKey + 6 + 2 * OKB_TABLET_PAD_Y).toBeGreaterThan(228 - 3);
+    expect(a.unit).toBe(OKB_UNIT_MAX_TABLET_LAND);
+    expect(a.w).toBe(11 * OKB_UNIT_MAX_TABLET_LAND + 2 * OKB_PAD_X);
+    const padLeft = (b: { padKey: number }, width: number) => width - OKB_BAND_MARGIN - (3 * b.padKey + 6);
+    for (const [w, lift] of [[1180, 228], [1180, 284], [1366, 228], [1024, 228], [960, 200]] as const) {
+      for (const l of ['sv', 'en'] as const) {
+        const b = tb(w, lift, l);
+        expect(b.x).toBeGreaterThanOrEqual(OKB_BAND_MARGIN);
+        expect(b.x + b.w + OKB_TABLET_PAD_GAP).toBeLessThanOrEqual(padLeft(b, w) + 1e-9);
+        expect(b.unit).toBeLessThanOrEqual(OKB_UNIT_MAX_TABLET_LAND);
+        // Centred in the room left of the compass.
+        expect(b.x - OKB_BAND_MARGIN).toBeCloseTo(padLeft(b, w) - OKB_TABLET_PAD_GAP - (b.x + b.w), 6);
+      }
+    }
+    // Wider than the cap needs: the block keeps the cap and the room is shared at its sides.
+    const wide = tb(1366, 228);
+    expect(wide.unit).toBe(OKB_UNIT_MAX_TABLET_LAND);
+    expect(wide.x).toBeGreaterThan(50);
+    // The digit row up: a higher band, a larger compass, the keys share what is left.
+    const five = tb(1180, 284);
+    expect(five.padKey).toBeGreaterThan(a.padKey);
+    expect(five.unit).toBeLessThan(a.unit);
+    // At least today's 72 px at the iPad's 1180 and as wide at 1024 as the old band gave.
+    expect(five.unit).toBeGreaterThanOrEqual(72);
+    // A narrower tablet: the compass gives way first, so the keys keep a tablet's 72 px.
+    const narrow = tb(1024, 228);
+    expect(narrow.unit).toBeCloseTo(OKB_UNIT_MAX_TABLET, 0);
+    expect(narrow.padKey).toBeLessThan(a.padKey);
+    expect(narrow.padKey).toBeGreaterThanOrEqual(44);
+    expect(tb(1024, 228, 'en').padKey).toBe(a.padKey);
+    // No room for keys of `OKB_UNIT_MIN_LAND`: none (the caller lays out the phone's band).
+    expect(okbTabletBand({ width: 500, lift: 228, layout: 'sv', keyGap: 3 })).toBeNull();
   });
 
   it('without the flag the band is the phone\'s at every width, a tablet\'s included', () => {
