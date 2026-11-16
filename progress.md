@@ -70,11 +70,23 @@
 | 64 | Share links | Done, released 0.13.0 (`share` on in production) | `docs/stages/64-share-links.md` |
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
+| 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | On staging, waiting for the owner's test | `docs/stages/68-owner-fixes.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-17 — Stage 68: the owner's four points
+
+- **Done:** sunlight dawn+1 to dusk everywhere (ADR 0093); Comm scroll fix
+  and private chats with only talk to you, questions/socials on in Public
+  (settings v7; ADR 0052, 0134); tablet landscape keyboard (ADR 0140);
+  link previews with og tags and a drawn image (ADR 0158). Full e2e 1915
+  passed. Pushed and deployed to staging; no release.
+- **Next:** the owner's test (`docs/stages/68-owner-fixes.md`), then 0.16.0.
+- **Open:** whether Discord unfurls on staging behind `noindex`; emote-at-you
+  is a heuristic.
 
 ### 2026-11-16 — Stage 58 part D: GitHub Pages retired
 
