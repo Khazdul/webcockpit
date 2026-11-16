@@ -491,9 +491,9 @@ describe("the privacy page's share links section (flags `accounts` and `share`)"
     expect(PRIVACY_SHARE).toContain("the game's own status data that the Map, Timers and Group panes use (the character's name, level, race and class, and its vitals as the game sent them)");
     expect(PRIVACY_SHARE).toContain('no channel records and no other pane');
     expect(PRIVACY_SHARE).not.toContain('when the map is on');
-    expect(PRIVACY_SHARE).toContain('the map of the rooms the run passes, if it passes any');
-    expect(PRIVACY_SHARE).toContain('Whoever can watch a run can also save a copy of it');
-    expect(PRIVACY_SHARE).toContain("level (not shown on the pages, but part of the run's public data)");
+    expect(PRIVACY_SHARE).toContain('the map of the rooms the log passes, if it passes any');
+    expect(PRIVACY_SHARE).toContain('Whoever can watch a log can also save a copy of it');
+    expect(PRIVACY_SHARE).toContain("level (not shown on the pages, but part of the log's public data)");
     expect(PRIVACY_SHARE).toContain('five accounts');
     expect(PRIVACY_SHARE).toContain('deleted after two days');
     expect(PRIVACY_SHARE).toContain('Anyone with the link');

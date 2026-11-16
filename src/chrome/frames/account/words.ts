@@ -34,7 +34,7 @@ export const POINTS: readonly (readonly [lead: string, text: string])[] = [
   ['What is stored', 'Your profiles, scripts, settings, saved runs and Comm history, encrypted on this device before they are sent.'],
   ['What we can see', 'Your user name, when you were last here, and how much you store. Not the contents.'],
   ['What is never stored', 'Your MUME name and password.'],
-  ['What is public', 'Your user name, if you publish a run or comment on one.'],
+  ['What is public', 'Your user name, if you publish a log or comment on one.'],
   ['No e-mail', 'So there is no “forgot password” mail. You get a recovery code next: keep it.'],
   ['Yours to delete', 'The account and everything in it, at any time.'],
 ];
