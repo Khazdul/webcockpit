@@ -1,7 +1,8 @@
 /* The Community page (stage 65 C1; round 13's pick 1b with the owner's
- * changes, pick 2): the list and Random Runes on the left, the column with
- * the run of the day, the Hall of Fame and the warlords on the right; the
- * phone's tabs. The kit's tokens (--lk-*), History's surfaces. */
+ * changes, pick 2; the owner's feedback W2): the list and Random Runes on
+ * the left, the column with the players' figure, the run of the day, the
+ * Hall of Fame and the warlords on the right; the phone's dashboard and
+ * its sub-pages. The kit's tokens (--lk-*), History's surfaces. */
 
 .wc-lk-win.wc-cy-win {
   text-align: left;
@@ -18,9 +19,6 @@
 }
 
 .wc-cy-main {
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--lk-scroll-thumb) transparent;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -59,14 +57,24 @@
   min-width: 0;
 }
 
+/* Desktop: the list keeps the height Random Runes leaves; its rows scroll
+ * under the heads, the pager stays at its foot (owner's feedback 5). */
+.wc-cy-main > .wc-cy-list {
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.wc-cy-rows {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
 .wc-cy-tbl {
   --lk-cols: 24px minmax(0, 1fr) 150px 48px 54px;
 }
 
 @container wc-page (max-width: 1040px) {
-  .wc-cy-th-words {
-    display: none;
-  }
   .wc-cy-tbl {
     --lk-cols: 18px minmax(0, 1fr) 128px 40px 46px;
   }
@@ -77,11 +85,23 @@
 }
 
 .wc-cy-throw {
-  padding-right: 18px;
+  align-items: center;
+  padding-bottom: 6px;
 }
 
+/* Run ▾ and the search field share the first heading. */
 .wc-cy-th-first {
   overflow: visible;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wc-cy-th-first .wc-cy-search {
+  flex: 0 1 260px;
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .wc-cy-th {
@@ -209,6 +229,7 @@
 
 /* The pager: inside the list, at its bottom right. */
 .wc-cy-pager {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -235,6 +256,26 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--lk-head);
+}
+
+.wc-cy-q {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-cy-by.is-search {
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.wc-cy-by.is-search .wc-lk-btn {
+  width: 26px;
+  height: 26px;
 }
 
 .wc-cy-by-t b {
@@ -465,18 +506,114 @@
   color: var(--lk-faint);
 }
 
+/* The players on MUME: a large free-standing figure, no box (owner's feedback 7). */
 .wc-cy-players {
-  margin: 8px 0 0;
-  font: italic 500 14.5px/1.2 var(--lk-serif);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin: -4px 4px 0 0;
+  text-align: right;
+}
+
+.wc-cy-players-n {
+  font: 600 44px/1 var(--lk-display);
+  letter-spacing: 0.02em;
+  color: var(--lk-on);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--lk-on) 30%, transparent);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-cy-players-l {
+  font: italic 500 14px/1.1 var(--lk-serif);
   color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ search */
+
+.wc-cy-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.wc-cy-search-ic {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
+  color: var(--lk-faint);
+  pointer-events: none;
+}
+
+.wc-lk-input.wc-cy-search-in {
+  height: 32px;
+  padding: 0 32px 0 32px;
+  font-size: 16px;
+}
+
+.wc-cy-search-in::-webkit-search-cancel-button,
+.wc-cy-search-in::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.wc-cy-search-x,
+.wc-cy-search-go {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--lk-dim);
+  cursor: pointer;
+}
+
+.wc-cy-search-x svg,
+.wc-cy-search-go svg {
+  width: 13px;
+  height: 13px;
+}
+
+.wc-cy-search-x:hover,
+.wc-cy-search-go:hover {
+  color: var(--lk-on);
+}
+
+/* With both (the dashboard): ✕ left of the go mark. */
+.wc-cy-search-x + .wc-cy-search-go {
+  right: 3px;
+}
+
+.wc-cy-search:has(.wc-cy-search-go) .wc-cy-search-x {
+  right: 30px;
+}
+
+.wc-cy-search:has(.wc-cy-search-go) .wc-cy-search-in {
+  padding-right: 58px;
 }
 
 /* ------------------------------------------------------------ Random Runes */
 
+/* Desktop: at the bottom of the left side, at most 40 % of its height; its
+ * notes scroll inside (owner's feedback 5). */
 .wc-cy-runes {
   align-items: stretch;
-  flex: 1 1 auto;
-  min-height: 190px;
+  flex: 0 1 auto;
+  max-height: 40%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -672,39 +809,155 @@
   box-shadow: 0 0 6px var(--lk-on-glow, rgba(255, 190, 110, 0.5));
 }
 
-/* ------------------------------------------------------------ the phone's tabs */
-
-.wc-cy-tabs .wc-htab {
-  flex: 1 1 0;
-  justify-content: center;
-}
+/* ------------------------------------------------------------ the phone: the dashboard and its sub-pages */
 
 .wc-cy-body.is-narrow {
   display: block;
 }
 
-.wc-cy-body.is-narrow.is-hof {
+.wc-cy-dash {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 6px;
 }
 
-.wc-cy-body.is-narrow.is-hof > .wc-cy-col {
-  flex: none;
+/* The search field and the players' figure at the top. */
+.wc-cy-dtop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.wc-cy-dtop > .wc-cy-search {
+  flex: 1 1 auto;
+}
+
+.wc-cy-dtop.is-runs {
+  margin: 0 0 10px;
+}
+
+.wc-cy-dtop .wc-cy-players {
+  margin: 0;
+}
+
+.wc-cy-dtop .wc-cy-players-n {
+  font-size: 34px;
+}
+
+.wc-cy-dtop .wc-cy-players-l {
+  font-size: 13px;
+}
+
+.wc-cy-dlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wc-cy-drow + .wc-cy-drow {
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-cy-drow button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 7px 2px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-cy-drow-t {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 16px/1.3 var(--lk-serif);
+}
+
+.wc-cy-drow-d {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  font: italic 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-cy-drow-s {
+  font-style: normal;
+  color: var(--lk-head);
+}
+
+.wc-cy-drow.is-mine .wc-cy-drow-s {
+  color: var(--lk-gold);
+}
+
+.wc-cy-drow-m {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--lk-gold);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-cy-drow-m::before {
+  content: "★ ";
+  font-size: 0.85em;
+}
+
+.wc-cy-dbtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.wc-cy-dbtns .wc-lk-btn {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.wc-cy-newest .wc-cy-wait {
+  min-height: 120px;
+}
+
+/* Random Runes on the dashboard: the latest notes, the box at its height. */
+.wc-cy-runes.is-dash {
+  max-height: none;
+}
+
+.wc-cy-runes.is-dash .wc-cy-notes {
   overflow: visible;
 }
 
-.wc-cy-body.is-narrow.is-runes {
-  display: flex;
-  flex-direction: column;
+.wc-cy-more {
+  align-self: flex-start;
+  margin: 4px 0 0 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: italic 500 14.5px/1.3 var(--lk-serif);
+  color: var(--lk-head);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--lk-sk);
+  text-underline-offset: 3px;
 }
 
-.wc-cy-runes.is-whole {
-  flex: 1 1 auto;
-  min-height: 0;
-  background: none;
-  box-shadow: none;
-  padding: 4px 0 0;
+/* The Warlords, compact: the race and class under 360 px of content go. */
+@container wc-page (max-width: 360px) {
+  .wc-cy-war2 {
+    gap: 8px;
+  }
+  .wc-cy-wars li span {
+    display: none;
+  }
 }
 
 .wc-cy-list.is-narrow .wc-cy-row {
@@ -714,10 +967,17 @@
 
 .wc-cy-p1 {
   display: block;
-  font: 600 16px/1.25 var(--lk-serif);
+  font: 500 16px/1.25 var(--lk-serif);
   color: var(--lk-text);
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.wc-cy-p1 .wc-cy-rank {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 4px;
+  text-align: left;
 }
 
 .wc-cy-p2 {
@@ -747,4 +1007,10 @@
 
 .wc-cy-list.is-narrow .wc-cy-pager {
   margin-bottom: 4px;
+}
+
+.wc-cy-hofnote {
+  margin: 0 0 6px;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
 }

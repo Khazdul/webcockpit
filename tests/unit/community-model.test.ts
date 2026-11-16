@@ -1,11 +1,13 @@
 // Stage 65 C1: the Community page's pure parts (community-model.ts) and the
-// menu counter's guest side (src/cloud/community/counter.ts).
+// menu counter's guest side (src/cloud/community/counter.ts); the owner's
+// feedback W2: short headings, "Title (Char)", search, the phone's sub-pages.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GALLERY_SORTS } from '../../shared/cloud/api';
+import { GALLERY_Q_MAX, GALLERY_Q_MIN, GALLERY_SORTS } from '../../shared/cloud/api';
 import {
   DEFAULT_SORT,
+  SEARCH_MAX,
+  SEARCH_MIN,
   SORT_HEADS,
-  characterText,
   communityBackHref,
   dateText,
   lengthText,
@@ -18,6 +20,9 @@ import {
   pagesOf,
   parseView,
   runHref,
+  runName,
+  searchLine,
+  searchOf,
   sortOfKey,
   starsShown,
 } from '../../src/chrome/frames/community-model';
@@ -26,14 +31,16 @@ import { countListed, readSeen, writeSeen } from '../../src/cloud/community/coun
 const NOW = Date.UTC(2026, 10, 15, 12, 0, 0);
 
 describe('the list', () => {
-  it('a heading per sort, New the default; the letters', () => {
-    expect(Object.keys(SORT_HEADS).sort()).toEqual([...GALLERY_SORTS].sort());
+  it('a short heading per column (Run, Stars, Com., Views), New the default; the letters; no Length', () => {
+    expect(Object.keys(SORT_HEADS).sort()).toEqual(GALLERY_SORTS.filter((s) => s !== 'length').sort());
+    expect(Object.values(SORT_HEADS).map((h) => h.label)).toEqual(['Run', 'Stars', 'Com.', 'Views']);
     expect(DEFAULT_SORT).toBe('new');
-    expect(sortOfKey({ key: 'l' })).toBe('new');
+    expect(sortOfKey({ key: 'n' })).toBe('new');
     expect(sortOfKey({ key: 'S' })).toBe('top');
     expect(sortOfKey({ key: 'v' })).toBe('watched');
     expect(sortOfKey({ key: 'm' })).toBe('comments');
-    expect(sortOfKey({ key: 'e' })).toBe('length');
+    expect(sortOfKey({ key: 'e' })).toBeNull();
+    expect(sortOfKey({ key: 'l' })).toBeNull();
     expect(sortOfKey({ key: 'v', ctrlKey: true })).toBeNull();
     expect(sortOfKey({ key: 'x' })).toBeNull();
     // Each letter is in its label.
@@ -45,8 +52,8 @@ describe('the list', () => {
     expect(pagesOf(10)).toBe(1);
     expect(pagesOf(23)).toBe(3);
     expect(pagerText(1, 3)).toBe('Page 1 of 3');
-    expect(characterText({ character: 'Gibur', level: 41 })).toBe('Gibur L41');
-    expect(characterText({ character: 'Gibur' })).toBe('Gibur');
+    expect(runName({ title: 'Orcs at the ford', character: 'Gibur' })).toBe('Orcs at the ford (Gibur)');
+    expect(runName({ title: 'Orcs at the ford', character: '' })).toBe('Orcs at the ford');
     expect(lengthText(20)).toBe('under a minute');
     expect(lengthText(37 * 60)).toBe('37 min');
     expect(lengthText(4 * 3600 + 4 * 60)).toBe('4 h 04 min');
@@ -58,6 +65,21 @@ describe('the list', () => {
     expect(starsShown({ sum: 0, count: 0 })).toBe(0);
     expect(newestListed([{ listedAt: 5 }], null, [{ listedAt: 9 }, { listedAt: 2 }])).toBe(9);
     expect(newestListed(null, [])).toBeNull();
+  });
+});
+
+describe('search', () => {
+  it('the bounds are the contract’s; the text as the Worker takes it; the line over the list', () => {
+    expect([SEARCH_MIN, SEARCH_MAX]).toEqual([GALLERY_Q_MIN, GALLERY_Q_MAX]);
+    expect(searchOf('')).toBeNull();
+    expect(searchOf(' a ')).toBeNull();
+    expect(searchOf('  ford  ')).toBe('ford');
+    expect(searchOf('orc   fight')).toBe('orc fight');
+    expect(searchOf('x'.repeat(61))).toBeNull();
+    expect(searchOf('\u200b\u200bx')).toBeNull();
+    expect(searchLine('ford', 3)).toBe('Search: “ford” — 3 runs');
+    expect(searchLine('ford', 1)).toBe('Search: “ford” — 1 run');
+    expect(searchLine('ford', 0)).toBe('Search: “ford” — 0 runs');
   });
 });
 
@@ -83,8 +105,11 @@ describe('the board', () => {
 describe('the view kept for Back, and the way to a run', () => {
   it('a kept view is read tolerantly', () => {
     expect(parseView(null)).toEqual({ sort: 'new', page: 1 });
-    expect(parseView('{"sort":"top","page":3,"by":"brego","tab":"hof"}')).toEqual({ sort: 'top', page: 3, by: 'brego', tab: 'hof' });
-    expect(parseView('{"sort":"best","page":0,"by":"<b>","tab":"x"}')).toEqual({ sort: 'new', page: 1 });
+    expect(parseView('{"sort":"top","page":3,"by":"brego","sub":"hof"}')).toEqual({ sort: 'top', page: 3, by: 'brego', sub: 'hof' });
+    expect(parseView('{"sort":"watched","page":1,"q":"  ford ","sub":"runs"}')).toEqual({ sort: 'watched', page: 1, q: 'ford', sub: 'runs' });
+    expect(parseView('{"sort":"best","page":0,"by":"<b>","sub":"x","q":"a"}')).toEqual({ sort: 'new', page: 1 });
+    // Before the owner's feedback: the Length sort and the phone's tabs are gone.
+    expect(parseView('{"sort":"length","page":2,"tab":"runes"}')).toEqual({ sort: 'new', page: 2 });
     expect(parseView('not json')).toEqual({ sort: 'new', page: 1 });
   });
 

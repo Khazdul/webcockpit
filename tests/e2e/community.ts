@@ -9,8 +9,8 @@
 // (cloud-pub-fake.ts), on the dev server with `?cloudtest`.
 //
 // Screenshots: `WC_COMMUNITY_SHOTS=<dir>` writes each state's picture
-// there (desktop 1440 × 900, phone 390 × 844); without it nothing is
-// written.
+// there (desktop 1440 × 900, phone 390 × 844 and 320 × 568); without it
+// nothing is written.
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -146,13 +146,13 @@ export async function openStart(page: Page, query = ''): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 }
 
-/** The start page, then C: the Community page with its list. */
+/** The start page, then C: the Community page with its list (the phone: its dashboard's newest runs). */
 export async function openCommunity(page: Page, query = ''): Promise<void> {
   await openStart(page, query);
   await expect(communityRow(page)).toBeVisible();
   await page.keyboard.press('c');
   await expect(cm(page)).toBeVisible();
-  await expect(cm(page).locator('.wc-cy-list')).not.toHaveAttribute('data-state', 'loading');
+  await expect(cm(page).locator('.wc-cy-list, [data-box="newest"]').first()).not.toHaveAttribute('data-state', 'loading');
 }
 
 /** A picture of the state (only with `WC_COMMUNITY_SHOTS=<dir>`). */
