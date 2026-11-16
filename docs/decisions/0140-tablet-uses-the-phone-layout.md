@@ -207,3 +207,57 @@ build machine):
   is right, and the rows in landscape with Safari's bars (the window is
   lower than 820 px there: about 54 px rows).
 - What a stored desktop text size looks like in the phone's layout.
+
+## Addendum, 2026-11-16: the keyboard's band in landscape on a tablet
+
+Amends §4 ("Landscape block: between the hot key columns and the
+compass" and "Nothing else is resized: the compass") for a tablet-size
+window in landscape only. The owner: move the K keys up beside the
+command field, furthest right and filling leftwards; make the compass
+fill the keyboard's height; let the keys use the width that is left, and
+keep them good to type on.
+
+- **Where it applies:** our keyboard open in the game layout, the layout
+  in landscape, and the window tablet-size (`okbTabletSize`, short side
+  600 px or more; the same window rule as §4, not the device flag). A
+  phone in either shape and a tablet in portrait are unchanged; so is a
+  tablet's window made narrow (Split View), which gets the phone's band.
+  The page keyboard (ADR 0139) is unchanged.
+- **The hot keys** leave the band and stand in **one row at the right end
+  of the command row**, 8 px from the edge, centred on the row's height,
+  at their usual size (44 px). The order mirrors their columns upright:
+  K1 rightmost, against the edge, the higher numbers leftwards (K3 K2 K1,
+  and K6 … K1 with six), so adding keys never moves the ones a thumb has
+  learned, and an empty first column keeps its place as it does upright.
+  The command field ends 8 px left of the row (`--wc-okb-krow-w`); with
+  the keys hidden by the K key it takes the row's full width.
+- **The compass** stands at the far right of the band and is as high as
+  it: three square keys `floor((band − 8 − 2 × 3) / 3)` px (some 70 px
+  with four rows, about 90 with the digit row up), centred in the band's
+  height, so its top lines up with the key caps'. Its letters, the eye
+  and the K ring grow with it (`--okb-pad-ck`; the hot keys keep
+  `--ph-ck`). It follows the band: the digit row makes it larger. On a
+  narrower tablet it gives way first: it is never so large that the
+  letter keys get narrower than a tablet's 72 px (down to 44 px keys,
+  `OKB_TABLET_PAD_MIN`), and is then centred in the band's height.
+- **The block** takes the room left of the compass (8 px margin at the
+  left edge, 12 px before the compass), its letter keys at most **84 px**
+  (`OKB_UNIT_MAX_TABLET_LAND`; 72 elsewhere on a tablet), centred in that
+  room when the cap leaves some over. Rows are as before (48–56 px).
+  Measured: 1180 × 820, 84 px keys with the digit row folded, about 79
+  with it up (72 before); 1366 × 1024, 84 px and the block centred with
+  some 90 px at each side; 1024 × 768 (Swedish), 72 px with a compass of
+  64 px keys (English has the room for the full-height compass). The digit row changes the compass's size
+  and with it the keys' width, in the one relayout it already causes.
+- **The hot key box** with our keyboard typing in it stands above the
+  command row (not over its end, where the keys now are), at the right
+  edge, without its notch.
+- **Fallback:** where the keys would get narrower than 36 px (no
+  tablet-size window does) the band is laid out as before (`okbBand`).
+
+Pure parts in `src/phone/keyboard-model.ts` (`okbTabletBand`,
+unit-tested); the layer sets `data-okb="row"` and phone.css lays it out.
+To verify on the iPad: the 84 px keys and the large compass under the
+hand; whether the compass's growth with the digit row (and the keys'
+narrowing) is welcome or should stay at the four-row size; the hot keys'
+reach at the command row's end.
