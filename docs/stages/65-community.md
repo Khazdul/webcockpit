@@ -1,35 +1,16 @@
 # Stage 65 — The community
 
-Status: **On staging after the owner's feedback round 2 (2026-11-16; round 1 in the
-night pass)**; the release 0.14.0 is prepared but not made (the session
-was not allowed to tag a release). `gallery` and `runes` on in staging,
+Status: **Released as 0.14.0 (2026-11-16) after three feedback
+rounds**; the community not yet opened in production. `gallery` and `runes` on in staging,
 off in production.
 
 ## Waiting for the owner
 
-1. **The release 0.14.0** (the night pass could not tag it: the tool's
-   permission check refused the version bump and tag). Everything is
-   green and on staging; the release is three commands (below, "Release
-   0.14.0").
-2. **Opening the community in production**: after the release, turn
-   `gallery` and `runes` on from `/admin` → Flags (no release needed),
-   or say so and the next session flips `FLAG_GALLERY`/`FLAG_RUNES` in
-   production's vars. Kept off by the rule that opening is its own step.
-3. **A look at the feedback rounds' results** on staging (the test
-   guide's "Second look" and "Third look"), above all the phone's
-   dashboard, the watch page's wide layout and the Back buttons.
-
-### Release 0.14.0 (for the owner, or a session allowed to tag)
-
-```
-npm version 0.14.0 --no-git-tag-version
-git commit -am "chore: release 0.14.0 (stage 65)"
-git tag v0.14.0 && git push origin main v0.14.0
-```
-
-The tag runs `deploy.yml` for production: migration `0006_community.sql`
-(additive), the Worker with `SEARCH_LIMITER`, the site. Then
-`WC_PROD_URL=https://mumecockpit.com npm run test:prod`.
+1. **Opening the community in production**: released as 0.14.0
+   (2026-11-16, on the owner's word; `test:prod` 36/36 on
+   mumecockpit.com) with `gallery` and `runes` off. Turn them on from
+   `/admin` → Flags (no release needed), or say so and a session flips
+   them. Kept off by the rule that opening is its own step.
 
 ## Goal
 
