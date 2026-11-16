@@ -43,9 +43,9 @@ export const DAY_PERIODS: readonly DayPeriod[] = ['dawn', 'day', 'dusk', 'night'
 
 /**
  * The period of `hour` in `month` (DAWN/DUSK tables): the dawn hour (the
- * sun rises: sunlit), the day, the dusk hour (the sun sets: still sunlit),
- * the night. clock.ts `isDay` is `dawn`, `day` or `dusk` (dawn ≤ h < dusk
- * + 1); only `night` is dark (ADR 0093, addendum 2026-11-01).
+ * sun rises: still dark), the day, the dusk hour (the sun has set: dark),
+ * the night. clock.ts `isDay` is exactly `day` (dawn + 1 ≤ h < dusk); `dawn`,
+ * `dusk` and `night` are dark (ADR 0093, addendum 2026-11-16).
  */
 export function periodOf(month: number, hour: number): DayPeriod {
   const dawn = DAWN[month]!;

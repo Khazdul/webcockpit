@@ -187,8 +187,9 @@ export function skySceneAt(g: number, opts: SkyLookOptions = {}): SkyScene {
   const hour = mod(g, DAY_S) / 60;
   const season = seasonOf(month);
   const period = periodOf(month, Math.floor(hour));
-  const rise = DAWN[month]!;
-  const set = DUSK[month]! + 1;
+  // sunlight: dawn + 1 ≤ h < dusk (clock.ts isDay, ADR 0093 addendum 2026-11-16)
+  const rise = DAWN[month]! + 1;
+  const set = DUSK[month]!;
   // --- sun elevation
   const tt = (hour - rise) / (set - rise);
   const summer = 1 - Math.abs(month - 6.5) / 6;

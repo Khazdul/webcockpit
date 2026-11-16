@@ -148,14 +148,15 @@ function demoFrom(from: unknown): number | null {
 export function eventState(name: WeatherEvent, data?: unknown): Partial<WeatherState> | null {
   switch (name) {
     // The day or night begins (the almanac's sunU, when synced, follows within
-    // a step). The day (sunlight) begins with `sun.rise`, the dawn hour; the
-    // demo's `sun.rise` with a `from` starts its sunrise instead (`turnEvent`).
-    // `sun.light`, an hour later, keeps the day. `sun.set` opens the dusk hour,
-    // still day: it starts the sunset (`turnEvent`).
-    case 'sun.rise':
-      return demoFrom((data as { from?: unknown } | undefined)?.from) === null ? { clock: 'day', sunU: 0 } : null;
+    // a step). `sun.rise` opens the dawn hour, still night: it starts the
+    // sunrise (`turnEvent`). The day (sunlight) begins with `sun.light`, the
+    // hour after. The night begins with `sun.set`, the dusk hour; the demo's
+    // `sun.set` with a `from` starts its sunset instead (`turnEvent`).
+    // `sun.dark`, an hour later, keeps the night (ADR 0093, addendum 2026-11-16).
     case 'sun.light':
-      return { clock: 'day' };
+      return { clock: 'day', sunU: 0 };
+    case 'sun.set':
+      return demoFrom((data as { from?: unknown } | undefined)?.from) === null ? { clock: 'night', sunU: -1 } : null;
     case 'sun.dark':
       return { clock: 'night', sunU: -1 };
     case 'moon.rise':
@@ -301,15 +302,15 @@ export class Director {
   }
 
   /**
-   * `Event.Sun set` (the dusk hour begins): the sunset from its start (or
+   * `Event.Sun rise` (the dawn hour begins): the sunrise from its start (or
    * `from` s before its second: the demo, whose turns never hold back the
-   * game's), unless one of that kind runs or ran this dusk. The game's
-   * `rise` is the sunrise's second, the day begun (`eventState`): only the
-   * demo's, with a `from`, starts a sunrise.
+   * game's), unless one of that kind runs or ran this dawn. The game's
+   * `set` is the sunset's second, the night begun (`eventState`): only the
+   * demo's, with a `from`, starts a sunset.
    */
   turnEvent(kind: TurnKind, from?: unknown): void {
     const demo = demoFrom(from) !== null;
-    if (kind === 'rise' && !demo) return;
+    if (kind === 'set' && !demo) return;
     if (this.turn?.kind !== kind && this.start(kind, demo ? (from as number) : -TURN_S, this.wall()) && demo) this.turn!.demo = true;
   }
 

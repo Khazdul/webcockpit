@@ -2,11 +2,12 @@
 // Pure: no DOM, no canvas; the director (director.ts) and the sky
 // (worker/sky.ts) share it.
 //
-// Sunlight lasts from the dawn hour ("The sun rises in the east.", `Event.Sun
-// rise`) to the hour after the dusk hour ("The night has begun.", `dark`;
-// clock.ts `dayBeginsAt`, `nightBeginsAt`; ADR 0093, addendum 2026-11-01).
-// A sunrise fills the last game hour of the night (the hour before the dawn
-// hour), a sunset the last game hour of the day (the dusk hour): `s` is the
+// Sunlight lasts from the hour after the dawn hour ("The day has begun.",
+// `Event.Sun light`) to the dusk hour ("The sun slowly disappears in the
+// west.", `set`; clock.ts `dayBeginsAt`, `nightBeginsAt`; ADR 0093, addendum
+// 2026-11-16). A sunrise fills the last game hour of the night (the dawn
+// hour, from `rise`), a sunset the last game hour of the day (the hour
+// before the dusk hour): `s` is the
 // time relative to the turn's second (-60 an hour before, 0 when the day or
 // night begins). The sun, its rays and its glow are gone at 0 for both (owner
 // items 76, 77); a sunset's are still visible until the last seconds, so the
