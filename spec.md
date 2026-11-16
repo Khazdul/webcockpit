@@ -143,8 +143,7 @@ ADR 0006.
   stage 58), the app at the root, released by a version tag
   (`wrangler.jsonc`, `worker/`, `npm run build:site`,
   `.github/workflows/deploy.yml`). Before that the site was GitHub
-  Pages (ADR 0028, ADR 0029); `pages.yml` still deploys there from the
-  same tag for two releases, as the way back. The earlier
+  Pages (ADR 0028, ADR 0029), retired in stage 58 part D. The earlier
   Tailscale/Caddy site (ADR 0022) is retired.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
@@ -1530,7 +1529,8 @@ tasks, the test guide and the owner's feedback. Order and content:
    First to `workers.dev`; `test:prod` there.
 5. The switch: delete the apex A/AAAA records, attach the domain,
    `www` redirect; `test:prod` live; the owner checks his data.
-6. Pages stays deployable for two releases, then `pages.yml` goes.
+6. Pages stays deployable for two releases, then `pages.yml` goes
+   (done 2026-11-16).
 
 **59 — Usage statistics.**
 1. D1 and R2 created with jurisdiction `eu` (production and staging);

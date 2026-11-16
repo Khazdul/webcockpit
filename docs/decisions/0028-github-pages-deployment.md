@@ -1,6 +1,8 @@
 # 0028 — GitHub Pages deployment
 
-- Status: Accepted
+- Status: Superseded by ADR 0144 (the site is a Cloudflare Worker since
+  2026-11-14; `pages.yml` removed in stage 58 part D, 2026-11-16). The
+  subpath build (`WEBCOCKPIT_BASE`) described here still works.
 - Date: 2026-09-29
 - Amends: ADR 0022 (a second deployment beside it)
 

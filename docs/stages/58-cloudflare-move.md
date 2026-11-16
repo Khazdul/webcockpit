@@ -1,9 +1,10 @@
 # Stage 58 — Move to Cloudflare
 
-Status: **In progress** (planned 2026-11-13; part A built, merged and
-deployed to staging 2026-11-14; **the domain switched to the Worker
-2026-11-14**; part C done, the owner's first check fine (see Owner feedback); D
-remains, two releases later).
+Status: **Done in the repository** (planned 2026-11-13; part A built,
+merged and deployed to staging 2026-11-14; **the domain switched to the
+Worker 2026-11-14**; part C done, the owner's first check fine (see
+Owner feedback); part D's repository side done 2026-11-16). Left: the
+owner's clicks in GitHub, part D below.
 
 ## Goal
 
@@ -123,18 +124,66 @@ The token itself has not been used yet.
       `test:prod` 12/12, all 99 files of 0.9.2 still served. The
       owner saw the notice in an open tab.
 
-### D. Afterwards
+### D. Afterwards (2026-11-16, after 0.15.0)
 
-- [ ] Two releases later: remove `pages.yml`, the `pages` profile and
-      the Pages custom domain setting; ADR 0028 marked superseded.
+In the repository (session):
+
+- [x] `.github/workflows/pages.yml` removed; `build:pages`, the
+      `--pages` mode of `scripts/site-build.ts` and `dist-pages/` gone.
+- [x] `scripts/static-server.ts` always stands in for the Worker (no
+      `pages` profile, no `--profile`); `WC_PROD_PROFILE` and
+      `tests/e2e-prod/profile.ts` gone, the prod tests assert
+      Cloudflare's headers and the API unconditionally.
+- [x] Comments and docs that named GitHub Pages as a host (spec §1.5,
+      §7.12; `vite.config.ts`, `update-check.ts`, `deploy.yml`, …);
+      ADR 0028 marked superseded; ADR 0144 addendum.
+- [x] typecheck, unit, `build:site`; staging deployed and `test:prod`
+      against <https://staging.mumecockpit.com> (results below).
+      No release: nothing in the app changed (comments only).
+
+**Owner: what to click (about 5 minutes).** What was looked up
+(read-only) on 2026-11-16: the GitHub Pages site is still published
+with the custom domain `mumecockpit.com` (DNS no longer points there,
+so nobody reaches it); the environment `github-pages` exists with no
+secrets; the two repository secrets are both Cloudflare's and are
+used by `deploy.yml`; Cloudflare has **no** Pages project (`wrangler
+pages project list` is empty).
+
+GitHub (<https://github.com/Khazdul/webcockpit>):
+
+- [ ] Settings → Pages → *Custom domain*: **Remove**.
+- [ ] Same page, at the top ("Your site is live at …"): the **⋯** menu
+      → **Unpublish site**. (If GitHub asks to choose a source
+      afterwards, leave it; nothing deploys there any more.)
+- [ ] Settings → Environments → `github-pages` → **Delete
+      environment**. It has no secrets of its own.
+- [ ] Secrets: **nothing to remove.** `CLOUDFLARE_API_TOKEN` and
+      `CLOUDFLARE_ACCOUNT_ID` are used by `deploy.yml`.
+
+Cloudflare (<https://dash.cloudflare.com>):
+
+- [ ] **Nothing to delete under Workers & Pages:** there is no Pages
+      project; `webcockpit` and `webcockpit-staging` are the Workers
+      and stay.
+- [ ] DNS of `mumecockpit.com`: the GitHub Pages records (four A, four
+      AAAA, the `www` CNAME) were already deleted at the switch. Leave
+      the TXT record `_github-pages-challenge-Khazdul`: it keeps the
+      domain verified to your GitHub account, so no one else can point
+      a Pages site at it. (Remove it only if you also remove the
+      domain under your GitHub profile → Settings → Pages → Verified
+      domains.)
 
 ## Rollback
 
-1. Remove the custom domain from the Worker (dashboard or a deploy
-   without the route).
-2. Put back the A, AAAA and `www` records of ADR 0029.
-3. GitHub Pages still has the last release and the domain setting, so
-   the site is back when DNS has spread (minutes).
+Since part D there is no way back to GitHub Pages. A bad release is
+undone on the Worker: Cloudflare dashboard → Workers → `webcockpit` →
+Deployments → roll back to the previous version (or `wrangler
+rollback`), or run `deploy.yml` by hand at the previous tag (ADR 0144,
+addendum of part D).
+
+Before part D (kept for the record): remove the custom domain from the
+Worker, put back the A, AAAA and `www` records of ADR 0029; GitHub
+Pages still had the last release and the domain setting.
 
 ## Risks
 

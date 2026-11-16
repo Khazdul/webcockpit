@@ -643,3 +643,30 @@ owner has tested staging; `production: true` goes with the release
 that turns the flag `accounts` on, never after it (ADR 0145, "After
 the review of the client").
 
+
+## Addendum (stage 58 part D, 2026-11-16): GitHub Pages retired
+
+Six releases after the switch (0.9.3 to 0.15.0, all through
+`deploy.yml`), the Pages fallback is gone from the repository:
+`.github/workflows/pages.yml`, `npm run build:pages` and
+`site-build.ts --pages` (`dist-pages/`), the `pages` profile of
+`scripts/static-server.ts` (it now always stands in for the Worker; no
+`--profile` option), `WC_PROD_PROFILE` and `tests/e2e-prod/profile.ts`
+(the prod tests assert Cloudflare's headers and the API
+unconditionally), and the old `WEBCOCKPIT_PAGES_URL` /
+`WEBCOCKPIT_PAGES_DIR` names. `versionGuard` still lets the live
+commit be built again: now only so a failed deploy can be rerun. ADR
+0028 is marked superseded.
+
+The way back of "The switch as done" no longer exists. A bad release
+is undone on the Worker: roll back to the previous version
+(dashboard, Workers → `webcockpit` → Deployments, or `wrangler
+rollback`), or run `deploy.yml` by hand at the previous tag.
+
+What the owner removes outside the repository (the GitHub Pages site,
+its custom domain and the `github-pages` environment) is listed in
+`docs/stages/58-cloudflare-move.md`, part D. There never was a
+Cloudflare Pages project. The DNS TXT record
+`_github-pages-challenge-Khazdul` (GitHub's domain verification) is
+kept: it stops another GitHub account from claiming the domain for a
+Pages site, and costs nothing.
