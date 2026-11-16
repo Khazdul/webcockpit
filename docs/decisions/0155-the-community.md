@@ -1428,3 +1428,21 @@ The owner's points of 2026-11-16 after round 2 (stage 65).
   figure) runs in `community-page.spec.ts` at 1440 × 900, 1280 × 800 and
   1100 × 800, in `phone-community-page.spec.ts` at 1180 × 820 and in the
   matrix wherever the page is wide.
+- **The run log player's Back (same round, after the map work).** The
+  player fills History's window up to the frame, so its Back
+  (`.wc-pv-back`, src/player/player.css) lay on the window's inner edge
+  (`top: 0`), 40 px high on a coarse pointer. It is now drawn 4 px below
+  it (`top: 4px`, the header row's height, 10 px from the left), with the
+  canvas colour over that air (`::after`) so the game text's first line
+  does not peek out over it; on a coarse pointer it keeps its drawn size
+  and its 40 px target is an invisible `::before` from the window's inner
+  edge down (the window clips the player: it cannot grow up over the frame
+  as a box's Back does). A phone or tablet in the phone's layout has no
+  Back there (stage 55). The other backs checked: the Spotlights viewer
+  keeps the box's Back (its "Back to the wall" is a glass button in its
+  content); the script manual's `.wc-sman-iback` and the phone settings'
+  `.wc-ph-back` are not in a start-menu box (a game window's sub-page, the
+  phone game's menu band) and are unchanged. `back-placement.spec.ts`
+  gains a test per mode: the run log (its Back ≥ 4 px inside the window,
+  ≤ 30 px drawn, clear of the header's chips, the 40 px target) and the
+  Spotlights viewer.
