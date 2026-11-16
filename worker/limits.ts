@@ -52,8 +52,12 @@ export async function loadLimitDefaults(env: Pick<Env, 'DB'>, now: number): Prom
     cache.set(db, { at: now, rows });
     return rows;
   } catch {
-    // A failing database (or one without migration 0007): what was cached, else the built-in values.
-    return hit?.rows ?? {};
+    // A failing database (or one without migration 0007): what was cached,
+    // else the built-in values, kept for LIMITS_CACHE_MS like a good read so
+    // that a failing database is not asked on every request (review fix CR4).
+    const rows = hit?.rows ?? {};
+    cache.set(db, { at: now, rows });
+    return rows;
   }
 }
 

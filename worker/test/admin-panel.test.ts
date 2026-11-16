@@ -11,7 +11,7 @@ import {
   type Config,
   DEFAULT_ACCOUNT_LIMITS,
 } from '../../shared/cloud/api.ts';
-import { LIMITS_CACHE_MS, forgetLimitDefaults } from '../limits.ts';
+import { LIMITS_CACHE_MS, forgetLimitDefaults, loadLimitDefaults } from '../limits.ts';
 import { recordBeat, rollUp } from '../stats.ts';
 import { DAY_MS } from '../runtime.ts';
 import { count, db, device, emptyTables } from './helpers.ts';
@@ -245,6 +245,36 @@ describe('limits', () => {
     const later = await call('GET', '/api/u/account', undefined, { cookie: alice, now: NOW + LIMITS_CACHE_MS });
     expect(((await later.json()) as { account: Account }).account.limits.items).toBe(7);
     forgetLimitDefaults(db);
+  });
+
+  it('CR4: a failed read is kept for the 30 s too (the last good rows, if any), not tried on every request', async () => {
+    let reads = 0;
+    let failing = false;
+    const flaky = {
+      prepare: (sql: string) => {
+        if (sql.includes('limit_default')) {
+          reads++;
+          if (failing) throw new Error('D1 down');
+        }
+        return db.prepare(sql);
+      },
+      batch: db.batch.bind(db),
+    };
+    await db.prepare("INSERT INTO limit_default (name, value) VALUES ('items', 7)").run();
+    expect(await loadLimitDefaults({ DB: flaky }, NOW)).toEqual({ items: 7 });
+    failing = true;
+    expect(await loadLimitDefaults({ DB: flaky }, NOW + LIMITS_CACHE_MS)).toEqual({ items: 7 });
+    expect(reads).toBe(2);
+    expect(await loadLimitDefaults({ DB: flaky }, NOW + LIMITS_CACHE_MS + 1000)).toEqual({ items: 7 });
+    expect(await loadLimitDefaults({ DB: flaky }, NOW + 2 * LIMITS_CACHE_MS - 1)).toEqual({ items: 7 });
+    expect(reads).toBe(2);
+    expect(await loadLimitDefaults({ DB: flaky }, NOW + 2 * LIMITS_CACHE_MS)).toEqual({ items: 7 });
+    expect(reads).toBe(3);
+    // A fresh isolate whose first read fails: the built-in values, also kept for the 30 s.
+    const fresh = { prepare: flaky.prepare, batch: flaky.batch };
+    expect(await loadLimitDefaults({ DB: fresh }, NOW)).toEqual({});
+    expect(await loadLimitDefaults({ DB: fresh }, NOW + 1000)).toEqual({});
+    expect(reads).toBe(4);
   });
 
   it('a failing or missing limit_default table leaves the built-in values', async () => {
