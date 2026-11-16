@@ -1,11 +1,23 @@
 # Stage 66 — The admin panel
 
-Status: **In progress (2026-11-16)**; the owner picked round 14 (1b, 2b,
-3a, 4b); building.
+Status: **On staging (2026-11-16)**: built as picked in round 14 (1b,
+2b, 3a, 4b), reviewed, fixed and checked; production untouched, no tag.
 
 ## Waiting for the owner
 
-Nothing yet: round 14 is picked (below); the build is running.
+1. **Your test on staging** (test guide below): <https://staging.mumecockpit.com/admin>.
+   Then say yes or give feedback; the release (0.15.0, migration 0007)
+   goes to production only on your word.
+2. **S1, an admin host of its own (optional, your Cloudflare setup).**
+   The review's only remark on Access: `/admin` shares its origin with
+   the app, so a script that ever got past the app's CSP could act as
+   the admin. Moving the admin to e.g. `admin.mumecockpit.com` with its
+   own Access application closes that. Low risk today; say if you want
+   it, and the next session writes the clicks.
+3. **S8, one Access application per environment (optional).** Staging
+   and production share the Access audience, so a staging admin token is
+   accepted by production too (still only for your e-mail). A second
+   application for staging separates them.
 
 ## Goal
 
@@ -191,6 +203,37 @@ build; the client bundle is the same code, so this is the machine);
 
 ## Test guide (owner)
 
-Written when the stage is on staging.
+On staging, <https://staging.mumecockpit.com/admin> (Access asks for
+your e-mail as before). Desktop first, then a quick look on the phone.
+Staging has little traffic, so the graphs are thin; storage history
+starts today.
+
+1. **The side bar.** Reports, Accounts, Log; Use, Storage, Sharing;
+   Flags and limits. Each view keeps its place on reload and Back works.
+   On the phone the side bar becomes a row of links.
+2. **Use.** A grid of cards (30 days). Try 24 h, 7 days, All. Click a
+   card: it opens large; move the mouse (or the arrow keys) for the
+   values; Table shows the numbers.
+3. **Storage and Sharing.** The totals, storage by kind, the ten largest
+   accounts (a name opens its account), shares, votes, comments a day.
+4. **Accounts.** Search a part of a name, sort by a heading, filter
+   Suspended. Open your test account.
+5. **One account's limits.** Give it, say, Runs 100 MB; Save asks first
+   and lists the change. Type a value below what it uses: the warning.
+   Reset to defaults.
+6. **Default limits** (Flags and limits). Change one default, Save; then
+   Back to built in.
+7. **Remove a test account** (the stage test). Make a throwaway account
+   on staging (a private window: Create account), store something
+   (a profile, a run). In /admin open it → Delete account…, type the
+   name. It is gone from the list; Create account with the same name is
+   refused (the name stays reserved).
+8. **End all sessions** on your test account: the device that was
+   logged in is told it was logged out.
+9. **The log.** Every step above is there, newest first, with the kind
+   tags; the badge says "Sealed and intact". Filter by kind.
+
+Feedback wanted: is the side bar and the grid right; are the graphs
+readable; anything you miss on an account's page or in the log.
 
 ## Owner feedback
