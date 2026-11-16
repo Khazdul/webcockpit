@@ -109,11 +109,11 @@ describe('the admin page: the shell', () => {
     await settle();
     expect(gets()).toEqual([]);
     await go('#reports');
-    expect(gets().sort()).toEqual(['/api/admin/log', '/api/admin/reports', '/api/admin/stats']);
+    expect(gets().sort()).toEqual(['/api/admin/log?chain=0&limit=20', '/api/admin/reports', '/api/admin/stats']);
     state.calls = [];
     vi.advanceTimersByTime(60_000);
     await settle();
-    expect(gets().sort()).toEqual(['/api/admin/log', '/api/admin/reports', '/api/admin/stats']);
+    expect(gets().sort()).toEqual(['/api/admin/log?chain=0&limit=20', '/api/admin/reports', '/api/admin/stats']);
   });
 
   it('a failing read of the numbers says so in the side bar', async () => {

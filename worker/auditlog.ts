@@ -196,3 +196,28 @@ export async function logPage(env: Pick<Env, 'AUTH_PEPPER'>, db: D1, o: { before
   const more = from.length > page.length;
   return { entries: page.map(rowOf), next: more ? (page.at(-1)?.id ?? null) : null, total: matching.length, chain };
 }
+
+/**
+ * `GET /api/admin/log?chain=0&limit=&before=` (review fix S4): the newest
+ * `limit` entries without the chain's check, reading only those rows (and
+ * one each for the lowest and highest id): the Reports view's card, which
+ * reloads every minute. `total` is every entry, from the ids: entries are
+ * never removed (the triggers) and an INTEGER PRIMARY KEY gives the next id
+ * without a gap, so the count needs no scan. (A removal from the console
+ * makes it too low; the Log view's check is what finds that.)
+ */
+export async function recentPage(db: D1, o: { before: number | null; limit: number }): Promise<AdminLogPage> {
+  const [rows, ids] = await db.batch<Record<string, unknown>>([
+    o.before === null
+      ? db.prepare(`SELECT ${LOG_COLUMNS} FROM admin_log ORDER BY id DESC LIMIT ?1`).bind(o.limit + 1)
+      : db.prepare(`SELECT ${LOG_COLUMNS} FROM admin_log WHERE id < ?1 ORDER BY id DESC LIMIT ?2`).bind(o.before, o.limit + 1),
+    // Two subqueries: each is one seek on the rowid (MIN and MAX together would scan).
+    db.prepare('SELECT (SELECT MIN(id) FROM admin_log) AS lo, (SELECT MAX(id) FROM admin_log) AS hi'),
+  ]);
+  const found = (rows?.results ?? []) as unknown as LogRecord[];
+  const page = found.slice(0, o.limit);
+  const lo = ids?.results[0]?.lo;
+  const hi = ids?.results[0]?.hi;
+  const total = typeof lo === 'number' && typeof hi === 'number' ? hi - lo + 1 : 0;
+  return { entries: page.map(rowOf), next: found.length > page.length ? (page.at(-1)?.id ?? null) : null, total, chain: null };
+}

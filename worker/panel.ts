@@ -10,6 +10,7 @@
 //   PUT  /api/admin/limits                   {defaults, note?}: the defaults for everyone (pick 4b)
 //   GET  /api/admin/graphs?range=            the graph views' series (worker/stats.ts)
 //   GET  /api/admin/log?before=&kind=&q=     the audit log with the chain's check (worker/auditlog.ts)
+//   GET  /api/admin/log?chain=0&limit=       the newest entries without it (the Reports view's card)
 //
 // Every write is logged in its own transaction through `sealedBatch`.
 import {
@@ -17,6 +18,7 @@ import {
   ADMIN_ACCOUNT_SORTS,
   ADMIN_GRAPH_RANGES,
   ADMIN_LOG_KINDS,
+  ADMIN_LOG_LIMIT_MAX,
   type AccountLimits,
   type AdminAccountDetail,
   type AdminAccountRow,
@@ -27,7 +29,7 @@ import {
   type AdminLogKind,
 } from '../shared/cloud/api.ts';
 import { type AccountRow, limitsOf, nameOf, ownLimitsOf } from './accounts.ts';
-import { LOG_COLUMNS, type LogRecord, logPage, rowOf, sealedBatch } from './auditlog.ts';
+import { LOG_COLUMNS, type LogRecord, logPage, recentPage, rowOf, sealedBatch } from './auditlog.ts';
 import { builtInLimits, changeNote, currentDefaults, differing, forgetLimitDefaults, limitsInput, loadLimitDefaults } from './limits.ts';
 import { bodyOf, guarded, noteOf } from './moderation.ts';
 import { type D1, type Deps, type Env, error, json } from './runtime.ts';
@@ -287,6 +289,12 @@ async function log(_request: Request, env: Env, db: D1, url: URL): Promise<Respo
   const before = beforeText === null || beforeText === '' ? null : /^[1-9]\d{0,15}$/.test(beforeText) ? Number(beforeText) : NaN;
   const kind = oneOf(ADMIN_LOG_KINDS, p.get('kind'), '' as AdminLogKind);
   const q = (p.get('q') ?? '').trim();
-  if (Number.isNaN(before) || kind === null || q.length > QUERY_MAX.log) return error('bad_request', 400);
+  const chain = oneOf(['1', '0'] as const, p.get('chain'), '1');
+  const limitText = p.get('limit');
+  const limit = limitText === null ? ADMIN_LOG_LIMIT_MAX : /^[1-9]\d{0,2}$/.test(limitText) && Number(limitText) <= ADMIN_LOG_LIMIT_MAX ? Number(limitText) : NaN;
+  if (Number.isNaN(before) || kind === null || q.length > QUERY_MAX.log || chain === null || Number.isNaN(limit)) return error('bad_request', 400);
+  // Without the check (review fix S4): only `limit` rows read; the filters and `limit` belong to one kind of read each.
+  if (chain === '0') return kind || q ? error('bad_request', 400) : json(await recentPage(db, { before, limit }));
+  if (limitText !== null) return error('bad_request', 400);
   return json(await logPage(env, db, { before, kind: kind || null, q }));
 }

@@ -89,7 +89,8 @@ async function fakeFetch(input: string, init: RequestInit = {}): Promise<Respons
   }
   if (input === '/api/admin/stats') return json(stats);
   if (input === '/api/admin/reports') return failReports ? json({ error: 'unavailable' }, 503) : json(reports);
-  if (input === '/api/admin/log') return json({ entries: log });
+  // The Reports card reads the newest 20 without the chain's check (review fix S4).
+  if (input === '/api/admin/log?chain=0&limit=20') return json({ entries: log.slice(0, 20), next: null, total: log.length, chain: null });
   const m = /^\/api\/admin\/pub\/([^/]+)$/.exec(input);
   if (m) return json(meta(m[1] as string));
   return json({ error: 'not_found' }, 404);
@@ -187,7 +188,7 @@ describe('the admin page: the report queue', () => {
     // Only reads so far.
     expect(posts()).toEqual([]);
     expect(calls.map((c) => c.path)).toEqual(
-      expect.arrayContaining(['/api/admin/stats', '/api/admin/reports', '/api/admin/log', '/api/admin/pub/Zp6Wd3Fg5uNa', '/api/admin/pub/Vt8Ky2Qa4mRc']),
+      expect.arrayContaining(['/api/admin/stats', '/api/admin/reports', '/api/admin/log?chain=0&limit=20', '/api/admin/pub/Zp6Wd3Fg5uNa', '/api/admin/pub/Vt8Ky2Qa4mRc']),
     );
   });
 
@@ -214,13 +215,13 @@ describe('the admin page: the report queue', () => {
     expect($('#queue').textContent).toBe('Could not read the reports: HTTP 503');
   });
 
-  it('a long log shows the newest 20, and all on asking', async () => {
+  it('a long log shows the newest 20 of the total the Worker counts (S4, CR6); the whole log is a link', async () => {
     log = Array.from({ length: 100 }, (_, i) => ({ ts: NOW - i * 60_000, action: 'pub.hide', target: `id${i}`, note: '' }));
     await boot();
+    expect(calls.filter((c) => c.path.startsWith('/api/admin/log')).map((c) => c.path)).toEqual(['/api/admin/log?chain=0&limit=20']);
     expect(document.querySelectorAll('#log tbody tr').length).toBe(20);
     expect($('#log-count').textContent).toBe('the newest 20 of 100');
-    $<HTMLButtonElement>('#log-more').click();
-    expect(document.querySelectorAll('#log tbody tr').length).toBe(100);
+    expect(document.getElementById('log-more')).toBeNull();
   });
 });
 
@@ -252,7 +253,7 @@ describe('the admin page: the actions ask first', () => {
     expect($('#mod-status').textContent).toBe('Hidden: Orc raid');
     // Reloaded after the action.
     expect(calls.filter((c) => c.path === '/api/admin/reports').length).toBe(1);
-    expect(calls.filter((c) => c.path === '/api/admin/log').length).toBe(1);
+    expect(calls.filter((c) => c.path === '/api/admin/log?chain=0&limit=20').length).toBe(1);
   });
 
   it('Restore sends restore and Dismiss reports dismiss (review fix CR6), without a note when none is given', async () => {

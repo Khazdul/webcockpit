@@ -297,6 +297,52 @@ describe('GET /api/admin/log', () => {
   });
 });
 
+describe('GET /api/admin/log?chain=0 (review fix S4)', () => {
+  /** The router's env with a database that adds up the rows each batch read. */
+  function counting(): { env: ReturnType<typeof adminEnv>; read: () => number } {
+    let rows = 0;
+    const wrapped = {
+      prepare: (sql: string) => db.prepare(sql),
+      batch: async (st: Parameters<typeof db.batch>[0]) => {
+        const out = await db.batch(st);
+        for (const r of out) rows += Number((r.meta as { rows_read?: number }).rows_read ?? 0);
+        return out;
+      },
+    };
+    return { env: adminEnv({ DB: wrapped }), read: () => rows };
+  }
+
+  it('the newest `limit` entries, no check (chain null), the total from the ids, and only those rows read', async () => {
+    const { sealedBatch } = await import('../auditlog.ts');
+    const { realEnv, withoutLogTriggers } = await import('./helpers.ts');
+    for (let i = 0; i < 300; i++) await sealedBatch(realEnv, db, { ts: i, who: 'w'.repeat(22), action: 'pub.hide', target: `t${i}`, note: '' }, (e) => [e]);
+    // A broken chain is not looked at here.
+    await withoutLogTriggers(async () => {
+      await db.prepare("UPDATE admin_log SET note = 'x' WHERE target = 't299'").run();
+    });
+    const c = counting();
+    const p = await adminJson<AdminLogPage>('/api/admin/log?chain=0&limit=20', { env: c.env });
+    expect(p.chain).toBeNull();
+    expect(p.total).toBe(300);
+    expect(p.entries.map((e) => e.target)).toEqual(Array.from({ length: 20 }, (_, i) => `t${299 - i}`));
+    expect(p.next).toBe(p.entries[19]?.id);
+    expect(c.read()).toBeLessThanOrEqual(25);
+    const older = await adminJson<AdminLogPage>(`/api/admin/log?chain=0&limit=20&before=${p.next}`);
+    expect(older.entries[0]?.target).toBe('t279');
+    // The Log view's read checks every row.
+    const full = counting();
+    expect((await adminJson<AdminLogPage>('/api/admin/log', { env: full.env })).chain).toMatchObject({ state: 'broken', brokenCount: 1 });
+    expect(full.read()).toBeGreaterThanOrEqual(300);
+  });
+
+  it('an empty log: total 0; bad parameters are 400', async () => {
+    expect(await adminJson<AdminLogPage>('/api/admin/log?chain=0&limit=5')).toEqual({ entries: [], next: null, total: 0, chain: null });
+    for (const bad of ['?chain=2', '?chain=0&limit=0', '?chain=0&limit=101', '?chain=0&limit=x', '?chain=0&kind=flags', '?chain=0&q=a', '?limit=20']) {
+      expect((await admin(`/api/admin/log${bad}`)).status, bad).toBe(400);
+    }
+  });
+});
+
 describe('GET /api/admin/graphs', () => {
   it('every series for a range: online by bucket, the days rolled up and today live, splits, storage, the largest, sharing', async () => {
     const yesterday = NOW - DAY_MS;

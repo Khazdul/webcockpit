@@ -47,7 +47,7 @@ export const REPORTS_HTML = `<div id="v-reports" class="kept" hidden>
         <h2>Admin log <span class="muted" id="log-count"></span></h2>
         <p class="note" id="log-status"></p>
         <table class="log" id="log"><thead><tr><th>When (UTC)</th><th>Action</th><th>Target</th><th>Note</th></tr></thead><tbody></tbody></table>
-        <p><button type="button" id="log-more" hidden>Show all</button> <a href="#log">The whole log</a></p>
+        <p><a href="#log">The whole log</a></p>
       </section>
     </div>
   </div>
@@ -182,16 +182,17 @@ export const REPORTS_JS = `
   ];
   /** R2's free storage, bytes. */
   var R2_FREE = 10e9;
+  /** The card's newest entries: read without the chain's check, which the Log view does (review fix S4). */
   var LOG_SHOWN = 20;
   var logStatus = document.getElementById('log-status');
-  var logMore = document.getElementById('log-more');
   var logEntries = [];
-  var logAll = false;
+  var logTotal = 0;
 
   function loadModeration() {
-    return Promise.all([settle(getJson('/api/admin/reports')), settle(getJson('/api/admin/log'))]).then(function (r) {
+    return Promise.all([settle(getJson('/api/admin/reports')), settle(getJson('/api/admin/log?chain=0&limit=' + LOG_SHOWN))]).then(function (r) {
       if (r[1].ok) {
-        logEntries = Array.isArray(r[1].v.entries) ? r[1].v.entries : [];
+        logEntries = Array.isArray(r[1].v.entries) ? r[1].v.entries.slice(0, LOG_SHOWN) : [];
+        logTotal = typeof r[1].v.total === 'number' ? r[1].v.total : logEntries.length;
         logStatus.textContent = '';
         renderLog();
       } else logStatus.textContent = 'Could not read the log: ' + r[1].e.message;
@@ -335,8 +336,7 @@ export const REPORTS_JS = `
   function renderLog() {
     var body = document.querySelector('#log tbody');
     body.replaceChildren();
-    var shown = logAll ? logEntries : logEntries.slice(0, LOG_SHOWN);
-    shown.forEach(function (e) {
+    logEntries.forEach(function (e) {
       var a = String(e.action);
       var dot = a.indexOf('.');
       var kind = a.slice(0, dot);
@@ -351,11 +351,9 @@ export const REPORTS_JS = `
       tr.append(td);
       body.append(tr);
     }
-    document.getElementById('log-count').textContent = logEntries.length > shown.length || logAll ? 'the newest ' + shown.length + ' of ' + logEntries.length : '';
-    logMore.hidden = logEntries.length <= LOG_SHOWN;
-    logMore.textContent = logAll ? 'Show fewer' : 'Show all ' + logEntries.length;
+    // The count of every entry is the Worker's (review fix CR6), not the rows read.
+    document.getElementById('log-count').textContent = logTotal > logEntries.length ? 'the newest ' + fmt(logEntries.length) + ' of ' + fmt(logTotal) : '';
   }
-  logMore.addEventListener('click', function () { logAll = !logAll; renderLog(); });
 
   function pubAction(it, kind) {
     var n = openCount(it);
