@@ -92,3 +92,9 @@ export function lensLevel(level: string): LensLevel {
 export function lensLabel(level: LensLevel): string {
   return `Map, ${LENS_NAMES[level]} zoom (${LENS_LEVELS.indexOf(level) + 1} of ${LENS_LEVELS.length}). Tap to zoom`;
 }
+
+/** The level a pinch steps to: `dir` 1 one nearer (fingers spread), -1 one further; clamped, no wrap (ADR 0156). */
+export function pinchLevel(level: LensLevel, dir: 1 | -1): LensLevel {
+  const i = LENS_LEVELS.indexOf(level) - dir;
+  return LENS_LEVELS[Math.max(0, Math.min(LENS_LEVELS.length - 1, i))]!;
+}

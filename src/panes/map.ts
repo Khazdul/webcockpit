@@ -68,6 +68,9 @@
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
 //   the same `pan`/`zoom` messages and limits as the mouse and the wheel.
+//   Without the flag a finger's pointer (`pointerType` touch) takes the
+//   same path: a touch screen on a desktop, and the shared replay's frame,
+//   which runs no `initDevice` (ADR 0156).
 // - Loading overlay (stage 24, ADR 0083, src/panes/map-loading.ts): from
 //   the start (and every map change) to the first complete frame, and
 //   from a tileset change to `tilesDrawn`, a small centred progress bar fed by the
@@ -164,6 +167,8 @@ export class MapPane extends PaneShell {
   private drag: { id: number; x: number; y: number } | null = null;
   /** Touch only: the pointers down on the canvas (client px), in down order. */
   private readonly touches = new Map<number, PinchPoint>();
+  /** Without the touch flag: the last press on the canvas was a finger's (its long press opens no menu). */
+  private touchPressed = false;
   /** The lens's pending season swap (`onClock`), or null. */
   private seasonTimer: ReturnType<typeof setTimeout> | null = null;
   /** Phone only: the last map-relevant state messages, replayed when forwarding starts. */
@@ -264,11 +269,16 @@ export class MapPane extends PaneShell {
       // A long press shows the hover box, not the browser's menu.
       c.addEventListener('contextmenu', (e) => e.preventDefault());
     } else {
-      c.addEventListener('pointerdown', this.onPointerDown);
-      c.addEventListener('pointermove', this.onPointerMove);
-      c.addEventListener('pointerup', this.onPointerEnd);
-      c.addEventListener('pointercancel', this.onPointerEnd);
-      c.addEventListener('lostpointercapture', this.onPointerEnd);
+      // A finger still pans and pinches (a touch screen on a desktop, and the shared
+      // replay's frame, which decides no device flags): its pointers take the touch path.
+      c.addEventListener('pointerdown', (e) => (e.pointerType === 'touch' ? this.onTouchDown(e) : this.onPointerDown(e)));
+      c.addEventListener('pointermove', (e) => (this.touches.has(e.pointerId) ? this.onTouchMove(e) : this.onPointerMove(e)));
+      const end = (e: PointerEvent): void => (this.touches.has(e.pointerId) ? this.onTouchEnd(e) : this.onPointerEnd(e));
+      c.addEventListener('pointerup', end);
+      c.addEventListener('pointercancel', end);
+      c.addEventListener('lostpointercapture', end);
+      // A long press shows the hover box, not the browser's menu.
+      c.addEventListener('contextmenu', (e) => this.touchPressed && e.preventDefault());
       // The hover follows the mouse over the whole pane: a borderless pane's
       // title grip covers the canvas's top row (the grip is the pane's child,
       // so its moves bubble here; a point off the canvas cancels).
@@ -703,6 +713,7 @@ export class MapPane extends PaneShell {
   }
 
   private readonly onPointerDown = (e: PointerEvent): void => {
+    this.touchPressed = false;
     this.hover.cancel();
     if (e.button !== 0 || !this.client || this.lens) return;
     this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
@@ -757,6 +768,7 @@ export class MapPane extends PaneShell {
 
   private readonly onTouchDown = (e: PointerEvent): void => {
     // The lens takes no pan or pinch (ADR 0136 §4).
+    this.touchPressed = true;
     if (!this.client || this.lens) return;
     this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = this.local(e);

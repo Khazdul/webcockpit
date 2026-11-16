@@ -13,6 +13,11 @@
 //   back to the nearest (four levels, lens-zoom.ts); the level is kept in
 //   memory and starts at the setting's "Opens at". The lens button covers
 //   the map, so the map takes no pan or pinch.
+// - A pinch on the glass (two fingers; ADR 0156) steps the same levels: the
+//   fingers spread by `LENS_PINCH_RATIO` is one level nearer, drawn
+//   together by as much one level further, at most to the nearest and the
+//   furthest (no wrap). A second finger ends a move or a resize that was
+//   on (as a drop) and the hold; the release of a pinch is no tap.
 // - The lens is moved and resized by touch (round 53k; `LensDrag`): a
 //   finger that moves on the glass carries the lens along; a finger held
 //   still for `LENS_HOLD_MS` arms the resize (the rim lights up), and a
@@ -29,7 +34,7 @@
 //   the unread count. While the lens is hidden (the setting, or something
 //   it would collide with) the keys stay as a row at the top right.
 
-import { type LensLevel, LENS_LEVELS, lensLabel, nextLevel } from './lens-zoom';
+import { type LensLevel, LENS_LEVELS, lensLabel, nextLevel, pinchLevel } from './lens-zoom';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -64,6 +69,8 @@ const LENS_CLICK_MS = 700;
 /** A finger that moved this far before the hold is a move, px; an armed finger that moved this far resizes. */
 export const LENS_MOVE_SLOP = 8;
 export const LENS_SIZE_SLOP = 4;
+/** A pinch steps one level each time the fingers' distance changes by this factor. */
+export const LENS_PINCH_RATIO = 1.35;
 
 /**
  * The lens's drag as the caller hears it. All points are client px. A
@@ -117,6 +124,8 @@ export class LensView {
   private pointerAt: number | null = null;
   /** A tap: one zoom level on. */
   private step: () => void = () => {};
+  /** A pinch: one level nearer (+1) or further (-1), clamped. */
+  private pinchStep: (dir: 1 | -1) => void = () => {};
   /** Ends the gesture that is on, as cancelled (null: none is). */
   private endDrag: (() => void) | null = null;
 
@@ -165,6 +174,12 @@ export class LensView {
       }
       this.step();
     });
+    this.pinchStep = (dir) => {
+      const next = pinchLevel(this.level, dir);
+      if (next === this.level) return;
+      this.setLevel(next);
+      deps.onLevel(next);
+    };
     if (deps.drag) this.watchDrag(b, deps.drag);
     b.addEventListener('contextmenu', (e) => e.preventDefault());
     this.el.append(b);
@@ -212,7 +227,12 @@ export class LensView {
     const win = b.ownerDocument.defaultView;
     if (!win) return;
     let id: number | null = null;
-    let mode: 'wait' | 'armed' | 'move' | 'size' = 'wait';
+    let mode: 'wait' | 'armed' | 'move' | 'size' | 'pinch' = 'wait';
+    /** Pinch: the second finger, both fingers' places, and the distance the last step was taken at. */
+    let id2: number | null = null;
+    let x2 = 0;
+    let y2 = 0;
+    let pinchAt = 0;
     let x0 = 0;
     let y0 = 0;
     let x = 0;
@@ -227,7 +247,9 @@ export class LensView {
       if (id === null) return;
       const was = mode;
       const pid = id;
+      const pid2 = id2;
       id = null;
+      id2 = null;
       this.endDrag = null;
       if (timer !== null) clearTimeout(timer);
       timer = null;
@@ -236,18 +258,45 @@ export class LensView {
       // The last place the finger was at, before the drop.
       if (!cancelled && (was === 'move' || was === 'size')) drag.drag(was, x0, y0, x, y);
       this.el.classList.remove('is-armed', 'is-drag');
-      try {
-        b.releasePointerCapture(pid);
-      } catch {
-        // Not captured (any more).
+      for (const p of [pid, pid2]) {
+        if (p === null) continue;
+        try {
+          b.releasePointerCapture(p);
+        } catch {
+          // Not captured (any more).
+        }
       }
       // A click may follow (a mouse always clicks; a finger's tap may not: the browser drops the
       // tap that follows a flick). So the tap is taken here, and that click is passed over.
       this.pointerAt = cancelled ? null : win.performance.now();
+      if (was === 'pinch') return;
       if (was !== 'wait') drag.drop(was === 'armed' ? null : was, cancelled);
       else if (!cancelled) this.step();
     };
     b.addEventListener('pointerdown', (e) => {
+      if (id !== null && id2 === null && mode !== 'pinch' && e.pointerType === 'touch') {
+        // A second finger: a pinch from here. A move or resize that was on ends where it got to.
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        if (frame) win.cancelAnimationFrame(frame);
+        frame = 0;
+        if (mode === 'move' || mode === 'size') {
+          drag.drag(mode, x0, y0, x, y);
+          drag.drop(mode, false);
+        } else if (mode === 'armed') drag.drop(null, false);
+        this.el.classList.remove('is-armed', 'is-drag');
+        mode = 'pinch';
+        id2 = e.pointerId;
+        x2 = e.clientX;
+        y2 = e.clientY;
+        pinchAt = Math.hypot(x2 - x, y2 - y);
+        try {
+          b.setPointerCapture(e.pointerId);
+        } catch {
+          // Gone already.
+        }
+        return;
+      }
       if (id !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
       this.pointerAt = null;
       id = e.pointerId;
@@ -269,6 +318,30 @@ export class LensView {
       }, LENS_HOLD_MS);
     });
     b.addEventListener('pointermove', (e) => {
+      if (mode === 'pinch') {
+        if (e.pointerId === id) {
+          x = e.clientX;
+          y = e.clientY;
+        } else if (e.pointerId === id2) {
+          x2 = e.clientX;
+          y2 = e.clientY;
+        } else return;
+        const d = Math.hypot(x2 - x, y2 - y);
+        if (pinchAt < LENS_MOVE_SLOP) {
+          pinchAt = d;
+          return;
+        }
+        // One level for each ratio the fingers spread or close (a fast pinch may pass two).
+        while (d >= pinchAt * LENS_PINCH_RATIO) {
+          pinchAt *= LENS_PINCH_RATIO;
+          this.pinchStep(1);
+        }
+        while (d <= pinchAt / LENS_PINCH_RATIO) {
+          pinchAt /= LENS_PINCH_RATIO;
+          this.pinchStep(-1);
+        }
+        return;
+      }
       if (e.pointerId !== id) return;
       x = e.clientX;
       y = e.clientY;
@@ -285,19 +358,18 @@ export class LensView {
       }
       if ((mode === 'move' || mode === 'size') && !frame) frame = win.requestAnimationFrame(tell);
     });
-    b.addEventListener('pointerup', (e) => {
-      if (e.pointerId === id) finish(false);
-    });
+    // A pinch ends when either finger lifts; the other one starts nothing (its release is no tap).
+    const up = (e: PointerEvent): void => {
+      if (mode === 'pinch' && (e.pointerId === id || e.pointerId === id2)) finish(false);
+      else if (e.pointerId === id) finish(e.type !== 'pointerup');
+    };
+    b.addEventListener('pointerup', up);
     // The finger's moves are ours: the browser makes no scroll or fling of them. (With
     // `touch-action: none` alone nothing scrolls either, but a flick still counts as a fling to
     // Chrome, which then drops the next tap anywhere on the page as the one that stops it.)
     b.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-    b.addEventListener('pointercancel', (e) => {
-      if (e.pointerId === id) finish(true);
-    });
-    b.addEventListener('lostpointercapture', (e) => {
-      if (e.pointerId === id) finish(true);
-    });
+    b.addEventListener('pointercancel', up);
+    b.addEventListener('lostpointercapture', up);
   }
 
   /** Ends a gesture that is on, as cancelled (the layout changed under the finger; the layer goes away). */
