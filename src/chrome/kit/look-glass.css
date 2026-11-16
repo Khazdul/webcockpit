@@ -322,7 +322,10 @@ u.wc-sk {
 }
 
 /* A tablet-size window with the phone flag (ADR 0140; stage 56): the
- * targets are 44 px. Back grows up from the 40 px one, 1 px down. */
+ * targets are 44 px. A box's Back is drawn as on a phone, inside the lit
+ * window with air (stage 65 feedback round 2, ADR 0155), at the desktop's
+ * type and 30 px high; its 44 px target is the invisible ::before, grown
+ * upward over the frame only (its bottom edge is where the 44 px Back's was). */
 @media (min-width: 600px) and (min-height: 600px) {
   html.wc-phone .wc-lk-btn,
   html.wc-phone .wc-lk-back {
@@ -334,7 +337,18 @@ u.wc-sk {
   }
 
   html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
-    top: 0;
+    top: 14px;
+    height: 30px;
+    min-height: 0;
+  }
+
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback)::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    right: -4px;
+    top: -14px;
+    bottom: 0;
   }
 }
 

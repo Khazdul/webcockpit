@@ -1227,12 +1227,18 @@ the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
   its **40 px touch target is an invisible `::before`** that grows upward
   over the frame only, never down over the page's first line (its bottom
   edge is where the old Back's was). The window sub-pages' inline Back
-  (`.wc-lk-iback`) and the tablet (44 px, ADR 0140) are unchanged. The
+  (`.wc-lk-iback`) is unchanged (the tablet: below). The
   watch page's Back has the same classes and follows without a change in
   `src/watch/page.tsx`. Test: e2e `phone-back-placement.spec.ts` (Profile,
   Scripts, History, About and the watch page, 390×844 and 844×390: Back's
   box ≥ 4 px inside the window's inner border box, a tap 40 px above its
   bottom lands on it).
+- **The tablet too (coordinator, same round).** A tablet-size window with
+  the phone flag drew its 44 px Back from `top: 0`, also on the frame; it
+  now follows the same rule (`top: 14px`, 30 px high at the desktop's type,
+  a 44 px `::before` target grown upward; its bottom edge unchanged);
+  `phone-back-placement.spec.ts` also runs at 820×1180 and 1180×820, and
+  `phone-tablet-pages.spec.ts` counts a Back's `::before` in its 44 px guard.
 - **No "N online" on the start page (owner's point 11).** The almanac's
   line and the client code that only served it (`src/chrome/start-online.ts`,
   `onlineNow`, `onlineText`, the `.wc-alm-o` CSS) are gone; the owner reads
