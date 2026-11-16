@@ -489,6 +489,8 @@ export class App {
       ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
       // The phone's layout over a replay (stage 55): a player App's cockpit, without a command line.
       ...(opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
+      // A player's window may be a phone's width (the shared replay in its frame): a side dock gives up columns before it collapses.
+      ...(player ? { squeezeSides: true } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,

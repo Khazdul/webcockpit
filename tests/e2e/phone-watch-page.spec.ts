@@ -110,3 +110,45 @@ test('phone: Fullscreen puts the frame alone in fullscreen; without element full
   await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(band(page)).toBeVisible();
 });
+
+// Stage 65 feedback round 2: in portrait the replay is a 60-column player; the Map alone (a span
+// over both default lanes) collapsed its dock, beside Group it showed. Every pane alone and
+// together shows now (src/layout/allocate.ts `squeezeSides`).
+test('phone portrait: Map, Timers and Group each show alone and together', async ({ page }) => {
+  await setUp(page);
+  await openWatch(page);
+  await playing(page);
+  const r = replay(page);
+  const box = r.locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  const shown = (): Promise<string[]> =>
+    r.locator('.wc-pane[data-pane]:visible').evaluateAll((ps) => ps.map((p) => (p as HTMLElement).dataset.pane!).sort());
+  const toggle = async (id: string): Promise<void> => {
+    if (!(await pop.isVisible())) {
+      await r.locator('.wc-player').tap();
+      await box.locator('[data-act="panes"]').tap();
+    }
+    await pop.locator(`[data-pane="${id}"]`).tap();
+  };
+  expect(page.viewportSize()!.width).toBeLessThan(page.viewportSize()!.height);
+  await expect.poll(shown).toEqual([]);
+  for (const [id, want] of [
+    ['map', ['map']],
+    ['map', []],
+    ['timers', ['timers']],
+    ['map', ['map', 'timers']],
+    ['timers', ['map']],
+    ['group', ['group', 'map']],
+    ['map', ['group']],
+    ['group', []],
+  ] as const) {
+    await toggle(id);
+    await expect.poll(shown, `${id} → ${want.join('+')}`).toEqual([...want]);
+  }
+  // The map has room to draw in.
+  await toggle('map');
+  await expect.poll(shown).toEqual(['map']);
+  const map = (await r.locator('.wc-pane[data-pane="map"]').boundingBox())!;
+  expect(map.width).toBeGreaterThan(100);
+  expect(map.height).toBeGreaterThan(100);
+});

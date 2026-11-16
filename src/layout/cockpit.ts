@@ -356,6 +356,12 @@ export interface CockpitOptions {
    * phone flag it does nothing.
    */
   phoneReplay?: { bar: boolean };
+  /**
+   * A side dock too wide for the window gives up columns before it
+   * collapses (`AllocateInput.squeezeSides`): a log player App, whose
+   * window may be a phone's width (the shared replay in its frame).
+   */
+  squeezeSides?: boolean;
 }
 
 /**
@@ -554,6 +560,8 @@ export class Cockpit {
   private readonly phone: boolean;
   /** Phone game layout over a replay (`phoneReplay`), fixed at construction; null: the live game. */
   private readonly phoneReplay: { bar: boolean } | null;
+  /** A side dock gives up columns before it collapses (`CockpitOptions.squeezeSides`). */
+  private readonly squeezeSides: boolean;
   /** Phone game layout: a fight is on, the fight card has its rows (`setPhoneFight`). */
   private pgFight = false;
   /** Phone game layout: the last allocation. */
@@ -630,6 +638,7 @@ export class Cockpit {
     // The scope of the phone layer's CSS (src/phone/phone.css).
     if (this.phone) this.el.dataset.phoneGame = '';
     this.phoneReplay = this.phone && opts.phoneReplay ? { bar: opts.phoneReplay.bar === true } : null;
+    this.squeezeSides = opts.squeezeSides === true;
     this.markPhoneLight();
     this.paneContext =
       opts.paneContext ??
@@ -994,6 +1003,7 @@ export class Cockpit {
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
       barCells: this.inputBar,
+      squeezeSides: this.squeezeSides,
     });
     const r = base.tooSmall || this.temps.size === 0 ? base : { ...base, panes: [...base.panes, ...this.tempBoxes(base, layout)] };
     this.last = r;
@@ -2268,7 +2278,7 @@ export class Cockpit {
       }
       const key = `${id}|${dock.id}|${side}|${index}|${r.cols}x${r.rows}`;
       if (!this.ghosts.has(key)) {
-        const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows, barCells: this.inputBar });
+        const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows, barCells: this.inputBar, squeezeSides: this.squeezeSides });
         this.ghosts.set(key, res.panes.find((p) => p.id === id)?.rect ?? null);
       }
       const d = dock.rect;

@@ -249,6 +249,50 @@ describe('allocate', () => {
     expect(r.hidden).toEqual(['comm']);
   });
 
+  // Stage 65 feedback round 2: the shared replay on a phone in portrait (a 60-column player) showed
+  // Map beside Group but not Map alone: the map alone spans both default lanes (2 × 25 columns).
+  it('the default layout in a 60-column player: Map alone collapses in the game; squeezed it shows, as Group alone and both do', () => {
+    const only = (...on: BuiltinPaneId[]): AllocateInput['panes'] =>
+      Object.fromEntries(PANE_IDS.map((id) => [id, { on: (on as PaneId[]).includes(id), border: true }])) as AllocateInput['panes'];
+    const at = (on: BuiltinPaneId[], squeezeSides?: boolean): ReturnType<typeof allocate> =>
+      allocate({ layout: defaultLayout(), panes: only(...on), cols: 60, rows: 40, ...(squeezeSides ? { squeezeSides } : {}) });
+    // The game: the narrow collapse alone (unchanged).
+    expect(at(['map']).collapsed).toEqual(['right']);
+    // The player: every one of them, alone or together, shows.
+    for (const on of [['map'], ['group'], ['timers'], ['map', 'group'], ['map', 'timers'], ['group', 'timers'], ['map', 'group', 'timers']] as BuiltinPaneId[][]) {
+      const r = at(on, true);
+      expect(r.collapsed, on.join('+')).toEqual([]);
+      expect(r.hidden, on.join('+')).toEqual([]);
+      expect(r.panes.map((p) => p.id).sort(), on.join('+')).toEqual([...on].sort());
+      expect(r.game.w, on.join('+')).toBeGreaterThanOrEqual(GAME_MIN_COLS);
+    }
+    // The map alone gives up what the game pane lacks: 60 − 30 − 1 = 29 columns.
+    const map = at(['map'], true);
+    expect(map.docks.right!.rect.w).toBe(29);
+    expect(map.game.w).toBe(GAME_MIN_COLS);
+    // Where it fits, squeezing changes nothing.
+    expect(allocate({ layout: defaultLayout(), panes: only('map'), cols: 120, rows: 40, squeezeSides: true })).toEqual(
+      allocate({ layout: defaultLayout(), panes: only('map'), cols: 120, rows: 40 }),
+    );
+  });
+
+  it('squeezed, both side docks give up columns, the right one first, down to their minimums', () => {
+    let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
+    m = setLaneSize(m, 'left', 0, 20);
+    // 70 columns: 30 for the game; the docks want 20 + 1 and 33 + 1 = 55.
+    const r = allocate({ ...input(70, 40, m), squeezeSides: true });
+    expect(r.collapsed).toEqual([]);
+    expect(r.docks.left!.rect.w).toBe(20);
+    expect(r.docks.right!.rect.w).toBe(70 - 30 - 21 - 1);
+    expect(r.game.w).toBe(GAME_MIN_COLS);
+    // 60 columns: the right dock at its minimum, the left one gives up the rest.
+    const n = allocate({ ...input(60, 40, m), squeezeSides: true });
+    expect(n.collapsed).toEqual([]);
+    expect(n.docks.right!.rect.w).toBe(SIDE_DOCK_MIN);
+    expect(n.docks.left!.rect.w).toBe(60 - 30 - 2 - SIDE_DOCK_MIN);
+    expect(n.game.w).toBe(GAME_MIN_COLS);
+  });
+
   it('keeps the left dock when only it fits', () => {
     let m = setLaneSize(legacyLayout(), 'right', 0, 50);
     m = movePane(m, 'ui', 'left', 0, 0);

@@ -107,7 +107,14 @@
 //   along the region's length. Without a shown spanning pane a dock is
 //   laid out exactly as before.
 // - Narrow collapse: a side dock (all its lanes) is hidden when the game
-//   pane would get fewer than GAME_MIN_COLS columns. The model is
+//   pane would get fewer than GAME_MIN_COLS columns. With `squeezeSides`
+//   (the log player's Apps, whose window may be a phone's width: the
+//   shared replay in its frame) a side dock first gives up columns down to
+//   its minimum, its lanes from the inside as a dragged dock, the right
+//   dock first; it collapses only when its minimum does not fit either.
+//   Without it the Map alone (a span over both default lanes, 50 columns)
+//   collapsed in a 60-column replay that showed it beside Group (one
+//   25-column lane): stage 65 feedback round 2. The model is
 //   untouched, so the dock comes back as soon as the window is wide enough
 //   again. A top/bottom dock that must shrink takes rows from its inner
 //   lanes first, each down to its minimum, and collapses when its lanes
@@ -479,6 +486,13 @@ export interface AllocateInput {
    * It decides the input row's case (ADR 0102). Absent: 0.
    */
   barCells?: number;
+  /**
+   * A side dock too wide for the window gives up columns, down to its
+   * minimum, before it collapses (the log player and the shared replay,
+   * whose window can be a phone's width: see the file header). Absent:
+   * the narrow collapse alone, as in the game.
+   */
+  squeezeSides?: boolean;
 }
 
 export interface PaneBox {
@@ -707,9 +721,12 @@ export function allocate(input: AllocateInput): LayoutResult {
   const need = (d: DockId, on: boolean): number => (on && has(d) ? want(d) + DOCK_GAP : 0);
 
   // Narrow collapse: keep both, else the right, else the left, else none.
+  // Squeezing (`squeezeSides`): a dock fits when its minimum does.
+  const squeeze = input.squeezeSides === true;
+  const least = (d: DockId, on: boolean): number => (on && has(d) ? (squeeze ? dk[d].min : want(d)) + DOCK_GAP : 0);
   let showL = has('left');
   let showR = has('right');
-  const fits = (l: boolean, r: boolean): boolean => cols - need('left', l) - need('right', r) >= GAME_MIN_COLS;
+  const fits = (l: boolean, r: boolean): boolean => cols - least('left', l) - least('right', r) >= GAME_MIN_COLS;
   if (!fits(showL, showR)) {
     if (showR && fits(false, true)) showL = false;
     else if (showL && fits(true, false)) showR = false;
@@ -722,8 +739,16 @@ export function allocate(input: AllocateInput): LayoutResult {
     }
   }
 
-  const leftW = showL ? want('left') : 0;
-  const rightW = showR ? want('right') : 0;
+  let leftW = showL ? want('left') : 0;
+  let rightW = showR ? want('right') : 0;
+  if (squeeze) {
+    // The shown docks give up what the game pane lacks: the right first, each down to its minimum.
+    let excess = need('left', showL) + need('right', showR) - (cols - GAME_MIN_COLS);
+    const giveR = showR ? Math.max(0, Math.min(excess, rightW - dk.right.min)) : 0;
+    rightW -= giveR;
+    excess -= giveR;
+    if (showL) leftW -= Math.max(0, Math.min(excess, leftW - dk.left.min));
+  }
   const gx = showL ? leftW + DOCK_GAP : 0;
   const gw = cols - gx - (showR ? rightW + DOCK_GAP : 0);
 
