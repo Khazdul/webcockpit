@@ -5,7 +5,7 @@
 // phone-community-page.spec.ts.
 //
 // - The page: ten runs, New first, the pager inside the list, the column
-//   (the players' figure, Run of the day, Hall of Fame, Warlords, no
+//   (the players' figure, Log of the day, Hall of Fame, Warlords, no
 //   source or time) all in view at 1440 × 900; no Published runs button;
 //   the short headings, "Title (Char)", Random Runes ≤ 45 % at the bottom.
 // - Search: as typed, with the sorts and pages, ✕ and Back clear it, kept
@@ -64,24 +64,25 @@ test('the page: ten runs, New first, the pager in the list, the column in view; 
   const pg = (await cm(page).locator('.wc-cy-pager').boundingBox())!;
   expect(pg.y).toBeGreaterThan(list.y);
   expect(pg.x + pg.width).toBeGreaterThan(list.x + list.width - 40);
-  // The column: Run of the day (today only), Hall of Fame (8), Warlords (5 a side, the players).
+  // The column: Log of the day (today only), Hall of Fame (8), Warlords (up to ten a side: 10 of the 11 White lords, the 9 minions).
+  await expect(box(page, 'day').locator('.wc-cy-bh')).toHaveText('Log of the day');
   await expect(box(page, 'day').locator('.wc-cy-day-t')).not.toBeEmpty();
   await expect(box(page, 'day')).not.toContainText('Yesterday');
   await expect(box(page, 'hof').locator('li')).toHaveCount(8);
-  await expect(box(page, 'war').locator('.is-west li')).toHaveCount(5);
-  await expect(box(page, 'war').locator('.is-dark li')).toHaveCount(5);
+  await expect(box(page, 'war').locator('.is-west li')).toHaveCount(10);
+  await expect(box(page, 'war').locator('.is-dark li')).toHaveCount(9);
   await expect(box(page, 'war')).not.toContainText(/players|mume\.org|source|\bago\b|updated/i);
-  // The players on MUME: a free-standing figure at the top right, out of the Warlords box (owner's feedback 7).
+  // The players online: a free-standing figure at the top right, out of the Warlords box (owner's feedback 7).
   const players = box(page, 'players');
   await expect(players.locator('.wc-cy-players-n')).toHaveText('38');
-  await expect(players).toContainText('players on MUME');
+  await expect(players).toContainText('players online');
   expect(await players.evaluate((e) => e.classList.contains('wc-cy-box'))).toBe(false);
   const pl = (await players.boundingBox())!;
   const day = (await box(page, 'day').boundingBox())!;
   expect(pl.y + pl.height).toBeLessThanOrEqual(day.y + 1);
   expect(pl.x + pl.width).toBeGreaterThan(day.x + day.width - 12);
   // Short headings (owner's feedback 10); rows "Title (Char)" without the level (11).
-  await expect(cm(page).locator('.wc-cy-th')).toHaveText(['Run', 'Stars', 'Com.', 'Views']);
+  await expect(cm(page).locator('.wc-cy-th')).toHaveText(['Log', 'Stars', 'Com.', 'Views']);
   await expect(rows(page).first().locator('.wc-cy-l1')).toHaveText(/^\S.* \((Gibur|Ugluk|Eothain|Saelind|Rasta|Pip)\)$/);
   await expect(cm(page).locator('.wc-cy-row')).not.toContainText([/\bL\d+\)/]);
   // Random Runes at the bottom of the left side, at most about 40 % of it (owner's feedback 5).
@@ -95,7 +96,7 @@ test('the page: ten runs, New first, the pager in the list, the column in view; 
   const war = (await box(page, 'war').boundingBox())!;
   expect(war.y + war.height).toBeLessThan(900);
   // Not on this page (the owner's picks).
-  await expect(cm(page)).not.toContainText('Published runs');
+  await expect(cm(page)).not.toContainText('Published logs');
   await expect(cm(page)).not.toContainText('History → Export');
   await expect(cm(page)).not.toContainText('Top posters');
   await shot(page, 'in.desktop');
@@ -120,13 +121,13 @@ test('sorting by a press on a heading and by its letter; paging by the pager and
   await page.keyboard.press('s');
   await expect(head(page, 'top')).toHaveClass(/is-cur/);
   await expect(rows(page).first().locator('.wc-cy-rank')).toHaveText('1');
-  // Comments by M, back to Run (New) by N; no Length heading any more (E does nothing).
+  // Comments by M, back to Log (New) by L; no Length heading any more (E does nothing).
   await page.keyboard.press('m');
   await expect(head(page, 'comments')).toHaveClass(/is-cur/);
   await expect(head(page, 'length')).toHaveCount(0);
   await page.keyboard.press('e');
   await expect(head(page, 'comments')).toHaveClass(/is-cur/);
-  await page.keyboard.press('n');
+  await page.keyboard.press('l');
   await expect(head(page, 'new')).toHaveClass(/is-cur/);
   await expect(rows(page).first()).toHaveAttribute('data-id', s.runs[0]!);
   // Pages.
@@ -150,7 +151,7 @@ test('a sender’s runs: a press on the name, R on the cursor’s run; Back retu
   const first = rows(page).first();
   const sender = (await first.locator('.wc-cy-sender').textContent())!;
   await first.locator('.wc-cy-sender').click();
-  await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Runs by ${sender}`);
+  await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Logs by ${sender}`);
   const theirs = [...s.server.pubs.values()].filter((p) => p.account === sender.toLowerCase()).length;
   await expect(rows(page)).toHaveCount(theirs);
   expect(new Set(await rows(page).locator('.wc-cy-sender').allTextContents())).toEqual(new Set([sender]));
@@ -163,7 +164,7 @@ test('a sender’s runs: a press on the name, R on the cursor’s run; Back retu
   await page.keyboard.press('ArrowDown');
   const second = (await rows(page).nth(1).locator('.wc-cy-sender').textContent())!;
   await page.keyboard.press('r');
-  await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Runs by ${second}`);
+  await expect(cm(page).locator('.wc-cy-by-t')).toHaveText(`Logs by ${second}`);
   await btnIn(cm(page), 'ALL-RUNS').click();
   await expect(rows(page)).toHaveCount(10);
   await page.keyboard.press('Escape');
@@ -187,7 +188,7 @@ test('a run opens its watch page with from=community; <base>?community brings th
   await expect(page).toHaveURL(new RegExp(`/r/${s.runs[10]}\\?from=community`));
 });
 
-test('Random Runes: write (the field grows, the count), one’s own note in gold with Remove; never a link', async ({ page }) => {
+test('Random Runes: write (the field grows, the count), one’s own note with Remove, each writer in a colour of their own, no gold bar; never a link', async ({ page }) => {
   const s = await setUp(page);
   s.server.addNote('brego', 'see https://evil.example/x and <b>bold</b>', { ago: 60_000 });
   await logIn(page, s);
@@ -196,7 +197,7 @@ test('Random Runes: write (the field grows, the count), one’s own note in gold
   await expect(runes(page).locator('a')).toHaveCount(0);
   await expect(notes(page).first()).toContainText('<b>bold</b>');
   // A sparse hint, no sentence (owner's feedback 12).
-  await expect(noteField(page)).toHaveAttribute('placeholder', 'A note…');
+  await expect(noteField(page)).toHaveAttribute('placeholder', 'Write a message…');
   // W puts the keyboard in the field; it grows while used.
   await page.keyboard.press('w');
   await expect(noteField(page)).toBeFocused();
@@ -211,6 +212,20 @@ test('Random Runes: write (the field grows, the count), one’s own note in gold
   const own = notes(page).first();
   await expect(own).toHaveClass(/is-own/);
   await expect(own).toContainText(text);
+  // No gold bar on one's own note; each writer's name in the colour of its hue, the same for a name (owner's feedback round 2).
+  expect(await own.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
+  const hues = await notes(page).evaluateAll((els) =>
+    els.map((e) => {
+      const b = e.querySelector<HTMLElement>('.wc-cy-writer')!;
+      return { name: b.textContent, hue: b.dataset['hue'], color: getComputedStyle(b).color };
+    }),
+  );
+  expect(new Set(hues.map((h) => h.name)).size).toBeGreaterThan(1);
+  for (const h of hues) {
+    expect(hues.filter((x) => x.hue === h.hue).every((x) => x.color === h.color)).toBe(true);
+    expect(hues.filter((x) => x.name === h.name).every((x) => x.hue === h.hue)).toBe(true);
+  }
+  expect(new Set(hues.map((h) => h.color)).size).toBe(new Set(hues.map((h) => h.hue)).size);
   await expect(noteField(page)).toHaveValue('');
   expect([...s.server.notes.values()].some((n) => n.account === ME && n.text === text)).toBe(true);
   // The field takes at most 250 characters, one line.
@@ -410,7 +425,7 @@ test('search: as typed (two characters at least), with the sorts and pages; ✕ 
   // "ford": the titles with Ford (Holding the Fords of Isen, twice).
   await page.keyboard.type('ord');
   const fords = [...s.server.pubs.values()].filter((p) => /ford/i.test(p.pub.title)).length;
-  await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} ${fords === 1 ? 'run' : 'runs'}`);
+  await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “ford” — ${fords} ${fords === 1 ? 'log' : 'logs'}`);
   await expect(rows(page)).toHaveCount(fords);
   for (const t of await rows(page).locator('.wc-cy-name').allTextContents()) expect(t.toLowerCase()).toContain('ford');
   await expect.poll(() => asked.filter((q) => q.includes('q=')).length).toBe(1);
@@ -425,12 +440,12 @@ test('search: as typed (two characters at least), with the sorts and pages; ✕ 
   // A sender's name: brego's runs (more than one page).
   await field.fill('BREGO');
   const bregos = [...s.server.pubs.values()].filter((p) => p.account === 'brego').length;
-  await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “BREGO” — ${bregos} runs`);
+  await expect(cm(page).locator('.wc-cy-q')).toHaveText(`Search: “BREGO” — ${bregos} logs`);
   expect(new Set(await rows(page).locator('.wc-cy-sender').allTextContents())).toEqual(new Set(['brego']));
   // Nothing found.
   await field.fill('zzz-nothing');
   await expect(cm(page).locator('.wc-cy-list')).toHaveAttribute('data-state', 'empty');
-  await expect(cm(page)).toContainText('No runs found.');
+  await expect(cm(page)).toContainText('No logs found.');
   // ✕ in the field clears it: the whole list.
   await cm(page).locator('[data-btn="CLEAR-SEARCH"]').click();
   await expect(field).toHaveValue('');

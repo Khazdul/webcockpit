@@ -7,6 +7,7 @@ import {
   DEFAULT_SORT,
   SEARCH_TOO_LONG,
   SORT_HEADS,
+  WRITER_HUES,
   dateText,
   lengthText,
   meanText,
@@ -23,6 +24,7 @@ import {
   searchTooLong,
   sortOfKey,
   starsShown,
+  writerHue,
 } from '../../src/chrome/frames/community-model';
 import { countListed, readSeen, writeSeen } from '../../src/cloud/community/counter';
 import { backHref, watchHref } from '../../src/watch/href';
@@ -30,16 +32,16 @@ import { backHref, watchHref } from '../../src/watch/href';
 const NOW = Date.UTC(2026, 10, 15, 12, 0, 0);
 
 describe('the list', () => {
-  it('a short heading per column (Run, Stars, Com., Views), New the default; the letters; no Length', () => {
+  it('a short heading per column (Log, Stars, Com., Views), New the default; the letters; no Length', () => {
     expect(Object.keys(SORT_HEADS).sort()).toEqual(GALLERY_SORTS.filter((s) => s !== 'length').sort());
-    expect(Object.values(SORT_HEADS).map((h) => h.label)).toEqual(['Run', 'Stars', 'Com.', 'Views']);
+    expect(Object.values(SORT_HEADS).map((h) => h.label)).toEqual(['Log', 'Stars', 'Com.', 'Views']);
     expect(DEFAULT_SORT).toBe('new');
-    expect(sortOfKey({ key: 'n' })).toBe('new');
+    expect(sortOfKey({ key: 'l' })).toBe('new');
     expect(sortOfKey({ key: 'S' })).toBe('top');
     expect(sortOfKey({ key: 'v' })).toBe('watched');
     expect(sortOfKey({ key: 'm' })).toBe('comments');
     expect(sortOfKey({ key: 'e' })).toBeNull();
-    expect(sortOfKey({ key: 'l' })).toBeNull();
+    expect(sortOfKey({ key: 'n' })).toBeNull();
     expect(sortOfKey({ key: 'v', ctrlKey: true })).toBeNull();
     expect(sortOfKey({ key: 'x' })).toBeNull();
     // Each letter is in its label.
@@ -82,9 +84,9 @@ describe('search', () => {
     expect(searchTooLong(` ${'x'.repeat(GALLERY_Q_MAX)}   `)).toBe(false);
     expect(searchTooLong('a')).toBe(false);
     expect(SEARCH_TOO_LONG).toBe(`A search takes at most ${GALLERY_Q_MAX} characters.`);
-    expect(searchLine('ford', 3)).toBe('Search: “ford” — 3 runs');
-    expect(searchLine('ford', 1)).toBe('Search: “ford” — 1 run');
-    expect(searchLine('ford', 0)).toBe('Search: “ford” — 0 runs');
+    expect(searchLine('ford', 3)).toBe('Search: “ford” — 3 logs');
+    expect(searchLine('ford', 1)).toBe('Search: “ford” — 1 log');
+    expect(searchLine('ford', 0)).toBe('Search: “ford” — 0 logs');
   });
 });
 
@@ -104,6 +106,32 @@ describe('the board', () => {
     ];
     expect(notesToday(notes, 'fenwick', NOW)).toBe(1);
     expect(notesToday(notes, null, NOW)).toBe(0);
+  });
+});
+
+describe('the writers’ colours on Random Runes (owner’s feedback round 2)', () => {
+  it('stable: the same name, in any case, always has the same colour; one in range', () => {
+    for (const name of ['hollin', 'brego', 'Gibur', 'fenwick', 'a', 'Ölvir']) {
+      const h = writerHue(name);
+      expect(Number.isInteger(h)).toBe(true);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThan(WRITER_HUES);
+      expect(writerHue(name)).toBe(h);
+      expect(writerHue(name.toUpperCase())).toBe(h);
+    }
+    // Fixed values: a change of the hash would recolour every writer.
+    expect(['hollin', 'fenwick', 'Gibur', 'ole'].map(writerHue)).toEqual([4, 3, 6, 4]);
+  });
+
+  it('spread: names fall on every colour about evenly, and a dozen names take most colours', () => {
+    const counts = new Array<number>(WRITER_HUES).fill(0);
+    for (let i = 0; i < 2000; i++) counts[writerHue(`player${i}`)]!++;
+    for (const c of counts) {
+      expect(c).toBeGreaterThan(2000 / WRITER_HUES / 1.5);
+      expect(c).toBeLessThan((2000 / WRITER_HUES) * 1.5);
+    }
+    const twelve = ['aragorn', 'legolas', 'gimli', 'boromir', 'frodo', 'sam', 'merry', 'pippin', 'gandalf', 'elrond', 'arwen', 'eowyn'];
+    expect(new Set(twelve.map(writerHue)).size).toBeGreaterThanOrEqual(7);
   });
 });
 
