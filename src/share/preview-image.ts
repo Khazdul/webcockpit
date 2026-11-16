@@ -1,6 +1,6 @@
 // The link preview image of a shared log (ADR 0158): the start of the log
 // in the sender's terminal font, colours and background, as the replay
-// shows it, with a play button in the middle and a small MUME Cockpit mark
+// shows it, with a play button in the middle and the MUME Cockpit mark
 // at the bottom right. Made on the sender's device after the link is
 // created (the share dialog), drawn on a canvas and uploaded as a PNG of
 // PREVIEW_WIDTH x PREVIEW_HEIGHT (src/cloud/pub/api.ts `preview`).
@@ -22,10 +22,10 @@ import { isPromptLike } from '../net/replay-socket';
 import type { AppearanceSettings } from '../settings/types';
 import { DEFAULT_SETTINGS } from '../settings/types';
 import { boldFg, inputColor } from '../theme/apply';
-import { TITLE_FACE, bundledFont, fontInfo, loadFont } from '../theme/fonts';
+import { bundledFont, fontInfo, loadFont } from '../theme/fonts';
 import { colorToCss } from '../ui/palette';
 import { parseSgr } from '../chrome/frames/export-model';
-import { PREVIEW_HEIGHT, PREVIEW_TYPE, PREVIEW_WIDTH, SITE_NAME } from '../../shared/cloud/preview.ts';
+import { PREVIEW_HEIGHT, PREVIEW_TYPE, PREVIEW_WIDTH } from '../../shared/cloud/preview.ts';
 import type { ReplayPayload } from './payload';
 import { SYS_PREFIX, playerEntries } from './system-lines';
 
@@ -219,41 +219,23 @@ async function markImage(): Promise<HTMLImageElement | null> {
   }
 }
 
-/** The small MUME Cockpit mark at the bottom right, on a dark pill. */
+/** The MUME Cockpit mark alone (no wordmark), large, in the bottom right corner. */
 function drawMark(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null): void {
-  const h = 60;
-  const pad = 14;
-  const icon = img ? 38 : 0;
-  ctx.font = `bold 24px "${TITLE_FACE.family}", Georgia, serif`;
-  const label = SITE_NAME.toUpperCase();
+  if (!img) return;
+  const size = 96;
+  const margin = 20;
   ctx.save();
-  if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '2px';
-  const tw = ctx.measureText(label).width;
-  const w = pad * 2 + icon + (icon ? 12 : 0) + tw;
-  const x = PREVIEW_WIDTH - 28 - w;
-  const y = PREVIEW_HEIGHT - 28 - h;
   ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, h / 2);
-  ctx.fillStyle = 'rgba(8, 10, 14, 0.72)';
-  ctx.fill();
-  if (img) ctx.drawImage(img, x + pad, y + (h - icon) / 2, icon, icon);
-  ctx.fillStyle = '#d8e6e8';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, x + pad + icon + (icon ? 12 : 0), y + h / 2 + 1);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = 12;
+  ctx.drawImage(img, PREVIEW_WIDTH - margin - size, PREVIEW_HEIGHT - margin - size, size, size);
   ctx.restore();
 }
 
 /** Draws the whole image on `ctx` (PREVIEW_WIDTH x PREVIEW_HEIGHT). */
 export async function drawPreview(ctx: CanvasRenderingContext2D, lines: readonly PreviewLine[], appearance?: AppearanceSettings): Promise<void> {
   const look = lookOf(appearance);
-  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
   await loadFont(bundledFont((appearance ?? DEFAULT_SETTINGS.appearance).font), FONT_PX);
-  try {
-    await fonts?.load(`bold 24px "${TITLE_FACE.family}"`, SITE_NAME.toUpperCase());
-  } catch {
-    // A serif stands in.
-  }
   const img = await markImage();
   ctx.fillStyle = look.bg;
   ctx.fillRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
