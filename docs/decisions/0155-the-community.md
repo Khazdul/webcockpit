@@ -1133,3 +1133,78 @@ nothing); `tests/unit/community-api.test.ts` (`cache: 'no-store'` on the
 reads, not on writes, handed to `fetch`);
 `tests/e2e-worker/community-fresh.spec.ts` (Chromium and Firefox against
 the local Worker: (a) and (b) as the owner met them).
+
+## As built (stage 65, owner's feedback: review fixes 2)
+
+Fixes of `notes/research/stage65-security-review-2.md` (R2-1..R2-3) and of
+the code review of W1–W4 (CR1..CR10), branch `stage65-fix2`.
+
+- **Search (R2-1).** Replaces W2's "a search is not kept". A search has its
+  own limit besides `API_LIMITER`: the binding `SEARCH_LIMITER`, 20 a minute
+  per address key (`a|<addressKey>`, an IPv6 /64 is one; `wrangler.jsonc`,
+  production and staging, namespaces 5907/5908), only when `q` is in the
+  address. It is kept in the Cache API as the list is (60 s by its own time,
+  under the community's mark) under its text as searched: `searchText`'s
+  text with its ASCII letters in lower case, which is what SQLite's
+  `lower()` compares anyway, so every case of a text is one variant; the
+  answer's `q` is that text. Pages 1–`GALLERY_Q_PAGES_MAX` (10) only, a
+  deeper page is `400 bad_request` (the list keeps its 100). The Cache API
+  evicts what is not asked again, so the variants are no cost.
+- **The mark (R2-2, CR4, CR5).** Replaces W4's "a successful non-GET under
+  the listed paths". A handler says it changed what the public reads show
+  with the internal header `X-WC-Public-Change` (`publicChange`,
+  `worker/runtime.ts`); `worker/router.ts` (`afterWrite`) takes it off every
+  account and admin answer and moves the mark only then: a listed run
+  published, removed, listed, unlisted or its title or description changed
+  while listed; a vote on a listed run that is new or differs (stars or
+  ranking), one taken back; a comment on a listed active run posted or
+  removed; a note posted or removed; a report that hides its item; Delete
+  account; the admin's hide, restore and delete (not dismiss) of a run,
+  comment or note and every account action. A vote again with the same
+  stars, a report below the five, a link-only run, a refused write: no mark.
+  **At most one mark per 5 s** (`MARK_EVERY_MS`) per isolate, and per place
+  by the mark's own time (`<time36>.<random>`; an older mark without a time
+  counts as 0); a change inside the 5 s schedules one later mark for when
+  they are up (`Deps.sleep` in `waitUntil`), so it shows within 5 s rather
+  than after the 60 s. The put runs after the answer (`waitUntil`); the new
+  mark is in the isolate's memory at once, so the writer's next read there
+  is fresh. **The mark is kept in isolate memory** (per cache object and
+  origin) and read from the Cache API at most every 2 s; a mark made here
+  that the cache does not show yet is kept over an older one read. A hit
+  therefore costs one cache lookup. W4's e2e and tests stay; the unit tests
+  space their writes 5 s apart, and new ones check the marks counted, the
+  later mark, an answer whose put never ends, the one lookup and the
+  admin's flags.
+- **The phone (CR1–CR3).** All runs from the dashboard takes the field's
+  text: its search, or an empty field when it is no search (a text too long
+  stays, with its line), also when the view was restored with a search. The
+  search field's `maxLength` is `GALLERY_Q_MAX` (60); a longer text (set by
+  a script or an IME past the attribute) shows "A search takes at most 60
+  characters." over the list instead of the whole list in silence. A
+  sender's runs opened from the phone's Hall of Fame keep `from: 'hof'` in
+  the view; Back goes to the Hall of Fame (the bar's All runs still leaves
+  the sender for the whole list).
+- **The replay (CR6, CR7).** `openReplay` runs `sharedPayload` only when
+  `needsShared` finds something (a settings pane on, missing or not built
+  in, a script pane in the layout, a SPANE, Comm or pane-on VIEW record:
+  one regular expression over the text); a run shared since W3 plays
+  without a second pass. `PlayerHost.paneAvailable` is the one filter of the
+  five places that honoured `panes`.
+- **Code (CR8, CR9).** The model takes `GALLERY_Q_MIN`/`GALLERY_Q_MAX` from
+  the contract (its own copies are gone). `src/watch/href.ts`: `watchHref(id,
+  from)` and `backHref(view)` with the `?cloudtest` hook in one place
+  (`keepCloudtest`), used by the Community page, Published runs and the
+  watch page (`runHref`, `communityBackHref`, `accountBackHref` and
+  `pubWatchHref` are gone); the start page's `takeStartQuery(name)` takes
+  `?community` and `?account` once. Entry chunk **31 362 bytes** (was 31 382).
+- **/privacy (R2-3, CR10).** The share links section says what travels:
+  the game's own status data the Map, Timers and Group panes use (name,
+  level, race, class, vitals as the game sent them), no channel records and
+  no other pane; the map of the rooms passed whenever the cut has any; that
+  whoever can watch a run can save a copy that removal does not reach; and
+  that the level is kept and part of the public data though not shown.
+- **Tests:** worker `search.test.ts` (kept under the lower-case text, pages,
+  the limit), `community-fresh.test.ts` (+4); unit `shared-panes`
+  (`needsShared`), `community-model` (too long, `from`, the hrefs),
+  `watch-page`, `about-leaf`; e2e `phone-community-page.spec.ts` (+3: CR1,
+  CR2, CR3).
