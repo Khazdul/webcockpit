@@ -1,40 +1,46 @@
 // The Community page (stage 65 C1, spec §7.8, ADR 0155; round 13's pick
-// 1b with the owner's changes, pick 2 for Random Runes). C on the start
-// menu (flag `gallery`), in the account pages' lazy chunk (account/
-// index.tsx exports `openCommunity`; start-main.tsx loads it with
-// `import()`): a chunk of its own split the kit and the account's state
-// out of the start page's chunks (the entry's preload lists), as the
-// share dialog's did (ADR 0154). The phone's tab strip uses History's
-// classes (`wc-htab*`, history-tabs.css, loaded with the start page).
+// 1b with the owner's changes, pick 2 for Random Runes; the owner's
+// feedback W2: Random Runes' height, the players' figure, short headings,
+// search, the phone's dashboard). C on the start menu (flag `gallery`), in
+// the account pages' lazy chunk (account/index.tsx exports
+// `openCommunity`; start-main.tsx loads it with `import()`): a chunk of its
+// own split the kit and the account's state out of the start page's
+// chunks (the entry's preload lists), as the share dialog's did (ADR 0154).
 //
 // Desktop and tablet (the list on the left, a column on the right):
 //
-//   [Back]                     ( Community )
-//    TITLE (CHARACTER) · SENDER · LENGTH · LISTED ▾   STARS · VOTES  COM.  VIEWS │ RUN OF THE DAY
-//    Gibur and the Witch-king's lieutenant (Gibur L41) ★★★★★ 4.8 · 23  11  412 │  the title, its line,
-//    fenwick · 4 h 04 min · 14 Nov                                              │  the description
-//    … ten runs a page                                    ‹ Page 1 of 3 ›     │ HALL OF FAME (8)
-//   ┌ RANDOM RUNES ────────────────────────────────────────────────────────┐ │ WARLORDS
-//   │ hollin: every note whole, wrapped                               2 min │ │  White lords · Sauron's minions
-//   │ [ Write a note… ]                                              [Post] │ │  N players on MUME
-//   └──────────────────────────────────────────────────────────────────────┘ │
+//   [Back]                     ( Community )                          38
+//                                                          players on MUME
+//    RUN ▾          [⌕ Search runs      ]   STARS   COM.  VIEWS │ RUN OF THE DAY
+//    Gibur and the Witch-king's lieutenant (Gibur)  ★★★★★ 4.8 · 23  11  412 │  the title, its line,
+//    fenwick · 4 h 04 min · 14 Nov                                         │  the description
+//    … ten runs a page (the rows scroll)              ‹ Page 1 of 3 ›     │ HALL OF FAME (8)
+//   ┌ RANDOM RUNES (at most 40 % of the height; the notes scroll) ──────┐ │ WARLORDS
+//   │ hollin: every note whole, wrapped                           2 min │ │  White lords · Sauron's minions
+//   │ [ A note… ]                                                [Post] │ │
+//   └───────────────────────────────────────────────────────────────────┘ │
 //
 // The list opens on New (newest listed first); a press on a heading sorts
-// (Listed, Length, Stars, Com., Views), and so does its marked letter (L E
-// S M V); the current sort is marked (▾). Ten runs a page; the pager sits
-// at the list's bottom right; ← → (and PgUp PgDn) change page. ↑ ↓ Home End
-// move the row cursor; Enter opens the run. A press on a sender's name
-// opens "Runs by <name>" (the same list; R does it for the cursor's run);
-// Back (Esc) leaves it for the whole list, and from the whole list goes to
-// the menu.
+// (Run, Stars, Com., Views), and so does its marked letter (N S M V); the
+// current sort is marked (▾). Ten runs a page; the pager sits at the
+// list's bottom right; ← → (and PgUp PgDn) change page. ↑ ↓ Home End move
+// the row cursor; Enter opens the run. A press on a sender's name opens
+// "Runs by <name>" (the same list; R does it for the cursor's run). The
+// search field (/ or F) searches as it is typed (2–60 characters, the
+// title, character and sender; `GET /api/gallery?q=`): 'Search: "x" — N
+// runs' with ✕ over the list. Back (Esc) leaves a sender's runs, then a
+// search, then goes to the menu.
 //
 // A run opens the watch page `<base>r/<id>?from=community` in this tab;
 // the watch page's Back then goes to `<base>?community`, which opens this
 // page again on the view it had (kept in sessionStorage, `VIEW_KEY`;
 // community-model.ts, ADR 0155 "As built (stage 65 C1)").
 //
-// The phone (a narrow page): the tabs Runs · Hall of Fame · Runes (1 2 3).
-// Runs shows New only, without sorting.
+// The phone (a narrow page): a dashboard, no tabs. The search field and
+// the players' figure, the newest five runs with All runs and Hall of Fame
+// (the two sub-pages, each with Back), Run of the day, Random Runes (the
+// latest notes, the field), the Warlords. The whole list (All runs) shows
+// New only, without sorting, with the search field and the pager.
 //
 // Random Runes (flag `runes`; off, the board is gone): every note whole,
 // wrapped, never a link. Logged in: the field grows to several lines while
@@ -49,8 +55,9 @@
 
 import { type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { CommunityBoxes, GalleryPage, GalleryRow, GallerySort, Note, ReportReason, RunesBoard } from '../../../shared/cloud/api.ts';
+import type { CommunityBoxes, GalleryPage, GalleryRow, Note, ReportReason, RunesBoard } from '../../../shared/cloud/api.ts';
 import { DEFAULT_ACCOUNT_LIMITS, GALLERY_PAGE_SIZE, NOTE_MAX } from '../../../shared/cloud/api.ts';
+import { ownFieldAttrs } from '../../core/own-keyboard';
 import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
@@ -74,13 +81,14 @@ import {
 } from '../kit/look';
 import { type Nav, useIsTop, useKeyLayer, useKeys, useNav } from '../kit/stack';
 import {
-  type CommunityTab,
+  type CommunitySub,
   type CommunityView,
   DEFAULT_SORT,
+  type HeadSort,
   NOTE_LIMIT_TEXT,
+  SEARCH_MAX,
   SORT_HEADS,
   VIEW_KEY,
-  characterText,
   dateText,
   lengthText,
   meanText,
@@ -96,25 +104,29 @@ import {
   pagesOf,
   parseView,
   runHref,
+  runName,
+  searchLine,
+  searchOf,
   sortOfKey,
   starsShown,
 } from './community-model';
 
 import './community.css';
 
-/** Below this content width (px) the page takes the phone's form (the tabs). */
+/** Below this content width (px) the page takes the phone's form (the dashboard). */
 export const COMMUNITY_NARROW = 700;
 /** The box stops at this width (the sky on both sides). */
 const COMMUNITY_MAX_W = 1320;
-
-const TABS: readonly { tab: CommunityTab; label: string; key: string }[] = [
-  { tab: 'runs', label: 'Runs', key: '1' },
-  { tab: 'hof', label: 'Hall of Fame', key: '2' },
-  { tab: 'runes', label: 'Runes', key: '3' },
-];
+/** The newest runs the phone's dashboard shows. */
+const DASH_RUNS = 5;
+/** The notes the phone's dashboard shows before "All notes". */
+const DASH_NOTES = 5;
+/** A search waits this long after the last key (ms). */
+const SEARCH_WAIT_MS = 300;
 
 type ListState = { k: 'loading' } | { k: 'ok'; page: GalleryPage } | { k: 'failed'; offline: boolean };
 type BoardState = { k: 'loading' } | { k: 'ok'; board: RunesBoard } | { k: 'off' } | { k: 'failed' };
+type BoxesState = CommunityBoxes | null | 'failed';
 
 function session(): Storage | null {
   try {
@@ -162,13 +174,15 @@ export function openCommunity(nav: Nav, o: { restore?: boolean } = {}): void {
   nav.push(<CommunityFrame restore={o.restore} />);
 }
 
+const SUB_TITLES: Record<CommunitySub, string> = { runs: 'All runs', hof: 'Hall of Fame' };
+
 export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: boolean }): VNode {
   const nav = useNav();
   const isTop = useIsTop();
   const api = useMemo<CommunityApi>(() => communityApi(), []);
   const [view, setView] = useState<CommunityView>(() => (p.restore ? readView() : { sort: DEFAULT_SORT, page: 1 }));
   const [list, setList] = useState<ListState>({ k: 'loading' });
-  const [boxes, setBoxes] = useState<CommunityBoxes | null | 'failed'>(null);
+  const [boxes, setBoxes] = useState<BoxesState>(null);
   const [board, setBoard] = useState<BoardState>({ k: 'loading' });
   const [cursor, setCursor] = useState(0);
   /** The phone's form; null until the width is measured (the list waits for it: review fix CR7, no second request on a phone). */
@@ -177,14 +191,21 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   const [account, setAccount] = useState(accountState);
   const [notesPerDay, setNotesPerDay] = useState(DEFAULT_ACCOUNT_LIMITS.notesPerDay);
   const [retry, setRetry] = useState(0);
+  /** The search field's text (the search itself is `view.q`, set a moment after the last key). */
+  const [field, setField] = useState(() => view.q ?? '');
   const bodyRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   /** Random Runes' Post (Enter in the field). */
   const postRef = useRef<(() => void) | null>(null);
+  /** A field to focus once it is drawn (a key that also changed the phone's page). */
+  const focusNext = useRef<'note' | 'search' | null>(null);
   const seen = useRef<number | null>(null);
-  const tab: CommunityTab = view.tab ?? 'runs';
+  const sub: CommunitySub | null = narrow ? (view.sub ?? null) : null;
+  /** The phone's dashboard: the newest runs only (page 1 of New, no search). */
+  const home = narrow && sub === null;
   // The phone shows New only (no sorting).
-  const sort: GallerySort = narrow ? 'new' : view.sort;
+  const sort: HeadSort = narrow ? 'new' : view.sort;
 
   useEffect(() => onAccountState(setAccount), []);
   useEffect(() => {
@@ -217,20 +238,39 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
 
   useEffect(() => keepView(view), [view]);
 
+  // The search follows the field a moment after the last key (a text under two characters: the whole list).
+  const applySearch = (text: string): void => {
+    const q = searchOf(text) ?? undefined;
+    setView((v) => {
+      if (v.q === q) return v;
+      const { by: _by, q: _q, ...rest } = v;
+      return { ...rest, page: 1, ...(q !== undefined ? { q } : {}) };
+    });
+    setCursor(0);
+  };
+  useEffect(() => {
+    if ((searchOf(field) ?? undefined) === view.q) return;
+    const t = setTimeout(() => applySearch(field), SEARCH_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [field]);
+
   // The list.
   const asked = useRef(0);
+  const q = home ? undefined : view.q;
+  const by = home ? undefined : view.by;
+  const page = home ? 1 : view.page;
   useEffect(() => {
     if (measured === null) return;
     const n = ++asked.current;
     setList((l) => (l.k === 'ok' ? l : { k: 'loading' }));
-    void api.list({ sort, page: view.page, ...(view.by ? { by: view.by } : {}) }).then((r) => {
+    void api.list({ sort, page, ...(by ? { by } : {}), ...(q ? { q } : {}) }).then((r) => {
       if (n !== asked.current) return;
       if (r.ok) {
         setList({ k: 'ok', page: r.value });
         setCursor((c) => Math.min(c, Math.max(0, r.value.rows.length - 1)));
       } else setList({ k: 'failed', offline: r.code === 'offline' || r.code === 'timeout' });
     });
-  }, [api, sort, view.page, view.by, retry, measured === null]);
+  }, [api, sort, page, by, q, retry, measured === null]);
 
   // The boxes and the board.
   useEffect(() => {
@@ -257,6 +297,17 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
     void markCommunityPageSeen(newest);
   }, [listRows, boxRows]);
 
+  // A field asked for by a key that changed the phone's page.
+  useEffect(() => {
+    const f = focusNext.current;
+    if (!f) return;
+    const el = f === 'note' ? fieldRef.current : searchRef.current;
+    if (el && !el.disabled) {
+      focusNext.current = null;
+      el.focus();
+    }
+  });
+
   const rows = listRows ?? [];
   const total = list.k === 'ok' ? list.page.total : 0;
   const pages = pagesOf(total, GALLERY_PAGE_SIZE);
@@ -265,23 +316,62 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
     setCursor(0);
     setView((v) => ({ ...v, page: pg }));
   };
-  const chooseSort = (s: GallerySort): void => {
+  const chooseSort = (s: HeadSort): void => {
     if (narrow) return;
     setCursor(0);
     setView((v) => ({ ...v, sort: s, page: 1 }));
   };
   const showBy = (name: string): void => {
     setCursor(0);
-    setView((v) => ({ sort: DEFAULT_SORT, page: 1, by: name, ...(v.tab ? { tab: 'runs' as const } : {}) }));
+    setField('');
+    setView((v) => ({ sort: DEFAULT_SORT, page: 1, by: name, ...(v.sub ? { sub: v.sub } : {}) }));
   };
   const leaveBy = (): void => {
     setCursor(0);
-    setView((v) => ({ sort: v.sort, page: 1, ...(v.tab ? { tab: v.tab } : {}) }));
+    setView((v) => ({ sort: v.sort, page: 1, ...(v.sub ? { sub: v.sub } : {}) }));
   };
-  const setTab = (t: CommunityTab): void => setView((v) => ({ ...v, tab: t }));
+  const clearSearch = (): void => {
+    setField('');
+    setCursor(0);
+    setView((v) => {
+      const { q: _q, ...rest } = v;
+      return v.q === undefined ? v : { ...rest, page: 1 };
+    });
+  };
+  /** The phone: a sub-page over the dashboard (All runs keeps a search asked on the dashboard). */
+  const openSub = (s: CommunitySub, o: { search?: string } = {}): void => {
+    setCursor(0);
+    const text = o.search !== undefined ? (searchOf(o.search) ?? undefined) : undefined;
+    setView((v) => ({ sort: v.sort, page: 1, sub: s, ...(text !== undefined ? { q: text } : {}) }));
+  };
+  const goHome = (): void => {
+    setCursor(0);
+    setField('');
+    setView((v) => ({ sort: v.sort, page: 1 }));
+  };
+  /** Back: what it does here, or null when it leaves the page. */
+  const backStep = (): (() => void) | null => {
+    if (narrow) {
+      if (sub === 'runs' && view.by) return leaveBy;
+      if (sub) return goHome;
+      return null;
+    }
+    if (view.by) return leaveBy;
+    if (view.q) return clearSearch;
+    return null;
+  };
   const back = (): void => {
-    if (view.by) leaveBy();
+    const step = backStep();
+    if (step) step();
     else nav.pop();
+  };
+  const submitSearch = (): void => {
+    if (home) {
+      openSub('runs', { search: field });
+      return;
+    }
+    applySearch(field);
+    searchRef.current?.blur();
   };
 
   useKeys((e, nk) => {
@@ -290,29 +380,34 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         postRef.current?.();
         return true;
       }
+      if (e.key === 'Enter' && e.target === searchRef.current) {
+        submitSearch();
+        return true;
+      }
       return false;
     }
     if (nk === 'back') {
-      if (view.by) {
-        leaveBy();
+      const step = backStep();
+      if (step) {
+        step();
         return true;
       }
       return false;
     }
-    if (narrow && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      const t = TABS.find((x) => x.key === e.key && (x.tab !== 'runes' || board.k !== 'off'));
-      if (t) {
-        setTab(t.tab);
-        return true;
-      }
-    }
     const l = letterOf(e);
-    if (l === 'w' && fieldRef.current && !fieldRef.current.disabled) {
-      if (narrow && tab !== 'runes') setTab('runes');
-      fieldRef.current.focus();
+    if ((l === 'f' || (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey)) && sub !== 'hof') {
+      if (searchRef.current) searchRef.current.focus();
       return true;
     }
-    if (l === 'r' && rows[cursor] && (!narrow || tab === 'runs')) {
+    if (l === 'w' && board.k === 'ok') {
+      if (sub) {
+        focusNext.current = 'note';
+        goHome();
+      } else if (fieldRef.current && !fieldRef.current.disabled) fieldRef.current.focus();
+      return true;
+    }
+    if (home) return false;
+    if (l === 'r' && rows[cursor] && !narrow) {
       showBy(rows[cursor]!.sender);
       return true;
     }
@@ -323,7 +418,7 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         return true;
       }
     }
-    if (narrow && tab !== 'runs') return false;
+    if (narrow && sub !== 'runs') return false;
     switch (nk) {
       case 'up':
         setCursor((c) => Math.max(0, c - 1));
@@ -346,13 +441,22 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         goPage(view.page + 1);
         return true;
       case 'activate':
-        if (rows[cursor]) openRun(rows[cursor]!.id);
+        if (rows[cursor] && !narrow) openRun(rows[cursor]!.id);
         return true;
     }
     return false;
   });
 
   const loggedIn = account.name !== null && account.enabled === true;
+  const search = (
+    <SearchField
+      value={field}
+      inputRef={searchRef}
+      onInput={setField}
+      onClear={clearSearch}
+      onSubmit={home ? submitSearch : undefined}
+    />
+  );
   const listPart = (
     <RunList
       state={list}
@@ -363,16 +467,19 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
       cursor={isTop && !narrow ? cursor : -1}
       narrow={narrow}
       by={view.by ?? null}
+      q={view.q ?? null}
       me={account.name}
       guest={!loggedIn}
+      search={narrow ? null : search}
       onSort={chooseSort}
       onPage={goPage}
       onBy={showBy}
       onLeaveBy={leaveBy}
+      onClearSearch={clearSearch}
       onRetry={() => setRetry((n) => n + 1)}
     />
   );
-  const runesPart =
+  const runesPart = (latest: boolean): VNode | null =>
     board.k === 'off' ? null : (
       <RunesBox
         state={board}
@@ -384,42 +491,46 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
         postRef={postRef}
         nav={nav}
         onBoard={(b) => setBoard({ k: 'ok', board: b })}
-        whole={narrow}
+        latest={latest ? DASH_NOTES : null}
       />
     );
-  const col = <BoxColumn boxes={boxes} />;
 
   if (narrow) {
-    const shownTabs = TABS.filter((t) => t.tab !== 'runes' || board.k !== 'off');
-    const at = shownTabs.some((t) => t.tab === tab) ? tab : 'runs';
+    const title = sub ? SUB_TITLES[sub] : 'Community';
+    let content: VNode;
+    if (sub === 'runs') {
+      content = (
+        <>
+          <div class="wc-cy-dtop is-runs">{search}</div>
+          {listPart}
+        </>
+      );
+    } else if (sub === 'hof') {
+      const hallBy = (name: string): void => {
+        setField('');
+        setView((v) => ({ sort: v.sort, page: 1, by: name, sub: 'runs' }));
+      };
+      content = <HallPage boxes={boxes} me={account.name} onBy={hallBy} />;
+    } else {
+      content = (
+        <Dashboard
+          state={list}
+          rows={rows}
+          boxes={boxes}
+          search={search}
+          runes={runesPart(true)}
+          me={account.name}
+          guest={!loggedIn}
+          onAll={() => openSub('runs')}
+          onHall={() => openSub('hof')}
+          onRetry={() => setRetry((n) => n + 1)}
+        />
+      );
+    }
     return (
-      <Box title="Community" size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cy is-narrow" winClass="wc-cy-win wc-htabs-win">
-        <div class="wc-htabs wc-cy-tabs" role="tablist" aria-label="Community">
-          {shownTabs.map((t) => (
-            <button
-              key={t.tab}
-              type="button"
-              role="tab"
-              class={'wc-htab' + (t.tab === at ? ' is-on' : '')}
-              aria-selected={t.tab === at ? 'true' : 'false'}
-              aria-keyshortcuts={t.key}
-              data-tab={t.tab}
-              tabIndex={-1}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setTab(t.tab);
-              }}
-            >
-              <span class="wc-htab-k" aria-hidden="true">
-                {t.key}
-              </span>
-              <span class="wc-htab-l">{t.label}</span>
-            </button>
-          ))}
-        </div>
-        <BoxBody class={'wc-cy-body is-narrow is-' + at} bodyRef={bodyRef} scroll={at !== 'runes'}>
-          {at === 'runs' ? listPart : at === 'hof' ? col : runesPart}
+      <Box title={title} size="large" maxWidth={COMMUNITY_MAX_W} onBack={back} class="wc-cy is-narrow" winClass="wc-cy-win">
+        <BoxBody class={'wc-cy-body is-narrow is-' + (sub ?? 'home')} bodyRef={bodyRef}>
+          {content}
         </BoxBody>
         <BoxFoot class="wc-cy-foot">
           <LookFlash class="wc-cy-flash" />
@@ -432,9 +543,9 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
       <BoxBody class="wc-cy-body" bodyRef={bodyRef} scroll={false}>
         <div class="wc-cy-main">
           {listPart}
-          {runesPart}
+          {runesPart(false)}
         </div>
-        {col}
+        <BoxColumn boxes={boxes} />
       </BoxBody>
       <BoxFoot class="wc-cy-foot">
         <LookFlash class="wc-cy-flash" />
@@ -443,29 +554,100 @@ export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: b
   );
 });
 
+// ------------------------------------------------------------ search
+
+/**
+ * The search field (owner's feedback 9): a one-line field in a glass well
+ * with the find mark; ✕ empties it. On the phone's dashboard Enter (or the
+ * find mark) opens All runs on the search; elsewhere it searches as typed.
+ */
+function SearchField(p: { value: string; inputRef: { current: HTMLInputElement | null }; onInput(v: string): void; onClear(): void; onSubmit?: () => void }): VNode {
+  return (
+    <div class="wc-cy-search" role="search">
+      <Icon name="find" class="wc-cy-search-ic" />
+      <input
+        ref={(el) => {
+          p.inputRef.current = el;
+        }}
+        class="wc-lk-input wc-cy-search-in"
+        type="search"
+        enterkeyhint="search"
+        aria-label="Search runs"
+        aria-keyshortcuts="/ F"
+        placeholder="Search runs"
+        value={p.value}
+        maxLength={SEARCH_MAX * 2}
+        spellcheck={false}
+        autocomplete="off"
+        autocapitalize="off"
+        {...ownFieldAttrs()}
+        onInput={(e) => p.onInput(e.currentTarget.value)}
+      />
+      {p.value !== '' && (
+        <button
+          type="button"
+          class="wc-cy-search-x"
+          tabIndex={-1}
+          title="Clear the search"
+          aria-label="Clear the search"
+          data-btn="CLEAR-SEARCH"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.stopPropagation();
+            p.onClear();
+          }}
+        >
+          <Icon name="close" />
+        </button>
+      )}
+      {p.onSubmit && (
+        <button
+          type="button"
+          class="wc-cy-search-go"
+          tabIndex={-1}
+          title="Search"
+          aria-label="Search"
+          data-btn="SEARCH"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.stopPropagation();
+            p.onSubmit?.();
+          }}
+        >
+          <Icon name="next" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------ the list
 
 interface RunListProps {
   state: ListState;
   rows: GalleryRow[];
-  sort: GallerySort;
+  sort: HeadSort;
   page: number;
   pages: number;
   /** The row cursor (-1: none shown). */
   cursor: number;
   narrow: boolean;
   by: string | null;
+  q: string | null;
   me: string | null;
   guest: boolean;
-  onSort(s: GallerySort): void;
+  /** The search field in the list's head (desktop); null on the phone (above the list). */
+  search: VNode | null;
+  onSort(s: HeadSort): void;
   onPage(p: number): void;
   onBy(name: string): void;
   onLeaveBy(): void;
+  onClearSearch(): void;
   onRetry(): void;
 }
 
 /** A sortable heading (a press or its letter sorts; the current one is marked ▾). */
-function Head(p: { sort: GallerySort; current: GallerySort; onSort(s: GallerySort): void; end?: boolean }): VNode {
+function Head(p: { sort: HeadSort; current: HeadSort; onSort(s: HeadSort): void; end?: boolean }): VNode {
   const h = SORT_HEADS[p.sort];
   const on = p.sort === p.current;
   return (
@@ -487,43 +669,80 @@ function Head(p: { sort: GallerySort; current: GallerySort; onSort(s: GallerySor
   );
 }
 
-function RunList(p: RunListProps): VNode {
+/** The loading, failed and empty states of a list of runs. */
+function ListWait(p: { state: ListState; empty: VNode; onRetry(): void }): VNode {
   const s = p.state;
-  const bySender = p.by !== null && (
-    <div class="wc-cy-by">
-      <span class="wc-cy-by-t">
-        Runs by <b>{p.by}</b>
-      </span>
-      <GlassButton id="ALL-RUNS" label="All runs" icon="back" small onClick={p.onLeaveBy} />
-    </div>
-  );
-  let body: VNode | VNode[];
   if (s.k === 'loading') {
-    body = (
+    return (
       <div class="wc-cy-wait">
         <LoadBar class="wc-cy-load" done={2} total={5} line="Loading the Community…" />
       </div>
     );
-  } else if (s.k === 'failed') {
-    body = (
+  }
+  if (s.k === 'failed') {
+    return (
       <div class="wc-cy-wait" data-state={s.offline ? 'offline' : 'failed'}>
         <p class="wc-lk-q">{s.offline ? 'Offline: the Community could not be loaded.' : 'The Community could not be loaded.'}</p>
         <p class="wc-lk-qn">{s.offline ? 'Try again when you are online.' : 'Try again in a moment.'}</p>
         <GlassButton id="RETRY" label="Try again" letter="t" primary onClick={p.onRetry} />
       </div>
     );
-  } else if (p.rows.length === 0) {
-    body = (
-      <div class="wc-cy-wait" data-state="empty">
-        {p.by !== null ? (
-          <p class="wc-lk-q">No runs listed by {p.by}.</p>
-        ) : (
-          <>
-            <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
-            <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
-          </>
-        )}
+  }
+  return (
+    <div class="wc-cy-wait" data-state="empty">
+      {p.empty}
+    </div>
+  );
+}
+
+function RunList(p: RunListProps): VNode {
+  const s = p.state;
+  const rowsRef = useRef<HTMLDivElement>(null);
+  // The cursor's row stays in view (the rows scroll inside the list).
+  useEffect(() => {
+    if (p.cursor < 0) return;
+    rowsRef.current?.querySelectorAll<HTMLElement>('.wc-cy-row')[p.cursor]?.scrollIntoView?.({ block: 'nearest' });
+  }, [p.cursor, p.rows]);
+  useEffect(() => {
+    rowsRef.current?.scrollTo?.({ top: 0 });
+  }, [p.page, p.sort, p.by, p.q]);
+  const total = s.k === 'ok' ? s.page.total : 0;
+  const bar =
+    p.by !== null ? (
+      <div class="wc-cy-by">
+        <span class="wc-cy-by-t">
+          Runs by <b>{p.by}</b>
+        </span>
+        <GlassButton id="ALL-RUNS" label="All runs" icon="back" small onClick={p.onLeaveBy} />
       </div>
+    ) : p.q !== null ? (
+      <div class="wc-cy-by is-search">
+        <span class="wc-cy-q">{s.k === 'ok' ? searchLine(p.q, total) : `Search: “${p.q}”`}</span>
+        <GlassButton id="CLEAR" icon="close" title="Clear the search" small onClick={p.onClearSearch} />
+      </div>
+    ) : null;
+  let body: VNode | VNode[];
+  if (s.k !== 'ok' || p.rows.length === 0) {
+    body = (
+      <ListWait
+        state={s}
+        onRetry={p.onRetry}
+        empty={
+          p.by !== null ? (
+            <p class="wc-lk-q">No runs listed by {p.by}.</p>
+          ) : p.q !== null ? (
+            <>
+              <p class="wc-lk-q">No runs found.</p>
+              <p class="wc-lk-qn">The search looks in the titles, the characters and the senders.</p>
+            </>
+          ) : (
+            <>
+              <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
+              <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
+            </>
+          )
+        }
+      />
     );
   } else {
     body = p.rows.map((r, i) => <RunRow key={r.id} r={r} rank={p.sort === 'top' ? (p.page - 1) * GALLERY_PAGE_SIZE + i + 1 : null} cur={i === p.cursor} narrow={p.narrow} mine={!!p.me && r.sender.toLowerCase() === p.me.toLowerCase()} onBy={p.onBy} />);
@@ -538,21 +757,21 @@ function RunList(p: RunListProps): VNode {
     ) : null;
   return (
     <section class={'wc-cy-list' + (p.narrow ? ' is-narrow' : '')} aria-label="Runs" data-sort={p.sort} data-state={s.k === 'ok' ? (p.rows.length ? 'list' : 'empty') : s.k}>
-      {bySender}
-      <div class="wc-lk-tbl wc-cy-tbl" role="table">
+      {bar}
+      <div class={'wc-lk-tbl wc-cy-tbl' + (p.narrow ? '' : ' is-scroll')} role="table">
         {!p.narrow && (
           <div class="wc-lk-throw wc-cy-throw" role="row">
             <span class="wc-lk-th" role="columnheader" aria-label="Rank" />
             <span class="wc-lk-th wc-cy-th-first" role="columnheader">
-              <span class="wc-cy-th-words">Title (character) · Sender · </span>
-              <Head sort="length" current={p.sort} onSort={p.onSort} /> · <Head sort="new" current={p.sort} onSort={p.onSort} />
+              <Head sort="new" current={p.sort} onSort={p.onSort} />
+              {p.search}
             </span>
             <Head sort="top" current={p.sort} onSort={p.onSort} end />
             <Head sort="comments" current={p.sort} onSort={p.onSort} end />
             <Head sort="watched" current={p.sort} onSort={p.onSort} end />
           </div>
         )}
-        <div class="wc-lk-tbody wc-cy-rows" role="rowgroup">
+        <div class="wc-lk-tbody wc-cy-rows" role="rowgroup" ref={rowsRef}>
           {body}
         </div>
       </div>
@@ -561,10 +780,23 @@ function RunList(p: RunListProps): VNode {
   );
 }
 
+/** The stars' cell: the five, the mean and the votes. */
+function StarsCell(p: { r: GalleryRow }): VNode {
+  const mean = meanText(p.r.stars);
+  return (
+    <>
+      <Stars n={starsShown(p.r.stars)} />
+      <span class="wc-cy-mean">
+        {mean ?? '–'}
+        <small> · {p.r.stars.count}</small>
+      </span>
+    </>
+  );
+}
+
 /** A run: a press opens it, a press on the sender opens the sender's runs. */
 function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: boolean; mine: boolean; onBy(name: string): void }): VNode {
   const r = p.r;
-  const mean = meanText(r.stars);
   const sender = (
     <button
       type="button"
@@ -580,26 +812,23 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
       {r.sender}
     </button>
   );
-  const stars = (
-    <>
-      <Stars n={starsShown(r.stars)} />
-      <span class="wc-cy-mean">
-        {mean ?? '–'}
-        <small> · {r.stars.count}</small>
-      </span>
-    </>
-  );
   const cls = 'wc-lk-tr wc-cy-row' + (p.cur ? ' is-cur is-on' : '') + (p.mine ? ' is-mine' : '');
   const open = (): void => openRun(r.id);
+  const character = r.character ? <span class="wc-cy-char">({r.character})</span> : null;
   if (p.narrow) {
     return (
       <div class={cls} role="row" data-id={r.id} onClick={open}>
-        <span class="wc-lk-td wc-cy-p1">{r.title}</span>
+        <span class="wc-lk-td wc-cy-p1">
+          {p.rank !== null && <span class="wc-cy-rank">{p.rank}</span>}
+          <b class="wc-cy-name">{r.title}</b> {character}
+        </span>
         <span class="wc-lk-td wc-cy-p2">
-          <span class="wc-cy-char">{characterText(r)}</span> · {sender} · {lengthText(r.lengthS)} · {dateText(r.listedAt)}
+          {sender} · {lengthText(r.lengthS)} · {dateText(r.listedAt)}
         </span>
         <span class="wc-lk-td wc-cy-p3">
-          <span class="wc-cy-stars">{stars}</span>
+          <span class="wc-cy-stars">
+            <StarsCell r={r} />
+          </span>
           <span class="wc-cy-n" title="Comments">
             <Icon name="comment" class="wc-cy-ic" />
             {r.comments}
@@ -616,13 +845,15 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
       <span class="wc-lk-td wc-cy-rank">{p.rank ?? ''}</span>
       <span class="wc-lk-td wc-cy-title">
         <span class="wc-cy-l1">
-          <b class="wc-cy-name">{r.title}</b> <span class="wc-cy-char">({characterText(r)})</span>
+          <b class="wc-cy-name">{r.title}</b> {character}
         </span>
         <span class="wc-cy-sub">
           {sender} · <span class="wc-cy-len">{lengthText(r.lengthS)}</span> · <span class="wc-cy-date">{dateText(r.listedAt)}</span>
         </span>
       </span>
-      <span class="wc-lk-td is-end wc-cy-stars">{stars}</span>
+      <span class="wc-lk-td is-end wc-cy-stars">
+        <StarsCell r={r} />
+      </span>
       <span class="wc-lk-td is-end wc-cy-num">
         <Icon name="comment" class="wc-cy-ic" />
         {r.comments}
@@ -632,28 +863,59 @@ function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: b
   );
 }
 
-// ------------------------------------------------------------ the column
+// ------------------------------------------------------------ the column and the boxes
 
-function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
+/** "38 players on MUME": a large free-standing figure (owner's feedback 7); nothing without a count. */
+function Players(p: { n: number | undefined }): VNode | null {
+  if (p.n === undefined) return null;
+  return (
+    <div class="wc-cy-players" data-box="players" aria-label={`${p.n} players on MUME`}>
+      <b class="wc-cy-players-n">{p.n}</b>
+      <span class="wc-cy-players-l">players on MUME</span>
+    </div>
+  );
+}
+
+function DayBox(p: { day: CommunityBoxes['today'] }): VNode | null {
+  const day = p.day;
+  if (!day) return null;
+  return (
+    <section class="wc-cy-box wc-cy-day" data-box="day">
+      <h3 class="wc-cy-bh">Run of the day</h3>
+      <button type="button" class="wc-cy-day-r" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(day.id)}>
+        <b class="wc-cy-day-t">{day.title}</b>
+        <span class="wc-cy-day-d">
+          {day.character ? `${day.character} · ` : ''}
+          {day.sender} · {dateText(day.listedAt)}
+        </span>
+        {day.description && <span class="wc-cy-day-x">{day.description}</span>}
+      </button>
+    </section>
+  );
+}
+
+function WarBox(p: { mume: CommunityBoxes['mume'] }): VNode | null {
+  const mume = p.mume;
+  if (!mume || (mume.west.length === 0 && mume.dark.length === 0)) return null;
+  return (
+    <section class="wc-cy-box wc-cy-war" data-box="war">
+      <h3 class="wc-cy-bh">Warlords</h3>
+      <div class="wc-cy-war2">
+        <WarSide title="White lords" cls="is-west" list={mume.west} />
+        <WarSide title="Sauron’s minions" cls="is-dark" list={mume.dark} />
+      </div>
+    </section>
+  );
+}
+
+function BoxColumn(p: { boxes: BoxesState }): VNode {
   const b = p.boxes;
   if (b === null) return <aside class="wc-cy-col is-loading" aria-busy="true" />;
   if (b === 'failed') return <aside class="wc-cy-col is-failed" />;
-  const day = b.today;
-  const mume = b.mume;
   return (
     <aside class="wc-cy-col" aria-label="Hall of Fame">
-      {day && (
-        <section class="wc-cy-box wc-cy-day" data-box="day">
-          <h3 class="wc-cy-bh">Run of the day</h3>
-          <button type="button" class="wc-cy-day-r" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(day.id)}>
-            <b class="wc-cy-day-t">{day.title}</b>
-            <span class="wc-cy-day-d">
-              {characterText(day)} · {day.sender} · {dateText(day.listedAt)}
-            </span>
-            {day.description && <span class="wc-cy-day-x">{day.description}</span>}
-          </button>
-        </section>
-      )}
+      <Players n={b.mume?.players} />
+      <DayBox day={b.today} />
       {b.hallOfFame.length > 0 && (
         <section class="wc-cy-box wc-cy-hof" data-box="hof">
           <h3 class="wc-cy-bh">
@@ -663,7 +925,7 @@ function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
           <ol class="wc-cy-hofl">
             {b.hallOfFame.map((r) => (
               <li key={r.id}>
-                <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(r.id)} title={`${r.title} (${characterText(r)}) · ${r.sender}`}>
+                <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(r.id)} title={`${runName(r)} · ${r.sender}`}>
                   <span class="wc-cy-hof-t">{r.title}</span>
                   <span class="wc-cy-hof-m">{meanText(r.stars) ?? '–'}</span>
                 </button>
@@ -672,16 +934,7 @@ function BoxColumn(p: { boxes: CommunityBoxes | null | 'failed' }): VNode {
           </ol>
         </section>
       )}
-      {mume && (mume.west.length > 0 || mume.dark.length > 0) && (
-        <section class="wc-cy-box wc-cy-war" data-box="war">
-          <h3 class="wc-cy-bh">Warlords</h3>
-          <div class="wc-cy-war2">
-            <WarSide title="White lords" cls="is-west" list={mume.west} />
-            <WarSide title="Sauron’s minions" cls="is-dark" list={mume.dark} />
-          </div>
-          {mume.players !== undefined && <p class="wc-cy-players">{mume.players} players on MUME</p>}
-        </section>
-      )}
+      <WarBox mume={b.mume} />
     </aside>
   );
 }
@@ -704,6 +957,117 @@ function WarSide(p: { title: string; cls: string; list: { name: string; race: st
   );
 }
 
+// ------------------------------------------------------------ the phone: the dashboard and the Hall of Fame
+
+/** A newest run on the dashboard: "Title (Char)", sender · date, the mean; a tap opens it. */
+function DashRow(p: { r: GalleryRow; mine: boolean }): VNode {
+  const r = p.r;
+  const mean = meanText(r.stars);
+  return (
+    <li class={'wc-cy-drow' + (p.mine ? ' is-mine' : '')} data-id={r.id}>
+      <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => openRun(r.id)}>
+        <span class="wc-cy-drow-t">
+          <b class="wc-cy-name">{r.title}</b>
+          {r.character && <span class="wc-cy-char"> ({r.character})</span>}
+        </span>
+        <span class="wc-cy-drow-d">
+          <span class="wc-cy-drow-s">{r.sender}</span> · {dateText(r.listedAt)}
+          {mean && <span class="wc-cy-drow-m">{mean}</span>}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+interface DashProps {
+  state: ListState;
+  rows: GalleryRow[];
+  boxes: BoxesState;
+  search: VNode;
+  runes: VNode | null;
+  me: string | null;
+  guest: boolean;
+  onAll(): void;
+  onHall(): void;
+  onRetry(): void;
+}
+
+/** The phone's first view (owner's feedback 8): everything at a glance, the list and the Hall of Fame a tap away. */
+function Dashboard(p: DashProps): VNode {
+  const b = p.boxes && p.boxes !== 'failed' ? p.boxes : null;
+  const newest = p.rows.slice(0, DASH_RUNS);
+  const hall = b !== null && b.hallOfFame.length > 0;
+  return (
+    <div class="wc-cy-dash">
+      <div class="wc-cy-dtop">
+        {p.search}
+        <Players n={b?.mume?.players} />
+      </div>
+      <section class="wc-cy-box wc-cy-newest" data-box="newest" aria-label="Newest runs" data-state={p.state.k === 'ok' ? (newest.length ? 'list' : 'empty') : p.state.k}>
+        <h3 class="wc-cy-bh">Newest runs</h3>
+        {p.state.k === 'ok' && newest.length > 0 ? (
+          <ul class="wc-cy-dlist">
+            {newest.map((r) => (
+              <DashRow key={r.id} r={r} mine={!!p.me && r.sender.toLowerCase() === p.me.toLowerCase()} />
+            ))}
+          </ul>
+        ) : (
+          <ListWait
+            state={p.state}
+            onRetry={p.onRetry}
+            empty={
+              <>
+                <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
+                <p class="wc-lk-qn">{p.guest ? 'Runs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
+              </>
+            }
+          />
+        )}
+        {(p.state.k === 'ok' && newest.length > 0) || hall ? (
+          <div class="wc-cy-dbtns">
+            {p.state.k === 'ok' && newest.length > 0 && <GlassButton id="ALL" label="All runs" icon="next" iconAfter keepIcon small onClick={p.onAll} />}
+            {hall && <GlassButton id="HOF" label="Hall of Fame" icon="star" keepIcon small onClick={p.onHall} />}
+          </div>
+        ) : null}
+      </section>
+      {b && <DayBox day={b.today} />}
+      {p.runes}
+      {b && <WarBox mume={b.mume} />}
+    </div>
+  );
+}
+
+/** The phone's Hall of Fame sub-page: the best runs of all time, as the list's rows with their rank. */
+function HallPage(p: { boxes: BoxesState; me: string | null; onBy(name: string): void }): VNode {
+  const b = p.boxes;
+  if (b === null) {
+    return (
+      <div class="wc-cy-wait">
+        <LoadBar class="wc-cy-load" done={2} total={5} line="Loading the Hall of Fame…" />
+      </div>
+    );
+  }
+  if (b === 'failed' || b.hallOfFame.length === 0) {
+    return (
+      <div class="wc-cy-wait" data-state="empty">
+        <p class="wc-lk-q">{b === 'failed' ? 'The Hall of Fame could not be loaded.' : 'Nothing in the Hall of Fame yet.'}</p>
+      </div>
+    );
+  }
+  return (
+    <section class="wc-cy-list is-narrow wc-cy-hofpage" data-box="hof" aria-label="Hall of Fame">
+      <p class="wc-cy-hofnote">The best runs of all time, by their stars.</p>
+      <div class="wc-lk-tbl wc-cy-tbl" role="table">
+        <div class="wc-lk-tbody wc-cy-rows" role="rowgroup">
+          {b.hallOfFame.map((r, i) => (
+            <RunRow key={r.id} r={r} rank={i + 1} cur={false} narrow mine={!!p.me && r.sender.toLowerCase() === p.me.toLowerCase()} onBy={p.onBy} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------ Random Runes
 
 interface RunesProps {
@@ -718,8 +1082,8 @@ interface RunesProps {
   postRef: { current: (() => void) | null };
   nav: Nav;
   onBoard(b: RunesBoard): void;
-  /** The phone's tab: the box fills it. */
-  whole: boolean;
+  /** The phone's dashboard: the latest this many notes until "All notes"; null: every note (the box's notes scroll). */
+  latest: number | null;
 }
 
 function RunesBox(p: RunesProps): VNode {
@@ -729,6 +1093,7 @@ function RunesBox(p: RunesProps): VNode {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const [all, setAll] = useState(false);
   const board = p.state.k === 'ok' ? p.state.board : null;
   const notes = board?.notes ?? [];
   const left = Math.max(0, p.perDay - notesToday(notes, p.me));
@@ -796,7 +1161,7 @@ function RunesBox(p: RunesProps): VNode {
             p.fieldRef.current = el;
           }}
           disabled={full || busy}
-          placeholder={full ? NOTE_LIMIT_TEXT : 'Write a note: everyone sees it with your name'}
+          placeholder={full ? NOTE_LIMIT_TEXT : 'A note…'}
           error={error}
           hint={focused || text ? <span class="wc-cy-count">{noteHint(n, NOTE_MAX, left)}</span> : undefined}
           enterSubmits
@@ -813,7 +1178,7 @@ function RunesBox(p: RunesProps): VNode {
   }
 
   return (
-    <section class={'wc-cy-box wc-cy-runes' + (p.whole ? ' is-whole' : '')} data-box="runes" aria-label="Random Runes">
+    <section class={'wc-cy-box wc-cy-runes' + (p.latest !== null ? ' is-dash' : '')} data-box="runes" aria-label="Random Runes">
       <h3 class="wc-cy-bh">
         Random Runes<span class="wc-cy-bn">the latest 50 · 30 days</span>
       </h3>
@@ -825,7 +1190,7 @@ function RunesBox(p: RunesProps): VNode {
         <p class="wc-cy-none">The board is empty. Say hello.</p>
       ) : (
         <ul class="wc-cy-notes">
-          {notes.map((note) => {
+          {(p.latest !== null && !all ? notes.slice(0, p.latest) : notes).map((note) => {
             const own = p.me !== null && note.writer.toLowerCase() === p.me.toLowerCase();
             return (
               <li
@@ -851,6 +1216,11 @@ function RunesBox(p: RunesProps): VNode {
             );
           })}
         </ul>
+      )}
+      {p.latest !== null && notes.length > p.latest && (
+        <button type="button" class="wc-cy-more" data-btn="ALL-NOTES" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => setAll((a) => !a)}>
+          {all ? 'Fewer notes' : `All ${notes.length} notes`}
+        </button>
       )}
       <div
         onFocusCapture={() => setFocused(true)}

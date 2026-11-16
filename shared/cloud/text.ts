@@ -160,3 +160,18 @@ export function publicTextToSend(s: string, o: PublicTextRules): string {
   const t = cleanPublicText(s, o).trim();
   return VISIBLE.test(t) ? t : '';
 }
+
+/**
+ * A search's text (`GET /api/gallery?q=`, stage 65 owner's feedback): the
+ * free public text rules on one line (`cleanPublicText`: NFC, refused
+ * characters out), every run of white space as one space, trimmed; null
+ * when it has fewer than `min` or more than `max` code points then. The
+ * Worker and the client take it from here, so both hold the same text.
+ */
+export function searchText(raw: string, min: number, max: number): string | null {
+  // A long input is refused before the cleaning's passes (an address holds at most a few KB).
+  if (raw.length > max * 8) return null;
+  const t = cleanPublicText(raw, { newlines: 0 }).replace(/\s+/gu, ' ').trim();
+  const n = [...t].length;
+  return n >= min && n <= max ? t : null;
+}

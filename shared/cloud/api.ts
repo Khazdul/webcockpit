@@ -976,6 +976,12 @@ export const NOTE_DAYS = 30;
 /** Rows per page of `GET /api/gallery`, and the deepest page (round 13: pages of 10, 1 000 runs deep). */
 export const GALLERY_PAGE_SIZE = 10;
 export const GALLERY_PAGES_MAX = 100;
+/**
+ * A search of the list (`GET /api/gallery?q=`, stage 65 owner's feedback):
+ * its text in code points after `shared/cloud/text.ts` `searchText`.
+ */
+export const GALLERY_Q_MIN = 2;
+export const GALLERY_Q_MAX = 60;
 /** Top's prior (ADR 0148): `(C·m + top_sum) / (C + top_count)`. */
 export const TOP_PRIOR_VOTES = 5;
 /** Top's prior mean when no ranking vote exists. */
@@ -1019,7 +1025,7 @@ export interface GalleryRow {
 }
 
 /**
- * `GET /api/gallery?sort=new|top|watched|comments|length&period=week|month|all&page=N&by=<name>`
+ * `GET /api/gallery?sort=new|top|watched|comments|length&period=week|month|all&page=N&by=<name>&q=<text>`
  * (public) → `GalleryPage`. Defaults: `new`, `all`, `1`. Only active,
  * listed runs. **Top**: `(C·m + top_sum) / (C + top_count)` with `C =
  * TOP_PRIOR_VOTES` and `m` the mean of all ranking votes on listed active
@@ -1035,6 +1041,17 @@ export interface GalleryRow {
  * unknown, deleted or not a valid name gives an empty list, never an
  * error, so the answer never tells whether a name exists. The name is
  * matched without regard to case; the cache keeps its lowercase.
+ *
+ * `q=<text>` (stage 65, the owner's feedback: search): only the runs whose
+ * title, character or sender holds the text, without regard to case
+ * (SQLite's `lower()`: ASCII letters; other letters as written), in
+ * `sort`'s order, pages as above; combines with `by`. The text is taken as
+ * `searchText` gives it (the public text rules' cleaning on one line,
+ * spaces collapsed, trimmed); `GALLERY_Q_MIN`–`GALLERY_Q_MAX` code points
+ * then, or `400 bad_request`. Matched as a plain substring (`instr`): `%`,
+ * `_` and a backslash are themselves. The answer carries `q` (the text searched).
+ * A search is not kept in the Worker's Cache API (any text makes its own
+ * variant); it reads D1 each time, under the public limit by address.
  *
  * As built (stage 65 B): a value outside its list, or a `page` that is
  * not a whole number 1–`GALLERY_PAGES_MAX` → `400 bad_request` (`by`
@@ -1055,6 +1072,8 @@ export interface GalleryPage {
    * of N"), at most `GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX`.
    */
   total: number;
+  /** The text searched (`q`, as cleaned), only on a search. */
+  q?: string;
   time: number;
 }
 

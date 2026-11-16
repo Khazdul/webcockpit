@@ -995,3 +995,88 @@ stage file). User-facing words only: code identifiers, file names and
   reaches it), the words and the button by format in `export`,
   `share-link`, `hall-of-fame` (desktop and phone), `history-dialogs`,
   `phone-history-page`, `phone-export`.
+
+## As built (stage 65, owner's feedback: W2)
+
+The owner's feedback of 2026-11-16 (`docs/stages/65-community.md`, "Owner
+feedback", points 5, 7, 8, 9, 10, 11 for the list's rows, 12), branch
+`stage65-w2`. The owner left the details to the builder.
+
+- **Search: `GET /api/gallery?q=<text>`.** The text goes through
+  `shared/cloud/text.ts` `searchText` (the public text rules' cleaning on
+  one line: NFC, refused characters out; every run of white space one
+  space; trimmed) and must then be `GALLERY_Q_MIN`–`GALLERY_Q_MAX` (2–60)
+  code points, else `400 bad_request` (an input over 480 UTF-16 units is
+  refused before the cleaning). The client cleans with the same function,
+  so both hold the same text; the answer echoes it as `q`. It matches
+  title, character and sender of active listed runs by
+  `instr(lower(x), lower(?)) > 0`: a plain substring, so `%`, `_` and a
+  backslash are themselves and there is nothing to escape (chosen over
+  LIKE … ESCAPE, which needs the escaping done right in two places); the
+  text is a bound parameter, never part of the SQL. `lower()` folds ASCII
+  only (as LIKE would): "ÅSA" finds "ÅSA", not "åsa"; names are ASCII and
+  most titles English, so this is accepted. It combines with every sort,
+  the pages of 10, `period` and `by`; the count query joins `account` only
+  for a search.
+- **A search is not kept in the Cache API.** Any text is a variant of its
+  own, so hits would be rare and the entries unbounded; the D1 cost of a
+  search is two statements that read the listed active rows (hundreds now;
+  well under a D1 read budget at the public limit `API_LIMITER` by address,
+  which every public path already has). The answer keeps the list's
+  `Cache-Control` (`PUBLIC_CACHE`), so whatever W4 settles for the list's
+  freshness applies to a search too. The client waits 300 ms after the
+  last key and asks only for 2+ characters.
+- **Desktop.** The left side is a column: the list takes what Random
+  Runes leaves (`flex: 1`, at least 160 px), its rows scroll under the
+  heads (`.wc-lk-tbl.is-scroll`) with the row cursor kept in view, and the
+  pager stays at its foot; Random Runes sits at the bottom, at most **40 %**
+  of the left side's height (`max-height: 40%`), its notes scrolling
+  inside and the growing field kept in the box; with few notes it is only
+  as tall as they are.
+- **Headings** Run, Stars, Com., Views (letters N, S, M, V). The Length
+  sort and the Listed heading are gone from the page (the API keeps
+  `length`); a kept view with `length` reads as New. Length and the
+  date stay as text under each title.
+- **Rows** say "Title (Char)" with no level (`runName` for titles of
+  links); the Run of the day's line "Char · sender · date".
+- **The players on MUME** is no longer in the Warlords box: a large
+  numeral in the display face (`--lk-on`, 44 px; 34 px on a phone) with
+  "players on MUME" small under it, no box, at the top of the right
+  column (desktop) or beside the search field (phone); absent without a
+  count.
+- **The search field** (desktop) shares the first heading with Run, right
+  of it (up to 260 px); `/` or F focuses it, Enter lets go of it, ✕ in
+  the field empties it. Over the list: 'Search: “ford” — 2 runs' with a
+  ✕ button; an empty result says "No runs found." A search and a sender's
+  runs exclude each other in the page (one replaces the other). Back (Esc)
+  leaves a sender's runs, then a search, then the page. The search is kept
+  in the view (`wc.community.view`, `q`), so Back from a run finds it.
+- **Phone: a dashboard** (under 700 px of content; the tabs are gone).
+  In order: the search field with the players' figure; Newest runs (the
+  first five of page 1 of New: "Title (Char)", sender · date, the mean; a
+  tap opens) with **All runs** and **Hall of Fame**; Run of the day;
+  Random Runes (the latest five notes, "All N notes" shows the rest, the
+  field); Warlords (both sides, names only under 360 px of content).
+  The dashboard's field searches on Enter or its › mark, opening All
+  runs on the search. Sub-pages (a state of the page, `view.sub`, kept
+  across a run): **All runs** (New only, the search field searching as
+  typed, the search line, the pager, a sender's runs) and **Hall of Fame**
+  (the eight as the list's rows with their rank; a sender's name opens
+  All runs on that sender). The hood says "All runs" / "Hall of Fame";
+  Back leaves a sender's runs, then the sub-page (clearing its search),
+  then the page. W from a sub-page returns to the dashboard and focuses
+  the note field. Checked at 390 × 844 and 320 × 568 (nothing scrolls
+  sideways).
+- **The note field's hint** is "A note…" (the limit's words when full).
+- **Words.** The empty list's line says "In History, Share a session and
+  choose Hall of Fame." (W1's Export → Share).
+- **Chunks.** The entry chunk is unchanged at **31 382 bytes**.
+- **Tests:** worker `search.test.ts` (6: fields and case, `%`/`_`/
+  backslash, bounds and cleaning, hidden/removed/link-only, pages and
+  `by`, never cached and the flags); unit `community-model.test.ts` (the
+  headings, `runName`, search, the view), `community-api.test.ts` (`q`
+  asked and read); e2e `community-page.spec.ts` (+3: many notes, search,
+  a tablet window; the page and sorting updated) and
+  `phone-community-page.spec.ts` (rewritten: 7, the dashboard, All runs,
+  search, Hall of Fame, runes off, CR7, 320 × 568). The e2e fake answers
+  `q` as the Worker does.
