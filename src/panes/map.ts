@@ -82,7 +82,12 @@
 //   pan, pinch or wheel, whatever the Mapper settings say; the settings
 //   themselves are never written, so the desktop keeps its own. `zoomTo`
 //   sets an absolute zoom (kept and sent again when the worker starts or
-//   loads a map). Never set on a desktop or a tablet, nor in the player.
+//   loads a map). Never set on a desktop or a tablet, nor in the player,
+//   but as a hand lens (`MapLens.hand`, stage 71, ADR 0160): the desktop
+//   lens of a shared run, where the mouse pans and the wheel zooms (round
+//   the centre while it follows the player), a pan lets go of the player
+//   (the worker's `follow` off, `following`, `data-map-free`) and a double
+//   click or `followPlayer` centres on them and follows again. No hover box.
 
 import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
@@ -133,6 +138,13 @@ export interface MapLens {
   tileset: string;
   /** The background, `#rrggbb` (never transparent). */
   background: string;
+  /**
+   * The desktop lens of a shared run (stage 71, ADR 0160): the map takes
+   * the mouse as a pane does (drag pans, the wheel zooms), and a pan lets
+   * go of the player (`following`) until `followPlayer` or a double click.
+   * Absent: the phone's lens, which takes no pan or zoom by hand.
+   */
+  hand?: boolean;
 }
 
 /**
@@ -190,6 +202,9 @@ export class MapPane extends PaneShell {
   private lens: MapLens | null = null;
   /** The lens's absolute zoom, sent to the worker when it starts and after a map load. */
   private lensZoom: number | null = null;
+  /** A hand lens (`MapLens.hand`): the view follows the player; a pan turns it off. */
+  private follows = true;
+  private followFn: ((on: boolean) => void) | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -294,6 +309,12 @@ export class MapPane extends PaneShell {
     }
     // The canvas never takes the focus from the input line.
     c.addEventListener('mousedown', (e) => e.preventDefault());
+    // A hand lens (ADR 0160): a double click centres on the player and follows again.
+    c.addEventListener('dblclick', (e) => {
+      if (!this.lens?.hand) return;
+      e.preventDefault();
+      this.followPlayer();
+    });
     c.addEventListener('wheel', this.onWheel, { passive: false });
     this.own(() => {
       c.removeEventListener('wheel', this.onWheel);
@@ -306,9 +327,10 @@ export class MapPane extends PaneShell {
    * The tileset and the background follow at once, also in a running worker.
    */
   setLens(lens: MapLens | null): void {
-    if (lens?.tileset === this.lens?.tileset && lens?.background === this.lens?.background && (lens === null) === (this.lens === null)) return;
+    if (lens?.tileset === this.lens?.tileset && lens?.background === this.lens?.background && lens?.hand === this.lens?.hand && (lens === null) === (this.lens === null)) return;
     this.lens = lens;
     if (lens === null) this.lensZoom = null;
+    if (!lens?.hand && !this.follows) this.setFollow(true);
     this.hover.cancel();
     this.content.toggleAttribute('data-map-lens', lens !== null);
     this.applyBackground(true);
@@ -320,6 +342,34 @@ export class MapPane extends PaneShell {
     if (this.lens === null) return;
     this.lensZoom = zoom;
     this.client?.zoomTo(zoom);
+  }
+
+  /** A hand lens (ADR 0160): the view follows the player (no pan since the last `followPlayer`). */
+  get following(): boolean {
+    return this.follows;
+  }
+
+  /** Told when `following` changes (one listener: the lens; null: none). */
+  onFollow(fn: ((on: boolean) => void) | null): void {
+    this.followFn = fn;
+  }
+
+  /** Centres the view on the player and follows them again (the lens's follow key, a double click). */
+  followPlayer(): void {
+    this.setFollow(true, true);
+  }
+
+  private setFollow(on: boolean, force = false): void {
+    if (on === this.follows && !force) return;
+    this.follows = on;
+    this.client?.follow(on);
+    this.content.toggleAttribute('data-map-free', !on);
+    this.followFn?.(on);
+  }
+
+  /** May the pointer pan and zoom the map: no lens, or a hand lens. */
+  private get handFree(): boolean {
+    return this.lens === null || this.lens.hand === true;
   }
 
   /** A pane moved, resized or hidden by the layout takes the hover box with it. */
@@ -489,6 +539,7 @@ export class MapPane extends PaneShell {
         onMessage: this.onWorker,
       });
       if (this.lensZoom !== null) this.client.zoomTo(this.lensZoom);
+      if (!this.follows) this.client.follow(false);
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
       const notes = this.ctx.mapNotes;
       if (notes) this.forwarder.stampRooms = () => notes.wanted();
@@ -715,7 +766,7 @@ export class MapPane extends PaneShell {
   private readonly onPointerDown = (e: PointerEvent): void => {
     this.touchPressed = false;
     this.hover.cancel();
-    if (e.button !== 0 || !this.client || this.lens) return;
+    if (e.button !== 0 || !this.client || !this.handFree) return;
     this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     this.canvas.dataset.dragging = '';
     try {
@@ -769,7 +820,7 @@ export class MapPane extends PaneShell {
   private readonly onTouchDown = (e: PointerEvent): void => {
     // The lens takes no pan or pinch (ADR 0136 §4).
     this.touchPressed = true;
-    if (!this.client || this.lens) return;
+    if (!this.client || !this.handFree) return;
     this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = this.local(e);
     this.hover.press(p.x, p.y, this.touches.size === 1);
@@ -824,19 +875,26 @@ export class MapPane extends PaneShell {
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
     this.hover.cancel();
-    if (!this.client || this.lens || e.deltaY === 0) return;
+    if (!this.client || !this.handFree || e.deltaY === 0) return;
     // A notch is 100 px, 3 lines or 1/3 page. A trackpad pinch (Ctrl, small
     // pixel deltas, about -100·ln(scale) in total) uses 40 px so that
     // spreading the fingers to 2× zooms about 1.33×; a Ctrl+mouse notch
     // (≥ 50 px) keeps the plain unit.
     const unit =
       e.deltaMode === 1 ? 3 : e.deltaMode === 2 ? 1 / 3 : e.ctrlKey && Math.abs(e.deltaY) < 50 ? 40 : 100;
-    const { x, y } = this.local(e);
+    // A hand lens that follows the player zooms round the centre: the player stays in the middle.
+    const { x, y } = this.lens?.hand && this.follows ? this.centre() : this.local(e);
     this.acc.steps += -e.deltaY / unit;
     this.acc.zx = x;
     this.acc.zy = y;
     this.scheduleFlush();
   };
+
+  /** The canvas's centre in its own CSS px. */
+  private centre(): { x: number; y: number } {
+    const { w, h } = this.cssSize();
+    return { x: w / 2, y: h / 2 };
+  }
 
   private scheduleFlush(): void {
     if (this.flushScheduled) return;
@@ -846,7 +904,11 @@ export class MapPane extends PaneShell {
       const a = this.acc;
       const c = this.client;
       if (c) {
-        if (a.dx !== 0 || a.dy !== 0) c.pan(a.dx, a.dy);
+        if (a.dx !== 0 || a.dy !== 0) {
+          c.pan(a.dx, a.dy);
+          // A hand lens lets go of the player once panned (ADR 0160).
+          if (this.lens?.hand) this.setFollow(false);
+        }
         if (a.steps !== 0) c.zoom(a.steps, a.zx, a.zy);
       }
       this.acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0 };
