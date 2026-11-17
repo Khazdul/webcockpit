@@ -108,7 +108,9 @@ with no stage of their own. Remove a line when it is done.
   continuity tested over all phase boundaries; e2e hit-tests behind docked
   and floating panes). Merged as fe98d570.
 - **Checks:** full e2e alone at 5 workers 1 928 passed, 2 failed under load
-  (both pass alone); released 0.17.0 on the owner's word.
+  (both pass alone); released 0.17.0 on the owner's word (deploy run 44149495291;
+  `test:prod` 36/36 on mumecockpit.com, the first run right after the
+  deploy had 2 site-root failures that passed on the rerun).
 - **Next:** balloons rest until the owner brings images; then flight and
   timing details. Open: on wide layouts the drift can go behind the right
   panes (hidden); arrival ~7 s at 1080 px (`V_ARRIVE`).
