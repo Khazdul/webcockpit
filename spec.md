@@ -1401,8 +1401,9 @@ the tables keep `run` and `publication`.
   closed alone). Any logged-in, not suspended account writes; guests
   read. Plain text ≤ 250 characters (owner, round 13) with the account name, each
   name in a stable colour of its own (feedback round 2); no answers
-  or threads. The board shows the latest 50 notes; a note is removed
-  after 30 days. The writer removes their own; Report as for
+  or threads. The board shows the latest 50 notes, with no age limit;
+  a note stays until the writer removes it, the admin deletes it or the
+  account is deleted (owner, 2026-11-17; ADR 0155 addendum). The writer removes their own; Report as for
   comments; 5 notes a day per account. Desktop: under the list,
   every note whole; phone: a tab (round 13).
 - **Guests** on the watch page see "Log in to comment" and "Log in to
@@ -1495,7 +1496,7 @@ publication(id, account, title, description, character, level,
             vote_sum, vote_count, comment_count)
 vote(publication, account, stars)            PRIMARY KEY (publication, account)
 comment(id, publication, account, text, created, state)
-note(id, account, text, created, state)      -- Random Runes; pruned at 30 days
+note(id, account, text, created, state)      -- Random Runes; no age limit
 report(id, kind, target, account, reason, created, handled)
 presence(device, first_seen, last_seen, state, type, browser, version,
          day, beats, play_beats, prev_day, prev_beats, prev_play_beats)
