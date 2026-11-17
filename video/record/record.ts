@@ -20,11 +20,20 @@ import type { Scene } from './lib/scene.ts';
 import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
 import { bree } from './scenes/bree.ts';
+import { devicesDesktop, devicesPhone, devicesTablet } from './scenes/devices.ts';
 import { part1 } from './scenes/part1.ts';
 import { takeA } from './scenes/take-a.ts';
 import { takeB } from './scenes/take-b.ts';
 
-const SCENES: Record<string, Scene> = { bree, part1, 'take-a': takeA, 'take-b': takeB };
+const SCENES: Record<string, Scene> = {
+  bree,
+  part1,
+  'take-a': takeA,
+  'take-b': takeB,
+  'devices-desktop': devicesDesktop,
+  'devices-tablet': devicesTablet,
+  'devices-phone': devicesPhone,
+};
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(VIDEO, 'public/recordings');
@@ -54,7 +63,8 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
     const { page } = await newPage(browser, mode, BASE, scene.page);
     const state = await scene.setup(page);
     const marks = new Marks(mode.dpr);
-    const cast = new Screencast(page, { width: VIEWPORT.width * mode.dpr, height: VIEWPORT.height * mode.dpr, format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
+    const vp = scene.page?.viewport ?? VIEWPORT;
+    const cast = new Screencast(page, { width: Math.round(vp.width * mode.dpr), height: Math.round(vp.height * mode.dpr), format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
     try {
       await cast.start();
       try {
@@ -78,7 +88,7 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
       console.log(`  ${' '.repeat(modeName.length)}  ${fmt(all)}  [whole capture]`);
       console.log(`  frames per second: ${cast.perSecond().join(' ')}`);
       const size = await imageSize(cast.frames[0]!.file);
-      if (size.width !== VIEWPORT.width * mode.dpr) console.warn(`  frames are ${size.width}×${size.height}, not ${VIEWPORT.width * mode.dpr} wide: downscaled`);
+      if (size.width !== Math.round(vp.width * mode.dpr)) console.warn(`  frames are ${size.width}×${size.height}, not ${vp.width * mode.dpr} wide: downscaled`);
       if (!keep) return active;
       mkdirSync(OUT, { recursive: true });
       const te = Date.now();

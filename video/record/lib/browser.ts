@@ -46,6 +46,8 @@ export const MODES: Record<string, CaptureMode> = {
   'intel-1.5-png': { headed: false, dpr: 1.5, channel: 'chromium', args: INTEL, format: 'png' },
   // 1600×900 CSS at 1.2 is 1920×1080: the film's own size, no scaling after.
   'intel-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: INTEL, format: 'png' },
+  // A tablet (820×1180 CSS) at its own size: no more pixels than the film can show of it.
+  'intel-1-png': { headed: false, dpr: 1, channel: 'chromium', args: INTEL, format: 'png' },
   'nvidia-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: NVIDIA, format: 'png' },
   'intel-1.2-q100': { headed: false, dpr: 1.2, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 100 },
   'intel-2-png': { headed: false, dpr: 2, channel: 'chromium', args: INTEL, format: 'png' },
@@ -110,10 +112,19 @@ export interface PageOptions {
    * stars and anything else random come out the same on every take.
    */
   seed?: number;
+  /** The page's size in CSS px (default VIEWPORT). */
+  viewport?: { width: number; height: number };
+  /** A phone or tablet: mobile and touch emulation (ADR 0140: a touch device's layout follows its size). */
+  mobile?: boolean;
 }
 
 export async function newPage(browser: Browser, mode: CaptureMode, baseURL: string, o: PageOptions = {}): Promise<{ ctx: BrowserContext; page: Page }> {
-  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: mode.dpr, baseURL });
+  const ctx = await browser.newContext({
+    viewport: o.viewport ?? VIEWPORT,
+    deviceScaleFactor: mode.dpr,
+    baseURL,
+    ...(o.mobile ? { isMobile: true, hasTouch: true } : {}),
+  });
   if (o.now !== undefined) {
     await ctx.addInitScript((shift) => {
       const Real = Date;
