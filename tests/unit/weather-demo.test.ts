@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
 import { TURN_FULL, TURN_S } from '../../src/weather/sunturn';
 import { DEMO_SCRIPTS, DEMO_STEPS, DEMO_TURN_SPEED, SUNRISE_STEPS, SUNSET_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
-import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
+import { BALLOONS_DESKTOP_ONLY, Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
 import { ALL_CATEGORIES, type Categories, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
@@ -52,8 +52,8 @@ describe('the demo script', () => {
     for (const e of ['sun.rise', 'sun.set', 'strike', 'gust', 'birds', 'glimpse', 'insect', 'shoot', 'darkness.start', 'darkness.end'] as const) expect(emits, e).toContain(e);
     // the moon by a clock of the demo's, never by a pinned place (item 108: it jumped)
     expect(acts.filter((a) => 'moon' in a)).toHaveLength(1);
-    // a kill's balloon (stage 69)
-    expect(acts.filter((a) => 'balloon' in a)).toEqual([{ balloon: 'great' }]);
+    // a kill's and a level up's balloons (stage 69)
+    expect(acts.filter((a) => 'balloon' in a)).toEqual([{ balloon: 'great' }, { balloon: 'levelup' }]);
     expect(pins.some((p) => p.moonUp === true || (p.moonU ?? -1) >= 0)).toBe(false);
   });
 
@@ -173,7 +173,7 @@ describe('#weather arguments', () => {
     for (const sc of ['snow', 'birds', 'rain'] as const) expect(parseWeatherCommand(`demo ${sc}`)).toEqual({ kind: 'demo', scene: sc, pace: 1 });
     // a balloon notice for a made-up kill (stage 69)
     expect(parseWeatherCommand('balloon')).toEqual({ kind: 'balloon', what: null });
-    for (const w of ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'burst'] as const) expect(parseWeatherCommand(`balloon ${w.toUpperCase()}`)).toEqual({ kind: 'balloon', what: w });
+    for (const w of ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'levelup', 'death', 'achievement', 'burst'] as const) expect(parseWeatherCommand(`balloon ${w.toUpperCase()}`)).toEqual({ kind: 'balloon', what: w });
     for (const a of ['balloon wow', 'balloon great x2', 'demo balloon']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
@@ -422,6 +422,16 @@ describe('the demo runner', () => {
     h.host.controller = null;
     await vi.advanceTimersByTimeAsync(6_000);
     expect(demo.ended).toBe('gone');
+  });
+
+  it('#weather balloon in the phone or tablet layout: desktop only, nothing loaded (stage 69 round 2)', async () => {
+    settings.update({ weather: { enabled: true } });
+    const h = fakeHost();
+    const balloons = vi.fn(async () => null);
+    h.host.controller!.balloons = balloons;
+    await weatherCommand(h.host, { settings, cockpit: { el: root, gameEl: game, isPhoneGame: true } as never }, 'balloon levelup', say);
+    expect(said.at(-1)).toBe(BALLOONS_DESKTOP_ONLY);
+    expect(balloons).not.toHaveBeenCalled();
   });
 
   it('prints the usage for anything else', async () => {

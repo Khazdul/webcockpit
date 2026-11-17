@@ -19,16 +19,18 @@
 // - The end, `#weather stop`, and the effects being switched off all end it;
 //   the first two unpin everything, so the effects follow the game's values
 //   again with the normal transitions.
-// - `#weather balloon [face|burst]` (stage 69, ADR 0159): a balloon notice
-//   for a made-up kill, so the look and the flight can be tried without a
-//   fight; it needs the effects on and shows even with Balloons off. The
-//   demo's "A kill" step shows one the same way.
+// - `#weather balloon [face|levelup|death|achievement|burst]` (stage 69,
+//   ADR 0159): a balloon notice for a made-up kill or moment, so the look
+//   and the flight can be tried without a fight; it needs the effects on
+//   and shows even with Balloons off. Desktop only: in the phone's layout
+//   it says so. The demo's "A kill and a level up" step shows two the same
+//   way (not on the phone).
 // - Main thread cost: a timer per scripted action, and a few static DOM
 //   writes per step for the caption (its fades and progress bar are CSS
 //   transitions). Nothing runs per frame.
 
 import './demo.css';
-import { BURST_GAP_MS, type Face, type KillNotice, SAMPLE_BURST, SAMPLE_KILLS } from './balloons/feed';
+import { BURST_GAP_MS, type Face, type Notice, SAMPLE_BURST, type SampleWord, SAMPLE_KILLS, sampleNotice } from './balloons/feed';
 import { categoriesOf } from './controller';
 import { DEMO_SCRIPTS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
 import type { WeatherHookDeps } from './hook';
@@ -45,7 +47,7 @@ export interface DemoController {
   };
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
   /** The balloon notices, loaded even with Balloons off (controller.ts). */
-  balloons?(force: true): Promise<{ show(k: KillNotice): void } | null>;
+  balloons?(force: true): Promise<{ show(n: Notice): void } | null>;
 }
 
 export interface DemoHost {
@@ -94,8 +96,15 @@ export async function weatherCommand(
 
 const RATED: readonly Face[] = ['poor', 'meh', 'good', 'great', 'superb'];
 
-/** `#weather balloon [face|burst]`: a made-up kill's balloon (or four kills in two seconds). */
-async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings'>, what: Face | 'burst' | null, say: (text: string) => void): Promise<void> {
+/** Said by `#weather balloon` in the phone's layout. */
+export const BALLOONS_DESKTOP_ONLY = 'Balloons are desktop only for now; they do not fly in the phone or tablet layout.';
+
+/** `#weather balloon [face|levelup|death|achievement|burst]`: a made-up notice's balloon (or four kills in two seconds). */
+async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings' | 'cockpit'>, what: SampleWord | 'burst' | null, say: (text: string) => void): Promise<void> {
+  if (d.cockpit.isPhoneGame) {
+    say(BALLOONS_DESKTOP_ONLY);
+    return;
+  }
   const w = d.settings.get().weather;
   if (!w.enabled) {
     say('Balloons fly with the weather effects: turn on Settings → Weather effects first.');
@@ -109,7 +118,7 @@ async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings
   }
   if (!w.balloons) say('Balloons are off in Settings → Weather effects; this one flies anyway.');
   if (what === 'burst') SAMPLE_BURST.forEach((k, i) => setTimeout(() => b.show(k), i * BURST_GAP_MS));
-  else b.show(SAMPLE_KILLS[what ?? RATED[Math.floor(Math.random() * RATED.length)]!][0]!);
+  else b.show(what ? sampleNotice(what) : SAMPLE_KILLS[RATED[Math.floor(Math.random() * RATED.length)]!][0]!);
 }
 
 /** The running demo for `hook` (tests, dev). */
@@ -240,8 +249,9 @@ export class Demo {
       this.pinned = { ...this.pinned, moonUp: true, moonPhase: a.moon.phase, moonRiseAt: rise, moonSetAt: rise + (a.moon.up * 1000) / this.plan.pace };
       ctl.pin(this.pinned, { smooth: true });
     } else if ('balloon' in a) {
-      const k = SAMPLE_KILLS[a.balloon][0]!;
-      void ctl.balloons?.(true).then((b) => b?.show(k));
+      // Desktop only: the phone's layout never loads the balloons (the controller says null).
+      const n = sampleNotice(a.balloon);
+      void ctl.balloons?.(true).then((b) => b?.show(n));
     } else this.release();
   }
   /** The engine's own pace again, if the demo changed it. */

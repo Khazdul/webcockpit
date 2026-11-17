@@ -12,7 +12,9 @@
 // Balloon notices (stage 69, ADR 0159): while Weather effects → Balloons is
 // on (or `#weather balloon` / the demo asks for one: `balloons(true)`), the
 // balloons' own lazy chunk (balloons/notices.ts) runs beside the engine;
-// switching Balloons off unloads it, and so does `destroy`.
+// switching Balloons off unloads it, and so does `destroy`. Desktop only
+// (owner, round 2): in the phone's layout (phone or tablet) the chunk is
+// never loaded, forced or not.
 
 import type { WeatherHookDeps } from './hook';
 import { createWeather, type Weather } from './index';
@@ -99,7 +101,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
   let balloons: Balloons | null = null;
   let balloonsLoading: Promise<Balloons | null> | null = null;
   let forced = false;
-  const wantBalloons = (): boolean => !destroyed && (forced || settings.get().weather.balloons);
+  const wantBalloons = (): boolean => !destroyed && !cockpit.isPhoneGame && (forced || settings.get().weather.balloons);
   const syncBalloons = (): Promise<Balloons | null> => {
     if (!wantBalloons()) {
       balloons?.destroy();
