@@ -337,7 +337,8 @@ describe('cron: sample, roll-up, pruning', () => {
   it('the scheduled handler runs the cron', async () => {
     await recordBeat(db, beatOf(), at10);
     const ctx = createExecutionContext();
-    worker.scheduled(createScheduledController({ cron: SAMPLE_CRON, scheduledTime: at10 + 60_000 }), realEnv, ctx);
+    // The flag `mume` off: on (its default since 2026-11-17) the cron fetches from MUME itself, which a test must not (it hung here).
+    worker.scheduled(createScheduledController({ cron: SAMPLE_CRON, scheduledTime: at10 + 60_000 }), envWith({ FLAG_MUME: false }), ctx);
     await waitOnExecutionContext(ctx);
     expect(await count('stat_sample')).toBe(1);
     // 0.7 s here; a slow CI runner once passed 5 s and stopped the 0.15.0 deploy.
