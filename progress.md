@@ -71,7 +71,8 @@
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Done; released 0.16.0, the owner's feedback in 0.16.1 (2026-11-17) | `docs/stages/68-owner-fixes.md` |
-| 70 | Presentation film 2 | In progress (prototype for the owner) | `docs/stages/70-presentation-film-2.md` |\n| 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
+| 70 | Presentation film 2 | In progress (prototype for the owner) | `docs/stages/70-presentation-film-2.md` |
+| 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
