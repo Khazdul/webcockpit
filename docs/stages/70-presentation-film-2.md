@@ -91,7 +91,7 @@ old film's manuscript, scenes and takes stay for reference.
 
 ### 70b — the full draft (acts 0–8)
 
-1. Open `video/out/film2-draft.mp4` (6:01), or `film2-draft-small.mp4`
+1. Open `video/out/film2-draft.mp4` (5:58), or `film2-draft-small.mp4`
    on the phone. Acts 0–4 are as approved; the new part starts at 2:57.
 2. What it shows:
    - 2:57–3:57 act 5: the inn with the barman behind; Profile (`fk` →
@@ -100,13 +100,13 @@ old film's manuscript, scenes and takes stay for reference.
    - 3:57–5:06 act 6: Exit, History (the log player in the wolf fight,
      Rasta's Half-Elf spotlight, Diary), Create account (`demo`, a fake
      account), then the same account on a phone with the Bree session.
-   - 5:06–5:49 act 7: Share → Hall of Fame → the rules → Publish → the
+   - 5:06–5:46 act 7: Share → Hall of Fame → the rules → Publish → the
      link → Open Community (the real log, Random Runes, warlords, players
      online) → the real log's watch page.
-   - 5:49–6:01 act 8: back to the start page at sunrise, the end card,
+   - 5:46–5:58 act 8: back to the start page at sunrise, the end card,
      the fade.
 3. Feedback wanted:
-   - The length: 6:01, about 30–45 s over the 5:15–5:30 aim. Where to cut
+   - The length: 5:58, about 30–40 s over the 5:15–5:30 aim. Where to cut
      (candidates: the Timers drag, Diary, the Log in page before Create
      account, the export editor's hold).
    - Hall of Fame (listed) instead of a plain Link, so Open Community
