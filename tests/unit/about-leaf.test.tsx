@@ -519,7 +519,9 @@ describe('privacy: the community section (stage 65)', () => {
     expect(on.text.indexOf(PRIVACY_COMMUNITY)).toBeLessThan(on.text.indexOf('WHO RUNS IT'));
     expect(on.nav.map((n) => n.id)).toEqual(['share', 'community', 'who']);
     expect(on.nav[1]).toBe(PRIVACY_COMMUNITY_NAV);
-    expect(PRIVACY_COMMUNITY).toContain('30 days');
+    // A note has no age limit (ADR 0155 addendum 2026-11-17).
+    expect(PRIVACY_COMMUNITY).toContain('It stays until you remove it or delete your account.');
+    expect(PRIVACY_COMMUNITY).not.toMatch(/\d+ days/);
     expect(PRIVACY_COMMUNITY).toContain('account name');
     // Comments and notes are public with the account name, guests included.
     expect(PRIVACY_COMMUNITY).toMatch(/Comments +A comment on a log's watch page is public: it is shown under the log with your account name.*with or without an account/);
