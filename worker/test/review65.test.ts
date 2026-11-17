@@ -272,6 +272,7 @@ describe('CR5: GET /api/community imports the HMAC key once and batches its read
   it('one key import for many runs; the list reads in one batch', async () => {
     const alice = await signUp('alice');
     for (let i = 0; i < 6; i++) await list(alice, { now: NOW - 2 * DAY + i, seed: i + 1 });
+    await db.prepare('UPDATE publication SET vote_count = 5').run();
     const counted = countingDb();
     const spy = vi.spyOn(crypto.subtle, 'importKey');
     try {

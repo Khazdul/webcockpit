@@ -99,10 +99,16 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-17 — The Hall of Fame's five-vote floor
+
+- **Done:** the owner's rule: a log enters the Hall of Fame only with at least five votes (`HALL_OF_FAME_MIN_VOTES`, `GET /api/community`; all votes, not only ranking ones; the gallery's sorts unchanged). The Hall of Fame's texts say so. ADR 0155 addendum. Worker tests 387/387, community e2e 49/49.
+- **Next:** release (the Worker change needs a deploy).
+- **Commits:** this one.
+
 ### 2026-11-17 — Share on the watch page
 
 - **Done:** the owner missed a Share button on the community's watch page. `Share` (S) in the band beside Report: the run's own link `<origin>/r/<id>` (no `?from=`), the share sheet on a touch device that has one, else the clipboard with "Link copied." Public view only (not the sender's hidden run, not `?admin`). E2e test added; watch-page specs green (desktop and phone).
-- **Released** as 0.17.1 on the owner's word. Next: the owner tries it on the live site.
+- **Released** as 0.17.1 on the owner's word (deploy run 44154516516, `test:prod` 36/36). Next: the owner tries it on the live site.
 - **Commits:** this one.
 
 ### 2026-11-17 — Stage 69 round 2 and release 0.17.0

@@ -51,6 +51,7 @@ import {
   type GalleryPeriod,
   type GalleryRow,
   type GallerySort,
+  HALL_OF_FAME_MIN_VOTES,
   HALL_OF_FAME_SIZE,
   NEWS_MAX,
   NOTE_MAX,
@@ -358,16 +359,26 @@ const SEARCH = (n: number): string =>
 /**
  * Listed active runs, listed at or after `since`, in `sort`'s order; only
  * the account `by` (its id) when it is given, only those a search `q`
- * finds when it is given.
+ * finds when it is given; only those with at least `minVotes` votes (the
+ * Hall of Fame's floor).
  */
-function listRowsQuery(db: D1, sort: GallerySort, since: number, limit: number, offset: number, by: string | null = null, q: string | null = null): D1Statement {
+function listRowsQuery(
+  db: D1,
+  sort: GallerySort,
+  since: number,
+  limit: number,
+  offset: number,
+  by: string | null = null,
+  q: string | null = null,
+  minVotes = 0,
+): D1Statement {
   const mean = sort === 'top' ? `, (SELECT ${MEAN} AS mean) m` : '';
   return db
     .prepare(
       `SELECT ${LIST_COLUMNS} FROM publication p JOIN account a ON a.id = p.account${mean}
-       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) AND ${SEARCH(5)} ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
+       WHERE ${LISTED} AND p.listed_at >= ?1 AND (?4 IS NULL OR p.account = ?4) AND ${SEARCH(5)} AND p.vote_count >= ?6 ORDER BY ${ORDER[sort]} LIMIT ?2 OFFSET ?3`,
     )
-    .bind(since, limit, offset, by, q);
+    .bind(since, limit, offset, by, q, minVotes);
 }
 
 /** How many runs `listRows` can reach (the pager's "of N", cut to GALLERY_PAGE_SIZE × GALLERY_PAGES_MAX by the caller). */
@@ -515,7 +526,7 @@ async function boxes(env: Env, db: D1, now: number, mumeOn: boolean): Promise<Re
   const [[ids, hall], mume] = await Promise.all([
     db.batch<Record<string, unknown>>([
       db.prepare(`SELECT p.id FROM publication p WHERE ${LISTED} AND p.listed_at < ?1`).bind(dayStart(day)),
-      listRowsQuery(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
+      listRowsQuery(db, 'top', 0, HALL_OF_FAME_SIZE, 0, null, null, HALL_OF_FAME_MIN_VOTES),
     ]),
     mumeOn ? readMume(db, now) : undefined,
   ]);

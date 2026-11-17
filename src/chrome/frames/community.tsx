@@ -766,7 +766,7 @@ function RunList(p: RunListProps): VNode {
             </>
           ) : (
             <>
-              <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
+              <p class="wc-lk-q">Nothing in the Hall of Fame yet. A log needs five votes to enter.</p>
               <p class="wc-lk-qn">{p.guest ? 'Logs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
             </>
           )
@@ -1046,7 +1046,7 @@ function Dashboard(p: DashProps): VNode {
             onRetry={p.onRetry}
             empty={
               <>
-                <p class="wc-lk-q">Nothing in the Hall of Fame yet.</p>
+                <p class="wc-lk-q">Nothing in the Hall of Fame yet. A log needs five votes to enter.</p>
                 <p class="wc-lk-qn">{p.guest ? 'Logs come here when players publish them.' : 'Be the first: in History, Share a session and choose Hall of Fame.'}</p>
               </>
             }
@@ -1079,13 +1079,13 @@ function HallPage(p: { boxes: BoxesState; me: string | null; onBy(name: string):
   if (b === 'failed' || b.hallOfFame.length === 0) {
     return (
       <div class="wc-cy-wait" data-state="empty">
-        <p class="wc-lk-q">{b === 'failed' ? 'The Hall of Fame could not be loaded.' : 'Nothing in the Hall of Fame yet.'}</p>
+        <p class="wc-lk-q">{b === 'failed' ? 'The Hall of Fame could not be loaded.' : 'Nothing in the Hall of Fame yet. A log needs five votes to enter.'}</p>
       </div>
     );
   }
   return (
     <section class="wc-cy-list is-narrow wc-cy-hofpage" data-box="hof" aria-label="Hall of Fame">
-      <p class="wc-cy-hofnote">The best logs of all time, by their stars.</p>
+      <p class="wc-cy-hofnote">The best logs of all time, by their stars. A log needs five votes to enter.</p>
       <div class="wc-lk-tbl wc-cy-tbl" role="table">
         <div class="wc-lk-tbody wc-cy-rows" role="rowgroup">
           {b.hallOfFame.map((r, i) => (

@@ -1103,7 +1103,7 @@ export const DAY_RUN_DESCRIPTION_MAX = 300;
  * (worker/mume.ts `readMume`, stage 65 C5).
  */
 export interface CommunityBoxes {
-  /** Top's first `HALL_OF_FAME_SIZE` over all time. */
+  /** Top's first `HALL_OF_FAME_SIZE` over all time, among runs with at least `HALL_OF_FAME_MIN_VOTES` votes. */
   hallOfFame: GalleryRow[];
   today: DayRun | null;
   mume?: MumeBoxes;
@@ -1134,6 +1134,8 @@ export const MUME_CACHE_KEYS = ['war', 'players'] as const;
 export const MUME_KEEP_HOURS = 24;
 
 export const HALL_OF_FAME_SIZE = 8;
+/** A run enters the Hall of Fame only with at least this many votes (the owner, 2026-11-17). */
+export const HALL_OF_FAME_MIN_VOTES = 5;
 
 /**
  * `PUT /api/u/pub/<id>/vote` `{stars: 1–5}` → `VoteAnswer`; `DELETE` takes

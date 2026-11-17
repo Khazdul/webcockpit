@@ -1515,3 +1515,14 @@ paragraph.
   by the cron, a hidden one too; the board is the newest 50 by count),
   tests/e2e/community-page.spec.ts (a 40-day note shown, the heading),
   tests/unit/about-leaf.test.tsx (the privacy line).
+
+## Addendum 2026-11-17: the Hall of Fame's floor
+
+The owner: a log is not shown in the Hall of Fame until it has at least
+five votes. `HALL_OF_FAME_MIN_VOTES = 5` (shared/cloud/api.ts); the boxes'
+query (`GET /api/community`) adds `p.vote_count >= 5`. All votes count, as
+the stars beside a run show them, not only the ranking ones (`top_count`):
+the floor is what a reader can count; the order inside stays Top's. The
+gallery's sorts (Log, Stars, Com., Views) are unchanged, so a new log is
+still found there and can collect its votes. The Hall of Fame's texts say
+"A log needs five votes to enter."

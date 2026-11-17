@@ -244,9 +244,11 @@ describe('GET /api/community', () => {
     const b1 = await list(bob, { now: NOW - 2 * DAY, seed: 3 });
     const fresh = await list(bob, { now: NOW, seed: 4 });
     await db.prepare('UPDATE publication SET description = ?1').bind(`${'é'.repeat(299)}🐉 and more`).run();
+    // The Hall of Fame's floor (the owner, 2026-11-17): five votes; `fresh` has four.
+    await db.prepare('UPDATE publication SET vote_count = CASE id WHEN ?1 THEN 4 ELSE 5 END').bind(fresh).run();
     const boxes = await ok<CommunityBoxes>(await ccall('GET', '/api/community'));
     expect(Object.keys(boxes).sort()).toEqual(['hallOfFame', 'time', 'today']);
-    expect(boxes.hallOfFame.map((r) => r.id).sort()).toEqual([a1, a2, b1, fresh].sort());
+    expect(boxes.hallOfFame.map((r) => r.id).sort()).toEqual([a1, a2, b1].sort());
     expect([a1, a2, b1]).toContain(boxes.today!.id);
     expect(boxes.today!.description).toBe(`${'é'.repeat(299)}🐉`);
     expect(boxes.today!.sender).toMatch(/^(alice|bob)$/);
