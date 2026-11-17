@@ -188,7 +188,8 @@ function audit(page: Page, roots: string[]): Promise<Finding[]> {
             seen.add(el);
             if (el instanceof HTMLInputElement && el.type === 'password') continue;
             if (el.value !== '') measure(el, el.value, getComputedStyle(el).color);
-            else if (el.placeholder) measure(el, el.placeholder, getComputedStyle(el, '::placeholder').color);
+            // The command field's placeholder is drawn by the page (`.wc-input-ph`, measured as text).
+            else if (el.placeholder && !el.nextElementSibling?.classList.contains('wc-input-ph')) measure(el, el.placeholder, getComputedStyle(el, '::placeholder').color);
             continue;
           }
           const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');

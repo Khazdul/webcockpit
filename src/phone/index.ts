@@ -141,6 +141,8 @@ const OKB_POINTER_FOCUS_MS = 700;
 const SAT_PX = 40;
 /** The key row's air under what is above it (the lens hidden). */
 const SATROW_GAP = 8;
+/** The command field's grey text while it is empty (`placeholder`). */
+const PLACEHOLDER = 'Command';
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
 const LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 
@@ -1382,13 +1384,30 @@ class Layer {
    * password field the input pane swaps in while MUME asks for a password.
    * Should the password field be in place now, the textarea gets it when
    * it comes back (one observer on the field's wrapper, gone after that).
+   *
+   * The text on screen is our own (`.wc-input-ph`, right after the field,
+   * shown by phone.css while the field's `:placeholder-shown`); the native
+   * placeholder stays for the accessible name and is painted transparent.
+   * iPad Safari laid out a one-row textarea's own placeholder wrongly once
+   * the line had been typed in and erased: only "Co" showed, the rest cut
+   * off (0.16.0, the owner). A span lies on the field as the suggestion and
+   * the password's bullets do, and is clipped by the field's box alone.
    */
   private placeholder(): void {
     const slot = this.deps.cockpit.inputEl;
     const set = (): boolean => {
       const ta = slot.querySelector<HTMLTextAreaElement>('textarea.wc-input-field');
-      if (ta) ta.placeholder = 'Command';
-      return ta !== null;
+      if (!ta) return false;
+      ta.placeholder = PLACEHOLDER;
+      const next = ta.nextElementSibling;
+      if (!next?.classList.contains('wc-input-ph')) {
+        const ph = ta.ownerDocument.createElement('span');
+        ph.className = 'wc-input-ph';
+        ph.setAttribute('aria-hidden', 'true');
+        ph.textContent = PLACEHOLDER;
+        ta.after(ph);
+      }
+      return true;
     };
     if (set()) return;
     const wrap = slot.querySelector('.wc-input-wrap');
