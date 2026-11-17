@@ -106,8 +106,9 @@ with no stage of their own. Remove a line when it is done.
   an emergency brake for the cron's fetch and the boxes; ADR 0155
   addendum); `/privacy` says comments and runes are public with the
   account name (dated 17 November). Typecheck, unit 5 481 passed.
-- **Not done:** push to staging (the session's permission check refused
-  `git push`); the owner pushes. `test:prod` against production fails on
+- **Staging:** the owner pushed and dispatched the deploy (run
+  44106949463, success); `/api/config` has `mume`; `test:prod` 36/36
+  against staging. Production untouched. `test:prod` against production fails on
   the flag list until the next release carries `mume`.
 - **Next:** the owner's test list (stage 68 guide, the community's
   opening, the report mail, Discord); the Loose ends as a polish stage.
