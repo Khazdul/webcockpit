@@ -679,3 +679,34 @@ by the takes and the composition; 55 s):
 - Capture: phone 20.8 fps mean over 58 s (30 a second while the sky
   moves, about 12 after Messages opens: what changes is small), tablet
   21.2, desktop 14.6 (only 9.5 s, mostly quiet).
+
+## Addendum (2026-11-17): film 2, acts 0-4
+
+`Film2` (`src/compositions/Film2.tsx`) holds acts 0-4 of
+`video/manuscript-2.md` draft 2 so far (2:57); render with the h264
+config as the prototype.
+
+- **One desktop take for acts 0-3 and the desktop part of act 4**
+  (`record/scenes/film2-a.ts`, about 2:11 of real time), timed by picture
+  from its `film0` marker (no beat lock). Its last segment, the first
+  wolf, runs to run second 119.0; there the take sets `sync` and plays the
+  device act's own steps on the device act's clock (`deviceSteps`,
+  `src/devices.ts`). The composition plays the take to `sync`, then
+  `DevicesAct` (the prototype's act, made reusable) with this take as its
+  desktop: the act's first frame is the take's own (the monitor's screen
+  exactly fills the frame, square-cornered and without the glass sheen
+  until the camera pulls back), so act 3 runs into act 4 without a cut
+  (adjacent frames at the join: 74 dB PSNR).
+- **What the touch devices must share with it**: the game (the same
+  steps from 119.0 s), the Comm history (the takes send act 1's staged
+  lines in their off-camera pre-play) and the sky: film2-a's storm clears
+  to `CLEAR_NIGHT` (`record/lib/film-state.ts`) before the wolves, and the
+  device takes pin the same.
+- **Take A's pane steps** (Panes, a gear with its tooltip, a setting after
+  a rest) moved to `record/lib/film-ui.ts`, shared by take A and film2-a.
+- **Comm floats** (top right, 55×21 cells) in act 1 and is switched off
+  before the gate; the right dock's lane keeps no pane, so the map docks
+  as wide as in film 1. Statistics floats above Group, left of the map
+  (32×15 cells).
+- One take showed no Timers pane although its switch was on (the next
+  take, unchanged, did); the scene now warns if it happens.

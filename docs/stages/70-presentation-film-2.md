@@ -62,9 +62,9 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Community capture (`video/private/community/`) and its loader.
 - [x] Simulated Comm lines (feed helper, invented names; `video/feeds/comm.ts`).
 - [x] Detailed manuscript (`video/manuscript-2.md`, draft 2).
-- [ ] Acts 0–3 recorded (night, Bree, the wilds, the wolves).
+- [x] Acts 0–3 recorded (night, Bree, the wilds, the wolves; take `film2-a`, `video/out/film2-draft.mp4`).
 - [ ] Acts 5–6 recorded (make it yours; memory and the account).
-- [ ] Act 4 in the film (the approved device prototype).
+- [x] Act 4 in the film (the approved device prototype; `DevicesAct`, joined to act 3 without a cut).
 - [ ] Acts 7–8 recorded (community, dawn).
 - [ ] The `Film2` composition, full cut, music laid under.
 - [ ] Owner feedback rounds.
