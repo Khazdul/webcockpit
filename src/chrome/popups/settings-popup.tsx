@@ -68,7 +68,7 @@ import {
   groupDigits,
   parseHex,
 } from '../appearance-model';
-import { DAY_SKY_HELP, MASTER_HELP, WEATHER_ROWS, WEATHER_UNSUPPORTED } from '../weather-model';
+import { BALLOONS_ROW, DAY_SKY_HELP, MASTER_HELP, WEATHER_ROWS, WEATHER_UNSUPPORTED } from '../weather-model';
 import { useServices, useSettings } from '../kit/hooks';
 import { type Choice, type DropdownOption, Dropdown, GhostButton, Row, Segmented, Slider, SwatchGrid, Tabs, Toggle } from './controls';
 import { MapperSettings } from './mapper-settings';
@@ -473,6 +473,9 @@ function WeatherPage(): VNode {
             )}
           </>
         ))}
+        <Row label={BALLOONS_ROW.label} top help={BALLOONS_ROW.help} dim={!w.enabled} class="wc-sp-wx-balloons">
+          <Toggle label={BALLOONS_ROW.label} on={w.balloons} onChange={(on) => flip('balloons', on)} />
+        </Row>
       </div>
     </div>
   );

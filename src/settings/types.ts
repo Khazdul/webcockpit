@@ -390,6 +390,13 @@ export interface WeatherSettings {
   darkness: boolean;
   /** Sleeping, stunned, incapacitated, dying. */
   body: boolean;
+  /**
+   * Balloon notices (stage 69, ADR 0159): a goblin in a balloon shows each
+   * kill and its XP. Off by default, new and stored settings alike (an
+   * additive field: a missing one is off, no settings version). Not a
+   * worker category: the balloons are main-thread DOM (src/weather/balloons/).
+   */
+  balloons: boolean;
 }
 
 /** The six categories, in the Options page's order. */
@@ -742,7 +749,7 @@ export function defaultSettings(): Settings {
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
-    weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
+    weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true, balloons: false },
     windows: { profile: null, scripts: null },
     phone: defaultPhoneSettings(),
   };
