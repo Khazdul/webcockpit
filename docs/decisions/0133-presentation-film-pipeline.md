@@ -710,3 +710,62 @@ config as the prototype.
   (32×15 cells).
 - One take showed no Timers pane although its switch was on (the next
   take, unchanged, did); the scene now warns if it happens.
+
+## Addendum (2026-11-18): film 2, acts 5-8
+
+`Film2` now holds the whole of `video/manuscript-2.md` draft 2. After
+act 4 (the phone in landscape at the Prancing Pony's sign) a plain cut
+goes to a second desktop take:
+
+- **Take B** (`record/scenes/film2-b.ts`), one continuous take timed by
+  picture from its `film0` marker. Off camera the run is played fast to
+  the sign (run 152.1 s), with the panes as act 3 leaves them (Map
+  docked; Statistics, Group, Timers floating; NPCs All, Fight card; the
+  clear night; khazdul), so the cut finds the same character in the same
+  place. On camera: the inn at 2.2×, the barman's monologue at 1× behind
+  Profile and Scripts, Timers dragged to the left dock and back out to
+  float (`Pointer.hoverPoint` and `Pointer.dragTo`; a docked pane floats
+  at the standard 36 × 14 cells, so it is dropped with its top at row 34,
+  clear of the menu bar), Exit, History's three
+  tabs, Create account, the share, Community, the watch page and the
+  start page at sunrise.
+- **The phone shot** (`record/scenes/film2-phone.ts`, 390 × 844, DPR
+  1.2): the same account logged in on the phone, History with the Bree
+  session. The composition cuts to it at take B's `phone-out` and back at
+  `phone-in` (`film2Plan`), drawn in the device act's phone frame
+  (`Slab`, `Screen` from `DevicesProto.tsx`), right of the middle so the
+  account's caption stays clear of it. Its schedule is `PHONE_SHOT` in
+  `src/devices.ts`.
+- **The account** is made on camera on the cloud fakes (name `demo`, a
+  made-up password, typed masked; Turnstile is the e2e stub, which shows
+  "Success!"). Making it moves the device's runs into the account and
+  reloads the page. The phone take, a browser of its own, logs in to the
+  same account on its own fake server and gets the film's runs restored
+  into the account's space: the same runs, put in place rather than
+  synced.
+- **History holds the film's runs only.** The take's own live session is
+  removed after Exit (`remove` on every unsaved session), so the desktop's
+  and the phone's History agree.
+- **Sharing** uses the export editor's Hall of Fame format (the listed
+  form of Link): the dialog with the rules, Publish, the link, and its
+  Open Community, which leads straight to the Community page, where the
+  film's run is listed under New beside the real one. The link field
+  shows the dev server's address, so the take rewrites the field's text to
+  `https://mumecockpit.com/r/<id>` (the page only; nothing else changes).
+- **Community content** is the capture re-taken before the take
+  (1 listed run, no stars, no comments, 2 Random Runes notes, no Hall of
+  Fame). With nothing to show on the watch page's side, the real log's
+  watch page plays a few seconds of the run, 40 s in.
+- **Dawn by the app's own reload.** While the watch page is up, MUME's
+  clock is moved to 05:05 (game minutes; the film's pin). Back on the
+  watch page loads `/?community&cloudtest`, and the start page comes up
+  under a sunrise; Back from Community shows the menu, the quote fades,
+  the end card comes up 1.6 s later and holds 4.2 s, then picture and
+  music fade together over 3 s.
+- **Input across page loads.** The take reloads three times (the account,
+  the watch page, its Back), and the watch page's replay is a sandboxed
+  iframe. The recorder's input log now lives in `sessionStorage` across a
+  tab's loads, and a frame posts its events to the page, which places them
+  by the frame's box, so the drawn pointer follows over the replay too.
+- The game clock is in game minutes (1 real s = 1 game minute): the
+  start page at act 6 is 00:40 on the opening's night.
