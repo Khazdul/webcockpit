@@ -1,6 +1,6 @@
 // Random Runes (stage 65, ADR 0155): the board, writing and removing a
 // note, the day's limit under parallel posts, the text rules, the flags,
-// the cron's 30 days, reports, the admin and Delete account.
+// no age limit (ADR 0155 addendum 2026-11-17), the cron, reports, the admin and Delete account.
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdminReports, RunesBoard } from '../../shared/cloud/api.ts';
 import { DAILY_CRON, runCron } from '../stats.ts';
@@ -68,26 +68,38 @@ describe('Random Runes', () => {
     expect((await db.prepare('SELECT text, state FROM note').first())).toEqual({ text: '', state: 'removed' });
   });
 
-  it('the cron deletes notes after 30 days, except hidden ones still in the queue, and removed rows after their day', async () => {
+  it('a note has no age limit: one of 400 days is on the board and survives the cron, hidden ones too; removed rows go after their day', async () => {
     const alice = await signUp('alice');
     const bob = await signUp('bob');
-    const old = await noted(alice, 'old', { now: NOW - 31 * DAY });
+    await noted(alice, 'old', { now: NOW - 400 * DAY });
     const queued = await noted(alice, 'queued', { now: NOW - 31 * DAY });
     await noted(alice, 'new');
     const gone = await noted(alice, 'gone');
     await ccall('DELETE', `/api/u/runes/${gone}`, undefined, { cookie: alice });
     await report(bob, queued);
     await db.prepare("UPDATE note SET state = 'hidden', hidden_reason = 'reports' WHERE id = ?1").bind(queued).run();
-    // The board never shows a note past 30 days, before the cron too.
-    expect((await board()).notes.map((n) => n.text)).toEqual(['new']);
+    // The board shows the newest visible notes, however old.
+    expect((await board()).notes.map((n) => n.text)).toEqual(['new', 'old']);
     await runCron(CENV, DAILY_CRON, NOW);
-    expect((await db.prepare('SELECT text FROM note ORDER BY text').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['', 'new', 'queued']);
+    expect((await db.prepare('SELECT text FROM note ORDER BY text').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['', 'new', 'old', 'queued']);
+    // The removed row goes once its day's limit has passed; the rest stays.
     await runCron(CENV, DAILY_CRON, NOW + DAY);
-    expect((await db.prepare('SELECT text FROM note ORDER BY text').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['new', 'queued']);
+    expect((await db.prepare('SELECT text FROM note ORDER BY text').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['new', 'old', 'queued']);
+    // The admin's dismiss leaves the hidden note hidden, and the cron leaves it too.
     await adminCall(`/api/admin/note/${queued}`, { action: 'dismiss' });
-    await runCron(CENV, DAILY_CRON, NOW + DAY);
-    expect((await db.prepare('SELECT text FROM note').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['new']);
-    void old;
+    await runCron(CENV, DAILY_CRON, NOW + 400 * DAY);
+    expect((await db.prepare('SELECT text FROM note ORDER BY text').all<{ text: string }>()).results.map((r) => r.text)).toEqual(['new', 'old', 'queued']);
+    expect((await board(NOW + 400 * DAY)).notes.map((n) => n.text)).toEqual(['new', 'old']);
+  });
+
+  it('the board is the newest RUNES_SHOWN with no age limit: older ones fall off only by count', async () => {
+    const alice = await signUp('alice');
+    await setLimits('alice', { notesPerDay: 100 });
+    for (let i = 0; i < 51; i++) await noted(alice, `n${i}`, { now: NOW - (100 + i) * DAY });
+    const shown = (await board()).notes.map((n) => n.text);
+    expect(shown).toHaveLength(50);
+    expect(shown[0]).toBe('n0');
+    expect(shown[49]).toBe('n49');
   });
 
   it('five reports hide a note; the queue shows it with its text and writer; the admin acts', async () => {

@@ -94,7 +94,6 @@ import {
   type GallerySort,
   type MumeBoxes,
   NEWS_MAX,
-  NOTE_DAYS,
   NOTE_MAX,
   type Note,
   RANKING_AGE_DAYS,
@@ -919,7 +918,8 @@ export class FakeAccountServer {
       }
       if (path === '/api/runes') {
         const notes: Note[] = [...this.notes.values()]
-          .filter((n) => n.state === 'active' && this.liveVoter(n.account) && n.created > t - NOTE_DAYS * 86_400_000)
+          // No age limit, as the Worker (ADR 0155 addendum 2026-11-17).
+          .filter((n) => n.state === 'active' && this.liveVoter(n.account))
           .sort((a, b) => b.created - a.created)
           .slice(0, RUNES_SHOWN)
           .map((n) => ({ id: n.id, writer: this.accountName(n.account) ?? '', text: n.text, created: n.created }));
