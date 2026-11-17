@@ -1,56 +1,70 @@
-// The device prototype of film 2 (video/manuscript-2.md act 6, stage 70):
-// one live session on desktop, tablet and phone. Three takes of the same
-// game timeline, one per device, recorded one after the other:
+// The device prototype of film 2 (video/manuscript-2.md act 6, stage 70;
+// owner round 1): one live session that goes on from a desktop to a tablet
+// to a phone, one device live at a time. Three takes of the same game
+// timeline, one per device, recorded one after the other:
 //
 //   devices-desktop  1600×900 CSS at DPR 1.2 (the film's 1920×1080): Map
 //                    docked, Group and Timers floating, typed on a keyboard
-//   devices-tablet   820×1180 CSS (an iPad in portrait), mobile and touch,
+//   devices-tablet   1180×820 CSS (an iPad in landscape), mobile and touch,
 //                    DPR 1: the phone's game layout (ADR 0140)
 //   devices-phone    390×844 CSS, mobile and touch, DPR 1.2: the phone's game
-//                    layout (ADR 0136-0138): fight card, map lens, compass
+//                    layout (ADR 0136-0138); later Messages (Comm) with two
+//                    chats, the pane strip swiped, then turned to landscape
+//                    (844×390, ADR 0137) and the map lens moved and enlarged
 //
 // Off camera every take is brought to the same moment: the Bree run's GMCP
 // and text from its start to 119.0 s sent fast down a mocked socket (no
-// commands typed). On camera the wolf fight plays from 119.0 s on a fixed
-// clock: the `sync` marker is the excerpt's 0 in every take, so the
-// composition (src/compositions/DevicesProto.tsx) shows the same game moment
-// on each device at the same film time. The game is driven by the feed alone
-// (the mock ignores what the client sends), so the input only has to look
-// right: the desktop types on the keyboard; the touch devices tap our own
-// keyboard (ADR 0138) for words and the compass for directions, with touch
-// presses held like a finger's (the composition draws the touches from the
-// input log).
+// commands typed). On camera the game plays on a fixed clock whose 0 is the
+// `sync` marker in every take (the schedule: src/devices.ts): the wolf
+// fight, a rest, the walk back into Bree, and staged tells (feeds/comm.ts,
+// invented names). The composition (src/compositions/DevicesProto.tsx)
+// shows each device only while it is the live one. The game is driven by
+// the feed alone (the mock ignores what the client sends), so the input only
+// has to look right: the desktop types on the keyboard; the touch devices
+// tap our own keyboard (ADR 0138) for words and the compass for directions,
+// with touch presses held like a finger's (the composition draws the
+// touches from the input log).
 import type { CDPSession, Page, WebSocketRoute } from '@playwright/test';
 import { GMCP, IAC, WILL, type Step, gmcpBytes, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
+import { BREE_TELLS, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { FILM_PAGE, prepareFilm } from '../lib/film-state.ts';
 import { seeded } from '../lib/mouse.ts';
-import { type Excerpt, excerptFeed, loadBackup } from '../lib/run-feed.ts';
+import { type Excerpt, type Run, excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
 
 export type Device = 'desktop' | 'tablet' | 'phone';
 
 /** The run second the excerpt starts at (the pre-play ends here). */
 const FROM = 119.0;
+/** Where the fight's segment ends and the walk's begins: after the fur, before the first `e`. */
+const WALK_FROM = 143.9;
 
-/** The wolf (take A's cut of it), then the walk back east to the West Gate. */
-export const DEVICES_EXCERPT: Excerpt = {
+/** The wolf (take A's cut of it, the flee dropped) to the fur; then the walk back east into Bree to the Prancing Pony's sign. */
+const EXCERPT: Omit<Excerpt, 'from' | 'to'> = {
   run: BREE_RUN,
-  from: FROM,
-  to: 148.2,
   speed: 1,
   maxGap: 1.5,
-  // the flee and the way back (take A's dip)
   drop: [[122.3, 125.6]],
   dropCmds: [/^get coins/, /^l$/],
   rewrite: noPonyLabel,
 };
+const TO = 152.1;
 
-/** Camera rolls, then this long before the excerpt's 0 (`sync`), ms. */
+/** Camera rolls, then this long before the clock's 0 (`sync`), ms. */
 const LEAD_MS = 2500;
-/** After the excerpt, ms. */
-const TAIL_MS = 1500;
+
+/** The game's steps on the film's clock (ms from sync): the fight, the walk from DEVICES.walk, the staged tells. */
+function deviceSteps(runs: Map<string, Run>): Step[] {
+  const fight = excerptFeed(runs, { ...EXCERPT, from: FROM, to: WALK_FROM });
+  const walk = excerptFeed(runs, { ...EXCERPT, from: WALK_FROM, to: TO });
+  const first = walk.steps.find((s) => 'cmd' in s)!.at ?? 0;
+  const shift = DEVICES.walk * 1000 - first;
+  const tells = BREE_TELLS.map((m, i) => ({ ...commStep(m, '*# R Mana:Hot>'), at: DEVICES.tells[i]! * 1000 }));
+  return [...fight.steps, ...walk.steps.map((s) => ({ ...s, at: (s.at ?? 0) + shift })), ...tells].sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
+}
 
 const DIRS: Record<string, string> = { n: 'north', e: 'east', s: 'south', w: 'west', u: 'up', d: 'down' };
 
@@ -71,13 +85,40 @@ async function touchAt(cdp: CDPSession, p: { x: number; y: number }, holdMs = 70
 const touch = async (cdp: CDPSession, page: Page, selector: string, rnd: () => number, holdMs = 70): Promise<void> =>
   touchAt(cdp, await aim(page, selector, rnd), holdMs);
 
+/**
+ * A finger pressed at `from`, held still `holdMs`, moved to `to` over `ms`,
+ * lifted. The path is timed by the clock, not by steps (each touch event
+ * takes a while to send): a swipe must end within 800 ms, and a move that
+ * dawdles under 8 px for 400 ms would arm the lens's resize instead.
+ */
+async function drag(cdp: CDPSession, from: { x: number; y: number }, to: { x: number; y: number }, ms: number, holdMs = 0): Promise<void> {
+  const pt = (x: number, y: number) => [{ x, y, radiusX: 6, radiusY: 6, force: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(from.x, from.y) });
+  if (holdMs) await sleep(holdMs);
+  const t0 = Date.now();
+  for (;;) {
+    const u = Math.min(1, (Date.now() - t0) / ms);
+    // eased out: a finger sets off at once and settles
+    const k = 1 - (1 - u) ** 2;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k) });
+    if (u >= 1) break;
+    await sleep(12);
+  }
+  await sleep(40);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
 const okbKey = (ch: string): string => (ch === ' ' ? '.wc-ph-okb-k[data-act="space"]' : `.wc-ph-okb-k[data-ch="${ch}"]`);
 
 function devicesScene(device: Device): Scene {
   const mobile = device !== 'desktop';
-  const viewport = { desktop: undefined, tablet: { width: 820, height: 1180 }, phone: { width: 390, height: 844 } }[device];
+  const viewport = { desktop: undefined, tablet: { width: 1180, height: 820 }, phone: { width: 390, height: 844 } }[device];
+  /** The take runs this long past sync (a device left is only seen frozen), s. */
+  const endS = { desktop: DEVICES.toTablet + 1.5, tablet: DEVICES.toPhone + 1.5, phone: DEVICES.end + 0.5 }[device];
   return {
     mode: device === 'tablet' ? 'intel-1-png' : 'intel-1.2-png',
+    // the phone turns to landscape mid-take
+    ...(device === 'phone' ? { canvas: { width: 844, height: 844 } } : {}),
     page: { ...FILM_PAGE, ...(viewport ? { viewport, mobile: true } : {}) },
 
     async setup(page) {
@@ -151,11 +192,11 @@ function devicesScene(device: Device): Scene {
         .waitFor({ timeout: 30_000 })
         .catch(() => console.warn('  the map did not load'));
       if (mobile) await page.locator('.wc-cockpit[data-phone-game]').waitFor({ timeout: 5000 });
-      const ex = excerptFeed(runs, DEVICES_EXCERPT);
-      console.log(`  excerpt: ${(ex.durationMs / 1000).toFixed(2)} s, ${ex.steps.filter((s) => 'cmd' in s).length} commands`);
+      const steps = deviceSteps(runs).filter((s) => (s.at ?? 0) < endS * 1000);
+      console.log(`  ${steps.length} steps, ${steps.filter((s) => 'cmd' in s).length} commands, the last at ${((steps.at(-1)?.at ?? 0) / 1000).toFixed(2)} s`);
       await sleep(2500);
       if (!mobile) await page.mouse.move(1590, 890);
-      return { server: ws, steps: ex.steps, durationMs: ex.durationMs };
+      return { server: ws, steps };
     },
 
     async run({ page, marks }, state) {
@@ -165,6 +206,7 @@ function devicesScene(device: Device): Scene {
       marks.mark('active', 'the take');
       const sync = t0 + LEAD_MS;
       marks.markAt(sync, 'sync', `run ${FROM} s`);
+      const S = (s: number): number => sync + s * 1000;
       const until = async (ms: number): Promise<void> => {
         const w = ms - Date.now();
         if (w > 0) await sleep(w);
@@ -246,8 +288,60 @@ function devicesScene(device: Device): Scene {
           if (kbdUp && (!next || DIRS[next.cmd] || (next.at ?? 0) - (st.at ?? 0) > 2500)) await fold();
         }
       })();
-      await Promise.all([out, cmds]);
-      await until(sync + (state.durationMs as number) + TAIL_MS);
+      // The phone's own steps (src/devices.ts), each after a rest: Messages, the pane strip, landscape, the lens.
+      const ui = (async () => {
+        if (device !== 'phone' || !cdp) return;
+        const tap = async (at: number, sel: string, label: string): Promise<void> => {
+          await until(S(at));
+          const el = page.locator(sel).first();
+          await el.tap({ timeout: 3000 }).catch((e: Error) => console.warn(`  ${label}: ${e.message.split('\n')[0]}`));
+          marks.mark('ui', label);
+        };
+        const comm = '.wc-ph-sat[data-sat="comm"]:visible';
+        const panes = '.wc-ph-sat[data-sat="panes"]:visible';
+        const chat = (name: string): string => `.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="${name}"]:visible`;
+        await tap(DEVICES.commOpen, comm, 'Messages open');
+        await tap(DEVICES.chatA, chat(BREE_TELLS[1]!.talker), `chat ${BREE_TELLS[1]!.talker}`);
+        await tap(DEVICES.chatB, chat(BREE_TELLS[0]!.talker), `chat ${BREE_TELLS[0]!.talker}`);
+        await tap(DEVICES.commClose, comm, 'Messages closed');
+        await tap(DEVICES.panesOpen, panes, 'panes open');
+        const swipe = async (at: number, left: boolean, label: string): Promise<void> => {
+          await until(S(at) - 150);
+          const b = await page.locator('.wc-ph-strip').first().boundingBox();
+          if (!b) return console.warn('  no pane strip');
+          const y = b.y + b.height * 0.55;
+          const [x0, x1] = left ? [b.x + b.width * 0.78, b.x + b.width * 0.3] : [b.x + b.width * 0.25, b.x + b.width * 0.73];
+          await drag(cdp, { x: x0, y }, { x: x1, y: y + 6 }, 300);
+          marks.mark('ui', label);
+        };
+        await swipe(DEVICES.swipeA, true, 'swipe to the next pane');
+        await swipe(DEVICES.swipeB, false, 'swipe back');
+        await tap(DEVICES.panesClose, panes, 'panes closed');
+        await until(S(DEVICES.rotate + 0.15));
+        await page.setViewportSize({ width: 844, height: 390 });
+        marks.mark('rotate', 'landscape');
+        const lens = async (): Promise<{ x: number; y: number; r: number } | null> => {
+          const b = await page.locator('.wc-ph-lens').first().boundingBox();
+          return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2, r: b.width / 2 } : null;
+        };
+        await until(S(DEVICES.lensMove));
+        const l1 = await lens();
+        if (!l1) console.warn('  no lens in landscape');
+        else {
+          await drag(cdp, { x: l1.x + 6, y: l1.y + 4 }, { x: l1.x - 64, y: l1.y + 26 }, 900);
+          marks.mark('ui', 'lens moved');
+        }
+        await until(S(DEVICES.lensResize));
+        const l2 = await lens();
+        if (l2) {
+          // held still to arm the resize (400 ms), then out from the centre: the rim follows the finger
+          const from = { x: l2.x + l2.r * 0.45, y: l2.y + l2.r * 0.35 };
+          await drag(cdp, from, { x: from.x + 18, y: from.y + 14 }, 800, 650);
+          marks.mark('ui', 'lens larger');
+        }
+      })();
+      await Promise.all([out, cmds, ui]);
+      await until(S(endS));
       marks.mark('active-end', 'the take');
     },
   };
