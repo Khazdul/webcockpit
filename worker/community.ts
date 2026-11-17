@@ -409,7 +409,7 @@ export async function communityPublic(request: Request, env: Env, url: URL, deps
       path === '/api/gallery'
         ? await gallery(db, url, deps, now)
         : path === '/api/community'
-          ? await cached(deps, `${url.origin}/api/community`, () => boxes(env, db, now))
+          ? await cached(deps, `${url.origin}/api/community`, () => boxes(env, db, now, on.mume))
           : await cached(deps, `${url.origin}/api/runes`, () => runes(db, now));
     return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
   } catch {
@@ -507,17 +507,18 @@ async function dayRun(db: D1, id: string | null): Promise<DayRun | null> {
   return r ? { ...galleryRow(r), description: [...r.description].slice(0, DAY_RUN_DESCRIPTION_MAX).join('') } : null;
 }
 
-async function boxes(env: Env, db: D1, now: number): Promise<Response> {
+async function boxes(env: Env, db: D1, now: number, mumeOn: boolean): Promise<Response> {
   const day = utcDay(now);
   // The independent reads in one batch (review fix CR5): the runs the run
   // of the day is drawn from (listed before the day began) and the Hall of
-  // Fame; MUME's boxes beside it (readMume keeps its own failure apart).
+  // Fame; MUME's boxes beside it (readMume keeps its own failure apart),
+  // none with the flag `mume` off (ADR 0155, addendum of 2026-11-17).
   const [[ids, hall], mume] = await Promise.all([
     db.batch<Record<string, unknown>>([
       db.prepare(`SELECT p.id FROM publication p WHERE ${LISTED} AND p.listed_at < ?1`).bind(dayStart(day)),
       listRowsQuery(db, 'top', 0, HALL_OF_FAME_SIZE, 0),
     ]),
-    readMume(db, now),
+    mumeOn ? readMume(db, now) : undefined,
   ]);
   const answer: CommunityBoxes = {
     hallOfFame: ((hall?.results ?? []) as unknown as ListRow[]).map(galleryRow),

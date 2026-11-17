@@ -108,6 +108,8 @@ export interface Env {
   FLAG_GALLERY?: boolean | string;
   /** The default of the flag `runes` (stage 65): Random Runes (needs `gallery`). */
   FLAG_RUNES?: boolean | string;
+  /** The default of the flag `mume` (ADR 0155, addendum of 2026-11-17): the cron's fetch and probe of MUME, and `mume` in `/api/community`. On in both environments. */
+  FLAG_MUME?: boolean | string;
   /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
   FILES?: R2;
   /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */

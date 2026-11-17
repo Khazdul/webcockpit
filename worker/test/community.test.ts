@@ -266,6 +266,15 @@ describe('GET /api/community', () => {
     await db.prepare("UPDATE mume_cache SET value = '{\"west\": 1}' WHERE key = 'war'").run();
     expect((await ok<CommunityBoxes>(await ccall('GET', '/api/community'))).mume).toBeUndefined();
   });
+
+  it('leaves MUME’s boxes out with the flag mume off, fresh as they are', async () => {
+    const war = { west: [{ name: 'Olev', race: 'Human', class: 'Warrior' }], dark: [] };
+    await db.prepare("INSERT INTO mume_cache (key, value, fetched) VALUES ('war', ?1, ?2), ('players', '312', ?2)").bind(JSON.stringify(war), NOW - 60_000).run();
+    expect((await ok<CommunityBoxes>(await ccall('GET', '/api/community'))).mume).toEqual({ ...war, players: 312 });
+    const off = await ok<CommunityBoxes>(await ccall('GET', '/api/community', undefined, { env: cenvOf({ FLAG_MUME: false }) }));
+    expect(off).not.toHaveProperty('mume');
+    expect(off.hallOfFame).toEqual([]);
+  });
 });
 
 describe('the counters', () => {

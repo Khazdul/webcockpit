@@ -3,6 +3,7 @@
 // the MSSP parse against what MUME sent and garbage, the probe, and the
 // cron's 15-minute cadence with the last good answers kept.
 import { beforeEach, describe, expect, it } from 'vitest';
+import { forgetFlags } from '../flags.ts';
 import { SAMPLE_CRON, runCron } from '../stats.ts';
 import type { Deps, TcpSocket } from '../runtime.ts';
 import {
@@ -489,5 +490,26 @@ describe('refreshMume', () => {
     } finally {
       await db.prepare(CREATE).run();
     }
+  });
+
+  it('the flag mume off (its default or the admin page’s row): the cron neither fetches nor probes', async () => {
+    const off = mumeDeps(NOW);
+    await runCron({ ...realEnv, FLAG_MUME: false }, SAMPLE_CRON, NOW, off);
+    expect(off.fetches).toBe(0);
+    expect(off.probes).toBe(0);
+    await db.prepare("INSERT INTO flag (name, value) VALUES ('mume', 0)").run();
+    forgetFlags(db);
+    const overridden = mumeDeps(NOW);
+    await runCron(realEnv, SAMPLE_CRON, NOW, overridden);
+    expect(overridden.fetches).toBe(0);
+    expect(overridden.probes).toBe(0);
+    expect(await cache()).toEqual({});
+    // Back on: the next beat fetches as before.
+    await db.prepare("UPDATE flag SET value = 1 WHERE name = 'mume'").run();
+    forgetFlags(db);
+    const on = mumeDeps(NOW);
+    await runCron(realEnv, SAMPLE_CRON, NOW, on);
+    expect(on.fetches).toBe(1);
+    expect(on.probes).toBe(1);
   });
 });

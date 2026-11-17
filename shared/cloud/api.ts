@@ -12,8 +12,11 @@ export interface ApiError {
  * Stage 65 (ADR 0155): `gallery` opens listing, the Community page, stars,
  * comments, the counter and the reactions mark; `runes` opens Random Runes
  * (and needs `gallery`: the board lives on its page).
+ * `mume` (ADR 0155, addendum of 2026-11-17): the cron's fetch of MUME's war
+ * page and MSSP probe, and the `mume` boxes of `GET /api/community`; on by
+ * default, an emergency brake without a release.
  */
-export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes';
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes' | 'mume';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -82,7 +85,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
