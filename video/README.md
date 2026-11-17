@@ -96,6 +96,18 @@ Ignored by git: `public/recordings/` (takes), `public/music/`, `out/`,
   captured login screen stay in `private/`; scenes read them there and only
   the excerpt specs are committed. The film shows real player names (owner,
   2026-11-08); a feed *committed* to the repository still uses invented ones.
+- **Community content** (the second film's act 7, `manuscript-2.md`) is the
+  real content of mumecockpit.com, captured into `private/community/`
+  (`capture.json` and each listed run's payload in `payloads/`). Refresh it
+  with `node record/capture-community.ts` (only public GETs, as a guest:
+  nothing is posted, voted or viewed). A scene serves it through the e2e
+  cloud fakes with `communityServer()` and `serveCommunity(page, c)` from
+  `record/lib/community.ts` (the fakes' invented seeds are not used); pin
+  the page's date near the capture with `newPage(..., { now: c.pageNow(5) })`.
+  `WC_VIDEO_PORT=5191 node record/check-community.ts` screenshots the
+  start page, Community, the list by stars, the newest run's watch page and
+  the phone's Community into `out/community-check/`, and fails if any of
+  the fakes' own seed names shows.
 - **Credentials** (only for a scene that logs in to the real game, which none
   does yet): `MUME_USER` and `MUME_PASSWORD` from the environment or from
   `video/.env.local`. Never in a file that is committed.
