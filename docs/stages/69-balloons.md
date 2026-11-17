@@ -76,7 +76,7 @@ Design: ADR 0159.
 - [x] Raster skins (direction 5): `image-skin.ts` to the owner's contract,
       used when `public/balloons/goblin/` has its files; the SVG goblin
       stays the default.
-- [ ] Full e2e alone at 5 workers; staging deploy; `test:prod` on staging.
+- [x] Full e2e alone at 5 workers (1924 passed, 51 skipped); staging deploy; `test:prod` 36/36 on staging.
 
 ## Test guide (staging)
 
