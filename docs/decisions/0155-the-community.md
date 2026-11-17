@@ -1479,3 +1479,39 @@ asking within the flags' 30-second cache.
   with an override row off: no fetch, no probe; back on: one of each),
   worker/test/community.test.ts (no `mume` with the flag off, fresh as
   the cache is).
+
+## Addendum 2026-11-17: notes stay
+
+The owner's decision (2026-11-17): notes on Random Runes are no longer
+deleted after 30 days. A note stays until the writer removes it, the
+admin deletes it (`/api/admin/note/<id>` `delete`) or the account is
+deleted. Reports and hiding work as before. This replaces the 30 days in
+"Random Runes" and "The cron" above, and in ADR 0148's Random Runes
+paragraph.
+
+- **The board.** `GET /api/runes` is the newest `RUNES_SHOWN` (50) active
+  notes of active accounts, with no age limit: older ones fall off the
+  board only by count. The index `note_state (state, created)` still
+  serves the query (it walks the active notes from the newest and stops
+  after 50), so migration 0006 is left as it is; its comment on a
+  30-day prune is history, noted in `worker/community.ts`.
+- **The cron.** `sweepCommunity` no longer deletes notes by age, nor
+  marks their reports handled. It keeps the clean-up of rows that only
+  held a limit: a removed note's empty row after its UTC day, a removed
+  comment's after an hour. Every path that ends a note handles its open
+  reports itself: the writer's Remove, the admin's actions and Delete
+  account (`deletionStatements`). A hidden note now stays hidden until
+  the admin restores or deletes it; it is never shown on the board.
+- **`NOTE_DAYS`** is gone from `shared/cloud/api.ts`; the e2e fake shows
+  every active note of a live account, as the Worker does.
+- **Words.** The board's heading reads "the latest 50" (was "the latest
+  50 · 30 days"). `/privacy`'s Random Runes line says "It stays until you
+  remove it or delete your account."; `PRIVACY_SHARE_UPDATED` stays
+  17 November 2026.
+- **Growth.** The table now grows with the notes written (5 a day per
+  account at most, 250 code points each); the admin's figures already
+  count the active notes. Nothing else read the age.
+- Tests: worker/test/runes.test.ts (a 400-day note on the board and kept
+  by the cron, a hidden one too; the board is the newest 50 by count),
+  tests/e2e/community-page.spec.ts (a 40-day note shown, the heading),
+  tests/unit/about-leaf.test.tsx (the privacy line).

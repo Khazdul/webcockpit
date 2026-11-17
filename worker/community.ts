@@ -53,7 +53,6 @@ import {
   type GallerySort,
   HALL_OF_FAME_SIZE,
   NEWS_MAX,
-  NOTE_DAYS,
   NOTE_MAX,
   type NoteWritten,
   PUB_ID_PATTERN,
@@ -530,12 +529,16 @@ async function boxes(env: Env, db: D1, now: number, mumeOn: boolean): Promise<Re
 }
 
 async function runes(db: D1, now: number): Promise<Response> {
+  // No age limit (ADR 0155 addendum 2026-11-17): the index note_state
+  // (state, created) walks the active notes from the newest and stops after
+  // RUNES_SHOWN rows; a note of a suspended or deleted account is skipped.
+  // Migration 0006's comment on a 30-day prune is history.
   const { results } = await db
     .prepare(
       `SELECT n.id, a.name AS writer, n.text, n.created FROM note n JOIN account a ON a.id = n.account
-       WHERE n.state = 'active' AND a.state = 'active' AND n.created > ?1 ORDER BY n.created DESC, n.id DESC LIMIT ?2`,
+       WHERE n.state = 'active' AND a.state = 'active' ORDER BY n.created DESC, n.id DESC LIMIT ?1`,
     )
-    .bind(now - NOTE_DAYS * DAY_MS, RUNES_SHOWN)
+    .bind(RUNES_SHOWN)
     .all<{ id: string; writer: string; text: string; created: number }>();
   return json({ notes: results, time: now } satisfies RunesBoard, 200, PUBLIC_CACHE);
 }
@@ -1001,19 +1004,16 @@ export async function listedTimes(db: D1): Promise<number[]> {
 // --- The daily cron ---
 
 /**
- * Notes older than NOTE_DAYS go (their reports handled), except hidden ones
- * still in the admin's queue; rows without text that only held a limit go
- * once it has passed: a removed comment after an hour, a removed note after
- * its UTC day.
+ * Rows without text that only held a limit go once it has passed: a
+ * removed comment after an hour, a removed note after its UTC day. Notes
+ * have no age limit (ADR 0155 addendum 2026-11-17): an active or hidden
+ * note stays until the writer removes it, the admin deletes it or the
+ * account is deleted, and each of those handles its reports.
  */
 export async function sweepCommunity(env: Env, now: number): Promise<void> {
   const db = env.DB;
   if (!db) return;
-  const old = `created <= ?1 AND NOT (state = 'hidden' AND EXISTS (SELECT 1 FROM report r WHERE r.kind = 'note' AND r.target = note.id AND r.handled = 0))`;
-  const cut = now - NOTE_DAYS * DAY_MS;
   await db.batch([
-    db.prepare(`UPDATE report SET handled = ?2 WHERE handled = 0 AND kind = 'note' AND target IN (SELECT id FROM note WHERE ${old})`).bind(cut, now),
-    db.prepare(`DELETE FROM note WHERE ${old}`).bind(cut),
     db.prepare(`DELETE FROM note WHERE state = 'removed' AND created < ?1`).bind(dayStart(utcDay(now))),
     db.prepare(`DELETE FROM comment WHERE state = 'removed' AND created <= ?1`).bind(now - HOUR_MS),
   ]);

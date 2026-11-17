@@ -1209,7 +1209,7 @@ function RunesBox(p: RunesProps): VNode {
   return (
     <section class={'wc-cy-box wc-cy-runes' + (p.latest !== null ? ' is-dash' : '')} data-box="runes" aria-label="Random Runes">
       <h3 class="wc-cy-bh">
-        Random Runes<span class="wc-cy-bn">the latest 50 · 30 days</span>
+        Random Runes<span class="wc-cy-bn">the latest 50</span>
       </h3>
       {p.state.k === 'loading' ? (
         <p class="wc-cy-none">Loading…</p>

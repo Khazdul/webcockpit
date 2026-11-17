@@ -973,10 +973,8 @@ export const NOTE_MAX = 250;
 export const COMMENTS_PER_RUN = 1000;
 /** Comments per page of `GET /api/pub/<id>/comments`. */
 export const COMMENTS_PAGE_SIZE = 50;
-/** Notes the board shows. */
+/** Notes the board shows: the newest, with no age limit (a note stays until removed, ADR 0155 addendum 2026-11-17). */
 export const RUNES_SHOWN = 50;
-/** A note goes after this many days (the daily cron). */
-export const NOTE_DAYS = 30;
 /** Rows per page of `GET /api/gallery`, and the deepest page (round 13: pages of 10, 1 000 runs deep). */
 export const GALLERY_PAGE_SIZE = 10;
 export const GALLERY_PAGES_MAX = 100;
@@ -1247,8 +1245,9 @@ export interface Note {
  *
  * `DELETE /api/u/runes/<id>` → 204: the writer's own (else `404`); the text
  * is gone at once (As built: a row without text stays until the day's limit
- * has passed, then the cron deletes it). A note goes after `NOTE_DAYS` days
- * (a hidden one still waiting for the admin stays until he acts).
+ * has passed, then the cron deletes it). A note has no age limit: it stays
+ * until the writer removes it, the admin deletes it or the account is
+ * deleted (ADR 0155 addendum 2026-11-17).
  */
 export interface RunesBoard {
   notes: Note[];

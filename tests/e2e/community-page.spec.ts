@@ -308,6 +308,15 @@ test('Random Runes for a guest: reads, no Remove or Report, Log in to write open
   await expect(runes(page)).toHaveCount(0);
 });
 
+test('Random Runes has no age limit: a note of 40 days is on the board; the heading says only the latest 50 (ADR 0155 addendum 2026-11-17)', async ({ page }) => {
+  const s = await setUp(page);
+  s.server.addNote('brego', 'an old rune from the autumn', { ago: 40 * 86_400_000 });
+  await openCommunity(page);
+  await expect(notes(page)).toHaveCount(4);
+  await expect(notes(page).last()).toContainText('an old rune from the autumn');
+  await expect(runes(page).locator('.wc-cy-bn')).toHaveText('the latest 50');
+});
+
 test('the counter: a guest’s from the public listed times; opening the page clears it, after a reload too', async ({ page }) => {
   const s = await setUp(page);
   await openStart(page);

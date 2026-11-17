@@ -159,7 +159,7 @@ async function reports(_request: Request, _env: Env, db: D1, _url: URL, now: num
          FROM publication`,
       )
       .bind(dayStart(utcDay(now))),
-    // Stage 65 C4: the active notes (the index note_state; notes live 30 days).
+    // Stage 65 C4: the active notes (the index note_state; notes have no age limit since 2026-11-17).
     db.prepare(`SELECT COUNT(*) AS n FROM note WHERE state = 'active'`),
   ]);
   const key = (r: Record<string, unknown>): string => `${String(r.kind)}|${String(r.target)}`;

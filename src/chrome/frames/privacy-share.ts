@@ -36,7 +36,7 @@ export const PRIVACY_COMMUNITY = `THE COMMUNITY
 The Community page lists the logs shared to the Hall of Fame. Reading it needs no account; rating, commenting and writing on Random Runes need one, and what you give there is public with your account name.
   Stars           Your stars on a log are kept with your account, and you can change or take them back; the log shows the mean and the number of votes, not who gave them.
   Comments        A comment on a log's watch page is public: it is shown under the log with your account name (as you wrote it when you made the account) and its time, to everyone who can watch the log, with or without an account. You remove your own; the log's sender can remove any on their log.
-  Random Runes    A note on the board is public: it is shown with your account name and its time to everyone who opens the Community page, with or without an account. It is deleted after 30 days, or when you remove it.
+  Random Runes    A note on the board is public: it is shown with your account name and its time to everyone who opens the Community page, with or without an account. It stays until you remove it or delete your account.
   New for you     To show "new" on the menu, the time you last opened the Community page is kept with your account (or in this browser without one), and the time you last looked at your published logs.
   Reports         Comments and notes are reported as logs are, and five accounts hide one until we have looked. Delete account removes your stars, comments and notes.`;
 
