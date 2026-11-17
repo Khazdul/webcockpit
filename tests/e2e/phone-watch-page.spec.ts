@@ -70,8 +70,9 @@ test('phone: Report logged in; the run starts paused and Play starts it', async 
   await expect(replay(page).locator('.wc-player')).toContainText('hardened ranger');
   await page.waitForTimeout(1_000);
   await pausedInFrame(page);
-  // Play (the bar shows on a tap) starts it.
-  await replay(page).locator('.wc-player').tap();
+  // Play starts it. The bar is docked at the frame's foot (stage 71: the phone layout), under the
+  // fold of the scrolling page: scrolled into view first.
+  await page.locator('.wc-watch-page').evaluate((el) => (el.scrollTop = el.scrollHeight));
   await replay(page).locator('.wc-pc-play').tap();
   await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'true');
 });
@@ -86,90 +87,49 @@ test('phone: the states keep their box', async ({ page }) => {
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
-// The owner's test of stage 64: the replay's Fullscreen on the watch page.
+// The owner's test of stage 64: the replay's Fullscreen on the watch page. Since stage 71 (ADR
+// 0160) it is the lens's top right key on a phone; the box has none.
 test('phone: Fullscreen puts the frame alone in fullscreen; without element fullscreen (the iPhone) it fills the window over the band', async ({ page }) => {
   await setUp(page);
   await openWatch(page);
   await playing(page);
-  const fsButton = replay(page).locator('.wc-player-box [data-act="extra"]');
-  await replay(page).locator('.wc-player').tap();
+  await expect(replay(page).locator('.wc-player-box [data-act="extra"]')).toHaveCount(0);
+  const fsButton = replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
   await fsButton.tap();
   await expect.poll(() => frameIsFullscreen(page)).toBe(true);
-  await expect(fsButton).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
   await fsButton.tap();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
-  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
 
   await noFrameFullscreen(page);
   await fsButton.tap();
   await expect(page.locator('.wc-watch-slot')).toHaveClass(/is-filled/);
   await expect.poll(() => frameFillsWindow(page)).toBe(true);
-  await expect(fsButton).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
   await fsButton.tap();
   await expect(page.locator('.wc-watch-slot')).not.toHaveClass(/is-filled/);
-  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(band(page)).toBeVisible();
 });
 
-// Stage 65 feedback round 2: in portrait the replay is a 60-column player; the Map alone (a span
-// over both default lanes) collapsed its dock, beside Group it showed. Every pane alone and
-// together shows now (src/layout/allocate.ts `squeezeSides`).
-test('phone portrait: Map, Timers and Group each show alone and together', async ({ page }) => {
-  await setUp(page);
-  await openWatch(page);
-  await playing(page);
-  const r = replay(page);
-  const box = r.locator('.wc-player-box');
-  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
-  const shown = (): Promise<string[]> =>
-    r.locator('.wc-pane[data-pane]:visible').evaluateAll((ps) => ps.map((p) => (p as HTMLElement).dataset.pane!).sort());
-  const toggle = async (id: string): Promise<void> => {
-    if (!(await pop.isVisible())) {
-      await r.locator('.wc-player').tap();
-      await box.locator('[data-act="panes"]').tap();
-    }
-    await pop.locator(`[data-pane="${id}"]`).tap();
-  };
-  expect(page.viewportSize()!.width).toBeLessThan(page.viewportSize()!.height);
-  await expect.poll(shown).toEqual([]);
-  for (const [id, want] of [
-    ['map', ['map']],
-    ['map', []],
-    ['timers', ['timers']],
-    ['map', ['map', 'timers']],
-    ['timers', ['map']],
-    ['group', ['group', 'map']],
-    ['map', ['group']],
-    ['group', []],
-  ] as const) {
-    await toggle(id);
-    await expect.poll(shown, `${id} → ${want.join('+')}`).toEqual([...want]);
-  }
-  // The map has room to draw in.
-  await toggle('map');
-  await expect.poll(shown).toEqual(['map']);
-  const map = (await r.locator('.wc-pane[data-pane="map"]').boundingBox())!;
-  expect(map.width).toBeGreaterThan(100);
-  expect(map.height).toBeGreaterThan(100);
-});
+// Stage 65 feedback round 2 had Map, Timers and Group each shown alone and together from the
+// Panes popup; since stage 71 (ADR 0160) the map is the lens and Group and Timers are the strip's
+// pages: phone-watch-lens.spec.ts.
 
-// Stage 65 feedback round 2: on a 360 px phone the narrow box dropped Fullscreen with To the start.
-// Now To the start goes first; Fullscreen stays down to a 360 px portrait phone.
+// Stage 65 feedback round 2: on a 360 px phone the narrow box dropped Fullscreen. Since stage 71
+// it is the lens's key: there, inside the frame, down to a 360 px portrait phone.
 for (const width of [360, 390]) {
-  test(`phone portrait ${width} px: the player's box keeps Fullscreen`, async ({ page }) => {
+  test(`phone portrait ${width} px: the lens keeps Fullscreen`, async ({ page }) => {
     await page.setViewportSize({ width, height: 780 });
     await setUp(page, { gallery: true });
     await openWatch(page);
     await playing(page);
-    await replay(page).locator('.wc-player').tap();
-    const fsButton = replay(page).locator('.wc-player-box [data-act="extra"]');
+    const fsButton = replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
     await expect(fsButton).toBeVisible();
-    await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
-    // The whole box inside the frame.
+    await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen');
+    // The whole key inside the frame.
     const frame = (await page.locator('.wc-watch-slot iframe').boundingBox())!;
-    const b = (await replay(page).locator('.wc-player-box').boundingBox())!;
+    const b = (await fsButton.boundingBox())!;
     expect(b.x).toBeGreaterThanOrEqual(frame.x);
     expect(b.x + b.width).toBeLessThanOrEqual(frame.x + frame.width);
+    expect(b.y).toBeGreaterThanOrEqual(frame.y);
     await fsButton.tap();
     await expect.poll(() => frameIsFullscreen(page)).toBe(true);
   });

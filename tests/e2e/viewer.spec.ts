@@ -65,29 +65,39 @@ const pane = (page: Page, id: string) => player(page).locator(`.wc-pane[data-pan
  */
 async function settingsRound(page: Page, shared = false): Promise<void> {
   await expect(panesPop(page)).toBeHidden();
-  await box(page).locator('[data-act="panes"]').click();
-  await expect(panesPop(page)).toBeVisible();
-  await expect(panesPop(page)).toContainText('Panes');
-  await expect(panesPop(page)).toContainText('Reset layout');
-
-  // Pane toggle: off and on again.
-  const timers = panesPop(page).locator('[data-pane="timers"]');
   if (shared) {
-    expect(await panesPop(page).locator('[data-pane]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.pane))).toEqual(['timers', 'group', 'map']);
-    await expect(panesPop(page).locator('[data-pane][aria-checked="true"]')).toHaveCount(0);
-    await expect(player(page).locator('.wc-pane:visible')).toHaveCount(0);
-    await timers.click();
-    await expect(timers).toHaveAttribute('aria-checked', 'true');
-    // The pane turned on shows; nothing else does.
+    // A shared run (stage 71, ADR 0160): no Panes popup; the map is the lens, and Timers is
+    // the lens's bottom right key, off at the start.
+    await expect(box(page).locator('[data-act="panes"]')).toHaveCount(0);
+    const key = player(page).locator('.wc-dl-key[data-key="timers"]');
     await expect(player(page).locator('.wc-pane:visible')).toHaveCount(1);
+    await expect(player(page).locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
+    await key.click();
+    await expect(key).toHaveAttribute('aria-pressed', 'true');
+    // The pane turned on shows; nothing else does.
+    await expect(player(page).locator('.wc-pane:visible')).toHaveCount(2);
+    await expect(pane(page, 'timers')).toBeVisible();
+    await key.click();
+    await expect(pane(page, 'timers')).toBeHidden();
+    await expect(key).toHaveAttribute('aria-pressed', 'false');
+    await key.click();
+    await expect(pane(page, 'timers')).toBeVisible();
+  } else {
+    await box(page).locator('[data-act="panes"]').click();
+    await expect(panesPop(page)).toBeVisible();
+    await expect(panesPop(page)).toContainText('Panes');
+    await expect(panesPop(page)).toContainText('Reset layout');
+
+    // Pane toggle: off and on again.
+    const timers = panesPop(page).locator('[data-pane="timers"]');
+    await expect(pane(page, 'timers')).toBeVisible();
+    await timers.click();
+    await expect(pane(page, 'timers')).toBeHidden();
+    await expect(timers).toHaveAttribute('aria-checked', 'false');
+    await timers.click();
+    await expect(pane(page, 'timers')).toBeVisible();
+    await expect(timers).toHaveAttribute('aria-checked', 'true');
   }
-  await expect(pane(page, 'timers')).toBeVisible();
-  await timers.click();
-  await expect(pane(page, 'timers')).toBeHidden();
-  await expect(timers).toHaveAttribute('aria-checked', 'false');
-  await timers.click();
-  await expect(pane(page, 'timers')).toBeVisible();
-  await expect(timers).toHaveAttribute('aria-checked', 'true');
 
   // Colours: Dark, then Teal; every pane None. Back to Default: as recorded.
   const recorded = await probe(page);
@@ -210,7 +220,7 @@ test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Re
   expect(errors).toEqual([]);
 });
 
-test('the HTML replay has Panes (Map, Timers, Group, all off) and Display and the same settings (file://, no storage)', async ({ page, browser }, info) => {
+test('the HTML replay has the map lens, Timers on its key, and Display with the same settings (file://, no storage)', async ({ page, browser }, info) => {
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   const html = await page.evaluate(async () => {
