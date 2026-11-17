@@ -58,7 +58,7 @@ old film's manuscript, scenes and takes stay for reference.
 ## Tasks
 
 - [x] Stage file and manuscript draft 1.
-- [ ] Device-transition prototype (composition `DevicesProto`).
+- [x] Device-transition prototype (composition `DevicesProto`, `video/out/devices-proto.mp4`; ADR 0133 addendum).
 - [x] Community capture (`video/private/community/`) and its loader.
 - [ ] Simulated Comm lines (feed helper, invented names).
 - [ ] Acts 0–3 recorded (night, Bree, the wilds, the wolves).
@@ -71,8 +71,28 @@ old film's manuscript, scenes and takes stay for reference.
 
 ## Test guide
 
-(Written when the prototype is ready.)
+### 70a — the device prototype
+
+1. Open `video/out/devices-proto.mp4` (20.6 s) in Firefox, with sound low.
+2. What it shows:
+   - 0–3 s: the desktop wolf fight.
+   - 3–5 s: a pull back into a monitor frame.
+   - 5–8 s: the same fight on a tablet.
+   - 8–13 s: the phone, where our keyboard types `butch corpse`.
+   - 14–20 s: all three side by side in sync, with the caption.
+3. Feedback wanted:
+   - The frames' look.
+   - The pace of the moves.
+   - Whether the side-by-side view reads (the text is small there).
+   - Tablet portrait or landscape.
+   - Whether the camera move is "wow" enough, or should be a slide or
+     morph of the picture itself.
 
 ## Owner feedback
 
 (None yet.)
+
+Open from the community capture (2026-11-17): the one real published run
+has no stars or comments, and the Hall of Fame is empty (five votes
+needed). Re-capture (`node record/capture-community.ts`) before act 7 is
+recorded. A share on camera adds the film account's run as a second log.

@@ -71,7 +71,7 @@
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Done; released 0.16.0, the owner's feedback in 0.16.1 (2026-11-17) | `docs/stages/68-owner-fixes.md` |
-| 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
+| 70 | Presentation film 2 | In progress (prototype for the owner) | `docs/stages/70-presentation-film-2.md` |\n| 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
@@ -183,6 +183,21 @@ with no stage of their own. Remove a line when it is done.
 - **Next:** the owner opens `gallery`/`runes` from /admin when he wants;
   the Loose ends as a polish stage.
 - **Commits:** 9ab631f5 … f4a80919 (`v0.16.1`), and this one.
+
+### 2026-11-17 — Stage 70: presentation film 2 started
+
+- **Done:** the stage file and manuscript draft 1 (`video/manuscript-2.md`,
+  nine acts, ~5:15, Sunset Plains for now with no beat lock); the owner's
+  decisions (no balloons, simulated Comm, real community content). The real
+  community content is captured from mumecockpit.com and served through
+  the fakes. The device-transition prototype is rendered
+  (`video/out/devices-proto.mp4`).
+- **Next:** the owner's verdict on the prototype (test guide 70a), then the
+  detailed manuscript and acts 0–3.
+- **Open:** no stars or comments in production yet (act 7); a share on
+  camera adds a second log.
+- **Commits:** 5cc7c0bb, ee80685c, 310df3a4, d5bb3a3b, 4492fde3, 56f1425d,
+  4b41824a and this one.
 
 ### 2026-11-17 — Stage 68: the owner's four points
 
