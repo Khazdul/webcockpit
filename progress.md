@@ -110,7 +110,14 @@ with no stage of their own. Remove a line when it is done.
   44106949463, success); `/api/config` has `mume`; `test:prod` 36/36
   against staging. Production untouched. `test:prod` against production fails on
   the flag list until the next release carries `mume`.
-- **Next:** the owner's test list (stage 68 guide, the community's
+- **Owner's test of 0.16.0:** fine except: Random Runes must stay
+  forever (built: no 30-day prune, the board the newest 50; ADR 0155
+  addendum, `/privacy`); iPad "Command" clipped after erasing (built: the
+  placeholder drawn by us; not reproducible without WebKit, the owner
+  checks on the iPad); Discord's image click opens a viewer (Discord's
+  own behaviour, left as is). Merged to main, unit 5 482, e2e of both.
+- **Next:** staging deploy (the owner dispatches), his iPad check, then
+  release 0.16.1 on his word; the rest of the test list (stage 68 guide, the community's
   opening, the report mail, Discord); the Loose ends as a polish stage.
 - **Commits:** 9ab631f5, 90bca53d, 17cb19fa, a8f6c621, the merge, and this one.
 

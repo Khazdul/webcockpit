@@ -47,4 +47,7 @@ scroll and private chats, the tablet's landscape keyboard, link previews).
 
 ## Owner feedback
 
-(after the test)
+- 2026-11-17: all fine. Random Runes to stay forever (built, ADR 0155
+  addendum); the iPad's "Command" clipped after typing and erasing (built:
+  our own placeholder, a30a1464; to check on the iPad); Discord's image
+  click enlarges it (Discord's behaviour, cannot be changed; left as is).
