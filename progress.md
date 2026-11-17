@@ -74,6 +74,7 @@
 | 70 | Presentation film 2 | In progress (acts 0–4 drafted, with the owner) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
+| 71 | The shared replay with the lens | Planned (the owner's direction 2026-11-17), building | `docs/stages/71-shared-replay-lens.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
