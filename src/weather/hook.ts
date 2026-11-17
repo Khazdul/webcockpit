@@ -8,6 +8,7 @@
 import type { Bus } from '../core/bus';
 import type { GameState } from '../gmcp/state';
 import type { Cockpit } from '../layout/cockpit';
+import type { RunEvent } from '../runs/events';
 import type { Settings, SettingsStore } from '../settings';
 import type { WeatherController } from './controller';
 import { weatherAvailable } from './support';
@@ -23,6 +24,18 @@ export interface WeatherHookDeps {
   now?: () => number;
   /** A one-line notice for the user (not supported, failed). */
   notify?: (text: string) => void;
+  /** The run's kills for the balloon notices (stage 69, ADR 0159); absent: no balloons from kills. */
+  runs?: WeatherRuns;
+}
+
+/** What the balloon notices read of the run (src/runs/events.ts, src/runs/live.ts). */
+export interface WeatherRuns {
+  /** Every run event as it is derived (the 500 ms kill fold done). */
+  subscribe(fn: (e: RunEvent) => void): () => void;
+  /** The live run's events so far, the newest included while `subscribe` calls back. */
+  live(): readonly RunEvent[];
+  /** The run's chain: the earlier runs' events from the store, then the live run's. */
+  chain(): Promise<RunEvent[]>;
 }
 
 export interface WeatherHook {

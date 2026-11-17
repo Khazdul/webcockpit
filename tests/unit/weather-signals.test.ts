@@ -470,14 +470,22 @@ describe('pin', () => {
 
 describe('settings', () => {
   it('defaults weather effects on with every category on (ADR 0092), off on a phone, and migrates junk', () => {
-    expect(defaultSettings().weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true });
+    expect(defaultSettings().weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true, balloons: false });
     expect(phoneDefaultSettings().weather.enabled).toBe(false);
     const old = defaultSettings() as unknown as Record<string, unknown>;
     delete old.weather;
     expect(migrateSettings(old).weather.enabled).toBe(true);
     expect(migrateSettings(old, { phone: true }).weather.enabled).toBe(false);
     const m = migrateSettings({ ...defaultSettings(), weather: { enabled: true, fog: false, sky: 'yes' } });
-    expect(m.weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: false, darkness: true, body: true });
+    expect(m.weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: false, darkness: true, body: true, balloons: false });
+  });
+
+  it('balloons (stage 69, ADR 0159): off by default and for stored settings without it; a stored choice is kept; not a worker category', () => {
+    expect(phoneDefaultSettings().weather.balloons).toBe(false);
+    expect(migrateSettings({ ...defaultSettings(), weather: { enabled: true, body: true } }).weather.balloons).toBe(false);
+    expect(migrateSettings({ ...defaultSettings(), weather: { enabled: true, balloons: true } }).weather.balloons).toBe(true);
+    expect(migrateSettings({ weather: { balloons: 'yes' } }).weather.balloons).toBe(false);
+    expect(categoriesOf({ ...defaultSettings(), weather: { ...defaultSettings().weather, balloons: true } })).toEqual(ALL_CATEGORIES);
   });
 
   it('keeps the blue day sky switch on its own (owner feedback 36)', () => {

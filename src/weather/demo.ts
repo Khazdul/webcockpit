@@ -19,11 +19,16 @@
 // - The end, `#weather stop`, and the effects being switched off all end it;
 //   the first two unpin everything, so the effects follow the game's values
 //   again with the normal transitions.
+// - `#weather balloon [face|burst]` (stage 69, ADR 0159): a balloon notice
+//   for a made-up kill, so the look and the flight can be tried without a
+//   fight; it needs the effects on and shows even with Balloons off. The
+//   demo's "A kill" step shows one the same way.
 // - Main thread cost: a timer per scripted action, and a few static DOM
 //   writes per step for the caption (its fades and progress bar are CSS
 //   transitions). Nothing runs per frame.
 
 import './demo.css';
+import { BURST_GAP_MS, type Face, type KillNotice, SAMPLE_BURST, SAMPLE_KILLS } from './balloons/feed';
 import { categoriesOf } from './controller';
 import { DEMO_SCRIPTS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
 import type { WeatherHookDeps } from './hook';
@@ -39,6 +44,8 @@ export interface DemoController {
     setCategories(c: Categories): void;
   };
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
+  /** The balloon notices, loaded even with Balloons off (controller.ts). */
+  balloons?(force: true): Promise<{ show(k: KillNotice): void } | null>;
 }
 
 export interface DemoHost {
@@ -63,6 +70,10 @@ export async function weatherCommand(
     say(WEATHER_USAGE);
     return;
   }
+  if (cmd.kind === 'balloon') {
+    await balloonCommand(hook, d, cmd.what, say);
+    return;
+  }
   if (cmd.kind === 'stop') {
     if (cur) cur.stop('stopped');
     else say('No weather demo is running.');
@@ -79,6 +90,26 @@ export async function weatherCommand(
   const demo = new Demo(hook, d, demoPlan({ pace: cmd.pace }, DEMO_SCRIPTS[cmd.scene]), say, () => running.delete(hook));
   running.set(hook, demo);
   await demo.start();
+}
+
+const RATED: readonly Face[] = ['poor', 'meh', 'good', 'great', 'superb'];
+
+/** `#weather balloon [face|burst]`: a made-up kill's balloon (or four kills in two seconds). */
+async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings'>, what: Face | 'burst' | null, say: (text: string) => void): Promise<void> {
+  const w = d.settings.get().weather;
+  if (!w.enabled) {
+    say('Balloons fly with the weather effects: turn on Settings → Weather effects first.');
+    return;
+  }
+  const ctl = await hook.settled();
+  const b = ctl?.balloons ? await ctl.balloons(true) : null;
+  if (!b) {
+    say('The balloons could not start here.');
+    return;
+  }
+  if (!w.balloons) say('Balloons are off in Settings → Weather effects; this one flies anyway.');
+  if (what === 'burst') SAMPLE_BURST.forEach((k, i) => setTimeout(() => b.show(k), i * BURST_GAP_MS));
+  else b.show(SAMPLE_KILLS[what ?? RATED[Math.floor(Math.random() * RATED.length)]!][0]!);
 }
 
 /** The running demo for `hook` (tests, dev). */
@@ -208,6 +239,9 @@ export class Demo {
       const rise = Date.now() + (a.moon.in * 1000) / this.plan.pace;
       this.pinned = { ...this.pinned, moonUp: true, moonPhase: a.moon.phase, moonRiseAt: rise, moonSetAt: rise + (a.moon.up * 1000) / this.plan.pace };
       ctl.pin(this.pinned, { smooth: true });
+    } else if ('balloon' in a) {
+      const k = SAMPLE_KILLS[a.balloon][0]!;
+      void ctl.balloons?.(true).then((b) => b?.show(k));
     } else this.release();
   }
   /** The engine's own pace again, if the demo changed it. */

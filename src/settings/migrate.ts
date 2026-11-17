@@ -513,11 +513,12 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
  * the blue day sky on). A missing or invalid `enabled` is on on a desktop
  * and off on a phone (ADR 0092): existing desktop users get the weather
  * with the update, a phone never starts with it; a stored choice is kept.
+ * Balloons (stage 69, ADR 0159) are off unless stored on.
  */
 export function migrateWeather(raw: unknown, phone = false): WeatherSettings {
   const d = { ...defaultSettings().weather, enabled: !phone };
   const x = isObj(raw) ? raw : {};
-  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled), daySky: bool(x.daySky, d.daySky) };
+  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled), daySky: bool(x.daySky, d.daySky), balloons: bool(x.balloons, false) };
   for (const k of WEATHER_CATEGORIES) out[k] = bool(x[k], d[k]);
   return out;
 }

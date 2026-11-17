@@ -52,6 +52,8 @@ describe('the demo script', () => {
     for (const e of ['sun.rise', 'sun.set', 'strike', 'gust', 'birds', 'glimpse', 'insect', 'shoot', 'darkness.start', 'darkness.end'] as const) expect(emits, e).toContain(e);
     // the moon by a clock of the demo's, never by a pinned place (item 108: it jumped)
     expect(acts.filter((a) => 'moon' in a)).toHaveLength(1);
+    // a kill's balloon (stage 69)
+    expect(acts.filter((a) => 'balloon' in a)).toEqual([{ balloon: 'great' }]);
     expect(pins.some((p) => p.moonUp === true || (p.moonU ?? -1) >= 0)).toBe(false);
   });
 
@@ -169,6 +171,10 @@ describe('#weather arguments', () => {
     expect(parseWeatherCommand('demo Sunset')).toEqual({ kind: 'demo', scene: 'sunset', pace: 1 });
     expect(parseWeatherCommand('demo sunset x40')).toEqual({ kind: 'demo', scene: 'sunset', pace: 40 });
     for (const sc of ['snow', 'birds', 'rain'] as const) expect(parseWeatherCommand(`demo ${sc}`)).toEqual({ kind: 'demo', scene: sc, pace: 1 });
+    // a balloon notice for a made-up kill (stage 69)
+    expect(parseWeatherCommand('balloon')).toEqual({ kind: 'balloon', what: null });
+    for (const w of ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'burst'] as const) expect(parseWeatherCommand(`balloon ${w.toUpperCase()}`)).toEqual({ kind: 'balloon', what: w });
+    for (const a of ['balloon wow', 'balloon great x2', 'demo balloon']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
     for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2', 'demo sunrise sunset', 'demo sunrise sunrise', 'sunrise', 'demo snow rain', 'snow']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });

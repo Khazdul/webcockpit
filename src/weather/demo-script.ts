@@ -14,6 +14,7 @@
 // goes by a clock the demo pins (`moon`), at an even pace from the right
 // edge, never placed by a jump. Times are seconds; about 3:00 in all.
 
+import type { Face } from './balloons/feed';
 import type { WeatherEvent, WeatherState } from './protocol';
 import { TURN_FULL, TURN_S } from './sunturn';
 
@@ -33,7 +34,9 @@ export type DemoAction =
   /** The engine's slow paces (sky, turns, fog, clouds, build-ups) this many times faster (1: the game's). */
   | { speed: number }
   /** A moonrise by the clock: pins the moon up, rising `in` s from now (the runner's clock) and setting `up` s after (owner item 108). */
-  | { moon: { in: number; up: number; phase: number } };
+  | { moon: { in: number; up: number; phase: number } }
+  /** A balloon notice for a made-up kill of this face (stage 69; shown even with Balloons off). */
+  | { balloon: Face };
 
 export interface DemoStep {
   /** The caption's step line, e.g. "Day · heavy rain". */
@@ -265,6 +268,13 @@ export const DEMO_STEPS: readonly DemoStep[] = [
       [0, pin({ position: 'standing' })],
       [2, emit('birds')],
     ],
+  },
+  {
+    title: 'A kill',
+    look: 'a goblin in a balloon rises with the kill and its XP, then drifts off into the sky (Balloons)',
+    signal: 'a kill: … is dead! R.I.P. and the XP',
+    dur: 5,
+    acts: [[0, { balloon: 'great' }]],
   },
   {
     title: 'Back to the game',
@@ -502,16 +512,29 @@ export function demoPlan(opts: { pace?: number } = {}, steps: readonly DemoStep[
 }
 
 /** `#weather …` arguments. */
-export type WeatherCommand = { kind: 'demo'; scene: DemoScene; pace: number } | { kind: 'stop' } | { kind: 'usage' };
+export type WeatherCommand =
+  | { kind: 'demo'; scene: DemoScene; pace: number }
+  | { kind: 'stop' }
+  | { kind: 'usage' }
+  /** `#weather balloon [face|burst]` (stage 69); null: a random rating. */
+  | { kind: 'balloon'; what: Face | 'burst' | null };
+
+/** `#weather balloon …` words. */
+export const BALLOON_WORDS: ReadonlyArray<Face | 'burst'> = ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'burst'];
 
 /**
- * `#weather demo [sunrise|sunset|snow|birds|rain]`, `#weather stop`, `#weather demo stop`; anything
- * else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
+ * `#weather demo [sunrise|sunset|snow|birds|rain]`, `#weather stop`, `#weather demo stop`,
+ * `#weather balloon [poor|meh|good|great|superb|calibrating|pvp|burst]`; anything else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
  * faster (tests).
  */
 export function parseWeatherCommand(args: string): WeatherCommand {
   const w = args.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (w.length === 1 && w[0] === 'stop') return { kind: 'stop' };
+  if (w[0] === 'balloon' && w.length <= 2) {
+    if (w.length === 1) return { kind: 'balloon', what: null };
+    const what = BALLOON_WORDS.find((b) => b === w[1]);
+    return what ? { kind: 'balloon', what } : { kind: 'usage' };
+  }
   if (w[0] !== 'demo') return { kind: 'usage' };
   if (w.length === 2 && w[1] === 'stop') return { kind: 'stop' };
   let pace = 1;
@@ -526,7 +549,7 @@ export function parseWeatherCommand(args: string): WeatherCommand {
 }
 
 export const WEATHER_USAGE =
-  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it.';
+  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|burst] shows a balloon notice for a made-up kill.';
 
 /** "1:35". */
 export function clockText(ms: number): string {
