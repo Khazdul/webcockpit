@@ -60,10 +60,11 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Stage file and manuscript draft 1.
 - [x] Device-transition prototype (composition `DevicesProto`, `video/out/devices-proto.mp4`; ADR 0133 addendum).
 - [x] Community capture (`video/private/community/`) and its loader.
-- [ ] Simulated Comm lines (feed helper, invented names).
+- [x] Simulated Comm lines (feed helper, invented names; `video/feeds/comm.ts`).
+- [x] Detailed manuscript (`video/manuscript-2.md`, draft 2).
 - [ ] Acts 0–3 recorded (night, Bree, the wilds, the wolves).
-- [ ] Acts 4–5 recorded (make it yours, memory).
-- [ ] Act 6 recorded (everywhere: three devices, account).
+- [ ] Acts 5–6 recorded (make it yours; memory and the account).
+- [ ] Act 4 in the film (the approved device prototype).
 - [ ] Acts 7–8 recorded (community, dawn).
 - [ ] The `Film2` composition, full cut, music laid under.
 - [ ] Owner feedback rounds.
@@ -117,6 +118,10 @@ old film's manuscript, scenes and takes stay for reference.
       larger, by touch.
 4. Everything else as before. The prototype may grow past 20 s; a calm
    pace (about 2 s of rest before each touch).
+
+**Verdict on round 1 (2026-11-17, 55 s cut):** "Det här blir bra":
+approved. The prototype becomes act 4 of the film, right after the wolves
+(manuscript draft 2).
 
 Open from the community capture (2026-11-17): the one real published run
 has no stars or comments, and the Hall of Fame is empty (five votes
