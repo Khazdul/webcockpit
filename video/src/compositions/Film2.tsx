@@ -10,7 +10,8 @@
 //             History, the account; at its `phone-out` the phone shot
 //             (film2-phone in the device act's phone frame), then film2-b
 //             again from `phone-in`: the share, Community, the watch page,
-//             and the start page at sunrise under the end card
+//             and the start page at sunrise under the end card (the watch
+//             page's load and its Back's are cut short)
 //
 // "Sunset Plains" is laid under, looped (no beat lock; cuts by picture).
 // On top: the lower thirds, the pane gear's tooltip (a headless capture does
@@ -46,21 +47,42 @@ const FADE_S = 3.0;
 /** Film s where act 4 starts (take A's `sync`). */
 export const act4At = (a: TimelineFile): number => marker(a, 'sync').t - marker(a, 'film0').t;
 
-/** Where acts 5-8 lie in the film (s): take B's two stretches and the phone shot between them. */
+/**
+ * Where acts 5-8 lie in the film (s): take B in pieces, the phone shot
+ * between the first two. The later cuts jump over the watch page's load and
+ * its Back's (a black page, then an empty box): plain cuts at a page load.
+ */
 export function film2Plan(a: TimelineFile, b: TimelineFile) {
   const b0 = marker(b, 'film0').t;
+  /** Take B s from its film0. */
+  const tb = (kind: string): number => marker(b, kind).t - b0;
   const at5 = act4At(a) + DEVICES.end;
-  /** Take B s → its film s in the first stretch (to `phone-out`). */
-  const out = marker(b, 'phone-out').t - b0;
-  const back = marker(b, 'phone-in').t - b0;
+  const out = tb('phone-out');
   const phoneAt = at5 + out;
   const resumeAt = phoneAt + PHONE_SHOT.end;
-  /** Take B s (from film0) → film s: before the phone shot or after it. */
-  const fromB = (s: number): number => (s <= out ? at5 + s : resumeAt + (s - back));
-  const startAgain = fromB(marker(b, 'start-again').t - b0);
+  /** Take B stretches [from, to) in take s, the first before the phone shot. */
+  const spans: [number, number][] = [
+    [0, out],
+    [tb('phone-in'), tb('watch') + 0.15],
+    [tb('watch-up') + 0.4, tb('watch-back') + 0.15],
+    [tb('dawn'), Infinity],
+  ];
+  const pieces: { at: number; from: number; to: number }[] = [];
+  let at = at5;
+  for (const [i, [from, to]] of spans.entries()) {
+    if (i === 1) at = resumeAt;
+    pieces.push({ at, from, to });
+    at += to - from;
+  }
+  /** Take B s (from film0) → film s (a moment in a skipped stretch maps to the next piece's start). */
+  const fromB = (s: number): number => {
+    for (const p of pieces) if (s < p.to) return p.at + Math.max(0, s - p.from);
+    return pieces.at(-1)!.at + (s - pieces.at(-1)!.from);
+  };
+  const startAgain = fromB(tb('start-again'));
   const cardFrom = startAgain + CARD_DELAY_S;
   const fadeFrom = cardFrom + CARD_HOLD_S;
-  return { b0, at5, out, back, phoneAt, resumeAt, fromB, cardFrom, fadeFrom, end: fadeFrom + FADE_S };
+  return { b0, at5, phoneAt, resumeAt, pieces, fromB, cardFrom, fadeFrom, end: fadeFrom + FADE_S };
 }
 
 /** The film's length, s. */
@@ -117,22 +139,17 @@ export function Film2({ a, tablet, phone, b, phone2 }: Film2Props) {
       <Sequence from={f(at4)} durationInFrames={f(plan.at5) - f(at4)}>
         <DevicesAct desktop={a} tablet={tablet} phone={phone} />
       </Sequence>
-      {/* acts 5-6 to the phone shot: a plain cut from the phone in landscape */}
-      <Sequence from={f(plan.at5)} durationInFrames={f(plan.phoneAt) - f(plan.at5)}>
-        <AbsoluteFill>
-          <OffthreadVideo src={staticFile(`recordings/${b.scene}.mp4`)} trimBefore={f(plan.b0)} muted style={{ width: '100%', height: '100%' }} />
-          <Cursor tl={b} startS={plan.b0} restS={2.5} />
-        </AbsoluteFill>
-      </Sequence>
+      {/* acts 5-8: take B in its pieces (a plain cut from the phone in landscape), the phone shot between the first two */}
+      {plan.pieces.map((p, i) => (
+        <Sequence key={i} from={f(p.at)} {...(Number.isFinite(p.to) ? { durationInFrames: f(p.at + p.to - p.from) - f(p.at) } : {})}>
+          <AbsoluteFill>
+            <OffthreadVideo src={staticFile(`recordings/${b.scene}.mp4`)} trimBefore={f(plan.b0 + p.from)} muted style={{ width: '100%', height: '100%' }} />
+            <Cursor tl={b} startS={plan.b0 + p.from} restS={2.5} />
+          </AbsoluteFill>
+        </Sequence>
+      ))}
       <Sequence from={f(plan.phoneAt)} durationInFrames={f(plan.resumeAt) - f(plan.phoneAt)}>
         <PhoneShot tl={phone2} />
-      </Sequence>
-      {/* acts 6 (its end) to 8 */}
-      <Sequence from={f(plan.resumeAt)}>
-        <AbsoluteFill>
-          <OffthreadVideo src={staticFile(`recordings/${b.scene}.mp4`)} trimBefore={f(plan.b0 + plan.back)} muted style={{ width: '100%', height: '100%' }} />
-          <Cursor tl={b} startS={plan.b0 + plan.back} restS={2.5} />
-        </AbsoluteFill>
       </Sequence>
       {tips.map((t, i) => (
         <Tip key={i} {...t} />

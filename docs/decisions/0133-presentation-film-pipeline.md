@@ -769,3 +769,7 @@ goes to a second desktop take:
   by the frame's box, so the drawn pointer follows over the replay too.
 - The game clock is in game minutes (1 real s = 1 game minute): the
   start page at act 6 is 00:40 on the opening's night.
+- **Page loads cut short.** The watch page's load (a black page with
+  "Loading player", then an empty box) and its Back's are jumped over
+  in the composition (`film2Plan`'s pieces): plain cuts where the page
+  changes anyway, about 2.5 s in all.
