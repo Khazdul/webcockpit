@@ -78,7 +78,8 @@ owner if that does not settle it.
       Screenshots: `docs/stages/img/71-*.png`.
 - [x] E. Staging (2026-11-18): full e2e alone, staging deploy, `test:prod`
       36/36 on staging.
-- [ ] F. The owner's test on staging; a release on his word.
+- [x] F. The owner's test on staging (2026-11-18, quick: "looks good");
+      released as 0.18.0 on his word.
 
 Open after the build:
 
