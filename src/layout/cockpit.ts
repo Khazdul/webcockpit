@@ -325,6 +325,13 @@ export interface PhoneLensSpot {
  * and the cockpit's size in px: the lens's box, null (no room: hidden), or
  * undefined (not moved or resized: the allocator's place stands).
  */
+/**
+ * Desktop: the z-index of the map pane as a shared run's lens (stage 71,
+ * ADR 0160; `Cockpit.setDeskLens`): above the floating panes (`FLOAT_Z` and
+ * up), under the player's chrome (50). The lens's dressing is one above.
+ */
+export const DESK_LENS_Z = 40;
+
 export type PhoneLensFit = (g: PhoneGameResult, cell: { w: number; h: number }, W: number, H: number) => PhoneLensSpot | null | undefined;
 
 export interface CockpitOptions {
@@ -568,6 +575,10 @@ export class Cockpit {
   private pgLast: PhoneGameResult | null = null;
   /** Phone game layout: the map lens as the phone layer wants it, px (`setPhoneLens`); null: no lens. */
   private pgLens: PhoneLensPx | null = null;
+  /** Desktop: a shared run's map lens, px of the cockpit (`setDeskLens`); null: none. */
+  private deskLens: PhoneLensSpot | null = null;
+  /** Desktop: the map pane's cells as the lens's, at the last layout (null: no lens laid out). */
+  private deskLensRect: Rect | null = null;
   /** Phone game layout: the place of a lens the user moved or resized (`setPhoneLensFit`); null: no one to ask. */
   private pgLensFit: PhoneLensFit | null = null;
   /** Phone game layout: the pane the strip shows (`setPhoneStrip`); null: the strip is closed. */
@@ -996,9 +1007,11 @@ export class Cockpit {
       return;
     }
     const layout = this.preview ?? s.layout;
+    // A shared run's lens (ADR 0160): the map pane is the lens, never docked or floated.
+    const lens = this.deskLens;
     const base = allocate({
       layout,
-      panes: s.panes,
+      panes: lens ? { ...s.panes, map: { ...paneSettingsOf(s.panes, 'map'), on: false } } : s.panes,
       present: this.present,
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
@@ -1018,9 +1031,20 @@ export class Cockpit {
     placeEl(this.gameEl, r.game, cell);
     placeEl(this.inputEl, r.input, cell);
     const boxes = new Map(r.panes.map((p) => [p.id, p]));
+    this.deskLensRect = lens && !r.tooSmall ? lensCells(lens, cell, r.cols, r.rows) : null;
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
       const b = boxes.get(id);
+      if (id === 'map') {
+        const lr = this.deskLensRect;
+        shell.el.toggleAttribute('data-desk-lens', lr !== null);
+        if (lr) {
+          // Borderless in the whole cells that hold the circle; the lens clips and shifts it.
+          shell.place({ rect: lr, content: lr, framed: false }, cell);
+          shell.el.style.zIndex = String(DESK_LENS_Z);
+          continue;
+        }
+      }
       shell.place(
         b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.dock === 'float' ? b.index : undefined } : null,
         cell,
@@ -1115,6 +1139,28 @@ export class Cockpit {
     if (a === lens || (a && lens && a.size === lens.size && (a.min ?? a.size) === (lens.min ?? lens.size) && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && (a.gapLeft ?? 0) === (lens.gapLeft ?? 0) && a.clearBottom === lens.clearBottom && (a.clearAlways ?? 0) === (lens.clearAlways ?? 0))) return;
     this.pgLens = lens && { ...lens };
     this.scheduleRelayout();
+  }
+
+  /**
+   * Desktop: a shared run's map lens (stage 71, ADR 0160), or null for
+   * none. The map pane is then left out of the docks and the floats and
+   * placed borderless in the whole cells that hold the circle `box` (px
+   * from the cockpit's top left corner), above the floats; the player's
+   * lens (src/player/desk-lens.ts) clips it to the circle, shifts it by
+   * the part of a cell that is left and dresses it. Nothing is written to
+   * the layout. Not on a phone (it has `setPhoneLens`).
+   */
+  setDeskLens(box: PhoneLensSpot | null): void {
+    if (this.phone) return;
+    const a = this.deskLens;
+    if (a === box || (a && box && a.left === box.left && a.top === box.top && a.size === box.size)) return;
+    this.deskLens = box && { ...box };
+    this.scheduleRelayout();
+  }
+
+  /** Desktop: the map pane's cells as the lens's at the last layout; null: no lens laid out. */
+  get deskLensCells(): Readonly<Rect> | null {
+    return this.deskLensRect;
   }
 
   /**
@@ -2444,6 +2490,15 @@ export const PHONE_SIDE_BAND_PX = 14;
 export function phoneSideBandCols(cellW: number): number {
   return cellW > 0 ? Math.max(1, Math.ceil(PHONE_SIDE_BAND_PX / cellW - 1e-6)) : 1;
 }
+/** The whole cells of a `cols` × `rows` grid that hold the lens's box `b` (px; at least one cell). */
+export function lensCells(b: PhoneLensSpot, cell: { w: number; h: number }, cols: number, rows: number): Rect {
+  const x = Math.max(0, Math.min(cols - 1, Math.floor(b.left / cell.w + 1e-6)));
+  const y = Math.max(0, Math.min(rows - 1, Math.floor(b.top / cell.h + 1e-6)));
+  const x1 = Math.max(x + 1, Math.min(cols, Math.ceil((b.left + b.size) / cell.w - 1e-6)));
+  const y1 = Math.max(y + 1, Math.min(rows, Math.ceil((b.top + b.size) / cell.h - 1e-6)));
+  return { x, y, w: x1 - x, h: y1 - y };
+}
+
 /** Phone game layout: what the lens keeps clear above the command row while a keyboard of our own is open, px (its corner keys' overhang). */
 const PHONE_OWN_KBD_LENS_PX = 12;
 

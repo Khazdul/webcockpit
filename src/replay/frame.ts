@@ -24,6 +24,10 @@
 // fill the window instead (the band hidden), and shows the state the
 // parent answers with.
 //
+// A phone or tablet (stage 71, ADR 0160): the frame decides the device
+// flags itself (`replayPhone`; the frame's window has the device's
+// pointer and screen) and plays the run in the phone's layout.
+//
 // The payload is decompressed with a ceiling (src/replay/codec.ts
 // `readSharedPayload`, 64 MiB of JSON),
 // checked by `validatePayload`, and only then played (`openReplay`). A
@@ -40,6 +44,7 @@ import { FONT_IDS } from '../settings/types';
 import { PayloadReadError, readSharedPayload } from './shared';
 import { canFullscreen, exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { type ReplayFullscreen, type ReplayPage, fail, openReplay } from './page';
+import { replayPhone } from './phone';
 
 export const FRAME_PROTOCOL = 1;
 export const FRAME_FONTS_MAX = 64;
@@ -171,9 +176,9 @@ export function startFrame(o: FrameOptions): () => void {
     void (async () => {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
-        const [p] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts)]);
+        const [p, , phone] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts), replayPhone(win)]);
         const paused = framePaused(d.prefs);
-        const page = openReplay(doc, root, p, { fullscreen: fs, autoplay: !paused });
+        const page = openReplay(doc, root, p, { fullscreen: fs, autoplay: !paused, ...(phone ? { phone } : {}) });
         // Paused: what the run shows at its start is drawn (a seek delivers it; play would).
         if (paused) page.host.engine?.seek(0);
         o.onPlay?.(page);

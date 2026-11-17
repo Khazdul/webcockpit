@@ -95,8 +95,8 @@ export interface LensDeps {
   fullscreen: (() => void) | null;
   /** The panes key: opens or closes the pane strip. */
   panes(): void;
-  /** The Comm key: opens or closes Comm. */
-  comm(): void;
+  /** The Comm key: opens or closes Comm; null: no Comm key (a shared run, stage 71). */
+  comm: (() => void) | null;
 }
 
 /** Where the lens is drawn: its circle's box in px relative to the layer, or null (hidden). */
@@ -187,7 +187,7 @@ export class LensView {
     this.rowEl = doc.createElement('div');
     this.rowEl.className = 'wc-ph-satrow';
     this.rowEl.hidden = true;
-    const acts: Record<SatName, (() => void) | null> = { panes: () => deps.panes(), fullscreen: deps.fullscreen, comm: () => deps.comm() };
+    const acts: Record<SatName, (() => void) | null> = { panes: () => deps.panes(), fullscreen: deps.fullscreen, comm: deps.comm };
     for (const sat of SATS) {
       const act = acts[sat.name];
       if (!act) continue;

@@ -62,6 +62,9 @@
 // player builds a new App, and so a new layer, on every backward seek:
 // what is open and the lens's zoom level are taken from `replay.state` and
 // told through `replay.onState`.
+// A shared run (stage 71, ADR 0160) adds the lens's fullscreen key
+// (`replay.fullscreen`: the player's own) and drops its Comm key
+// (`replay.comm` false).
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
@@ -150,8 +153,8 @@ const LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 export interface PhoneLayerBaseDeps {
   /** What the layer uses of the app, handed in so this chunk imports none of it (kit.ts). */
   kit: PhoneKit;
-  /** The look kit's controls, from the chrome chunk (kit.ts). */
-  controls: PhoneControls;
+  /** The look kit's controls, from the chrome chunk (kit.ts). Over a replay they are never shown: absent there (the HTML replay has no chrome chunk). */
+  controls?: PhoneControls | undefined;
   /** The cockpit, on a device with the phone flag (over a replay: built with `phoneReplay`). */
   cockpit: Cockpit;
   game: GameState;
@@ -217,6 +220,14 @@ export interface PhoneReplay {
   state?: PhoneReplayState | undefined;
   /** Told when any of it changes, with the whole state. */
   onState?(state: PhoneReplayState): void;
+  /**
+   * A shared run (stage 71, ADR 0160): the lens's fullscreen key (the
+   * player's own fullscreen, not the page's). Absent: no fullscreen key
+   * (the run log player has its own way).
+   */
+  fullscreen?: (() => void) | undefined;
+  /** False: no Comm key on the lens (a shared run has no Comm). Absent: the key, as in the game. */
+  comm?: boolean | undefined;
 }
 
 /** The layer over a replay: the base and `replay`, and nothing of a live session. */
@@ -227,6 +238,7 @@ export interface PhoneReplayDeps extends PhoneLayerBaseDeps {
 /** The layer over the live game. */
 export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
   replay?: undefined;
+  controls: PhoneControls;
   /** A key's command, as if typed (`App.onCommand`: aliases, the echo). Called only in play (`send`). */
   command(text: string): void;
   /** A client notice in the game text (`[SYSTEM] …`), as the app's own. */
@@ -472,10 +484,11 @@ class Layer {
         drag: (kind, x0, y0, x, y) => this.dragLens(kind, x0, y0, x, y),
         drop: (kind, cancelled) => this.dropLens(kind, cancelled),
       },
-      // Over a replay the player has its own way to fullscreen: no key here.
-      fullscreen: live && kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
+      // Over a replay the player has its own way to fullscreen: no key here, but in a shared run
+      // (stage 71), where the key is the player's own.
+      fullscreen: live && kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : (replay?.fullscreen ?? null),
       panes: () => this.toggleStrip(),
-      comm: () => this.toggleComm(),
+      comm: replay?.comm === false ? null : () => this.toggleComm(),
     });
     if (live) this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
     this.strip = new StripView(doc);
@@ -2402,7 +2415,7 @@ export function mountPhoneLayer(deps: PhoneLiveDeps): PhoneLayer;
 export function mountPhoneLayer(deps: PhoneReplayDeps): PhoneReplayLayer;
 export function mountPhoneLayer(deps: PhoneLayerDeps): PhoneLayer | PhoneReplayLayer {
   setPhoneKit(deps.kit);
-  setPhoneControls(deps.controls);
+  if (deps.controls) setPhoneControls(deps.controls);
   // (The constructor leaves the three null exactly when `deps.replay` is given.)
   return new Layer(deps) as PhoneLayer | PhoneReplayLayer;
 }

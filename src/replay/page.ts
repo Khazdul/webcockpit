@@ -22,6 +22,13 @@
 // is built with every store and socket injected (src/app/app.ts `player`).
 // The Map pane shows the embedded map subset (src/replay/map-host.ts,
 // ADR 0020), started in the inline blob worker.
+//
+// The lens (stage 71, ADR 0160): every shared run is played with the map
+// as a lens, always on (`PlayerHostOptions.lens`), Group and Timers off at
+// the start and reached from it. On a phone or tablet (src/replay/phone.ts)
+// in the phone's layout: the lens has the fullscreen key, the control box
+// has neither Fullscreen nor Panes. On a computer the desktop lens
+// (src/player/desk-lens.ts): the box keeps Fullscreen and has no Panes.
 
 import { PlayerHost } from '../app/player-host';
 import { type Settings, SettingsStore, migrateSettings } from '../settings';
@@ -37,6 +44,8 @@ import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
 import { validatePayload } from './validate';
 import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
+import { replayPhone } from './phone';
+import type { PlayerPhone } from '../app/player-host';
 
 /** Header hints; all of them give way when narrow (Inv §7.7). */
 export const REPLAY_HINTS: ReadonlyArray<HeaderHint> = [
@@ -95,7 +104,8 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
     fail(root, `This replay could not be read (${err instanceof Error ? err.message : String(err)}).`);
     return null;
   }
-  return openReplay(doc, root, payload);
+  const phone = doc.defaultView ? await replayPhone(doc.defaultView) : undefined;
+  return openReplay(doc, root, payload, phone ? { phone } : {});
 }
 
 /**
@@ -130,7 +140,7 @@ export function openReplay(
   doc: Document,
   root: HTMLElement,
   given: ReplayPayload,
-  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean } = {},
+  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean; phone?: PlayerPhone } = {},
 ): ReplayPage {
   // A payload shared since W3 is already as a shared run carries it: no second pass over its text (review fix 2 CR6).
   const payload = needsShared(given) ? sharedPayload(given) : given;
@@ -143,7 +153,16 @@ export function openReplay(
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({ root, settings, onClose: () => {}, map: replayMapHost(payload.map), panes: SHARED_PANES, ...(o.wall ? { wall: o.wall } : {}) });
+  const host = new PlayerHost({
+    root,
+    settings,
+    onClose: () => {},
+    map: replayMapHost(payload.map),
+    panes: SHARED_PANES,
+    lens: { fullscreen: fs },
+    ...(o.phone ? { phone: o.phone } : {}),
+    ...(o.wall ? { wall: o.wall } : {}),
+  });
   host.openChain(
     payload.runs,
     [],
@@ -163,17 +182,25 @@ export function openReplay(
         },
         railHoverTime: true,
         closeTitle: null,
-        boxButtons: [
-          {
-            label: () => (fs.is() ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
-            icon: () => (fs.is() ? 'fullscreenExit' : 'fullscreen'),
-            onClick: () => fs.toggle(),
-          },
-        ],
+        // A phone has Fullscreen on the lens (stage 71); a computer keeps it in the box.
+        boxButtons: o.phone
+          ? []
+          : [
+              {
+                label: () => (fs.is() ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
+                icon: () => (fs.is() ? 'fullscreenExit' : 'fullscreen'),
+                onClick: () => fs.toggle(),
+              },
+            ],
       },
+      // No Panes popup: Group and Timers are the lens's keys (stage 71).
+      viewerSettings: 'display',
     },
   );
-  const refresh = (): void => host.playerView?.refresh();
+  const refresh = (): void => {
+    host.playerView?.refresh();
+    host.refreshLens();
+  };
   fs.onChange(refresh);
   return { host, payload, settings };
 }

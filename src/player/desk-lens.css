@@ -1,0 +1,199 @@
+/* The desktop lens of a shared run (src/player/desk-lens.ts, stage 71,
+ * ADR 0160): the phone lens's look (src/phone/phone.css, "map lens"),
+ * scaled to a computer: the cast-iron ring with its grain, the lamp's glow
+ * round it, the glass, and round keys on the corners. Static paint: no
+ * filter, no animation. Scoped under `.wc-cockpit` and the lens's own
+ * classes, so nothing here matches anywhere else. */
+
+.wc-cockpit > .wc-dl {
+  --dl-ring: 10px;
+  --dl-key: 36px;
+  --dl-over: 10px;
+  --dl-lamp: #e8c48a;
+  --dl-lamp-hi: #fff1cf;
+  --dl-ink: #170f03;
+  --dl-outer: 0 0 0 var(--dl-ring) #0e0c0a, 0 0 24px 12px rgb(232 196 138 / 0.14), 0 10px 20px 8px rgb(0 0 0 / 0.8);
+  --dl-ring-paint:
+    repeating-radial-gradient(circle, rgb(0 0 0 / 0.16) 0 1px, rgb(0 0 0 / 0) 1px 2.3px),
+    repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.055) 0 0.7deg, rgb(0 0 0 / 0.09) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
+    linear-gradient(145deg, #6f655a 0, #3a342d 34%, #1b1713 68%, #4c443b 100%);
+  --dl-glass-in: inset 0 0 0 1px rgb(232 196 138 / 0.3), inset 0 2px 6px rgb(255 255 255 / 0.22), inset 0 -10px 18px rgb(0 0 0 / 0.55);
+  --dl-key-bg: linear-gradient(#2a2520, #15120e);
+  --dl-key-edge: #5a5148;
+  --dl-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.22), 0 2px 8px rgb(0 0 0 / 0.85);
+  position: absolute;
+  /* Above the map pane (cockpit.ts DESK_LENS_Z), under the player's chrome (50). */
+  z-index: 41;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wc-cockpit > .wc-dl[hidden] {
+  display: none;
+}
+
+/* The map pane as the lens: clipped to the circle (its box is whole cells; the lens shifts it to
+ * the circle's centre), on black, with nothing of a pane's own chrome over the glass. */
+.wc-cockpit > .wc-pane[data-desk-lens] {
+  clip-path: circle(calc(var(--dl-size, 260px) / 2) at 50% 50%);
+  background: #000;
+}
+
+.wc-cockpit > .wc-pane[data-desk-lens] > :not(.wc-pane-content) {
+  display: none;
+}
+
+/* The ring's dark bed, the lamp's glow and the drop shadow, round the glass. */
+.wc-dl-bed {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: var(--dl-outer);
+}
+
+.wc-dl-refl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The glass: a soft light from above, the edge darkening, the rim. */
+.wc-dl-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(70% 40% at 50% -8%, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 64%),
+    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 0) 66%, rgb(0 0 0 / 0.5) 100%);
+  box-shadow: var(--dl-glass-in);
+}
+
+/* The ring: a band round the glass, cut out of a disc by a mask. */
+.wc-dl-ring {
+  position: absolute;
+  inset: calc(-1 * var(--dl-ring));
+  border-radius: 50%;
+  background: var(--dl-ring-paint);
+  box-shadow: inset 0 0 0 1px #0e0c0a;
+  -webkit-mask-image: radial-gradient(circle, transparent calc(var(--dl-size, 260px) / 2 - 0.5px), #000 calc(var(--dl-size, 260px) / 2));
+  mask-image: radial-gradient(circle, transparent calc(var(--dl-size, 260px) / 2 - 0.5px), #000 calc(var(--dl-size, 260px) / 2));
+}
+
+/* The rim's band (JS sets its inset and its ring-shaped clip): a resize cursor along the radius. */
+.wc-dl-rim {
+  position: absolute;
+  pointer-events: auto;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* Lit by the lamp while the lens is moved or resized. */
+.wc-dl[data-drag] > .wc-dl-bed {
+  box-shadow:
+    0 0 0 var(--dl-ring) #0e0c0a,
+    0 0 0 calc(var(--dl-ring) + 2px) var(--dl-lamp),
+    0 0 18px 14px rgb(232 196 138 / 0.4),
+    var(--dl-outer);
+}
+
+/* The round keys on the lens's corners (they overhang its box). */
+.wc-dl-key,
+.wc-dl-follow {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--dl-key);
+  height: var(--dl-key);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--dl-key-edge);
+  border-radius: 50%;
+  background: var(--dl-key-bg);
+  color: var(--dl-lamp);
+  box-shadow: var(--dl-key-shadow);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.wc-dl-key.is-tl {
+  left: calc(-1 * var(--dl-over));
+  top: calc(-1 * var(--dl-over));
+}
+
+.wc-dl-key.is-tr {
+  right: calc(-1 * var(--dl-over));
+  top: calc(-1 * var(--dl-over));
+}
+
+.wc-dl-key.is-br {
+  right: calc(-1 * var(--dl-over));
+  bottom: calc(-1 * var(--dl-over));
+}
+
+.wc-dl-key.is-bl {
+  left: calc(-1 * var(--dl-over));
+  bottom: calc(-1 * var(--dl-over));
+}
+
+/* The move handle: a grab cursor, its four arrows say "drag me". */
+.wc-dl-key.wc-dl-move {
+  cursor: grab;
+  touch-action: none;
+}
+
+.wc-dl[data-drag='move'] .wc-dl-move {
+  cursor: grabbing;
+  background: var(--dl-lamp);
+  border-color: var(--dl-lamp-hi);
+  color: var(--dl-ink);
+}
+
+.wc-dl-key:hover,
+.wc-dl-follow:hover {
+  border-color: var(--dl-lamp);
+}
+
+/* A key whose pane is on: lit by the lamp. */
+.wc-dl-key.is-on {
+  background: var(--dl-lamp);
+  border-color: var(--dl-lamp-hi);
+  color: var(--dl-ink);
+}
+
+.wc-dl-key:active,
+.wc-dl-follow:active {
+  background: var(--dl-lamp);
+  border-color: var(--dl-lamp-hi);
+  color: var(--dl-ink);
+}
+
+/* The follow key: at the bottom of the glass while the map does not follow the player. */
+.wc-dl-follow {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+}
+
+.wc-dl-follow[hidden] {
+  display: none;
+}
+
+.wc-dl-ico {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
