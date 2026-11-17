@@ -89,8 +89,8 @@ with no stage of their own. Remove a line when it is done.
 - Stage 52 E: `scripts-settings.spec.ts:411` (a double click flips once),
   `script-panes.spec.ts:177` (order-dependent), the phone bench's slow
   first frame after idle.
-- Stage 64: the report mail has never been seen arriving (no real report
-  yet); the iPhone's fullscreen fallback is untested on a device.
+- Stage 64: fullscreen on iPhone/iPad does not hold with the keyboard up
+  (the owner, 2026-11-17: left as is for now).
 - Stage 66 (owner, optional): S1 an admin host of its own, S8 one Access
   application per environment.
 - Stage 68: whether Discord unfurls a staging link behind `noindex`;
@@ -119,9 +119,11 @@ with no stage of their own. Remove a line when it is done.
 - **Released 0.16.1** on the owner's word after his iPad check on staging
   (staging run 44117546064; release run 44119321214); `test:prod` 36/36
   on mumecockpit.com; `mume` on, `gallery`/`runes` still off.
-- **Next:** the rest of the test list (stage 68 guide, the community's
-  opening, the report mail, Discord); the Loose ends as a polish stage.
-- **Commits:** 9ab631f5, 90bca53d, 17cb19fa, a8f6c621, the merge, and this one.
+- **Owner, after 0.16.1:** the report mail arrives; /admin "ok for now";
+  iOS fullscreen with the keyboard up does not hold, left as is.
+- **Next:** the owner opens `gallery`/`runes` from /admin when he wants;
+  the Loose ends as a polish stage.
+- **Commits:** 9ab631f5 … f4a80919 (`v0.16.1`), and this one.
 
 ### 2026-11-17 — Stage 68: the owner's four points
 
