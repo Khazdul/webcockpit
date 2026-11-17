@@ -2390,9 +2390,34 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-clock {
   display: none;
 }
 
+/* The placeholder is drawn by us (`.wc-input-ph`, src/phone/index.ts `placeholder`): iPad Safari
+ * clipped the textarea's own to its first letters after the line was typed in and erased
+ * (0.16.0). The native one stays for the accessible name, unpainted. Ours lies on the field as
+ * the suggestion does, clipped by the field's box, and shows while the field shows its own. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::placeholder {
+  color: transparent;
+  opacity: 0;
+}
+
+/* Nowhere else: the phone's game layout alone shows it. */
+.wc-input-ph {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-ph {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
   color: var(--ph-dim);
-  opacity: 1;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field:not(:placeholder-shown) ~ .wc-input-ph {
+  display: none;
 }
 
 /* The sent line, kept to be sent again or replaced by the next key (round 53j; `InputPane`, "Kept

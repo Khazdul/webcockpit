@@ -1062,8 +1062,8 @@ test.describe('F. gold is the default input colour', () => {
       // The echo of the command in the game text is gold as well.
       const echo = page.locator('.wc-rows .wc-echo').filter({ hasText: 'look' }).last();
       expect(await rgbOf(echo), theme).toEqual(gold);
-      // The placeholder: the field's own dim text.
-      const hint = await rgbOf(field(page), 'color', '::placeholder');
+      // The placeholder: the field's own dim text (drawn by the page, `.wc-input-ph`).
+      const hint = await rgbOf(page.locator('.wc-input-slot .wc-input-ph'));
       expect(ratio(hint, ground), theme).toBeGreaterThanOrEqual(4.5);
       expect(hint, theme).not.toEqual(gold);
     }
