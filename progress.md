@@ -74,7 +74,7 @@
 | 70 | Presentation film 2 | In progress (acts 0–8 drafted, 5:58, with the owner) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
-| 71 | The shared replay with the lens | Built on `stage-71-shared-replay-lens` (A–D), waiting for staging and the owner's test | `docs/stages/71-shared-replay-lens.md` |
+| 71 | The shared replay with the lens | On staging (2026-11-18), feedback round 1 built; waiting for the owner's test | `docs/stages/71-shared-replay-lens.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -100,6 +100,21 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-18 — Stage 71: the shared replay with the lens, on staging
+
+- **Done:** the owner's direction and three picks recorded; built by an
+  agent (ADR 0160), merged; the owner's round 1 from the screenshots (keys
+  set into the ring, 44 px; Group and Timers the same height with a row
+  of air between and under the lens). Full e2e alone at 5 workers 1934
+  passed, 1 failed (`phone-player-layout` 320 × 568, 14/14 rerun alone:
+  load); staging deploy; `test:prod` 36/36 on staging.
+- **Fixed:** `worker/test/stats.test.ts`'s scheduled-handler test hung
+  since the flag `mume` (on by default) made it fetch MUME; it runs with
+  the flag off. It had stopped the staging build.
+- **Next:** the owner's test (`docs/stages/71-shared-replay-lens.md`, test
+  guide), then a release on his word.
+- **Commits:** f2be0f7a, 4f6a56fa…60e449d9, ae249819, 3af0e234, 0d80ef8f.
 
 ### 2026-11-18 — Stage 70: film 2, acts 5–8
 

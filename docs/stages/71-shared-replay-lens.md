@@ -76,7 +76,9 @@ owner if that does not settle it.
       `phone-watch-lens.spec.ts` (portrait, landscape, fullscreen key); the
       watch page, sandbox, replay, viewer and map zoom specs follow the lens.
       Screenshots: `docs/stages/img/71-*.png`.
-- [ ] E. Staging; the owner's test.
+- [x] E. Staging (2026-11-18): full e2e alone, staging deploy, `test:prod`
+      36/36 on staging.
+- [ ] F. The owner's test on staging; a release on his word.
 
 Open after the build:
 
