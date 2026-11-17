@@ -98,6 +98,21 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-17 — Clean-up pass: loose ends and the `mume` flag
+
+- **Done:** stale stage statuses closed (8, 28, 29, 33, 49, 50, 52, 53);
+  a "Loose ends" list in this file; stage 65's MUME boxes checked on
+  staging (10 + 10 warlords, players); the server flag `mume` (default on,
+  an emergency brake for the cron's fetch and the boxes; ADR 0155
+  addendum); `/privacy` says comments and runes are public with the
+  account name (dated 17 November). Typecheck, unit 5 481 passed.
+- **Not done:** push to staging (the session's permission check refused
+  `git push`); the owner pushes. `test:prod` against production fails on
+  the flag list until the next release carries `mume`.
+- **Next:** the owner's test list (stage 68 guide, the community's
+  opening, the report mail, Discord); the Loose ends as a polish stage.
+- **Commits:** 9ab631f5, 90bca53d, 17cb19fa, a8f6c621, the merge, and this one.
+
 ### 2026-11-17 — Stage 68: the owner's four points
 
 - **Done:** sunlight dawn+1 to dusk everywhere (ADR 0093); Comm scroll fix
