@@ -73,7 +73,7 @@ function PhoneShot({ tl }: { tl: TimelineFile }) {
   const h = 940;
   const k = h / PHO.h;
   const w = PHO.w * k;
-  const rect = { x: 1400 - w / 2, y: (HEIGHT - h) / 2 - 6, w, h };
+  const rect = { x: 1460 - w / 2, y: (HEIGHT - h) / 2 - 6, w, h };
   const crop = { w: Math.round(390 * tl.dpr), h: Math.round(844 * tl.dpr) };
   return (
     <AbsoluteFill style={{ background: 'radial-gradient(ellipse 80% 70% at 62% 46%, #1c1f26 0%, #111318 55%, #0a0b0e 100%)' }}>

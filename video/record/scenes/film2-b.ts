@@ -238,8 +238,11 @@ export const film2B: Scene = {
     if (!(await pe.locator('.cm-line', { hasText: '#alias {fk} {kill wolf}' }).count())) {
       await page.keyboard.press('Control+f');
       await sleep(400);
+      const find = pe.locator('[data-field="find"] input').first();
+      await find.focus().catch(() => console.warn('  no Find field'));
       await type('{fk}');
       await page.keyboard.press('Enter');
+      if ((await find.inputValue().catch(() => '')) !== '{fk}') console.warn('  Find did not take the typing');
       marks.mark('find', 'Find {fk}');
     }
     // the found line held about three seconds
@@ -270,7 +273,17 @@ export const film2B: Scene = {
       await page.keyboard.press('Escape');
       marks.mark('scripts-closed', 'the Scripts window closes');
     }
-    await page.locator('.wc-win[data-win="scripts"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => console.warn('  the Scripts window stays open'));
+    // (one take kept the window open after the X: Escape, then the X once more)
+    const swin = page.locator('.wc-win[data-win="scripts"]');
+    const shut = (): Promise<boolean> => swin.waitFor({ state: 'hidden', timeout: 1200 }).then(() => true, () => false);
+    if (!(await shut())) {
+      console.warn('  the Scripts window stays open: Escape');
+      await page.keyboard.press('Escape');
+      if (!(await shut())) {
+        await calm(sx.first(), 'scripts-closed-2', 'the Scripts window closes', 0.3);
+        if (!(await shut())) console.warn('  the Scripts window stays open');
+      }
+    }
 
     // Timers from floating to the left dock, and back (the panes move freely)
     const grip = async (): Promise<{ x: number; y: number }> => {
