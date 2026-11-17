@@ -25,7 +25,7 @@ scroll and private chats, the tablet's landscape keyboard, link previews).
 - [x] Staging deploy; `test:prod` 36/36 on staging.
 - [x] Release 0.16.0 on the owner's word, before his test (tag `v0.16.0`);
       `test:prod` 36/36 on mumecockpit.com.
-- [ ] The owner's test (in production).
+- [x] The owner's test (in production), 2026-11-17; his three points in 0.16.1.
 
 ## Test guide (production: https://mumecockpit.com)
 
