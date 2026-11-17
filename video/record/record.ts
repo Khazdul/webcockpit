@@ -22,6 +22,8 @@ import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
 import { bree } from './scenes/bree.ts';
 import { devicesDesktop, devicesPhone, devicesTablet } from './scenes/devices.ts';
 import { film2A } from './scenes/film2-a.ts';
+import { film2B } from './scenes/film2-b.ts';
+import { film2Phone } from './scenes/film2-phone.ts';
 import { part1 } from './scenes/part1.ts';
 import { takeA } from './scenes/take-a.ts';
 import { takeB } from './scenes/take-b.ts';
@@ -35,6 +37,8 @@ const SCENES: Record<string, Scene> = {
   'devices-tablet': devicesTablet,
   'devices-phone': devicesPhone,
   'film2-a': film2A,
+  'film2-b': film2B,
+  'film2-phone': film2Phone,
 };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));

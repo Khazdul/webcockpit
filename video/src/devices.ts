@@ -31,3 +31,10 @@ export const DEVICES = {
   /** The film's end (s from sync); the takes run a little past it. */
   end: 55.0,
 } as const;
+
+/**
+ * Film 2's act 6 phone shot (record/scenes/film2-phone.ts, s from its
+ * `film0`): the start page with the account in the owner row, History
+ * tapped, the Bree session in Sessions; the film shows it until `end`.
+ */
+export const PHONE_SHOT = { history: 2.2, end: 8.0 } as const;
