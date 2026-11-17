@@ -63,10 +63,10 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Simulated Comm lines (feed helper, invented names; `video/feeds/comm.ts`).
 - [x] Detailed manuscript (`video/manuscript-2.md`, draft 2).
 - [x] Acts 0–3 recorded (night, Bree, the wilds, the wolves; take `film2-a`, `video/out/film2-draft.mp4`).
-- [ ] Acts 5–6 recorded (make it yours; memory and the account).
+- [x] Acts 5–6 recorded (make it yours; memory and the account; take `film2-b`, phone shot `film2-phone`).
 - [x] Act 4 in the film (the approved device prototype; `DevicesAct`, joined to act 3 without a cut).
-- [ ] Acts 7–8 recorded (community, dawn).
-- [ ] The `Film2` composition, full cut, music laid under.
+- [x] Acts 7–8 recorded (community, dawn; take `film2-b`; community re-captured first).
+- [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 6:01; `film2-draft-small.mp4` for the phone).
 - [ ] Owner feedback rounds.
 - [ ] Master and 4K.
 
@@ -88,6 +88,32 @@ old film's manuscript, scenes and takes stay for reference.
    - Tablet portrait or landscape.
    - Whether the camera move is "wow" enough, or should be a slide or
      morph of the picture itself.
+
+### 70b — the full draft (acts 0–8)
+
+1. Open `video/out/film2-draft.mp4` (6:01), or `film2-draft-small.mp4`
+   on the phone. Acts 0–4 are as approved; the new part starts at 2:57.
+2. What it shows:
+   - 2:57–3:57 act 5: the inn with the barman behind; Profile (`fk` →
+     `kill wolf`, the Editor, Find), Scripts (Almanac, Mercenaries on,
+     cost 20), Timers dragged to the left dock and back out to float.
+   - 3:57–5:06 act 6: Exit, History (the log player in the wolf fight,
+     Rasta's Half-Elf spotlight, Diary), Create account (`demo`, a fake
+     account), then the same account on a phone with the Bree session.
+   - 5:06–5:49 act 7: Share → Hall of Fame → the rules → Publish → the
+     link → Open Community (the real log, Random Runes, warlords, players
+     online) → the real log's watch page.
+   - 5:49–6:01 act 8: back to the start page at sunrise, the end card,
+     the fade.
+3. Feedback wanted:
+   - The length: 6:01, about 30–45 s over the 5:15–5:30 aim. Where to cut
+     (candidates: the Timers drag, Diary, the Log in page before Create
+     account, the export editor's hold).
+   - Hall of Fame (listed) instead of a plain Link, so Open Community
+     leads straight to the Community page with the film's run under New.
+   - The phone shot's place (right of the middle, the caption at left).
+   - The dawn by the watch page's Back (a page load) rather than a sunrise
+     on camera.
 
 ## Owner feedback
 

@@ -71,7 +71,7 @@
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Done; released 0.16.0, the owner's feedback in 0.16.1 (2026-11-17) | `docs/stages/68-owner-fixes.md` |
-| 70 | Presentation film 2 | In progress (acts 0–4 drafted, with the owner) | `docs/stages/70-presentation-film-2.md` |
+| 70 | Presentation film 2 | In progress (acts 0–8 drafted, 6:01, with the owner) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 | 71 | The shared replay with the lens | Built on `stage-71-shared-replay-lens` (A–D), waiting for staging and the owner's test | `docs/stages/71-shared-replay-lens.md` |
@@ -100,6 +100,20 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-18 — Stage 70: film 2, acts 5–8
+
+- **Done:** community re-captured (still 1 listed run, 0 stars, 0
+  comments, 2 notes, empty Hall of Fame); take `film2-b` (acts 5–8, one
+  desktop take) and `film2-phone` (act 6's phone shot); `Film2` holds
+  acts 0–8 (6:01), rendered to `video/out/film2-draft.mp4` and
+  `film2-draft-small.mp4`. ADR 0133 addendum.
+- **Next:** the owner's view (test guide 70b), above all where to cut
+  to reach about 5:20.
+- **Open:** the link field's address is rewritten on the page
+  (dev server → mumecockpit.com); the phone's runs are restored, not
+  synced; acts 0's start menu lacks the cloud rows that act 6's shows.
+- **Commits:** 952ac14e…, and this one.
 
 ### 2026-11-17 — Stage 71: the shared replay with the lens (A–D)
 
