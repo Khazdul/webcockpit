@@ -21,7 +21,7 @@ export interface CommLine {
 }
 
 /** One staged message as MUME sends it, ending in `prompt`. */
-export function commStep(m: CommLine, prompt: string): Step {
+export function commStep(m: CommLine, prompt: string): Step & { out: Buffer } {
   const text = `${m.talker} ${VERB[m.channel]} '${m.text}'`;
   const body = { channel: m.channel, talker: m.talker, 'talker-type': 'player', text: `\x1b[${COLOUR[m.channel]}m${text}\x1b[0m` };
   return {
@@ -34,6 +34,12 @@ export function commStep(m: CommLine, prompt: string): Step {
     ]),
   };
 }
+
+/** Film 2, act 1 (in Bree, before the mercenary): a narrate on Public and Eilwen's first tell (invented names). */
+export const BREE_ARRIVAL_COMM: CommLine[] = [
+  { channel: 'tales', talker: 'Oswin', text: 'anyone selling arrows in Bree?' },
+  { channel: 'tells', talker: 'Eilwen', text: 'evening! heading out tonight?' },
+];
 
 /** Film 2's tells on the way back into Bree (invented names). */
 export const BREE_TELLS: CommLine[] = [

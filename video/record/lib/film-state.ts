@@ -167,3 +167,12 @@ export async function shootingStar(page: Page, at: { x: number; y: number; dir: 
   }, at);
   if (!ok) throw new Error('no __wcSky.shoot: is this the dev server?');
 }
+
+/**
+ * The weather the films pin when Weather effects comes on (the dev hook's
+ * `__weather.jump`): a clear night (the game says day; only the weather is
+ * staged). Film 2's takes all end their weather here (the storm clears to
+ * it before the wolves), so the devices' takes pin the same and the desktop
+ * and the touch devices agree at the hand-off.
+ */
+export const CLEAR_NIGHT = { weather: ' ', fog: '', clock: 'night', light: ')', sunU: -1, moonUp: false, moonU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 } as const;

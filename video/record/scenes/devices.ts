@@ -25,12 +25,12 @@
 // with touch presses held like a finger's (the composition draws the
 // touches from the input log).
 import type { CDPSession, Page, WebSocketRoute } from '@playwright/test';
-import { GMCP, IAC, WILL, type Step, gmcpBytes, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { type DevWindow, GMCP, IAC, WILL, type Step, gmcpBytes, sleep } from '../../../scripts/lib/mume-feed.ts';
 import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
-import { BREE_TELLS, commStep } from '../../feeds/comm.ts';
+import { BREE_ARRIVAL_COMM, BREE_TELLS, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
-import { FILM_PAGE, prepareFilm } from '../lib/film-state.ts';
+import { CLEAR_NIGHT, FILM_PAGE, prepareFilm } from '../lib/film-state.ts';
 import { seeded } from '../lib/mouse.ts';
 import { type Excerpt, type Run, excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
@@ -38,7 +38,7 @@ import type { Scene } from '../lib/scene.ts';
 export type Device = 'desktop' | 'tablet' | 'phone';
 
 /** The run second the excerpt starts at (the pre-play ends here). */
-const FROM = 119.0;
+export const FROM = 119.0;
 /** Where the fight's segment ends and the walk's begins: after the fur, before the first `e`. */
 const WALK_FROM = 143.9;
 
@@ -57,7 +57,7 @@ const TO = 152.1;
 const LEAD_MS = 2500;
 
 /** The game's steps on the film's clock (ms from sync): the fight, the walk from DEVICES.walk, the staged tells. */
-function deviceSteps(runs: Map<string, Run>): Step[] {
+export function deviceSteps(runs: Map<string, Run>): Step[] {
   const fight = excerptFeed(runs, { ...EXCERPT, from: FROM, to: WALK_FROM });
   const walk = excerptFeed(runs, { ...EXCERPT, from: WALK_FROM, to: TO });
   const first = walk.steps.find((s) => 'cmd' in s)!.at ?? 0;
@@ -169,6 +169,9 @@ function devicesScene(device: Device): Scene {
       const a = arrival();
       ws.send('out' in a.arrive ? a.arrive.out : Buffer.alloc(0));
       await sleep(500);
+      // Film 2's act 1 talk (staged, invented names), so Messages holds it later as on the desktop
+      for (const m of BREE_ARRIVAL_COMM) ws.send(commStep(m, '*# R Mana:Burning>').out);
+      await sleep(300);
       // The run fast to the fight: its server side only, in sends of about 32 KiB.
       const runs = loadBackup(FILM_BACKUP);
       const before = excerptFeed(runs, { run: BREE_RUN, from: 0.5, to: FROM, primeFrom: 0.5, rewrite: noPonyLabel });
@@ -192,6 +195,12 @@ function devicesScene(device: Device): Scene {
         .waitFor({ timeout: 30_000 })
         .catch(() => console.warn('  the map did not load'));
       if (mobile) await page.locator('.wc-cockpit[data-phone-game]').waitFor({ timeout: 5000 });
+      // the films' clear night, as film 2's desktop take leaves it before the wolves
+      await page.evaluate(async (pin) => {
+        const w = window as unknown as DevWindow;
+        await w.__wc!.weather();
+        w.__weather!.jump(pin);
+      }, CLEAR_NIGHT);
       const steps = deviceSteps(runs).filter((s) => (s.at ?? 0) < endS * 1000);
       console.log(`  ${steps.length} steps, ${steps.filter((s) => 'cmd' in s).length} commands, the last at ${((steps.at(-1)?.at ?? 0) / 1000).toFixed(2)} s`);
       await sleep(2500);
