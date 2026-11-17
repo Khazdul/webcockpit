@@ -221,6 +221,29 @@ describe('map worker core', () => {
     expect(h.out.slice(n).some((m) => m.t === 'roomNotes')).toBe(false);
   });
 
+  it('follows the player unless told not to, and centres on them when told to follow again (ADR 0160)', async () => {
+    const h = harness();
+    await h.core.load(1, { kind: 'data', map: await readMm2(await tinyFile()), name: 't' });
+    const at = (): { x: number; y: number } => ({ x: h.core.view.x, y: h.core.view.y });
+    const room = (): void => h.core.handle({ t: 'events', events: [{ k: 'gmcp', pkg: 'Room.Info', data: { id: 77, name: 'A' } }] });
+    room();
+    const home = at();
+    // Panned away and following: a move centres on the player again.
+    h.core.handle({ t: 'pan', dx: 120, dy: 40 });
+    expect(at()).not.toEqual(home);
+    room();
+    expect(at()).toEqual(home);
+    // Not following: the view stays where it was panned to.
+    h.core.handle({ t: 'follow', on: false });
+    h.core.handle({ t: 'pan', dx: 120, dy: 40 });
+    const away = at();
+    room();
+    expect(at()).toEqual(away);
+    // Follow again: centred on the player at once.
+    h.core.handle({ t: 'follow', on: true });
+    expect(at()).toEqual(home);
+  });
+
   it('answers roomAt with the room under the point and its hover content (ADR 0077)', async () => {
     const h = harness();
     await h.core.load(1, { kind: 'data', map: await readMm2(await tinyFile()), name: 't' });
