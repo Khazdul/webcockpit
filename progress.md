@@ -99,6 +99,12 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-17 — Hall of Fame logs in Discord's #log-status (investigation)
+
+- **Done:** investigated how Elvenrunes logs reach MUME's Discord `#log-status` (likely a webhook from elvenrunes; unconfirmed) and how ours could join (webhook or a feed). Notes in `notes/research/discord-log-status.md`. Owner's scope: every listed Hall of Fame log goes in the flow. Nothing built.
+- **Next:** the owner has written to Nazgum; act on the answer (webhook: post per listed log after its preview PNG; polling: a stable `/api/feed.json` / `/feed.xml`).
+- **Commits:** this one.
+
 ### 2026-11-17 — The Hall of Fame's five-vote floor
 
 - **Done:** the owner's rule: a log enters the Hall of Fame only with at least five votes (`HALL_OF_FAME_MIN_VOTES`, `GET /api/community`; all votes, not only ranking ones; the gallery's sorts unchanged). The Hall of Fame's texts say so. ADR 0155 addendum. Worker tests 387/387, community e2e 49/49.
