@@ -592,3 +592,47 @@ closed GOP of 30 and AAC 384k, as YouTube recommends. That file played
 clean on YouTube (owner). `record/master.ts` makes it as
 `<base>-youtube.mp4` in place of `-4k.mp4`. The thumbnail is the start
 page at 3840×2160 (`record/thumbnail.ts`).
+
+## Addendum (2026-11-17): film 2's device prototype
+
+Stage 70's high point (manuscript-2 act 6): one live session on a
+desktop, a tablet and a phone. Prototype composition `DevicesProto`
+(`src/compositions/DevicesProto.tsx`), takes from
+`record/scenes/devices.ts`.
+
+- **Three takes, recorded one after the other**, not three contexts at
+  once: the game is driven only by the feed (the mock ignores what the
+  client sends), so the same feed on the same clock gives the same game
+  moment in every take. Each take gets the run's server side fast from
+  its start to 119.0 s off camera (no commands typed), then the wolf
+  fight and the walk east (run 119.0-148.2 s, take A's cut of the flee,
+  speed 1, gaps capped at 1.5 s; 19.2 s) on a fixed clock. Its `sync`
+  marker is the excerpt's 0; the composition plays every take from its
+  `sync`, so all three screens agree at any film time. Sequential capture
+  keeps each take's full capture rate and needs no change to the
+  recorder's single-page model.
+- **Devices** (`PageOptions.viewport`, `mobile`): desktop 1600×900 CSS at
+  DPR 1.2 (1920×1080); tablet 820×1180 CSS (an iPad in portrait), mobile
+  and touch, DPR 1 (new mode `intel-1-png`; it is never shown larger than
+  about 940 px high); phone 390×844 CSS, mobile and touch, DPR 1.2
+  (468×1012). Both touch devices get the phone's game layout by default
+  (ADR 0140): fight card, map lens, compass, hot keys.
+- **Input on the touch devices**: words on our keyboard (ADR 0138), each
+  key a held touch (`Input.dispatchTouchEvent`, 55-90 ms) on its own
+  planned time so the Enter lands when the player sent the command;
+  directions on the compass; the keyboard folded after a command
+  (Playwright's `tap`: a held CDP touch on Hide keyboard, which acts on
+  its click, gives no click). The composition draws a fading ring at each
+  `down` of the input log.
+- **Capture rates** (PNG, whole take, about 23 s): desktop 23.9 fps mean,
+  tablet 24.2, phone 23.2. Quiet stretches send few frames; from the
+  sunset in the fight on, the weather's sky (30 fps by its own cap) sets
+  the rate at a steady 30 frames a second on all three.
+- **Picture**: one world with the three devices side by side (bottoms on
+  one line), drawn in CSS with generic bezels (no brand look); a camera
+  (point and log zoom, eased) moves over it, and each device is laid out
+  at its framed size (no CSS scale, so the videos are drawn at their final
+  pixel size). The devices out of focus are dimmed.
+- The prototype renders straight to H.264 (`--config` with an h264
+  config, as `remotion.config.ts` fixes ProRes); the film proper will go
+  through `npm run render`.

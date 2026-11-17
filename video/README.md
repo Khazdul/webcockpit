@@ -20,6 +20,7 @@ npm run record -- take-a                     # the film's take A (0:00–1:33), 
 npm run record -- take-b                     # the film's take B (1:33–3:10)
 npm run record -- part1                      # part 1 alone (public/recordings/part1.*)
 npm run record -- part1 --mode intel-2       # another capture mode (record/lib/browser.ts)
+npm run record -- devices-desktop            # film 2's device takes: also devices-tablet, devices-phone
 npm run record -- bree --measure             # every mode: an fps table, no files kept
 node record/gpu-probe.ts                     # which flags give WebGL2 on which GPU
 node record/capture-login.ts                 # MUME's real welcome screen → private/ (once)
