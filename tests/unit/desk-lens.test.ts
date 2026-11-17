@@ -62,11 +62,12 @@ describe('desk lens: place and size', () => {
 });
 
 describe('desk lens: Group and Timers float at the bottom right', () => {
-  it('puts Timers right above Group, both at the right edge and above the control box', () => {
+  it('puts Timers above Group with a row of air, the same height, at the right edge above the control box', () => {
     const r = deskPaneRects(160, 44, 4, true);
     expect(r.group.x + r.group.w).toBe(158);
     expect(r.group.y + r.group.h).toBe(40);
-    expect(r.timers.y + r.timers.h).toBe(r.group.y);
+    expect(r.timers.y + r.timers.h + 1).toBe(r.group.y);
+    expect(r.timers.h).toBe(r.group.h);
     expect(r.timers.x).toBe(r.group.x);
     expect(r.group.w).toBeGreaterThanOrEqual(30);
   });
@@ -76,12 +77,22 @@ describe('desk lens: Group and Timers float at the bottom right', () => {
     expect(r.timers.y + r.timers.h).toBe(40);
   });
 
-  it('gives up rows to stay under the lens, Timers first', () => {
+  it('keeps a row of air under the lens, both giving up rows alike', () => {
     const free = deskPaneRects(160, 44, 4, true);
     const under = deskPaneRects(160, 44, 4, true, 20);
-    expect(under.timers.y).toBeGreaterThanOrEqual(20);
-    expect(under.group.h).toBe(free.group.h);
-    expect(under.timers.h).toBeLessThan(free.timers.h);
+    expect(under.timers.y).toBeGreaterThanOrEqual(21);
+    expect(under.timers.h).toBe(under.group.h);
+    expect(under.group.h).toBeLessThan(free.group.h);
+    expect(under.timers.y + under.timers.h + 1).toBe(under.group.y);
+  });
+
+  it('lets the air go before the floats shrink below their least', () => {
+    // 44 - 4 - 29 = 11 rows: two of 5 and one row between, none under the lens.
+    const r = deskPaneRects(160, 44, 4, true, 29);
+    expect(r.group.h).toBe(5);
+    expect(r.timers.h).toBe(5);
+    expect(r.timers.y).toBe(29);
+    expect(r.timers.y + r.timers.h + 1).toBe(r.group.y);
   });
 
   it('takes the two out of the docks and floats them, the rest as it was', () => {

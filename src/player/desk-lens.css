@@ -7,8 +7,9 @@
 
 .wc-cockpit > .wc-dl {
   --dl-ring: 10px;
-  --dl-key: 36px;
-  --dl-over: 10px;
+  --dl-key: 44px;
+  /* A corner key's offset into the lens's box: its centre on the ring's outer edge at 45° (it overlaps the ring and a little of the glass). */
+  --dl-key-at: calc(var(--dl-size, 260px) / 2 - (var(--dl-size, 260px) / 2 + var(--dl-ring)) * 0.7071 - var(--dl-key) / 2);
   --dl-lamp: #e8c48a;
   --dl-lamp-hi: #fff1cf;
   --dl-ink: #170f03;
@@ -100,7 +101,7 @@
     var(--dl-outer);
 }
 
-/* The round keys on the lens's corners (they overhang its box). */
+/* The round keys on the lens's diagonals, set into the ring so they belong to the lens. */
 .wc-dl-key,
 .wc-dl-follow {
   position: absolute;
@@ -122,23 +123,23 @@
 }
 
 .wc-dl-key.is-tl {
-  left: calc(-1 * var(--dl-over));
-  top: calc(-1 * var(--dl-over));
+  left: var(--dl-key-at);
+  top: var(--dl-key-at);
 }
 
 .wc-dl-key.is-tr {
-  right: calc(-1 * var(--dl-over));
-  top: calc(-1 * var(--dl-over));
+  right: var(--dl-key-at);
+  top: var(--dl-key-at);
 }
 
 .wc-dl-key.is-br {
-  right: calc(-1 * var(--dl-over));
-  bottom: calc(-1 * var(--dl-over));
+  right: var(--dl-key-at);
+  bottom: var(--dl-key-at);
 }
 
 .wc-dl-key.is-bl {
-  left: calc(-1 * var(--dl-over));
-  bottom: calc(-1 * var(--dl-over));
+  left: var(--dl-key-at);
+  bottom: var(--dl-key-at);
 }
 
 /* The move handle: a grab cursor, its four arrows say "drag me". */
@@ -178,8 +179,8 @@
   left: 50%;
   bottom: 12px;
   transform: translateX(-50%);
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
 }
 
 .wc-dl-follow[hidden] {
@@ -188,8 +189,8 @@
 
 .wc-dl-ico {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;

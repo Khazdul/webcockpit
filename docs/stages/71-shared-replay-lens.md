@@ -124,4 +124,13 @@ placed, the follow behaviour after a pan, and the phone views.
 
 ## Owner feedback
 
-(After the test.)
+Round 1 (2026-11-17, from the screenshots, before staging):
+
+1. [x] The desktop lens's keys stood off the lens at its box's corners. They
+   now sit on the diagonals, set into the ring (centre on the ring's outer
+   edge, overlapping it and a little of the glass), and are larger (44 px,
+   24 px icons; the follow key 38 px).
+2. [x] Group and Timers: the same height by default (8–14 rows, a third of
+   the height), a row of air between them and a row under the lens when
+   there is room. Short of rows both shrink alike to 5 rows; only then the
+   air goes (under the lens first). (`deskPaneRects`.)

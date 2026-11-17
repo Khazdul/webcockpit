@@ -131,3 +131,10 @@ Spotlights stay as they are.
   `phone-watch-map-zoom` tests the phone lens's pinch levels.
 - The zoom and the follow state start over after a backward seek (a new
   App and map worker); the lens's place and size do not.
+
+## Addendum (owner's feedback round 1, 2026-11-17)
+
+The corner keys sit on the lens's diagonals, centred on the ring's outer
+edge (`--dl-key-at` in desk-lens.css), 44 px. Group and Timers share one
+height and keep a row of air between them and under the lens while the
+rows allow; the air goes before either float drops below 5 rows.

@@ -64,7 +64,11 @@ test('the desktop lens: always on, its keys, Group and Timers at the bottom righ
       return t.y + t.height <= g.y + 1 && Math.abs(t.x - g.x) < 1;
     })
     .toBe(true);
+  // The same height, and a row's air between them (stage 71, owner's feedback 1).
   const g = await box(group);
+  const t0 = await box(timers);
+  expect(Math.abs(t0.height - g.height)).toBeLessThan(2);
+  expect(g.y - (t0.y + t0.height)).toBeGreaterThan(8);
   expect(g.x + g.width).toBeGreaterThan(frame.x + frame.width - 80);
   expect(g.y + g.height).toBeGreaterThan(frame.y + frame.height - 120);
   // Under the lens, not under it on screen.

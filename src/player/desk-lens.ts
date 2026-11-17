@@ -44,8 +44,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The ring round the glass, px (desk-lens.css `--dl-ring`). */
 export const DESK_RING_PX = 10;
-/** A corner key's side, and how far it hangs over the lens's box, px (desk-lens.css). */
-export const DESK_KEY_PX = 36;
+/**
+ * A corner key's side, px, and how far anything of the lens (the ring; a
+ * key, set into the ring on the diagonal, less) reaches out of its box, px
+ * (desk-lens.css).
+ */
+export const DESK_KEY_PX = 44;
 export const DESK_KEY_OVER = 10;
 /** The lens's least and largest diameter, px. */
 export const DESK_LENS_MIN = 140;
@@ -124,34 +128,44 @@ export const DESK_FLOAT_RIGHT = 2;
 /** What the floats keep free under them, px: the player's control box (player.css), when it shows. */
 export const DESK_FLOAT_BOTTOM_PX = 64;
 
-/** The least heights the floats give up rows to stay under the lens, rows (frame included). */
-export const DESK_GROUP_LEAST = 6;
-export const DESK_TIMERS_LEAST = 5;
+/** The least height each float keeps when rows run short, rows (frame included). */
+export const DESK_FLOAT_LEAST = 5;
+/** The air the floats keep, rows: between Timers and Group, and under the lens. */
+export const DESK_FLOAT_GAP = 1;
 
 /**
  * Where Group and Timers float in a grid of `cols` × `rows`: at the bottom
  * right, `bottom` rows above the bottom edge (the player's control box),
- * Timers right above Group when Group is on (else where Group would be).
- * Reasonably large: a third of the width (30 to 56 columns), Group a
- * third of the height (8 to 16 rows), Timers a little less (6 to 12). With
- * `top` (the first row under the lens, where the lens stands above them)
- * they give up rows to stay under it, Timers first, down to their least.
+ * Timers above Group when Group is on (else where Group would be).
+ * Reasonably large: a third of the width (30 to 56 columns), each about a
+ * third of the height (8 to 14 rows), the two the same height, with a row
+ * of air between them. With `top` (the first row under the lens, where the
+ * lens stands above them) they keep a row of air under it too. Short of
+ * rows, both give up rows alike, down to `DESK_FLOAT_LEAST`; only then the
+ * air goes (first under the lens, then between them).
  */
 export function deskPaneRects(cols: number, rows: number, bottom: number, groupOn: boolean, top = 0): DeskPaneRects {
   const w = Math.max(1, Math.min(cols - DESK_FLOAT_RIGHT, Math.max(30, Math.min(56, Math.round(cols / 3)))));
-  let gh = Math.max(3, Math.min(16, Math.max(8, Math.round(rows / 3))));
-  let th = Math.max(3, Math.min(12, Math.max(6, Math.round(rows / 4))));
+  const want = Math.max(3, Math.min(14, Math.max(8, Math.round(rows / 3))));
+  const n = groupOn ? 2 : 1;
   const room = rows - bottom - top;
-  if (groupOn) {
-    const over = gh + th - room;
-    if (over > 0) th = Math.max(Math.min(th, DESK_TIMERS_LEAST), th - over);
-    const left = gh + th - room;
-    if (left > 0) gh = Math.max(Math.min(gh, DESK_GROUP_LEAST), gh - left);
-  } else if (th > room) th = Math.max(Math.min(th, DESK_TIMERS_LEAST), room);
+  let between = groupOn ? DESK_FLOAT_GAP : 0;
+  let under = top > 0 ? DESK_FLOAT_GAP : 0;
+  const fit = (): number => Math.floor((room - between - under) / n);
+  let h = Math.min(want, fit());
+  if (h < DESK_FLOAT_LEAST && under > 0) {
+    under = 0;
+    h = Math.min(want, fit());
+  }
+  if (h < DESK_FLOAT_LEAST && between > 0) {
+    between = 0;
+    h = Math.min(want, fit());
+  }
+  h = Math.max(Math.min(want, DESK_FLOAT_LEAST), h);
   const x = Math.max(0, cols - DESK_FLOAT_RIGHT - w);
-  const gy = Math.max(0, rows - bottom - gh);
-  const ty = Math.max(0, groupOn ? gy - th : rows - bottom - th);
-  return { group: { x, y: gy, w, h: gh }, timers: { x, y: ty, w, h: th } };
+  const gy = Math.max(0, rows - bottom - h);
+  const ty = Math.max(0, groupOn ? gy - between - h : rows - bottom - h);
+  return { group: { x, y: gy, w, h }, timers: { x, y: ty, w, h } };
 }
 
 /**
