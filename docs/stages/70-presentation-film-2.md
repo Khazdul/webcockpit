@@ -59,7 +59,7 @@ old film's manuscript, scenes and takes stay for reference.
 
 - [x] Stage file and manuscript draft 1.
 - [ ] Device-transition prototype (composition `DevicesProto`).
-- [ ] Community capture (`video/private/community/`) and its loader.
+- [x] Community capture (`video/private/community/`) and its loader.
 - [ ] Simulated Comm lines (feed helper, invented names).
 - [ ] Acts 0–3 recorded (night, Bree, the wilds, the wolves).
 - [ ] Acts 4–5 recorded (make it yours, memory).
