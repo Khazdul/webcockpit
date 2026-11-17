@@ -177,6 +177,8 @@ export class MapWorkerCore {
   private assetsPending = false;
   /** The map background (ADR 0085). */
   private background: RGBA = BACKGROUND;
+  /** The view follows the player (`follow`, ADR 0160); off: a move leaves the view where it is. */
+  private following = true;
 
   constructor(private readonly host: WorkerHost) {}
 
@@ -214,6 +216,14 @@ export class MapWorkerCore {
         if (!Number.isFinite(zoom) || zoom === this.view.zoom) return;
         this.touch();
         this.setView({ ...this.view, zoom });
+        return;
+      }
+      case 'follow': {
+        this.following = m.on;
+        const map = this.map;
+        const you = this.tracker.current.room;
+        if (!m.on || !map || you === null || you < 0 || you >= map.roomCount) return;
+        this.setView(centreOn(this.view, map.x[you]!, map.y[you]!, map.z[you]!));
         return;
       }
       case 'visible':
@@ -522,7 +532,7 @@ export class MapWorkerCore {
           this.focus = null;
           v = centreOn({ ...this.view, zoom: fo!.savedZoom }, map.x[room]!, map.y[room]!, map.z[room]!);
         }
-      } else v = f ? this.fitted(f) : centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!);
+      } else v = f ? this.fitted(f) : this.following ? centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!) : this.view;
       if (v.x !== this.view.x || v.y !== this.view.y || v.layer !== this.view.layer || v.zoom !== this.view.zoom) {
         this.view = v;
         draw = true;

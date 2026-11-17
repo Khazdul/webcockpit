@@ -83,6 +83,16 @@
 // out: no Back at the top left, no Panes popup. A bare view (the Spotlights
 // viewer) gets the layout without a bar and without a layer: the game text
 // alone.
+//
+// A shared run's lens (stage 71, ADR 0160; `PlayerHostOptions.lens`, given
+// by src/replay/page.ts): the map is a lens, always on. On a phone or
+// tablet the phone layer's lens, with its panes key and a fullscreen key
+// (no Comm key: a shared run has no Comm), Group and Timers the strip's
+// pages, the strip closed at the start. On a computer the desktop lens
+// (src/player/desk-lens.ts) over each App, where the host keeps the lens's
+// place and size across rebuilds, and Group and Timers float at the bottom
+// right (`deskPanesLayout`, anchored to the cockpit's grid at every layout)
+// until the viewer moves one: then the viewer's layout stands, as ever.
 
 import type { RunLibrary } from '../runs/library';
 import { type FetchProgressFn, notFetchedWords } from '../runs/cloud-hook';
@@ -119,6 +129,7 @@ import { commentLines } from '../share/edits';
 import type { ReplayClock } from '../player/clock';
 import type { MapPaneHost } from '../map/protocol';
 import { App } from './app';
+import { type DeskLens, type DeskLensSpot, DESK_FLOAT_BOTTOM_PX, deskPaneRects, deskPanesLayout, mountDeskLens } from '../player/desk-lens';
 import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 
 /**
@@ -129,7 +140,14 @@ import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } fro
 export interface PlayerPhone {
   mount(deps: PhoneReplayDeps): { dispose(): void; setClear(clear: PhoneReplayClear): void };
   kit: PhoneKit;
-  controls: PhoneControls;
+  /** The look kit's controls (the menu's settings page; never shown over a replay). Absent: none (the HTML replay). */
+  controls?: PhoneControls;
+}
+
+/** A shared run's lens (stage 71, ADR 0160; see the file header). */
+export interface PlayerLensOptions {
+  /** The player's fullscreen (the page's, or the watch page's frame's); null: no fullscreen key. */
+  fullscreen: { is(): boolean; toggle(): void } | null;
 }
 
 export interface PlayerHostOptions {
@@ -157,6 +175,8 @@ export interface PlayerHostOptions {
    * every other pane stays off, script panes too. Absent: every pane.
    */
   panes?: readonly BuiltinPaneId[];
+  /** A shared run: the map as a lens, always on, Group and Timers reached from it (stage 71). */
+  lens?: PlayerLensOptions;
 }
 
 /** What the header shows besides the runs (from the History session). */
@@ -211,6 +231,21 @@ export function phoneReplaySettings(viewer: Settings): Settings {
   mine.phone.lens.portrait = defaultPhoneLensWant();
   mine.phone.lens.landscape = defaultPhoneLensWant();
   return mine;
+}
+
+/**
+ * A shared run on a phone (stage 71): the lens always on, and the strip's
+ * pages Group and Timers, in that order (the panes a shared run has; the
+ * map is the lens). Changes `mine`.
+ */
+export function sharedPhoneSettings(mine: Settings): void {
+  mine.phone.lens.show = true;
+  const rest = mine.phone.strip.panes.filter((e) => e.id !== 'group' && e.id !== 'timers').map((e) => ({ ...e, on: false }));
+  mine.phone.strip.panes = [
+    { ...(mine.phone.strip.panes.find((e) => e.id === 'group') ?? { id: 'group' }), on: true },
+    { ...(mine.phone.strip.panes.find((e) => e.id === 'timers') ?? { id: 'timers' }), on: true },
+    ...rest,
+  ] as typeof mine.phone.strip.panes;
 }
 
 /** Paint gate: frame callbacks wait while it is closed. */
@@ -283,6 +318,12 @@ export class PlayerHost {
   private phoneClear: PhoneReplayClear = { right: PHONE_CLEAR_RIGHT, plate: null };
   /** Phone: the top left corner of the lens with its keys (or of its key row), px of the cockpit; null: neither. */
   private phoneTopRight: { left: number; top: number } | null = null;
+  /** Desktop, a shared run (`opts.lens`, not a bare view): the open chain has the desktop lens. */
+  private deskLensOn = false;
+  /** Desktop lens: the current App's, its place and size (kept across rebuilds), and the cockpit's grid at the last layout. */
+  private deskLensRef: DeskLens | null = null;
+  private deskSpot: DeskLensSpot | null = null;
+  private deskGrid: { cols: number; rows: number; under: number } | null = null;
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -296,7 +337,12 @@ export class PlayerHost {
     this.cells = new CellMetrics({ doc, root: this.el });
     this.cells.subscribe(() => this.placeStage());
     // The control box's Fullscreen icon follows the page's state.
-    this.disposers.push(onFullscreenChange(() => this.view?.refresh(), doc));
+    this.disposers.push(
+      onFullscreenChange(() => {
+        this.view?.refresh();
+        this.refreshLens();
+      }, doc),
+    );
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.relayout());
       this.ro.observe(this.el);
@@ -360,6 +406,7 @@ export class PlayerHost {
       this.fitKey = '';
     }
     this.phoneBar = this.opts.phone !== undefined && !opts.view?.bare;
+    this.deskLensOn = this.opts.lens !== undefined && this.opts.phone === undefined && !opts.view?.bare;
     this.dock = null;
     const tl = buildTimeline(chain, opts.edits);
     this.scriptIds = scriptPaneIdsOf(tl).filter((id): id is ScriptPaneId => isScriptPaneId(id) && this.paneAvailable(id));
@@ -510,7 +557,7 @@ export class PlayerHost {
       this.relayout();
     });
     this.relayout();
-    const dropPhone = this.phoneBar ? this.mountPhone(app) : () => {};
+    const dropPhone = this.phoneBar ? this.mountPhone(app) : this.deskLensOn ? this.mountDeskLens(app) : () => {};
     // Script panes (ADR 0053 P1): the recorded content, drawn without Lua.
     const spanes = new Map<ScriptPaneId, { snap: PaneSnapshot; pane: ScriptPane; closed?: boolean }>();
     const dropPane = (id: ScriptPaneId): void => {
@@ -616,6 +663,71 @@ export class PlayerHost {
     };
   }
 
+  // ---------------------------------------------------------- desktop lens
+
+  /** The desktop lens over `app`'s cockpit (stage 71, see the file header); returns what takes it away. */
+  private mountDeskLens(app: App): () => void {
+    const fs = this.opts.lens?.fullscreen ?? null;
+    const lens = mountDeskLens({
+      cockpit: app.cockpit,
+      cells: this.cells,
+      spot: () => this.deskSpot,
+      setSpot: (spot) => {
+        this.deskSpot = spot;
+      },
+      paneOn: (id) => {
+        const s = this.store?.get();
+        return s ? paneSettingsOf(s.panes, id).on : false;
+      },
+      togglePane: (id) => {
+        const s = this.store?.get();
+        const on = s ? paneSettingsOf(s.panes, id).on : false;
+        this.setViewer(withPane(this.viewer, id, !on));
+      },
+      fullscreen: fs,
+      onGrid: (cols, rows, under) => {
+        const g = this.deskGrid;
+        if (g && g.cols === cols && g.rows === rows && g.under === under) return;
+        this.deskGrid = { cols, rows, under };
+        // The floats follow the grid while the viewer has not moved them.
+        if (!this.viewer.layout) this.compose();
+      },
+    });
+    this.deskLensRef = lens;
+    return () => {
+      if (this.deskLensRef === lens) this.deskLensRef = null;
+      lens.dispose();
+    };
+  }
+
+  /** The desktop lens (tests, the dev hook); null elsewhere. */
+  get deskLens(): DeskLens | null {
+    return this.deskLensRef;
+  }
+
+  /** The lens's keys again (the fullscreen state changed; the frame's fill tells the page). */
+  refreshLens(): void {
+    this.deskLensRef?.refresh();
+  }
+
+  /**
+   * Desktop lens: Group and Timers floating at the bottom right of the
+   * cockpit's grid (the last layout's, else as the player's size gives it),
+   * over `d` (a draft of the composed settings).
+   */
+  private anchorDeskPanes(d: Settings): void {
+    const cell = this.cells.get();
+    if (!(cell.w > 0 && cell.h > 0)) return;
+    const g = this.deskGrid ?? {
+      cols: Math.floor((this.el.clientWidth - this.railW) / cell.w + 1e-6),
+      rows: Math.floor(this.el.clientHeight / cell.h + 1e-6),
+      under: 0,
+    };
+    if (!(g.cols > 0 && g.rows > 0)) return;
+    const bottom = Math.ceil(DESK_FLOAT_BOTTOM_PX / cell.h - 1e-6);
+    d.layout = deskPanesLayout(d.layout, deskPaneRects(g.cols, g.rows, bottom, paneSettingsOf(d.panes, 'group').on, g.under));
+  }
+
   // ---------------------------------------------------------------- phone
 
   /**
@@ -625,9 +737,10 @@ export class PlayerHost {
    */
   private mountPhone(app: App): () => void {
     const phone = this.opts.phone!;
+    const fs = this.opts.lens?.fullscreen ?? null;
     const layer = phone.mount({
       kit: phone.kit,
-      controls: phone.controls,
+      ...(phone.controls ? { controls: phone.controls } : {}),
       cockpit: app.cockpit,
       game: app.game,
       cells: this.cells,
@@ -640,6 +753,8 @@ export class PlayerHost {
         onState: (s) => {
           this.phoneState = s;
         },
+        // A shared run (stage 71): a fullscreen key on the lens, and no Comm key.
+        ...(this.opts.lens ? { comm: false, ...(fs ? { fullscreen: () => fs.toggle() } : {}) } : {}),
         // (The layer places before `measure` below runs, at every layout.)
         onTopRight: (at) => {
           this.phoneTopRight = at;
@@ -677,6 +792,7 @@ export class PlayerHost {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     void store.load();
     const mine = phoneReplaySettings(this.opts.settings.get());
+    if (this.opts.lens) sharedPhoneSettings(mine);
     store.update((draft) => {
       Object.assign(draft, mine);
     });
@@ -788,6 +904,8 @@ export class PlayerHost {
         applyViewer(d, o);
         // Only these panes (a shared run): the rest stay off whatever the VIEW records and the viewer say.
         for (const id of Object.keys(d.panes) as PaneId[]) if (!this.paneAvailable(id)) d.panes[id]!.on = false;
+        // A shared run on a computer: Group and Timers float at the bottom right until the viewer moves them.
+        if (this.deskLensOn && !o.layout) this.anchorDeskPanes(d);
         if (tweak) {
           const ansi = d.appearance.ansi.slice();
           for (const [i, c] of Object.entries(tweak)) {

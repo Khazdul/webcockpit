@@ -228,6 +228,12 @@ export type MainToWorker =
    * §4). The relative `zoom` stays the wheel's and the pinch's.
    */
   | { t: 'zoomTo'; zoom: number }
+  /**
+   * Follow the player (the default) or not (stage 71, the desktop lens of
+   * a shared run, ADR 0160): while off, a located Room.Info no longer
+   * re-centres the view; turned on, the view centres on the player at once.
+   */
+  | { t: 'follow'; on: boolean }
   /** A batch of game events, in order. */
   | { t: 'events'; events: MapEvent[] }
   /** The pane was hidden or shown (the worker skips rendering while hidden). */

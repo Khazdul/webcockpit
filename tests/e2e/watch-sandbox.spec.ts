@@ -84,21 +84,10 @@ test('the map demo plays in the sandboxed frame, map and all, with no CSP violat
   const f = await playingFrame(page);
   // The map worker started from a blob: and drew the embedded subset.
   await f.waitForFunction(() => (window as unknown as { __wcReplay?: unknown }).__wcReplay != null);
-  // A shared run (stage 65): no pane at the start; Map, Timers and Group in the Panes popup, all off.
-  await expect(f.locator('.wc-pane[data-pane]:visible')).toHaveCount(0);
-  await f.locator('.wc-player').hover();
-  const box = f.locator('.wc-player-box');
-  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
-  await box.locator('[data-act="panes"]').click();
-  expect(await pop.locator('[data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
-    'timers:false',
-    'group:false',
-    'map:false',
-  ]);
-  await pop.locator('[data-pane="map"]').click();
-  // The pane turned on shows, and nothing else.
-  await expect(f.locator('.wc-pane[data-pane="map"]')).toBeVisible();
+  // A shared run (stage 71, ADR 0160): the map is the lens from the start, and nothing else shows.
+  await expect(f.locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
   await expect(f.locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
+  await expect(f.locator('.wc-dl')).toBeVisible();
   const map = f.locator('.wc-pane-map .wc-pane-content');
   await expect(map).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
   expect(Number(await map.getAttribute('data-map-rooms'))).toBeGreaterThan(0);
@@ -151,7 +140,9 @@ test('a hostile payload stays text: no element of its markup, no script of its o
   }));
   expect(seen.pwned).toBe(0);
   // An old payload's panes (its VIEW turns Comm and UI on; a script pane, Comm text): none shows, none is built.
-  await expect(f.locator('.wc-pane[data-pane]:visible')).toHaveCount(0);
+  // The map is the lens (stage 71), the one pane shown.
+  await expect(f.locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
+  await expect(f.locator('.wc-pane[data-pane="map"]')).toBeVisible();
   await expect(f.locator('.wc-pane[data-pane="evil/pane"]')).toHaveCount(0);
   expect(seen.text).not.toContain('tell <img');
   expect(seen.foreign).toHaveLength(1);

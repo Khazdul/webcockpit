@@ -115,6 +115,11 @@ export class MapClient {
     this.post({ t: 'zoomTo', zoom });
   }
 
+  /** Follows the player (re-centres on every move) or not (ADR 0160). */
+  follow(on: boolean): void {
+    this.post({ t: 'follow', on });
+  }
+
   visible(visible: boolean): void {
     this.post({ t: 'visible', visible });
   }
