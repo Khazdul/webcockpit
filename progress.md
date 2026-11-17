@@ -99,6 +99,12 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-17 — Discord post for 0.9.0 → 0.17.2
+
+- **Done:** the release post text (in chat, owner's edits: no balloons) and four 3200×1800 shots, reproducible as `discord3-community`, `discord3-watch`, `discord3-history`, `discord3-account` in `scripts/screenshots.ts` (cloud fakes as routes, `scripts/lib/cloud-fakes.ts`).
+- **Found, not fixed:** the watch page's replay header line is drawn over the first row of game text and the map's top labels; the Diary writes MUME's `*Name*` asterisks into the prose; the e2e fake `/api/community` lacks the five-vote floor; login reload drops other query parameters.
+- **Commits:** e1637cd1 and this one.
+
 ### 2026-11-17 — Hall of Fame logs in Discord's #log-status (investigation)
 
 - **Done:** investigated how Elvenrunes logs reach MUME's Discord `#log-status` (likely a webhook from elvenrunes; unconfirmed) and how ours could join (webhook or a feed). Notes in `notes/research/discord-log-status.md`. Owner's scope: every listed Hall of Fame log goes in the flow. Nothing built.
