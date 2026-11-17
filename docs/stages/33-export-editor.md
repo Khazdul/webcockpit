@@ -1,6 +1,6 @@
 # Stage 33 — Full-width Scripts and a new Export Editor
 
-Status: **In progress** (2026-11-01). Owner brief 2026-11-01 (below), the
+Status: **Done** (closed 2026-11-17; the owner: "look good", 2026-11-01). Owner brief 2026-11-01 (below), the
 first of the start-page menu reviews.
 
 ## Goal
@@ -68,7 +68,7 @@ range operations, the panel, keys, touch, narrow grids.
 - [x] 33b Keys and footer: X, C, E, D, Enter, Delete, T, H, P, ESC.
 - [x] 33b Narrow grids and touch (ADR 0115 §6).
 - [x] 33b Unit and e2e tests updated; `npm run typecheck`, unit, e2e green.
-- [ ] Owner test.
+- [x] Owner test (2026-11-01).
 
 ## Test guide 33
 

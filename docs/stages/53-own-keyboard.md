@@ -1,6 +1,7 @@
 # Stage 53 — An on-screen keyboard of our own (investigation first)
 
-Status: **In progress** (investigated and decided with the owner
+Status: **Done** (released 0.7.0, 2026-11-12; closed 2026-11-17). Before:
+investigated and decided with the owner
 2026-11-11: ADR 0138; branch `stage-53-own-keyboard`).
 
 ## Goal
@@ -196,7 +197,7 @@ moves the caret), script pane fields, key sound.
 - [x] 53k review and its fixes; the owner's test: all feels good
 - [x] Release decision: yes (0.7.0)
 - [x] Later: iPhone and iPad look-over: done by the owner (iPhone 2026-11-12: most works, no fullscreen on iOS, left; iPad in stage 54)
-- [ ] 53e test guide, the owner's verdict on the S21, one test on an
+- [x] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 
 ## Built

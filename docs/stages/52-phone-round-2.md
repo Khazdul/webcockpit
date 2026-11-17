@@ -1,6 +1,7 @@
 # Stage 52 — The phone's layout, round 2
 
-Status: **Owner testing** (plan written 2026-11-11 from the owner's list;
+Status: **Done** (released 0.6.0; closed 2026-11-17: C became stage 55,
+D stage 56, E is under `progress.md` → Loose ends). Before: plan written 2026-11-11 from the owner's list;
 branch `stage-52-phone-round-2`).
 
 ## Goal
@@ -258,7 +259,7 @@ and `phone-player-map.spec.ts`.
 - [x] 52c landscape: left column, lens left of the K keys
 - [x] 52d keyboard in fullscreen
 - [x] ADR 0137, test guide, session log
-- [ ] Later pass: C (scrap the old phone layout), D, E
+- [x] Later pass: C (stage 55), D (stage 56); E moved to `progress.md` → Loose ends
 
 ## Built
 

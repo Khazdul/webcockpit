@@ -11,7 +11,7 @@
 | 5 | Timers and trackers | Done | `docs/stages/05-timers-and-trackers.md` |
 | 6 | Runs | Done | `docs/stages/06-runs.md` |
 | 7 | Sharing | Done | `docs/stages/07-sharing.md` |
-| 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
+| 8 | Hardening → v1 | Done (released long ago; carried items under Loose ends) | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
@@ -31,12 +31,12 @@
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
-| 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
-| 29 | Pane buttons | Owner testing | `docs/stages/29-pane-buttons.md` |
+| 28 | Weather effects | Done (approved 2026-10-21) | `docs/stages/28-weather-trial.md` |
+| 29 | Pane buttons | Done (the menu strip became stage 30) | `docs/stages/29-pane-buttons.md` |
 | 30 | Fixed menu | Done | `docs/stages/30-fixed-menu.md` |
 | 31 | Menu bar clock and weather smoothness | Done | `docs/stages/31-clock-and-snow.md` |
 | 32 | Players and the start menu | Done | `docs/stages/32-players.md` |
-| 33 | Full-width Scripts and a new Export Editor | Owner testing | `docs/stages/33-export-editor.md` |
+| 33 | Full-width Scripts and a new Export Editor | Done (owner: "look good", 2026-11-01) | `docs/stages/33-export-editor.md` |
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
 | 36 | Tileset picker | Done | `docs/stages/36-tileset-picker.md` |
@@ -52,11 +52,11 @@
 | 46 | Spotlights gallery | Done | `docs/stages/46-spotlights.md` |
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
 | 48 | Presentation film | Done | `docs/stages/48-presentation-film.md` |
-| 49 | Comm and Statistics panes | Owner testing | `docs/stages/49-comm-stats-panes.md` |
-| 50 | Firefox frame latency | Owner testing | `docs/stages/50-firefox-frame-latency.md` |
+| 49 | Comm and Statistics panes | Done, released 0.4.0 | `docs/stages/49-comm-stats-panes.md` |
+| 50 | Firefox frame latency | Done, merged (one optional owner pick under Loose ends) | `docs/stages/50-firefox-frame-latency.md` |
 | 51 | The phone's layout in the game | Done | `docs/stages/51-phone-layout.md` |
-| 52 | The phone's layout, round 2 | Owner testing | `docs/stages/52-phone-round-2.md` |
-| 53 | An on-screen keyboard of our own | Owner testing | `docs/stages/53-own-keyboard.md` |
+| 52 | The phone's layout, round 2 | Done, released 0.6.0 (C in 55, D in 56, E under Loose ends) | `docs/stages/52-phone-round-2.md` |
+| 53 | An on-screen keyboard of our own | Done, released 0.7.0 | `docs/stages/53-own-keyboard.md` |
 | 54 | The tablet's layout | Done, released 0.8.3 | `docs/stages/54-tablet.md` |
 | 55 | Scrap the old phone layout | Done, released 0.9.0 | `docs/stages/55-scrap-old-phone-layout.md` |
 | 56 | Phone and tablet: loose ends | Done, released 0.9.0 | `docs/stages/56-phone-tablet-loose-ends.md` |
@@ -68,12 +68,33 @@
 | 62 | Sync of settings, script data, Comm history and timers | Done, released 0.12.0 | `docs/stages/62-sync-settings-comm.md` |
 | 63 | Runs in the cloud; then accounts open | Done, released 0.12.0 (accounts, sync, runs on in production) | `docs/stages/63-runs-in-the-cloud.md` |
 | 64 | Share links | Done, released 0.13.0 (`share` on in production) | `docs/stages/64-share-links.md` |
-| 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them | `docs/stages/65-community.md` |
+| 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Released 0.16.0 (2026-11-17); the owner tests afterwards | `docs/stages/68-owner-fixes.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
+
+## Loose ends
+
+Collected 2026-11-17 from stage files and the session log; small things
+with no stage of their own. Remove a line when it is done.
+
+- Stage 8, carried since October, unchecked since: the map pane's
+  default height, replay font subsetting, the player's paint after a long
+  seek, JetBrains Mono exports without DejaVu fallback glyphs, the reel's
+  load time on a large library, `look` → Room.Info.
+- Stage 50 (owner's pick, optional): in Firefox without GPU compositing,
+  large floats stop showing the weather inside them (instead of ~9 fps).
+- Stage 52 E: `scripts-settings.spec.ts:411` (a double click flips once),
+  `script-panes.spec.ts:177` (order-dependent), the phone bench's slow
+  first frame after idle.
+- Stage 64: the report mail has never been seen arriving (no real report
+  yet); the iPhone's fullscreen fallback is untested on a device.
+- Stage 66 (owner, optional): S1 an admin host of its own, S8 one Access
+  application per environment.
+- Stage 68: whether Discord unfurls a staging link behind `noindex`;
+  emote-at-you in private chats is a heuristic.
 
 ## Session log
 

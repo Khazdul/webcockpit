@@ -1,6 +1,7 @@
 # Stage 8 — Hardening → v1
 
-> Status: In progress (part A done 2026-09-28; part B, the performance
+> Status: Done (closed 2026-11-17: released long since; the carried
+> items moved to `progress.md` → Loose ends). Before: part A done 2026-09-28; part B, the performance
 > review, done 2026-09-30; part C, the performance fixes, built
 > 2026-10-01; owner played briefly, release pending).
 > Source: spec §5 row 8; owner brief 2026-09-28 (part A, viewer
@@ -304,7 +305,7 @@ Part D — more fonts (ADR 0049):
       pixels at ratios other than 1, ratio-1 cells unchanged (unit test
       over every family and size); re-measured on zoom / screen change;
       full sweep at 100/125/150/200 % in both browsers (ADR 0050).
-- [ ] D12. Owner test (guide below).
+- [x] D12. Owner test (guide below). Closed 2026-11-17: superseded by many releases since.
 
 ## Test guide (part A)
 

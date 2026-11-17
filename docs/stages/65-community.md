@@ -260,8 +260,10 @@ touches staging or production.
       (`PLAYERS` filled on the live probe of 2026-11-15; ADR 0155 "As
       built (stage 65 C5)"), the `mume_cache` rows and `readMume`
       (branch `stage65-mume`).
-- [ ] Tried on staging; `GET /api/community`'s `mume` from `readMume`
+- [x] Tried on staging; `GET /api/community`'s `mume` from `readMume`
       (after part B); the boxes without source or time (with C1).
+      (Checked 2026-11-17: 10 west, 10 dark, players 12; no source or
+      time fields in the answer.)
 
 ### D. Checks
 

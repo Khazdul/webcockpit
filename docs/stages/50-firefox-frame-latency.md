@@ -1,7 +1,7 @@
 # Stage 50 — Firefox frame latency
 
-Status: **Owner testing** (2026-11-10). Branch `stage-50-firefox-frame`
-(from `main`), not merged.
+Status: **Done** (merged, d57d85e4; closed 2026-11-17). The owner's pick
+on software WebRender is under `progress.md` → Loose ends.
 
 ## Goal
 
