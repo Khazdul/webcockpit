@@ -31,6 +31,7 @@ import { beatS } from '../../src/beats.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { FILM_PAGE, prepareFilm } from '../lib/film-state.ts';
+import { filmUi } from '../lib/film-ui.ts';
 import { mockMumeLogin } from '../lib/mume-login.ts';
 import { type Excerpt, type Run, excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
@@ -176,36 +177,11 @@ export const takeA: Scene = {
     })();
 
     const ui = (async () => {
-      const mb = (id: string) => page.locator(`.wc-mb[data-mb="${id}"]`);
-      const close = async (): Promise<void> => {
-        await page.keyboard.press('Escape');
-      };
-      const paneOn = async (pane: string, open: number, pick: number): Promise<void> => {
-        await pointer.clickAt(mb('panes'), T(open));
-        marks.markAt(await pointer.clickAt(page.locator(`.wc-pop-row[data-pane="${pane}"]`), T(pick), { quick: true }), 'pane', pane);
-        await sleep(220);
-        await close();
-      };
-      /**
-       * A pane's gear: the pointer onto the pane (its buttons show), onto the gear, which shows its
-       * tooltip (`tip` marker: the page's own tooltip is the browser's, which a headless capture
-       * does not draw, so the Film draws it from the marker), held, then the press.
-       */
-      const gear = async (pane: 'group' | 'timers', tipAt: number, pressAt: number): Promise<Locator> => {
-        await pointer.hoverAt(page.locator(`.wc-pane-${pane} .wc-pane-content`), T(tipAt) - 900);
-        const g = page.locator(`.wc-pane-${pane} > .wc-pane-btn-gear`);
-        await pointer.hoverAt(g, T(tipAt));
-        const bx = await g.boundingBox();
-        const title = (await g.getAttribute('title')) ?? `${pane === 'group' ? 'Group' : 'Timers'} settings`;
-        marks.mark('tip', title, bx ? { x: bx.x, y: bx.y, w: bx.width, h: bx.height } : null);
-        marks.markAt(await pointer.pressAt(T(pressAt)), 'tip-end', title);
-        return page.locator(`.wc-sp-gear-${pane}`);
-      };
-      /** A setting: the pointer onto it, a pause so the eye finds it, then the press. */
-      const choose = async (el: Locator, at: number, kind: string, label: string, wait = 2.0): Promise<void> => {
-        await pointer.hoverAt(el, T(at - wait));
-        marks.markAt(await pointer.pressAt(T(at)), kind, label);
-      };
+      const ui = filmUi(page, pointer, marks);
+      const { mb, close } = ui;
+      const paneOn = (pane: string, open: number, pick: number): Promise<void> => ui.paneOn(pane, T(open), T(pick));
+      const gear = (pane: 'group' | 'timers', tipAt: number, pressAt: number): Promise<Locator> => ui.gear(pane, T(tipAt), T(pressAt));
+      const choose = (el: Locator, at: number, kind: string, label: string, wait = 2.0): Promise<void> => ui.choose(el, T(at), kind, label, wait);
 
       // Group on (floating, bottom right), its settings calmly
       await paneOn('group', UI.panesGroup, UI.group);
