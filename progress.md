@@ -102,7 +102,7 @@ with no stage of their own. Remove a line when it is done.
 ### 2026-11-17 — The Hall of Fame's five-vote floor
 
 - **Done:** the owner's rule: a log enters the Hall of Fame only with at least five votes (`HALL_OF_FAME_MIN_VOTES`, `GET /api/community`; all votes, not only ranking ones; the gallery's sorts unchanged). The Hall of Fame's texts say so. ADR 0155 addendum. Worker tests 387/387, community e2e 49/49.
-- **Released** as 0.17.2 on the owner's word. Next: the owner sees his log leave the Hall of Fame until it has five votes.
+- **Released** as 0.17.2 on the owner's word (deploy run 44157889005, `test:prod` 36/36; the live Hall of Fame is empty, as it should be). Next: the owner sees his log leave the Hall of Fame until it has five votes.
 - **Commits:** this one.
 
 ### 2026-11-17 — Share on the watch page
