@@ -1,15 +1,21 @@
 // Balloon notices, main thread (stage 69, ADR 0159). A lazy chunk of its
 // own: the weather controller imports it only while Weather effects and
-// Balloons are both on (or `#weather balloon` / the demo asks for one).
+// Balloons are both on (or `#weather balloon` / the demo asks for one),
+// and never in the phone's layout (desktop only, round 2).
 //
 // Each balloon is a skin's element (skin.ts; the goblin, goblin.ts) moved
-// by its flight (flight.ts) in one of two layers over the cockpit:
+// by its flight (flight.ts) in one of two layers in the cockpit, both
+// positioned without a z-index, so they paint in tree order among the
+// cockpit's other positioned, `z-index: auto` children:
 //
-// - front (`.wc-balloons-front`, z-index 89): above the game text and the
-//   panes, below the weather's front canvas (90). Arriving and readable.
-// - sky (`.wc-balloons-sky`, no z-index): placed right after the weather's
-//   back canvas, so, like it, it paints under every later positioned
-//   sibling: the game text and the panes. Gliding and drifting.
+// - sky (`.wc-balloons-sky`): right after the weather's back canvas, so it
+//   paints under the game text and every pane. Gliding and drifting.
+// - over the text (`.wc-balloons-front`): right after the game pane
+//   (`.wc-game`), so it paints over the game text but under the input row
+//   (it rises from behind the prompt) and under every pane, docked (later
+//   siblings) or floating (z-index 10 and up). Arriving and readable.
+//   (Round 1 had it at z-index 89, over the panes; the owner wants the
+//   balloons behind every pane in every phase.)
 //
 // A balloon moves from the front layer to the sky once, when its glide
 // starts. Cost: one requestAnimationFrame loop while a balloon is up and
@@ -19,16 +25,16 @@
 // weather's last measured geometry).
 
 import './balloons.css';
-import { type KillNotice, signOf } from './feed';
+import { type Notice, isKillNotice, kindOf, signFor } from './feed';
 import { type FlightPlan, type LaneGeom, canJoin, extendRead, flightAt, planFlight } from './flight';
 import { goblinSkin } from './goblin';
 import { bundledRasterSkin } from './image-skin';
 import type { BalloonSkin, SkinFactory } from './skin';
 
-/** Balloons up at once; a new one beyond this hurries the oldest away. */
+/** Balloons up at once; a new one beyond this fades the oldest out. */
 export const MAX_BALLOONS = 5;
-/** How much faster a hurried balloon's clock runs. */
-export const HURRY = 6;
+/** How long a balloon fades out when too many are up, s (it keeps its pace: no jump in speed). */
+export const HURRY_FADE = 1.5;
 
 export interface BalloonsHost {
   /** The cockpit (the weather canvases' root). */
@@ -46,13 +52,16 @@ export interface BalloonsHost {
 export interface BalloonInfo {
   phase: string;
   front: boolean;
+  /** The notice's kind: kill, levelup, death, achievement. */
+  kind: string;
   count: number;
+  /** The passenger's mood. */
   face: string;
 }
 
 export interface Balloons {
-  /** A kill: it joins the readable balloon's sign, or a new balloon rises. */
-  show(k: KillNotice): void;
+  /** A notice: a kill joins the readable kill balloon's sign; anything else (and a kill without one) sends a new balloon up. */
+  show(n: Notice): void;
   /** The balloons up now, oldest first (tests, dev). */
   list(): BalloonInfo[];
   destroy(): void;
@@ -62,8 +71,9 @@ interface Flight {
   skin: BalloonSkin;
   plan: FlightPlan;
   t: number;
-  rate: number;
-  kills: KillNotice[];
+  /** When too many are up: the time it began to fade out (null: not fading). */
+  fadeAt: number | null;
+  notices: Notice[];
   front: boolean | null;
   x: number;
   phase: string;
@@ -91,8 +101,12 @@ export function startBalloons(host: BalloonsHost): Balloons {
   const back = root.querySelector(':scope > canvas.wc-weather-back');
   if (back) back.after(sky);
   else root.prepend(sky);
-  // Decoration only (aria-hidden): the kill's `◆` line already says it.
-  root.append(front);
+  // The front layer right after the game pane: over the text, under the
+  // input row and every pane. Decoration only (aria-hidden): the kill's
+  // `◆` line already says it.
+  const game = root.querySelector(':scope > .wc-game');
+  if (game) game.after(front);
+  else sky.after(front);
 
   const flights: Flight[] = [];
   let raf = 0;
@@ -110,7 +124,12 @@ export function startBalloons(host: BalloonsHost): Balloons {
     f.x = fr.x;
     const el = f.skin.el;
     el.style.transform = `translate3d(${(fr.x - f.plan.bw / 2).toFixed(1)}px, ${fr.y.toFixed(1)}px, 0) scale(${fr.scale.toFixed(4)})`;
-    const o = Math.round(fr.opacity * 100) / 100;
+    const out = f.fadeAt === null ? 1 : 1 - (f.t - f.fadeAt) / HURRY_FADE;
+    if (out <= 0) {
+      f.phase = 'done';
+      return;
+    }
+    const o = Math.round(fr.opacity * out * 100) / 100;
     if (o !== f.opacity) el.style.opacity = String((f.opacity = o));
     f.skin.frame?.({ t: f.t, phase: fr.phase, tilt: fr.tilt, swing: fr.swing });
   };
@@ -122,7 +141,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
     last = now;
     for (let i = 0; i < flights.length; i++) {
       const f = flights[i]!;
-      f.t += dt * f.rate;
+      f.t += dt;
       place(f);
       if (f.phase === 'done') {
         f.skin.destroy();
@@ -148,18 +167,22 @@ export function startBalloons(host: BalloonsHost): Balloons {
   };
   doc.addEventListener('visibilitychange', onVis);
 
-  const launch = (k: KillNotice): void => {
-    // Too many up: the oldest hurry away (the very oldest goes at once beyond the cap).
+  const launch = (k: Notice): void => {
+    // Too many up: the oldest fades out where it flies (the very oldest goes at once beyond the cap).
     while (flights.length >= MAX_BALLOONS + 1) flights.shift()!.skin.destroy();
-    if (flights.length >= MAX_BALLOONS) flights[0]!.rate = HURRY;
+    if (flights.length >= MAX_BALLOONS) {
+      const old = flights.find((f) => f.fadeAt === null);
+      if (old) old.fadeAt = old.t;
+    }
     let near: Flight | null = null;
     for (const f of flights) if (f.phase === 'arrive' || f.phase === 'read' || f.phase === 'glide') near = f;
     const skin = skinOf(doc);
     skin.el.classList.add('wc-balloon');
     const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: reduced(), avoidX: near ? near.x : null });
-    const f: Flight = { skin, plan, t: 0, rate: 1, kills: [k], front: null, x: plan.start.x, phase: 'arrive', opacity: -1 };
-    skin.setMood(k.face);
-    skin.setSign(signOf(f.kills), false);
+    const f: Flight = { skin, plan, t: 0, fadeAt: null, notices: [k], front: null, x: plan.start.x, phase: 'arrive', opacity: -1 };
+    const sign = signFor(f.notices);
+    skin.setMood(sign.mood);
+    skin.setSign(sign, false);
     flights.push(f);
     place(f);
     if (!raf) last = win.performance.now();
@@ -167,21 +190,25 @@ export function startBalloons(host: BalloonsHost): Balloons {
   };
 
   return {
-    show(k) {
+    show(n) {
       if (destroyed) return;
-      const top = flights.at(-1);
-      if (top && top.rate === 1 && canJoin(top.plan, top.t)) {
-        top.kills.push(k);
+      // Only kills join, and only the newest kill balloon's sign while it is
+      // readable (a level up, a death or an achievement may have risen after
+      // it); those three always rise alone.
+      let top: Flight | undefined;
+      if (isKillNotice(n)) for (let i = flights.length - 1; i >= 0 && !top; i--) if (isKillNotice(flights[i]!.notices[0]!)) top = flights[i];
+      if (top && top.fadeAt === null && canJoin(top.plan, top.t)) {
+        top.notices.push(n);
         extendRead(top.plan);
-        const s = signOf(top.kills);
-        top.skin.setMood(s.face);
+        const s = signFor(top.notices);
+        top.skin.setMood(s.mood);
         top.skin.setSign(s, true);
         return;
       }
-      launch(k);
+      launch(n);
     },
     list() {
-      return flights.map((f) => ({ phase: f.phase, front: !!f.front, count: f.kills.length, face: signOf(f.kills).face }));
+      return flights.map((f) => ({ phase: f.phase, front: !!f.front, kind: kindOf(f.notices[0]!), count: f.notices.length, face: signFor(f.notices).mood }));
     },
     destroy() {
       if (destroyed) return;

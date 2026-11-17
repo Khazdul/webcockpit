@@ -12,12 +12,13 @@
 //   basket-front.webp   1024 × 1536, the same canvas: only the basket's
 //                       front wall, drawn over the passenger
 //   passenger-<mood>.webp  1024 × 1024 for poor, meh, calibrating, good,
-//                       great, superb, pvp: chest-up, head centre (512, 400),
+//                       great, superb, pvp, levelup, death, achievement: chest-up, head centre (512, 400),
 //                       head about 380 px wide, the body cut straight at the
 //                       bottom edge. Placed on the balloon canvas at 50 %
 //                       (512 × 512) with its top left at (256, 900), so its
 //                       lower half is behind basket-front. A missing mood
-//                       shows `calibrating`.
+//                       shows its fallback (levelup → superb, achievement
+//                       → great, death → poor), then `calibrating`.
 //   optional: passenger-<mood>-blink.webp, passenger-wave.webp (same size
 //   and placement): the `blink` and `wave` actions.
 //
@@ -26,11 +27,14 @@
 // over public/ is reduced to its keys (no import, no request), so a skin
 // whose files are missing is never probed with a 404.
 
-import type { Face } from './feed';
+import { type Mood, MOODS } from './feed';
 import { makeSign } from './sign';
 import type { BalloonSkin, SkinAction, SkinFactory, SkinPose } from './skin';
 
-export const MOODS: readonly Face[] = ['poor', 'meh', 'calibrating', 'good', 'great', 'superb', 'pvp'];
+export { MOODS };
+
+/** A round-2 mood whose picture is missing borrows a kill face's before `calibrating`. */
+export const MOOD_FALLBACK: Readonly<Partial<Record<Mood, Mood>>> = { levelup: 'superb', achievement: 'great', death: 'poor' };
 
 /** The balloon canvas and where things sit on it (canvas px). */
 export const CANVAS = { w: 1024, h: 1536 } as const;
@@ -45,9 +49,9 @@ const SIGN_H = 104;
 export interface RasterSkin {
   balloon: string;
   front: string;
-  passenger: Readonly<Record<Face, string>>;
+  passenger: Readonly<Record<Mood, string>>;
   /** Optional blink frame per mood. */
-  blink: Partial<Record<Face, string>>;
+  blink: Partial<Record<Mood, string>>;
   wave: string | null;
 }
 
@@ -61,13 +65,16 @@ export function rasterSkinOf(files: readonly string[], name: string, base = '/')
   const have = new Set(files.filter((f) => f.startsWith(dir)).map((f) => f.slice(dir.length)));
   const url = (f: string): string => `${base}balloons/${name}/${f}`;
   if (!have.has('balloon.webp') || !have.has('basket-front.webp') || !have.has('passenger-calibrating.webp')) return null;
-  const pass = (m: Face): string => url(have.has(`passenger-${m}.webp`) ? `passenger-${m}.webp` : 'passenger-calibrating.webp');
-  const blink: Partial<Record<Face, string>> = {};
+  const pass = (m: Mood): string => {
+    for (let k: Mood | undefined = m; k; k = MOOD_FALLBACK[k]) if (have.has(`passenger-${k}.webp`)) return url(`passenger-${k}.webp`);
+    return url('passenger-calibrating.webp');
+  };
+  const blink: Partial<Record<Mood, string>> = {};
   for (const m of MOODS) if (have.has(`passenger-${m}-blink.webp`)) blink[m] = url(`passenger-${m}-blink.webp`);
   return {
     balloon: url('balloon.webp'),
     front: url('basket-front.webp'),
-    passenger: Object.fromEntries(MOODS.map((m) => [m, pass(m)])) as Record<Face, string>,
+    passenger: Object.fromEntries(MOODS.map((m) => [m, pass(m)])) as Record<Mood, string>,
     blink,
     wave: have.has('passenger-wave.webp') ? url('passenger-wave.webp') : null,
   };
@@ -133,7 +140,7 @@ export function imageSkin(r: RasterSkin): SkinFactory {
     sign.el.style.marginTop = `${+((BASKET_BOTTOM - CANVAS.h) * k + 10).toFixed(2)}px`;
     rig.append(stack, sign.el);
     el.append(rig);
-    let mood: Face = 'calibrating';
+    let mood: Mood = 'calibrating';
     let tilt = NaN;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const play = (src: string | null | undefined, ms: number): void => {

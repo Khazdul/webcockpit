@@ -83,10 +83,44 @@
   text-overflow: ellipsis;
 }
 
+.wc-bsign-who[hidden],
+.wc-bsign-xp[hidden],
 .wc-bsign-rate[hidden],
 .wc-bsign-more[hidden] {
   display: none;
 }
+
+/* The run's other moments (round 2): a level up and a death are their big
+ * line alone; an achievement is its word, then its text over up to four
+ * lines (feed.ts also cuts it at ACHIEVEMENT_MAX characters). */
+.wc-bsign[data-kind="achievement"] .wc-bsign-plank {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wc-bsign[data-kind="achievement"] .wc-bsign-rate {
+  order: -1;
+}
+
+.wc-bsign[data-kind="achievement"] .wc-bsign-who {
+  font-weight: 600;
+  font-size: 11.5px;
+  -webkit-line-clamp: 4;
+}
+
+.wc-bsign[data-kind="levelup"] .wc-bsign-xp,
+.wc-bsign[data-kind="death"] .wc-bsign-xp {
+  font-size: 21px;
+  padding: 2px 0;
+}
+
+.wc-bsign[data-face="levelup"] .wc-bsign-xp { color: #ffe08a; }
+.wc-bsign[data-face="death"] .wc-bsign-plank {
+  background: linear-gradient(180deg, #5d5a55, #46433f 60%, #37342f);
+}
+.wc-bsign[data-face="death"] .wc-bsign-xp { color: #e4e0d8; }
+.wc-bsign[data-face="achievement"] .wc-bsign-rate { color: #f0c35a; }
 
 .wc-bsign[data-face="poor"] .wc-bsign-rate { color: #c97a68; }
 .wc-bsign[data-face="meh"] .wc-bsign-rate { color: #b9a77a; }

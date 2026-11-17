@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 // Stage 69 (ADR 0159): the balloons in the DOM: the two layers and where
-// they sit, a kill joining the readable sign, the cap, frames only while a
+// they sit (round 2: never over a pane), a kill joining the readable sign
+// (and the round-2 notices never joining), the cap, frames only while a
 // balloon is up, and the skins (SVG goblin, raster layers).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_BALLOONS, startBalloons } from '../../src/weather/balloons/balloons';
-import { SAMPLE_KILLS } from '../../src/weather/balloons/feed';
+import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS } from '../../src/weather/balloons/feed';
 import type { LaneGeom } from '../../src/weather/balloons/flight';
 import { goblinSkin } from '../../src/weather/balloons/goblin';
 import { imageSkin, rasterSkinOf } from '../../src/weather/balloons/image-skin';
@@ -42,17 +43,21 @@ function cockpit(): HTMLElement {
   back.className = 'wc-weather-layer wc-weather-back';
   const game = document.createElement('div');
   game.className = 'wc-game';
-  root.append(back, game);
+  const input = document.createElement('div');
+  input.className = 'wc-input-slot';
+  const pane = document.createElement('div');
+  pane.className = 'wc-pane';
+  root.append(back, game, input, pane);
   document.body.append(root);
   return root;
 }
 
 describe('balloons', () => {
-  it('the sky layer right after the back canvas (under the text), the front layer last; both gone on destroy', () => {
+  it('the sky layer right after the back canvas (under the text), the front layer right after the game pane (over the text, under the input row and the panes); both gone on destroy', () => {
     const root = cockpit();
     const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: goblinSkin });
     const kids = [...root.children].map((e) => e.className);
-    expect(kids).toEqual(['wc-weather-layer wc-weather-back', 'wc-balloons wc-balloons-sky', 'wc-game', 'wc-balloons wc-balloons-front']);
+    expect(kids).toEqual(['wc-weather-layer wc-weather-back', 'wc-balloons wc-balloons-sky', 'wc-game', 'wc-balloons wc-balloons-front', 'wc-input-slot', 'wc-pane']);
     b.destroy();
     expect(root.querySelectorAll('.wc-balloons')).toHaveLength(0);
   });
@@ -65,11 +70,13 @@ describe('balloons', () => {
     expect(front.children).toHaveLength(1);
     run(2);
     b.show(SAMPLE_KILLS.superb[0]!);
-    expect(b.list()).toEqual([{ phase: 'read', front: true, count: 2, face: 'superb' }]);
+    expect(b.list()).toEqual([{ phase: 'arrive', front: true, kind: 'kill', count: 2, face: 'superb' }]);
     const sign = front.querySelector('.wc-bsign')!;
     expect(sign.querySelector('.wc-bsign-who')!.textContent).toBe('2 kills');
     expect(sign.querySelector('.wc-bsign-rate')!.textContent).toBe('Superb');
-    run(9);
+    run(8);
+    expect(b.list()[0]!.phase).toBe('read');
+    run(7);
     expect(sky.children).toHaveLength(1);
     expect(front.children).toHaveLength(0);
     expect(b.list()[0]!.front).toBe(false);
@@ -89,14 +96,44 @@ describe('balloons', () => {
     b.destroy();
   });
 
-  it(`at most ${MAX_BALLOONS} up: the oldest hurries away, beyond it goes at once`, () => {
+  it('round 2: a level up, a death and an achievement each rise alone, never joined with kills or each other; a kill joins the newest kill balloon', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: goblinSkin });
+    b.show(SAMPLE_KILLS.good[0]!);
+    run(1);
+    b.show(SAMPLE_MOMENTS.levelup);
+    run(1);
+    b.show(SAMPLE_KILLS.great[0]!);
+    b.show(SAMPLE_MOMENTS.death);
+    b.show(SAMPLE_MOMENTS.achievement);
+    b.show(SAMPLE_MOMENTS.achievement);
+    // the second kill joins the kill balloon, though a level up rose after it
+    expect(b.list().map((f) => [f.kind, f.count, f.face])).toEqual([
+      ['kill', 2, 'great'],
+      ['levelup', 1, 'levelup'],
+      ['death', 1, 'death'],
+      ['achievement', 1, 'achievement'],
+      ['achievement', 1, 'achievement'],
+    ]);
+    const signs = [...root.querySelectorAll('.wc-bsign')];
+    expect(signs[1]!.querySelector('.wc-bsign-xp')!.textContent).toBe('Level 23!');
+    expect((signs[1]!.querySelector('.wc-bsign-who') as HTMLElement).hidden).toBe(true);
+    expect(signs[2]!.querySelector('.wc-bsign-xp')!.textContent).toBe('You died');
+    expect(signs[3]!.querySelector('.wc-bsign-rate')!.textContent).toBe('Achievement');
+    expect((signs[3] as HTMLElement).dataset.kind).toBe('achievement');
+    b.destroy();
+  });
+
+  it(`at most ${MAX_BALLOONS} up: the oldest fades out where it flies, beyond it goes at once`, () => {
     const root = cockpit();
     const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: goblinSkin });
     for (let i = 0; i < MAX_BALLOONS + 3; i++) {
-      b.show(SAMPLE_KILLS.meh[0]!);
-      run(8); // past the readable phase: the next kill is a new balloon
+      b.show(SAMPLE_MOMENTS.levelup);
+      run(0.5);
     }
     expect(b.list().length).toBeLessThanOrEqual(MAX_BALLOONS + 1);
+    run(2);
+    expect(b.list().length).toBeLessThanOrEqual(MAX_BALLOONS);
     b.destroy();
   });
 
@@ -126,6 +163,12 @@ describe('skins', () => {
     s.setMood('pvp');
     expect(svg.innerHTML).not.toBe(first);
     expect(s.size).toEqual({ w: 180, h: 330 });
+    // round 2: every mood its own picture
+    const all = new Set(MOODS.map((m) => {
+      s.setMood(m);
+      return svg.innerHTML;
+    }));
+    expect(all.size).toBe(MOODS.length);
   });
 
   it('a raster skin: balloon, the mood\'s passenger, the basket front over it, the HTML sign below; moods swap in place', () => {
