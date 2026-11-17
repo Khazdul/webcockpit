@@ -527,3 +527,21 @@ test('/privacy says what a share link makes public with the flag share on; About
   await expect(page.locator('.wc-about-h', { hasText: 'ACCOUNTS' })).toBeAttached({ timeout: 15_000 });
   await expect(page.locator('.wc-about-h', { hasText: 'SHARE LINKS' })).toHaveCount(0);
 });
+
+// The owner, 2026-11-17: Share in the band copies the run's own link (no
+// `?from=`); S does the same.
+test('Share copies the run\'s link, by click and by S', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'clipboard permissions are Chromium\'s');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const s = await setUp(page);
+  await guestWatches(page, s);
+  await watchBtn(page, 'SHARE').click();
+  await expect(band(page).locator('.wc-watch-flash')).toHaveText('Link copied.');
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  expect(new URL(url).pathname).toMatch(new RegExp(`/r/${ID}$`));
+  expect(new URL(url).search).toBe('');
+  await page.evaluate(() => navigator.clipboard.writeText(''));
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('s');
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+});

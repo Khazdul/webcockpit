@@ -31,7 +31,7 @@
 // statistics' device id; one is made if there is none).
 //
 // Keys (outside the frame; a click in the replay gives it the keys):
-// R Report, B Back.
+// S Share, R Report, B Back.
 //
 // Stage 65 C2 (round 13's pick 3a with the owner's change, ADR 0155 "As
 // built (stage 65 C2)"): the page sits inside the start page's look: the
@@ -88,6 +88,8 @@ import {
   watchIdOf,
 } from './model';
 import { leaveForLogin } from './return';
+import { copyText } from '../chrome/kit/clipboard';
+import { linkUrl } from '../share/link';
 
 /** The site's base path. */
 const base = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? '/';
@@ -246,6 +248,26 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   const role: RaterRole = me === null ? 'guest' : self ? 'own' : 'voter';
   const refocus = (): void => void setTimeout(() => host.current?.frame.focus(), 0);
 
+  // Share (the owner, 2026-11-17): the run's own link, without `?from=`; a
+  // touch device's share sheet when it has one, else the clipboard.
+  const canShare = meta !== null && mode === 'public';
+  const share = (): void => {
+    if (!meta || !canShare) return;
+    const url = linkUrl(meta.id);
+    const sheet = typeof navigator.share === 'function' && matchMedia('(pointer: coarse)').matches;
+    if (sheet) {
+      navigator.share({ title: meta.title, url }).catch((err: unknown) => {
+        if ((err as { name?: string } | null)?.name !== 'AbortError') void copyLink(url);
+      });
+      return;
+    }
+    void copyLink(url);
+  };
+  const copyLink = async (url: string): Promise<void> => {
+    const ok = await copyText(url);
+    nav.flash(ok ? 'Link copied.' : `Copy this link: ${url}`, ok ? 'ok' : 'fail', ok ? undefined : 8000);
+  };
+
   const report = (): void => {
     if (!meta || !canReport) return;
     nav.push(<ReportFrame kind="run" title={meta.title} id={meta.id} already={reported} onSent={() => setReported(true)} onClosed={refocus} />, {
@@ -279,6 +301,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       letterAction(e, {
         b: goBack,
         ...(canReport ? { r: report } : {}),
+        ...(canShare ? { s: share } : {}),
       }) || nk !== null
     );
   });
@@ -346,9 +369,10 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
                   ) : null)}
               </div>
               {social && stars && <RunStars id={meta.id} stars={stars} role={role} onLogin={() => logIn()} onStars={setStars} />}
-              {canReport && (
+              {(canShare || canReport) && (
                 <div class="wc-watch-acts">
-                  <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />
+                  {canShare && <GlassButton id="SHARE" label="Share" letter="s" icon="link" small onClick={share} />}
+                  {canReport && <GlassButton id="REPORT" label="Report" letter="r" icon="flag" small onClick={report} />}
                 </div>
               )}
               <LookFlash class="wc-watch-flash" />
