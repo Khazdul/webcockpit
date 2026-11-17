@@ -41,7 +41,7 @@ type Dev = keyof typeof DEVICES_TAKES;
 /** The film's length, s. */
 export const DEVICES_PROTO_S = DEVICES.end;
 
-interface Rect {
+export interface Rect {
   x: number;
   y: number;
   w: number;
@@ -53,7 +53,7 @@ interface Rect {
 
 const MON = { w: 860, h: 860 * (9 / 16), bezel: 16, chin: 24, neckW: 110, neckH: 74, baseW: 320, baseH: 14 };
 const TAB = { w: 560, h: 560 * (820 / 1180), bezel: 20 };
-const PHO = { h: 560, w: 560 * (390 / 844), bezel: 11 };
+export const PHO = { h: 560, w: 560 * (390 / 844), bezel: 11 };
 const GAP = 90;
 
 const monBodyW = MON.w + 2 * MON.bezel;
@@ -156,12 +156,12 @@ interface Crop {
 }
 
 /** One finger's touches from a take's input log: each press with its moves, until it lifts. */
-interface Touch {
+export interface Touch {
   down: number;
   up: number;
   path: { t: number; x: number; y: number }[];
 }
-function touchesOf(tl: TimelineFile): Touch[] {
+export function touchesOf(tl: TimelineFile): Touch[] {
   const out: Touch[] = [];
   let cur: Touch | null = null;
   for (const e of tl.input) {
@@ -180,7 +180,7 @@ function touchesOf(tl: TimelineFile): Touch[] {
 }
 
 /** A take on a screen at film time `film` (or frozen at `frozenAt`), aligned by its `sync` marker. */
-function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null; sheen?: number }) {
+export function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null; sheen?: number }) {
   const { tl, rect, crop } = o;
   const sync = marker(tl, 'sync').t;
   const k = rect.w / crop.w;
@@ -248,7 +248,7 @@ function Monitor({ s, k, glow, children }: { s: Rect; k: number; glow: number; c
 }
 
 /** A tablet or a phone: a slab with an even bezel; the camera dot on the `cam` side's bezel. */
-function Slab(o: { s: Rect; k: number; bezel: number; radius: number; glow: number; cam: 'top' | 'left'; buttons?: 'right' | 'top'; children: ReactNode }) {
+export function Slab(o: { s: Rect; k: number; bezel: number; radius: number; glow: number; cam: 'top' | 'left'; buttons?: 'right' | 'top'; children: ReactNode }) {
   const { s, k } = o;
   const b = o.bezel * k;
   const body = { x: s.x - b, y: s.y - b, w: s.w + 2 * b, h: s.h + 2 * b };
