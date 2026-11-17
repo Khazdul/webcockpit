@@ -107,7 +107,7 @@ function Dip({ at }: { at: number }) {
 }
 
 /** A pane button's tooltip (its `title`), drawn above it: box in video px (= film px at 1920). */
-function Tip({ from, to, text, box }: { from: number; to: number; text: string; box: Box }) {
+export function Tip({ from, to, text, box }: { from: number; to: number; text: string; box: Box }) {
   const frame = useCurrentFrame();
   const o = interpolate(frame, [f(from), f(from) + 6, f(to) - 4, f(to)], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   if (o <= 0) return null;

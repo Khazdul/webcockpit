@@ -4,6 +4,7 @@ import { Composition } from 'remotion';
 import { beat } from './beats';
 import { DEVICES_PROTO_S, DEVICES_TAKES, DevicesProto, type DevicesProtoProps } from './compositions/DevicesProto';
 import { Film, type FilmProps, ending } from './compositions/Film';
+import { Film2, type Film2Props, film2Length } from './compositions/Film2';
 import { PART1_END_BEAT, Part1, type Part1Props } from './compositions/Part1';
 import { TestBree, type TestBreeProps } from './compositions/TestBree';
 import { DecodeTest } from './DecodeTest';
@@ -24,6 +25,23 @@ export function Root() {
         calculateMetadata={async ({ props }) => {
           const b = await loadTimeline('take-b');
           return { durationInFrames: Math.round(ending(b).end * FPS), props: { ...props, a: await loadTimeline('take-a'), b } };
+        }}
+      />
+      {/* Film 2 (video/manuscript-2.md): acts 0-4 so far. */}
+      <Composition
+        id="Film2"
+        component={Film2}
+        width={WIDTH}
+        height={HEIGHT}
+        fps={FPS}
+        durationInFrames={FPS * 180}
+        defaultProps={{ a: null, tablet: null, phone: null } satisfies Film2Props}
+        calculateMetadata={async ({ props }) => {
+          const a = await loadTimeline('film2-a');
+          return {
+            durationInFrames: Math.round(film2Length(a) * FPS),
+            props: { ...props, a, tablet: await loadTimeline(DEVICES_TAKES.tablet), phone: await loadTimeline(DEVICES_TAKES.phone) },
+          };
         }}
       />
       {/* Film 2's device prototype (stage 70): one session on desktop, tablet and phone. */}

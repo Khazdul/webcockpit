@@ -180,7 +180,7 @@ function touchesOf(tl: TimelineFile): Touch[] {
 }
 
 /** A take on a screen at film time `film` (or frozen at `frozenAt`), aligned by its `sync` marker. */
-function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null }) {
+function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null; sheen?: number }) {
   const { tl, rect, crop } = o;
   const sync = marker(tl, 'sync').t;
   const k = rect.w / crop.w;
@@ -221,8 +221,8 @@ function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; d
       {o.dark < 1 ? (o.frozenAt !== null ? <Freeze frame={Math.max(0, f(o.frozenAt))}>{video}</Freeze> : video) : null}
       {o.dark < 1 ? rings : null}
       {/* a faint glass sheen */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(118deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 38%)' }} />
-      <div style={{ position: 'absolute', inset: 0, background: '#050608', opacity: o.dark }} />
+      <div style={{ position: 'absolute', inset: 0, opacity: o.sheen ?? 1, background: 'linear-gradient(118deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 38%)' }} />
+      {o.dark > 0 ? <div style={{ position: 'absolute', inset: 0, background: '#050608', opacity: o.dark }} /> : null}
     </div>
   );
 }
@@ -272,10 +272,16 @@ function Slab(o: { s: Rect; k: number; bezel: number; radius: number; glow: numb
   );
 }
 
-export function DevicesProto({ desktop, tablet, phone }: DevicesProtoProps) {
+/**
+ * The device act on its own clock: frame 0 is the takes' `sync` (place it in
+ * a Sequence that starts there). `desktop` is any desktop take with a `sync`
+ * marker on the same clock: film 2's take A runs into it, so the act starts
+ * on the very frame its desktop shot left off (the screen fills the frame,
+ * square-cornered, with no glass sheen, until the camera pulls back).
+ */
+export function DevicesAct({ desktop, tablet, phone }: { desktop: TimelineFile; tablet: TimelineFile; phone: TimelineFile }) {
   const frame = useCurrentFrame();
   const t = frame / FPS;
-  if (!desktop || !tablet || !phone) return null;
   const cam = camAt(t);
   const toFrame = (r: Rect): Rect => ({ x: (r.x - cam.x) * cam.z + WIDTH / 2, y: (r.y - cam.y) * cam.z + HEIGHT / 2, w: r.w * cam.z, h: r.h * cam.z });
   const k = cam.z;
@@ -298,15 +304,14 @@ export function DevicesProto({ desktop, tablet, phone }: DevicesProtoProps) {
   const landCrop = { w: portraitCrop.h, h: portraitCrop.w };
   const phoneTouches = touchesOf(phone);
 
-  const end = DEVICES_PROTO_S;
-  const fade = interpolate(t, [end - 0.8, end], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const volume = (fr: number): number => 0.5 * interpolate(fr / FPS, [0, 1.2, end - 2, end], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  // how much the desktop's screen fills the frame (1 at the start: it is the full-frame shot)
+  const fill = interpolate(k, [CAMS.all.z, CAMS.desk.z], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <AbsoluteFill style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 42%, #1c1f26 0%, #111318 55%, #0a0b0e 100%)' }}>
       {others > 0 ? (
         <AbsoluteFill style={{ opacity: others }}>
           <Monitor s={toFrame(SCREEN.desktop)} k={k} glow={glow('desktop')}>
-            <Screen tl={desktop} rect={toFrame(SCREEN.desktop)} crop={{ w: desktop.width, h: desktop.height }} radius={2 * k} {...st.desktop} film={t} touches={null} />
+            <Screen tl={desktop} rect={toFrame(SCREEN.desktop)} crop={{ w: desktop.width, h: desktop.height }} radius={2 * k * (1 - fill)} sheen={1 - fill} {...st.desktop} film={t} touches={null} />
           </Monitor>
           <Slab s={toFrame(SCREEN.tablet)} k={k} bezel={TAB.bezel} radius={26} glow={glow('tablet')} cam="left" buttons="top">
             <Screen tl={tablet} rect={toFrame(SCREEN.tablet)} crop={{ w: tablet.width, h: tablet.height }} radius={8 * k} {...st.tablet} film={t} touches={touchesOf(tablet)} />
@@ -328,6 +333,21 @@ export function DevicesProto({ desktop, tablet, phone }: DevicesProtoProps) {
         </div>
       ) : null}
       <LowerThird from={f(DEVICES.toTablet + 0.6)} dur={f(DEVICES.toPhone - DEVICES.toTablet - 0.4)} text="The same session, picked up on a tablet, then on a phone." center />
+    </AbsoluteFill>
+  );
+}
+
+/** The prototype alone: the act with the devices' own desktop take, the music and a fade out. */
+export function DevicesProto({ desktop, tablet, phone }: DevicesProtoProps) {
+  const frame = useCurrentFrame();
+  if (!desktop || !tablet || !phone) return null;
+  const t = frame / FPS;
+  const end = DEVICES_PROTO_S;
+  const fade = interpolate(t, [end - 0.8, end], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const volume = (fr: number): number => 0.5 * interpolate(fr / FPS, [0, 1.2, end - 2, end], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <AbsoluteFill>
+      <DevicesAct desktop={desktop} tablet={tablet} phone={phone} />
       <AbsoluteFill style={{ background: '#000', opacity: fade }} />
       <Audio src={staticFile('music/sunset-plains.wav')} volume={volume} />
     </AbsoluteFill>
