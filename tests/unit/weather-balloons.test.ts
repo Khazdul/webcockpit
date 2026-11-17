@@ -175,6 +175,24 @@ describe('flight', () => {
     }
   });
 
+  it('readable over the game pane, never behind a docked pane: right of the text where there is room, else over its right end', () => {
+    // docked panes from x 900: the strip right of the text (from about x 756) is too narrow for a balloon
+    const MEDIUM: LaneGeom = { W: 1280, H: 800, out: { x: 0, y: 0, w: 900, h: 780 }, cell: { w: 9, h: 18 }, protect: { fadeTop: 700 } };
+    for (const g of [WIDE, NARROW, MEDIUM]) {
+      for (let seed = 1; seed < 60; seed++) {
+        const p = plan(seed, g);
+        const half = (p.bw * p.scale) / 2;
+        expect(p.read0.x + half, `seed ${seed}`).toBeLessThanOrEqual(g.out.x + g.out.w);
+        expect(p.read0.x - half).toBeGreaterThanOrEqual(0);
+        // a second balloon near it keeps clear, still over the game pane
+        const q = planFlight(seed, g, 180, 330, { avoidX: p.read0.x });
+        expect(q.read0.x + half, `second, seed ${seed}`).toBeLessThanOrEqual(g.out.x + g.out.w);
+        expect(q.read0.x - half).toBeGreaterThanOrEqual(0);
+        if (g !== NARROW) expect(Math.abs(q.read0.x - p.read0.x), `second, seed ${seed}`).toBeGreaterThan(150);
+      }
+    }
+  });
+
   it('nearly at rest while readable: under 25 px/s, the sway included', () => {
     for (let seed = 1; seed < 60; seed++) {
       const p = plan(seed);

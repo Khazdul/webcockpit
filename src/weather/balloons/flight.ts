@@ -188,8 +188,8 @@ const LEAVE_MAX = 58;
 
 export interface PlanOpts {
   reduced?: boolean;
-  /** The centre x of a balloon still near (readable or gliding): this one's readable spot keeps clear of it. */
-  avoidX?: number | null;
+  /** The centre x of the balloons still near (arriving, readable or gliding): this one's readable spot keeps clear of them. */
+  avoidX?: number | readonly number[] | null;
 }
 
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
@@ -212,17 +212,27 @@ export function planFlight(seed: number, g: LaneGeom, bw: number, bh: number, op
 
   // The readable spot: low, just above the prompt's strip. Across: the
   // lane's left part on a wide screen (the empty strip right of the text,
-  // before the docked panes), else right of the middle.
-  let rx = lane.sky ? lx0 + r() * Math.min(bw * scale * 0.9, lx1 - lx0) : clamp(g.W * 0.62 + (r() - 0.5) * bw * 0.5, lx0, lx1);
-  const avoid = opts.avoidX;
-  if (avoid != null && Math.abs(rx - avoid) < bw * scale * 0.85) {
-    const right = avoid + bw * scale * 0.95, left = avoid - bw * scale * 0.95;
-    rx = right <= lx1 ? right : left >= lx0 ? left : rx;
+  // before the docked panes), else right of the middle. Always over the
+  // game pane: the panes cover the balloons (round 2), so a sign behind a
+  // docked pane could not be read. Where the strip right of the text is
+  // too narrow for it (docked panes close by, or a second balloon in it),
+  // it is readable over the right end of the text instead.
+  const readHi = Math.max(EDGE + half, Math.min(lx1, g.out.x + g.out.w - half - 4));
+  const readLo = Math.min(lx0, readHi);
+  let rx = lane.sky ? clamp(lx0 + r() * Math.min(bw * scale * 0.9, lx1 - lx0), readLo, readHi) : clamp(g.W * 0.62 + (r() - 0.5) * bw * 0.5, EDGE + half, readHi);
+  const near = opts.avoidX == null ? [] : typeof opts.avoidX === 'number' ? [opts.avoidX] : opts.avoidX;
+  if (near.length) {
+    // The first of: its own spot, then right or left of each near balloon,
+    // that is clear of all of them; else the one farthest from them.
+    const w = bw * scale;
+    const gap = (x: number): number => Math.min(...near.map((a) => Math.abs(x - a)));
+    const cands = [rx, ...near.flatMap((a) => [a + w * 0.95, a - w * 0.95])].filter((x) => x >= EDGE + half && x <= readHi);
+    rx = cands.find((x) => gap(x) >= w * 0.85) ?? cands.reduce((b, x) => (gap(x) > gap(b) ? x : b), rx);
   }
   const ry = Math.max(EDGE, floor - bh * scale - between(8, 24));
   const read0 = { x: rx, y: ry };
   // It comes up from below the bottom edge (behind the prompt), a little aside.
-  const start = { x: clamp(rx + (r() - 0.5) * 50, lx0, lx1), y: g.H + 4 };
+  const start = { x: clamp(rx + (r() - 0.5) * 50, Math.min(rx, readLo), readHi), y: g.H + 4 };
   // Long enough that the arrival's peak stays under V_ARRIVE.
   const dist = Math.hypot(start.x - rx, start.y - ry);
   const ta = Math.max(between(5.5, 6.5), (ARR_PEAK * dist) / V_ARRIVE);
@@ -239,21 +249,21 @@ export function planFlight(seed: number, g: LaneGeom, bw: number, bh: number, op
   // positive to the right) and the scale it shrinks to.
   let cruise: number, drift: number, decay: number, sEnd: number, heading: (k: number) => number;
   if (path === 'top') {
-    cruise = between(85, V_CRUISE_MAX);
+    cruise = between(95, V_CRUISE_MAX);
     drift = between(40, 60);
     decay = between(5, 8);
     sEnd = scale * between(0.3, 0.85);
     const a0 = side * between(5, 25) * D2R;
     heading = (k) => a0 + 0.25 * Math.sin(0.8 * k + p1);
   } else if (path === 'right') {
-    cruise = between(65, 95);
+    cruise = between(85, 110);
     drift = between(18, 30);
     decay = between(5, 8);
     sEnd = scale * between(0.25, 0.8);
     const a0 = between(30, 55) * D2R;
     heading = (k) => lerp(a0, 75 * D2R, Math.min(1, k / 3)) + 0.35 * Math.sin(0.7 * k + p1);
   } else {
-    cruise = between(50, 80);
+    cruise = between(70, 95);
     drift = between(8, 15);
     decay = between(4, 6);
     sEnd = scale * between(0.15, 0.4);
@@ -307,8 +317,11 @@ export function planFlight(seed: number, g: LaneGeom, bw: number, bh: number, op
       if (v < 0 && lo > -Infinity) return -brake(-pos, -v0, -v, -hi, -lo);
       return v;
     };
-    vx = brake(R.x + prev.x, prev.vx, vx, xmin, xmax);
-    vy = brake(R.y + prev.y, prev.vy, vy, ymin, ymax);
+    // (A balloon that was readable outside its room, over the text, has the
+    // room widened to where it is: it is never pulled back in a hurry.)
+    const px = R.x + prev.x, py = R.y + prev.y;
+    vx = brake(px, prev.vx, vx, Math.min(xmin, px), Math.max(xmax, px));
+    vy = brake(py, prev.vy, vy, Math.min(ymin, py), Math.max(ymax, py));
     const k: Key = { t, x: prev.x + ((prev.vx + vx) / 2) * dt, y: prev.y + ((prev.vy + vy) / 2) * dt, vx, vy };
     keys.push(k);
     if (gone(k, s)) {

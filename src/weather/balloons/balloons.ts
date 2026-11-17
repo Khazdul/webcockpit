@@ -174,11 +174,10 @@ export function startBalloons(host: BalloonsHost): Balloons {
       const old = flights.find((f) => f.fadeAt === null);
       if (old) old.fadeAt = old.t;
     }
-    let near: Flight | null = null;
-    for (const f of flights) if (f.phase === 'arrive' || f.phase === 'read' || f.phase === 'glide') near = f;
+    const near = flights.filter((f) => f.phase === 'arrive' || f.phase === 'read' || f.phase === 'glide').map((f) => f.x);
     const skin = skinOf(doc);
     skin.el.classList.add('wc-balloon');
-    const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: reduced(), avoidX: near ? near.x : null });
+    const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: reduced(), avoidX: near });
     const f: Flight = { skin, plan, t: 0, fadeAt: null, notices: [k], front: null, x: plan.start.x, phase: 'arrive', opacity: -1 };
     const sign = signFor(f.notices);
     skin.setMood(sign.mood);
