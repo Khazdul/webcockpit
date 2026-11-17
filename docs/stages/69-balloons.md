@@ -195,3 +195,18 @@ Settings → Weather effects: **Weather effects** and **Balloons** on.
 Feedback wanted: the rise's pace and the rest spot, the departure's pace,
 the shrink, the three new faces and signs, and whether any motion still
 feels abrupt.
+
+## Released
+
+- 2026-11-17: round 2 released as **0.17.0** on the owner's word (full
+  e2e 1 928 passed, 2 load failures that pass alone; `test:prod` 36/36 on
+  mumecockpit.com). Balloons off by default, desktop only.
+
+## Waiting for the owner
+
+- **Images:** the owner makes the goblin with an image generator; the
+  working order and prompts are in `notes/research/balloons/image-brief.md`,
+  the file contract in ADR 0159 and `public/balloons/README.md` (12 files).
+- **Then:** the flight in detail (pace, how long they show, paths). Open
+  points to raise: on wide layouts the drift can pass behind the right-hand
+  panes and vanish there; the arrival is ~7 s at 1080 px (`V_ARRIVE`).
