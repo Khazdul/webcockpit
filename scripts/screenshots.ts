@@ -24,6 +24,12 @@
 // (shared with the presentation film, video/).
 // The `community-*` shots (Comm and Statistics, dark and Paper) are for the
 // 0.4.0 community post; WC_SHOT_OUT them elsewhere too.
+// The `discord3-*` shots (Community, a shared run's watch page, History's
+// Diary, the start menu logged in and synced) are for the 0.17 post. They
+// talk to the e2e fakes of the cloud backend (scripts/lib/cloud-fakes.ts:
+// Playwright routes, nothing reaches a real backend), with invented
+// accounts, runs, votes, comments and runes.
+import { cloudFakes } from './lib/cloud-fakes.ts';
 import { devServer } from './lib/dev-server.ts';
 import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,6 +42,7 @@ import {
   type Pin,
   SCENE,
   type Step,
+  connect,
   fightSteps,
   gameFeed,
   gmcpBytes,
@@ -43,6 +50,7 @@ import {
   lineBytes,
   live,
   pinGameMoment,
+  play,
   sleep,
   startMenu,
   weather,
@@ -611,6 +619,28 @@ const SHOTS: Record<string, Shot> = {
   'community-stats': (b) => community(b, 'community-stats', { stats: STATS_RECT }),
   // The same on Paper.
   'community-paper': (b) => community(b, 'community-paper', { paper: true, stats: STATS_RECT }),
+
+  // ---------------------------------------------------- the 0.17 release post (`discord3-*`)
+
+  // The Community page, logged in: the list, Hall of Fame, Log of the day, Warlords, Random Runes.
+  'discord3-community': (b) => discord3Community(b),
+  // The watch page of a run published from the demo's Rasta session: playing in the fight, the map on,
+  // the stars and comments beside it.
+  'discord3-watch': (b) => discord3Watch(b),
+  // History on its Diary tab (stage 67), the demo runs restored, the page's clock the day after them.
+  async 'discord3-history'(browser) {
+    const { ctx, page } = await demoStart(browser);
+    await menuRow(page, 'history');
+    await startTop(page).locator('.wc-htab[data-tab="diary"]').click();
+    await page.waitForFunction(() => document.querySelector('.wc-start .wc-frame:not([hidden]) .wc-cred-book')?.getAttribute('data-ready') === 'true');
+    await morphDone(page);
+    await page.mouse.move(VIEWPORT.width - 5, VIEWPORT.height - 5);
+    await sleep(2500);
+    await shot(page, 'discord3-history');
+    await ctx.close();
+  },
+  // The start menu logged in (the sync on, the owner row synced), the Community's counter beside it.
+  'discord3-account': (b) => discord3Account(b),
 };
 
 // ------------------------------------------------------------ the 0.4.0 community post
@@ -750,6 +780,192 @@ function community(
       : { fight: 'mid', clock: AFTER_RASTA, prepare: restoreDemo, extra: communityTalk() },
   );
 }
+
+// ------------------------------------------------------------ the 0.17 release post
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Accounts that only vote and comment (never log in from a page: no crypto), two months old. */
+const VOTERS = ['tamsin', 'orrin', 'belegost', 'wynfrith', 'galdor', 'merewyn', 'thrain', 'eldarion', 'kuzzim'] as const;
+
+function seedVoters(server: { seed(n: string, f: never, o: { created: number }): void; now(): number }): void {
+  const fields = { salt: 's', kdf: { name: 'pbkdf2-sha256', rounds: 600_000 }, authKey: 'a', recoveryAuth: 'r', wrapPw: 'w', wrapRc: 'c' } as never;
+  for (const n of VOTERS) server.seed(n, fields, { created: server.now() - 60 * DAY_MS });
+}
+
+/** Random Runes for the Community shot: invented players' short notes, newest first. */
+const RUNES: [string, string, number][] = [
+  ['hollin', 'anyone up for Moria tonight? 20:00 by the west gate, bring light and a healer', 3],
+  ['tamsin', 'level 30 at last! thanks for the help on Weathertop, all of you', 11],
+  ['saelind', 'thanks to whoever left the lembas at the Prancing Pony', 26],
+  ['quillon', 'lost in the Old Forest again. Tom found me. again.', 48],
+  ['brego', 'the Fords of Isen log is up: two hours, three fights', 95],
+  ['marrowfield', 'the trolls at the Last Bridge hit hard after dark, bring a friend', 160],
+  ['orrin', 'who keeps ringing the bell in Bree at 4 in the morning', 300],
+  ['galdor', 'new here, the map pane is great. see you on the road', 520],
+];
+
+/** The Community page, logged in, well populated (the fakes of tests/e2e/community.ts). */
+async function discord3Community(browser: Browser): Promise<void> {
+  const f = await cloudFakes();
+  const { ctx, page } = await newPage(browser);
+  // Twelve runs: one of each fixture title (more would repeat them with a number).
+  const s = await f.communitySetUp(page, { runs: 12, notes: false });
+  const srv = s.server;
+  seedVoters(srv as never);
+  // Hall of Fame: well-voted runs (five votes or more, as the Worker asks; the fake does not), mostly five stars.
+  [2, 4, 7, 9, 11, 1, 3, 8, 10, 0].forEach((run, k) => {
+    const n = 5 + ((k * 3) % 5);
+    for (let v = 0; v < n; v++) srv.addVote(VOTERS[(k + v) % VOTERS.length]!, s.runs[run]!, (v + k) % 4 === 3 ? 4 : 5, { ago: (v + 1) * HOUR_MS });
+  });
+  for (const [who, text, minutes] of RUNES) srv.addNote(who, text, { ago: minutes * 60_000 });
+  await f.communityLogIn(page, s);
+  await page.goto(`/?cloudtest&${f.SKY}`);
+  await startMenu(page);
+  await page.mouse.move(1, 1);
+  await page.locator('.wc-start .wc-sm-item[data-key="community"]').waitFor();
+  await page.keyboard.press('c');
+  const cy = page.locator('.wc-start .wc-frame:not([hidden]) .wc-cy');
+  await cy.waitFor();
+  await page.waitForFunction(() => {
+    const l = document.querySelector('.wc-start .wc-frame:not([hidden]) .wc-cy .wc-cy-list');
+    return l !== null && l.getAttribute('data-state') !== 'loading';
+  });
+  await cy.locator('.wc-cy-row').first().waitFor();
+  await cy.locator('.wc-cy-note').first().waitFor();
+  await morphDone(page);
+  await page.mouse.move(VIEWPORT.width - 5, VIEWPORT.height - 5);
+  await sleep(2500);
+  await shot(page, 'discord3-community');
+  await ctx.close();
+}
+
+/** The account the release post's shots log in as (invented, as the fixtures' names). */
+const D3_NAME = 'fenwick';
+const D3_PASSWORD = 'correct horse battery';
+
+/** The owner row, then Log in with D3_NAME (the fake checks the real KDF); leaves the page where the login lands. */
+async function d3LogIn(page: Page): Promise<void> {
+  await page.mouse.move(1, 1);
+  const owner = page.locator('.wc-start .wc-sm-item[data-key="owner"]');
+  await owner.waitFor({ timeout: 15_000 });
+  await owner.click();
+  const f = startTop(page);
+  await f.locator('[data-page="login"]').waitFor();
+  await page.mouse.move(1, 1);
+  await f.locator('[data-field="name"] input').fill(D3_NAME);
+  await f.locator('[data-field="password"] input').fill(D3_PASSWORD);
+  await f.locator('[data-field="password"] input').press('Enter');
+}
+
+/** Comments under the shared run, oldest first: [writer, text, hours ago]. */
+const WATCH_COMMENTS: [string, string, number][] = [
+  ['kuzzim', 'ha, I remember that ruffian. good times', 50],
+  ['tamsin', 'Bree at night always gets me. well fought', 30],
+  ['galdor', 'lovely clean run, the map makes it easy to follow', 7],
+  ['orrin', 'that merc rescue on Dori, nice timing', 2],
+];
+
+async function discord3Watch(browser: Browser): Promise<void> {
+  const f = await cloudFakes();
+  const server = new f.FakeAccountServer();
+  server.flags = { accounts: true, share: true, gallery: true };
+  await f.seedAccount(server, D3_NAME, D3_PASSWORD, { created: server.now() - 90 * DAY_MS });
+
+  // A run recorded through the mocked connection (the gameplay feed with the whole fight: Bree's rooms
+  // for the map), then published from the export editor as Hall of Fame.
+  {
+    const { ctx, page } = await newPage(browser);
+    // At a player's pace (about two minutes), so the run's length reads as a real one.
+    const mume = await connect(page);
+    await play(page, mume, gameFeed('full'), { afterOut: 1000, afterCmd: 2000 });
+    await sleep(1000);
+    await mume.close();
+    await page.waitForFunction(() => !/^playing/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
+    await sleep(1500);
+    await f.fakeAccountApi(page, { server });
+    await page.goto('/?cloudtest');
+    await startMenu(page);
+    await d3LogIn(page);
+    await startTop(page).locator('[data-page="account"]').waitFor({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+    await page.locator('.wc-start .wc-sm-item[data-key="history"]').waitFor();
+    await morphDone(page);
+    const h = await history(page);
+    await page.keyboard.press('Home');
+    await h.locator('[data-btn="EXPORT"]').click();
+    const fr = startTop(page);
+    await fr.locator('.wc-exp-row').first().waitFor();
+    await page.keyboard.press('f');
+    await fr.locator('[data-btn="EXPORT"]').click();
+    const dlg = fr.locator('[data-dlg="share"]');
+    await dlg.waitFor();
+    await dlg.locator('[data-field="title"] input').fill('Ruffian at the Bree crossroads');
+    await dlg.locator('[data-field="rules"]').click();
+    await fr.locator('[data-btn="PUBLISH"]').click();
+    await fr.locator('[data-dlg="share-done"]').waitFor({ timeout: 30_000 });
+    await ctx.close();
+  }
+  const id = server.pubsOf(D3_NAME)[0]!.id;
+  seedVoters(server as never);
+  VOTERS.forEach((v, i) => server.addVote(v, id, i % 4 === 2 ? 4 : 5, { ago: (i + 1) * HOUR_MS }));
+  for (const [who, text, hours] of WATCH_COMMENTS) server.addComment(who, id, text, { ago: hours * HOUR_MS });
+
+  // A guest watches it, the real clock.
+  const { ctx, page } = await newPage(browser);
+  const api = await f.fakeAccountApi(page, { server });
+  await f.fakePubApi(page, api);
+  await page.goto(`/r/${id}?cloudtest&from=community`);
+  await page.locator('.wc-watch-page[data-watch="playing"]').waitFor({ timeout: 30_000 });
+  const r = page.frameLocator('.wc-watch-slot iframe');
+  await r.locator('.wc-player').waitFor({ timeout: 30_000 });
+  await page.locator('.wc-watch [data-watch="comments"] .wc-watch-cm').first().waitFor();
+  // The map on (the player's Panes popup), then a seek on the rail into the fight.
+  await r.locator('.wc-player').hover();
+  const box = r.locator('.wc-player-box');
+  await box.locator('[data-act="panes"]').click();
+  await box.locator('.wc-pc-pop[data-pop="panes"] [data-pane="map"]').click();
+  await r.locator('.wc-pane[data-pane="map"] canvas').waitFor();
+  // The popup closed again.
+  await box.locator('[data-act="panes"]').click();
+  const rail = (await r.locator('.wc-player-rail').boundingBox())!;
+  await page.mouse.click(rail.x + rail.width / 2, rail.y + rail.height * WATCH_AT);
+  await sleep(4000);
+  await page.mouse.move(VIEWPORT.width - 5, VIEWPORT.height - 5);
+  await sleep(1500);
+  await shot(page, 'discord3-watch');
+  await ctx.close();
+}
+
+async function discord3Account(browser: Browser): Promise<void> {
+  const f = await cloudFakes();
+  const { ctx, page } = await newPage(browser);
+  // The community's fakes: its accounts (D3_NAME with D3_PASSWORD among them), listed runs, notes.
+  const s = await f.communitySetUp(page, { runs: 12 });
+  s.server.flags = { ...s.server.flags, sync: true };
+  await f.stubTurnstile(page, { auto: true });
+  await page.goto(`/?cloudtest&${f.SKY}`);
+  await startMenu(page);
+  await d3LogIn(page);
+  // The page reloads into the account's space and syncs: the owner row reads synced.
+  await page.waitForFunction(
+    (n) => {
+      const t = document.querySelector('.wc-start .wc-sm-item[data-key="owner"]')?.textContent ?? '';
+      return t.includes(n) && /synced/i.test(t);
+    },
+    D3_NAME,
+    { timeout: 30_000 },
+  );
+  await morphDone(page);
+  await page.mouse.move(VIEWPORT.width - 5, VIEWPORT.height - 5);
+  await sleep(2500);
+  await shot(page, 'discord3-account');
+  await ctx.close();
+}
+
+/** Where on the rail (a share of its height) the watch shot seeks to. */
+const WATCH_AT = 0.97;
 
 // ------------------------------------------------------------ main
 
