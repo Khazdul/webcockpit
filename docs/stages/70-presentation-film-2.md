@@ -66,7 +66,7 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Acts 5–6 recorded (make it yours; memory and the account; take `film2-b`, phone shot `film2-phone`).
 - [x] Act 4 in the film (the approved device prototype; `DevicesAct`, joined to act 3 without a cut).
 - [x] Acts 7–8 recorded (community, dawn; take `film2-b`; community re-captured first).
-- [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 6:01; `film2-draft-small.mp4` for the phone).
+- [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 5:58; `film2-draft-small.mp4` for the phone).
 - [ ] Owner feedback rounds.
 - [ ] Master and 4K.
 
