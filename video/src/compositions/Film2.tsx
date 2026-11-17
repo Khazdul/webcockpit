@@ -68,8 +68,8 @@ export function Film2({ a, tablet, phone }: Film2Props) {
       ))}
       {/* act 0 */}
       <LowerThird {...span(1.5, 10.5)} text={[`Live demo of WebCockpit ${VERSION}`, 'Try it at mumecockpit.com']} />
-      {/* act 1: once Eilwen's chat is open; then the appearance */}
-      <LowerThird {...span(m('chat', 'Eilwen') + 0.6, m('segment', 'merc-arrives') - 0.2)} text="Conversations get a pane of their own." />
+      {/* act 1: once Comm is up, through Eilwen's chat; then the appearance */}
+      <LowerThird {...span(m('pane', 'comm') + 0.8, m('segment', 'merc-arrives') - 0.2)} text="Conversations get a pane of their own." />
       <LowerThird {...span(m('font-list'), m('settings-closed') + 0.3)} text="Customise fonts, colours and more." />
       {/* act 2: once the spells are in the Timers pane */}
       <LowerThird {...span(m('segment', 'casts') + 3.6, m('segment', 'casts') + 7.6)} text="The Timers pane tracks spells, buffs and more." />
