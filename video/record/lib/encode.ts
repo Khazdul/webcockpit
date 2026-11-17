@@ -46,7 +46,12 @@ export async function imageSize(file: string): Promise<{ width: number; height: 
  * Encodes `frames` (from `from` to `to`, epoch s; the last frame held until
  * `to`) to `out`. The output's frame 0 is the first frame.
  */
-export async function encode(frames: readonly Frame[], to: number, out: string, dir: string): Promise<EncodeResult> {
+/**
+ * `canvas` (video px, even): every frame is placed at the top left of a
+ * canvas this size, for a take whose page changes size (a phone turned to
+ * landscape mid-take: its frames change shape, the recording cannot).
+ */
+export async function encode(frames: readonly Frame[], to: number, out: string, dir: string, canvas?: { width: number; height: number }): Promise<EncodeResult> {
   const lines = ['ffconcat version 1.0'];
   for (let i = 0; i < frames.length; i++) {
     const end = i + 1 < frames.length ? frames[i + 1]!.ts : Math.max(to, frames[i]!.ts + 1 / FPS);
@@ -63,7 +68,7 @@ export async function encode(frames: readonly Frame[], to: number, out: string, 
     '-f', 'concat', '-safe', '0', '-i', list,
     // JPEG frames decode as full-range YCbCr (BT.601 in JFIF); PNG frames are RGB already.
     // (DPR 1.2 gives 1920×1079 frames, Chrome rounding down: a black row at the bottom makes 1080, pixels untouched)
-    '-vf', `fps=${FPS},scale=in_range=pc:in_color_matrix=bt601:flags=accurate_rnd+full_chroma_int,format=bgr0,pad=width=ceil(iw/2)*2:height=ceil(ih/2)*2:x=0:y=0:color=black`,
+    '-vf', `fps=${FPS},scale=in_range=pc:in_color_matrix=bt601:flags=accurate_rnd+full_chroma_int,format=bgr0,pad=${canvas ? `width=${canvas.width}:height=${canvas.height}` : 'width=ceil(iw/2)*2:height=ceil(ih/2)*2'}:x=0:y=0:color=black`,
     '-frames:v', String(total),
     '-c:v', 'libx264rgb', '-qp', '0', '-preset', 'faster',
     '-g', '30', '-keyint_min', '30', '-sc_threshold', '0',

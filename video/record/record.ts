@@ -63,7 +63,8 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
     const { page } = await newPage(browser, mode, BASE, scene.page);
     const state = await scene.setup(page);
     const marks = new Marks(mode.dpr);
-    const vp = scene.page?.viewport ?? VIEWPORT;
+    const vp = scene.canvas ?? scene.page?.viewport ?? VIEWPORT;
+    const canvas = scene.canvas ? { width: Math.ceil((scene.canvas.width * mode.dpr) / 2) * 2, height: Math.ceil((scene.canvas.height * mode.dpr) / 2) * 2 } : undefined;
     const cast = new Screencast(page, { width: Math.round(vp.width * mode.dpr), height: Math.round(vp.height * mode.dpr), format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
     try {
       await cast.start();
@@ -88,19 +89,19 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
       console.log(`  ${' '.repeat(modeName.length)}  ${fmt(all)}  [whole capture]`);
       console.log(`  frames per second: ${cast.perSecond().join(' ')}`);
       const size = await imageSize(cast.frames[0]!.file);
-      if (size.width !== Math.round(vp.width * mode.dpr)) console.warn(`  frames are ${size.width}×${size.height}, not ${vp.width * mode.dpr} wide: downscaled`);
+      if (!canvas && size.width !== Math.round(vp.width * mode.dpr)) console.warn(`  frames are ${size.width}×${size.height}, not ${vp.width * mode.dpr} wide: downscaled`);
       if (!keep) return active;
       mkdirSync(OUT, { recursive: true });
       const te = Date.now();
-      const enc = await encode(cast.frames, end, join(OUT, `${sceneName}.mp4`), cast.dir);
+      const enc = await encode(cast.frames, end, join(OUT, `${sceneName}.mp4`), cast.dir, canvas);
       console.log(`  encoded ${enc.frames} frames (${enc.seconds.toFixed(2)} s) in ${((Date.now() - te) / 1000).toFixed(1)} s`);
       const timeline: TimelineFile = {
         scene: sceneName,
         recordedAt: new Date().toISOString(),
         mode: modeName,
         // the encoder pads odd sizes to even
-        width: Math.ceil(size.width / 2) * 2,
-        height: Math.ceil(size.height / 2) * 2,
+        width: canvas?.width ?? Math.ceil(size.width / 2) * 2,
+        height: canvas?.height ?? Math.ceil(size.height / 2) * 2,
         dpr: mode.dpr,
         fps: FPS,
         frames: enc.frames,

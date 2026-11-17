@@ -13,6 +13,8 @@ export interface Scene {
   mode?: string;
   /** The page's date and MUME's clock (film scenes: FILM_PAGE). */
   page?: PageOptions;
+  /** The page changes size during the take: the recording is this big (CSS px), each frame at its top left. */
+  canvas?: { width: number; height: number };
   /** Before the camera rolls: log in, pin the weather, lay out the panes. */
   setup(page: Page): Promise<SceneState>;
   /** On camera. Set markers with `marks`; `active` brackets the stretch the fps stats are judged on. */
