@@ -74,7 +74,7 @@
 | 70 | Presentation film 2 | In progress (acts 0–4 drafted, with the owner) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
-| 71 | The shared replay with the lens | Planned (the owner's direction 2026-11-17), building | `docs/stages/71-shared-replay-lens.md` |
+| 71 | The shared replay with the lens | Built on `stage-71-shared-replay-lens` (A–D), waiting for staging and the owner's test | `docs/stages/71-shared-replay-lens.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -100,6 +100,14 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-17 — Stage 71: the shared replay with the lens (A–D)
+
+- **Done:** every shared run (watch page frame, exported HTML) plays with the map lens (ADR 0160). Phone/tablet: the replay runtime decides the device flags and mounts the phone layer (lens with panes and fullscreen keys, no Comm; strip Group/Timers, off at start; bar without Fullscreen and Panes). Desktop: a new desk lens in the phone lens's look (Group, fullscreen, Timers, move keys; pan, wheel zoom, follow key and double click; rim resize); Group and Timers float at the bottom right, off at start; box without Panes. Map worker `follow` message.
+- **Tests:** typecheck clean; unit 5527 passed (2 skipped); e2e of the touched areas (watch, replay, viewer, player, spotlights, map, phone watch/player/map specs; 3 workers) 285 passed, 1 skipped, 0 failed.
+- **Next:** staging and the owner's test (stage file's test guide).
+- **Open:** the replay runtime is ~17 % larger (it carries the phone layer); desktop lens zoom resets after a backward seek.
+- **Commits:** 4f6a56fa…, on branch `stage-71-shared-replay-lens` (not merged).
 
 ### 2026-11-17 — Discord post for 0.9.0 → 0.17.2
 
