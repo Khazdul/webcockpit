@@ -90,7 +90,33 @@ old film's manuscript, scenes and takes stay for reference.
 
 ## Owner feedback
 
-(None yet.)
+### Device prototype, round 1 (2026-11-17)
+
+0. The main problem: it looks as if one plays on all three devices at the
+   same time, which is misleading. The story is "the same session goes on
+   on another device", one device live at a time. Drop the closing shot of
+   all three in sync and its caption ("The same session on every
+   screen."). When the camera leaves a device, its screen clearly stops
+   being live (frozen where it was left, then dimmed or asleep), and the
+   next device picks up exactly there. A new caption for the act: plain,
+   descriptive, no slogan.
+1. The iPad is shown in landscape (1180×820 CSS, mobile and touch; the
+   phone's layout by default, ADR 0140).
+2. Never zoom in on the iPad: the camera passes it at the overview scale
+   (it may be the live one for a few seconds in the wide view).
+3. At the phone, zoom in until only the phone is shown. Then, by touch,
+   with the fingertip rings:
+   a. Open Messages (the phone's Comm) and jump between two
+      conversations. Comm is simulated: staged lines with invented names,
+      arriving shortly before so an unread count shows; the staging is a
+      small reusable feed helper.
+   b. Hide Messages, open the pane strip, swipe between Group and Timers.
+   c. Rotate the phone to landscape (the frame turns 90° in Remotion; a
+      landscape take, ADR 0137).
+   d. In landscape, move the map lens a little and make it slightly
+      larger, by touch.
+4. Everything else as before. The prototype may grow past 20 s; a calm
+   pace (about 2 s of rest before each touch).
 
 Open from the community capture (2026-11-17): the one real published run
 has no stars or comments, and the Hall of Fame is empty (five votes
