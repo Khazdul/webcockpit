@@ -69,8 +69,8 @@
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
 //   the same `pan`/`zoom` messages and limits as the mouse and the wheel.
 //   Without the flag a finger's pointer (`pointerType` touch) takes the
-//   same path: a touch screen on a desktop, and the shared replay's frame,
-//   which runs no `initDevice` (ADR 0156).
+//   same path: a touch screen on a desktop (ADR 0156; the shared replay's
+//   frame decides the device flags since stage 71, ADR 0160).
 // - Loading overlay (stage 24, ADR 0083, src/panes/map-loading.ts): from
 //   the start (and every map change) to the first complete frame, and
 //   from a tileset change to `tilesDrawn`, a small centred progress bar fed by the
@@ -284,8 +284,7 @@ export class MapPane extends PaneShell {
       // A long press shows the hover box, not the browser's menu.
       c.addEventListener('contextmenu', (e) => e.preventDefault());
     } else {
-      // A finger still pans and pinches (a touch screen on a desktop, and the shared
-      // replay's frame, which decides no device flags): its pointers take the touch path.
+      // A finger still pans and pinches (a touch screen on a desktop): its pointers take the touch path.
       c.addEventListener('pointerdown', (e) => (e.pointerType === 'touch' ? this.onTouchDown(e) : this.onPointerDown(e)));
       c.addEventListener('pointermove', (e) => (this.touches.has(e.pointerId) ? this.onTouchMove(e) : this.onPointerMove(e)));
       const end = (e: PointerEvent): void => (this.touches.has(e.pointerId) ? this.onTouchEnd(e) : this.onPointerEnd(e));
