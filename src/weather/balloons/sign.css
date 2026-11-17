@@ -1,0 +1,112 @@
+/* The sign under a balloon (stage 69, ADR 0159; sign.ts): HTML text on a
+ * wooden plank, the same for every skin. 172 px wide; hung 14 px below
+ * its top edge (the ropes), swinging about that point. */
+.wc-bsign {
+  --bsign-wood: #6b4a2b;
+  --bsign-wood-hi: #8a6238;
+  --bsign-ink: #2a1a0c;
+  position: relative;
+  margin: 10px auto 0;
+  width: 172px;
+  transform-origin: 50% -14px;
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+}
+
+.wc-bsign::before,
+.wc-bsign::after {
+  content: "";
+  position: absolute;
+  top: -14px;
+  width: 2px;
+  height: 14px;
+  background: #4a3a26;
+}
+
+.wc-bsign::before { left: 40px; transform: rotate(10deg); }
+.wc-bsign::after { right: 40px; transform: rotate(-10deg); }
+
+.wc-bsign-plank {
+  box-sizing: border-box;
+  background: linear-gradient(180deg, var(--bsign-wood-hi), var(--bsign-wood) 60%, #5a3d22);
+  border: 2px solid var(--bsign-ink);
+  border-radius: 4px 6px 5px 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 4px 10px rgba(0, 0, 0, 0.5);
+  padding: 7px 8px 6px;
+  text-align: center;
+  color: #f3e6c8;
+  text-shadow: 0 1px 0 var(--bsign-ink);
+}
+
+.wc-bsign-who {
+  font-weight: 700;
+  font-size: 12.5px;
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.wc-bsign-xp {
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #fff3d6;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-bsign-xp small {
+  font-size: 12px;
+  margin-left: 3px;
+}
+
+.wc-bsign-rate,
+.wc-bsign-more {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.wc-bsign-rate {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #d9cdb0;
+}
+
+.wc-bsign-more {
+  font-size: 10px;
+  color: #e6d6b2;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-bsign-rate[hidden],
+.wc-bsign-more[hidden] {
+  display: none;
+}
+
+.wc-bsign[data-face="poor"] .wc-bsign-rate { color: #c97a68; }
+.wc-bsign[data-face="meh"] .wc-bsign-rate { color: #b9a77a; }
+.wc-bsign[data-face="good"] .wc-bsign-rate { color: #a3bd72; }
+.wc-bsign[data-face="great"] .wc-bsign-rate { color: #79bfd3; }
+.wc-bsign[data-face="superb"] .wc-bsign-rate { color: #f0c35a; }
+.wc-bsign[data-face="pvp"] .wc-bsign-rate { color: #e07a6a; }
+
+.wc-bsign-bump {
+  animation: wc-bsign-bump 0.35s ease-out;
+}
+
+@keyframes wc-bsign-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-bsign-bump {
+    animation: none;
+  }
+}

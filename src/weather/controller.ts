@@ -8,12 +8,18 @@
 // of the line's XML spans and, without a weather span, one char compare.
 // Char.Vitals are read from the character model on its change event (it
 // has already merged the delta).
+//
+// Balloon notices (stage 69, ADR 0159): while Weather effects → Balloons is
+// on (or `#weather balloon` / the demo asks for one: `balloons(true)`), the
+// balloons' own lazy chunk (balloons/notices.ts) runs beside the engine;
+// switching Balloons off unloads it, and so does `destroy`.
 
 import type { WeatherHookDeps } from './hook';
 import { createWeather, type Weather } from './index';
 import type { Categories, WeatherState } from './protocol';
 import { ALMANAC_MS, WeatherSignals, vitalsState } from './signals';
 import type { Settings } from '../settings';
+import type { Balloons } from './balloons/notices';
 import { gmcpKey } from '../core/types';
 
 export interface WeatherController {
@@ -22,6 +28,12 @@ export interface WeatherController {
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
   /** The state the bridge last derived (pins included). */
   state(): WeatherState;
+  /**
+   * The balloon notices once loaded, or null (Balloons off, loading failed).
+   * `force`: load them even with the Balloons switch off (`#weather balloon`,
+   * the demo), until the switch is turned off or the effects end.
+   */
+  balloons(force?: boolean): Promise<Balloons | null>;
   destroy(): void;
 }
 
@@ -83,6 +95,45 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
       if (!sameJson(next.appearance, prev.appearance) || !sameJson(next.panes, prev.panes)) w.refresh();
     }),
   );
+  // ---- balloon notices (their own lazy chunk)
+  let balloons: Balloons | null = null;
+  let balloonsLoading: Promise<Balloons | null> | null = null;
+  let forced = false;
+  const wantBalloons = (): boolean => !destroyed && (forced || settings.get().weather.balloons);
+  const syncBalloons = (): Promise<Balloons | null> => {
+    if (!wantBalloons()) {
+      balloons?.destroy();
+      balloons = null;
+      return Promise.resolve(null);
+    }
+    if (balloons) return Promise.resolve(balloons);
+    balloonsLoading ??= import('./balloons/notices')
+      .then((m) => {
+        balloonsLoading = null;
+        if (!wantBalloons()) return null;
+        balloons ??= m.startNotices({ root: cockpit.el, geometry: () => w.geometry(), ...(d.runs ? { runs: d.runs } : {}) });
+        return balloons;
+      })
+      .catch((err: unknown) => {
+        balloonsLoading = null;
+        console.warn('weather: the balloons could not be loaded', err);
+        return null;
+      });
+    return balloonsLoading;
+  };
+  unsubs.push(
+    settings.subscribe((next, prev) => {
+      if (next.weather.balloons === prev.weather.balloons) return;
+      if (!next.weather.balloons) forced = false;
+      void syncBalloons();
+    }),
+    () => {
+      balloons?.destroy();
+      balloons = null;
+    },
+  );
+  void syncBalloons();
+
   const almanacTimer = setInterval(() => signals.almanac(game.clock.state, now()), ALMANAC_MS);
   unsubs.push(() => clearInterval(almanacTimer));
 
@@ -90,6 +141,10 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
     engine: w,
     pin: (p, o) => signals.pin(p, !!o?.smooth),
     state: () => signals.state(),
+    balloons(force) {
+      if (force && !destroyed) forced = true;
+      return syncBalloons();
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;

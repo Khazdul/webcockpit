@@ -652,6 +652,11 @@ export class App {
           settings: this.settings,
           now,
           notify: (text) => this.ui('warn', text),
+          runs: {
+            subscribe: (fn) => this.runEvents.subscribe(fn),
+            live: () => this.runEvents.events,
+            chain: () => this.runs.chainEvents(),
+          },
         });
   }
 

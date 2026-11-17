@@ -1,0 +1,36 @@
+/* The goblin skin (stage 69, ADR 0159; goblin.ts): the SVG picture only;
+ * the sign is sign.css. A placeholder look, ported from
+ * notes/research/balloons/prototype-v1.html. Fixed sizes: the flight plans
+ * with GOBLIN_SIZE and never measures. */
+.wc-gob {
+  width: 180px;
+}
+
+.wc-gob-rig {
+  transform-origin: 50% 20%;
+}
+
+.wc-gob-rig > svg {
+  display: block;
+  width: 150px;
+  height: 232.5px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.wc-gob-flame {
+  transform-box: view-box;
+  transform-origin: 100px 200px;
+  animation: wc-gob-flick 0.18s infinite alternate;
+}
+
+@keyframes wc-gob-flick {
+  from { transform: scaleY(0.85); opacity: 0.85; }
+  to { transform: scaleY(1.15); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-gob-flame {
+    animation: none;
+  }
+}

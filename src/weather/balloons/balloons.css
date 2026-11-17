@@ -1,0 +1,29 @@
+/* Balloon notices (stage 69, ADR 0159; balloons.ts). Two layers over the
+ * cockpit, neither takes pointer events:
+ *
+ * - the sky layer: right after the weather's back canvas and, like it,
+ *   positioned without a z-index, so it paints under the game text and
+ *   the panes (later positioned siblings in tree order);
+ * - the front layer: above the text and the panes, below the weather's
+ *   front canvas (z-index 90), the windows (98) and the drop bars. */
+.wc-balloons {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+
+.wc-balloons-front {
+  z-index: 89;
+}
+
+.wc-balloon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 0;
+  will-change: transform, opacity;
+  opacity: 0;
+}
