@@ -154,16 +154,49 @@ export async function newPage(browser: Browser, mode: CaptureMode, baseURL: stri
   }
   await pinGameMoment(ctx, o.moment);
   await ctx.addInitScript(() => {
-    const log: { at: number; type: string; key?: string; x?: number; y?: number }[] = [];
-    (window as unknown as { __recInput: typeof log }).__recInput = log;
+    type Ev = { at: number; type: string; key?: string; x?: number; y?: number };
     const opt = { capture: true, passive: true };
     const t = (): number => performance.timeOrigin + performance.now();
-    addEventListener('keydown', (e) => log.push({ at: t(), type: 'key', key: e.key }), opt);
-    addEventListener('pointerdown', (e) => log.push({ at: t(), type: 'down', x: e.clientX, y: e.clientY }), opt);
-    addEventListener('pointerup', (e) => log.push({ at: t(), type: 'up', x: e.clientX, y: e.clientY }), opt);
-    // Every move: a later scene's cursor overlay follows the pointer through the Settings popup.
-    addEventListener('pointermove', (e) => log.push({ at: t(), type: 'move', x: e.clientX, y: e.clientY }), opt);
-    addEventListener('wheel', (e) => log.push({ at: t(), type: 'wheel', x: e.clientX, y: e.clientY }), opt);
+    const listen = (push: (e: Ev) => void): void => {
+      addEventListener('keydown', (e) => push({ at: t(), type: 'key', key: e.key }), opt);
+      addEventListener('pointerdown', (e) => push({ at: t(), type: 'down', x: e.clientX, y: e.clientY }), opt);
+      addEventListener('pointerup', (e) => push({ at: t(), type: 'up', x: e.clientX, y: e.clientY }), opt);
+      // Every move: a later scene's cursor overlay follows the pointer through the Settings popup.
+      addEventListener('pointermove', (e) => push({ at: t(), type: 'move', x: e.clientX, y: e.clientY }), opt);
+      addEventListener('wheel', (e) => push({ at: t(), type: 'wheel', x: e.clientX, y: e.clientY }), opt);
+    };
+    // A frame in the page (the watch page's sandboxed replay) hands its events to the page, which
+    // places them by the frame's box: the pointer is followed over it too.
+    if (window.top !== window) {
+      listen((e) => parent.postMessage({ __recIn: e }, '*'));
+      return;
+    }
+    // The log lives across the tab's page loads (a take that reloads: film 2's account and watch
+    // pages): it is kept in sessionStorage as a page goes and read back by the next one.
+    const KEPT = '__recInput';
+    let log: Ev[] = [];
+    try {
+      log = JSON.parse(sessionStorage.getItem(KEPT) ?? '[]') as Ev[];
+      sessionStorage.removeItem(KEPT);
+    } catch {
+      log = [];
+    }
+    (window as unknown as { __recInput: Ev[] }).__recInput = log;
+    addEventListener('pagehide', () => {
+      try {
+        sessionStorage.setItem(KEPT, JSON.stringify(log));
+      } catch {
+        /* too large or no storage: this page's events are lost */
+      }
+    });
+    listen((e) => log.push(e));
+    addEventListener('message', (m) => {
+      const e = (m.data as { __recIn?: Ev } | null)?.__recIn;
+      if (!e) return;
+      const f = [...document.querySelectorAll('iframe')].find((x) => x.contentWindow === m.source);
+      const r = f?.getBoundingClientRect();
+      log.push(e.x !== undefined && r ? { ...e, x: e.x + r.left + (f!.clientLeft ?? 0), y: (e.y ?? 0) + r.top + (f!.clientTop ?? 0) } : e);
+    });
     // The page's own long frames (over 40 ms between animation frames), to tell a hitch in the
     // client from one in the capture (record/intervals.ts)
     let last = 0;

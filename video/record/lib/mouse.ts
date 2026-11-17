@@ -207,6 +207,33 @@ export class Pointer {
     await this.follow(p);
   }
 
+  /** Moves straight onto the point (x, y) (no click), arriving at `at` (epoch ms): a grip on a pane's title row. */
+  async hoverPoint(x: number, y: number, at: number): Promise<void> {
+    const p = this.plan({ x: x - 3, y: y - 3, width: 6, height: 6 });
+    p.over = null;
+    await this.rest(at - p.ms);
+    await this.follow(p);
+  }
+
+  /**
+   * A drag from where the pointer is: pressed at `at` (epoch ms), a short
+   * pull, then one unhurried stroke to (x, y), held there `holdMs` (a drop
+   * target shows), released. Returns the release time.
+   */
+  async dragTo(x: number, y: number, at: number, o: { ms?: number; holdMs?: number } = {}): Promise<number> {
+    await this.rest(at);
+    await this.page.mouse.down();
+    await sleep(this.r(120, 200));
+    // past the drag threshold first, as a hand takes up the slack
+    const d = Math.hypot(x - this.at.x, y - this.at.y);
+    await this.stroke({ x: this.at.x + ((x - this.at.x) / d) * 12, y: this.at.y + ((y - this.at.y) / d) * 12 }, 120);
+    await this.stroke({ x, y }, o.ms ?? Math.max(700, this.moveMs(d, 40) * 1.8));
+    await sleep(o.holdMs ?? 500);
+    const up = Date.now();
+    await this.page.mouse.up();
+    return up;
+  }
+
   /** Moves straight to a point (out of the way), starting now. */
   async moveTo(x: number, y: number): Promise<void> {
     const d = Math.hypot(x - this.at.x, y - this.at.y);
