@@ -106,3 +106,92 @@ is right on your screen, and anything about the sign. The goblin's look is
 a placeholder (the WebP goblin replaces it).
 
 ## Owner feedback
+
+### 2026-11-17, after testing round 1 on staging
+
+1. **Desktop only.** No balloons on the phone or tablet layout (none were
+   seen there; the owner wants it so for now). Make it explicit: never
+   loaded there, `#weather balloon` says so, the Balloons row desktop only.
+2. **New notices: level up, death, achievement.** Each its own balloon,
+   never merged with kill signs or with each other. Short English sign text
+   ("Level 23!", "You died", the achievement's text wrapped and capped).
+   New moods with goblin faces (level up overjoyed; death X eyes, ghostly
+   grey, gloomy-comic; achievement proud) and raster images with fallbacks.
+3. **Motion like a real hot-air balloon.** Round 1 popped up to the middle
+   far too fast. It should rise slowly from below the bottom edge (from
+   behind the prompt), never move fast, with every acceleration gradual
+   (continuous velocity, also at phase boundaries and a joined kill) and a
+   balloon's top speed; come to rest low on the screen, readable 5–6 s with
+   a gentle sway (a little longer when kills join); then ease into flight,
+   somewhat faster than the arrival, shrinking by a varied amount. Keep the
+   leave paths, the sky lane, the drift of up to a minute, the sky layer
+   once it leaves and `prefers-reduced-motion`.
+4. **Never in front of a pane** (the same day). Round 1's readable balloon
+   was above the docked and floating panes; it must always be behind every
+   pane, in every phase. Over the bare game text is fine while readable
+   where it has to cross it.
+
+## Round 2
+
+- [x] Desktop only: `controller.ts` never loads the chunk in the phone's
+      layout (`cockpit.isPhoneGame`, phone and tablet), forced or not;
+      `#weather balloon` there says "Balloons are desktop only …"; the
+      Balloons row lives only in the desktop Settings popup (the phone's
+      settings page has none) and its help says "Desktop only". Unit and
+      e2e (`?phone=1`: no layers, no chunk fetched).
+- [x] Level up, death, achievement (`feed.ts` `Notice`, `signFor`;
+      `notices.ts` takes `level_up`, `char_death`, `achievement`): each
+      rises alone; a kill joins the newest kill balloon while readable.
+      Signs: "Level 23!", "You died", "ACHIEVEMENT" over the text (cut at
+      120 characters with "…", clamped to four lines).
+- [x] Moods `levelup`, `death`, `achievement`: SVG faces (confetti and arms
+      up; grey with X eyes and a crooked halo; smug with a medal on the
+      basket); raster `passenger-levelup|death|achievement.webp` with
+      fallback levelup → superb, achievement → great, death → poor, then
+      calibrating. README and ADR updated.
+- [x] `#weather balloon levelup|death|achievement`; the demo's kill step is
+      "A kill and a level up".
+- [x] Motion (`flight.ts`): a soft-stop arrival profile from below the
+      edge, a constant creep while readable, the leave as velocity
+      keyframes (linear velocity between them, braking before the room's
+      bounds); the sway eased in. Unit tests: velocity continuity at
+      1/120 s steps over every phase boundary with two joined kills, the
+      speed cap, the readable spot low, the shrink's spread.
+- [x] Behind every pane: the readable layer sits right after `.wc-game`
+      with no z-index (over the text, under the input row, the docked and
+      the floating panes). The readable spot is always over the game pane
+      (never behind a docked pane), clear of every balloon still near.
+      e2e: hit-testing probes in both layers under a docked and a floating
+      pane while it is readable and while it drifts.
+- [x] Looked at it in a 1920 × 1080 window (screenshots and a position
+      trace) and tuned the cruise speeds and the readable spot.
+
+## Test guide, round 2 (staging)
+
+Open staging on a desktop, a wide window (1920 wide is best), log in;
+Settings → Weather effects: **Weather effects** and **Balloons** on.
+
+1. `#weather balloon great`. Look for: it comes up slowly from below the
+   bottom edge, behind the prompt line, slows gently and stops low on the
+   screen, right of the text (about 7 s); readable there about 5.5 s,
+   swaying a little; then it eases into flight, somewhat faster than it
+   came, and shrinks as it goes. No sudden starts or stops anywhere.
+2. Repeat a few times: some leave over the top, some wander out to the
+   right, some meander a long time and fade; some shrink a lot, some
+   only a little.
+3. Panes: the balloon is behind every pane, always: open a floating pane
+   (Statistics) over the game text and let a balloon pass under it; the
+   docked panes on the right cover it too.
+4. `#weather balloon levelup`, `… death`, `… achievement`: each its own
+   balloon and face (overjoyed with confetti; grey with X eyes and a
+   halo; proud with a medal); signs "Level 23!", "You died", and the
+   achievement's text. `#weather balloon burst` right after a level up:
+   the kills still gather on their own sign.
+5. `#weather balloon burst`: the kills join one sign and keep it up a
+   little longer, with no jerk.
+6. On the phone or a tablet: no balloons at all; `#weather balloon` says
+   they are desktop only.
+
+Feedback wanted: the rise's pace and the rest spot, the departure's pace,
+the shrink, the three new faces and signs, and whether any motion still
+feels abrupt.

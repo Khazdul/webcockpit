@@ -1,7 +1,8 @@
 // The wooden sign under a balloon (stage 69, ADR 0159): HTML text, never
 // part of a skin's picture, so every skin shows the kill the same way and
-// a new picture never has to carry words. Names come from the game:
-// textContent only.
+// a new picture never has to carry words. Names and achievements come
+// from the game: textContent only. One plank for every kind of notice: the
+// rows a notice leaves empty are hidden (a level up is only its big line).
 
 import './sign.css';
 import type { SignContent } from './feed';
@@ -31,12 +32,17 @@ export function makeSign(doc: Document): Sign {
   return {
     el,
     set(s, joined) {
-      el.dataset.face = s.face;
+      el.dataset.face = s.mood;
+      el.dataset.kind = s.kind;
       who.textContent = s.title;
-      xp.textContent = s.xp;
-      const small = doc.createElement('small');
-      small.textContent = 'XP';
-      xp.append(small);
+      who.hidden = !s.title;
+      xp.textContent = s.big;
+      xp.hidden = !s.big;
+      if (s.unit) {
+        const small = doc.createElement('small');
+        small.textContent = s.unit;
+        xp.append(small);
+      }
       more.textContent = s.more;
       more.hidden = !s.more;
       rate.textContent = s.label;

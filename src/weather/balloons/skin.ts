@@ -8,7 +8,7 @@
 // (image-skin.ts, used when public/balloons/goblin/ has its files). Both
 // hang the shared HTML sign (sign.ts).
 
-import type { Face, SignContent } from './feed';
+import type { Mood, SignContent } from './feed';
 import type { Phase } from './flight';
 
 /** Named moments a skin may play; reserved for later animated skins (a no-op is fine). */
@@ -31,7 +31,7 @@ export interface BalloonSkin {
   /** Its layout size at scale 1, px (fixed: the flight plans with it, nothing is measured). */
   readonly size: { readonly w: number; readonly h: number };
   /** The passenger's mood. */
-  setMood(face: Face): void;
+  setMood(mood: Mood): void;
   /** The sign's text; `joined`: a kill just joined it (a skin may bump it). */
   setSign(sign: SignContent, joined: boolean): void;
   /** Optional per-frame hook: transforms of the skin's own parts only. */

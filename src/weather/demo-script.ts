@@ -14,7 +14,7 @@
 // goes by a clock the demo pins (`moon`), at an even pace from the right
 // edge, never placed by a jump. Times are seconds; about 3:00 in all.
 
-import type { Face } from './balloons/feed';
+import type { SampleWord } from './balloons/feed';
 import type { WeatherEvent, WeatherState } from './protocol';
 import { TURN_FULL, TURN_S } from './sunturn';
 
@@ -35,8 +35,8 @@ export type DemoAction =
   | { speed: number }
   /** A moonrise by the clock: pins the moon up, rising `in` s from now (the runner's clock) and setting `up` s after (owner item 108). */
   | { moon: { in: number; up: number; phase: number } }
-  /** A balloon notice for a made-up kill of this face (stage 69; shown even with Balloons off). */
-  | { balloon: Face };
+  /** A balloon notice for a made-up kill of this face, or a level up, death or achievement (stage 69; shown even with Balloons off, never on the phone). */
+  | { balloon: SampleWord };
 
 export interface DemoStep {
   /** The caption's step line, e.g. "Day · heavy rain". */
@@ -270,11 +270,14 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     ],
   },
   {
-    title: 'A kill',
-    look: 'a goblin in a balloon rises with the kill and its XP, then drifts off into the sky (Balloons)',
-    signal: 'a kill: … is dead! R.I.P. and the XP',
+    title: 'A kill and a level up',
+    look: 'goblins in balloons rise slowly from below with the kill and its XP, then the new level, rest low, then drift off into the sky (Balloons, desktop)',
+    signal: 'a kill: … is dead! R.I.P. and the XP; Char.Vitals xp past a level',
     dur: 5,
-    acts: [[0, { balloon: 'great' }]],
+    acts: [
+      [0, { balloon: 'great' }],
+      [2.5, { balloon: 'levelup' }],
+    ],
   },
   {
     title: 'Back to the game',
@@ -516,15 +519,15 @@ export type WeatherCommand =
   | { kind: 'demo'; scene: DemoScene; pace: number }
   | { kind: 'stop' }
   | { kind: 'usage' }
-  /** `#weather balloon [face|burst]` (stage 69); null: a random rating. */
-  | { kind: 'balloon'; what: Face | 'burst' | null };
+  /** `#weather balloon [face|levelup|death|achievement|burst]` (stage 69); null: a random rating. */
+  | { kind: 'balloon'; what: SampleWord | 'burst' | null };
 
 /** `#weather balloon …` words. */
-export const BALLOON_WORDS: ReadonlyArray<Face | 'burst'> = ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'burst'];
+export const BALLOON_WORDS: ReadonlyArray<SampleWord | 'burst'> = ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'levelup', 'death', 'achievement', 'burst'];
 
 /**
  * `#weather demo [sunrise|sunset|snow|birds|rain]`, `#weather stop`, `#weather demo stop`,
- * `#weather balloon [poor|meh|good|great|superb|calibrating|pvp|burst]`; anything else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
+ * `#weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst]`; anything else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
  * faster (tests).
  */
 export function parseWeatherCommand(args: string): WeatherCommand {
@@ -549,7 +552,7 @@ export function parseWeatherCommand(args: string): WeatherCommand {
 }
 
 export const WEATHER_USAGE =
-  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|burst] shows a balloon notice for a made-up kill.';
+  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst] shows a balloon notice for a made-up kill, level up, death or achievement (desktop only).';
 
 /** "1:35". */
 export function clockText(ms: number): string {

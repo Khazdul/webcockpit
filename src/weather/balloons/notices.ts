@@ -1,6 +1,7 @@
 // The balloon notices' entry (stage 69, ADR 0159): the lazy chunk the
-// weather controller imports while Weather effects → Balloons is on. It
-// wires the run's kills (feed.ts) to the balloons (balloons.ts).
+// weather controller imports while Weather effects → Balloons is on (on
+// the desktop only). It wires the run's kills, level ups, deaths and
+// achievements (feed.ts) to the balloons (balloons.ts).
 //
 // The rating is the Statistics pane's: the kill's XP against the median of
 // the chain's last 30 mob kills. The chain's earlier runs are read once
@@ -10,6 +11,7 @@
 import type { RunEvent } from '../../runs/events';
 import type { WeatherRuns } from '../hook';
 import { type Balloons, type BalloonsHost, startBalloons } from './balloons';
+import { KillRater } from '../../runs/kill-rating';
 import { noticeOf, raterFor } from './feed';
 
 export type { Balloons };
@@ -19,6 +21,7 @@ export interface NoticesDeps extends BalloonsHost {
 }
 
 const isKill = (e: RunEvent): boolean => e.type === 'kill' || e.type === 'pkill';
+const NO_RATER = new KillRater();
 
 export function startNotices(d: NoticesDeps): Balloons {
   const balloons = startBalloons(d);
@@ -48,8 +51,8 @@ export function startNotices(d: NoticesDeps): Balloons {
       reseed();
       return;
     }
-    if (!isKill(e)) return;
-    const n = noticeOf(e, raterFor(prior, runs.live()));
+    // The rater only for a kill (it reads the chain's kills).
+    const n = noticeOf(e, isKill(e) ? raterFor(prior, runs.live()) : NO_RATER);
     if (n) balloons.show(n);
   });
   return {

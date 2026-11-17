@@ -10,13 +10,13 @@
 // use image-skin.ts instead; this one stays the default.
 
 import './goblin.css';
-import type { Face } from './feed';
+import type { Mood } from './feed';
 import { makeSign } from './sign';
 import type { BalloonSkin, SkinPose } from './skin';
 
 const SKIN = '#8f9d63', SKIN_D = '#5d6a38', INK = '#2b3018', EYE = '#e9d46c';
 
-type EyeKind = 'lid' | 'down' | 'heavy' | 'open' | 'wide' | 'happy' | 'glare';
+type EyeKind = 'lid' | 'down' | 'heavy' | 'open' | 'wide' | 'happy' | 'glare' | 'x';
 interface Expr {
   /** Ear droop, degrees (positive: down). */
   ear: number;
@@ -31,10 +31,18 @@ interface Expr {
   sigh?: boolean;
   blush?: boolean;
   stars?: boolean;
+  /** Skin colours other than the goblin's green (the ghostly grey of a death). */
+  skin?: [string, string];
+  /** A level up: confetti round the envelope. */
+  confetti?: boolean;
+  /** A death: a crooked halo over the head. */
+  halo?: boolean;
+  /** An achievement: a gold medal on the basket. */
+  medal?: boolean;
 }
 
-/** One expression per face (the prototype's six, and a fierce one for a player kill). */
-const EXPR: Readonly<Record<Face, Expr>> = {
+/** One expression per mood (the prototype's six, a fierce one for a player kill, and round 2's level up, death and achievement). */
+const EXPR: Readonly<Record<Mood, Expr>> = {
   calibrating: { ear: 12, brow: [221, 221], eye: 'lid', mouth: 'M93 247 L107 247', hands: 'rim' },
   poor: { ear: 30, brow: [222, 214], eye: 'down', mouth: 'M91 251 Q100 242 109 251', hands: 'rim', tear: true },
   meh: { ear: 20, brow: [220, 220], eye: 'heavy', mouth: 'M91 248 q2.5 -2 5 0 t5 0 t5 0', hands: 'rim', sigh: true },
@@ -42,15 +50,22 @@ const EXPR: Readonly<Record<Face, Expr>> = {
   great: { ear: -6, brow: [214, 214], eye: 'wide', mouthFill: 'M93 245 Q100 255 107 245 Z', tooth: [[99, 245, 3, 3]], hands: 'rim', blush: true },
   superb: { ear: -20, brow: [213, 215], eye: 'happy', mouthFill: 'M88 244 Q100 259 112 244 Z', tooth: [[94, 244, 3, 3.4], [104, 244, 3, 3]], hands: 'up', blush: true, stars: true },
   pvp: { ear: -12, brow: [212, 222], eye: 'glare', mouthFill: 'M89 245 Q100 253 111 245 Z', tooth: [[92, 245, 3, 3.2], [105, 245, 3, 3.2]], hands: 'up' },
+  // overjoyed: ears high, eyes squeezed shut, a wide open grin, arms up, stars and confetti
+  levelup: { ear: -28, brow: [211, 214], eye: 'happy', mouthFill: 'M86 243 Q100 262 114 243 Z', tooth: [[92, 243, 3, 3.4], [98.5, 243, 3, 3.6], [105, 243, 3, 3.4]], hands: 'up', blush: true, stars: true, confetti: true },
+  // gloomy-comic: ghostly grey, X eyes, ears hanging, a wobbly mouth, a crooked halo
+  death: { ear: 38, brow: [220, 220], eye: 'x', mouth: 'M90 249 q2.5 -2.5 5 0 t5 0 t5 0 t5 0', hands: 'rim', skin: ['#a9b0ae', '#7d8483'], halo: true },
+  // proud: chin up, smug half-shut eyes, a closed smile, a medal on the basket
+  achievement: { ear: -10, brow: [214, 217], eye: 'lid', mouth: 'M90 245 Q100 252 110 244', hands: 'rim', blush: true, medal: true },
 };
 
-function ear(a: number): string {
-  return `<g transform="rotate(${-a} 84 228)"><path d="M85 221 Q62 220 44 229 Q63 238 85 237 Z" fill="${SKIN}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/><path d="M82 225 Q66 225 54 229 Q66 233 82 233 Z" fill="${SKIN_D}"/></g>`;
+function ear(a: number, [skin, dark]: [string, string]): string {
+  return `<g transform="rotate(${-a} 84 228)"><path d="M85 221 Q62 220 44 229 Q63 238 85 237 Z" fill="${skin}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/><path d="M82 225 Q66 225 54 229 Q66 233 82 233 Z" fill="${dark}"/></g>`;
 }
 
-function eyes(kind: EyeKind): string {
+function eyes(kind: EyeKind, skin: string): string {
   const one = (cx: number): string => {
     const cy = 227;
+    if (kind === 'x') return `<path d="M${cx - 3.4} ${cy - 3.4} L${cx + 3.4} ${cy + 3.4} M${cx + 3.4} ${cy - 3.4} L${cx - 3.4} ${cy + 3.4}" stroke="${INK}" stroke-width="2.1" stroke-linecap="round"/>`;
     if (kind === 'happy') return `<path d="M${cx - 4} ${cy + 1} Q${cx} ${cy - 5} ${cx + 4} ${cy + 1}" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
     const wide = kind === 'wide';
     const rx = wide ? 4.4 : 3.6, ry = wide ? 4.6 : kind === 'glare' ? 2.4 : 3;
@@ -59,7 +74,7 @@ function eyes(kind: EyeKind): string {
     s += `<circle cx="${cx + (kind === 'down' ? 0 : 0.4)}" cy="${py}" r="${wide ? 1.9 : 1.4}" fill="${INK}"/>`;
     if (wide) s += `<circle cx="${cx + 1.4}" cy="${cy - 1.6}" r=".9" fill="#fff"/>`;
     const lid = kind === 'heavy' ? 1.2 : kind === 'lid' ? 0.2 : kind === 'down' ? -0.6 : null;
-    if (lid !== null) s += `<path d="M${cx - rx - 0.6} ${cy + lid} Q${cx} ${cy - ry - 2.4} ${cx + rx + 0.6} ${cy + lid} Z" fill="${SKIN}" stroke="${INK}" stroke-width="1.1"/>`;
+    if (lid !== null) s += `<path d="M${cx - rx - 0.6} ${cy + lid} Q${cx} ${cy - ry - 2.4} ${cx + rx + 0.6} ${cy + lid} Z" fill="${skin}" stroke="${INK}" stroke-width="1.1"/>`;
     return s;
   };
   return one(92) + one(108);
@@ -67,22 +82,35 @@ function eyes(kind: EyeKind): string {
 
 function head(e: Expr): string {
   const [outer, inner] = e.brow;
-  let s = ear(e.ear) + `<g transform="translate(200 0) scale(-1 1)">${ear(e.ear)}</g>`;
-  s += `<ellipse cx="100" cy="230" rx="19.5" ry="21" fill="${SKIN}" stroke="${INK}" stroke-width="1.5"/>`;
+  const sk = e.skin ?? [SKIN, SKIN_D];
+  let s = '';
+  if (e.halo) s += `<ellipse cx="103" cy="199" rx="15" ry="4" fill="none" stroke="#efe3a0" stroke-width="2.4" opacity=".85" transform="rotate(-9 103 199)"/>`;
+  s += ear(e.ear, sk) + `<g transform="translate(200 0) scale(-1 1)">${ear(e.ear, sk)}</g>`;
+  s += `<ellipse cx="100" cy="230" rx="19.5" ry="21" fill="${sk[0]}" stroke="${INK}" stroke-width="1.5"/>`;
   s += `<path d="M96 210 q-4 -8 -11 -8 M101 209 q1 -9 7 -12 M105 211 q5 -5 11 -4" fill="none" stroke="${INK}" stroke-width="1.2" stroke-linecap="round"/>`;
   s += `<path d="M85 ${outer} L96 ${inner} M115 ${outer} L104 ${inner}" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`;
-  s += eyes(e.eye);
+  s += eyes(e.eye, sk[0]);
   if (e.blush) s += `<ellipse cx="87" cy="237" rx="4" ry="2.2" fill="#d88a7a" opacity=".55"/><ellipse cx="113" cy="237" rx="4" ry="2.2" fill="#d88a7a" opacity=".55"/>`;
   if (e.mouth) s += `<path d="${e.mouth}" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
   if (e.mouthFill) s += `<path d="${e.mouthFill}" fill="#3a1f1a" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>`;
   for (const [x, y, w, h] of e.tooth ?? []) s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#efe6c4" stroke="${INK}" stroke-width=".6"/>`;
   // the nose, last: it hangs over the mouth
-  s += `<path d="M99 225 C106 229 111 238 104 243 C101 245 97 242 99 239 C100 236 98 231 99 225 Z" fill="${SKIN_D}" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>`;
+  s += `<path d="M99 225 C106 229 111 238 104 243 C101 245 97 242 99 239 C100 236 98 231 99 225 Z" fill="${sk[1]}" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>`;
   if (e.tear) s += `<path d="M88 231 q-2.4 4 0 5.6 q2.4 -1.6 0 -5.6 Z" fill="#8fc7e0" stroke="#4a7d95" stroke-width=".6"/>`;
   if (e.sigh) s += `<g fill="#cfcfc2" opacity=".75"><circle cx="116" cy="246" r="1.8"/><circle cx="121" cy="243" r="2.4"/><circle cx="127" cy="240" r="3"/></g>`;
   if (e.stars) s += `<g fill="#f0c35a"><path d="M60 200 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/><path d="M142 192 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z"/><path d="M150 222 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2 Z"/></g>`;
+  if (e.confetti) {
+    const bits: Array<[number, number, string, number]> = [[40, 150, '#e0564a', 20], [160, 140, '#5aa0e0', -30], [30, 205, '#f0c35a', 45], [172, 196, '#7fc96a', 10], [52, 120, '#c77ae0', -15], [150, 238, '#e0564a', 60], [24, 250, '#5aa0e0', -40]];
+    for (const [x, y, c, r] of bits) s += `<rect x="${x}" y="${y}" width="6" height="3" rx=".8" fill="${c}" transform="rotate(${r} ${x + 3} ${y + 1.5})"/>`;
+  }
   return s;
 }
+
+/** A gold medal on its ribbon, on the basket's front. */
+const MEDAL =
+  '<path d="M95 262 L100 276 L105 262 Z" fill="#b8423a" stroke="#5a1d18" stroke-width=".8"/>' +
+  '<circle cx="100" cy="281" r="7" fill="#f0c35a" stroke="#7a5a1a" stroke-width="1.2"/>' +
+  '<path d="M100 276.6 l1.3 2.8 3 .3 -2.3 2 .7 3 -2.7 -1.6 -2.7 1.6 .7 -3 -2.3 -2 3 -.3 Z" fill="#fff3c4" opacity=".9"/>';
 
 const BASKET =
   '<path d="M70 262 L130 262 L126 300 L74 300 Z" fill="#7a5230" stroke="#3a2412" stroke-width="1.5" stroke-linejoin="round"/>' +
@@ -90,10 +118,10 @@ const BASKET =
   '<path d="M80 262 L79 300 M90 262 L89.5 300 M100 262 L100 300 M110 262 L110.5 300 M120 262 L121 300" stroke="#5e3d20" stroke-width=".8" opacity=".8"/>' +
   '<rect x="65" y="256" width="70" height="8" rx="3" fill="#5e3d22" stroke="#2f1d0c" stroke-width="1.3"/>';
 
-function hands(kind: 'rim' | 'up'): string {
+function hands(kind: 'rim' | 'up', skin = SKIN): string {
   const hand = (x: number, y: number): string =>
-    `<circle cx="${x}" cy="${y}" r="4.6" fill="${SKIN}" stroke="${INK}" stroke-width="1.2"/><path d="M${x - 2} ${y + 1.6} l0 2.4 M${x + 1} ${y + 2} l0 2.4" stroke="${INK}" stroke-width=".9" stroke-linecap="round"/>`;
-  if (kind === 'up') return `<path d="M86 258 L67 214 M114 258 L133 214" stroke="${SKIN}" stroke-width="5" stroke-linecap="round"/>` + hand(66, 211) + hand(134, 211);
+    `<circle cx="${x}" cy="${y}" r="4.6" fill="${skin}" stroke="${INK}" stroke-width="1.2"/><path d="M${x - 2} ${y + 1.6} l0 2.4 M${x + 1} ${y + 2} l0 2.4" stroke="${INK}" stroke-width=".9" stroke-linecap="round"/>`;
+  if (kind === 'up') return `<path d="M86 258 L67 214 M114 258 L133 214" stroke="${skin}" stroke-width="5" stroke-linecap="round"/>` + hand(66, 211) + hand(134, 211);
   return hand(83, 257) + hand(117, 257);
 }
 
@@ -115,10 +143,10 @@ function envelope(clip: string): string {
   );
 }
 
-/** The whole picture for a face (exported for tests and a face sheet). */
-export function goblinSvg(face: Face, clip: string): string {
-  const e = EXPR[face];
-  return envelope(clip) + head(e) + BASKET + hands(e.hands);
+/** The whole picture for a mood (exported for tests and a face sheet). */
+export function goblinSvg(mood: Mood, clip: string): string {
+  const e = EXPR[mood];
+  return envelope(clip) + head(e) + BASKET + (e.medal ? MEDAL : '') + hands(e.hands, e.skin?.[0]);
 }
 
 /** The element's size at scale 1 (goblin.css: 180 px wide; the picture and a two- or three-line sign). */
@@ -139,7 +167,7 @@ export function goblinSkin(doc: Document): BalloonSkin {
   const sign = makeSign(doc);
   rig.append(svg, sign.el);
   el.append(rig);
-  let mood: Face | null = null;
+  let mood: Mood | null = null;
   let tilt = NaN;
 
   return {

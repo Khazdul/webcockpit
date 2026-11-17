@@ -147,3 +147,72 @@ WebP; `public/balloons/README.md` repeats it for whoever draws:
   under the contract above; the flight, the feed and the setting stay.
 - Later (not this stage): level up, achievements, death; seasonal clothes;
   other passengers for good and evil races; blink and wave timing.
+
+## Addendum: round 2 (2026-11-17, the owner's feedback on staging)
+
+Supersedes the parts of "Decision" above on layering, the flight's timings,
+the cap's hurry and "Later" for level up, achievements and death.
+
+- **Desktop only.** `controller.ts` never imports the chunk while
+  `cockpit.isPhoneGame` (the phone's layout: phones and tablets), forced
+  or not; `#weather balloon` says "Balloons are desktop only for now …"
+  (`BALLOONS_DESKTOP_ONLY`). The Balloons row exists only in the desktop
+  Settings popup; its help says "Desktop only". The stored setting is
+  untouched (it syncs and applies on a desktop).
+- **Never over a pane.** The readable layer (`.wc-balloons-front`) loses
+  its z-index 89 and is inserted right after `.wc-game`: positioned with
+  `z-index: auto`, it paints in tree order over the game text and under
+  the input row (it rises from behind the prompt), every docked pane
+  (later siblings) and every floating pane (z-index 10+). The sky layer
+  is unchanged. So a balloon is behind every pane in every phase and over
+  bare game text only while arriving and readable. The readable spot is
+  therefore kept over the game pane (`readHi`: never behind a docked
+  pane); where the strip right of the text is too narrow, it is over the
+  text's right end. It keeps clear of every balloon still near (not only
+  the last).
+- **The flight, a hot-air balloon** (all pure functions, unit tested; the
+  velocity is continuous everywhere, including a joined kill):
+  - arrive 5.5–6.5 s, longer when the way up is long (about 7 s at
+    1080 px): from below the bottom edge (hidden) straight up to the
+    readable spot by the profile g(u) = (1 − u)²(1.2 + 7.2 u): it enters
+    already rising, peaks early at ≤ `V_ARRIVE` (110 px/s) and stops with
+    no deceleration left; a u³ − u² term hands on the creep's velocity;
+  - read 5.5–6.1 s (+1.2 s per joined kill, at most 9 s) at the readable
+    spot, low: its sign just above the prompt's strip. A constant 2.5 px/s
+    creep upward, so lengthening it moves nothing; sway 5–10 px at 0.5–0.8
+    rad/s, eased in as the arrival ends; the sign's kick at the stop is
+    smaller (3°);
+  - leave: velocity keyframes every 2.5 s, the velocity linear between
+    them (the position a piecewise quadratic, C1), each change capped at
+    24 px/s², and braking at 12 px/s² before the room's bounds (the lane,
+    the top unless the path leaves over it, never lower than it read). The
+    glide (4–5 s, at least cruise / 24 px/s²) eases from the creep to a
+    cruise of 95–115 (top), 85–110 (right) or 70–95 px/s (meander), which
+    then decays (5–8 s) to a drift pace of 40–60, 18–30 or 8–15 px/s. The
+    top and right paths end once out of sight, the meander after 40–58 s
+    with a fade; any leave ends by 58 s;
+  - it shrinks over the leave (12 s for top, 30 s for right, the whole of a
+    meander) to 30–85 %, 25–80 % or 15–40 % of its size: some a lot, some
+    only a little;
+  - `VMAX` 150 px/s bounds every point of the flight, the sway included
+    (measured ≤ 119 over 300 seeds); accelerations stay under about
+    45 px/s² (the largest at the hidden start).
+- **Too many up**: the oldest no longer runs its clock 6× faster (a jump in
+  speed); it fades out over 1.5 s where it flies (`HURRY_FADE`).
+- **Level up, death, achievement.** `feed.ts` has a `Notice` union: a kill,
+  `{ kind: 'levelup', level }`, `{ kind: 'death', level? }`,
+  `{ kind: 'achievement', text }` from the run's `level_up`, `char_death`
+  and `achievement` (GMCP Event.Achieved) events. Each rises on its own
+  balloon; only kills join, onto the newest kill balloon while it is
+  readable. Signs (`signFor`): "Level 23!" and "You died" as the big line
+  alone; "Achievement" over the text, cut at 120 characters with "…" and
+  clamped to four lines (the 330 px planned height holds). Moods `levelup`
+  (overjoyed: eyes shut, wide grin, arms up, stars, confetti), `death`
+  (ghostly grey, X eyes, hanging ears, wobbly mouth, a crooked halo),
+  `achievement` (proud: smug lids, closed smile, a medal on the basket).
+  `#weather balloon levelup|death|achievement`; the demo's step "A kill and
+  a level up".
+- **Image contract**: `passenger-levelup.webp`, `passenger-death.webp`,
+  `passenger-achievement.webp` (same canvas and placement); a missing one
+  falls back levelup → superb, achievement → great, death → poor, then
+  calibrating (`MOOD_FALLBACK`).
