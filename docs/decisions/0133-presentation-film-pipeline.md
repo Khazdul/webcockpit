@@ -636,3 +636,46 @@ desktop, a tablet and a phone. Prototype composition `DevicesProto`
 - The prototype renders straight to H.264 (`--config` with an h264
   config, as `remotion.config.ts` fixes ProRes); the film proper will go
   through `npm run render`.
+
+### Round 1 of the device prototype (owner, 2026-11-17)
+
+The first cut looked as if one played on all three devices at once. Now
+one device is live at a time (`src/devices.ts` holds the schedule shared
+by the takes and the composition; 55 s):
+
+- **Live, then asleep.** A device that is left holds its last picture
+  0.35 s (Remotion's `Freeze` at the hand-off), then its screen goes dark
+  over 0.8 s to 93 % black (a faint ghost of where it was left); one not
+  yet picked up is black. The next device wakes over 0.3 s on the same
+  game moment. The hand-offs (5.6 s desktop → tablet, 14.2 s tablet →
+  phone) happen in the wide view, the live device marked by a faint brass
+  glow; going in to the phone, the sleeping desktop and tablet fade into
+  the dark so only the phone is seen. The tablet is never zoomed. Caption:
+  "The same session, picked up on a tablet, then on a phone."
+- **The tablet in landscape** (1180×820 CSS): the phone's layout with our
+  keyboard, as ADR 0140 gives it.
+- **The game in two segments**: the fight to the fur, then (from 18 s, a
+  rest for the zoom) the walk into Bree to the Prancing Pony's sign.
+- **Simulated Comm** (`feeds/comm.ts`, `commStep`): a line as MUME sends
+  it in the owner's runs (an empty line, the coloured text, an empty
+  line, `Comm.Channel.Text` with `talker-type` `player` and the text in
+  its colour, the prompt), so the client files a tell as a private chat
+  with an unread count. Invented names: Eilwen and Hamlin (three tells).
+- **The phone's steps** (taps through Playwright where the element acts
+  on its click, held CDP touches for the keyboard and the compass, timed
+  drags): Messages open, Hamlin's chat, Eilwen's, closed; the pane strip,
+  swiped Timers → Group → Timers, closed; the viewport turned to 844×390
+  mid-take; the lens dragged, then held 650 ms (the resize arms at
+  400 ms) and pulled outwards. Drags are timed by the clock, not by
+  steps: a CDP touch event takes tens of ms to send, so a stepped 280 ms
+  swipe took 0.9 s (over the strip's 800 ms) and a stepped lens drag
+  lingered under 8 px long enough to arm the resize.
+- **A take that changes size** (`Scene.canvas`): the phone's recording is
+  a 1014×1014 canvas with the page at its top left (`encode` pads each
+  frame to it); the composition crops the portrait or landscape part. In
+  the film the phone's frame turns 90° carrying its last upright picture,
+  the camera goes in once it has mostly turned, and the landscape take
+  fades in over it.
+- Capture: phone 20.8 fps mean over 58 s (30 a second while the sky
+  moves, about 12 after Messages opens: what changes is small), tablet
+  21.2, desktop 14.6 (only 9.5 s, mostly quiet).
