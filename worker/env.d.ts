@@ -25,6 +25,7 @@ declare namespace Cloudflare {
     FLAG_SHARE: boolean;
     FLAG_GALLERY: boolean;
     FLAG_RUNES: boolean;
+    FLAG_MUME: boolean;
     /** The default run storage per account, bytes; unset: DEFAULT_ACCOUNT_LIMITS.runBytes. */
     RUN_BYTES_LIMIT?: number | string;
     API_LIMITER: RateLimit;

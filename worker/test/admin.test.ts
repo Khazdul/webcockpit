@@ -253,6 +253,7 @@ describe('the admin page', () => {
       share: { value: false, default: false, override: null },
       gallery: { value: false, default: false, override: null },
       runes: { value: false, default: false, override: null },
+      mume: { value: true, default: true, override: null },
     });
   });
 

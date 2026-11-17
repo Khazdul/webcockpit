@@ -52,6 +52,10 @@
     // Off in production until the owner's go-ahead after his test on staging.
     "FLAG_GALLERY": false,
     "FLAG_RUNES": false,
+    // MUME's lists and player count (ADR 0155, addendum of 2026-11-17): the
+    // cron's fetch of mume.org/news/war and its MSSP probe, and the boxes.
+    // On; turned off from /admin as an emergency brake without a release.
+    "FLAG_MUME": true,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -126,6 +130,7 @@
         "FLAG_SHARE": true,
         "FLAG_GALLERY": true,
         "FLAG_RUNES": true,
+        "FLAG_MUME": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",

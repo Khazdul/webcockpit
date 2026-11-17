@@ -521,5 +521,8 @@ describe('privacy: the community section (stage 65)', () => {
     expect(on.nav[1]).toBe(PRIVACY_COMMUNITY_NAV);
     expect(PRIVACY_COMMUNITY).toContain('30 days');
     expect(PRIVACY_COMMUNITY).toContain('account name');
+    // Comments and notes are public with the account name, guests included.
+    expect(PRIVACY_COMMUNITY).toMatch(/Comments +A comment on a log's watch page is public: it is shown under the log with your account name.*with or without an account/);
+    expect(PRIVACY_COMMUNITY).toMatch(/Random Runes +A note on the board is public: it is shown with your account name.*with or without an account/);
   });
 });

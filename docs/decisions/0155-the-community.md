@@ -1446,3 +1446,36 @@ The owner's points of 2026-11-16 after round 2 (stage 65).
   gains a test per mode: the run log (its Back ≥ 4 px inside the window,
   ≤ 30 px drawn, clear of the header's chips, the 40 px target) and the
   Spotlights viewer.
+
+## Addendum 2026-11-17: the flag `mume`
+
+An emergency brake for MUME's lists and player count without a release:
+should mume.org ask us to stop, or its war page or MSSP start to misbehave,
+the owner turns the flag off from /admin → Flags and the Worker stops
+asking within the flags' 30-second cache.
+
+- **The flag.** `mume` joins `FLAG_NAMES` (shared/cloud/api.ts) as the
+  last flag, with its default in the var `FLAG_MUME` (worker/flags.ts,
+  worker/runtime.ts, worker/env.d.ts). Unlike the other flags it is **on
+  in both environments** (wrangler.jsonc, top level and staging): the
+  boxes are already public, the flag exists only to turn them off. A D1
+  `flag` row from the admin page overrides it as for every flag. The
+  test Worker (worker/test/wrangler.jsonc) has it on too.
+- **Off: no traffic to MUME.** The 5-minute cron (`runCron` in
+  worker/stats.ts) reads the flags before `refreshMume`: with `mume` off
+  it neither fetches https://mume.org/news/war nor opens the MSSP probe.
+  `mume_cache` is left as it is; with the flag back on, the next beat
+  past the 15-minute cadence fetches again.
+- **Off: no boxes.** `GET /api/community` leaves out `mume` (it does not
+  read `mume_cache`), whatever the cache holds. The client already treats
+  a missing `mume` as "no boxes": the war box and the player count are not
+  drawn (community.tsx `WarBox`, `Players`). An answer cached at the edge
+  can show the boxes up to its 60 s longer.
+- **Elsewhere.** `/api/config` sends the flag with the others (the
+  client does not use it); `tests/e2e-prod/site-root.spec.ts` lists it,
+  so the smoke run and the release check expect it. The admin page's flag
+  table lists every flag by name; `mume` needs nothing of its own there.
+- Tests: worker/test/mume.test.ts (the cron with the default off and
+  with an override row off: no fetch, no probe; back on: one of each),
+  worker/test/community.test.ts (no `mume` with the flag off, fresh as
+  the cache is).
