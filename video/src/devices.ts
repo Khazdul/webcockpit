@@ -8,28 +8,30 @@ export const DEVICES = {
   toTablet: 5.6,
   /** The tablet is left (after its `butch corpse` and the keyboard folded) and the phone picks up, still in the wide view. */
   toPhone: 14.2,
-  /** The run's walk back east starts (the fight's end and the walk are two segments: a rest between). */
-  walk: 18.0,
+  /** The run's walk back east starts (the fight's end and the walk are two segments: a rest between). Owner round 1: the walk at 2×. */
+  walk: 17.0,
+  walkSpeed: 2,
   /** Staged tells (feeds/comm.ts) during the walk: the lens's Comm key gets its unread count. */
-  tells: [22.6, 24.8, 26.0],
+  tells: [18.6, 19.9, 21.0],
   /** Messages (Comm) opens; the first chat; the second; Messages closes. */
-  commOpen: 28.5,
-  chatA: 30.5,
-  chatB: 32.7,
-  commClose: 35.0,
-  /** The pane strip opens (Timers), a swipe to Group, one back to Timers, the strip closes. */
-  panesOpen: 37.0,
-  swipeA: 39.0,
-  swipeB: 41.0,
-  panesClose: 43.0,
+  commOpen: 22.8,
+  chatA: 24.6,
+  chatB: 26.6,
+  commClose: 28.6,
+  /** The pane strip opens (Timers), a swipe to Group, one back to Timers, its band dragged up to about half its height (owner round 1, item 6), the strip closes. */
+  panesOpen: 30.4,
+  swipeA: 32.3,
+  swipeB: 34.2,
+  stripResize: 36.3,
+  panesClose: 38.8,
   /** The phone turns to landscape (the frame's turn in the film); the take's viewport changes just after. */
-  rotate: 45.0,
+  rotate: 40.6,
   rotateS: 1.2,
   /** In landscape: the lens dragged a little, then held and made larger. */
-  lensMove: 48.3,
-  lensResize: 51.0,
+  lensMove: 43.8,
+  lensResize: 46.4,
   /** The film's end (s from sync); the takes run a little past it. */
-  end: 55.0,
+  end: 50.0,
 } as const;
 
 /**

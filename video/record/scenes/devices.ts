@@ -30,7 +30,7 @@ import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_ARRIVAL_COMM, BREE_TELLS, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
-import { CLEAR_NIGHT, FILM_PAGE, prepareFilm } from '../lib/film-state.ts';
+import { CLEAR_NIGHT, FILM_PAGE, dockGroup, prepareFilm } from '../lib/film-state.ts';
 import { seeded } from '../lib/mouse.ts';
 import { type Excerpt, type Run, excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
@@ -59,7 +59,7 @@ const LEAD_MS = 2500;
 /** The game's steps on the film's clock (ms from sync): the fight, the walk from DEVICES.walk, the staged tells. */
 export function deviceSteps(runs: Map<string, Run>): Step[] {
   const fight = excerptFeed(runs, { ...EXCERPT, from: FROM, to: WALK_FROM });
-  const walk = excerptFeed(runs, { ...EXCERPT, from: WALK_FROM, to: TO });
+  const walk = excerptFeed(runs, { ...EXCERPT, from: WALK_FROM, to: TO, speed: DEVICES.walkSpeed, maxGap: 0.8 });
   const first = walk.steps.find((s) => 'cmd' in s)!.at ?? 0;
   const shift = DEVICES.walk * 1000 - first;
   const tells = BREE_TELLS.map((m, i) => ({ ...commStep(m, '*# R Mana:Hot>'), at: DEVICES.tells[i]! * 1000 }));
@@ -129,10 +129,10 @@ function devicesScene(device: Device): Scene {
           panes: Record<string, { on: boolean }>;
           profile: string;
           group: { npcMode: string; fight: boolean };
-          timers: { layout: string; cols: number | string; style: string; groups: Record<string, { enabled: boolean }> };
+          timers: { layout: string; cols: number | string; style: string; timeText: boolean; groups: Record<string, { enabled: boolean }> };
         };
         const wc = (window as unknown as { __wc: { settings: { update(fn: (d: D) => void): void } } }).__wc;
-        // as take A leaves them at the wolf
+        // as film2-a leaves them at the wolf
         wc.settings.update((d) => {
           d.weather.enabled = true;
           d.panes.map!.on = true;
@@ -145,8 +145,12 @@ function devicesScene(device: Device): Scene {
           d.timers.layout = 'flow';
           d.timers.cols = 2;
           d.timers.style = 'bars';
+          // owner round 1: no time text on the timers (item 4)
+          d.timers.timeText = false;
         });
       });
+      // Group docked above the map, borderless and clear (owner round 1, item 5; a phone lays it out in its strip)
+      await dockGroup(page);
       await sleep(600);
       // A mocked MUME (nothing reaches mume.org): pings answered, everything else ignored.
       let server: WebSocketRoute | null = null;
@@ -325,6 +329,20 @@ function devicesScene(device: Device): Scene {
         };
         await swipe(DEVICES.swipeA, true, 'swipe to the next pane');
         await swipe(DEVICES.swipeB, false, 'swipe back');
+        // the strip's band dragged up to about half the strip's height (owner round 1, item 6)
+        await until(S(DEVICES.stripResize) - 150);
+        const st = await page.locator('.wc-ph-strip').first().boundingBox();
+        const grip = await page.locator('.wc-ph-strip-grip').first().boundingBox();
+        if (!st || !grip) console.warn('  no strip band');
+        else {
+          const from = { x: grip.x + grip.width * 0.3, y: grip.y + grip.height / 2 };
+          const before = st.height;
+          await drag(cdp, from, { x: from.x + 4, y: from.y - st.height * 0.5 }, 900, 120);
+          marks.mark('ui', 'strip smaller');
+          await sleep(300);
+          const after = (await page.locator('.wc-ph-strip').first().boundingBox())?.height ?? before;
+          console.log(`  the strip: ${before.toFixed(0)} → ${after.toFixed(0)} px`);
+        }
         await tap(DEVICES.panesClose, panes, 'panes closed');
         await until(S(DEVICES.rotate + 0.15));
         await page.setViewportSize({ width: 844, height: 390 });
