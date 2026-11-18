@@ -170,3 +170,17 @@ zoom levels, the phone box, and whether the map bug and the iPad bug are
 gone.
 
 ## Owner feedback
+
+Round 1 (2026-11-18, on staging):
+
+1. [ ] Desktop: the wheel over the lens also scrolls the log.
+2. [ ] Phone/tablet: no header row (character and date) over the player
+   in a shared run.
+3. [ ] The poster: the log's title at the top (not the character's name),
+   its description under it (a centred block, left-aligned lines), the
+   character and the date smaller somewhere fitting. All text and the
+   play icon white.
+4. [ ] The poster covers exactly the player's area, no visible border,
+   melting into the player. Three looks to compare: the TV, a plain glass,
+   and a third of our choosing. **Mockups first; the owner picks and
+   approves before the poster is changed.**
