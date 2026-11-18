@@ -159,6 +159,16 @@ test('the browser’s Back pops the run (the Report dialog with it); Forward aft
   expect(errors).toEqual([]);
 });
 
+test('a double click on a run opens it once: one Back returns', async ({ page }) => {
+  const s = await setUp(page);
+  const was = await onPageTwo(page, s);
+  await rows(page).nth(was.ids.indexOf(was.id)).locator('.wc-cy-name').dblclick();
+  await embPlaying(page);
+  await expect(page.locator('.wc-watch-page')).toHaveCount(1);
+  await page.goBack();
+  await backOnCommunity(page, was);
+});
+
 test('a reload on the run’s address is the standalone page; its Back is the page load to ?community', async ({ page }) => {
   const s = await setUp(page);
   await onPageTwo(page, s);
