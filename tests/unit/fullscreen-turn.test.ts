@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 // Stage 73 round 3 (ADR 0160 addendum "the iPad fullscreen turn"): following a
 // window through a turn reported late and in steps, the frame's fit, the
-// page's viewport nudge, the `?fsdebug` switch and the frame's new message.
+// page's viewport nudge, the `?fsdebug` switch and the frame's new message;
+// round 3b's `?fsmode` (frame, page, fill).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SETTLE_MS, rectText, viewportLines, watchViewport } from '../../src/core/viewport-settle';
-import { fsDebugAsked, mountFsDebug } from '../../src/core/fs-debug';
+import { FS_MODES, fsDebugAsked, fsModeAsked, fsModeOf, mountFsDebug } from '../../src/core/fs-debug';
 import { frameTarget, rootOff, turnedScreen } from '../../src/replay/frame-fit';
-import { frameFsDebug } from '../../src/replay/frame';
+import { frameFsDebug, frameFsMode, frameFullscreen } from '../../src/replay/frame';
 import { nudgeViewport } from '../../src/watch/turn';
 
 describe('watchViewport', () => {
@@ -111,5 +112,64 @@ describe('?fsdebug', () => {
     expect(el.hasAttribute('style')).toBe(false);
     d.dispose();
     expect(document.querySelector('.wc-fsdebug')).toBeNull();
+  });
+});
+
+describe('?fsmode (stage 73 round 3b)', () => {
+  it('takes only the three names, exactly', () => {
+    expect(FS_MODES).toEqual(['frame', 'page', 'fill']);
+    for (const m of FS_MODES) expect(fsModeOf(m)).toBe(m);
+    for (const bad of ['', 'Page', ' page', 'page ', 'pages', 'full', 'fullscreen', 'frame,page', 1, true, null, undefined, {}, ['page']]) {
+      expect(fsModeOf(bad)).toBeNull();
+    }
+  });
+
+  it('is read from the watch page\'s query; anything else is not asked', () => {
+    expect(fsModeAsked('?fsmode=page')).toBe('page');
+    expect(fsModeAsked('?cloudtest&fsdebug&fsmode=fill')).toBe('fill');
+    expect(fsModeAsked('?fsmode=frame')).toBe('frame');
+    expect(fsModeAsked('?fsmode')).toBeNull();
+    expect(fsModeAsked('?fsmode=PAGE')).toBeNull();
+    expect(fsModeAsked('?fsmode=%3Cb%3E')).toBeNull();
+    expect(fsModeAsked('?fsdebug')).toBeNull();
+    expect(fsModeAsked('')).toBeNull();
+  });
+
+  it('the frame takes `prefs.fsmode` only on a tablet; else, or anything else, the default', () => {
+    expect(frameFsMode({ fsmode: 'page' }, true)).toBe('page');
+    expect(frameFsMode({ fsmode: 'fill' }, true)).toBe('fill');
+    expect(frameFsMode({ fsmode: 'page' }, false)).toBe('frame');
+    expect(frameFsMode({ fsmode: 'nope' }, true)).toBe('frame');
+    expect(frameFsMode({ fsmode: ['page'] }, true)).toBe('frame');
+    expect(frameFsMode(null, true)).toBe('frame');
+    expect(frameFsMode(undefined, true)).toBe('frame');
+  });
+
+  it('the frame\'s key asks the page by mode, and the page\'s answer is the state', () => {
+    const asked: Array<[boolean, string | undefined]> = [];
+    const fs = frameFullscreen(document, (on, how) => asked.push([on, how]));
+    let changes = 0;
+    fs.onChange(() => changes++);
+    expect(fs.mode).toBe('frame');
+    fs.setMode('page');
+    fs.toggle();
+    expect(asked.at(-1)).toEqual([true, 'page']);
+    expect(fs.is()).toBe(false);
+    fs.filled(true);
+    expect(fs.is()).toBe(true);
+    expect(changes).toBe(1);
+    fs.toggle();
+    expect(asked.at(-1)).toEqual([false, undefined]);
+    // The system left the page's fullscreen: the page says so, and the next tap asks again.
+    fs.filled(false);
+    expect(fs.is()).toBe(false);
+    fs.toggle();
+    expect(asked.at(-1)).toEqual([true, 'page']);
+    fs.setMode('fill');
+    fs.toggle();
+    expect(asked.at(-1)).toEqual([true, undefined]);
+    fs.filled(true);
+    fs.exit();
+    expect(asked.at(-1)).toEqual([false, undefined]);
   });
 });

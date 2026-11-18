@@ -24,7 +24,11 @@
 //
 // `?fsdebug`: the page's readout at its bottom left (src/core/fs-debug.ts),
 // and its lines posted to the frame, which shows them under its own (in
-// fullscreen only the frame shows).
+// fullscreen only the frame shows). Since round 3b it also shows the
+// `?fsmode`, whether the frame fills the window, what the page's own
+// fullscreen did (`FrameHost.fsNotes`), and "insets": in fullscreen, an
+// inner height clearly under the layout height (`INSETS_MIN`), as the
+// owner's iPad showed after a turn.
 
 import { isFullscreen } from '../core/fullscreen';
 import { type FsDebug, mountFsDebug } from '../core/fs-debug';
@@ -44,6 +48,9 @@ export function nudgeViewport(doc: Document): void {
   });
 }
 
+/** How much less than the layout height the inner height must be to count as insets (px). */
+export const INSETS_MIN = 40;
+
 export interface WatchTurn {
   /** Measures again now and a few times later (tests). */
   kick(why: string): void;
@@ -59,10 +66,23 @@ export function installWatchTurn(page: HTMLElement, host: FrameHost, o: { debug?
   const win = doc.defaultView!;
   let wasFs = isFullscreen(doc);
   let debug: FsDebug | null = null;
+  // Insets (stage 73 round 3b): in fullscreen (the page's, the frame's or the fill) a window
+  // whose inner height is clearly less than its layout height, as the owner's iPad showed
+  // after a turn (Safari's toolbar insets applied to a fullscreen page). Kept once seen.
+  let insets: string | null = null;
+  const checkInsets = (why: string): void => {
+    if (!isFullscreen(doc) && !host.filled) return;
+    const ch = doc.documentElement.clientHeight;
+    const ih = win.innerHeight;
+    if (ch - ih > INSETS_MIN) insets = `insets ${ch - ih} (client ${ch} inner ${ih}) @${(performance.now() / 1000).toFixed(2)}s ${why}`;
+  };
   const lines = (): string[] => [
     ...viewportLines(win),
     `#app ${rectText(doc.getElementById('app'))}  watch ${rectText(page)}`,
     `frame ${rectText(host.frame)}  vh ${page.style.getPropertyValue('--wc-watch-vh') || '-'}`,
+    `fsmode ${host.fsmode}  filled ${host.filled ? 'yes' : 'no'}`,
+    ...(insets ? [insets] : []),
+    ...host.fsNotes(),
   ];
   const measure = (): void => {
     const h = page.clientHeight;
@@ -82,6 +102,7 @@ export function installWatchTurn(page: HTMLElement, host: FrameHost, o: { debug?
         nudgeViewport(doc);
       }
       measure();
+      checkInsets(why);
       debug?.update(n === 0 ? why : undefined);
       host.relayout(debug ? `last ${watch.last?.why ?? '-'} @${((watch.last?.at ?? 0) / 1000).toFixed(2)}s\n${lines().join('\n')}` : undefined);
     },

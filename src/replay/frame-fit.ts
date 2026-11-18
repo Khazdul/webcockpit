@@ -81,7 +81,7 @@ export interface FrameFit {
   dispose(): void;
 }
 
-export function installFrameFit(win: Window, root: HTMLElement, host: PlayerHost, o: { debug?: boolean } = {}): FrameFit {
+export function installFrameFit(win: Window, root: HTMLElement, host: PlayerHost, o: { debug?: boolean; fsLine?: () => string } = {}): FrameFit {
   const doc = win.document;
   const html = doc.documentElement;
   let sized = false;
@@ -121,6 +121,7 @@ export function installFrameFit(win: Window, root: HTMLElement, host: PlayerHost
         `root ${rectText(root)}${sized ? ' (sized)' : ''}`,
         `cockpit ${rectText(doc.querySelector('.wc-cockpit'))}  land ${host.app?.cockpit.phoneGameLayout?.landscape ?? '-'}`,
         `box ${rectText(doc.querySelector('.wc-player-box'))}`,
+        ...(o.fsLine ? [o.fsLine()] : []),
         ...(parent ? ['— page —', parent] : []),
       ];
     });

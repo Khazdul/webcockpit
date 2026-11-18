@@ -18,7 +18,7 @@
 import { writeFileSync } from 'node:fs';
 import { type CDPSession, type FrameLocator, type Locator, type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
-import { SENDER, frameIsFullscreen, openWatch, playing, poster, replay, setUp } from './watch-page';
+import { SENDER, band, frameFillsWindow, frameIsFullscreen, openWatch, playing, poster, replay, setUp } from './watch-page';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -366,4 +366,132 @@ test('tablet: without ?fsdebug there is no readout', async ({ page }) => {
   await expect(r.locator('.wc-ph-lens')).toBeVisible();
   await expect(page.locator('.wc-fsdebug')).toHaveCount(0);
   await expect(r.locator('.wc-fsdebug')).toHaveCount(0);
+});
+
+// Stage 73 round 3b (ADR 0160 addendum "round 3b"): three ways into fullscreen on a tablet, for
+// the owner's iPad (`?fsmode=frame|page|fill`). `page`: the watch page's own document in element
+// fullscreen, the frame filling it; `fill`: no element fullscreen, the frame fills the window;
+// `frame`: the frame's own document, as before (the default).
+
+/** The page's fullscreen state: whose element fullscreen, whether the frame fills the window. */
+async function fsState(page: Page) {
+  return page.evaluate(() => {
+    const f = document.querySelector('.wc-watch-slot iframe');
+    const b = f!.getBoundingClientRect();
+    return {
+      page: document.fullscreenElement === document.documentElement,
+      frame: document.fullscreenElement !== null && document.fullscreenElement === f,
+      filled: document.querySelector('.wc-watch-slot')!.classList.contains('is-filled'),
+      covers: Math.abs(b.left) <= 1 && Math.abs(b.top) <= 1 && Math.abs(b.width - innerWidth) <= 1 && Math.abs(b.height - innerHeight) <= 1,
+    };
+  });
+}
+
+const fsKey = (r: FrameLocator): Locator => r.locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
+
+async function openMode(page: Page, size: Metrics, mode: string): Promise<FrameLocator> {
+  await page.setViewportSize(size);
+  const s = await setUp(page);
+  s.pubs.add({ id: LONG, owner: SENDER, title: 'A long walk', lengthS: 40, payload: longPayload() });
+  await openWatch(page, LONG, `&fsdebug&fsmode=${mode}`);
+  await playing(page);
+  const r = replay(page);
+  await play(page, r);
+  return r;
+}
+
+/** In the mode's fullscreen, the frame covering the window and its content filling it, laid the way `land` says. */
+async function inMode(page: Page, r: FrameLocator, mode: 'page' | 'fill', land: boolean): Promise<boolean> {
+  const s = await fsState(page);
+  return s.page === (mode === 'page') && !s.frame && s.filled && s.covers && (await frameFillsWindow(page)) && fills(await frameLayout(r), land);
+}
+
+async function outOfFs(page: Page): Promise<boolean> {
+  const s = await fsState(page);
+  return !s.page && !s.frame && !s.filled;
+}
+
+for (const mode of ['page', 'fill'] as const) {
+  test(`tablet ?fsmode=${mode}: in, turned both ways, out by the lens key, Esc, F and the system; the frame always knows`, async ({ page }) => {
+    const r = await openMode(page, PORTRAIT, mode);
+    await expect(r.locator('.wc-fsdebug')).toContainText(`fsmode ${mode}  parent-fs off`);
+    await fsKey(r).tap();
+    await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+    await expect(r.locator('.wc-fsdebug')).toContainText(`fsmode ${mode}  parent-fs on`);
+    if (mode === 'page') await expect(page.locator('.wc-fsdebug')).toContainText('page fs entered');
+    // Turned, the size first and the orientation after it (iPadOS), and back.
+    await turn(page, LANDSCAPE, 'portrait');
+    await page.waitForTimeout(300);
+    await turn(page, LANDSCAPE, 'landscape');
+    await expect.poll(() => inMode(page, r, mode, true)).toBe(true);
+    await turn(page, PORTRAIT, 'portrait');
+    await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+    // Out by the lens key, in again; the page's lines in the frame say so.
+    await fsKey(r).tap();
+    await expect.poll(() => outOfFs(page)).toBe(true);
+    await expect(band(page)).toBeVisible();
+    await expect(r.locator('.wc-fsdebug')).toContainText(`fsmode ${mode}  parent-fs off`);
+    // Esc in the frame.
+    await fsKey(r).tap();
+    await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => outOfFs(page)).toBe(true);
+    // F in and out.
+    await r.locator('.wc-player').tap();
+    await page.keyboard.press('f');
+    await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+    await page.keyboard.press('f');
+    await expect.poll(() => outOfFs(page)).toBe(true);
+    if (mode === 'page') {
+      // The system leaves the page's fullscreen (the swipe): the frame learns it, so the key enters again.
+      await fsKey(r).tap();
+      await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+      await page.evaluate(() => document.exitFullscreen());
+      await expect.poll(() => outOfFs(page)).toBe(true);
+      await fsKey(r).tap();
+      await expect.poll(() => inMode(page, r, mode, false)).toBe(true);
+      await fsKey(r).tap();
+      await expect.poll(() => outOfFs(page)).toBe(true);
+      await expect(page.locator('.wc-fsdebug')).toContainText('page fs left');
+    }
+  });
+}
+
+test('tablet ?fsmode=page refused by the browser: the frame fills the window instead, and the readout says so', async ({ page }) => {
+  const r = await openMode(page, LANDSCAPE, 'page');
+  await page.evaluate(() => {
+    Element.prototype.requestFullscreen = () => Promise.reject(new TypeError('refused'));
+  });
+  await fsKey(r).tap();
+  await expect.poll(() => inMode(page, r, 'fill', true)).toBe(true);
+  await expect(page.locator('.wc-fsdebug')).toContainText('page fs refused → fill');
+  await fsKey(r).tap();
+  await expect.poll(() => outOfFs(page)).toBe(true);
+});
+
+test('tablet ?fsmode=frame (the default): the frame alone in fullscreen, as before; Esc leaves', async ({ page }) => {
+  const r = await openMode(page, PORTRAIT, 'frame');
+  await expect(r.locator('.wc-fsdebug')).toContainText('fsmode frame');
+  await fsKey(r).tap();
+  await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+  expect((await fsState(page)).filled).toBe(false);
+  await turn(page, LANDSCAPE, 'landscape');
+  await expect.poll(async () => fills(await frameLayout(r), true)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => outOfFs(page)).toBe(true);
+});
+
+test('phone: ?fsmode=page changes nothing (the frame alone in fullscreen, as before)', async ({ page }) => {
+  const s = await setUp(page);
+  s.pubs.add({ id: LONG, owner: SENDER, title: 'A long walk', lengthS: 40, payload: longPayload() });
+  await openWatch(page, LONG, '&fsdebug&fsmode=page');
+  await playing(page);
+  const r = replay(page);
+  await play(page, r);
+  await expect(r.locator('.wc-fsdebug')).toContainText('fsmode frame');
+  await fsKey(r).tap();
+  await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+  expect((await fsState(page)).page).toBe(false);
+  await fsKey(r).tap();
+  await expect.poll(() => outOfFs(page)).toBe(true);
 });
