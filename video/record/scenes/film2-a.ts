@@ -7,11 +7,14 @@
 //   act 1  Gittan in the Prancing Pony; a narrate on Public and a tell from
 //          Eilwen (staged, feeds/comm.ts); Comm on, floating, Eilwen's chat;
 //          the mercenary (10 silver refused, a pause, 1 gold, grouped);
-//          Group on, its gear (NPCs All, Fight card); Settings: tabs, Weather
-//          effects on (the clear night), Appearance: the font list,
-//          backgrounds Paper, Sepia, Black
+//          Group on (NPCs All and the Fight card set off camera, owner round
+//          1); Settings: tabs, Weather effects on (the clear night),
+//          Appearance: the font list, backgrounds Paper, Teal, Black
 //   act 2  Comm off; rain, heavy rain, the strike in the street; out of the
-//          West Gate; Map on, docked; the spells with Timers on, floating
+//          West Gate; Map on, docked; Group dragged to dock above the map,
+//          its border off, its background Clear, resized to a slim strip
+//          (owner round 1, item 5); the spells with Timers on, floating
+//          (Time text off)
 //   act 3  the storm clears; the walk into the hills, the first wolf (the
 //          room, then the attack); Statistics on, floating; the kill; `l`
 //   act 4  from the `sync` marker the device act's clock (src/devices.ts):
@@ -29,7 +32,8 @@ import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_ARRIVAL_COMM, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
-import { CLEAR_NIGHT, FILM_PAGE, freshStart, prepareFilm, shootingStar } from '../lib/film-state.ts';
+import { communityServer, serveCommunity } from '../lib/community.ts';
+import { CLEAR_NIGHT, freshStart, prepareFilm, shootingStar } from '../lib/film-state.ts';
 import { filmUi } from '../lib/film-ui.ts';
 import { Pointer, seeded } from '../lib/mouse.ts';
 import { type LoginMock, mockMumeLogin } from '../lib/mume-login.ts';
@@ -37,8 +41,12 @@ import { type Excerpt, type Run, excerptFeed, loadBackup } from '../lib/run-feed
 import type { Scene } from '../lib/scene.ts';
 import type { Marks } from '../lib/timeline.ts';
 import { deviceSteps } from './devices.ts';
+import { takeBPage } from './film2-b.ts';
 
 const SEED = 20261118;
+
+/** The cockpit's cell (CSS px) at 1600 × 900: 160 × 49 cells. */
+const CELL = { w: 10, h: 900 / 49 } as const;
 
 /** A piece of the run played from a film time. */
 interface Segment {
@@ -63,71 +71,69 @@ const ARRIVE_AFTER_MS = 650;
 /** The run's segments after the arrival (run seconds; their film times). */
 export const SEGMENTS: Segment[] = [
   // lead pony, gro pony
-  { name: 'pony', at: 24.6, ex: ex({ from: 5.6, to: 9.0, primeFrom: 5.6, speed: 1.2, maxGap: 1 }), typeDelay: 90 },
+  { name: 'pony', at: 24.4, ex: ex({ from: 5.6, to: 9.0, primeFrom: 5.6, speed: 1.6, maxGap: 0.8 }), typeDelay: 80 },
   // a guard arrives; s, s: at the fountain (outdoors)
   {
     name: 'fountain',
-    at: 27.6,
-    ex: ex({ from: 9.0, to: 15.8, primeFrom: 9.0, speed: 1.8, maxGap: 0.8, drop: [[12.05, 12.3], [13.85, 14.0]], dropCmds: [/^label /] }),
-    typeDelay: 90,
+    at: 26.6,
+    ex: ex({ from: 9.0, to: 15.8, primeFrom: 9.0, speed: 2.4, maxGap: 0.6, drop: [[12.05, 12.3], [13.85, 14.0]], dropCmds: [/^label /] }),
+    typeDelay: 80,
   },
   // (staged) a narrate on Public, then Eilwen's tell
-  { name: 'public', at: 32.0, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[0]!, MERC_PROMPT)] },
-  { name: 'eilwen', at: 33.6, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[1]!, MERC_PROMPT)] },
+  { name: 'public', at: 29.8, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[0]!, MERC_PROMPT)] },
+  { name: 'eilwen', at: 31.0, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[1]!, MERC_PROMPT)] },
   // (staged) the mercenary arrives
-  { name: 'merc-arrives', at: 43.0, ex: ex({ from: 64.6, to: 64.6 }), staged: [{ out: Buffer.concat(['', 'A citizen mercenary has arrived from the west.', '', MERC_PROMPT].map(lineBytes)) }] },
+  { name: 'merc-arrives', at: 38.4, ex: ex({ from: 64.6, to: 64.6 }), staged: [{ out: Buffer.concat(['', 'A citizen mercenary has arrived from the west.', '', MERC_PROMPT].map(lineBytes)) }] },
   // 10 silver, refused and given back
-  { name: 'merc', at: 44.5, ex: ex({ from: 64.6, to: 65.5, primeFrom: 15.8, speed: 1 }), typeDelay: 45 },
+  { name: 'merc', at: 39.6, ex: ex({ from: 64.6, to: 65.5, primeFrom: 15.8, speed: 1 }), typeDelay: 45 },
   // a visible pause (at least 2.5 s from the returned silver to the first key), then 1 gold
-  { name: 'merc-gold', at: 48.3, ex: ex({ from: 67.5, to: 68.0, primeFrom: 65.5, speed: 1 }), typeDelay: 45 },
+  { name: 'merc-gold', at: 43.3, ex: ex({ from: 67.5, to: 68.0, primeFrom: 65.5, speed: 1 }), typeDelay: 45 },
   // grouped
-  { name: 'merc-group', at: 50.7, ex: ex({ from: 70.7, to: 71.3, primeFrom: 68.0, speed: 1 }), typeDelay: 45 },
+  { name: 'merc-group', at: 45.4, ex: ex({ from: 70.7, to: 71.3, primeFrom: 68.0, speed: 1 }), typeDelay: 45 },
   // to the West Gate, `sa open`, out through it (after the strike in the street)
-  { name: 'gate', at: 90.6, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
-  // shield, arm, invis (Timers comes on as they start)
-  { name: 'casts', at: 96.4, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
+  { name: 'gate', at: 77.0, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
+  // shield, arm, invis (Timers comes on as they start, once Group is docked)
+  { name: 'casts', at: 97.6, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
   // west and north into the hills: the Plains with two wolves, then east into the Grassy Hills
-  { name: 'walk', at: 104.0, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
+  { name: 'walk', at: 105.2, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
   // the first wolf: k wolf, Tod joins, the lightning bolt, the kill; `l` shows the second wolf
-  { name: 'wolf1', at: 108.8, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.15, maxGap: 1.5, dropCmds: [/^get coins/] }), typeDelay: 70 },
+  { name: 'wolf1', at: 110.0, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.15, maxGap: 1.5, dropCmds: [/^get coins/] }), typeDelay: 70 },
 ];
 
 /** UI moments, film s. */
 const UI = {
-  commPanes: 35.6,
-  comm: 36.3,
-  chat: 39.0,
-  groupPanes: 52.4,
-  group: 53.1,
-  gearTip: 55.6,
-  gearPress: 57.0,
-  npcAll: 59.2,
-  fightCard: 61.4,
-  gearClose: 62.8,
-  settings: 64.0,
-  tabs: [65.6, 67.1, 68.6] as const, // Text input, Mapper, Weather effects
-  weatherOn: 70.4,
-  appearance: 72.4,
-  fontOpen: 73.8,
-  fontClose: 75.8,
+  commPanes: 32.6,
+  comm: 33.3,
+  chat: 35.6,
+  groupPanes: 46.6,
+  group: 47.3,
+  settings: 49.0,
+  tabs: [50.6, 52.1, 53.6] as const, // Text input, Mapper, Weather effects
+  weatherOn: 55.4,
+  appearance: 57.4,
+  fontOpen: 58.8,
+  fontClose: 60.8,
   backgrounds: [
-    ['#f4ecd8', 77.6], // Paper
-    ['#2b1b12', 79.6], // Sepia
-    ['#000000', 81.6], // Black again
+    ['#f4ecd8', 62.6], // Paper, held about 3 s
+    ['#002b36', 65.6], // Teal, held about 3 s
+    ['#000000', 68.6], // Black again
   ] as const,
-  settingsClose: 82.8,
-  commOffPanes: 84.0,
-  commOff: 84.7,
-  mapPanes: 92.4,
-  map: 93.1,
-  timersPanes: 95.8,
-  timers: 96.5,
-  statsPanes: 112.0,
-  stats: 112.7,
+  settingsClose: 69.8,
+  commOffPanes: 70.8,
+  commOff: 71.5,
+  mapPanes: 79.0,
+  map: 79.7,
+  // Group docked above the map (from the right screen edge, where a floating pane docks), its look, its height
+  dockCaption: 80.8,
+  dockGrab: 82.6,
+  timersPanes: 97.0,
+  timers: 97.7,
+  statsPanes: 113.2,
+  stats: 113.9,
 } as const;
 
 /** The weather's moments, film s. */
-const SKY = { rain: 84.6, heavy: 86.6, strike: 88.6, strikeLeadMs: 210, clear: 101.5 } as const;
+const SKY = { rain: 71.4, heavy: 73.4, strike: 75.4, strikeLeadMs: 210, clear: 102.7 } as const;
 
 /** Where Comm and Statistics float (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px). */
 // Comm at the top right before the map is docked there (it is turned off before the gate);
@@ -142,7 +148,8 @@ function segmentSteps(runs: Map<string, Run>, seg: Segment): Step[] {
 
 /** The start page, the login, Gittan's arrival (act 0). Returns the film clock. */
 async function opening(page: Page, marks: Marks, login: LoginMock, arrive: ReturnType<typeof arrival>, pointer: Pointer) {
-  await freshStart(page);
+  // the cloud flags on (owner round 1, item 1): the start menu as in act 6, Community and the owner row
+  await freshStart(page, undefined, 'cloudtest');
   await page.keyboard.press('ArrowUp');
   await sleep(300);
   marks.mark('start', 'the start page is up');
@@ -194,17 +201,27 @@ async function opening(page: Page, marks: Marks, login: LoginMock, arrive: Retur
 
 export const film2A: Scene = {
   mode: 'intel-1.2-png',
-  page: FILM_PAGE,
+  // the capture's date, as take B (the community's ages)
+  get page() {
+    return takeBPage();
+  },
 
   async setup(page) {
+    await serveCommunity(page, await communityServer());
     await prepareFilm(page);
     // khazdul selected off camera (act 0 has no Profile); Comm and Statistics float (both off yet)
     await page.evaluate(
       ({ floats }) => {
-        type D = { profile: string; layout: { docks: { right: { lanes: { size: number; panes: { id: string }[] }[] } }; floating: { id: string; x: number; y: number; w: number; h: number }[] } };
+        type D = { profile: string; group: { npcMode: string; fight: boolean }; timers: { timeText: boolean }; layout: { docks: { right: { lanes: { size: number; panes: { id: string }[] }[] } }; floating: { id: string; x: number; y: number; w: number; h: number }[] } };
         const wc = (window as unknown as { __wc: { settings: { update(fn: (d: D) => void): void } } }).__wc;
         wc.settings.update((d) => {
           d.profile = 'khazdul';
+          // Group's settings set off camera (owner round 1, item 2); Timers without its time text (item 4)
+          d.group.npcMode = 'all';
+          d.group.fight = true;
+          d.timers.timeText = false;
+          // Character stays off (with the map's lane shorter once Group docks, it would find room)
+          (d as unknown as { panes: Record<string, { on: boolean }> }).panes.character!.on = false;
           // the right dock's lane keeps its width for the map, with no pane in it
           for (const l of d.layout.docks.right.lanes) l.panes = l.panes.filter((p) => p.id !== 'comm');
           d.layout.floating = [
@@ -260,14 +277,8 @@ export const film2A: Scene = {
       await paneOn('comm', UI.commPanes, UI.comm);
       await choose(page.locator('.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="Eilwen"]').first(), UI.chat, 'chat', 'Eilwen', 1.6);
 
-      // Group on (floating), its settings calmly
+      // Group on (floating; its NPCs and Fight card were set off camera)
       await paneOn('group', UI.groupPanes, UI.group);
-      const gg = await u.gear('group', T(UI.gearTip), T(UI.gearPress));
-      marks.mark('group-gear', 'the Group pane settings');
-      await choose(gg.locator('[aria-label="NPC visibility"] [data-value="all"]'), UI.npcAll, 'npc-all', 'NPC visibility: All');
-      await choose(gg.locator('.wc-ck-tg[aria-label="Fight card"]'), UI.fightCard, 'fight-card', 'Fight card on');
-      await until(T(UI.gearClose));
-      await close();
 
       // Settings
       const tab = (id: string) => page.locator(`.wc-sp-settings .wc-ck-tab[data-tab="${id}"]`);
@@ -301,6 +312,56 @@ export const film2A: Scene = {
       await page.locator('.wc-pane-map .wc-pane-content[data-map-state="loaded"]').waitFor({ timeout: 8000 }).catch(() => {});
       server.send(state.here as Buffer);
       marks.mark('map-located', 'the map finds Gittan');
+
+      // Group docked above the map: a floating pane docks from the screen edge; it goes into the
+      // right dock's lane before the map. Then its border off, its background Clear, and its height
+      // pulled to show its two members (a slim strip over the map's column, owner round 1 item 5).
+      marks.markAt(T(UI.dockCaption), 'dock-caption', 'the docking caption');
+      const gbox = async () => (await page.locator('.wc-pane-group').boundingBox())!;
+      const g0 = await gbox();
+      await pointer.hoverPoint(g0.x + 6 * CELL.w, g0.y + CELL.h / 2, T(UI.dockGrab - 1.0));
+      marks.markAt(await pointer.dragTo(1596, 1.5 * CELL.h, T(UI.dockGrab), { ms: 1500, holdMs: 600 }), 'docked', 'Group docked above the map');
+      await sleep(500);
+      const right = await page.evaluate(() => (window as unknown as { __wc: { settings: { get(): { layout: { docks: { right: { lanes: { panes: { id: string }[] }[] } } } } } } }).__wc.settings.get().layout.docks.right.lanes.flatMap((l) => l.panes.map((p) => p.id)));
+      if (right.indexOf('group') < 0 || right.indexOf('group') > right.indexOf('map')) console.warn(`  Group is not docked above the map (right dock: ${right.join(', ')})`);
+      /** A look button on Group's hood: onto the pane, onto the button (its tooltip, drawn by the film), held, pressed. */
+      const lookOn = async (what: 'border' | 'glass'): Promise<boolean> =>
+        page.evaluate((w) => (window as unknown as { __wc: { settings: { get(): { panes: { group: Record<string, boolean> } } } } }).__wc.settings.get().panes.group[w] !== false, what);
+      const look = async (what: 'border' | 'glass', rest: number): Promise<void> => {
+        const g = await gbox();
+        // a fresh move over the pane's first row: its buttons show while it is hovered
+        await pointer.hoverPoint(g.x + g.width * 0.55, g.y + CELL.h * 0.45, Date.now() + rest * 1000);
+        const btn = page.locator(`.wc-pane-group > .wc-pane-btn-${what}`);
+        await btn.waitFor({ state: 'visible', timeout: 2000 }).catch(() => console.warn(`  no ${what} button`));
+        const bx = await btn.boundingBox();
+        if (bx) await pointer.hoverPoint(bx.x + bx.width / 2, bx.y + bx.height / 2, Date.now() + 700);
+        const title = (await btn.getAttribute('title')) ?? what;
+        marks.mark('tip', title, bx ? { x: bx.x, y: bx.y, w: bx.width, h: bx.height } : null);
+        // the tooltip held about a second, then the press
+        marks.markAt(await pointer.pressAt(Date.now() + 1000), 'tip-end', title);
+        await sleep(250);
+        if (await lookOn(what)) {
+          console.warn(`  the ${what} press did not take: clicked`);
+          await btn.dispatchEvent('click');
+        }
+        marks.mark(`look-${what}`, title);
+      };
+      await look('border', 0.8);
+      await look('glass', 0.7);
+      await sleep(300);
+      const g1 = await gbox();
+      const edge = g1.y + g1.height - 2;
+      await pointer.hoverPoint(g1.x + g1.width * 0.4, edge, Date.now() + 650);
+      marks.markAt(await pointer.dragTo(g1.x + g1.width * 0.4, edge + 3.1 * CELL.h, Date.now() + 300, { ms: 900, holdMs: 250 }), 'dock-done', 'Group a slim strip');
+      if (Date.now() > T(UI.timersPanes) - 2100) console.warn(`  the docking ran late: ${((Date.now() - T(0)) / 1000).toFixed(1)} s`);
+      await sleep(400);
+      const gs = await page.evaluate(() => {
+        const st = (window as unknown as { __wc: { settings: { get(): { panes: { group: unknown }; layout: unknown } } } }).__wc.settings.get();
+        return JSON.stringify({ group: st.panes.group, right: (st.layout as { docks: { right: unknown } }).docks.right });
+      });
+      console.log(`  Group docked: ${gs}`);
+      // the hand leaves the map
+      await pointer.moveTo(900, 560);
       // Timers on as the spells start
       await paneOn('timers', UI.timersPanes, UI.timers);
       // (one take showed no Timers although its switch was on; the next did: warn if it happens again)

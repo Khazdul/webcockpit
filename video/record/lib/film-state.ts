@@ -176,3 +176,37 @@ export async function shootingStar(page: Page, at: { x: number; y: number; dir: 
  * and the touch devices agree at the hand-off.
  */
 export const CLEAR_NIGHT = { weather: ' ', fog: '', clock: 'night', light: ')', sunU: -1, moonUp: false, moonU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 } as const;
+
+/** The layout and look film 2 leaves Group in from act 2 on (owner round 1, item 5), as the settings take it. */
+interface DockedGroupSettings {
+  layout: { docks: { right: { lanes: { size: number; panes: { id: string; desired: number }[] }[] } }; floating: { id: string }[] };
+  panes: Record<string, { on: boolean; border?: boolean; glass?: boolean }>;
+}
+
+/**
+ * Film 2 from act 2 on: Group docked in the right dock's lane above the map,
+ * borderless and clear, four rows high (what film2-a's drag, look buttons
+ * and resize leave: the map's `desired` is what the resize gives it). For a
+ * take that starts after act 2 (`settings.update(dockGroup)` in the page).
+ */
+export function dockGroupInPage(d: DockedGroupSettings): void {
+  d.layout.floating = d.layout.floating.filter((f) => f.id !== 'group');
+  const lane = d.layout.docks.right.lanes[0]!;
+  lane.panes = lane.panes.filter((p) => p.id !== 'group' && p.id !== 'comm');
+  const at = Math.max(0, lane.panes.findIndex((p) => p.id === 'map'));
+  lane.panes.splice(at, 0, { id: 'group', desired: 4 });
+  const map = lane.panes.find((p) => p.id === 'map');
+  if (map) map.desired = 45;
+  d.panes.group = { ...d.panes.group!, border: false, glass: false };
+  // Character off: the map's shorter lane would give it room
+  if (d.panes.character) d.panes.character.on = false;
+}
+
+/** Applies `dockGroupInPage` to the page's settings (off camera). */
+export async function dockGroup(page: Page): Promise<void> {
+  await page.evaluate((src) => {
+    const fn = new Function(`return (${src})`)() as (d: unknown) => void;
+    (window as unknown as { __wc: { settings: { update(f: (d: unknown) => void): void } } }).__wc.settings.update(fn);
+  }, dockGroupInPage.toString());
+  await page.waitForTimeout(400);
+}
