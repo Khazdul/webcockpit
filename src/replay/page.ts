@@ -46,6 +46,7 @@ import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
 import { replayPhone } from './phone';
 import type { PlayerPhone } from '../app/player-host';
+import { type Poster, mountPoster } from './poster';
 
 /** Header hints; all of them give way when narrow (Inv §7.7). */
 export const REPLAY_HINTS: ReadonlyArray<HeaderHint> = [
@@ -81,6 +82,8 @@ export interface ReplayPage {
   host: PlayerHost;
   payload: ReplayPayload;
   settings: SettingsStore;
+  /** The poster (stage 73, ADR 0162) while the run waits under it; null without one. */
+  poster: Poster | null;
 }
 
 /** Shows a one-line notice in place of the player (a damaged file). */
@@ -105,7 +108,8 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
     return null;
   }
   const phone = doc.defaultView ? await replayPhone(doc.defaultView) : undefined;
-  return openReplay(doc, root, payload, phone ? { phone } : {});
+  // The file opens under its poster, paused at the start (stage 73, ADR 0162).
+  return openReplay(doc, root, payload, { poster: true, ...(phone ? { phone } : {}) });
 }
 
 /**
@@ -135,12 +139,15 @@ function docFullscreen(doc: Document): ReplayFullscreen {
  * A shared run (stage 65): only Map, Timers and Group, each off at the
  * start; a payload made before that (more panes, some on) is played the
  * same way (`sharedPayload`, src/share/shared-panes.ts, when `needsShared`).
+ * `poster: true` (the file and the watch page's frame): the run opens
+ * paused at its start under the poster (src/replay/poster.ts), which
+ * starts it when clicked; `autoplay` is then not read.
  */
 export function openReplay(
   doc: Document,
   root: HTMLElement,
   given: ReplayPayload,
-  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean; phone?: PlayerPhone } = {},
+  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean; phone?: PlayerPhone; poster?: boolean } = {},
 ): ReplayPage {
   // A payload shared since W3 is already as a shared run carries it: no second pass over its text (review fix 2 CR6).
   const payload = needsShared(given) ? sharedPayload(given) : given;
@@ -153,7 +160,14 @@ export function openReplay(
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';
-  const host = new PlayerHost({
+  // Made before the player, so its key listener runs before the player's.
+  let host: PlayerHost | null = null;
+  const poster = o.poster
+    ? mountPoster(doc, { title: payload.title, character: payload.character, startUs: payload.startUs, durationMs: 0 }, () =>
+        host?.engine?.play(),
+      )
+    : null;
+  host = new PlayerHost({
     root,
     settings,
     onClose: () => {},
@@ -169,7 +183,7 @@ export function openReplay(
     { character: payload.character, level: payload.level },
     {
       edits: payloadEdits(payload),
-      ...(o.autoplay === false ? { autoplay: false } : {}),
+      ...(o.autoplay === false || poster ? { autoplay: false } : {}),
       ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
       marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
       view: {
@@ -197,10 +211,17 @@ export function openReplay(
       viewerSettings: 'display',
     },
   );
+  if (poster) {
+    const engine = host.engine;
+    // What the run shows at its start is drawn under the poster (a seek delivers it).
+    engine?.seek(0);
+    poster.setLength(engine?.duration ?? 0);
+  }
+  const h = host;
   const refresh = (): void => {
-    host.playerView?.refresh();
-    host.refreshLens();
+    h.playerView?.refresh();
+    h.refreshLens();
   };
   fs.onChange(refresh);
-  return { host, payload, settings };
+  return { host: h, payload, settings, poster };
 }
