@@ -26,6 +26,7 @@ declare namespace Cloudflare {
     FLAG_GALLERY: boolean;
     FLAG_RUNES: boolean;
     FLAG_MUME: boolean;
+    FLAG_DISCORD: boolean;
     /** The default run storage per account, bytes; unset: DEFAULT_ACCOUNT_LIMITS.runBytes. */
     RUN_BYTES_LIMIT?: number | string;
     API_LIMITER: RateLimit;
@@ -42,6 +43,8 @@ declare namespace Cloudflare {
     REPORT_MAIL_TO?: string;
     REPORT_MAIL_FROM?: string;
     SITE_ORIGIN?: string;
+    /** A secret (production only): the webhook of MUME's Discord #log-status (worker/discord.ts). */
+    DISCORD_WEBHOOK_URL?: string;
     /** worker/test only: the migrations, read by vitest.config.ts. */
     TEST_MIGRATIONS?: import('cloudflare:test').D1Migration[];
   }
