@@ -173,9 +173,16 @@ gone.
 
 Round 1 (2026-11-18, on staging):
 
-1. [ ] Desktop: the wheel over the lens also scrolls the log.
-2. [ ] Phone/tablet: no header row (character and date) over the player
-   in a shared run.
+1. [x] Desktop: the wheel over the lens also scrolls the log.
+   Cause: the lens took the wheel's default but let it bubble to the
+   player's root, whose wheel moves the pause cursor (and scrolls the log
+   to it) while paused. The lens now stops every wheel event (glass, rim,
+   dots, the rest's coasting). `watch-map-zoom` asserts the cursor and the
+   log's scroll stay put.
+2. [x] Phone/tablet: no header row (character and date) over the player
+   in a shared run. `touchFloat` (now a flag) means no header; the host's
+   `headOf` is gone. History's run log player keeps its header.
+   `phone-watch-box` asserts there is none.
 3. [ ] The poster: the log's title at the top (not the character's name),
    its description under it (a centred block, left-aligned lines), the
    character and the date smaller somewhere fitting. All text and the

@@ -361,9 +361,16 @@ export class DeskLens {
     this.syncZoom();
   }
 
-  /** The wheel over the lens: one level a notch (or a touchpad's worth), then a short rest. */
+  /**
+   * The wheel over the lens: one level a notch (or a touchpad's worth), then
+   * a short rest. Every wheel event over it (glass, rim, dots, the rest's
+   * coasting) is the lens's alone: no page scroll, and it never bubbles to
+   * the player's root, whose wheel moves the pause cursor and scrolls the
+   * log (stage 73 round 1).
+   */
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
+    e.stopPropagation();
     if (!this.lensBox || e.deltaY === 0) return;
     if (e.timeStamp < this.wheelRestUntil) return;
     const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;

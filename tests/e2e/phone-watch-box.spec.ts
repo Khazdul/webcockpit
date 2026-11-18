@@ -5,7 +5,8 @@
 //   device's larger keys; it hides itself in play after the delay, and a
 //   tap on the log shows it again. A tap on the lens's panes key while it
 //   is hidden still reaches the lens.
-// - No fight card at the top.
+// - No fight card at the top, and no header row (character and date) over
+//   the log (stage 73 round 1); History's run log player keeps its header.
 // - The lens is half as large again on a phone (a tablet keeps the run log
 //   player's size).
 // - The box stays inside the window: turning a tablet in fullscreen, and
@@ -61,7 +62,7 @@ const CASES = [
 ] as const;
 
 for (const [name, size, tablet] of CASES) {
-  test(`${name}: the box floats at the bottom right with touch keys, no fight card, the lens's size`, async ({ page }) => {
+  test(`${name}: the box floats at the bottom right with touch keys, no fight card, no header, the lens's size`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.setViewportSize(size);
@@ -74,6 +75,8 @@ for (const [name, size, tablet] of CASES) {
     await expect(chrome).not.toHaveAttribute('data-docked', '');
     await expect(bx).not.toHaveAttribute('data-docked', '');
     await expect(bx).toHaveAttribute('data-touch', '');
+    // No header row over the log (round 1).
+    await expect(r.locator('.wc-player-header')).toHaveCount(0);
     const frame = await box(page.locator('.wc-watch-slot iframe'));
     const b = await box(bx);
     // At the bottom right: left of the rail and its markers, as far right as that allows.
@@ -101,6 +104,7 @@ for (const [name, size, tablet] of CASES) {
     // Into the fight: no fight card.
     await expect(r.locator('.wc-player')).toContainText('Line 4', { timeout: 15_000 });
     await expect(r.locator('.wc-ph-fight')).toBeHidden();
+    await expect(r.locator('.wc-player-header')).toHaveCount(0);
     const slug = name.replace(' ', '-');
     await page.screenshot({ path: `docs/stages/img/73-b-${slug}.png` });
     expect(errors).toEqual([]);

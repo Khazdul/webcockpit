@@ -99,8 +99,8 @@
 // A shared run on a phone or tablet (stage 73, ADR 0160 addendum): no
 // docked bar. The cockpit keeps no command row (`phoneReplay.bar` false),
 // the control box floats at the bottom right and hides as on a computer
-// (`PlayerViewOptions.touchFloat`, with the header's row from `head`), the
-// fight card is off, and on a phone (not a tablet, `PlayerPhone.tablet`)
+// (`PlayerViewOptions.touchFloat`), there is no header row over the game
+// text (stage 73 round 1; History's run log player keeps its), the fight card is off, and on a phone (not a tablet, `PlayerPhone.tablet`)
 // the lens is half as large again (`PhoneReplay.lensScale`).
 
 import type { RunLibrary } from '../runs/library';
@@ -122,7 +122,7 @@ import { VIEW_KEYS, overlayView, parseView, playerFontSize } from '../player/fit
 import { MAX_SCRIPT_PANES, migrateSettings } from '../settings/migrate';
 import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
-import { type DockRect, PlayerView, type PlayerViewOptions, type TouchHead, type ViewerControls, runHeader } from '../player/view';
+import { type DockRect, PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
 import type { PhoneControls, PhoneKit, PhoneReplayClear, PhoneReplayDeps, PhoneReplayState } from '../phone';
 import {
   type ViewerOverrides,
@@ -326,8 +326,6 @@ export class PlayerHost {
   private phoneLayer = false;
   /** Phone: and the docked bar (the run log player; a shared run's box floats, `opts.lens`). */
   private phoneBar = false;
-  /** Phone, a shared run: where the header's row begins and ends (`TouchHead`), or null. */
-  private head: TouchHead | null = null;
   /** Phone: the layer's own settings (`phone.*`), in memory, kept across App rebuilds; made at the first mount. */
   private phoneStore: SettingsStore | null = null;
   /** Phone: what is open in the layer, kept across App rebuilds. */
@@ -428,7 +426,6 @@ export class PlayerHost {
     }
     this.phoneLayer = this.opts.phone !== undefined && !opts.view?.bare;
     this.phoneBar = this.phoneLayer && this.opts.lens === undefined;
-    this.head = null;
     this.deskLensOn = this.opts.lens !== undefined && this.opts.phone === undefined && !opts.view?.bare;
     this.dock = null;
     const tl = buildTimeline(chain, opts.edits);
@@ -493,7 +490,7 @@ export class PlayerHost {
       boxButtons: fullscreen,
       ...modeView,
       ...(this.phoneBar ? { dock: () => this.dock } : {}),
-      ...(this.phoneLayer && !this.phoneBar ? { touchFloat: () => this.head } : {}),
+      ...(this.phoneLayer && !this.phoneBar ? { touchFloat: true } : {}),
     });
     if (opts.autoplay !== false) engine.play();
   }
@@ -791,13 +788,8 @@ export class PlayerHost {
         this.phoneClear = clear;
         layer.setClear(clear);
       }
-      if (!this.phoneBar) {
-        const head = this.headOf(app);
-        if (JSON.stringify(head) === JSON.stringify(this.head)) return;
-        this.head = head;
-        this.view?.refresh();
-        return;
-      }
+      // A shared run: no docked bar, no header row (the box floats on its own).
+      if (!this.phoneBar) return;
       const next = this.dockRect(app);
       if (JSON.stringify(next) === JSON.stringify(this.dock)) return;
       this.dock = next;
@@ -849,19 +841,6 @@ export class PlayerHost {
     if (!(width > 0 && height > 0)) return null;
     const headRight = this.headRight(app);
     return { left, top, width, height, ...(headRight !== null ? { headRight } : {}) };
-  }
-
-  /**
-   * A shared run on a phone (no docked bar): the header's row from where
-   * the game text begins (right of the landscape column) to `headRight`.
-   * Null while the cockpit lays out no game text.
-   */
-  private headOf(app: App): TouchHead | null {
-    const g = app.cockpit.phoneGameLayout;
-    if (!g || app.cockpit.el.hasAttribute('data-too-small')) return null;
-    const left = app.cockpit.el.offsetLeft + g.game.x * this.cells.get().w;
-    const headRight = this.headRight(app);
-    return { left, ...(headRight !== null ? { headRight } : {}) };
   }
 
   /** Where the header's row must end, px of the player: left of the lens's corner key (or its key row) where that stands in the row, and of a hood plate; null: nothing there. */
