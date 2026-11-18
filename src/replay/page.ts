@@ -48,7 +48,7 @@ import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
 import { replayPhone } from './phone';
 import type { PlayerPhone } from '../app/player-host';
-import { type Poster, type PosterLook, mountPoster } from './poster';
+import { type Poster, mountPoster } from './poster';
 
 /** Header hints; all of them give way when narrow (Inv §7.7). */
 export const REPLAY_HINTS: ReadonlyArray<HeaderHint> = [
@@ -118,21 +118,17 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
 export interface PosterOptions {
   /** The publication's title (the watch page's meta); else the payload's. */
   title?: string;
-  /** The publication's description (a look shows it). */
+  /** The publication's description (none in the exported file). */
   description?: string;
-  /** One of the looks under comparison (stage 73 round 1). */
-  look?: PosterLook;
 }
 
 function posterInfo(payload: ReplayPayload, o: PosterOptions) {
-  // Part C's poster (no look) keeps its words as built: the payload's title.
-  const title = o.look && o.title?.trim() ? o.title : payload.title;
   return {
-    title,
+    title: o.title?.trim() ? o.title : payload.title,
     character: payload.character,
     startUs: payload.startUs,
     durationMs: 0,
-    ...(o.look ? { look: o.look, description: o.description ?? '' } : {}),
+    description: o.description ?? '',
   };
 }
 
@@ -167,8 +163,7 @@ function docFullscreen(doc: Document): ReplayFullscreen {
  * paused at its start under the poster (src/replay/poster.ts), which
  * starts it when clicked; `autoplay` is then not read. An object instead
  * of `true` gives the poster the publication's words (the watch page's
- * meta, through the frame) and one of the looks under comparison (stage 73
- * round 1; dev only, src/watch/frame-host.ts).
+ * meta, through the frame; ADR 0162 round 1).
  */
 export function openReplay(
   doc: Document,

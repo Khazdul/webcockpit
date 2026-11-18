@@ -1,23 +1,20 @@
-/* The shared run's poster (src/replay/poster.ts, ADR 0162): a glass screen
- * over the paused replay. Fixed colours, not the exporter's theme: the
- * poster is the app's own face (dark amber phosphor, iron and mithril).
- * Cheap: gradients and one small backdrop blur, painted once; the only
- * motion is the play ring's slow glow and the fade when it goes, both off
- * with reduced motion. */
+/* The shared run's poster (src/replay/poster.ts, ADR 0162 and its round 1
+ * addendum): a pane of frosted glass edge to edge over the paused replay,
+ * the words in white. No padding, no rounded face, no rim: the layer
+ * covers exactly the frame's (or the file's) document, so its edges melt
+ * into the player under it. Fixed colours, not the exporter's theme: the
+ * poster is the app's own face. Cheap: gradients and one backdrop blur,
+ * painted once; the only motion is the play ring's slow glow and the fade
+ * when it goes, both off with reduced motion. */
 
 .wc-poster {
-  --wcp-amber: #ffb000;
-  --wcp-ember: #b8741a;
-  --wcp-ash: #bfae95;
-  --wcp-deep: #070504;
   position: fixed;
   inset: 0;
   z-index: 10000;
   display: grid;
-  padding: clamp(6px, 1.6vmin, 18px);
-  background: rgb(4 3 2 / 0.55);
-  -webkit-backdrop-filter: blur(1.5px) saturate(0.7);
-  backdrop-filter: blur(1.5px) saturate(0.7);
+  background: rgb(14 17 22 / 0.36);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
+  backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -32,92 +29,64 @@
   pointer-events: none;
 }
 
-/* The tube's face: rounded like a screen, dark at its rim (vignette), the
- * paused log faintly behind it. */
+/* The player's control box does not show under the poster, not even
+ * blurred; it comes back when the run starts (the attribute goes then). */
+html[data-poster-up] .wc-player-box {
+  visibility: hidden !important;
+}
+
+/* The glass's light: a little brighter at the top, a little darker at
+ * the foot. */
 .wc-poster-screen {
   position: relative;
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr auto;
   justify-items: center;
-  border-radius: clamp(10px, 3.2vmin, 34px) / clamp(12px, 4vmin, 42px);
-  background:
-    radial-gradient(
-      ellipse 75% 70% at 50% 46%,
-      rgb(255 176 0 / 0.07),
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 120% 110% at 50% 50%,
-      rgb(7 5 4 / 0.15) 45%,
-      rgb(7 5 4 / 0.82) 100%
-    );
-  box-shadow:
-    inset 0 0 0 1px rgb(255 214 150 / 0.06),
-    inset 0 0 clamp(30px, 10vmin, 120px) rgb(0 0 0 / 0.9),
-    0 0 0 clamp(3px, 0.8vmin, 8px) rgb(20 15 11 / 0.9),
-    0 0 0 calc(clamp(3px, 0.8vmin, 8px) + 1px) rgb(255 200 140 / 0.08);
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.05),
+    transparent 34%,
+    transparent 70%,
+    rgb(0 0 0 / 0.22)
+  );
 }
 
-/* Glass: faint scanlines, the curve's glare at the top left, a softer
- * reflection at the bottom right. Over everything, never hit. */
+/* One broad sheen across the pane. Over everything, never hit. */
 .wc-poster-glass {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  border-radius: inherit;
-  background:
-    radial-gradient(
-      ellipse 60% 42% at 24% 8%,
-      rgb(255 240 220 / 0.11),
-      transparent 70%
-    ),
-    linear-gradient(
-      158deg,
-      rgb(255 245 230 / 0.07) 0%,
-      rgb(255 245 230 / 0.02) 30%,
-      transparent 31%
-    ),
-    radial-gradient(
-      ellipse 40% 30% at 86% 96%,
-      rgb(255 230 200 / 0.04),
-      transparent 70%
-    );
-}
-
-/* The scanlines, darkening only. */
-.wc-poster-glass::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    180deg,
-    transparent 0 2px,
-    rgb(0 0 0 / 0.2) 2px 3px
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    rgb(255 255 255 / 0.045) 36%,
+    transparent 54%
   );
 }
 
 .wc-poster-top {
-  max-width: min(92%, 34em);
-  padding-top: clamp(18px, 7vh, 72px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(92%, 44em);
+  padding-top: clamp(20px, 8vh, 84px);
   text-align: center;
 }
 
+/* The title: large and widely spaced, a film's title card. */
 .wc-poster-title {
   margin: 0;
   font-family: "Cinzel", "Cormorant SC", Georgia, serif;
   font-weight: 700;
-  font-size: clamp(22px, 5.2vmin, 54px);
+  font-size: clamp(24px, 6vmin, 64px);
   line-height: 1.18;
-  letter-spacing: 0.035em;
-  color: #ffc847;
+  letter-spacing: 0.07em;
+  color: #fff;
   text-wrap: balance;
   overflow-wrap: anywhere;
   text-shadow:
-    0 0 1px rgb(255 200 80 / 0.9),
-    0 0 18px rgb(255 160 0 / 0.38),
-    0 2px 0 rgb(0 0 0 / 0.7);
+    0 1px 2px rgb(0 0 0 / 0.85),
+    0 0 26px rgb(0 0 0 / 0.55);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -125,174 +94,14 @@
 }
 
 .wc-poster-title[data-len="mid"] {
-  font-size: clamp(19px, 4.2vmin, 44px);
+  font-size: clamp(20px, 4.6vmin, 48px);
 }
 
 .wc-poster-title[data-len="long"] {
-  font-size: clamp(17px, 3.4vmin, 36px);
+  font-size: clamp(18px, 3.6vmin, 38px);
 }
 
-.wc-poster-sub {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.15em 1.6em;
-  margin: clamp(8px, 1.8vmin, 18px) 0 0;
-  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
-  font-size: clamp(12px, 1.9vmin, 17px);
-  color: var(--wcp-ash);
-  letter-spacing: 0.02em;
-}
-
-/* The play key: a phosphor ring with a filled triangle. It has the focus
- * from the start (Enter plays), so its focus shows as the brighter glow
- * the hover gives, not as an outline box. */
-.wc-poster-play {
-  align-self: center;
-  display: grid;
-  justify-items: center;
-  gap: clamp(6px, 1.4vmin, 14px);
-  margin: 0;
-  padding: clamp(6px, 1.5vmin, 14px);
-  border: 0;
-  border-radius: 24px;
-  background: none;
-  color: var(--wcp-amber);
-  cursor: pointer;
-  font: inherit;
-}
-
-.wc-poster-glyph {
-  display: block;
-  width: clamp(76px, 19vmin, 168px);
-  height: auto;
-  overflow: visible;
-  filter: drop-shadow(0 0 6px rgb(255 160 0 / 0.55))
-    drop-shadow(0 0 22px rgb(255 140 0 / 0.25));
-  transition:
-    transform 140ms ease-out,
-    filter 140ms ease-out;
-}
-
-.wc-poster-ring {
-  fill: rgb(255 176 0 / 0.06);
-  stroke: var(--wcp-amber);
-  stroke-width: 3.2;
-}
-
-.wc-poster-tri {
-  fill: var(--wcp-amber);
-  stroke: var(--wcp-amber);
-  stroke-width: 3;
-  stroke-linejoin: round;
-}
-
-.wc-poster-hint {
-  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
-  font-size: clamp(12px, 1.8vmin, 16px);
-  letter-spacing: 0.08em;
-  color: var(--wcp-ember);
-}
-
-.wc-poster:hover .wc-poster-glyph,
-.wc-poster-play:focus-visible .wc-poster-glyph {
-  transform: scale(1.05);
-  filter: drop-shadow(0 0 7px rgb(255 176 0 / 0.75))
-    drop-shadow(0 0 30px rgb(255 150 0 / 0.38));
-}
-
-.wc-poster-play:focus {
-  outline: none;
-}
-
-.wc-poster-play:focus-visible .wc-poster-hint {
-  color: var(--wcp-amber);
-}
-
-/* The wordmark, bottom right, a little sunk into the glass. */
-.wc-poster-mark {
-  justify-self: end;
-  padding: 0 clamp(14px, 3.4vmin, 40px) clamp(12px, 3vmin, 34px) 0;
-  opacity: 0.88;
-}
-
-.wc-poster-logo {
-  display: block;
-  width: clamp(104px, 20vmin, 230px);
-  height: auto;
-  overflow: visible;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .wc-poster-ring {
-    animation: wc-poster-breathe 3.6s ease-in-out infinite;
-  }
-
-  @keyframes wc-poster-breathe {
-    0%,
-    100% {
-      fill: rgb(255 176 0 / 0.05);
-    }
-    50% {
-      fill: rgb(255 176 0 / 0.13);
-    }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wc-poster,
-  .wc-poster-glyph {
-    transition: none;
-  }
-}
-
-/* Short and wide (a phone in landscape): less air above the title. */
-@media (max-height: 420px) {
-  .wc-poster-top {
-    padding-top: 14px;
-  }
-
-  .wc-poster-glyph {
-    width: clamp(64px, 22vmin, 120px);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* The looks under comparison (stage 73 round 1, points 3 and 4; mockups,
- * `data-look` on the layer, dev only: `?poster=tv|glass|cinema` on the
- * watch page). Each covers the player's area edge to edge: no padding, no
- * rounded face, no rim, so its edges melt into the player under it. The
- * words are white: the publication's title, its description (a centred
- * block of left-aligned lines), and a small foot line (the character, the
- * date, the length) at the bottom left, the wordmark at the bottom right. */
-
-.wc-poster[data-look] {
-  padding: 0;
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-.wc-poster[data-look] .wc-poster-screen {
-  border-radius: 0;
-  box-shadow: none;
-  background: none;
-}
-
-.wc-poster[data-look] .wc-poster-top {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: min(92%, 44em);
-  padding-top: clamp(20px, 8vh, 84px);
-}
-
-.wc-poster[data-look] .wc-poster-title {
-  color: #fff;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 0.85),
-    0 0 26px rgb(0 0 0 / 0.55);
-}
-
+/* The description: a block centred under the title, its lines left-aligned. */
 .wc-poster-desc {
   box-sizing: border-box;
   width: fit-content;
@@ -312,6 +121,70 @@
   overflow: hidden;
 }
 
+/* The play key: a white ring with a filled triangle. It has the focus
+ * from the start (Enter plays), so its focus shows as the brighter glow
+ * the hover gives, not as an outline box. */
+.wc-poster-play {
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  gap: clamp(6px, 1.4vmin, 14px);
+  margin: 0;
+  padding: clamp(6px, 1.5vmin, 14px);
+  border: 0;
+  border-radius: 24px;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.wc-poster-glyph {
+  display: block;
+  width: clamp(76px, 19vmin, 168px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 16px rgb(255 255 255 / 0.16));
+  transition:
+    transform 140ms ease-out,
+    filter 140ms ease-out;
+}
+
+.wc-poster-ring {
+  fill: rgb(255 255 255 / 0.06);
+  stroke: #fff;
+  stroke-width: 3.2;
+}
+
+.wc-poster-tri {
+  fill: #fff;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.wc-poster-hint {
+  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
+  font-size: clamp(12px, 1.8vmin, 16px);
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.wc-poster:hover .wc-poster-glyph,
+.wc-poster-play:focus-visible .wc-poster-glyph {
+  transform: scale(1.05);
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 24px rgb(255 255 255 / 0.3));
+}
+
+.wc-poster-play:focus {
+  outline: none;
+}
+
+/* The foot: the character, the date and the length at the left, small;
+ * the wordmark at the right. */
 .wc-poster-foot {
   box-sizing: border-box;
   width: 100%;
@@ -322,59 +195,37 @@
   padding: 0 clamp(14px, 3.4vmin, 40px) clamp(12px, 3vmin, 34px);
 }
 
-.wc-poster[data-look] .wc-poster-sub {
+.wc-poster-sub {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
-  margin: 0;
   gap: 0.2em 1.3em;
+  margin: 0;
+  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
   font-size: clamp(11px, 1.45vmin, 13px);
   letter-spacing: 0.04em;
   color: rgb(255 255 255 / 0.62);
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
 
-.wc-poster[data-look] .wc-poster-mark {
+.wc-poster-mark {
   flex: none;
-  padding: 0;
+  opacity: 0.88;
 }
 
-/* The play key in white. */
-.wc-poster[data-look] .wc-poster-play {
-  color: #fff;
-}
-
-.wc-poster[data-look] .wc-poster-glyph {
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
-    drop-shadow(0 0 16px rgb(255 255 255 / 0.16));
-}
-
-.wc-poster[data-look] .wc-poster-ring {
-  fill: rgb(255 255 255 / 0.06);
-  stroke: #fff;
-}
-
-.wc-poster[data-look] .wc-poster-tri {
-  fill: #fff;
-  stroke: #fff;
-}
-
-.wc-poster[data-look] .wc-poster-hint,
-.wc-poster[data-look] .wc-poster-play:focus-visible .wc-poster-hint {
-  color: #fff;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
-}
-
-.wc-poster[data-look]:hover .wc-poster-glyph,
-.wc-poster[data-look] .wc-poster-play:focus-visible .wc-poster-glyph {
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
-    drop-shadow(0 0 24px rgb(255 255 255 / 0.3));
+.wc-poster-logo {
+  display: block;
+  width: clamp(104px, 20vmin, 230px);
+  height: auto;
+  overflow: visible;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .wc-poster[data-look] .wc-poster-ring {
-    animation-name: wc-poster-breathe-white;
+  .wc-poster-ring {
+    animation: wc-poster-breathe 3.6s ease-in-out infinite;
   }
 
-  @keyframes wc-poster-breathe-white {
+  @keyframes wc-poster-breathe {
     0%,
     100% {
       fill: rgb(255 255 255 / 0.04);
@@ -385,143 +236,26 @@
   }
 }
 
-/* (a) The TV: the tube's face edge to edge. The log dim and soft behind
- * it, the corners falling off into the dark as a curved screen's do (so
- * the edges meet the player's black, no rim), fine scanlines, a faint
- * aperture grille, the curve's glare at the top left. */
-.wc-poster[data-look="tv"] {
-  background: rgb(2 3 4 / 0.52);
-  -webkit-backdrop-filter: blur(1.2px) saturate(0.6);
-  backdrop-filter: blur(1.2px) saturate(0.6);
+@media (prefers-reduced-motion: reduce) {
+  .wc-poster,
+  .wc-poster-glyph {
+    transition: none;
+  }
 }
 
-.wc-poster[data-look="tv"] .wc-poster-screen {
-  background:
-    radial-gradient(
-      ellipse 70% 60% at 50% 46%,
-      rgb(225 238 255 / 0.05),
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 135% 125% at 50% 50%,
-      transparent 48%,
-      rgb(0 0 0 / 0.78) 100%
-    );
-}
-
-.wc-poster[data-look="tv"] .wc-poster-glass {
-  background:
-    radial-gradient(
-      ellipse 55% 40% at 22% 6%,
-      rgb(255 255 255 / 0.09),
-      transparent 70%
-    ),
-    linear-gradient(
-      180deg,
-      transparent 56%,
-      rgb(255 255 255 / 0.022) 62%,
-      transparent 70%
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgb(255 60 60 / 0.022) 0 1px,
-      rgb(60 255 60 / 0.018) 1px 2px,
-      rgb(60 60 255 / 0.022) 2px 3px
-    );
-}
-
-.wc-poster[data-look="tv"] .wc-poster-glass::after {
-  background: repeating-linear-gradient(
-    180deg,
-    transparent 0 2px,
-    rgb(0 0 0 / 0.24) 2px 3px
-  );
-}
-
-/* (b) Plain glass: a pane of frosted glass laid on the player. The log
- * blurred to soft light behind it, a slight cool tint, one broad sheen
- * across it; nothing else. */
-.wc-poster[data-look="glass"] {
-  background: rgb(14 17 22 / 0.36);
-  -webkit-backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
-  backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
-}
-
-.wc-poster[data-look="glass"] .wc-poster-screen {
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.05),
-    transparent 34%,
-    transparent 70%,
-    rgb(0 0 0 / 0.22)
-  );
-}
-
-.wc-poster[data-look="glass"] .wc-poster-glass {
-  background: linear-gradient(
-    115deg,
-    transparent 18%,
-    rgb(255 255 255 / 0.045) 36%,
-    transparent 54%
-  );
-}
-
-.wc-poster[data-look="glass"] .wc-poster-glass::after {
-  content: none;
-}
-
-/* (c) Cinema: a film's title card. Night falls from the top behind the
- * title and rises from the foot, the log shows through the middle as a
- * soft, colourless scene, and a wide vignette closes it in. No lines, no
- * glare: the type carries it (a wider, larger title). */
-.wc-poster[data-look="cinema"] {
-  background: rgb(0 0 0 / 0.18);
-  -webkit-backdrop-filter: blur(2.5px) saturate(0.35) brightness(0.85);
-  backdrop-filter: blur(2.5px) saturate(0.35) brightness(0.85);
-}
-
-.wc-poster[data-look="cinema"] .wc-poster-screen {
-  background:
-    linear-gradient(
-      180deg,
-      rgb(0 0 0 / 0.9) 0%,
-      rgb(0 0 0 / 0.5) 30%,
-      rgb(0 0 0 / 0.14) 52%,
-      rgb(0 0 0 / 0.55) 76%,
-      rgb(0 0 0 / 0.94) 100%
-    ),
-    radial-gradient(
-      ellipse 95% 85% at 50% 50%,
-      transparent 45%,
-      rgb(0 0 0 / 0.55) 100%
-    );
-}
-
-.wc-poster[data-look="cinema"] .wc-poster-glass {
-  display: none;
-}
-
-.wc-poster[data-look="cinema"] .wc-poster-title {
-  font-size: clamp(24px, 6vmin, 64px);
-  letter-spacing: 0.07em;
-}
-
-.wc-poster[data-look="cinema"] .wc-poster-title[data-len="mid"] {
-  font-size: clamp(20px, 4.6vmin, 48px);
-}
-
-.wc-poster[data-look="cinema"] .wc-poster-title[data-len="long"] {
-  font-size: clamp(18px, 3.6vmin, 38px);
-}
-
-/* Short and wide (a phone in landscape): the description in two lines. */
+/* Short and wide (a phone in landscape): less air above the title, the
+ * description in two lines, a smaller key. */
 @media (max-height: 420px) {
-  .wc-poster[data-look] .wc-poster-top {
+  .wc-poster-top {
     padding-top: 14px;
   }
 
   .wc-poster-desc {
     margin-top: 8px;
     -webkit-line-clamp: 2;
+  }
+
+  .wc-poster-glyph {
+    width: clamp(64px, 22vmin, 120px);
   }
 }

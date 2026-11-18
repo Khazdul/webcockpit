@@ -1,7 +1,9 @@
-// Stage 73 point 11 (ADR 0162): a shared run opens under its poster, paused
-// at the start: the title at the top, the character, date and length under
-// it, a play key in the middle, the wordmark at the bottom right, a glass
-// screen. Keys other than Enter and Space do nothing while it is up; a
+// Stage 73 point 11 (ADR 0162 and its round 1 addendum): a shared run opens
+// under its poster, paused at the start: frosted glass over the whole
+// frame, the publication's title and description at the top, a play key in
+// the middle, the character, date and length and the wordmark at the foot.
+// The player's control box is hidden under it and shows once the run
+// plays. Keys other than Enter and Space do nothing while it is up; a
 // click anywhere on it takes it away and plays the run. No CSP violation
 // in the frame (it is built without style attributes or markup).
 //
@@ -53,6 +55,9 @@ test("the poster covers a shared run, holds it at the start, and a click plays i
   await expect(p.locator(".wc-poster-title")).toHaveText(
     "Clearing the ranger camp",
   );
+  await expect(p.locator(".wc-poster-desc")).toHaveText(
+    "Norsy and Kuzzim join at the ford; the rangers first, then the acolytes.",
+  );
   await expect(p.locator(".wc-poster-sub span").first()).toHaveText("Rasta");
   await expect(p.locator(".wc-poster-sub")).toHaveText(
     /^Rasta\d{4}-\d\d-\d\d\d+ (s|min)$/,
@@ -66,11 +71,13 @@ test("the poster covers a shared run, holds it at the start, and a click plays i
     "MUME Cockpit",
   );
 
-  // It covers the frame; the title at the top centre, the key in the middle, the mark at the bottom right.
+  // It covers exactly the frame; the title at the top centre, the key in the middle, the mark at the bottom right.
   const f = (await page.locator(".wc-watch-slot iframe").boundingBox())!;
   const b = (await p.boundingBox())!;
-  expect(b.width).toBeGreaterThan(f.width - 2);
-  expect(b.height).toBeGreaterThan(f.height - 2);
+  for (const k of ["x", "y", "width", "height"] as const)
+    expect(Math.abs(b[k] - f[k])).toBeLessThan(1);
+  // The player's control box does not show under it.
+  await expect(replay(page).locator(".wc-player-box")).toBeHidden();
   const t = (await p.locator(".wc-poster-title").boundingBox())!;
   expect(Math.abs(t.x + t.width / 2 - (f.x + f.width / 2))).toBeLessThan(4);
   expect(t.y).toBeLessThan(f.y + f.height / 4);
@@ -107,6 +114,8 @@ test("the poster covers a shared run, holds it at the start, and a click plays i
   await expect(p).toHaveCount(0);
   await expect.poll(async () => (await frameEngine(page)).playing).toBe(true);
   await expect(replay(page).locator(".wc-player")).toBeVisible();
+  // The control box is back.
+  await expect(replay(page).locator(".wc-player-box")).toBeVisible();
   // The player's keys work again: F puts the frame in fullscreen, and the run fills it.
   await page.keyboard.press("f");
   await expect

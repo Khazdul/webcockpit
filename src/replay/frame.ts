@@ -11,8 +11,6 @@
 //                    replay paused at its start (the watch page's, ADR 0155
 //                    W1); since stage 73 the poster (ADR 0162) holds every
 //                    run paused at its start, so it is no longer read;
-//                    prefs.poster: one of the poster's looks under
-//                    comparison (stage 73 round 1; a dev page only sends it)
 //                    meta?: {title, description}: the publication's words
 //                    for the poster (stage 73 round 1), plain text, capped
 //                    (`frameMeta`)
@@ -51,7 +49,6 @@ import { PayloadReadError, readSharedPayload } from './shared';
 import { canFullscreen, exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { type ReplayFullscreen, type ReplayPage, fail, openReplay } from './page';
 import { replayPhone } from './phone';
-import { type PosterLook, posterLook } from './poster';
 
 export const FRAME_PROTOCOL = 1;
 export const FRAME_FONTS_MAX = 64;
@@ -174,11 +171,6 @@ export function frameMeta(raw: unknown): { title: string; description: string } 
   return { title: plain(o.title, FRAME_TITLE_MAX, false), description: plain(o.description, FRAME_DESC_MAX, true) };
 }
 
-/** The poster's look a `wc-play` message's `prefs` asks for (none unless it names one). */
-export function frameLook(prefs: unknown): PosterLook | undefined {
-  return typeof prefs === 'object' && prefs !== null ? posterLook((prefs as Record<string, unknown>).poster) : undefined;
-}
-
 export interface FrameOptions {
   /** The window the frame runs in (its `parent` is the only sender it trusts). */
   win: Window;
@@ -211,14 +203,13 @@ export function startFrame(o: FrameOptions): () => void {
     const payload = d.payload;
     const fonts = frameFonts(d.fonts);
     const meta = frameMeta(d.meta);
-    const look = frameLook(d.prefs);
     void (async () => {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
         const [p, , phone] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts), replayPhone(win)]);
         // Every shared run opens under its poster, paused at the start (stage 73, ADR 0162),
         // whatever `prefs.paused` says.
-        const page = openReplay(doc, root, p, { fullscreen: fs, poster: { ...meta, ...(look ? { look } : {}) }, ...(phone ? { phone } : {}) });
+        const page = openReplay(doc, root, p, { fullscreen: fs, poster: meta, ...(phone ? { phone } : {}) });
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';

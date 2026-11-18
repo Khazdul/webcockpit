@@ -9,15 +9,13 @@ import {
   mountPoster,
   posterLength,
   posterLogo,
-  posterLook,
-  posterLookText,
+  POSTER_UP,
   posterText,
   titleSize,
 } from "../../src/replay/poster";
 import {
   FRAME_DESC_MAX,
   FRAME_TITLE_MAX,
-  frameLook,
   frameMeta,
 } from "../../src/replay/frame";
 import { defaultSettings } from "../../src/settings";
@@ -64,7 +62,8 @@ describe("the poster’s words", () => {
       }),
     ).toEqual({
       title: "A fight",
-      sub: ["Rasta", "2026-09-26", "1 h 15 min"],
+      description: "",
+      meta: ["Rasta", "2026-09-26", "1 h 15 min"],
     });
   });
 
@@ -76,7 +75,7 @@ describe("the poster’s words", () => {
         startUs: 0,
         durationMs: 0,
       }),
-    ).toEqual({ title: "Rasta", sub: [] });
+    ).toEqual({ title: "Rasta", description: "", meta: ["Rasta"] });
     expect(
       posterText({ title: "", character: "", startUs: 0, durationMs: 0 }).title,
     ).toBe("MUME");
@@ -147,6 +146,17 @@ describe("openReplay with the poster", () => {
     expect(sub.at(-1)).toMatch(/min$/);
   });
 
+  it("hides the player's control box while it is up (the attribute on <html>), until the run starts", () => {
+    const { page } = open();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(true);
+    page.poster!.start();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(false);
+    const p = mountPoster(document, { title: "x", character: "", startUs: 0, durationMs: 0 }, () => {});
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(true);
+    p.dispose();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(false);
+  });
+
   it("a click anywhere on it takes it away and plays", () => {
     const { page } = open();
     (document.querySelector(".wc-poster-title") as HTMLElement).click();
@@ -213,23 +223,12 @@ describe("openReplay with the poster", () => {
   });
 });
 
-// Stage 73 round 1 (points 3 and 4): the looks under comparison, and the
-// publication's words the watch page sends the frame.
-describe("the poster’s looks (round 1 mockups)", () => {
-  it("knows only its three looks", () => {
-    expect(posterLook("tv")).toBe("tv");
-    expect(posterLook("glass")).toBe("glass");
-    expect(posterLook("cinema")).toBe("cinema");
-    expect(posterLook("crt")).toBeUndefined();
-    expect(posterLook(undefined)).toBeUndefined();
-    expect(frameLook({ paused: true, poster: "glass" })).toBe("glass");
-    expect(frameLook({ poster: "<b>" })).toBeUndefined();
-    expect(frameLook(null)).toBeUndefined();
-  });
-
-  it("a look's words: the title, the description, and the character, date and length at the foot", () => {
+// ADR 0162 round 1: the owner's pick (frosted glass, the title card's
+// words), and the publication's words the watch page sends the frame.
+describe("the poster’s round 1 words", () => {
+  it("has the description, trimmed, and the character, date and length at the foot", () => {
     expect(
-      posterLookText({
+      posterText({
         title: "A fight",
         character: "Rasta",
         startUs: START,
@@ -252,12 +251,10 @@ describe("the poster’s looks (round 1 mockups)", () => {
         startUs: START,
         durationMs: 0,
         description: "<i>x</i>",
-        look: "cinema",
       },
       () => {},
     );
     posters.push(p);
-    expect(p.el.getAttribute("data-look")).toBe("cinema");
     expect(p.el.querySelector(".wc-poster-desc")!.textContent).toBe("<i>x</i>");
     expect(p.el.querySelector("i")).toBeNull();
     expect(p.el.querySelector(".wc-poster-foot .wc-poster-sub")!.textContent).toBe(
@@ -280,12 +277,12 @@ describe("the poster’s looks (round 1 mockups)", () => {
     expect(long.description).toHaveLength(FRAME_DESC_MAX);
   });
 
-  it("openReplay gives a look the publication's title over the payload's; part C's poster keeps the payload's", () => {
+  it("openReplay shows the publication's title over the payload's, and the payload's without one", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
     const a = openReplay(document, root, payload("Export title"), {
       wall: new FakeWall(),
-      poster: { title: "Published title", description: "Notes.", look: "tv" },
+      poster: { title: "Published title", description: "Notes." },
     });
     posters.push(a.poster!);
     expect(a.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Published title");
@@ -294,10 +291,9 @@ describe("the poster’s looks (round 1 mockups)", () => {
     a.poster!.dispose();
     const b = openReplay(document, root, payload("Export title"), {
       wall: new FakeWall(),
-      poster: { title: "Published title", description: "Notes." },
+      poster: true,
     });
     posters.push(b.poster!);
-    expect(b.poster!.el.hasAttribute("data-look")).toBe(false);
     expect(b.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Export title");
     expect(b.poster!.el.querySelector(".wc-poster-desc")).toBeNull();
   });

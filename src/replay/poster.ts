@@ -1,15 +1,15 @@
-// The shared run's poster (stage 73 point 11, ADR 0162): a presentation
-// layer over the replay while it waits paused at its start. A glass
-// screen (vignette, faint scanlines, a glare; CSS only, src/replay/
-// poster.css), the run's title in the pane title's face (Cinzel Bold, in
-// the frame and in the exported file already) at the top, a line with the
-// character, the date and the played length under it, a large play key in
-// the middle and the MUME Cockpit wordmark at the bottom right.
-//
-// Stage 73 round 1 (mockups, the owner picks one): three looks
-// (`POSTER_LOOKS`, `data-look`) edge to edge over the player, with the
-// publication's title and description and a small foot line, in white.
-// Without a look the poster is the one above, unchanged.
+// The shared run's poster (stage 73 point 11, ADR 0162 and its round 1
+// addendum): a presentation layer over the replay while it waits paused at
+// its start. A pane of frosted glass edge to edge over the player's whole
+// area (no rim, no inset: it melts into the player; CSS only,
+// src/replay/poster.css), in white: the publication's title in the pane
+// title's face (Cinzel Bold, in the frame and in the exported file
+// already), large and widely spaced at the top, its description under it
+// (a centred block of left-aligned lines), a large play key in the middle,
+// and at the foot a small line with the character, the date and the played
+// length beside the MUME Cockpit wordmark. While it is up the player's
+// control box is hidden (`data-poster-up` on `<html>`); it comes back when
+// the run starts.
 //
 // A click or tap anywhere on it, or Enter or Space, takes it away and
 // starts the run (`onStart`). While it is up no other key reaches the
@@ -31,26 +31,6 @@ import { fmtDate } from "./title";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/**
- * The poster's looks under comparison (owner's round 1 of stage 73,
- * points 3 and 4; mockups, not yet chosen): `tv` a tube face edge to
- * edge, `glass` a plain frosted glass, `cinema` a film's title card (dark
- * gradients and a soft vignette over the paused log). Each covers the
- * player's whole area with no border or inset, and carries the round's
- * words: the publication's title, its description, the character and the
- * date in a small line at the foot, all in white. No look (the default,
- * and every production page): the poster as stage 73 part C built it.
- */
-export const POSTER_LOOKS = ["tv", "glass", "cinema"] as const;
-export type PosterLook = (typeof POSTER_LOOKS)[number];
-
-/** `raw` when it names a look, else undefined. */
-export function posterLook(raw: unknown): PosterLook | undefined {
-  return (POSTER_LOOKS as readonly unknown[]).includes(raw)
-    ? (raw as PosterLook)
-    : undefined;
-}
-
 /** What the poster shows. */
 export interface PosterInfo {
   /** The run's title ('' when it has none: the character takes its place). */
@@ -60,10 +40,8 @@ export interface PosterInfo {
   startUs: number;
   /** The played length, ms (0: unknown, not shown). */
   durationMs: number;
-  /** The publication's description (the watch page's meta; a look only). */
+  /** The publication's description (the watch page's meta; '' or none: not shown). */
   description?: string;
-  /** One of the looks under comparison; none: part C's poster. */
-  look?: PosterLook;
 }
 
 /** "1 h 15 min", "42 min", "50 s". */
@@ -77,23 +55,12 @@ export function posterLength(ms: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** The headline and the small line under it (each part its own item). */
-export function posterText(i: PosterInfo): { title: string; sub: string[] } {
-  const who = i.character.trim();
-  const title = i.title.trim() || who || "MUME";
-  const sub: string[] = [];
-  if (who && title !== who) sub.push(who);
-  if (Number.isFinite(i.startUs) && i.startUs > 0) sub.push(fmtDate(i.startUs));
-  if (i.durationMs > 0) sub.push(posterLength(i.durationMs));
-  return { title, sub };
-}
-
 /**
- * A look's words: the title (the publication's, else the run's, else the
- * character), the description, and the small line at the foot: the
- * character, the date and the played length.
+ * The poster's words: the title (the publication's, else the run's, else
+ * the character), the description, and the small line at the foot: the
+ * character, the date and the played length (each its own item).
  */
-export function posterLookText(i: PosterInfo): {
+export function posterText(i: PosterInfo): {
   title: string;
   description: string;
   meta: string[];
@@ -272,6 +239,9 @@ export interface Poster {
   setLength(ms: number): void;
 }
 
+/** The attribute on `<html>` while the poster is up (it hides the player's control box). */
+export const POSTER_UP = "data-poster-up";
+
 /** Ms of the fade when the poster goes (none with reduced motion). */
 export const POSTER_FADE_MS = 260;
 
@@ -286,15 +256,10 @@ export function mountPoster(
   onStart: () => void,
 ): Poster {
   const win = doc.defaultView;
-  const look = info.look;
-  const lookText = look ? posterLookText(info) : null;
-  const text = lookText
-    ? { title: lookText.title, sub: lookText.meta }
-    : posterText(info);
+  const text = posterText(info);
   const el = doc.createElement("div");
   el.className = "wc-poster";
   el.setAttribute("data-poster", "");
-  if (look) el.setAttribute("data-look", look);
 
   const screen = doc.createElement("div");
   screen.className = "wc-poster-screen";
@@ -316,16 +281,14 @@ export function mountPoster(
     }
     sub.hidden = parts.length === 0;
   };
-  fillSub(text.sub);
-  // A look: the description under the title (a centred block, its lines
-  // left-aligned), the small line at the foot beside the wordmark.
-  if (lookText?.description) {
+  fillSub(text.meta);
+  // The description under the title: a centred block, its lines left-aligned.
+  if (text.description) {
     const d = doc.createElement("p");
     d.className = "wc-poster-desc";
-    d.textContent = lookText.description;
+    d.textContent = text.description;
     top.appendChild(d);
   }
-  if (!look) top.appendChild(sub);
 
   const play = doc.createElement("button");
   play.type = "button";
@@ -345,12 +308,11 @@ export function mountPoster(
   glass.className = "wc-poster-glass";
   glass.setAttribute("aria-hidden", "true");
 
-  if (look) {
-    const foot = doc.createElement("footer");
-    foot.className = "wc-poster-foot";
-    foot.append(sub, logo);
-    screen.append(top, play, foot, glass);
-  } else screen.append(top, play, logo, glass);
+  // The small line at the foot, beside the wordmark.
+  const foot = doc.createElement("footer");
+  foot.className = "wc-poster-foot";
+  foot.append(sub, logo);
+  screen.append(top, play, foot, glass);
   el.appendChild(screen);
 
   let up = true;
@@ -424,7 +386,11 @@ export function mountPoster(
     win?.removeEventListener("keyup", onKeyUp, true);
   }
 
+  // The player's control box is hidden while the poster is up (poster.css).
+  const html = doc.documentElement;
+  html.setAttribute(POSTER_UP, "");
   const remove = (fade: boolean): void => {
+    html.removeAttribute(POSTER_UP);
     if (held === null) unhold();
     const reduced =
       win?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? true;
@@ -460,11 +426,6 @@ export function mountPoster(
       up = false;
       remove(false);
     },
-    setLength: (ms) =>
-      fillSub(
-        look
-          ? posterLookText({ ...info, durationMs: ms }).meta
-          : posterText({ ...info, durationMs: ms }).sub,
-      ),
+    setLength: (ms) => fillSub(posterText({ ...info, durationMs: ms }).meta),
   };
 }
