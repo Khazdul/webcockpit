@@ -85,6 +85,13 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
 
+- Stage 73: the iPad's turn in fullscreen during a shared run is fixed
+  on emulation only (check on a real iPad); History's run log player on
+  an iPad may have the same stale-rectangle problem (not touched). The
+  poster's date is the recording's, the watch band's the publication's.
+  `phone-watch-lens.spec.ts` rewrites `docs/stages/img/71-*.png` on every
+  run (restore with `git checkout -- docs/stages/img`). The worker's
+  `follow` message and `client.follow()` are unused since stage 73.
 - Stage 8, carried since October, unchecked since: the map pane's
   default height, replay font subsetting, the player's paint after a long
   seek, JetBrains Mono exports without DejaVu fallback glyphs, the reel's
