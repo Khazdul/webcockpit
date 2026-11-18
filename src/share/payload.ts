@@ -145,6 +145,14 @@ export interface ReplayMap {
   streamsAsIs?: boolean;
   /** The exported tileset's dark / no-sundeath room tints, `#rrggbb` (ADR 0088 addendum); absent: MMapper's. */
   tints?: { dark: string; noSundeath: string };
+  /**
+   * The tileset whose tiles `files` holds, when the exporter says so (a
+   * share link's: `SHARED_TILESET`, ADR 0154 addendum 2026-11-18); absent:
+   * not said (an older payload, an HTML file). The watch page draws a
+   * payload whose tiles are not Desert's with Desert's
+   * (src/share/shared-tiles.ts).
+   */
+  tileset?: string;
 }
 
 /**

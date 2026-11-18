@@ -121,6 +121,8 @@ const IMAGE_URI = new RegExp(`^data:image/png;base64,${B64}$`);
 const FONT_URI = new RegExp(`^data:text/plain;base64,${B64}$`);
 const MM2 = new RegExp(`^${B64}$`);
 const HEX = /^#[0-9a-f]{6}$/i;
+/** A tileset id (src/map/tilesets.ts; not looked up: the replay draws the files, the id only says whose they are). */
+const TILESET_ID = /^[a-z0-9-]{1,40}$/;
 
 /**
  * Widest and tallest map image: the bundled tiles and font pages are at
@@ -220,6 +222,11 @@ function map(v: unknown, path: string): ReplayMap {
     const noSundeath = own(tints, 'noSundeath');
     if (typeof dark !== 'string' || !HEX.test(dark) || typeof noSundeath !== 'string' || !HEX.test(noSundeath)) fail(`${path}.tints`);
     out.tints = { dark, noSundeath };
+  }
+  const tileset = own(v, 'tileset');
+  if (tileset !== undefined) {
+    if (typeof tileset !== 'string' || !TILESET_ID.test(tileset)) fail(`${path}.tileset`);
+    out.tileset = tileset;
   }
   return out;
 }
