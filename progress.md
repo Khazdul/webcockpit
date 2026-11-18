@@ -76,6 +76,7 @@
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 | 71 | The shared replay with the lens | Done, released 0.18.0 | `docs/stages/71-shared-replay-lens.md` |
 | 72 | Hall of Fame logs in Discord #log-status | Done, released 0.19.0 | `docs/stages/72-discord-log-status.md` |
+| 73 | The shared replay, round 2 | In progress | `docs/stages/73-shared-replay-round-2.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
