@@ -42,7 +42,7 @@
 // Community page (in the account pages' lazy chunk), and its counter ("3 new",
 // "99+ new") is src/cloud/community/counter.ts's, asked with the sync's
 // cadence while the menu is the top frame (`useCommunityRow`). The address
-// `<base>?community` (the watch page's Back for a run opened from the
+// `<base>?community` (the standalone watch page's Back, ADR 0163, for a run opened from the
 // Community page) opens the page on its kept view, the menu hidden until
 // it is there (start-arrival.ts); `?account` the Account page likewise.
 //
@@ -615,7 +615,7 @@ function takeStartQuery(name: string): string | null {
   return value;
 }
 
-// `<base>?community` (the watch page's Back for a run opened from the
+// `<base>?community` (the standalone watch page's Back, ADR 0163, for a run opened from the
 // Community page, src/watch/href.ts `backHref`): the page opens over the
 // menu on its kept view. The start page arrives on it (start-arrival.ts,
 // ADR 0155 addendum 2026-11-18): the menu waits hidden, and the flags and
@@ -629,7 +629,7 @@ function useCommunityAddress(open: (restore: boolean) => void): void {
   }, []);
 }
 
-// `<base>?account` and `<base>?account=published` (the watch page's Back
+// `<base>?account` and `<base>?account=published` (the standalone watch page's Back
 // for a run opened from the Account page or its Published runs view,
 // src/watch/href.ts `backHref`, ADR 0155 W1): that page opens over the
 // menu once the account's state is known, logged in only (else the menu

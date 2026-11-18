@@ -3,6 +3,12 @@
 // hook `?cloudtest`). Tiny and without imports, so the Community page, the
 // Account page's Published runs and the watch page share it without
 // pulling each other's chunks.
+//
+// Since stage 74 A (ADR 0163) a run opened from those pages is a frame on
+// the start surface: `watchHref` is the address it shows by
+// `history.pushState` (src/watch/embed.tsx), and its Back is the browser's.
+// `backHref` is the standalone page's Back (a bare link, a reload on a
+// run's address): a page load.
 
 /** Where a run's watch page was opened from: its Back goes there again. */
 export type WatchFrom = 'community' | 'account' | 'published';
@@ -24,7 +30,7 @@ export function watchHref(id: string, from: WatchFrom, base: string = siteBase()
 }
 
 /**
- * The watch page's Back for a run opened from `view`: `<base>?community`,
+ * The standalone watch page's Back for a run opened from `view`: `<base>?community`,
  * `<base>?account` or `<base>?account=published`, which the start page
  * takes once (start-main.tsx `takeStartQuery`).
  */

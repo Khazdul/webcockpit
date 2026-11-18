@@ -8,6 +8,10 @@
 // 0154 "As built (C2)"); for the same reason it imports the exporter and
 // the frame host statically and writes two of the contract's values out
 // (model.ts). (Since W1 only the frame host: Download as HTML is gone.)
+// (Since stage 74 A the account pages' chunk imports the page too, for the
+// embedded mount below, so the bundler keeps it in the kit's shared chunk,
+// which the chrome chunk imports: it loads with the chrome chunk as before,
+// and the start page's static chunks are the same bytes; ADR 0163.)
 //
 // The band (the app's own DOM, every value as text): the title, then the
 // character (no level: ADR 0155 W1), length, date, views and "shared by",

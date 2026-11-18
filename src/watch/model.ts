@@ -270,7 +270,7 @@ export function commentFailText(status: number, code: string): string {
 }
 
 /**
- * Where the watch page's Back goes (stage 65): to the Account page or its
+ * Where the standalone watch page's Back goes (stage 65): to the Account page or its
  * Published runs view when the run was opened from there (`?from=account`,
  * `?from=published`, ADR 0155 W1, what `watchHref` puts in the address);
  * else to the start page's Community: a run opened from it
