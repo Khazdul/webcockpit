@@ -123,7 +123,9 @@ run log player and Spotlights are untouched, as in stage 71.
   tiles before the frame gets it, so runs already published show it too;
   links keep storing the small default tiles (embedding Desert measured
   +2.9 MB per link: dropped). ADR 0154 addendum 2026-11-18.
-- [ ] D. Merge, full e2e alone, review.
+- [x] D. Merge, full e2e alone, review. Full e2e at 5 workers alone:
+      1959 passed, 3 failed (group-pane, windows, watch-page fullscreen;
+      6/6 rerun alone: load). Review: no high findings, four small ones fixed.
       Review fixes (2026-11-18): (1) the desk lens keeps its box in the
       cockpit while Map is off (the cockpit places no map then), so Map on
       lays the map straight into the lens, never docked or floating for a
@@ -134,11 +136,37 @@ run log player and Spotlights are untouched, as in stage 71.
       swallows the auto-repeats of the Space/Enter that started the run
       until its keyup (unit in `replay-poster.test.ts`); (4) `openReplay`
       takes the poster away when the player fails to open, and rethrows.
-- [ ] E. Staging deploy, `test:prod` on staging.
+- [x] E. Staging deploy (run 44332944655), `test:prod` 36/36 on staging
+      (a first run straight after the deploy failed 9, two reruns 36/36).
 - [ ] F. The owner's test on staging; release on his word.
 
 ## Test guide
 
-(Written when the build is on staging.)
+Open a shared run on staging: a Hall of Fame log in the Community, or a
+share link `/r/<id>`.
+
+1. **The poster.** The log window opens behind a glass "TV screen" with the
+   title at the top, a large play ring in the middle and the MUME Cockpit
+   logo at the bottom right. A click (or Enter/Space) starts the run.
+2. **The tileset.** The map is drawn in Desert, also for logs published
+   before today.
+3. **Desktop lens.** No icons on the lens. Drag it anywhere to move it;
+   the rim still resizes. Four dots at the bottom centre choose the zoom
+   (the wheel steps them too). It sits a little lower than before.
+   Group, Timers and Map are in the player box's Panes popup: Map on,
+   the other two off at the start.
+4. **The map bug.** Play a while (in the browser where it happened): the
+   map must never show outside the circle.
+5. **Phone and tablet.** No fight card. The player box floats at the
+   bottom right over the log and hides after a few seconds of play; a tap
+   on the log brings it back. On a phone the lens is larger.
+6. **iPad.** Fullscreen, play, turn portrait → landscape: the whole box
+   stays inside the window.
+7. **Back.** From a log opened in the Community, Back goes straight to
+   the Community without the start menu in between.
+
+Feedback wanted: the poster's look, the lens's size and place and the
+zoom levels, the phone box, and whether the map bug and the iPad bug are
+gone.
 
 ## Owner feedback
