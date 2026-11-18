@@ -116,6 +116,12 @@ export interface MorphStageOptions {
   proxy(): HTMLElement | null;
   /** A large box covers ≥ 85 % of the view (or no longer does). */
   onCalm(calm: boolean): void;
+  /**
+   * No morph and no hold now (the start page's arrival on a page,
+   * src/chrome/start-arrival.ts): a frame change shows the new frame at
+   * once and hides the old one. Default: never.
+   */
+  still?(): boolean;
 }
 
 /** The start surface's morph controller (one per surface). */
@@ -156,6 +162,7 @@ export class MorphStage {
    * mounted until the proxy has taken over.
    */
   hold(dir: 'push' | 'pop'): number {
+    if (this.o.still?.()) return 0;
     const ms = morphHold(kindOf(this.cur), dir, reducedMotion());
     return ms > 0 ? ms + HOLD_SLACK : 0;
   }
@@ -201,7 +208,8 @@ export class MorphStage {
     this.cancel(host);
     const box = host.box?.el ?? null;
     const to: MorphEnd | null = box ? { kind: kindOf(host), rect: rectOf(box), hood: hoodWidth(box) } : { kind: kindOf(host), rect: null };
-    const plan = morphPlan(from, to, reduced);
+    // Still (an arrival): no `from`, so the plan is none.
+    const plan = morphPlan(this.o.still?.() ? null : from, to, reduced);
     this.last = plan;
     this.stopFlight();
     this.run(plan, prev, host, from);

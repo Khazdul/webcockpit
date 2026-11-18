@@ -157,6 +157,20 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   transition: color 2.5s, text-shadow 2.5s, opacity 0.35s 0.92s;
 }
 
+/* The arrival on a page (`?community`, `?account`: the watch page's Back;
+ * src/chrome/start-arrival.ts, ADR 0155 addendum 2026-11-18): the menu and
+ * the scenery wait hidden over the sky until the page is pushed, and the
+ * scenery takes the page's place without its transitions. */
+.wc-start.is-arriving .wc-start-main,
+.wc-start.is-arriving .wc-start-scenery {
+  visibility: hidden;
+}
+
+.wc-start.is-arriving .wc-start-brand,
+.wc-start.is-arriving .wc-start-almanac {
+  transition: none !important;
+}
+
 /* The client notices (ADR 0025): small glass pills at the top right. */
 .wc-start-pills {
   position: absolute;

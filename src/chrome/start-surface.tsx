@@ -32,6 +32,11 @@
 // and mounted again when it shows; it pauses while the document is hidden
 // or an old-look frame covers it.
 //
+// The arrival on a page (`?community`, `?account`: the watch page's Back,
+// src/chrome/start-arrival.ts, ADR 0155 addendum 2026-11-18): until the page
+// asked for is pushed, the menu and the scenery wait hidden over the sky
+// (`is-arriving`), and the morph and the hold are off.
+//
 // Enter MUME's transition (`leaving`, src/chrome/enter-transition.ts): the
 // page stays visible over the cockpit while its scenery fades away, the sky zooms and it fades; the
 // sky keeps running, the frame stack lets go of the keys and the focus
@@ -58,6 +63,7 @@ import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { FrameStack, useIsTopFrame } from './kit/stack';
 import { almanacLines } from './start-layout';
 import { LookHost, MorphCtx, MorphStage } from './start-morph';
+import { arriving, onArrival } from './start-arrival';
 import './start.css';
 
 // ------------------------------------------------------------------ sky
@@ -301,9 +307,15 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   // Layout B's morph between boxes, and the sky's rate behind a large box.
   const [calm, setCalm] = useState(false);
   const stage = useMemo(
-    () => new MorphStage({ root: () => ref.current, proxy: () => proxyRef.current, onCalm: setCalm }),
+    () => new MorphStage({ root: () => ref.current, proxy: () => proxyRef.current, onCalm: setCalm, still: arriving }),
     [],
   );
+  // The arrival on a page (`?community`, `?account`; start-arrival.ts): the menu and the scenery wait hidden.
+  const [arrive, setArrive] = useState(arriving);
+  useEffect(() => {
+    setArrive(arriving());
+    return onArrival(setArrive);
+  }, []);
   useEffect(() => () => stage.dispose(), [stage]);
   useEffect(() => stage.resized(), [stage, size.w, size.h]);
   const [pauses, setPauses] = useState(0);
@@ -429,7 +441,8 @@ export function StartSurface(p: StartSurfaceProps): VNode {
         (fromLarge ? ' is-from-large' : '') +
         (lookSmall && !covered ? ' is-tiny' : '') +
         (gridSmall && covered ? ' is-grid-small' : '') +
-        (p.leaving ? ' is-leaving' : '')
+        (p.leaving ? ' is-leaving' : '') +
+        (arrive ? ' is-arriving' : '')
       }
       ref={ref}
       hidden={!p.visible}

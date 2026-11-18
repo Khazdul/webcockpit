@@ -97,7 +97,11 @@ run log player and Spotlights are untouched, as in stage 71.
       `tests/e2e/phone-watch-box.spec.ts`; screenshots
       `docs/stages/img/73-b-*.png`.
 - [ ] C. The poster: point 11.
-- [ ] D2. The watch page's Back goes straight to the Community (point 12).
+- [x] D2. The watch page's Back goes straight to the Community (owner, 2026-11-18; point 12).
+  The start page loaded with `?community` / `?account…` holds its menu and
+  scenery hidden over the sky, morph and hold off, until the page is pushed
+  (3 s safety timeout); the flags and the chunk are asked at once. Branch
+  `stage-73d-watch-back`. ADR 0155 addendum 2026-11-18.
 - [ ] E2. Desert is the tileset of shared and published runs (point 13).
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
