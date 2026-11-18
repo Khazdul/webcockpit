@@ -78,3 +78,8 @@ In production, after the release (your word on each step):
 
 Feedback wanted: the wording of the post, and whether the avatar looks
 right in the channel.
+
+## Owner feedback
+
+- 2026-11-18: the first post in #log-status ("Moria e-gate battle") looks
+  OK. Stage done.

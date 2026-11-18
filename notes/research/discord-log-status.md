@@ -1,6 +1,6 @@
 # Hall of Fame logs in MUME's Discord #log-status
 
-2026-11-17. Investigation only; nothing built. Waiting for Nazgum's answer.
+2026-11-17. Investigation. Built as stage 72 (webhook, ADR 0161), live 2026-11-18.
 
 ## What we know
 
@@ -41,7 +41,7 @@
 - Every log listed in the Hall of Fame goes in the flow (not only those
   with five votes). Unlisted share links never do.
 
-## Status
+## Status (done: stage 72, ADR 0161)
 
 - The owner sent Nazgum a DM (2026-11-17) asking how it works and whether
   we may join. Next: act on the answer.
