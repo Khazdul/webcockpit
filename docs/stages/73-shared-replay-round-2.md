@@ -62,7 +62,23 @@ run log player and Spotlights are untouched, as in stage 71.
 
 - [ ] A. Desktop: the bug (1), points 2–6. ADR 0160 addendum.
 - [ ] B. Phone and tablet: points 7–10.
-- [ ] C. The poster: point 11.
+- [x] C. The poster: point 11 (branch `stage-73c-poster`, ADR 0162).
+  `src/replay/poster.ts` + `poster.css`, mounted by `openReplay(…,
+  { poster: true })` from the frame and the exported file: a glass tube
+  face (vignette, scanlines, glare; CSS only), the title in Cinzel at the
+  top, the character, date and played length under it, an amber play ring
+  in the middle, the wordmark (drawn from the start page's glyphs, no
+  style attributes: the frame's CSP) at the bottom right. The run waits
+  paused at its start; a click or tap anywhere, Enter or Space plays it;
+  other keys are swallowed while it is up. E2e specs that drive a shared
+  run click it away first (`startRun`, tests/e2e/watch-page.ts).
+  Screenshots `img/73-c-desktop.png`, `img/73-c-phone-portrait.png`,
+  `img/73-c-phone-landscape.png`. Runtime: `replay/replay.js` 1,666,034 →
+  1,679,518 B (+13.5 KB, +5.0 KB gzip); `r/frame.html` 1,668.7 → 1,682.0 kB.
+  Tests: unit 5567 passed; e2e of the touched and the replay, watch,
+  sandbox, share, community, export and phone specs (Chromium, Firefox,
+  phone) 192 passed, 1 skipped, 0 failed. Note: the poster's date is the
+  recording's (as the replay header), the band's is the publication's.
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.
