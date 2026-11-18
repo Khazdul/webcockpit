@@ -183,14 +183,24 @@ Round 1 (2026-11-18, on staging):
    in a shared run. `touchFloat` (now a flag) means no header; the host's
    `headOf` is gone. History's run log player keeps its header.
    `phone-watch-box` asserts there is none.
-3. [ ] The poster: the log's title at the top (not the character's name),
+3. [x] The poster: the log's title at the top (not the character's name),
    its description under it (a centred block, left-aligned lines), the
    character and the date smaller somewhere fitting. All text and the
    play icon white.
-4. [ ] The poster covers exactly the player's area, no visible border,
+4. [x] The poster covers exactly the player's area, no visible border,
    melting into the player. Three looks to compare: the TV, a plain glass,
    and a third of our choosing. **Mockups first; the owner picks and
    approves before the poster is changed.**
+
+   Points 3–4 done (branch `stage-73-poster-r1`, ADR 0162 addendum
+   "round 1"): three looks were mocked up (TV, glass, cinema); the owner
+   picked the plain glass with the cinema look's larger, wider title and
+   its layout. It is the one poster, in the frame and the exported file.
+   The publication's title and description reach the frame in `wc-play`'s
+   `meta` (plain text, capped: `frameMeta`). The player's control box is
+   hidden while the poster is up and shows when the run starts. Shots:
+   `img/73-c-desktop.png`, `img/73-c-phone-portrait.png`,
+   `img/73-c-phone-landscape.png`, `img/73-c-tablet-landscape.png`.
 
 The map outside the lens (point 1): seen in Firefox; the owner checked
 on staging (2026-11-18): it looks right now.

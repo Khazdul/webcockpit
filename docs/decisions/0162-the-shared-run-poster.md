@@ -96,3 +96,41 @@ holds the run paused at the start.
   outside it, and with the events stopped, nothing leaks.
 - **A canvas or WebGL CRT effect (barrel distortion).** Not cheap, not
   needed for a still screen; CSS gradients give the look.
+
+## Addendum 2026-11-18: round 1, the owner's pick
+
+The owner's round 1 on staging (stage 73, points 3 and 4) asked for the
+publication's words and a poster that melts into the player; three looks
+were mocked up (a TV face edge to edge, plain frosted glass, a film title
+card). The owner picked the glass with the title card's type. It is the
+poster's one look, in the frame and in the exported file; the mockups and
+their dev switch are gone.
+
+- **Area.** The layer covers exactly the frame's (or the file's) document:
+  no padding, no rounded face, no rim, no vignette at the edges. Frosted
+  glass: a 12 px backdrop blur with slight dimming and a faint cool tint,
+  a lighter top and a darker foot, one broad diagonal sheen. No scanlines,
+  no glare.
+- **Words, all white.** The title at the top in Cinzel Bold, larger and
+  more widely spaced than part C's (`letter-spacing: 0.07em`; smaller for
+  long titles, three lines at most). Under it the description: a block
+  centred on the layer, its lines left-aligned, in the mono face, at most
+  52 ch wide and five lines (two when the window is short). At the foot,
+  small: the character, the date and the played length at the left, the
+  wordmark at the right. The play ring, the triangle and "Play" are white
+  with a soft white glow.
+- **The title and the description.** On the watch page they are the
+  publication's (the run's meta): `openFrame` posts them in `wc-play`'s
+  `meta: {title, description}` (protocol 1; an older frame ignores the
+  field). The frame takes them through `frameMeta` (src/replay/frame.ts):
+  strings only, control and bidi characters dropped, the title on one
+  line, the description keeping its line breaks (at most one empty line
+  in a row), capped at 400 and 2000 characters (the pub API's limits),
+  and the poster shows them with `textContent` only. Without a meta title
+  the payload's title is used. The exported file has its own export title
+  and no description.
+- **The control box.** While the poster is up the player's control box is
+  hidden (`visibility: hidden`, not even blurred under the glass): the
+  poster sets `data-poster-up` on `<html>` and removes it when the run
+  starts or the poster is disposed, and the box shows as usual. The lens
+  and the rest of the player stay under the glass.

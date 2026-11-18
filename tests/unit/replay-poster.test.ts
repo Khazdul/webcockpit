@@ -9,9 +9,15 @@ import {
   mountPoster,
   posterLength,
   posterLogo,
+  POSTER_UP,
   posterText,
   titleSize,
 } from "../../src/replay/poster";
+import {
+  FRAME_DESC_MAX,
+  FRAME_TITLE_MAX,
+  frameMeta,
+} from "../../src/replay/frame";
 import { defaultSettings } from "../../src/settings";
 import { defaultExportDoc } from "../../src/share/edits";
 import {
@@ -56,7 +62,8 @@ describe("the poster’s words", () => {
       }),
     ).toEqual({
       title: "A fight",
-      sub: ["Rasta", "2026-09-26", "1 h 15 min"],
+      description: "",
+      meta: ["Rasta", "2026-09-26", "1 h 15 min"],
     });
   });
 
@@ -68,7 +75,7 @@ describe("the poster’s words", () => {
         startUs: 0,
         durationMs: 0,
       }),
-    ).toEqual({ title: "Rasta", sub: [] });
+    ).toEqual({ title: "Rasta", description: "", meta: ["Rasta"] });
     expect(
       posterText({ title: "", character: "", startUs: 0, durationMs: 0 }).title,
     ).toBe("MUME");
@@ -139,6 +146,17 @@ describe("openReplay with the poster", () => {
     expect(sub.at(-1)).toMatch(/min$/);
   });
 
+  it("hides the player's control box while it is up (the attribute on <html>), until the run starts", () => {
+    const { page } = open();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(true);
+    page.poster!.start();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(false);
+    const p = mountPoster(document, { title: "x", character: "", startUs: 0, durationMs: 0 }, () => {});
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(true);
+    p.dispose();
+    expect(document.documentElement.hasAttribute(POSTER_UP)).toBe(false);
+  });
+
   it("a click anywhere on it takes it away and plays", () => {
     const { page } = open();
     (document.querySelector(".wc-poster-title") as HTMLElement).click();
@@ -202,5 +220,81 @@ describe("openReplay with the poster", () => {
     expect(page.poster).toBeNull();
     expect(document.querySelector(".wc-poster")).toBeNull();
     expect(page.host.engine!.playing).toBe(true);
+  });
+});
+
+// ADR 0162 round 1: the owner's pick (frosted glass, the title card's
+// words), and the publication's words the watch page sends the frame.
+describe("the poster’s round 1 words", () => {
+  it("has the description, trimmed, and the character, date and length at the foot", () => {
+    expect(
+      posterText({
+        title: "A fight",
+        character: "Rasta",
+        startUs: START,
+        durationMs: 4_500_000,
+        description: "  Two lines\nof it. ",
+      }),
+    ).toEqual({
+      title: "A fight",
+      description: "Two lines\nof it.",
+      meta: ["Rasta", "2026-09-26", "1 h 15 min"],
+    });
+  });
+
+  it("builds the description and the foot as text, no style attributes", () => {
+    const p = mountPoster(
+      document,
+      {
+        title: "A fight",
+        character: "Rasta",
+        startUs: START,
+        durationMs: 0,
+        description: "<i>x</i>",
+      },
+      () => {},
+    );
+    posters.push(p);
+    expect(p.el.querySelector(".wc-poster-desc")!.textContent).toBe("<i>x</i>");
+    expect(p.el.querySelector("i")).toBeNull();
+    expect(p.el.querySelector(".wc-poster-foot .wc-poster-sub")!.textContent).toBe(
+      "Rasta2026-09-26",
+    );
+    expect(p.el.querySelector(".wc-poster-foot .wc-poster-logo")).not.toBeNull();
+    expect(p.el.querySelectorAll("[style]")).toHaveLength(0);
+  });
+
+  it("the frame takes the meta as plain, capped text", () => {
+    expect(frameMeta(undefined)).toEqual({ title: "", description: "" });
+    expect(frameMeta({ title: 5, description: ["x"] })).toEqual({ title: "", description: "" });
+    const m = frameMeta({
+      title: "  A‮bad\u0007\n title ",
+      description: "One\r\n\n\n\n\u0000two⁦ ",
+    });
+    expect(m).toEqual({ title: "Abad title", description: "One\n\ntwo" });
+    const long = frameMeta({ title: "x".repeat(5000), description: "y".repeat(9000) });
+    expect(long.title).toHaveLength(FRAME_TITLE_MAX);
+    expect(long.description).toHaveLength(FRAME_DESC_MAX);
+  });
+
+  it("openReplay shows the publication's title over the payload's, and the payload's without one", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const a = openReplay(document, root, payload("Export title"), {
+      wall: new FakeWall(),
+      poster: { title: "Published title", description: "Notes." },
+    });
+    posters.push(a.poster!);
+    expect(a.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Published title");
+    expect(a.poster!.el.querySelector(".wc-poster-desc")!.textContent).toBe("Notes.");
+    a.host.dispose();
+    a.poster!.dispose();
+    const b = openReplay(document, root, payload("Export title"), {
+      wall: new FakeWall(),
+      poster: true,
+    });
+    posters.push(b.poster!);
+    expect(b.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Export title");
+    expect(b.poster!.el.querySelector(".wc-poster-desc")).toBeNull();
   });
 });

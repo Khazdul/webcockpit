@@ -23,7 +23,8 @@
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
 // `wc-play`, the payload's bytes and the fonts transferred, and `prefs`:
 // `{paused: true}` unless `paused: false` is asked, so the replay starts
-// paused, ADR 0155 W1), `wc-error` and `wc-fullscreen`.
+// paused, ADR 0155 W1; and `meta`, the publication's title and description
+// for the poster, ADR 0162 round 1), `wc-error` and `wc-fullscreen`.
 //
 // Fullscreen: `allow="fullscreen *"`, not the attribute's default `'src'`
 // (the origin of the frame's URL): the sandbox makes the frame's origin
@@ -64,6 +65,8 @@ export interface FrameHostOptions {
   onError?: (text: string) => void;
   /** The frame has the payload (after `wc-play` is posted). */
   onPlay?: () => void;
+  /** The publication's words for the poster (its meta; stage 73 round 1). */
+  meta?: { title: string; description: string };
   /** The replay starts paused (default true: the watch page's, ADR 0155 W1); Play or Space in the frame starts it. */
   paused?: boolean;
 }
@@ -156,7 +159,8 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
         const target = frame.contentWindow;
         if (!target) return;
         const prefs = { paused: o.paused !== false };
-        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs }, '*', [bytes, ...list.map((x) => x.data)]);
+        const meta = o.meta ? { title: o.meta.title, description: o.meta.description } : undefined;
+        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs, ...(meta ? { meta } : {}) }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
       });
     } else if (d.t === 'wc-error') {

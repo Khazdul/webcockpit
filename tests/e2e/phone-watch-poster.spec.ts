@@ -1,6 +1,8 @@
-// Stage 73 point 11 (ADR 0162) on a phone: the shared run opens under its
-// poster in portrait and in landscape; a tap anywhere on it plays the run
-// in the phone's layout. The desktop's are in watch-poster.spec.ts.
+// Stage 73 point 11 (ADR 0162 and its round 1 addendum) on a phone and a
+// tablet: the shared run opens under its poster in portrait and in
+// landscape; the player's control box is hidden under it; a tap anywhere
+// on it plays the run in the phone's layout. The desktop's are in
+// watch-poster.spec.ts.
 //
 // `phone` project (Pixel 7), the watch page's frame.
 import { type Page, expect, test } from "@playwright/test";
@@ -22,6 +24,7 @@ const playingInFrame = (page: Page): Promise<boolean> =>
 for (const [name, size] of [
   ["portrait", { width: 412, height: 839 }],
   ["landscape", { width: 839, height: 412 }],
+  ["tablet-landscape", { width: 1180, height: 820 }],
 ] as const) {
   test(`phone ${name}: the poster covers the run; a tap plays it in the phone layout`, async ({
     page,
@@ -54,7 +57,11 @@ for (const [name, size] of [
       expect(e.x + e.width).toBeLessThanOrEqual(f.x + f.width + 0.5);
       expect(e.y + e.height).toBeLessThanOrEqual(f.y + f.height + 0.5);
     }
-    await page.screenshot({ path: `docs/stages/img/73-c-phone-${name}.png` });
+    await expect(p.locator(".wc-poster-desc")).toBeVisible();
+    await expect(replay(page).locator(".wc-player-box")).toBeHidden();
+    await page.screenshot({
+      path: `docs/stages/img/73-c-${name.startsWith("tablet") ? name : `phone-${name}`}.png`,
+    });
     expect(await playingInFrame(page)).toBe(false);
     // A tap on the lens's place hits the poster, not the lens (the layer is on top).
     const lens = (await replay(page).locator(".wc-ph-lens").boundingBox())!;
@@ -68,6 +75,7 @@ for (const [name, size] of [
       replay(page).locator(".wc-cockpit[data-phone-game]"),
     ).toBeVisible();
     await expect(replay(page).locator(".wc-ph-lens")).toBeVisible();
+    await expect(replay(page).locator(".wc-player-box")).toBeVisible();
     // The lens's panes key was not pressed by that tap.
     await expect(
       replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="panes"]'),

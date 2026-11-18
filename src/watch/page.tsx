@@ -206,6 +206,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       container: box,
       bytes,
       base: siteBaseUrl(),
+      meta: { title: meta.title, description: meta.description },
       onPlay: () => {
         if (!alive) return;
         setPlaying(true);
