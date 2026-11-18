@@ -7,9 +7,17 @@
  * page's still sky behind (painted on `.wc-watch` by the page), the start
  * menu's large sub-page frame around everything (`.wc-watch-box`, the kit's
  * `.wc-lk-box-large` in a scrolling page), the stars in the band, the
- * comments under the replay (round13/build/mock.css `mk-rate`, `mk-cm*`). */
+ * comments under the replay (round13/build/mock.css `mk-rate`, `mk-cm*`).
+ *
+ * Stage 74 A (ADR 0163): the same page is also a frame on the start
+ * surface (src/watch/embed.tsx). `.wc-watch` is then the page's own root
+ * (`.wc-watch-page.wc-watch.wc-watch-emb`, filling its frame, which fills
+ * the surface) and the live sky is behind; standalone it is the mount's
+ * host (`.wc-chrome.wc-watch`, below) with the still sky painted on it.
+ * Everything inside is laid out the same in both. */
 
-.wc-watch {
+/* The standalone mount's host. */
+.wc-chrome.wc-watch {
   position: fixed;
   inset: 0;
   background: #0b0908;
@@ -716,9 +724,26 @@ html.wc-phone #app.wc-watch-app {
     column-gap: 18px;
   }
 
-  /* The band and the replay become the window's grid items. */
+  /* The band and the replay are placed on the window's grid: the screen
+   * spans it all and hands its tracks on (a subgrid), the comments lie over
+   * its second row. A box of its own, not `display: contents`: on the start
+   * surface the morph fades the window's children in and out (stage 74 A),
+   * and an element without a box cannot fade. */
   .wc-watch-screen {
-    display: contents;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+    height: auto;
+    min-height: 0;
+  }
+
+  /* A browser without subgrid: as before stage 74 (no fade of its own). */
+  @supports not (grid-template-columns: subgrid) {
+    .wc-watch-screen {
+      display: contents;
+    }
   }
 
   .wc-watch-screen > .wc-watch-slot {

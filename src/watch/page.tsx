@@ -27,11 +27,11 @@
 //
 // The replay starts paused (ADR 0155 W1): the frame host asks the frame
 // for it (`prefs.paused`); Play or Space in the frame starts it. A view
-// is counted once per page load when the frame has the run (the
+// is counted once per mount of the page when the frame has the run (the
 // statistics' device id; one is made if there is none).
 //
 // Keys (outside the frame; a click in the replay gives it the keys):
-// S Share, R Report, B Back.
+// S Share, R Report, B Back (embedded, Esc too).
 //
 // Stage 65 C2 (round 13's pick 3a with the owner's change, ADR 0155 "As
 // built (stage 65 C2)"): the page sits inside the start page's look: the
@@ -51,11 +51,39 @@
 // replay has the window's height (watch.css, CSS only: the same DOM); a
 // narrower window and a phone keep the band on top. The details are
 // `.wc-watch-mi` pieces so the column breaks between them, never inside.
+//
+// Stage 74 A (ADR 0163): two mounts of the one page. Standalone, as above
+// (`startWatch`: a bare link `<base>r/<id>`, a reload on a run's address,
+// `?admin`). Embedded (`embedded`, src/watch/embed.tsx): a run opened from
+// the Community page or from Published runs is this page pushed as a frame
+// on the start surface's stack, over the live sky, with no page load. Its
+// box reports to the surface's morph as a large box (`WatchBox`), so the
+// iron frame grows and shrinks as for any other page; its Back (the button,
+// B, and Esc as on every sub-page) is the browser's Back
+// (src/watch/embed-session.ts), which pops the frame; the standalone-only
+// parts (the still sky, the root's class for good, the title for good) are
+// `startWatch`'s and are not installed. Everything else is the same code:
+// the frame host, fullscreen and the turn (the embedded page's root carries
+// the class `wc-watch` that they look for), the view count, Share, Report,
+// the stars, the comments and Log in's round trip.
 
 import './watch.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { Dialog, GlassButton, Icon, LoadBar, LookFlash, TextArea, inTextField, letterAction, lookFrame } from '../chrome/kit/look';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import {
+  BoxHostCtx,
+  Dialog,
+  GlassButton,
+  Icon,
+  LoadBar,
+  LookFlash,
+  SceneryCtx,
+  TextArea,
+  inTextField,
+  letterAction,
+  lookFrame,
+  useScenery,
+} from '../chrome/kit/look';
 import { FrameStack, useKeyLayer, useKeys, useNav } from '../chrome/kit/stack';
 import { accountState, accountsEnabled } from '../cloud/account/state';
 import { apiAllowed, configAnswer } from '../cloud/config';
@@ -106,7 +134,7 @@ function goStart(): void {
   location.assign(startUrl());
 }
 
-/** Back: the start page's Account page or Published runs when the run was opened from one, else its Community (stage 65). */
+/** The standalone page's Back: a page load to the start page's Account page or Published runs when the run was opened from one, else its Community (stage 65). */
 function goBack(): void {
   location.assign(backHref(backTarget(location.search), base()));
 }
@@ -135,14 +163,40 @@ function loggedInName(): string | null {
 
 // ------------------------------------------------------------ the page
 
+/** The page as a frame on the start surface (stage 74 A; src/watch/embed-session.ts `WatchSession`). */
+export interface WatchEmbed {
+  /** The run's frame is the one the address names (not being left). */
+  live(): boolean;
+  /** Back: the browser's, which pops the frame. */
+  back(): void;
+  /** The frame unmounted. */
+  gone(): void;
+}
+
 interface WatchProps {
   id: string;
   valid: boolean;
   admin: boolean;
+  /** On the start surface's stack (never with `admin`); none: the standalone page. */
+  embedded?: WatchEmbed;
 }
 
 export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   const nav = useNav();
+  const emb = p.embedded ?? null;
+  const back = emb ? emb.back : goBack;
+  // On the start surface: a large box's scenery (the wordmark lifted away), as the kit's Box asks for. Standalone: nobody listens.
+  useScenery('large');
+  useLayoutEffect(() => {
+    if (!emb) return;
+    // The app's root fills the window by CSS while the run shows, as the standalone page's does for good (watch.css; stage 73 round 3).
+    const app = document.getElementById('app');
+    app?.classList.add('wc-watch-app');
+    return () => {
+      app?.classList.remove('wc-watch-app');
+      emb.gone();
+    };
+  }, []);
   const [view, setView] = useState<View>({ k: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState<{ done: number; total: number } | null>(null);
@@ -183,7 +237,8 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       }
       if (!alive) return;
       if (!meta.ok) return set(failedView(meta, p.admin));
-      document.title = `${meta.value.title} · WebCockpit`;
+      // (Embedded: not once Back is on its way, which has put the start page's title back.)
+      if (!emb || emb.live()) document.title = `${meta.value.title} · WebCockpit`;
       set({ k: 'run', meta: meta.value, mode });
       const got = await fetchPayload(p.id, mode, (done, total) => alive && setLoad({ done, total }), meta.value.bytes);
       if (!alive) return;
@@ -219,7 +274,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
         if (!alive) return;
         setPlaying(true);
         made?.frame.focus();
-        // Once per page load, and only as anyone watches (not the sender's hidden run, not the admin).
+        // Once per mount of the page, and only as anyone watches (not the sender's hidden run, not the admin).
         if (mode === 'public' && !viewed.current) {
           viewed.current = true;
           void countView(meta.id, watchDevice(storage()));
@@ -306,21 +361,29 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
   useKeys((e, nk) => {
     // The comment field's keys are its own (Esc lets go of it: the stack's rule).
     if (inTextField(e.target)) return false;
-    if (nk === 'back') return true;
+    // Esc: Back on the start surface, as on every sub-page there; nothing on the standalone page.
+    if (nk === 'back') {
+      if (emb) back();
+      return true;
+    }
     if (view.k === 'end' || view.k === 'failed') {
-      return letterAction(e, { b: goBack, ...(view.k === 'failed' && view.retry ? { t: () => setAttempt((n) => n + 1) } : {}) }) || nk !== null;
+      return letterAction(e, { b: back, ...(view.k === 'failed' && view.retry ? { t: () => setAttempt((n) => n + 1) } : {}) }) || nk !== null;
     }
     return (
       letterAction(e, {
-        b: goBack,
+        b: back,
         ...(canReport ? { r: report } : {}),
         ...(canShare ? { s: share } : {}),
       }) || nk !== null
     );
   });
 
-  if (view.k === 'end') return <EndBox lines={END_WORDS[view.end]} />;
-  if (view.k === 'failed') return <EndBox lines={view.lines} retry={view.retry ? () => setAttempt((n) => n + 1) : undefined} />;
+  // The embedded page's root is the `.wc-watch` the frame host's turn handling and watch.css look for (standalone: the mount's host).
+  const rootClass = emb ? ' wc-watch wc-watch-emb' : '';
+  if (view.k === 'end') return <EndBox lines={END_WORDS[view.end]} onBack={back} rootClass={rootClass} />;
+  if (view.k === 'failed') {
+    return <EndBox lines={view.lines} retry={view.retry ? () => setAttempt((n) => n + 1) : undefined} onBack={back} rootClass={rootClass} />;
+  }
 
   const line = meta ? metaLine(meta) : null;
   const note =
@@ -340,9 +403,9 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       </p>
     ) : null;
   return (
-    <div class={'wc-lk-page wc-watch-page' + (social ? ' has-social' : '')} data-watch={playing ? 'playing' : 'loading'}>
+    <div class={'wc-lk-page wc-watch-page' + (social ? ' has-social' : '') + rootClass} data-watch={playing ? 'playing' : 'loading'}>
       <div class="wc-watch-outer">
-        <WatchBox>
+        <WatchBox onBack={back}>
           <div class="wc-watch-screen">
             <header class="wc-watch-band">
               <div class="wc-watch-id">
@@ -411,11 +474,21 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
  * The start menu's sub-page frame (the kit's large `Box`: the iron frame,
  * its brackets, the hood, Back at the top left, the lit window), drawn here
  * in the page's own scrolling layout rather than the Box's fixed one: the
- * window grows with the comments and the page scrolls.
+ * window grows with the comments and the page scrolls. On the start
+ * surface it reports itself to the morph as the kit's large box does
+ * (stage 74 A): it has the first view's size from its mount, whatever has
+ * loaded (watch.css), which is the rectangle the proxy flies to.
  */
-function WatchBox(p: { children: ComponentChildren }): VNode {
+function WatchBox(p: { onBack: () => void; children: ComponentChildren }): VNode {
+  const report = useContext(BoxHostCtx);
+  const ref = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (!report) return;
+    report(ref.current ? { el: ref.current, kind: 'large' } : null);
+    return () => report(null);
+  }, [report]);
   return (
-    <section class="wc-lk-box wc-lk-box-large wc-watch-box" aria-label="Shared log">
+    <section ref={ref} class="wc-lk-box wc-lk-box-large wc-watch-box" aria-label="Shared log">
       <i class="wc-lk-br wc-lk-b1" />
       <i class="wc-lk-br wc-lk-b2" />
       <i class="wc-lk-br wc-lk-b3" />
@@ -433,13 +506,17 @@ function WatchBox(p: { children: ComponentChildren }): VNode {
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => {
           e.stopPropagation();
-          goBack();
+          p.onBack();
         }}
       >
         <Icon name="back" />
         Back
       </button>
-      <div class="wc-lk-win wc-watch-win">{p.children}</div>
+      <div class="wc-lk-win wc-watch-win">
+        <SceneryCtx.Provider value={null}>
+          <BoxHostCtx.Provider value={null}>{p.children}</BoxHostCtx.Provider>
+        </SceneryCtx.Provider>
+      </div>
     </section>
   );
 }
@@ -466,9 +543,9 @@ function storage(): Storage | null {
 }
 
 /** A state without a run: a small box in the kit's dialog look, with Back to MUME Cockpit (and Try again). */
-function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | undefined }): VNode {
+function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | undefined; onBack: () => void; rootClass: string }): VNode {
   return (
-    <div class="wc-lk-page wc-watch-page is-end">
+    <div class={'wc-lk-page wc-watch-page is-end' + p.rootClass}>
       <section class="wc-lk-dialog wc-watch-endbox" aria-label="Shared log" data-watch="end">
         <i class="wc-lk-br wc-lk-b1" />
         <i class="wc-lk-br wc-lk-b2" />
@@ -484,7 +561,7 @@ function EndBox(p: { lines: readonly [string, string]; retry?: (() => void) | un
           </div>
           <div class="wc-lk-btns wc-lk-dialog-btns">
             {p.retry && <GlassButton id="RETRY" label="Try again" letter="t" onClick={p.retry} />}
-            <GlassButton id="BACK" label="Back to MUME Cockpit" letter="b" icon="back" primary onClick={goBack} />
+            <GlassButton id="BACK" label="Back to MUME Cockpit" letter="b" icon="back" primary onClick={p.onBack} />
           </div>
         </div>
       </section>
