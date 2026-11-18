@@ -1,7 +1,8 @@
 // Stage 71 (ADR 0160): a shared run on a phone or tablet plays in the
 // game's phone layout with the lens at the top right, always on. The lens
 // has the panes key (top left) and the fullscreen key (top right), no Comm
-// key. The control box (the docked bar) has neither Fullscreen nor Panes.
+// key. The control box has neither Fullscreen nor Panes (since stage 73 it
+// floats as on a computer: phone-watch-box.spec.ts).
 // The panes area is off at the start; the panes key opens it (at the top in
 // portrait, at the left in landscape), and a swipe goes between Group and
 // Timers.
@@ -49,7 +50,7 @@ for (const [name, size] of [
     expect(l.y).toBeLessThan(frame.y + frame.height / 3);
     // Its keys: panes and fullscreen, no Comm.
     expect(await lens.locator('.wc-ph-sat').evaluateAll((ks) => ks.map((k) => (k as HTMLElement).dataset.sat))).toEqual(['panes', 'fullscreen']);
-    // The docked bar: neither Fullscreen nor Panes.
+    // The control box: neither Fullscreen nor Panes.
     const bar = r.locator('.wc-player-box');
     await expect(bar.locator('.wc-pc-play')).toBeVisible();
     await expect(bar.locator('[data-act="extra"]')).toHaveCount(0);
