@@ -15,8 +15,11 @@ export interface ApiError {
  * `mume` (ADR 0155, addendum of 2026-11-17): the cron's fetch of MUME's war
  * page and MSSP probe, and the `mume` boxes of `GET /api/community`; on by
  * default, an emergency brake without a release.
+ * `discord` (stage 72, ADR 0161): the cron posts newly listed Hall of Fame
+ * logs to MUME's Discord #log-status (with the secret DISCORD_WEBHOOK_URL);
+ * off by default, the kill switch. The client does not use it.
  */
-export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes' | 'mume';
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes' | 'mume' | 'discord';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -85,7 +88,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume', 'discord'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;

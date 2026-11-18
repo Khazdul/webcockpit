@@ -146,7 +146,7 @@ describe('the flag, the secrets and GET /api/config', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('max-age=60');
     expect(await res.json()).toEqual({
-      flags: { stats: true, accounts: true, sync: true, runs: false, share: false, gallery: false, runes: false, mume: true },
+      flags: { stats: true, accounts: true, sync: true, runs: false, share: false, gallery: false, runes: false, mume: true, discord: false },
       turnstileSiteKey: '1x00000000000000000000AA',
       limits: DEFAULT_ACCOUNT_LIMITS,
       time: NOW,

@@ -110,6 +110,8 @@ export interface Env {
   FLAG_RUNES?: boolean | string;
   /** The default of the flag `mume` (ADR 0155, addendum of 2026-11-17): the cron's fetch and probe of MUME, and `mume` in `/api/community`. On in both environments. */
   FLAG_MUME?: boolean | string;
+  /** The default of the flag `discord` (stage 72, ADR 0161): the cron posts newly listed Hall of Fame logs to the webhook. Off in both environments. */
+  FLAG_DISCORD?: boolean | string;
   /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
   FILES?: R2;
   /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */
@@ -140,6 +142,12 @@ export interface Env {
   REPORT_MAIL_FROM?: string;
   /** The site's origin for the links in a mail (`https://mumecockpit.com`). Unset: the request's origin. */
   SITE_ORIGIN?: string;
+  /**
+   * A secret (production only): the Discord webhook of MUME's #log-status,
+   * `https://discord.com/api/webhooks/<id>/<token>` (worker/discord.ts).
+   * Without it, or when it is not such a URL, nothing is posted or deleted.
+   */
+  DISCORD_WEBHOOK_URL?: string;
 }
 
 /** What the Worker's own requests set (worker/turnstile.ts). */

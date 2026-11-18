@@ -56,6 +56,13 @@
     // cron's fetch of mume.org/news/war and its MSSP probe, and the boxes.
     // On; turned off from /admin as an emergency brake without a release.
     "FLAG_MUME": true,
+    // Hall of Fame logs in MUME's Discord #log-status (stage 72, ADR 0161):
+    // the 5-minute cron posts newly listed logs to the webhook and deletes
+    // the post when a log leaves the Hall of Fame. The kill switch; off
+    // until the owner's word. The webhook is the secret DISCORD_WEBHOOK_URL
+    // (production only, `wrangler secret put DISCORD_WEBHOOK_URL`), never
+    // here; without it nothing is posted or deleted.
+    "FLAG_DISCORD": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -131,6 +138,8 @@
         "FLAG_GALLERY": true,
         "FLAG_RUNES": true,
         "FLAG_MUME": true,
+        // Off; staging has no DISCORD_WEBHOOK_URL and never posts (ADR 0161).
+        "FLAG_DISCORD": false,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
