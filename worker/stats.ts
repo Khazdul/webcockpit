@@ -23,6 +23,7 @@ import {
 } from '../shared/cloud/api.ts';
 import { pruneAttempts } from './attempts.ts';
 import { adminFlags, flags } from './flags.ts';
+import { discordTick } from './discord.ts';
 import { flushReportMail } from './mail.ts';
 import { refreshMume } from './mume.ts';
 import { DAY_MS, type D1, type Deps, type Env, dayStart, isOneOf, utcDay } from './runtime.ts';
@@ -374,7 +375,13 @@ export async function runCron(env: Env, cron: string, time: number, deps?: Deps)
         // MUME's lists and player count, every 15 minutes (worker/mume.ts;
         // skips while mume_cache does not exist, never throws). Not at all
         // with the flag `mume` off (ADR 0155, addendum of 2026-11-17).
-        if (deps && (await flags(env, time)).mume) await refreshMume(deps, db, time);
+        try {
+          if (deps && (await flags(env, time)).mume) await refreshMume(deps, db, time);
+        } finally {
+          // Hall of Fame logs in Discord's #log-status (worker/discord.ts,
+          // ADR 0161): nothing without the secret; never throws.
+          if (deps) await discordTick(env, deps, time);
+        }
       }
     }
   }
