@@ -75,7 +75,11 @@ run log player and Spotlights are untouched, as in stage 71.
 - [ ] B. Phone and tablet: points 7–10.
 - [ ] C. The poster: point 11.
 - [ ] D2. The watch page's Back goes straight to the Community (point 12).
-- [ ] E2. Desert is the tileset of shared and published runs (point 13).
+- [x] E2. Desert is the tileset of shared and published runs (owner,
+  2026-11-18; point 13). The watch page retiles any payload not in Desert
+  before the frame gets it (runs already published too); new links embed
+  Desert (+2.9 MB on the demo), the default tiles when Desert would pass
+  the 5 MiB limit. ADR 0154 addendum 2026-11-18.
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.
