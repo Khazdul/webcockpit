@@ -150,21 +150,25 @@ function expectSharedLook(page: ReturnType<typeof open>) {
   const controls = page.host.viewerControls(false);
   const list = controls.panes!.list();
   expect(list.map((x) => x.id)).toEqual([...SHARED_PANES]);
-  expect(list.every((x) => !x.on)).toBe(true);
+  // On a computer the map is the lens, on at the start (stage 73); Timers and Group are off.
+  expect(list.map((x) => `${x.id}:${x.on}`)).toEqual(['timers:false', 'group:false', 'map:true']);
   const s = appSettings(page);
-  for (const id of PANE_IDS) expect(s.panes[id].on).toBe(false);
+  for (const id of PANE_IDS) expect(s.panes[id].on).toBe(id === 'map');
   expect(page.host.scriptPaneIds).toEqual([]);
   expect(page.host.app!.cockpit.scriptPanes()).toHaveLength(0);
   // A pane turned on shows; nothing else does.
-  controls.panes!.toggle('map');
+  controls.panes!.toggle('timers');
   const after = appSettings(page);
-  expect(after.panes.map.on).toBe(true);
-  for (const id of PANE_IDS) if (id !== 'map') expect(after.panes[id].on).toBe(false);
-  expect(controls.panes!.list().find((x) => x.id === 'map')!.on).toBe(true);
+  expect(after.panes.timers.on).toBe(true);
+  for (const id of PANE_IDS) if (id !== 'timers' && id !== 'map') expect(after.panes[id].on).toBe(false);
+  expect(controls.panes!.list().find((x) => x.id === 'timers')!.on).toBe(true);
+  // The map (the lens) turned off.
+  controls.panes!.toggle('map');
+  expect(appSettings(page).panes.map.on).toBe(false);
 }
 
 describe('the replay of a shared run', () => {
-  it('lists Map, Timers and Group, all off; one turned on shows', () => {
+  it('lists Map, Timers and Group, the map (the lens) on; one turned on shows', () => {
     const page = open(build());
     expectSharedLook(page);
     page.host.dispose();

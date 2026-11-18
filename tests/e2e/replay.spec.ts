@@ -98,6 +98,22 @@ async function openFile(browser: Browser, html: string, path: string): Promise<{
 const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
 
+/** Turns pane `id` on or off with its row in the control box's Panes popup (and closes the popup). */
+async function paneToggle(page: Page, id: string, on: boolean): Promise<void> {
+  const box = chrome(page).locator('.wc-player-box');
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  await page.mouse.move(400, 400);
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeVisible();
+  expect(await pop.locator('[data-pane]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.pane))).toEqual(['timers', 'group', 'map']);
+  const row = pop.locator(`[data-pane="${id}"]`);
+  await expect(row).toHaveAttribute('aria-checked', String(!on));
+  await row.click();
+  await expect(row).toHaveAttribute('aria-checked', String(on));
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeHidden();
+}
+
 test('the HTML replay plays from file:// with no network and no storage', async ({ page, browser }, info) => {
   const { html, cut } = await buildHtml(page, true);
   // One file: doctype, GPL notice, fonts inline, payload, script; nothing fetched.
@@ -124,16 +140,15 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   await expect(chrome(p).locator('.wc-pv-back, .wc-lk-back')).toHaveCount(0);
   await expect(chrome(p).locator('.wc-player-clock')).toHaveText(/^\d\d:\d\d \/ 02:02$/);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
-  // A shared run (stage 71, ADR 0160): the map is the lens, always on; Group and Timers off at the
-  // start, turned on by the lens's keys; the box has Fullscreen and no Panes.
+  // A shared run (stage 71, ADR 0160; stage 73): the map is the lens, on at the start; Group and
+  // Timers off. The box's Panes popup has the three (Map on), and Fullscreen.
   await expect(player(p).locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
   await expect(player(p).locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
   await expect(player(p).locator('.wc-dl')).toBeVisible();
-  await expect(chrome(p).locator('.wc-player-box [data-act="panes"]')).toHaveCount(0);
-  await player(p).locator('.wc-dl-key[data-key="timers"]').click();
+  await paneToggle(p, 'timers', true);
   await expect(player(p).locator('.wc-pane[data-pane="timers"]')).toBeVisible();
   await expect(player(p).locator('.wc-pane[data-pane]:visible')).toHaveCount(2);
-  await player(p).locator('.wc-dl-key[data-key="timers"]').click();
+  await paneToggle(p, 'timers', false);
   await expect(player(p).locator('.wc-pane[data-pane="timers"]')).toBeHidden();
   // The kind-icon markers and the A2 chrome, from the file alone (nothing fetched).
   expect(await chrome(p).locator('.wc-player-mark').evaluateAll((ms) => ms.map((m) => (m as HTMLElement).dataset.kinds))).toEqual(['AL', 'K', 'D']);

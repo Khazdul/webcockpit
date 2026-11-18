@@ -57,9 +57,9 @@ test('a guest watches a seeded run: no start page, the band, the replay, one vie
 // Stage 65 (owner's feedback 13): a shared run shows Map, Timers and Group
 // only; a payload published before that (Comm, UI and a script pane on,
 // their records in it) plays the same way. Stage 71 (ADR 0160): the map is
-// the lens, always on; Group and Timers off at the start, turned on and
-// off by the lens's keys; the box has no Panes and keeps Fullscreen.
-test('a published run plays with the map lens only; Group and Timers are the lens\'s keys; nothing else shows', async ({ page }) => {
+// the lens; stage 73: on at the start, Group and Timers off, the three in
+// the box's Panes popup, beside Fullscreen.
+test('a published run plays with the map lens only; the Panes popup has Timers, Group and Map; nothing else shows', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const s = await setUp(page);
@@ -86,15 +86,20 @@ test('a published run plays with the map lens only; Group and Timers are the len
   await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(1);
   await r.locator('.wc-player').hover();
   const box = r.locator('.wc-player-box');
-  await expect(box.locator('[data-act="panes"]')).toHaveCount(0);
-  // Fullscreen is the box's one extra button.
+  // Fullscreen beside Panes; the popup has Timers, Group and Map (the lens, on).
   await expect(box.locator('[data-act="extra"]')).toHaveCount(1);
-  for (const id of ['group', 'timers']) await expect(r.locator(`.wc-dl-key[data-key="${id}"]`)).toHaveAttribute('aria-pressed', 'false');
-  await r.locator('.wc-dl-key[data-key="timers"]').click();
+  const pop = box.locator('.wc-pc-pop[data-pop="panes"]');
+  await box.locator('[data-act="panes"]').click();
+  await expect(pop).toBeVisible();
+  expect(await pop.locator('[data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
+    'timers:false',
+    'group:false',
+    'map:true',
+  ]);
+  await pop.locator('[data-pane="timers"]').click();
   await expect(r.locator('.wc-pane[data-pane="timers"]')).toBeVisible();
-  await expect(r.locator('.wc-dl-key[data-key="timers"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(2);
-  await r.locator('.wc-dl-key[data-key="group"]').click();
+  await pop.locator('[data-pane="group"]').click();
   await expect(r.locator('.wc-pane[data-pane="group"]')).toBeVisible();
   await expect(r.locator('.wc-pane[data-pane]:visible')).toHaveCount(3);
   await expect(r.locator('.wc-pane[data-pane="evil/pane"]')).toHaveCount(0);
