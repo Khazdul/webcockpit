@@ -590,6 +590,78 @@ html.wc-phone .wc-player-head-left {
   display: none;
 }
 
+/* Floating on a phone or tablet (a shared run, stage 73; view.ts
+ * `touchFloat`): the desktop's box, placed and hidden as there, with keys
+ * a finger hits (36 px, Play 40 px; compact, tight and tighter as above). */
+html.wc-phone .wc-player-box[data-touch] {
+  padding: 4px 6px;
+  font-size: 14px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-row {
+  gap: 4px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-ib {
+  width: 36px;
+  height: 36px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-play {
+  width: 40px;
+  height: 40px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-speed {
+  height: 34px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-sm {
+  width: 26px;
+  height: 32px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-player-speed {
+  min-width: 38px;
+  font-size: 13px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-ic {
+  width: 18px;
+  height: 18px;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-sm .wc-pc-ic {
+  width: 13px;
+  height: 13px;
+}
+
+/* Compact (a phone upright): no To the start (the rail seeks there) and no
+ * stepper arrows; the speed is one key that steps round (view.ts). The box
+ * then leaves the left half of a phone's width to the log. */
+html.wc-phone .wc-player-box[data-touch][data-compact] [data-act="start"],
+html.wc-phone .wc-player-box[data-touch][data-compact] .wc-pc-sm {
+  display: none;
+}
+
+html.wc-phone .wc-player-box[data-touch][data-compact] .wc-pc-speed {
+  margin-left: 2px;
+}
+
+html.wc-phone .wc-player-box[data-touch][data-compact] .wc-player-speed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 100%;
+  cursor: pointer;
+}
+
+html.wc-phone .wc-player-box[data-touch] .wc-pc-ic10 {
+  width: 24px;
+  height: 24px;
+}
+
 /* ------------------------------------------------------------ popups */
 
 .wc-pc-pop {

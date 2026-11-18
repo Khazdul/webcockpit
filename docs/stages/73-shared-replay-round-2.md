@@ -86,7 +86,16 @@ run log player and Spotlights are untouched, as in stage 71.
       Panes popup; unit `desk-lens.test.ts`, `shared-panes.test.ts`.
       Screenshots `docs/stages/img/73-a-*.png`. Open: the phone lens has
       the same clip-path alone (a mask there is part B's or a follow-up).
-- [ ] B. Phone and tablet: points 7–10.
+- [x] B. Phone and tablet: points 7–10. (Branch `stage-73b-phone`; ADR 0160
+      addendum "stage 73 part B".) The box floats at the bottom right and
+      hides as on desktop (`PlayerViewOptions.touchFloat`, touch-sized keys;
+      upright compact: no To the start, the speed one key), no command row
+      kept; the fight card off; the lens ×1.5 on a phone (not a tablet,
+      `lensReplayScaledPx`); the box clamped into the visual viewport on
+      every resize/turn/fullscreen change (point 9). History's run log
+      player keeps its docked bar. Tests: `tests/unit/shared-phone-box.test.ts`,
+      `tests/e2e/phone-watch-box.spec.ts`; screenshots
+      `docs/stages/img/73-b-*.png`.
 - [ ] C. The poster: point 11.
 - [ ] D2. The watch page's Back goes straight to the Community (point 12).
 - [ ] E2. Desert is the tileset of shared and published runs (point 13).

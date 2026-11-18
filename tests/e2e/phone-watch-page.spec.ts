@@ -70,7 +70,7 @@ test('phone: Report logged in; the run starts paused and Play starts it', async 
   await expect(replay(page).locator('.wc-player')).toContainText('hardened ranger');
   await page.waitForTimeout(1_000);
   await pausedInFrame(page);
-  // Play starts it. The bar is docked at the frame's foot (stage 71: the phone layout), under the
+  // Play starts it. The box floats at the frame's foot (stage 73), under the
   // fold of the scrolling page: scrolled into view first.
   await page.locator('.wc-watch-page').evaluate((el) => (el.scrollTop = el.scrollHeight));
   await replay(page).locator('.wc-pc-play').tap();
