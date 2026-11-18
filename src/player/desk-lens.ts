@@ -1,39 +1,39 @@
-// The desktop lens of a shared run (stage 71, ADR 0160): the map as a round
-// lens at the top right of the player, always on, with Group and Timers as
-// floating panes at the bottom right that the lens's keys turn on and off.
-// Mounted by the player host over each player App it builds when the host
-// plays a shared run on a computer (`PlayerHostOptions.lens`, no phone);
-// a phone or tablet gets the phone layer's lens instead (src/phone/).
+// The desktop lens of a shared run (stage 71, ADR 0160; reworked in stage
+// 73): the map as a round lens at the top right of the player, with Group
+// and Timers as floating panes at the bottom right. All three are turned on
+// and off in the control box's Panes popup (Map is the lens), the map on and
+// the two off at the start. Mounted by the player host over each player App
+// it builds when the host plays a shared run on a computer
+// (`PlayerHostOptions.lens`, no phone); a phone or tablet gets the phone
+// layer's lens instead (src/phone/).
 //
 // The map itself is the cockpit's one map pane, as the phone's lens: the
 // cockpit leaves it out of the docks and floats and places it borderless
 // in the whole cells that hold the lens's circle (`Cockpit.setDeskLens`);
-// desk-lens.css clips it to the circle and this module shifts it by the
-// part of a cell that is left. What lies over it is static DOM in the
-// phone lens's look, scaled: the cast-iron ring, the glass with its window
-// reflection and edge darkening, and four round keys on the corners.
+// desk-lens.css masks it to the circle (a mask, not only a clip: see the
+// CSS) and this module shifts it by the part of a cell that is left, only
+// for the box the cockpit laid it out for. What lies over it is static DOM
+// in the phone lens's look, scaled: the cast-iron ring, the glass with its
+// window reflection and edge darkening, and four zoom dots at the bottom
+// centre. No keys.
 //
-//   top left      Group: the Group pane on and off
-//   top right     fullscreen (the player's own: the page's or the frame's)
-//   bottom right  Timers: the Timers pane on and off
-//   bottom left   the move handle: dragging it moves the lens
+// The glass takes the mouse, the map never does: a drag anywhere on it
+// moves the lens, the wheel steps the zoom one level, and a click on a dot
+// picks its level (`DESK_LENS_ROOMS`). Without a pan the map always
+// follows the player. The rim (a band over the glass's edge and the ring,
+// above the glass, so it wins there) shows a resize cursor that points
+// along the radius; dragging it makes the lens larger or smaller round its
+// centre.
 //
-// Inside the glass the map takes the mouse (a hand lens, src/panes/map.ts
-// `MapLens.hand`): a drag pans, the wheel (and a touchpad's swipe) zooms,
-// and a pan lets go of the player. The follow key then shows at the
-// bottom of the glass; it, or a double click on the map, centres on the
-// player and follows again. The rim (a band over the glass's edge and the
-// ring) shows a resize cursor that points along the radius; dragging it
-// makes the lens larger or smaller round its centre.
+// Where the lens stands, its size and its level are the host's
+// (`DeskLensSpot`, `DeskLevel`, kept across the App rebuilt by a backward
+// seek, never stored): from the player's right edge and top edge, so it
+// stays at the right when the window changes. A drag lays out at most once
+// a frame (the cockpit's own coalescing). Nothing runs per line of game
+// text.
 //
-// Where the lens stands and its size are the host's (`DeskLensSpot`, kept
-// across the App rebuilt by a backward seek, never stored): from the
-// player's right edge and top edge, so it stays at the right when the
-// window changes. A drag lays out at most once a frame (the cockpit's own
-// coalescing). Nothing runs per line of game text.
-//
-// The pure parts (the default place, the clamp, the floats' layout, the
-// rim's cursor) are exported for the unit tests.
+// The pure parts (the default place, the clamp, the levels, the floats'
+// layout, the rim's cursor) are exported for the unit tests.
 
 import './desk-lens.css';
 import type { Cockpit, PhoneLensSpot } from '../layout/cockpit';
@@ -44,13 +44,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The ring round the glass, px (desk-lens.css `--dl-ring`). */
 export const DESK_RING_PX = 10;
-/**
- * A corner key's side, px, and how far anything of the lens (the ring; a
- * key, set into the ring on the diagonal, less) reaches out of its box, px
- * (desk-lens.css).
- */
-export const DESK_KEY_PX = 44;
-export const DESK_KEY_OVER = 10;
+/** How far anything of the lens (the ring) reaches out of its box, px (desk-lens.css). */
+export const DESK_KEY_OVER = DESK_RING_PX;
 /** The lens's least and largest diameter, px. */
 export const DESK_LENS_MIN = 140;
 export const DESK_LENS_MAX = 640;
@@ -60,8 +55,36 @@ export const DESK_LENS_DEFAULT_MIN = 200;
 export const DESK_LENS_DEFAULT_MAX = 340;
 /** What the default place keeps clear at the right (the markers left of the rail), px. */
 export const DESK_CLEAR_RIGHT = 24;
-/** Rooms across the lens at the zoom it opens at (the map worker's zoom: diameter / (rooms × 44 px)). */
-export const DESK_LENS_ROOMS = 8;
+/**
+ * The four zoom levels (the dots, left to right): about this many rooms
+ * across the lens. The nearest is stage 71's opening zoom (eight rooms),
+ * the farthest the whole neighbourhood, as the phone's farthest. The map
+ * worker's zoom is diameter / (rooms × 44 px) (src/phone/lens-zoom.ts
+ * explains the 44): at the least diameter, 140 px, the farthest is 0.072,
+ * inside the worker's limits (0.04 to 5). The zoom follows the diameter,
+ * as on the phone: a larger lens shows the same rooms larger.
+ */
+export const DESK_LENS_ROOMS = [8, 14, 24, 44] as const;
+export type DeskLevel = 0 | 1 | 2 | 3;
+/** The level the lens opens at: the nearest. */
+export const DESK_LEVEL_DEFAULT: DeskLevel = 0;
+/** The levels' names, nearest first (a dot's title). */
+export const DESK_LEVEL_NAMES = ['near', 'mid', 'far', 'area'] as const;
+
+/** The map worker's zoom of `level` on a lens `size` px across. */
+export function deskLensZoom(level: DeskLevel, size: number): number {
+  return size / (DESK_LENS_ROOMS[level] * 44);
+}
+
+/** One level nearer (`dir` -1) or further (+1), clamped, no wrap. */
+export function deskLevelStep(level: DeskLevel, dir: 1 | -1): DeskLevel {
+  return Math.max(0, Math.min(DESK_LENS_ROOMS.length - 1, level + dir)) as DeskLevel;
+}
+
+/** What the wheel gathers for one level, px (a mouse notch is 100; a touchpad sends many small deltas). */
+export const DESK_WHEEL_STEP = 60;
+/** After a step the wheel rests this long, ms, so a touchpad's coasting does not run through every level. */
+export const DESK_WHEEL_REST_MS = 220;
 /** The rim's band: this far into the glass and out past the ring, px. */
 export const DESK_RIM_IN = 5;
 export const DESK_RIM_OUT = 6;
@@ -73,22 +96,26 @@ export interface DeskLensSpot {
   size: number;
 }
 
-/** The default spot in a cockpit `W` × `H` px whose cells are `cellH` high: top right, under the header's row. */
+/**
+ * The default spot in a cockpit `W` × `H` px whose cells are `cellH` high:
+ * at the top right, two rows down (one lower than stage 71's, the owner's
+ * direction of stage 73).
+ */
 export function deskLensDefault(W: number, H: number, cellH: number): DeskLensSpot {
   const short = Math.min(W, H);
   const size = Math.round(Math.min(DESK_LENS_DEFAULT_MAX, Math.max(DESK_LENS_DEFAULT_MIN, short * DESK_LENS_SHARE)));
-  return { right: DESK_CLEAR_RIGHT + DESK_KEY_OVER, top: Math.ceil(cellH) + DESK_KEY_OVER + 6, size };
+  return { right: DESK_CLEAR_RIGHT + DESK_KEY_OVER, top: 2 * Math.ceil(cellH) + DESK_KEY_OVER + 6, size };
 }
 
-/** The largest diameter the lens may have in a cockpit `W` × `H` px (its keys inside). */
+/** The largest diameter the lens may have in a cockpit `W` × `H` px (its ring inside). */
 export function deskLensMax(W: number, H: number): number {
   return Math.max(DESK_LENS_MIN, Math.min(DESK_LENS_MAX, Math.floor(Math.min(W, H) - 2 * DESK_KEY_OVER - 8)));
 }
 
 /**
  * The lens's box in a cockpit `W` × `H` px for `spot`: the size within its
- * limits, the box inside the cockpit with its corner keys (as far as the
- * cockpit is large enough). Whole px.
+ * limits, the box inside the cockpit with its ring (as far as the cockpit
+ * is large enough). Whole px.
  */
 export function deskLensBox(spot: DeskLensSpot, W: number, H: number): PhoneLensSpot {
   const size = Math.round(Math.max(DESK_LENS_MIN, Math.min(deskLensMax(W, H), spot.size)));
@@ -188,16 +215,6 @@ export function deskPanesLayout(layout: LayoutModel, r: DeskPaneRects): LayoutMo
   return out;
 }
 
-/** The keys' icons (24 × 24, stroked). */
-const ICONS = {
-  group: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3c2.1.7 3.5 2.9 3.5 5.7',
-  timers: 'M10 2h4M12 2v3M12 13l3-3M20 13a8 8 0 1 1-16 0 8 8 0 0 1 16 0z',
-  fullscreen: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
-  fullscreenExit: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
-  move: 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3',
-  follow: 'M12 2v4M12 18v4M2 12h4M18 12h4M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0zM13 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0z',
-} as const;
-
 /** The glass's window reflection (the phone lens's, src/phone/lens.ts), 150 × 150. */
 const REFLECTION =
   '<defs>' +
@@ -210,8 +227,6 @@ const REFLECTION =
   '</g>' +
   '<path d="M139.6 88.7A66 66 0 0 1 88.7 139.6" fill="none" stroke="url(#wc-dl-refl-arc)" stroke-width="1.8" stroke-linecap="round"/>';
 
-export type DeskKey = 'group' | 'timers' | 'fullscreen' | 'move';
-
 export interface DeskLensDeps {
   cockpit: Cockpit;
   /** The cell size in px. */
@@ -219,39 +234,42 @@ export interface DeskLensDeps {
   /** The spot the host keeps (null: the default); `setSpot` is told every change. */
   spot(): DeskLensSpot | null;
   setSpot(spot: DeskLensSpot): void;
-  /** A pane of the lens's keys is on, and its toggle (the host's viewer overrides). */
-  paneOn(id: 'group' | 'timers'): boolean;
-  togglePane(id: 'group' | 'timers'): void;
-  /** The player's fullscreen; null: none (no key). */
-  fullscreen: { is(): boolean; toggle(): void } | null;
+  /** The zoom level the host keeps; `setLevel` is told every change. */
+  level(): DeskLevel;
+  setLevel(level: DeskLevel): void;
+  /** The map is on (the Panes popup's Map): the lens shows; off, the lens and the map are gone. */
+  mapOn(): boolean;
   /**
    * Told after every layout with the cockpit's grid and the first row
    * under the lens where the lens stands over the floats' columns (0:
-   * not there); the host anchors the floats to them.
+   * not there, or no lens); the host anchors the floats to them.
    */
   onGrid?(cols: number, rows: number, under: number): void;
 }
 
-/** The look the lens fixes on the map pane: the phone lens's (ADR 0136 §4), taking the mouse. */
-const DESK_LENS_LOOK = { tileset: 'shimrod', background: '#000000', hand: true } as const;
+/** The look the lens fixes on the map pane: the phone lens's (ADR 0136 §4); it takes no mouse. */
+const DESK_LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 
 export class DeskLens {
   readonly el: HTMLDivElement;
   private readonly deps: DeskLensDeps;
   private readonly map: MapPane;
   private readonly mapEl: HTMLElement;
+  private readonly glass: HTMLDivElement;
   private readonly rim: HTMLDivElement;
-  private readonly keys = new Map<DeskKey, HTMLButtonElement>();
-  private readonly followKey: HTMLButtonElement;
+  private readonly dots: HTMLButtonElement[] = [];
   private readonly unsubs: Array<() => void> = [];
-  /** The box last given to the cockpit (px), and the one the dressing shows. */
+  /** The box last given to the cockpit (px; null: none, the map is off). */
   private box: PhoneLensSpot | null = null;
   private shownKey = '';
   private rimKey = '';
-  private keysKey = '';
-  private zoomed = false;
-  /** A drag of the move key or the rim that is on (null: none). */
+  /** The zoom last sent (level and size), so it is sent only on a change. */
+  private zoomKey = '';
+  /** A drag of the glass (moves the lens) or of the rim (resizes it) that is on (null: none). */
   private drag: { id: number; kind: 'move' | 'size'; x0: number; y0: number; box: PhoneLensSpot; d0: number } | null = null;
+  /** The wheel's gathered delta, px, and the time stamp until which it rests. */
+  private wheelAcc = 0;
+  private wheelRestUntil = 0;
   private disposed = false;
 
   constructor(deps: DeskLensDeps) {
@@ -272,73 +290,121 @@ export class DeskLens {
     refl.setAttribute('viewBox', '0 0 150 150');
     refl.setAttribute('aria-hidden', 'true');
     refl.innerHTML = REFLECTION;
+    this.glass = div('wc-dl-glass');
+    this.glass.title = 'Drag to move the map';
+    const dots = div('wc-dl-dots');
+    DESK_LENS_ROOMS.forEach((_, i) => {
+      const level = i as DeskLevel;
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'wc-dl-dot';
+      b.tabIndex = -1;
+      b.dataset.level = String(level);
+      const label = `Zoom: ${DESK_LEVEL_NAMES[level]} (${level + 1} of ${DESK_LENS_ROOMS.length})`;
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.append(doc.createElement('i'));
+      // The press keeps the focus where it is, and is no drag of the glass.
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('pointerdown', (e) => e.stopPropagation());
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setLevel(level);
+      });
+      dots.append(b);
+      this.dots.push(b);
+    });
     this.rim = div('wc-dl-rim');
     this.rim.title = 'Drag to resize the map';
-    this.el.append(div('wc-dl-bed'), refl, div('wc-dl-shine'), div('wc-dl-ring'), this.rim);
-    const key = (name: DeskKey, cls: string, act: (() => void) | null): void => {
-      const k = button(doc, `wc-dl-key ${cls}`, ICONS[name === 'fullscreen' ? 'fullscreen' : name]);
-      k.dataset.key = name;
-      if (act) {
-        k.addEventListener('click', (e) => {
-          e.stopPropagation();
-          act();
-        });
-      }
-      this.el.append(k);
-      this.keys.set(name, k);
-    };
-    key('group', 'is-tl', () => deps.togglePane('group'));
-    if (deps.fullscreen) {
-      const fs = deps.fullscreen;
-      key('fullscreen', 'is-tr', () => fs.toggle());
-    }
-    key('timers', 'is-br', () => deps.togglePane('timers'));
-    key('move', 'is-bl wc-dl-move', null);
-    const mv = this.keys.get('move')!;
-    mv.title = 'Drag to move the map';
-    mv.setAttribute('aria-label', 'Drag to move the map');
-    this.followKey = button(doc, 'wc-dl-follow', ICONS.follow);
-    this.followKey.hidden = true;
-    this.followKey.title = 'Follow the player (or double click the map)';
-    this.followKey.setAttribute('aria-label', 'Follow the player');
-    this.followKey.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.map.followPlayer();
-    });
-    this.el.append(this.followKey);
-    this.watchDrag(mv, 'move');
+    // The rim last: over the glass's edge it wins.
+    this.el.append(div('wc-dl-bed'), refl, div('wc-dl-shine'), div('wc-dl-ring'), this.glass, dots, this.rim);
+    this.watchDrag(this.glass, 'move');
     this.watchDrag(this.rim, 'size');
     this.rim.addEventListener('pointermove', (e) => {
       if (this.drag || !this.box) return;
       const r = this.el.getBoundingClientRect();
       this.rim.style.cursor = rimCursor(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
     });
+    const wheel = (e: WheelEvent): void => this.onWheel(e);
+    this.el.addEventListener('wheel', wheel, { passive: false });
     cockpit.el.append(this.el);
 
     this.map.setLens(DESK_LENS_LOOK);
-    this.map.onFollow((on) => {
-      this.followKey.hidden = on;
-      this.el.toggleAttribute('data-free', !on);
-    });
     this.unsubs.push(
-      () => this.map.onFollow(null),
+      () => this.el.removeEventListener('wheel', wheel),
       cockpit.onLayout(() => this.place()),
     );
+    this.syncDots();
     this.ask();
   }
 
-  /** The lens's box as given to the cockpit (tests); null before the first. */
+  /** The lens's box as given to the cockpit (tests); null before the first, or while the map is off. */
   get lensBox(): Readonly<PhoneLensSpot> | null {
     return this.box;
   }
 
-  /** The keys' state again (a pane toggled, fullscreen changed). */
-  refresh(): void {
-    this.syncKeys();
+  /** The zoom level (tests). */
+  get level(): DeskLevel {
+    return this.deps.level();
   }
 
-  /** The box for the cockpit's size now, given to the cockpit when it changed. */
+  /** The map turned on or off, the fullscreen changed: the lens follows (in one more layout). */
+  refresh(): void {
+    if (!this.disposed) this.ask();
+  }
+
+  /** Picks zoom `level` (a dot, the wheel). */
+  setLevel(level: DeskLevel): void {
+    if (this.disposed || level === this.deps.level()) return;
+    this.deps.setLevel(level);
+    this.syncDots();
+    this.syncZoom();
+  }
+
+  /** The wheel over the lens: one level a notch (or a touchpad's worth), then a short rest. */
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    if (!this.box || e.deltaY === 0) return;
+    if (e.timeStamp < this.wheelRestUntil) return;
+    const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;
+    // A turn the other way starts over.
+    if (Math.sign(px) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
+    this.wheelAcc += px;
+    if (Math.abs(this.wheelAcc) < DESK_WHEEL_STEP) return;
+    // Away from you (up) is nearer, as the map pane's wheel.
+    const dir = this.wheelAcc < 0 ? -1 : 1;
+    this.wheelAcc = 0;
+    this.wheelRestUntil = e.timeStamp + DESK_WHEEL_REST_MS;
+    this.setLevel(deskLevelStep(this.deps.level(), dir));
+  }
+
+  private syncDots(): void {
+    const level = this.deps.level();
+    for (const d of this.dots) {
+      const on = Number(d.dataset.level) === level;
+      d.classList.toggle('is-on', on);
+      d.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    this.el.dataset.level = String(level);
+  }
+
+  /** The map's zoom for the level at the diameter (it follows the diameter: the same rooms stay in view). */
+  private syncZoom(): void {
+    const box = this.box;
+    if (!box) return;
+    const level = this.deps.level();
+    const key = `${level}|${box.size}`;
+    if (key === this.zoomKey) return;
+    this.zoomKey = key;
+    this.map.zoomTo(deskLensZoom(level, box.size));
+  }
+
+  /** The box for the cockpit's size now (none while the map is off), given to the cockpit when it changed. */
   private ask(): void {
+    if (!this.deps.mapOn()) {
+      this.give(null);
+      return;
+    }
     const { cockpit, cells } = this.deps;
     const W = cockpit.el.clientWidth;
     const H = cockpit.el.clientHeight;
@@ -347,59 +413,55 @@ export class DeskLens {
     this.give(deskLensBox(spot, W, H));
   }
 
-  private give(box: PhoneLensSpot): void {
+  private give(box: PhoneLensSpot | null): void {
     const a = this.box;
-    if (a && a.left === box.left && a.top === box.top && a.size === box.size) return;
+    if (a === box || (a && box && a.left === box.left && a.top === box.top && a.size === box.size)) return;
     this.box = box;
-    if (!this.zoomed) {
-      // The zoom it opens at; after that the wheel's (a resize shows more or less of the map).
-      this.zoomed = true;
-      this.map.zoomTo(box.size / (DESK_LENS_ROOMS * 44));
-    }
+    this.syncZoom();
     this.deps.cockpit.setDeskLens(box);
   }
 
-  /** After each layout: the dressing at the box, the map pane shifted to its centre, the keys. */
+  /** After each layout: the floats' anchor, and the dressing and the map pane's shift for the box laid out. */
   private place(): void {
     if (this.disposed) return;
     const { cockpit, cells } = this.deps;
     const W = cockpit.el.clientWidth;
     const H = cockpit.el.clientHeight;
-    const grid = cockpit.el.dataset.cells?.split('x').map(Number);
-    const cell0 = cells.get();
-    if (grid && grid.length === 2 && grid.every((n) => Number.isFinite(n)) && cell0.h > 0) {
-      const [cols, rows] = grid as [number, number];
-      const b = this.box;
-      // Over the floats' columns (the right third, `deskPaneRects`): the floats stay under it.
-      const over = b !== null && b.left + b.size + DESK_KEY_OVER > (cols * cell0.w * 2) / 3 - DESK_KEY_OVER;
-      this.deps.onGrid?.(cols, rows, over ? Math.ceil((b.top + b.size + DESK_KEY_OVER + 4) / cell0.h - 1e-6) : 0);
-    }
-    // The cockpit's size changed (the window, fullscreen): the spot again, in one more layout.
-    if (!this.drag) this.ask();
-    const box = this.box;
+    const cell = cells.get();
+    // What this layout was made for: the box, and the map pane's cells in it.
+    const laid = cockpit.deskLensLaid;
     const rect = cockpit.deskLensCells;
-    if (!box || !rect || !(W > 0 && H > 0)) {
+    const grid = cockpit.el.dataset.cells?.split('x').map(Number);
+    if (grid && grid.length === 2 && grid.every((n) => Number.isFinite(n)) && cell.h > 0) {
+      const [cols, rows] = grid as [number, number];
+      // Over the floats' columns (the right third, `deskPaneRects`): the floats stay under it.
+      const over = laid !== null && laid.left + laid.size + DESK_KEY_OVER > (cols * cell.w * 2) / 3 - DESK_KEY_OVER;
+      this.deps.onGrid?.(cols, rows, over ? Math.ceil((laid.top + laid.size + DESK_KEY_OVER + 4) / cell.h - 1e-6) : 0);
+    }
+    // The cockpit's size changed (the window, fullscreen), or the map went on or off: the box again, in one more layout.
+    if (!this.drag) this.ask();
+    // Stage 73's bug fix (ADR 0160 addendum): the dressing, the circle and the shift come
+    // from the box the map pane's cells were laid out for, never from one given since
+    // (that one waits for its own layout), so the map is never shifted out of its circle.
+    if (!laid || !rect || !this.box || !(W > 0 && H > 0)) {
       this.el.hidden = true;
       this.shownKey = '';
       return;
     }
-    const cell = cells.get();
-    const key = `${box.left},${box.top},${box.size}|${rect.x},${rect.y},${rect.w},${rect.h}|${cell.w},${cell.h}`;
-    if (key !== this.shownKey) {
-      this.shownKey = key;
-      const st = this.el.style;
-      st.left = `${box.left}px`;
-      st.top = `${box.top}px`;
-      st.width = st.height = `${box.size}px`;
-      this.el.style.setProperty('--dl-size', `${box.size}px`);
-      this.mapEl.style.setProperty('--dl-size', `${box.size}px`);
-      const dx = box.left + box.size / 2 - (rect.x + rect.w / 2) * cell.w;
-      const dy = box.top + box.size / 2 - (rect.y + rect.h / 2) * cell.h;
-      this.mapEl.style.translate = `${Math.round(dx * 100) / 100}px ${Math.round(dy * 100) / 100}px`;
-      this.el.hidden = false;
-      this.cutRim(box.size);
-    }
-    this.syncKeys();
+    const key = `${laid.left},${laid.top},${laid.size}|${rect.x},${rect.y},${rect.w},${rect.h}|${cell.w},${cell.h}`;
+    if (key === this.shownKey) return;
+    this.shownKey = key;
+    const st = this.el.style;
+    st.left = `${laid.left}px`;
+    st.top = `${laid.top}px`;
+    st.width = st.height = `${laid.size}px`;
+    this.el.style.setProperty('--dl-size', `${laid.size}px`);
+    this.mapEl.style.setProperty('--dl-size', `${laid.size}px`);
+    const dx = laid.left + laid.size / 2 - (rect.x + rect.w / 2) * cell.w;
+    const dy = laid.top + laid.size / 2 - (rect.y + rect.h / 2) * cell.h;
+    this.mapEl.style.translate = `${Math.round(dx * 100) / 100}px ${Math.round(dy * 100) / 100}px`;
+    this.el.hidden = false;
+    this.cutRim(laid.size);
   }
 
   /** The rim's band as a ring (`clip-path` even-odd): the pointer finds it only there. */
@@ -415,25 +477,7 @@ export class DeskLens {
     this.rim.style.clipPath = `path(evenodd, '${circle(ro)}${circle(ri)}')`;
   }
 
-  private syncKeys(): void {
-    const g = this.deps.paneOn('group');
-    const t = this.deps.paneOn('timers');
-    const fs = this.deps.fullscreen?.is() ?? false;
-    const key = `${g}|${t}|${fs}`;
-    if (key === this.keysKey) return;
-    this.keysKey = key;
-    lit(this.keys.get('group')!, g, g ? 'Hide Group' : 'Show Group');
-    lit(this.keys.get('timers')!, t, t ? 'Hide Timers' : 'Show Timers');
-    const f = this.keys.get('fullscreen');
-    if (f) {
-      const label = fs ? 'Exit fullscreen (F)' : 'Fullscreen (F)';
-      f.title = label;
-      f.setAttribute('aria-label', label);
-      f.querySelector('path')!.setAttribute('d', fs ? ICONS.fullscreenExit : ICONS.fullscreen);
-    }
-  }
-
-  /** A drag of the move key (moves the lens) or of the rim (resizes it round its centre). */
+  /** A drag of the glass (moves the lens) or of the rim (resizes it round its centre). */
   private watchDrag(el: HTMLElement, kind: 'move' | 'size'): void {
     const win = el.ownerDocument.defaultView;
     let frame = 0;
@@ -516,33 +560,6 @@ export class DeskLens {
     this.mapEl.style.translate = '';
     this.el.remove();
   }
-}
-
-/** A key lit (its pane is on) or not, with its name. */
-function lit(k: HTMLButtonElement, on: boolean, label: string): void {
-  k.classList.toggle('is-on', on);
-  k.setAttribute('aria-pressed', on ? 'true' : 'false');
-  k.setAttribute('aria-label', label);
-  k.title = label;
-}
-
-/** A round key with an icon. */
-function button(doc: Document, cls: string, icon: string): HTMLButtonElement {
-  const k = doc.createElement('button');
-  k.type = 'button';
-  k.className = cls;
-  k.tabIndex = -1;
-  const svg = doc.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('class', 'wc-dl-ico');
-  svg.setAttribute('aria-hidden', 'true');
-  const p = doc.createElementNS(SVG_NS, 'path');
-  p.setAttribute('d', icon);
-  svg.append(p);
-  k.append(svg);
-  k.addEventListener('mousedown', (e) => e.preventDefault());
-  k.addEventListener('pointerdown', (e) => e.stopPropagation());
-  return k;
 }
 
 /** Mounts the lens over `deps.cockpit` (see the file header). */

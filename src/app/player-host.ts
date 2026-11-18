@@ -90,9 +90,11 @@
 // (no Comm key: a shared run has no Comm), Group and Timers the strip's
 // pages, the strip closed at the start. On a computer the desktop lens
 // (src/player/desk-lens.ts) over each App, where the host keeps the lens's
-// place and size across rebuilds, and Group and Timers float at the bottom
-// right (`deskPanesLayout`, anchored to the cockpit's grid at every layout)
-// until the viewer moves one: then the viewer's layout stands, as ever.
+// place, size and zoom level across rebuilds, and Group and Timers float at
+// the bottom right (`deskPanesLayout`, anchored to the cockpit's grid at
+// every layout) until the viewer moves one: then the viewer's layout
+// stands, as ever. On a computer the three are the Panes popup's (stage
+// 73): Map (the lens) on at the start, Group and Timers off.
 
 import type { RunLibrary } from '../runs/library';
 import { type FetchProgressFn, notFetchedWords } from '../runs/cloud-hook';
@@ -129,7 +131,7 @@ import { commentLines } from '../share/edits';
 import type { ReplayClock } from '../player/clock';
 import type { MapPaneHost } from '../map/protocol';
 import { App } from './app';
-import { type DeskLens, type DeskLensSpot, DESK_FLOAT_BOTTOM_PX, deskPaneRects, deskPanesLayout, mountDeskLens } from '../player/desk-lens';
+import { type DeskLens, type DeskLensSpot, type DeskLevel, DESK_FLOAT_BOTTOM_PX, DESK_LEVEL_DEFAULT, deskPaneRects, deskPanesLayout, mountDeskLens } from '../player/desk-lens';
 import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 
 /**
@@ -323,6 +325,7 @@ export class PlayerHost {
   /** Desktop lens: the current App's, its place and size (kept across rebuilds), and the cockpit's grid at the last layout. */
   private deskLensRef: DeskLens | null = null;
   private deskSpot: DeskLensSpot | null = null;
+  private deskLevel: DeskLevel = DESK_LEVEL_DEFAULT;
   private deskGrid: { cols: number; rows: number; under: number } | null = null;
 
   constructor(opts: PlayerHostOptions) {
@@ -667,7 +670,6 @@ export class PlayerHost {
 
   /** The desktop lens over `app`'s cockpit (stage 71, see the file header); returns what takes it away. */
   private mountDeskLens(app: App): () => void {
-    const fs = this.opts.lens?.fullscreen ?? null;
     const lens = mountDeskLens({
       cockpit: app.cockpit,
       cells: this.cells,
@@ -675,16 +677,15 @@ export class PlayerHost {
       setSpot: (spot) => {
         this.deskSpot = spot;
       },
-      paneOn: (id) => {
-        const s = this.store?.get();
-        return s ? paneSettingsOf(s.panes, id).on : false;
+      level: () => this.deskLevel,
+      setLevel: (level) => {
+        this.deskLevel = level;
       },
-      togglePane: (id) => {
+      // The Panes popup's Map (stage 73): the lens shows while it is on.
+      mapOn: () => {
         const s = this.store?.get();
-        const on = s ? paneSettingsOf(s.panes, id).on : false;
-        this.setViewer(withPane(this.viewer, id, !on));
+        return s ? paneSettingsOf(s.panes, 'map').on : false;
       },
-      fullscreen: fs,
       onGrid: (cols, rows, under) => {
         const g = this.deskGrid;
         if (g && g.cols === cols && g.rows === rows && g.under === under) return;
@@ -705,7 +706,7 @@ export class PlayerHost {
     return this.deskLensRef;
   }
 
-  /** The lens's keys again (the fullscreen state changed; the frame's fill tells the page). */
+  /** The desktop lens again (the fullscreen state changed; the frame's fill tells the page). */
   refreshLens(): void {
     this.deskLensRef?.refresh();
   }
@@ -901,6 +902,8 @@ export class PlayerHost {
       // keep sparse keys such as comm filters that a VIEW dropped).
       store.update((draft) => {
         const d = JSON.parse(JSON.stringify(base)) as Settings;
+        // A shared run on a computer starts with the map (the lens) on; the Panes popup turns it off (stage 73).
+        if (this.deskLensOn) d.panes.map = { ...paneSettingsOf(d.panes, 'map'), on: true };
         applyViewer(d, o);
         // Only these panes (a shared run): the rest stay off whatever the VIEW records and the viewer say.
         for (const id of Object.keys(d.panes) as PaneId[]) if (!this.paneAvailable(id)) d.panes[id]!.on = false;

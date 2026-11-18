@@ -28,7 +28,9 @@
 // the start and reached from it. On a phone or tablet (src/replay/phone.ts)
 // in the phone's layout: the lens has the fullscreen key, the control box
 // has neither Fullscreen nor Panes. On a computer the desktop lens
-// (src/player/desk-lens.ts): the box keeps Fullscreen and has no Panes.
+// (src/player/desk-lens.ts): the box keeps Fullscreen, and its Panes popup
+// turns Map (the lens, on at the start), Group and Timers on and off (stage
+// 73).
 
 import { PlayerHost } from '../app/player-host';
 import { type Settings, SettingsStore, migrateSettings } from '../settings';
@@ -193,8 +195,8 @@ export function openReplay(
               },
             ],
       },
-      // No Panes popup: Group and Timers are the lens's keys (stage 71).
-      viewerSettings: 'display',
+      // A computer has the Panes popup (Map, the lens, Group and Timers; stage 73); a phone the lens's panes key (stage 71).
+      viewerSettings: o.phone ? 'display' : true,
     },
   );
   const refresh = (): void => {
