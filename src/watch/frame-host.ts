@@ -38,7 +38,10 @@
 // its ancestors activation too) when turning it on, and answers with
 // `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
 
-import { PayloadReadError, payloadBytes, readSharedPayload } from '../replay/shared';
+import { PAYLOAD_JSON_MAX, PayloadReadError, readSharedPayload } from '../replay/shared';
+import { pipe } from '../replay/codec';
+import { validatePayload } from '../replay/validate';
+import type { ReplayPayload } from '../share/payload';
 import { withSharedTiles } from '../share/shared-tiles';
 import { fetchReplayFonts } from '../replay/export';
 
@@ -78,6 +81,28 @@ export function siteBaseUrl(doc: Document = document): string {
 }
 
 /**
+ * The wire form of `retiled` (the payload in Desert's tiles), or of the
+ * `original` bytes when the frame would refuse it: its JSON over `max`
+ * (`PAYLOAD_JSON_MAX`) or failing `validatePayload` (the frame's checks,
+ * the map files' among them). The page accepted the original, so a run it
+ * shows never fails in the frame for the retile alone (stage 73 review fix).
+ */
+export async function retiledWire(retiled: ReplayPayload, original: Uint8Array, max = PAYLOAD_JSON_MAX): Promise<ArrayBuffer> {
+  const keep = (why: string): ArrayBuffer => {
+    console.warn(`WebCockpit: the shared run plays with its own tiles (${why})`);
+    return original.slice().buffer;
+  };
+  const json = new TextEncoder().encode(JSON.stringify(retiled));
+  if (json.byteLength > max) return keep('too large in Desert');
+  try {
+    validatePayload(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(json)));
+  } catch {
+    return keep('not valid in Desert');
+  }
+  return (await pipe(json, new CompressionStream('gzip'))).slice().buffer;
+}
+
+/**
  * Reads the payload (a `PayloadReadError` when the page refuses it),
  * fetches its fonts, and opens the frame in `o.container`.
  */
@@ -99,7 +124,7 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
   // the page, which may fetch them; the frame validates the result as any
   // payload. Without them (a fetch failed) it plays with the tiles it has.
   const wire: Promise<ArrayBuffer> = withSharedTiles(payload, { assetBase: url('map/'), fetch: f }).then(
-    async (p) => (p === payload ? src.slice().buffer : (await payloadBytes(p)).slice().buffer),
+    (p) => (p === payload ? src.slice().buffer : retiledWire(p, src)),
     (err: unknown) => {
       console.warn(`WebCockpit: the shared run plays with its own tiles (${err instanceof Error ? err.message : String(err)})`);
       return src.slice().buffer;

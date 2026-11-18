@@ -16,6 +16,7 @@ import { sealLinkPayload } from '../../src/share/link-seal';
 import type { ReplayPayload } from '../../src/share/payload';
 import { needsSharedTiles, retileMap, withSharedTiles } from '../../src/share/shared-tiles';
 import type { ChainRun } from '../../src/player/timeline';
+import { retiledWire } from '../../src/watch/frame-host';
 
 const ROOT = join(import.meta.dirname, '../..');
 const BASE = 'http://wc.test/';
@@ -140,5 +141,32 @@ describe('a new link', () => {
     expect(shown.map!.files['pixmaps/stream-in-east.png']).toBe(fileUri('map/tilesets/desert/stream-in-east.png'));
     // Desert lacks walls: the default's.
     expect(shown.map!.files['pixmaps/wall-north.png']).toBe(fileUri('map/pixmaps/wall-north.png'));
+  });
+});
+
+describe('the watch page posts the retiled payload only when the frame takes it (stage 73 review fix)', () => {
+  const original = new Uint8Array([31, 139, 8, 0, 9, 9, 9]);
+  const read = (b: ArrayBuffer): ReplayPayload => JSON.parse(gunzipSync(new Uint8Array(b)).toString('utf8')) as ReplayPayload;
+
+  it('posts the retiled bytes when they are valid and within the limit', async () => {
+    const out = await withSharedTiles(oldPayload(), { assetBase: `${BASE}map/`, fetch: publicFetch() });
+    const wire = await retiledWire(out, original);
+    expect(read(wire).map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/desert/terrain-field.png'));
+  });
+
+  it('falls back to the original bytes when the retiled JSON is over the limit', async () => {
+    const out = await withSharedTiles(oldPayload(), { assetBase: `${BASE}map/`, fetch: publicFetch() });
+    const size = new TextEncoder().encode(JSON.stringify(out)).byteLength;
+    const wire = await retiledWire(out, original, size - 1);
+    expect([...new Uint8Array(wire)]).toEqual([...original]);
+    expect(read(await retiledWire(out, original, size)).map).toBeDefined();
+  });
+
+  it('falls back to the original bytes when the retiled payload fails the validation', async () => {
+    const p = oldPayload();
+    const bad = { ...p, map: { ...p.map!, files: { ...p.map!.files, 'pixmaps/terrain-field.png': 'javascript:alert(1)' } } } as ReplayPayload;
+    expect(() => validatePayload(JSON.parse(JSON.stringify(bad)))).toThrow();
+    const wire = await retiledWire(bad, original);
+    expect([...new Uint8Array(wire)]).toEqual([...original]);
   });
 });
