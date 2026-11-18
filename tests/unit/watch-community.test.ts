@@ -186,8 +186,8 @@ describe('where Back goes', () => {
   it('to the Community when the run was opened from it, else the start page', () => {
     expect(backTarget('?from=community')).toBe('community');
     expect(backTarget('?from=community&cloudtest')).toBe('community');
-    expect(backTarget('?cloudtest')).toBe('start');
-    expect(backTarget('?from=x')).toBe('start');
-    expect(backTarget('')).toBe('start');
+    expect(backTarget('?cloudtest')).toBe('community');
+    expect(backTarget('?from=x')).toBe('community');
+    expect(backTarget('')).toBe('community');
   });
 });

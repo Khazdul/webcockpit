@@ -269,17 +269,16 @@ export function commentFailText(status: number, code: string): string {
   return 'That did not work. Try again later.';
 }
 
-/** Where the watch page's Back goes. */
-export type BackTarget = WatchFrom | 'start';
-
 /**
- * Where Back goes (stage 65): to the start page's Community when the run
- * was opened from it (`?from=community`); to the Account page or its
- * Published runs view when opened from there (`?from=account`,
- * `?from=published`, ADR 0155 W1): what `watchHref` puts in the address;
- * else to the start page.
+ * Where the watch page's Back goes (stage 65): to the Account page or its
+ * Published runs view when the run was opened from there (`?from=account`,
+ * `?from=published`, ADR 0155 W1, what `watchHref` puts in the address);
+ * else to the start page's Community: a run opened from it
+ * (`?from=community`) and a bare link (`<base>r/<id>`, the Discord post's,
+ * one shared by hand, `?admin`) alike. Where the Community is not allowed,
+ * `<base>?community` shows the start menu.
  */
-export function backTarget(search: string): BackTarget {
+export function backTarget(search: string): WatchFrom {
   const from = new URLSearchParams(search).get('from');
-  return from === 'community' || from === 'account' || from === 'published' ? from : 'start';
+  return from === 'account' || from === 'published' ? from : 'community';
 }

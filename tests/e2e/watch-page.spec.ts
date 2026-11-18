@@ -49,6 +49,7 @@ test('a guest watches a seeded run: no start page, the band, the replay, one vie
   await expect(replay(page).locator('.wc-player')).toContainText('hardened ranger');
   // The page asked the public meta and payload only.
   expect(s.pubs.payloadRequests).toEqual([`/api/pub/${ID}/payload`]);
+  // Back goes to `<base>?community`; without the gallery the start menu shows (the query taken).
   await watchBtn(page, 'BACK').click();
   await expect(page).toHaveURL(/\/\?cloudtest$/);
   await expect(page.locator('.wc-start .wc-sm-item').first()).toBeVisible({ timeout: 15_000 });

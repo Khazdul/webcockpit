@@ -70,9 +70,9 @@ test('the frame: the still sky, the sub-page box with Back at its top left, the 
   expect(c.y + c.height).toBeLessThanOrEqual(slot.y + slot.height + 1);
   const h = await page.locator('.wc-watch-page').evaluate((e) => [e.scrollHeight, e.clientHeight]);
   expect(h[0]).toBeLessThanOrEqual(h[1]!);
-  // Back: the start page.
+  // Back from a bare link: the Community.
   await watchBtn(page, 'BACK').click();
-  await expect(page).toHaveURL(/\/\?cloudtest$/);
+  await expect(page).toHaveURL(/\/\?community&cloudtest$/);
   expect(errors).toEqual([]);
 });
 

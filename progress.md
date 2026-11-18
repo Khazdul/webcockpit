@@ -110,6 +110,16 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-18 — Fix: a bare watch link's Back goes to the Community
+
+- **Done:** owner report: a run opened from a bare link (the Discord
+  post's `/r/<id>`) had Back go to the start page. `backTarget` now
+  defaults to `community` (only `?from=account|published` differ);
+  `<base>?community` already falls back to the menu where the Community
+  is not allowed. Unit tests and the watch/community e2e specs pass.
+- **Next:** unchanged (stage 70 polish).
+- **Commits:** this one.
+
 ### 2026-11-18 (close) — Stage 70: round 1 seen, session closed
 
 - **Done:** the owner saw round 1 (5:29.67, ends with the music): "ganska

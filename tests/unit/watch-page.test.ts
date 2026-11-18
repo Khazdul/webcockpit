@@ -104,8 +104,8 @@ describe('the details', () => {
     expect(backTarget('?from=community')).toBe('community');
     expect(backTarget('?from=account')).toBe('account');
     expect(backTarget('?from=published&cloudtest')).toBe('published');
-    expect(backTarget('?from=elsewhere')).toBe('start');
-    expect(backTarget('')).toBe('start');
+    expect(backTarget('?from=elsewhere')).toBe('community');
+    expect(backTarget('')).toBe('community');
     expect(backHref('account')).toBe('/?account');
     expect(backHref('published', '/app/', true)).toBe('/app/?account=published&cloudtest');
   });

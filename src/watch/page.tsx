@@ -40,9 +40,9 @@
 // Back at its top left); in it the band, the replay and, with the flag
 // `gallery` (the meta carries `stars`), the stars in the band and the
 // comments under the replay (src/watch/community.tsx); the page scrolls.
-// Back goes to the start page's Community when the run was opened from it
-// (`?from=community`), to the Account page or its Published runs view when
-// opened from there (`?from=account`, `?from=published`, ADR 0155 W1): the
+// Back goes to the Account page or its Published runs view when the run was
+// opened from there (`?from=account`, `?from=published`, ADR 0155 W1), else
+// to the start page's Community (a bare link too, the Discord post's): the
 // model's `backHref`, the pair of `watchHref` that opened the run.
 //
 // Feedback round 2 (ADR 0155 "As built — feedback round 2, watch page"):
@@ -106,11 +106,9 @@ function goStart(): void {
   location.assign(startUrl());
 }
 
-/** Back: the start page's Community, Account page or Published runs when the run was opened from one, else the start page (stage 65). */
+/** Back: the start page's Account page or Published runs when the run was opened from one, else its Community (stage 65). */
 function goBack(): void {
-  const to = backTarget(location.search);
-  if (to === 'start') return goStart();
-  location.assign(backHref(to, base()));
+  location.assign(backHref(backTarget(location.search), base()));
 }
 
 /** Log in from the watch page (Report's, the stars' and the comments'): the start page's Log in, and back here after it. */
