@@ -53,6 +53,11 @@ run log player and Spotlights are untouched, as in stage 71.
     start menu and then the Community. It must go **straight to the
     Community**. (Added 2026-11-18, same session.)
 
+### The tileset
+
+13. **Desert** is the tileset of runs published in the Community or shared
+    by a link. (Added 2026-11-18, same session.)
+
 ## Decisions taken in the session (technical, no owner pick needed)
 
 - Without pan the desktop map always follows the player; the follow key
@@ -70,6 +75,7 @@ run log player and Spotlights are untouched, as in stage 71.
 - [ ] B. Phone and tablet: points 7–10.
 - [ ] C. The poster: point 11.
 - [ ] D2. The watch page's Back goes straight to the Community (point 12).
+- [ ] E2. Desert is the tileset of shared and published runs (point 13).
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.
