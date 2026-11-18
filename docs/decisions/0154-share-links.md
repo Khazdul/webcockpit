@@ -983,64 +983,47 @@ set from the site (`base` asset source).
 
 ### Decision
 
-- **On the watch page, for every payload** (`src/share/shared-tiles.ts`,
-  `withSharedTiles`, called by `openFrame` in src/watch/frame-host.ts).
-  The page has read and validated the payload already; when its map does
-  not say Desert (`ReplayMap.tileset !== 'desert'`: every link made
-  before, or one sealed with the default tiles, below), the page fetches
-  Desert's file for each `pixmaps/` key the payload carries
-  (`overlayPath(sharedOverlay(), key)`: the set's file, else the default
-  for what Desert lacks: walls, doors, `char-*`, three loads, road and
-  underwater terrain), drops the old set's `streamsAsIs` and `tints`
-  (Desert has MMapper's river tint and room tints), sets `tileset:
-  'desert'`, gzips the result (`payloadBytes`) and posts those bytes in
-  `wc-play`. Fonts, the subset and everything else are as stored. The
-  frame is unchanged: it validates the bytes as any payload. So **runs
-  already published show Desert** with no change to R2 or the Worker.
-  A fetch that fails plays the payload with its own tiles (a console
-  warning), never an error.
+- **The watch page draws every payload in Desert**
+  (`src/share/shared-tiles.ts` `withSharedTiles`, called by `openFrame` in
+  src/watch/frame-host.ts). The page has read and validated the payload
+  already; it fetches Desert's file for each `pixmaps/` key the payload
+  carries (`overlayPath(sharedOverlay(), key)`: the set's file, else the
+  default for what Desert lacks: walls, doors, `char-*`, three loads, road
+  and underwater terrain), drops any `streamsAsIs` and `tints` (Desert
+  has MMapper's river tint and room tints), gzips the result
+  (`payloadBytes`) and posts those bytes in `wc-play`. Fonts, the subset
+  and everything else are as stored. The frame is unchanged: it validates
+  the bytes as any payload. So **runs already published show Desert**,
+  with no change to R2 or the Worker. A fetch that fails plays the payload
+  with its own tiles (a console warning), never an error.
 - **Why the page and not the frame:** the frame has `connect-src 'none'`
-  and `img-src data: blob:`, so it can fetch nothing; adding a second
-  channel (a `tiles` field in `wc-play`) would need its own validation in
-  the frame, while re-encoding the payload reuses `validatePayload` as it
-  is and leaves the handshake at version 1.
-- **New links embed Desert** (`prepareLinkPayload` passes
-  `tileset: sharedOverlay(), tilesetId: SHARED_TILESET` to
-  `withReplayMap`/`embedReplayMap`), so the stored payload is right and
-  the watch page posts it as it is.
-- **The size limit.** Desert's tiles are far heavier than the default
-  set's (4.0 MB for the set against 0.7 MB). `map-demo.log` (852 subset
-  rooms, 90 pixmaps): **3.50 MB** sealed with Desert against **0.61 MB**
-  with the default tiles, +2.9 MB, about the same for any subset that
-  draws most terrains. A link Desert would push past the upload limit
-  (`sealLinkPayload(…, { maxBytes })`; the share dialog passes
-  `DEFAULT_ACCOUNT_LIMITS.payloadMaxBytes`, 5 MiB, before the account's
-  own limit is known) is sealed with the default tiles instead and
-  without `tileset`: the watch page draws it in Desert all the same, so
-  no log that could be shared before is now too large. The validator's
-  pixel bound (`MAP_IMAGE_TOTAL_PX`, 32 Mpx) admits the whole of Desert
-  with the default files (about 6.4 Mpx).
-- **`ReplayMap.tileset`** (optional, `^[a-z0-9-]{1,40}$`, else the
-  payload is refused, as a bad `streamsAsIs`): whose tiles `files` holds.
-  Only a link sets it. Not looked up: the replay draws the files; the id
-  only tells the watch page that nothing needs to be done. Older
-  validators drop it (unknown key).
+  and `img-src data: blob:`, so it can fetch nothing; a second channel (a
+  `tiles` field in `wc-play`) would need its own validation in the frame,
+  while re-encoding the payload reuses `validatePayload` as it is and
+  leaves the handshake at version 1.
+- **Uploads keep the default tiles** (main session's decision, same day).
+  Embedding Desert was built and measured first: `map-demo.log` (852
+  subset rooms, 90 pixmaps) sealed to 3.50 MB with Desert against 0.61 MB
+  with the default tiles, +2.9 MB per link on upload and on every view
+  (a payload from R2 is not shared between runs, while Desert's files on
+  the site are cached by the browser across runs), against the latency
+  target and R2's cost, and it would have needed a fallback near the
+  5 MiB limit that changed which logs can be shared. Since the page
+  retiles every payload anyway, the stored payload stays small and needs
+  no marker of its tileset; `ReplayMap` and the validator are unchanged.
 - **Seasons** do not apply: Desert is a concrete set
   (`SHARED_TILESET`, `sharedOverlay()` in src/map/tilesets.ts).
 
 ### Consequences
 
-- An old link's first play costs the page about 90 tile fetches from its
-  own origin (cached after the first run) and one gzip of the payload
-  (tens of ms); a new link costs nothing on the page.
-- A new link is about 2.9 MB larger to upload and to fetch from R2 per
-  view. If that proves too much, leaving out the two options in
-  `prepareLinkPayload` gives small payloads again and the watch page
-  still draws Desert.
+- A view costs the page about 90 tile fetches from its own origin
+  (Desert's 4.0 MB set at most, cached after the first run) and one gzip
+  of the payload (tens of ms) before the frame gets it.
+- The validator's pixel bound (`MAP_IMAGE_TOTAL_PX`, 32 Mpx) admits the
+  whole of Desert with the default files (about 6.4 Mpx).
 - Tests: `tests/unit/shared-tiles.test.ts` (the overlay, when a payload
-  needs it, the retile, the validator, a new link's Desert and its
-  fallback past the limit); `tests/e2e/watch-desert.spec.ts` (Chromium
+  needs it, the retile, a failed fetch, a new link storing the default
+  tiles and drawn in Desert); `tests/e2e/watch-desert.spec.ts` (Chromium
   and Firefox: an old payload with Gefe & Rik's tiles and a new link both
   give the frame's map worker exactly Desert's files, the default's for
   what Desert lacks, with MMapper's flow and room tints).
-- Entry chunk: unchanged but for chunk names (31.58 kB).
