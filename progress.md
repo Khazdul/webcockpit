@@ -76,7 +76,7 @@
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 | 71 | The shared replay with the lens | Done, released 0.18.0 | `docs/stages/71-shared-replay-lens.md` |
 | 72 | Hall of Fame logs in Discord #log-status | Done, released 0.19.0 | `docs/stages/72-discord-log-status.md` |
-| 73 | The shared replay, round 2 | Done, released 0.20.0 | `docs/stages/73-shared-replay-round-2.md` |
+| 73 | The shared replay, round 2 | Released 0.20.0; the iPad fix (round 3) on staging, owner testing | `docs/stages/73-shared-replay-round-2.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -118,6 +118,7 @@ with no stage of their own. Remove a line when it is done.
 - **Open:** the iPad fix untested on a device; the poster's date is the recording's, the band's the publication's; on a phone upright the watch page's band pushes the poster's foot below the fold.
 - **Round 1 (owner, on staging):** the map bug gone in Firefox; the lens's wheel no longer moves the log (it bubbled to the player's pause cursor); no header row on phone/tablet; the poster: three mockups, the owner picked glass with the title card's type, the publication's title and description, white, edge to edge, the control box hidden under it. Staging run 44356590248, `test:prod` 36/36.
 - **Round 2 (owner):** a shared run on a phone opens with the Small font; the player a third lower upright. Released 0.20.0 on his word (deploy run 44359639115, `test:prod` 36/36 on mumecockpit.com).
+- **Round 3 (owner's iPad, after 0.20.0):** turning in fullscreen left black areas sized from the other orientation. Fixed on emulation (the cockpit lays out again when the orientation catches up; the watch page's root no longer follows a stale measured viewport; both windows re-measure after each event; a relayout after leaving fullscreen) with `?fsdebug` for a readout on the device. Staging run 44369621496, `test:prod` 36/36; phone e2e 617/617. Not released: waits for the owner's iPad check.
 
 ### 2026-11-18 — Stage 72: Hall of Fame logs in Discord #log-status
 
