@@ -335,3 +335,74 @@ the box is inside it, the cockpit lies the right way, and the page's root
 boxes fill the window with the frame inside them. Without the fix the
 three parts fail (the cockpit upright, the root at the old size, the page
 at the old height).
+
+## Addendum (stage 73 round 3b, 2026-11-18): what the iPad readout showed, the three modes to test
+
+The owner's `?fsdebug` shots on the iPad (820×1180 pt;
+`docs/stages/img/73-r3-ipad-{1,2,3}-*.png`): landscape fullscreen before
+any turn is right (both windows 1180×755). After a turn in fullscreen
+the frame's own numbers all agree (inner, root and cockpit 820×1180, the
+box at y 1118), but the page's do not: `innerHeight` and the visual
+viewport 1044 against a `clientHeight` of 1180 (portrait), 684 against
+820 (back in landscape). The frame's content starts about 141 pt down
+and its bottom, with the box, is below the screen. So after a turn in
+element fullscreen of the **iframe**, WebKit shrinks the page's viewport
+by about 136 pt as if Safari's toolbar insets applied, and places the
+fullscreen iframe (sized to the page's `clientHeight`) from the top of
+that shrunken viewport; leaving fullscreen keeps the stale insets (the
+black areas). Measuring again inside the frame cannot help. Likely a
+WebKit bug in iframe element fullscreen plus rotation.
+
+**Three ways in, picked with `?fsmode=frame|page|fill` on the watch page**
+(only those three names; anything else is the default), passed to the
+frame as `wc-play`'s `prefs.fsmode`. The frame uses it only on a tablet
+(`frameFsMode`, `PlayerPhone.tablet`); a phone and a computer keep the
+default whatever the query says. The default stays `frame` until the
+owner picks.
+
+- **`frame`**: as before, the frame's own document in element fullscreen.
+- **`page`**: the frame's key, `F` or Esc post
+  `{t: 'wc-fullscreen', on: true, how: 'page'}`; the page, in the message
+  handler at once, puts its own `<html>` in element fullscreen
+  (`toggleFullscreen`) and fills it with the frame (`is-filled`, the
+  iPhone's path). The page honours `how: 'page'` only when it asked for
+  `page` itself. Refused (the promise rejects or nothing enters within the
+  settle time): the fill stays, and the readout says
+  "page fs refused → fill". Out: the frame's `on: false` (the lens key,
+  `F`, Esc in the frame) exits the page's fullscreen and the fill; the
+  system's swipe or the browser's Esc end it by `fullscreenchange`, and
+  the page ends the fill and answers `wc-fs-state` off, so the frame's key
+  enters again on the next tap.
+- **`fill`**: no element fullscreen; the frame always asks for the fill,
+  as the iPhone does (Safari's bars stay).
+
+**User activation.** The tap is in the sandboxed frame, and the page's
+`requestFullscreen` needs the page's transient activation. HTML's
+activation notification gives it to every ancestor's window. Chromium
+does this (User Activation v2, ancestors across origins too). WebKit's
+`LocalDOMWindow::notifyActivated` updates every local ancestor frame's
+window as well, and WebKit also carries the gesture token across
+`postMessage` (`processPostMessage` captures
+`UserGestureIndicator::currentUserGesture()` and replays it in the posted
+task, unless it has expired). Its `requestFullscreen`
+(`DocumentFullscreen.cpp`) asks for `consumeTransientActivation()` on the
+requesting document's window, which the propagation has set. So the
+request from the handler should pass on the iPad. The handler checks
+`navigator.userActivation.isActive` first (the fill's rule) and notes
+"fs refused: no user activation" when it is not active. Tested in
+Chromium: the tap in the frame puts the page in fullscreen.
+
+**The readout** (`?fsdebug`) adds the mode and whether the frame fills
+the window (`fsmode page  filled yes`), the page's fullscreen notes with
+their times (asked with or without activation, entered, refused → fill,
+left), and **"insets"**: when the page or the fill is in fullscreen and
+the page's `clientHeight` is more than 40 px over its `innerHeight`, the
+amount, both heights, the time and the event, kept once seen. The
+frame's readout shows `fsmode <mode>  parent-fs on|off`.
+
+Tested in Chromium on the tablet's emulation (`phone-watch-box`): `page`
+and `fill` in, turned both ways (the size first, the orientation after
+it), out by the lens key, Esc and `F`, and for `page` out by the system
+with the next tap entering again; `page` refused falls back to the fill;
+`frame` as before; a phone ignores `?fsmode=page`. Unit tests for the
+names and the frame's choice. Not run on WebKit.
