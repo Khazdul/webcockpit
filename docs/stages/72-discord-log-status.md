@@ -43,7 +43,7 @@ Discord admin) made a webhook for `#log-status` on 2026-11-17. Background:
 - [x] Unit tests against a fake Discord (post, wait id, delete, 429/5xx
       retry next tick, escape, no mentions, no secret → nothing)
 - [x] Review, merge, staging (run 44205436304; `test:prod` 36/36 on staging)
-- [ ] Release; secret set in production; the existing log posted by hand;
+- [x] Release 0.19.0; secret set in production; the existing log posted by hand;
       flag on (the owner's word)
 
 ## Test guide
