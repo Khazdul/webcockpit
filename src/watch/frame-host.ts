@@ -16,8 +16,8 @@
 // needs its fonts (fetched from the page's own origin as the exporter
 // fetches them, only families of `FONTS`). A payload the page refuses
 // never reaches the frame. Its map is drawn in Desert's tiles, a shared
-// run's (ADR 0154 addendum 2026-11-18): a payload with other tiles gets
-// Desert's from the page's origin before it is posted.
+// run's (ADR 0154 addendum 2026-11-18): the page gives the payload
+// Desert's tiles from its own origin before it is posted.
 //
 // Messages are taken only from the frame's own window with the origin
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
@@ -95,7 +95,7 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     () => [],
   );
   // A shared run's map in Desert's tiles (owner, 2026-11-18; src/share/shared-tiles.ts):
-  // a payload with other tiles (every link made before) is retiled here, on
+  // a link stores the default tiles, so every payload is retiled here, on
   // the page, which may fetch them; the frame validates the result as any
   // payload. Without them (a fetch failed) it plays with the tiles it has.
   const wire: Promise<ArrayBuffer> = withSharedTiles(payload, { assetBase: url('map/'), fetch: f }).then(

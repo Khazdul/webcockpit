@@ -1,8 +1,6 @@
 // Stage 73 E2 (owner, 2026-11-18; ADR 0154 addendum "Desert"): a shared
-// run's map is drawn in Desert's tiles. New links embed Desert and say so
-// (`ReplayMap.tileset`); a link Desert would push past the upload limit is
-// sealed with the default tiles instead; the watch page retiles every
-// payload whose tiles are not Desert's (`withSharedTiles`).
+// run's map is drawn in Desert's tiles. A link stores the default tiles;
+// the watch page retiles every payload (`withSharedTiles`).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -93,11 +91,9 @@ describe('the shared tileset', () => {
     expect(o.tints).toBeUndefined();
   });
 
-  it('is needed by a payload whose map does not say Desert', () => {
+  it('is needed by a payload whose map has tiles', () => {
     const p = oldPayload();
     expect(needsSharedTiles(p)).toBe(true);
-    expect(needsSharedTiles({ ...p, map: { ...p.map!, tileset: 'gefe-rik' } })).toBe(true);
-    expect(needsSharedTiles({ ...p, map: { ...p.map!, tileset: 'desert' } })).toBe(false);
     const { map: _m, ...noMap } = p;
     expect(needsSharedTiles(noMap as ReplayPayload)).toBe(false);
     expect(needsSharedTiles({ ...p, map: { ...p.map!, files: { 'fonts/Cantarell18.fnt': p.map!.files['fonts/Cantarell18.fnt']! } } })).toBe(false);
@@ -111,71 +107,38 @@ describe('the shared tileset', () => {
     expect(out.map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/desert/terrain-field.png'));
     expect(out.map!.files['pixmaps/wall-north.png']).toBe(fileUri('map/pixmaps/wall-north.png'));
     expect(out.map!.files['fonts/Cantarell18.fnt']).toBe(p.map!.files['fonts/Cantarell18.fnt']);
-    expect(out.map!.tileset).toBe('desert');
     // Gefe & Rik's untinted flow and light tints go with its tiles: Desert has MMapper's.
     expect(out.map!.streamsAsIs).toBeUndefined();
     expect(out.map!.tints).toBeUndefined();
     expect(out.map!.mm2).toBe(p.map!.mm2);
     expect(out.runs).toBe(p.runs);
-    // The result is a payload the frame takes (it validates it again), with the id kept.
-    expect(validatePayload(JSON.parse(JSON.stringify(out))).map!.tileset).toBe('desert');
+    // The result is a payload the frame takes (it validates it again).
+    expect(validatePayload(JSON.parse(JSON.stringify(out))).map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/desert/terrain-field.png'));
     // The input is not changed.
     expect(p.map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/gefe-rik/terrain-field.png'));
-    // A Desert payload is played as it is.
-    expect(await withSharedTiles(out, { assetBase: `${BASE}map/`, fetch: publicFetch() })).toBe(out);
   });
 
   it('rejects when a tile cannot be fetched', async () => {
     await expect(withSharedTiles(oldPayload(), { assetBase: `${BASE}map/`, fetch: async () => new Response('', { status: 503 }) })).rejects.toThrow(/503/);
   });
-
-  it('the validator keeps a well-formed `map.tileset` and refuses another', () => {
-    const p = JSON.parse(JSON.stringify(oldPayload())) as Record<string, any>;
-    expect(validatePayload(p).map!.tileset).toBeUndefined();
-    p.map.tileset = 'desert';
-    expect(validatePayload(p).map!.tileset).toBe('desert');
-    for (const bad of [1, '', 'Desert!', 'x'.repeat(41), '__proto__']) {
-      p.map.tileset = bad;
-      expect(() => validatePayload(p)).toThrow(/map\.tileset/);
-    }
-  });
 });
 
 describe('a new link', () => {
-  const doc = defaultExportDoc('Rasta/x');
-
-  it('embeds Desert and says so', async () => {
+  it('stores the default tiles (small), and the watch page draws it in Desert', async () => {
     const asked: string[] = [];
-    const prepared = await prepareLinkPayload(chain(), [], doc, defaultSettings(), { kind: 'url', url: 'arda.mm2' } as never, {
+    const prepared = await prepareLinkPayload(chain(), [], defaultExportDoc('Rasta/x'), defaultSettings(), { kind: 'url', url: 'arda.mm2' } as never, {
       base: BASE,
       fetch: publicFetch(asked),
       runMapTool: fakeTool,
     });
-    const link = await sealLinkPayload(prepared, { base: BASE, fetch: publicFetch() });
-    const map = (JSON.parse(gunzipSync(link.bytes).toString('utf8')) as ReplayPayload).map!;
-    expect(map.tileset).toBe('desert');
-    expect(map.name).toBe('map.mm2');
-    expect(map.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/desert/terrain-field.png'));
+    const link = await sealLinkPayload(prepared);
+    const stored = JSON.parse(gunzipSync(link.bytes).toString('utf8')) as ReplayPayload;
+    expect(stored.map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/pixmaps/terrain-field.png'));
+    expect(asked.some((a) => a.includes('tilesets/'))).toBe(false);
+    const shown = await withSharedTiles(stored, { assetBase: `${BASE}map/`, fetch: publicFetch() });
+    expect(shown.map!.files['pixmaps/terrain-field.png']).toBe(fileUri('map/tilesets/desert/terrain-field.png'));
+    expect(shown.map!.files['pixmaps/stream-in-east.png']).toBe(fileUri('map/tilesets/desert/stream-in-east.png'));
     // Desert lacks walls: the default's.
-    expect(map.files['pixmaps/wall-north.png']).toBe(fileUri('map/pixmaps/wall-north.png'));
-    expect(map.files['pixmaps/stream-in-east.png']).toBe(fileUri('map/tilesets/desert/stream-in-east.png'));
-    expect(map.streamsAsIs).toBeUndefined();
-    expect(asked).not.toContain('map/pixmaps/terrain-field.png');
-  });
-
-  it('past the upload limit: sealed with the default tiles, without the id (the watch page draws Desert all the same)', async () => {
-    const prepared = await prepareLinkPayload(chain(), [], doc, defaultSettings(), { kind: 'url', url: 'arda.mm2' } as never, {
-      base: BASE,
-      fetch: publicFetch(),
-      runMapTool: fakeTool,
-    });
-    const full = await sealLinkPayload(prepared, { base: BASE, fetch: publicFetch() });
-    const small = await sealLinkPayload(prepared, { base: BASE, fetch: publicFetch(), maxBytes: full.bytes.length - 1 });
-    expect(small.bytes.length).toBeLessThan(full.bytes.length);
-    const map = (JSON.parse(gunzipSync(small.bytes).toString('utf8')) as ReplayPayload).map!;
-    expect(map.tileset).toBeUndefined();
-    expect(map.files['pixmaps/terrain-field.png']).toBe(fileUri('map/pixmaps/terrain-field.png'));
-    expect(map.files['fonts/Cantarell18.fnt']).toBe(fileUri('map/fonts/Cantarell18.fnt', 'text/plain'));
-    expect(small.payload.map!.tileset).toBeUndefined();
+    expect(shown.map!.files['pixmaps/wall-north.png']).toBe(fileUri('map/pixmaps/wall-north.png'));
   });
 });

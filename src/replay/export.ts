@@ -198,8 +198,6 @@ export interface BuildReplayOptions {
   runMapTool?: EmbedMapOptions['runTool'];
   /** The map tileset to embed the tiles from (ADR 0082); absent: the default pixmaps. */
   tileset?: TilesetOverlay;
-  /** The id of `tileset`, said in the payload (`ReplayMap.tileset`; a share link's Desert). */
-  tilesetId?: string;
   /** A share link's map: no room notes, a neutral name (review fix S6; the HTML file keeps both). */
   forLink?: boolean;
 }
@@ -266,7 +264,6 @@ export async function withReplayMap(payload: ReplayPayload, opts: BuildReplayOpt
     fetch: f,
     ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
     ...(opts.tileset ? { tileset: opts.tileset } : {}),
-    ...(opts.tilesetId !== undefined ? { tilesetId: opts.tilesetId } : {}),
     ...(opts.forLink ? { forLink: true } : {}),
   });
 }

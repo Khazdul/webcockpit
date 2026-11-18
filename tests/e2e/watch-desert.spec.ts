@@ -6,7 +6,8 @@
 //   sandboxed frame: the frame's map worker gets Desert's files, the
 //   default's for what Desert lacks, and MMapper's flow tint and room tints.
 // - A new link (`prepareLinkPayload` + `sealLinkPayload`, as the share
-//   dialog builds it) carries Desert itself and plays so.
+//   dialog builds it) stores MMapper's default tiles and plays in Desert
+//   all the same.
 // Both through `__wc.watchFrame` (the watch page's `openFrame`, src/watch/frame-host.ts).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -96,7 +97,7 @@ test('an old link with another tileset embedded plays in Desert', async ({ page 
   expectDesert(await sentAssets(await playingFrame(page)));
 });
 
-test('a new link carries Desert and plays in it', async ({ page }) => {
+test('a new link stores the default tiles and plays in Desert', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { prepareLinkPayload } = (await import('/src/share/link-payload.ts' as string)) as typeof import('../../src/share/link-payload');
     const { sealLinkPayload } = (await import('/src/share/link-seal.ts' as string)) as typeof import('../../src/share/link-seal');
@@ -106,10 +107,11 @@ test('a new link carries Desert and plays in it', async ({ page }) => {
     const us = Number(/^(\d{16}) /.exec(text)![1]);
     const chain = [{ meta: { runId: 'Rasta/0', character: 'Rasta', startedUs: us, endedUs: null, sealed: true, bytes: text.length, lines: 0 }, text }];
     const link = await sealLinkPayload(await prepareLinkPayload(chain, [], defaultExportDoc('Rasta/0'), w.settings.get(), await w.shell.maps.source()));
-    return { played: await w.watchFrame({ raw: link.payload }), tileset: link.payload.map?.tileset ?? null, bytes: link.bytes.length };
+    const field = link.payload.map!.files['pixmaps/terrain-field.png']!;
+    return { played: await w.watchFrame({ raw: link.payload }), field: { len: field.length, tail: field.slice(-80) } };
   });
-  expect(r.tileset).toBe('desert');
+  // Stored: the default set's file (small payloads; ADR 0154 addendum 2026-11-18).
+  expect(r.field).toEqual(fingerprint(uri(join(PUBLIC, 'pixmaps', 'terrain-field.png'))));
   expect(r.played).toEqual({ ok: true });
   expectDesert(await sentAssets(await playingFrame(page)));
-  console.log(`a new link of map-demo.log in Desert: ${r.bytes} bytes`);
 });
