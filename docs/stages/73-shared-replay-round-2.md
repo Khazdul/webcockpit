@@ -184,3 +184,22 @@ Round 1 (2026-11-18, on staging):
    melting into the player. Three looks to compare: the TV, a plain glass,
    and a third of our choosing. **Mockups first; the owner picks and
    approves before the poster is changed.**
+
+   Points 3–4: **mockups ready** (branch `stage-73-poster-r1`). The words
+   of point 3 and three looks, each edge to edge with no rim: `tv` (the
+   tube face reworked), `glass` (plain frosted glass), `cinema` (a film
+   title card: dark gradients from top and foot, a soft vignette, a wider
+   title). Dev only: `?poster=tv|glass|cinema` on the watch page; without
+   it the poster is part C's, unchanged. The publication's title and
+   description reach the frame in `wc-play`'s `meta` (plain text, capped:
+   `frameMeta`, src/replay/frame.ts); the look in `prefs.poster`. Shots
+   (`WC_POSTER_MOCKUPS=1 npx playwright test poster-mockups
+   --project=chromium`), desktop 1440×900, phone portrait (Pixel 7, the
+   frame alone), tablet landscape 1180×820:
+   - `img/73-r1-poster-tv-desktop.png`, `-tv-phone.png`, `-tv-tablet.png`
+   - `img/73-r1-poster-glass-desktop.png`, `-glass-phone.png`,
+     `-glass-tablet.png`
+   - `img/73-r1-poster-cinema-desktop.png`, `-cinema-phone.png`,
+     `-cinema-tablet.png`
+   - side by side: `img/73-r1-poster-overview-desktop.png`,
+     `-overview-phone.png`, `-overview-tablet.png`
