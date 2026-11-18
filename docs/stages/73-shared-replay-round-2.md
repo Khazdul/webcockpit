@@ -124,6 +124,16 @@ run log player and Spotlights are untouched, as in stage 71.
   links keep storing the small default tiles (embedding Desert measured
   +2.9 MB per link: dropped). ADR 0154 addendum 2026-11-18.
 - [ ] D. Merge, full e2e alone, review.
+      Review fixes (2026-11-18): (1) the desk lens keeps its box in the
+      cockpit while Map is off (the cockpit places no map then), so Map on
+      lays the map straight into the lens, never docked or floating for a
+      layout (`watch-lens.spec.ts` watches the pane); (2) the watch page
+      posts the Desert retile only when its JSON is within
+      `PAYLOAD_JSON_MAX` and passes `validatePayload`, else the original
+      bytes (`retiledWire`, unit in `shared-tiles.test.ts`); (3) the poster
+      swallows the auto-repeats of the Space/Enter that started the run
+      until its keyup (unit in `replay-poster.test.ts`); (4) `openReplay`
+      takes the poster away when the player fails to open, and rethrows.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.
 
