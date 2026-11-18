@@ -313,8 +313,24 @@ export function mountPoster(
     e.preventDefault();
     start();
   });
+  // The key that started the run, while it is still held (stage 73 review
+  // fix): its auto-repeats are swallowed until its keyup, so a held Space
+  // or Enter does not reach the player and pause the run it just started.
+  // The same capture listener as the poster's keys (it was added before the
+  // player's, so it comes first), kept until then.
+  let held: string | null = null;
+  const keyOf = (k: string): string => (k === "Spacebar" ? " " : k);
   const onKey = (e: KeyboardEvent): void => {
-    if (!up) return;
+    if (!up) {
+      if (held === null || keyOf(e.key) !== held) return;
+      if (!e.repeat) {
+        unhold();
+        return;
+      }
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
     if (e.key === "Tab") return;
     e.stopImmediatePropagation();
     const go =
@@ -324,13 +340,26 @@ export function mountPoster(
       !e.metaKey;
     if (go) {
       e.preventDefault();
-      if (!e.repeat) start();
+      if (!e.repeat) {
+        held = keyOf(e.key);
+        start();
+      }
     }
   };
+  const onKeyUp = (e: KeyboardEvent): void => {
+    if (held !== null && keyOf(e.key) === held) unhold();
+  };
   win?.addEventListener("keydown", onKey, true);
+  win?.addEventListener("keyup", onKeyUp, true);
+  function unhold(): void {
+    held = null;
+    if (up) return;
+    win?.removeEventListener("keydown", onKey, true);
+    win?.removeEventListener("keyup", onKeyUp, true);
+  }
 
   const remove = (fade: boolean): void => {
-    win?.removeEventListener("keydown", onKey, true);
+    if (held === null) unhold();
     const reduced =
       win?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? true;
     if (!fade || reduced) {
@@ -360,6 +389,7 @@ export function mountPoster(
     },
     start,
     dispose: () => {
+      unhold();
       if (!up) return;
       up = false;
       remove(false);

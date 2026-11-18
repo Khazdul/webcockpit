@@ -164,6 +164,28 @@ describe("openReplay with the poster", () => {
     expect(eng.playing).toBe(true);
   });
 
+  it("a held Space or Enter that started it never toggles the run it started, until its keyup", () => {
+    for (const key of [" ", "Enter"]) {
+      const { page } = open();
+      const eng = page.host.engine!;
+      const key_ = (type: string, repeat = false) =>
+        window.dispatchEvent(new KeyboardEvent(type, { key, repeat, bubbles: true }));
+      key_("keydown");
+      expect(page.poster!.up).toBe(false);
+      expect(eng.playing).toBe(true);
+      // The auto-repeats of the held key are swallowed.
+      for (let i = 0; i < 5; i++) key_("keydown", true);
+      expect(eng.playing).toBe(true);
+      key_("keyup");
+      // Released: Space is the player's again.
+      if (key === " ") {
+        key_("keydown");
+        expect(eng.playing).toBe(false);
+      }
+      page.host.dispose();
+    }
+  });
+
   it("a press on it never reaches the player’s stage", () => {
     const { root } = open();
     let seen = 0;
