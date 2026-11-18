@@ -24,6 +24,7 @@ import {
   playing,
   replay,
   setUp,
+  startRun,
   watchBtn,
 } from './watch-page';
 
@@ -80,6 +81,7 @@ test('a published run plays with the map lens only; Group and Timers are the len
   });
   await openWatch(page, 'Old3dE5fG7hJ');
   await playing(page);
+  await startRun(page);
   const r = replay(page);
   await expect(r.locator('.wc-player')).toContainText('hardened ranger');
   await expect(r.locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
@@ -349,6 +351,7 @@ test.describe('fullscreen', () => {
     await setUp(page);
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     await replay(page).locator('.wc-player').hover();
     await expect(fsButton(page)).toHaveAttribute('aria-label', 'Fullscreen (F)');
     await fsButton(page).click();
@@ -378,6 +381,7 @@ test.describe('fullscreen', () => {
     await setUp(page);
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     await noFrameFullscreen(page);
     await replay(page).locator('.wc-player').hover();
     await fsButton(page).click();
@@ -400,6 +404,7 @@ test.describe('fullscreen', () => {
     await setUp(page);
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     // Playwright's evaluate gives the page user activation (Chromium), and a
     // click or key gives it for 5 s: the messages go 6 s later, as from a
     // frame nobody touched.

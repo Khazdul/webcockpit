@@ -8,7 +8,7 @@
 //
 // Desktop projects (Chromium and Firefox), the watch page's frame.
 import { type Locator, type Page, expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp } from './watch-page';
+import { openWatch, playing, replay, setUp, startRun } from './watch-page';
 import { lensMap, mapSent, recordMapWorker } from './watch-map';
 
 const box = async (l: Locator): Promise<{ x: number; y: number; width: number; height: number }> => (await l.boundingBox())!;
@@ -26,6 +26,7 @@ test('the desktop lens: always on, its keys, Group and Timers at the bottom righ
   await setUp(page);
   await openWatch(page);
   await playing(page);
+  await startRun(page);
   const r = replay(page);
   const lens = r.locator('.wc-dl');
   await expect(lens).toBeVisible();

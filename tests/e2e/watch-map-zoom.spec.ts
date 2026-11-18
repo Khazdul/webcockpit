@@ -6,7 +6,7 @@
 // the map is the desktop lens, always shown; the rest of the lens is
 // watch-lens.spec.ts.
 import { expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp } from './watch-page';
+import { openWatch, playing, replay, setUp, startRun } from './watch-page';
 import { lensMap, recordMapWorker, zoomSteps } from './watch-map';
 
 test("the wheel over the watch page's map zooms it, Ctrl+wheel too; the page stays put", async ({ page }) => {
@@ -15,6 +15,7 @@ test("the wheel over the watch page's map zooms it, Ctrl+wheel too; the page sta
   await setUp(page);
   await openWatch(page);
   await playing(page);
+  await startRun(page);
   const canvas = await lensMap(page);
   const b = (await canvas.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);

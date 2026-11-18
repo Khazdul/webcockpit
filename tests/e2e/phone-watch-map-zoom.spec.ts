@@ -12,7 +12,7 @@
 // `phone` project (Pixel 7), CDP touches on the lens in the frame, at a
 // phone's and a tablet's size.
 import { type Page, expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp } from './watch-page';
+import { openWatch, playing, replay, setUp, startRun } from './watch-page';
 import { mapSent, recordMapWorker } from './watch-map';
 
 async function pinchOn(page: Page, cx: number, cy: number, from: number, to: number): Promise<void> {
@@ -39,6 +39,7 @@ for (const [name, size] of [
     await setUp(page);
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     const glass = replay(page).locator('.wc-ph-lens-glass');
     await expect(glass).toBeVisible();
     await expect(replay(page).locator('.wc-pane[data-pane="map"] .wc-pane-content')).toHaveAttribute('data-map-state', /ready|loaded/);

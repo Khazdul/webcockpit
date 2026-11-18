@@ -18,8 +18,10 @@ import {
   openWatch,
   pausedInFrame,
   playing,
+  poster,
   replay,
   setUp,
+  startRun,
   watchBtn,
 } from './watch-page';
 
@@ -70,10 +72,9 @@ test('phone: Report logged in; the run starts paused and Play starts it', async 
   await expect(replay(page).locator('.wc-player')).toContainText('hardened ranger');
   await page.waitForTimeout(1_000);
   await pausedInFrame(page);
-  // Play starts it. The bar is docked at the frame's foot (stage 71: the phone layout), under the
-  // fold of the scrolling page: scrolled into view first.
-  await page.locator('.wc-watch-page').evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await replay(page).locator('.wc-pc-play').tap();
+  // A tap on the poster (stage 73, ADR 0162) starts it.
+  await poster(page).tap();
+  await expect(poster(page)).toHaveCount(0);
   await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'true');
 });
 
@@ -93,6 +94,7 @@ test('phone: Fullscreen puts the frame alone in fullscreen; without element full
   await setUp(page);
   await openWatch(page);
   await playing(page);
+  await startRun(page);
   await expect(replay(page).locator('.wc-player-box [data-act="extra"]')).toHaveCount(0);
   const fsButton = replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
   await fsButton.tap();
@@ -121,6 +123,7 @@ for (const width of [360, 390]) {
     await setUp(page, { gallery: true });
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     const fsButton = replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
     await expect(fsButton).toBeVisible();
     await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen');
