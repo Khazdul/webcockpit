@@ -38,9 +38,9 @@ Discord admin) made a webhook for `#log-status` on 2026-11-17. Background:
 
 ## Tasks
 
-- [ ] ADR 0161
-- [ ] Migration, flag, secret type, cron poster and deleter, logo URL
-- [ ] Unit tests against a fake Discord (post, wait id, delete, 429/5xx
+- [x] ADR 0161
+- [x] Migration, flag, secret type, cron poster and deleter, logo URL
+- [x] Unit tests against a fake Discord (post, wait id, delete, 429/5xx
       retry next tick, escape, no mentions, no secret → nothing)
 - [ ] Review, merge, staging
 - [ ] Release; secret set in production; the existing log posted by hand;
@@ -48,4 +48,33 @@ Discord admin) made a webhook for `#log-status` on 2026-11-17. Background:
 
 ## Test guide
 
-(written when built)
+Nothing on staging posts to Discord: staging has no `DISCORD_WEBHOOK_URL`,
+and the flag `discord` is off in both environments. The poster itself was
+tested against a fake Discord (`worker/test/discord.test.ts`, 29 tests).
+What you can check on staging:
+
+1. Open `/admin` → Flags and limits. The table has a new last row
+   `discord`, "off", default "off". Turning it on and off works and goes
+   to the admin log, but posts nothing (no secret).
+2. Everything else as before: list and unlist a log in the Hall of Fame,
+   remove one; nothing changes for the player.
+
+In production, after the release (your word on each step):
+
+1. Set the secret: `npx wrangler secret put DISCORD_WEBHOOK_URL` (paste
+   Nazgum's webhook URL; it never goes in the repository).
+2. Turn `discord` on in `/admin`. From that moment only logs newly listed
+   in the Hall of Fame are posted, 2–7 minutes after listing, as
+   "MUME Cockpit" with our logo.
+3. Post today's log by hand (it was listed before the switch):
+   `npx wrangler d1 execute webcockpit --remote --command "INSERT INTO
+   discord_post (pub) VALUES ('<id>') ON CONFLICT DO NOTHING"`; it appears
+   in #log-status within 5 minutes.
+4. Check the post: the name and avatar, the text "The log **…** has been
+   posted by **…** (…) on MUME Cockpit:", and the link unfurled into the
+   preview card.
+5. Unlist (or remove) a test log that was posted: its Discord post goes
+   within 5 minutes.
+
+Feedback wanted: the wording of the post, and whether the avatar looks
+right in the channel.
