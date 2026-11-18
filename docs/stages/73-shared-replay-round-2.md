@@ -71,7 +71,21 @@ run log player and Spotlights are untouched, as in stage 71.
 
 ## Plan and tasks
 
-- [ ] A. Desktop: the bug (1), points 2–6. ADR 0160 addendum.
+- [x] A. Desktop: the bug (1), points 2–6. ADR 0160 addendum.
+      (Branch `stage-73a-desk-lens`.) The bug: Firefox's GPU WebRender
+      promotes the busy WebGL canvas to a compositor surface that drops the
+      circle (Mozilla bug 2068303); the canvas is now masked to the circle,
+      and the lens shifts the map only for the box the cockpit laid out
+      (`Cockpit.deskLensLaid`). No keys on the lens; a drag anywhere moves
+      it; four dots (8, 14, 24, 44 rooms across; the wheel steps them, kept
+      across a seek); the map always follows (the hand lens went from
+      map.ts); Map, Group and Timers in the Panes popup (Map on at the
+      start); the default place a row lower. Tests: `watch-lens.spec.ts`
+      (two tests, the second the bug's), `watch-map-zoom.spec.ts` (the
+      wheel's levels), the watch page, replay and viewer specs back on the
+      Panes popup; unit `desk-lens.test.ts`, `shared-panes.test.ts`.
+      Screenshots `docs/stages/img/73-a-*.png`. Open: the phone lens has
+      the same clip-path alone (a mask there is part B's or a follow-up).
 - [ ] B. Phone and tablet: points 7–10.
 - [ ] C. The poster: point 11.
 - [ ] D2. The watch page's Back goes straight to the Community (point 12).

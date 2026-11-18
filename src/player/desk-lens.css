@@ -1,15 +1,13 @@
 /* The desktop lens of a shared run (src/player/desk-lens.ts, stage 71,
- * ADR 0160): the phone lens's look (src/phone/phone.css, "map lens"),
- * scaled to a computer: the cast-iron ring with its grain, the lamp's glow
- * round it, the glass, and round keys on the corners. Static paint: no
+ * ADR 0160; stage 73): the phone lens's look (src/phone/phone.css, "map
+ * lens"), scaled to a computer: the cast-iron ring with its grain, the
+ * lamp's glow round it, the glass, and the four zoom dots at the bottom
+ * (the phone's pips, larger and clickable). No keys. Static paint: no
  * filter, no animation. Scoped under `.wc-cockpit` and the lens's own
  * classes, so nothing here matches anywhere else. */
 
 .wc-cockpit > .wc-dl {
   --dl-ring: 10px;
-  --dl-key: 44px;
-  /* A corner key's offset into the lens's box: its centre on the ring's outer edge at 45° (it overlaps the ring and a little of the glass). */
-  --dl-key-at: calc(var(--dl-size, 260px) / 2 - (var(--dl-size, 260px) / 2 + var(--dl-ring)) * 0.7071 - var(--dl-key) / 2);
   --dl-lamp: #e8c48a;
   --dl-lamp-hi: #fff1cf;
   --dl-ink: #170f03;
@@ -19,9 +17,9 @@
     repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.055) 0 0.7deg, rgb(0 0 0 / 0.09) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
     linear-gradient(145deg, #6f655a 0, #3a342d 34%, #1b1713 68%, #4c443b 100%);
   --dl-glass-in: inset 0 0 0 1px rgb(232 196 138 / 0.3), inset 0 2px 6px rgb(255 255 255 / 0.22), inset 0 -10px 18px rgb(0 0 0 / 0.55);
-  --dl-key-bg: linear-gradient(#2a2520, #15120e);
-  --dl-key-edge: #5a5148;
-  --dl-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.22), 0 2px 8px rgb(0 0 0 / 0.85);
+  --dl-dot: rgb(232 196 138 / 0.35);
+  --dl-dot-on: #e8c48a;
+  --dl-dot-glow: 0 0 6px #e8c48a;
   position: absolute;
   /* Above the map pane (cockpit.ts DESK_LENS_Z), under the player's chrome (50). */
   z-index: 41;
@@ -39,6 +37,20 @@
 .wc-cockpit > .wc-pane[data-desk-lens] {
   clip-path: circle(calc(var(--dl-size, 260px) / 2) at 50% 50%);
   background: #000;
+}
+
+/* And its canvas masked to the same circle: the fix of stage 73's bug (ADR 0160 addendum). A
+ * large WebGL canvas that presents frame after frame (the map following the player while the
+ * run plays) may be promoted by Firefox's GPU WebRender to a compositor surface of its own,
+ * which keeps only the pane's rectangle of the clip and drops the circle (Mozilla bug 2068303):
+ * the map then showed in the whole cells round the ring. A mask on the canvas itself makes
+ * WebRender refuse that promotion, so the circle holds; the clip above stays for the rest of the
+ * pane and for hit testing. (The canvas fills the pane: the lens's map is borderless.) */
+.wc-cockpit > .wc-pane[data-desk-lens] .wc-map-canvas {
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 calc(var(--dl-size, 260px) / 2 - 0.5px), transparent calc(var(--dl-size, 260px) / 2));
+  mask-image: radial-gradient(circle at 50% 50%, #000 calc(var(--dl-size, 260px) / 2 - 0.5px), transparent calc(var(--dl-size, 260px) / 2));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 .wc-cockpit > .wc-pane[data-desk-lens] > :not(.wc-pane-content) {
@@ -101,100 +113,60 @@
     var(--dl-outer);
 }
 
-/* The round keys on the lens's diagonals, set into the ring so they belong to the lens. */
-.wc-dl-key,
-.wc-dl-follow {
+/* The glass: the whole circle takes the mouse (the map under it never does); a drag moves the lens. */
+.wc-dl-glass {
   position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: var(--dl-key);
-  height: var(--dl-key);
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--dl-key-edge);
+  inset: 0;
   border-radius: 50%;
-  background: var(--dl-key-bg);
-  color: var(--dl-lamp);
-  box-shadow: var(--dl-key-shadow);
   pointer-events: auto;
-  cursor: pointer;
-}
-
-.wc-dl-key.is-tl {
-  left: var(--dl-key-at);
-  top: var(--dl-key-at);
-}
-
-.wc-dl-key.is-tr {
-  right: var(--dl-key-at);
-  top: var(--dl-key-at);
-}
-
-.wc-dl-key.is-br {
-  right: var(--dl-key-at);
-  bottom: var(--dl-key-at);
-}
-
-.wc-dl-key.is-bl {
-  left: var(--dl-key-at);
-  bottom: var(--dl-key-at);
-}
-
-/* The move handle: a grab cursor, its four arrows say "drag me". */
-.wc-dl-key.wc-dl-move {
   cursor: grab;
   touch-action: none;
 }
 
-.wc-dl[data-drag='move'] .wc-dl-move {
+.wc-dl[data-drag='move'] > .wc-dl-glass {
   cursor: grabbing;
-  background: var(--dl-lamp);
-  border-color: var(--dl-lamp-hi);
-  color: var(--dl-ink);
 }
 
-.wc-dl-key:hover,
-.wc-dl-follow:hover {
-  border-color: var(--dl-lamp);
-}
-
-/* A key whose pane is on: lit by the lamp. */
-.wc-dl-key.is-on {
-  background: var(--dl-lamp);
-  border-color: var(--dl-lamp-hi);
-  color: var(--dl-ink);
-}
-
-.wc-dl-key:active,
-.wc-dl-follow:active {
-  background: var(--dl-lamp);
-  border-color: var(--dl-lamp-hi);
-  color: var(--dl-ink);
-}
-
-/* The follow key: at the bottom of the glass while the map does not follow the player. */
-.wc-dl-follow {
+/* The zoom dots at the bottom centre of the glass, the phone lens's pips: the lit one is the
+ * level. Each is a button larger than its dot, so it is easy to hit. */
+.wc-dl-dots {
+  position: absolute;
   left: 50%;
   bottom: 12px;
   transform: translateX(-50%);
-  width: 38px;
-  height: 38px;
-}
-
-.wc-dl-follow[hidden] {
-  display: none;
-}
-
-.wc-dl-ico {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  display: flex;
+  gap: 0;
   pointer-events: none;
+}
+
+.wc-dl-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.wc-dl-dot > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dl-dot);
+  pointer-events: none;
+}
+
+.wc-dl-dot:hover > i {
+  background: color-mix(in srgb, var(--dl-dot-on) 70%, transparent);
+}
+
+.wc-dl-dot.is-on > i {
+  background: var(--dl-dot-on);
+  box-shadow: var(--dl-dot-glow);
 }
