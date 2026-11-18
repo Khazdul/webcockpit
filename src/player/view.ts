@@ -78,8 +78,8 @@
 // is no docked bar), with the touch device's larger keys (`data-touch`;
 // compact, it drops To the start and the stepper's arrows, and the speed
 // is one key that steps round, as the narrow docked bar's),
-// and the header is the docked one's (no key hints, from the left edge,
-// ending where the host says). The box is kept inside the visible part of
+// and there is no header (stage 73 round 1: the character and the date
+// are the watch page's, not a row over the game text). The box is kept inside the visible part of
 // the window (`boxLift`: the visual viewport, measured again on every
 // resize, turn, visual viewport change and fullscreen change, and once
 // more after `VIEWPORT_RECHECK_MS`): iPadOS turning in fullscreen reports
@@ -162,13 +162,6 @@ export interface DockRect {
   headRight?: number;
 }
 
-/** Option `touchFloat`: where the header's row begins and ends, px from the root's left edge. */
-export interface TouchHead {
-  /** Where the game text begins (landscape with the strip open: right of its column). */
-  left: number;
-  /** The header's row ends here (the lens's corner key, a hood plate). Absent: the row has the width. */
-  headRight?: number;
-}
 
 /** A rectangle in a window's client px (a root's `getBoundingClientRect`, the visible part of the window). */
 export interface ClientBox {
@@ -285,12 +278,8 @@ export interface PlayerViewOptions {
    * Read on every render; the host calls `refresh()` when it changes.
    */
   dock?: () => DockRect | null;
-  /**
-   * The box floats on a phone or tablet (see the file header): where the
-   * header's row begins and ends now, or null (the whole row). Read on
-   * every render; the host calls `refresh()` when it changes. Not with `dock`.
-   */
-  touchFloat?: () => TouchHead | null;
+  /** The box floats on a phone or tablet, and there is no header (see the file header). Not with `dock`. */
+  touchFloat?: boolean;
 }
 
 /** The pane part of the viewer settings (the Panes popup). */
@@ -515,7 +504,7 @@ export class PlayerView {
     if (opts.bare) this.el.toggleAttribute('data-bare', true);
     else {
       if (opts.back) this.backEl = this.backButton(opts.back.title);
-      this.el.append(...(this.backEl ? [this.backEl] : []), this.headerEl, this.marksEl, this.railEl, this.boxEl, this.hintEl, this.tipEl);
+      this.el.append(...(this.backEl ? [this.backEl] : []), ...(this.touchFloat ? [] : [this.headerEl]), this.marksEl, this.railEl, this.boxEl, this.hintEl, this.tipEl);
     }
     opts.root.appendChild(this.el);
     this.quiet = !opts.bare && (opts.startHidden ?? false);
@@ -857,7 +846,7 @@ export class PlayerView {
       return;
     }
 
-    this.renderHeader(W, w, cols);
+    if (!this.touchFloat) this.renderHeader(W, w, cols);
 
     // The control box first: docked, the rail and the markers end at its top edge.
     this.fitBox(W, H);
@@ -929,7 +918,7 @@ export class PlayerView {
   private renderHeader(W: number, w: number, cols: number): void {
     const given = this.o.header(this.o.engine.run);
     // Docked (a phone or tablet): no key hints, a touch device has no such keys; the left part has the room.
-    const touchHead = !this.o.bare && (this.o.dock !== undefined || this.touchFloat);
+    const touchHead = !this.o.bare && this.o.dock !== undefined;
     const hd = touchHead ? { left: given.left, hints: [] } : given;
     const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
     const full = hintsWidth(hd.hints.map((x) => x.text));
@@ -940,7 +929,7 @@ export class PlayerView {
     // Comm column open: the game text begins there too) the header ends there, cut if it must be:
     // it lies over the column, not over the game text's first line.
     if (touchHead) {
-      const r = this.o.dock ? this.o.dock() : (this.o.touchFloat?.() ?? null);
+      const r = this.o.dock?.() ?? null;
       const edge = r?.left ?? 0;
       hc = edge > 0 ? Math.max(1, Math.min(cols, Math.floor(edge / w))) : cols;
       // (And left of the lens's corner key where the host says that stands in the row.)
@@ -1243,7 +1232,7 @@ export class PlayerView {
 
   /** Option `touchFloat` (not bare, not docked). */
   private get touchFloat(): boolean {
-    return !this.o.bare && this.o.dock === undefined && this.o.touchFloat !== undefined;
+    return !this.o.bare && this.o.dock === undefined && this.o.touchFloat === true;
   }
 
   /** The window changed size, turned, zoomed or went in or out of fullscreen: measure now and again a little later. */
