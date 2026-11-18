@@ -19,7 +19,13 @@ import {
   lookFrame,
   morphHold,
   morphPlan,
+  PROXY_CORNER,
+  PROXY_EDGE,
+  PROXY_PIECES,
   planLength,
+  proxyAt,
+  proxyFlight,
+  snapRect,
   useBoxSettled,
 } from '../../src/chrome/kit/look';
 import { FrameStack, type Nav, useNav } from '../../src/chrome/kit/stack';
@@ -304,6 +310,86 @@ describe('morphPlan', () => {
             const needs = Math.max(p.out, p.flight ? Math.min(p.flight.show, p.flight.at) : 0);
             expect(morphHold(fk, dir, reduced), `${fk} → ${tk} ${dir}${reduced ? ' reduced' : ''}`).toBeGreaterThanOrEqual(needs);
           }
+  });
+});
+
+describe('the proxy in pieces (stage 74, ADR 0164)', () => {
+  /** A piece's `translate(x, y) scale(kx, ky)` as numbers. */
+  const parse = (t: string): { x: number; y: number; kx: number; ky: number } => {
+    const m = /^translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\((-?[\d.]+), (-?[\d.]+)\)$/.exec(t);
+    if (!m) throw new Error(`not a piece transform: ${t}`);
+    return { x: Number(m[1]), y: Number(m[2]), kx: Number(m[3]), ky: Number(m[4]) };
+  };
+
+  it('every piece is a translate and a scale; at each end the soft pieces of that end are unscaled', () => {
+    const f = proxyFlight(PANEL, LARGE);
+    for (const p of PROXY_PIECES) {
+      expect(() => parse(f.from[p])).not.toThrow();
+      expect(() => parse(f.to[p])).not.toThrow();
+    }
+    expect(f.fromSize).toEqual({ width: 360, height: 399 });
+    expect(f.toSize).toEqual({ width: 1386, height: 846 });
+    expect(f.edgeSize).toEqual({ width: 1386, height: 846 });
+    // At the start the start's pane and shadow are the box itself; at the landing the landing's are.
+    expect(parse(f.from.paneFrom)).toEqual({ x: 540, y: 264, kx: 1, ky: 1 });
+    expect(parse(f.from.shadowFrom)).toEqual({ x: 540, y: 264, kx: 1, ky: 1 });
+    expect(parse(f.to.paneTo)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
+    expect(parse(f.to.shadowTo)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
+    // The other end's are scaled to the rectangle.
+    expect(parse(f.from.paneTo).kx).toBeCloseTo(360 / 1386, 3);
+    expect(parse(f.to.paneFrom).ky).toBeCloseTo(846 / 399, 3);
+    // The landing's pieces fade in over the start's; the start's shadow fades out.
+    expect(f.fade).toEqual({ shadowFrom: [1, 0], shadowTo: [0, 1], paneTo: [0, 1] });
+  });
+
+  it('the pieces stand on the rectangle: edges along it, corners in it, the hood at its top centre', () => {
+    const r = R(100, 50, 600, 400);
+    const size = { width: 1200, height: 800 };
+    const t = proxyAt(r, size, size);
+    expect(parse(t.top)).toEqual({ x: 100, y: 50, kx: 0.5, ky: 1 });
+    expect(parse(t.bottom)).toEqual({ x: 100, y: 50 + 400 - PROXY_EDGE, kx: 0.5, ky: 1 });
+    // The side edges run between the top and the bottom one: 380 of the drawn 780 px.
+    expect(parse(t.left)).toEqual({ x: 100, y: 50 + PROXY_EDGE, kx: 1, ky: Math.round((380 / 780) * 10000) / 10000 });
+    expect(parse(t.right).x).toBe(100 + 600 - PROXY_EDGE);
+    expect(parse(t.tl)).toEqual({ x: 100, y: 50, kx: 1, ky: 1 });
+    expect(parse(t.tr)).toEqual({ x: 100 + 600 - PROXY_CORNER, y: 50, kx: 1, ky: 1 });
+    expect(parse(t.bl)).toEqual({ x: 100, y: 50 + 400 - PROXY_CORNER, kx: 1, ky: 1 });
+    expect(parse(t.br)).toEqual({ x: 100 + 600 - PROXY_CORNER, y: 50 + 400 - PROXY_CORNER, kx: 1, ky: 1 });
+    expect(parse(t.hood)).toEqual({ x: 400, y: 50, kx: 1, ky: 1 });
+  });
+
+  it('the edges keep their thickness and only shrink along their length (drawn at the larger size)', () => {
+    for (const [a, b] of [
+      [PANEL, LARGE],
+      [LARGE, PANEL],
+      [R(200, 100, 760, 300), R(200, 100, 500, 620)], // one wider, the other taller
+    ] as const) {
+      const f = proxyFlight(a, b);
+      for (const end of [f.from, f.to]) {
+        expect(parse(end.top).ky).toBe(1);
+        expect(parse(end.bottom).ky).toBe(1);
+        expect(parse(end.left).kx).toBe(1);
+        expect(parse(end.right).kx).toBe(1);
+        for (const p of ['top', 'bottom', 'left', 'right'] as const) {
+          expect(parse(end[p]).kx).toBeLessThanOrEqual(1);
+          expect(parse(end[p]).ky).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('a degenerate rectangle gives finite transforms', () => {
+    const f = proxyFlight(R(10, 10, 0, 0), R(10, 10, 0, 0));
+    for (const p of PROXY_PIECES) expect(f.from[p]).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('snapRect puts the edges on whole device pixels', () => {
+    expect(snapRect(R(463.5, 27.25, 992.6, 845.5))).toEqual(R(464, 27, 992, 846));
+    const s = snapRect(R(6.1, 6.2, 347.9, 787.7), 3);
+    expect(s.left * 3).toBeCloseTo(18, 6);
+    expect((s.left + s.width) * 3).toBeCloseTo(1062, 6);
+    expect(s.top * 3).toBeCloseTo(19, 6);
+    expect(snapRect(LARGE, 2)).toEqual(LARGE);
   });
 });
 

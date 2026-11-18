@@ -6,13 +6,22 @@
 // so container queries, CodeMirror and
 // pagination measure the real box at mount, keys go to the new frame at
 // once and its fields can take the focus at mount). An empty iron frame, the
-// proxy (`.wc-lk-morph`, `position: fixed`, `contain: strict`, owned by the
-// surface), carries the motion from the old box's rectangle to the new
-// one's; when it lands the real box shows under it on the same clock, the
-// proxy goes and the content fades in. The plan of each change is
-// `morphPlan` (src/chrome/kit/look-motion.ts, pure); this file runs it with
-// Web Animations, every one on the document timeline, so the hand-overs
-// (old box out, proxy in, proxy out, new box in) fall on the same frame.
+// proxy (`.wc-lk-morph`, owned by the surface), carries the motion from the
+// old box's rectangle to the new one's; when it lands the real box shows
+// under it on the same clock, the proxy goes and the content fades in. The
+// plan of each change is `morphPlan` (src/chrome/kit/look-motion.ts, pure);
+// this file runs it with Web Animations, every one on the document
+// timeline, so the hand-overs (old box out, proxy in, proxy out, new box
+// in) fall on the same frame.
+//
+// The proxy's flight is transforms only (stage 74, ADR 0164): the proxy is
+// drawn in pieces (`proxyFlight`, look-motion.ts; `MorphProxy`,
+// start-surface.tsx; look.css), each moved, scaled or faded by an animation
+// the compositor runs, so a frame of the flight is no layout, no paint and no
+// raster, and the main thread's work (the new page's mount, a first-use
+// cost) cannot hold it back. Only the hood's width is still laid out (a
+// small plate, and its position is its holder's transform). The proxy's
+// rectangle mid-flight is its pane's (`proxyRect`).
 //
 // Each look frame on the surface is wrapped in a `LookHost` (the surface's
 // `wrap`): it tells the stage when its frame becomes the top one, carries
@@ -40,8 +49,12 @@ import {
   PLAIN_HOOD,
   morphHold,
   morphPlan,
+  PROXY_PIECES,
+  type ProxyPiece,
   planLength,
+  proxyFlight,
   reducedMotion,
+  snapRect,
 } from './kit/look';
 import { useIsOverlay, useIsTopFrame } from './kit/stack';
 
@@ -90,13 +103,29 @@ const hoodWidth = (box: Element): number => {
   return hood ? hood.offsetWidth || PLAIN_HOOD : PLAIN_HOOD;
 };
 
-const geo = (r: MorphRect): Keyframe => ({
-  left: `${r.left}px`,
-  top: `${r.top}px`,
-  width: `${r.width}px`,
-  height: `${r.height}px`,
-  visibility: 'visible',
-});
+/** The proxy's pieces in the DOM (`MorphProxy`, start-surface.tsx). */
+export const PROXY_PIECE_CLASS: Record<ProxyPiece, string> = {
+  shadowFrom: 'wc-lk-px-shadow-a',
+  shadowTo: 'wc-lk-px-shadow-b',
+  paneFrom: 'wc-lk-px-pane-a',
+  paneTo: 'wc-lk-px-pane-b',
+  top: 'wc-lk-px-e-t',
+  bottom: 'wc-lk-px-e-b',
+  left: 'wc-lk-px-e-l',
+  right: 'wc-lk-px-e-r',
+  tl: 'wc-lk-px-c-tl',
+  tr: 'wc-lk-px-c-tr',
+  bl: 'wc-lk-px-c-bl',
+  br: 'wc-lk-px-c-br',
+  hood: 'wc-lk-px-h',
+};
+
+const piece = (proxy: Element, p: ProxyPiece): HTMLElement | null => proxy.querySelector<HTMLElement>(`:scope > .${PROXY_PIECE_CLASS[p]}`);
+
+/** Where the proxy is now: its pane's rectangle (a pane is drawn at one end's size and scaled to the proxy's). */
+function proxyRect(proxy: Element): MorphRect {
+  return rectOf(piece(proxy, 'paneFrom') ?? proxy);
+}
 
 /** An animation that keeps a new box hidden until its landing. */
 type Tagged = Animation & { wcLand?: boolean };
@@ -198,7 +227,7 @@ export class MorphStage {
     const from: MorphEnd | null = prev
       ? {
           kind: kindOf(prev),
-          rect: flying ? rectOf(proxy!) : prevDrawn && prevBox ? rectOf(prevBox) : (seen?.rect ?? null),
+          rect: flying ? proxyRect(proxy!) : prevDrawn && prevBox ? rectOf(prevBox) : (seen?.rect ?? null),
           hood: prevDrawn && prevBox ? hoodWidth(prevBox) : (seen?.hood ?? PLAIN_HOOD),
           shown: prevDrawn && prevLanded && !flying,
           flying,
@@ -268,7 +297,44 @@ export class MorphStage {
     if (f && proxy && canAnimate(proxy)) {
       proxy.hidden = false;
       const timing: KeyframeAnimationOptions = { delay: f.at, duration: f.ms, easing: f.easing, fill: 'backwards' };
-      this.flight = quiet(proxy.animate([geo(f.from), geo(f.to)], timing));
+      // The pieces: drawn once for this flight, then only transformed and faded (the compositor's work).
+      const dpr = proxy.ownerDocument.defaultView?.devicePixelRatio || 1;
+      const pieces = proxyFlight(snapRect(f.from, dpr), snapRect(f.to, dpr));
+      proxy.style.setProperty('--lk-mw', `${pieces.edgeSize.width}px`);
+      proxy.style.setProperty('--lk-mh', `${pieces.edgeSize.height}px`);
+      const sized: [ProxyPiece, { width: number; height: number }][] = [
+        ['shadowFrom', pieces.fromSize],
+        ['paneFrom', pieces.fromSize],
+        ['shadowTo', pieces.toSize],
+        ['paneTo', pieces.toSize],
+      ];
+      for (const [p, size] of sized) {
+        const el = piece(proxy, p);
+        if (!el) continue;
+        el.style.width = `${size.width}px`;
+        el.style.height = `${size.height}px`;
+      }
+      // Visible from the start to the landing (but for `show`, below: a later animation wins).
+      const shown = quiet(proxy.animate([{ visibility: 'visible' }, { visibility: 'visible' }], timing));
+      let lead: Animation | null = null;
+      for (const p of PROXY_PIECES) {
+        const el = piece(proxy, p);
+        if (!el || !canAnimate(el)) continue;
+        const fade = pieces.fade[p];
+        const a = quiet(
+          el.animate(
+            fade
+              ? [
+                  { transform: pieces.from[p], opacity: fade[0] },
+                  { transform: pieces.to[p], opacity: fade[1] },
+                ]
+              : [{ transform: pieces.from[p] }, { transform: pieces.to[p] }],
+            timing,
+          ),
+        );
+        if (p === 'paneFrom') lead = a;
+      }
+      this.flight = lead ?? shown;
       if (f.show > 0) quiet(proxy.animate([{ visibility: 'hidden' }, { visibility: 'hidden' }], { duration: f.show }));
       const hood = proxy.querySelector<HTMLElement>('.wc-lk-hood');
       if (hood && canAnimate(hood)) {

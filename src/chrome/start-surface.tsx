@@ -15,7 +15,7 @@
 // fade), or nothing at all (an old-look frame).
 //
 // Layout B (stage 42a, ADR 0127): the surface morphs from one box to the
-// next with an empty iron proxy (src/chrome/start-morph.ts, `MorphStage`);
+// next with an empty iron proxy (src/chrome/start-morph.tsx, `MorphStage`);
 // every look frame is wrapped in a `LookHost` for it, the stack holds the
 // old frame while it fades (`hold`), and a large box that covers most of
 // the view calms the sky (`setRate('calm')`). A page may pause the sky
@@ -507,20 +507,43 @@ function GridFrame(p: { children: ComponentChildren }): VNode {
 }
 
 /**
- * Layout B's proxy (start.css `.wc-lk-morph`): an empty iron frame with its
- * four brackets, the hood and the window glass, that carries the motion
- * from one box's rectangle to the next (src/chrome/start-morph.ts). Idle,
+ * Layout B's proxy (look.css `.wc-lk-morph`): an empty iron frame that
+ * carries the motion from one box's rectangle to the next
+ * (src/chrome/start-morph.tsx). It is drawn in pieces that only take a
+ * transform or an opacity (stage 74, ADR 0164; `proxyFlight`,
+ * kit/look-motion.ts): the outer shadows and the pane (the iron and the
+ * window glass), each drawn once per end of the flight, the four edges,
+ * the four corners with their brackets, and the hood on its holder. Idle,
  * it is `hidden`.
  */
 function MorphProxy(p: { proxyRef: { current: HTMLDivElement | null } }): VNode {
+  const corner = (at: 'tl' | 'tr' | 'bl' | 'br', n: number): VNode => (
+    <div class={`wc-lk-px-c wc-lk-px-c-${at}`}>
+      <i class="wc-lk-px-cp" />
+      <i class={`wc-lk-br wc-lk-b${n}`} />
+    </div>
+  );
   return (
     <div class="wc-lk-morph" ref={p.proxyRef} hidden aria-hidden="true">
-      <i class="wc-lk-br wc-lk-b1" />
-      <i class="wc-lk-br wc-lk-b2" />
-      <i class="wc-lk-br wc-lk-b3" />
-      <i class="wc-lk-br wc-lk-b4" />
-      <div class="wc-lk-hood is-plain" />
-      <div class="wc-lk-mwin" />
+      <div class="wc-lk-px-shadow wc-lk-px-shadow-a" />
+      <div class="wc-lk-px-shadow wc-lk-px-shadow-b" />
+      <div class="wc-lk-px-pane wc-lk-px-pane-a">
+        <div class="wc-lk-mwin" />
+      </div>
+      <div class="wc-lk-px-pane wc-lk-px-pane-b">
+        <div class="wc-lk-mwin" />
+      </div>
+      <i class="wc-lk-px-e wc-lk-px-e-t" />
+      <i class="wc-lk-px-e wc-lk-px-e-b" />
+      <i class="wc-lk-px-e wc-lk-px-e-l" />
+      <i class="wc-lk-px-e wc-lk-px-e-r" />
+      {corner('tl', 1)}
+      {corner('tr', 2)}
+      {corner('bl', 3)}
+      {corner('br', 4)}
+      <div class="wc-lk-px-h">
+        <div class="wc-lk-hood is-plain" />
+      </div>
     </div>
   );
 }

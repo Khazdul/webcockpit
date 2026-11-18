@@ -305,3 +305,127 @@ export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): 
   if (from === 'menu') return 0;
   return Math.max(MOTION.open.items.ms, MOTION.swap.out);
 }
+
+// ------------------------------------------------------------ the proxy's pieces
+
+/**
+ * The proxy is drawn in pieces that only ever take a transform or an
+ * opacity (stage 74, ADR 0164), so its flight runs on the compositor:
+ * nothing is laid out, painted or rastered again per frame, and work on
+ * the main thread (the new page's mount, a first-use cost) cannot hold it
+ * back.
+ *
+ * - The soft parts, whose look depends on the box's size, are drawn twice,
+ *   once at each end's size, and scaled to the rectangle: the pane (the
+ *   iron and the window glass with its glow and inner shadow; `paneFrom`,
+ *   and over it `paneTo`, which fades in) and the box's outer shadows
+ *   (`shadowFrom` fades out as `shadowTo` fades in). At each end the
+ *   proxy is exactly the box of that size; in between it is the blend of
+ *   the two.
+ * - The four edges (`top`, `bottom`, `left`, `right`: the border, the iron
+ *   band and the window's own border, `PROXY_EDGE` px thick) are drawn at
+ *   the larger size and scaled along their length only, so every line
+ *   keeps its width; the side edges run between the top and the bottom
+ *   one.
+ * - The four corners (`tl`, `tr`, `bl`, `br`: the brackets, `PROXY_CORNER`
+ *   px square) and the hood's holder (`hood`: the box's top centre) are
+ *   only moved.
+ *
+ * Every transform is `translate(…) scale(…)` from the viewport's origin
+ * (`transform-origin: 0 0`), so each piece's edges are linear in the
+ * easing's progress: the same geometry the animated `left`, `top`,
+ * `width` and `height` had.
+ */
+export type ProxyPiece =
+  | 'shadowFrom'
+  | 'shadowTo'
+  | 'paneFrom'
+  | 'paneTo'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'tl'
+  | 'tr'
+  | 'bl'
+  | 'br'
+  | 'hood';
+
+export const PROXY_PIECES: readonly ProxyPiece[] = ['shadowFrom', 'shadowTo', 'paneFrom', 'paneTo', 'top', 'bottom', 'left', 'right', 'tl', 'tr', 'bl', 'br', 'hood'];
+
+/** An edge piece's thickness (px): the border, the 7 px of iron, the window's border and its lit line. */
+export const PROXY_EDGE = 10;
+/** A corner piece's side (px): the bracket's. */
+export const PROXY_CORNER = 24;
+
+/** A drawn size (px). */
+export interface ProxySize {
+  width: number;
+  height: number;
+}
+
+export interface ProxyFlight {
+  /** The size each end's soft pieces are drawn at: that end's own. */
+  fromSize: ProxySize;
+  toSize: ProxySize;
+  /** The size the edges are drawn at: the larger of the two ends on each axis. */
+  edgeSize: ProxySize;
+  /** Each piece's transform at the flight's start and at its landing. */
+  from: Record<ProxyPiece, string>;
+  to: Record<ProxyPiece, string>;
+  /** The pieces that fade over the flight: their opacity at its start and at its landing. */
+  fade: Partial<Record<ProxyPiece, readonly [number, number]>>;
+}
+
+/** `r` with its edges on whole device pixels, as layout paints a box (so the proxy's lines are as sharp as the box's). */
+export function snapRect(r: MorphRect, dpr = 1): MorphRect {
+  const d = dpr > 0 ? dpr : 1;
+  const snap = (v: number): number => Math.round(v * d) / d;
+  const left = snap(r.left);
+  const top = snap(r.top);
+  return { left, top, width: Math.max(0, snap(r.left + r.width) - left), height: Math.max(0, snap(r.top + r.height) - top) };
+}
+
+const num = (v: number): string => String(Math.round(v * 10000) / 10000);
+
+/** The pieces' transforms when the proxy stands at `r`, for a flight between boxes of `from` and `to` size. */
+export function proxyAt(r: MorphRect, from: ProxySize, to: ProxySize): Record<ProxyPiece, string> {
+  const at = (x: number, y: number, kx = 1, ky = 1): string => `translate(${num(x)}px, ${num(y)}px) scale(${num(kx)}, ${num(ky)})`;
+  const box = (s: ProxySize): string => at(r.left, r.top, s.width > 0 ? r.width / s.width : 1, s.height > 0 ? r.height / s.height : 1);
+  const w = Math.max(from.width, to.width);
+  const h = Math.max(from.height, to.height);
+  const sx = w > 0 ? r.width / w : 1;
+  // The side edges run between the top and the bottom one (no edge lies over another).
+  const se = h > 2 * PROXY_EDGE ? Math.max(0, r.height - 2 * PROXY_EDGE) / (h - 2 * PROXY_EDGE) : 1;
+  const right = r.left + r.width;
+  const bottom = r.top + r.height;
+  return {
+    shadowFrom: box(from),
+    shadowTo: box(to),
+    paneFrom: box(from),
+    paneTo: box(to),
+    top: at(r.left, r.top, sx, 1),
+    bottom: at(r.left, bottom - PROXY_EDGE, sx, 1),
+    left: at(r.left, r.top + PROXY_EDGE, 1, se),
+    right: at(right - PROXY_EDGE, r.top + PROXY_EDGE, 1, se),
+    tl: at(r.left, r.top),
+    tr: at(right - PROXY_CORNER, r.top),
+    bl: at(r.left, bottom - PROXY_CORNER),
+    br: at(right - PROXY_CORNER, bottom - PROXY_CORNER),
+    hood: at(r.left + r.width / 2, r.top),
+  };
+}
+
+/** The proxy's pieces for a flight from `from` to `to` (pure). */
+export function proxyFlight(from: MorphRect, to: MorphRect): ProxyFlight {
+  const fromSize = { width: from.width, height: from.height };
+  const toSize = { width: to.width, height: to.height };
+  return {
+    fromSize,
+    toSize,
+    edgeSize: { width: Math.max(from.width, to.width), height: Math.max(from.height, to.height) },
+    from: proxyAt(from, fromSize, toSize),
+    to: proxyAt(to, fromSize, toSize),
+    fade: { shadowFrom: [1, 0], shadowTo: [0, 1], paneTo: [0, 1] },
+  };
+}

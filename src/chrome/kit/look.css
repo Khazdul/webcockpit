@@ -6,7 +6,8 @@
  * Cormorant (bundled, src/theme/fonts.ts START_FACES and LOOK_FACES).
  *
  * This file: the box, its places and pages, its slots, layout B's proxy
- * and the flash (package 42a, ADR 0127). The tokens are in
+ * (in pieces that only take a transform: stage 74, ADR 0164) and the
+ * flash (package 42a, ADR 0127). The tokens are in
  * look-tokens.css, the glass buttons, Back, the icons and the shortcut
  * letters in look-glass.css (whose rules the player's Back uses, 42f). Stage 42-0
  * split them out.
@@ -87,8 +88,7 @@
 
 /* ------------------------------------------------------------ the box */
 
-.wc-lk-box,
-.wc-lk-morph {
+.wc-lk-box {
   position: relative;
   box-sizing: border-box;
   padding: 7px;
@@ -344,9 +344,33 @@
 /* ------------------------------------------------------------ layout B's proxy */
 
 /* An empty iron frame that carries the motion between two boxes (the
- * start surface's, src/chrome/start-morph.tsx): fixed, its geometry
- * animated, contained so its layout touches nothing else. Visible only
- * while an animation says so. */
+ * start surface's, src/chrome/start-morph.tsx). Visible only while an
+ * animation says so.
+ *
+ * Its flight is transforms and opacity only (stage 74, ADR 0164): the
+ * frame is drawn in pieces, each of them moved, scaled or faded by the
+ * compositor (`proxyFlight`, look-motion.ts), so a frame of the flight is
+ * no layout, no paint and no raster. At each end of a flight the pieces
+ * together are the box above at that size, pixel for pixel:
+ *
+ * - `.wc-lk-px-shadow`: the box's two outer shadows, scaled with the box.
+ *   Two of them, one drawn at each end's size (`-a` the start's, fading
+ *   out; `-b` the landing's, fading in);
+ * - `.wc-lk-px-pane`: the box's iron and, 9 px in, the window's glass
+ *   (`.wc-lk-mwin`: the large window's fill and its inner shadow), scaled
+ *   with the box. Two as well (`-b` fades in over `-a`);
+ * - `.wc-lk-px-e-*`: the four edges, 10 px thick, drawn at the larger of
+ *   the two sizes (`--lk-mw` × `--lk-mh`, set per flight) and scaled
+ *   along their length only: the border, its lit or dark inner line, the iron, the
+ *   window's border and its lit line (the side edges run between the top
+ *   and the bottom one);
+ * - `.wc-lk-px-c-*`: the four corners, only moved: the bracket, and under
+ *   its inner corner the pixels where the window's border turns;
+ * - `.wc-lk-px-h`: the hood's holder at the top centre, only moved (the
+ *   plate's own width is the one thing still laid out).
+ *
+ * No `will-change` (it would pin the scaled pieces' raster scale) and no
+ * paint containment (the pieces lie outside the root's empty box). */
 .wc-lk-morph {
   position: fixed;
   z-index: 2;
@@ -356,23 +380,207 @@
   height: 0;
   visibility: hidden;
   pointer-events: none;
-  contain: strict;
+  contain: layout style;
 }
 
 .wc-lk-morph[hidden] {
   display: none;
 }
 
-.wc-lk-morph > .wc-lk-hood {
-  padding: 0;
+.wc-lk-morph > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.wc-lk-px-shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 0 46px -8px rgba(255, 170, 90, 0.24),
+    0 30px 80px -12px rgba(0, 0, 0, 0.85);
+}
+
+.wc-lk-px-pane,
+.wc-lk-px-e::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0.22)),
+    var(--lk-grain),
+    var(--lk-iron);
+  background-size: auto, 160px 160px, auto;
+}
+
+/* (A border as the box's, so the iron's light and its grain start where the box's do: its padding box.) */
+.wc-lk-px-pane {
+  box-sizing: border-box;
+  border: 1px solid transparent;
 }
 
 .wc-lk-mwin {
   position: absolute;
-  inset: 7px;
-  border: 1px solid #000;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.1), inset 0 0 40px rgba(0, 0, 0, 0.65);
+  inset: 8px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.65);
+}
+
+/* Around the glass, over the pane's iron band, a ring in the colours of
+ * the glass's shadowed rim (lit at the top centre as the glass is). At
+ * the pane's own size the edges cover it; a pane scaled up (the smaller
+ * end's, while the box is larger) would show its iron band inside the
+ * edges as a pale frame, and shows the rim carried on instead. */
+.wc-lk-px-pane::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 9px solid #17140f;
+  border-image: radial-gradient(55% 70px at 50% 0, #2c241a, #17140f) 9;
+}
+
+/* An edge: the iron band with the border (`::before`, 8 px) and the
+ * window's border with its lit line (`::after`, 2 px). */
+.wc-lk-px-e::before,
+.wc-lk-px-e::after {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.wc-lk-px-e-t,
+.wc-lk-px-e-b {
+  width: var(--lk-mw, 0);
+  height: 10px;
+}
+
+.wc-lk-px-e-l,
+.wc-lk-px-e-r {
+  width: 10px;
+  height: calc(var(--lk-mh, 20px) - 20px);
+}
+
+/* The iron's light runs down the box's padding box and its grain is tiled
+ * from there: every edge places both as the box does (the side edges
+ * start 10 px down, a horizontal edge shows the light's first or last rows). */
+.wc-lk-px-e::before {
+  background-repeat: no-repeat, repeat, repeat;
+}
+
+.wc-lk-px-e-l::before,
+.wc-lk-px-e-r::before {
+  background-size: 100% calc(100% + 18px), 160px 160px, auto;
+  background-position: 0 -9px, 0 -9px, 0 0;
+}
+
+.wc-lk-px-e-r::before {
+  background-position: 0 -9px, calc(9px - var(--lk-mw, 0px)) -9px, 0 0;
+}
+
+.wc-lk-px-e-t::before,
+.wc-lk-px-e-b::before {
+  background-size: 100% calc(var(--lk-mh, 2px) - 2px), 160px 160px, auto;
+  background-position: 0 0, 1px 0, 0 0;
+}
+
+.wc-lk-px-e-t::before {
+  inset: 0 0 2px;
+  border-top: 1px solid #000;
+  box-shadow: inset 0 1px 0 rgba(130, 116, 100, 0.55);
+}
+
+.wc-lk-px-e-t::after {
+  inset: 8px 0 0;
+  background: linear-gradient(180deg, #000 50%, rgba(255, 207, 143, 0.1) 50%);
+}
+
+.wc-lk-px-e-b::before {
+  inset: 2px 0 0;
+  border-bottom: 1px solid #000;
+  background-position: 0 100%, 1px calc(9px - var(--lk-mh, 0px)), 0 0;
+  box-shadow: inset 0 -1px 0 var(--lk-iron-lo);
+}
+
+.wc-lk-px-e-b::after {
+  inset: 0 0 8px;
+  background: linear-gradient(0deg, #000 50%, rgba(255, 207, 143, 0.1) 50%);
+}
+
+.wc-lk-px-e-l::before {
+  inset: 0 2px 0 0;
+  border-left: 1px solid #000;
+  box-shadow: inset 1px 0 0 rgba(130, 116, 100, 0.55);
+}
+
+.wc-lk-px-e-l::after {
+  inset: 0 0 0 8px;
+  background: linear-gradient(90deg, #000 50%, rgba(255, 207, 143, 0.1) 50%);
+}
+
+.wc-lk-px-e-r::before {
+  inset: 0 0 0 2px;
+  border-right: 1px solid #000;
+  box-shadow: inset -1px 0 0 var(--lk-iron-lo);
+}
+
+.wc-lk-px-e-r::after {
+  inset: 0 8px 0 0;
+  background: linear-gradient(270deg, #000 50%, rgba(255, 207, 143, 0.1) 50%);
+}
+
+/* A corner: the bracket at the box's very corner (the box's own rules
+ * place it from the padding box: here it fills its holder). The top and
+ * the bottom edge run through the corner, so under the bracket's inner
+ * corner the window's border is turned (`.wc-lk-px-cp`, 2 × 2 px, with the
+ * border's 2 px radius: iron outside it, the border, and inside it the
+ * edge's lit line left to show), and the pixels of iron beside it are put
+ * back (`::before`). */
+.wc-lk-px-c {
+  width: 24px;
+  height: 24px;
+}
+
+.wc-lk-px-c > .wc-lk-br {
+  inset: 0 auto auto 0;
+}
+
+.wc-lk-px-cp {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  --lk-mcp: rgba(255, 255, 255, 0.09);
+  --lk-mci: #4b4845;
+  --lk-mca: 100% 100%;
+  background: radial-gradient(circle at var(--lk-mca), transparent 0.85px, #000 1.15px 1.85px, var(--lk-mci) 2.15px);
+}
+
+.wc-lk-px-c-tl > .wc-lk-px-cp { left: 8px; top: 8px; }
+.wc-lk-px-c-tr > .wc-lk-px-cp { right: 8px; top: 8px; --lk-mca: 0 100%; }
+.wc-lk-px-c-bl > .wc-lk-px-cp { left: 8px; bottom: 8px; --lk-mca: 100% 0; }
+.wc-lk-px-c-br > .wc-lk-px-cp { right: 8px; bottom: 8px; --lk-mca: 0 0; }
+
+.wc-lk-px-c-bl > .wc-lk-px-cp,
+.wc-lk-px-c-br > .wc-lk-px-cp {
+  --lk-mcp: rgba(0, 0, 0, 0.21);
+  --lk-mci: #2d2a28;
+}
+
+.wc-lk-px-cp::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background:
+    linear-gradient(var(--lk-mcp), var(--lk-mcp)),
+    var(--lk-grain) -6px -7px / 160px 160px,
+    var(--lk-iron);
+}
+
+.wc-lk-px-c-tl > .wc-lk-px-cp::before, .wc-lk-px-c-bl > .wc-lk-px-cp::before { left: -1px; }
+.wc-lk-px-c-tr > .wc-lk-px-cp::before, .wc-lk-px-c-br > .wc-lk-px-cp::before { right: -1px; }
+
+/* The hood: centred on its holder (the box's top centre). */
+.wc-lk-px-h > .wc-lk-hood {
+  top: 0;
+  left: 0;
+  padding: 0;
 }
 
 /* ------------------------------------------------------------ feedback */
