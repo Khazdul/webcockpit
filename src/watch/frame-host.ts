@@ -38,6 +38,11 @@
 // page has transient user activation (a click or key in the frame gives
 // its ancestors activation too) when turning it on, and answers with
 // `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
+//
+// `relayout` posts `{t: 'wc-relayout', v, debug?}`: the page's window
+// changed (a turn, fullscreen left; src/watch/turn.ts), the frame measures
+// again (stage 73 round 3); `debug` is the page's `?fsdebug` readout.
+// `fsdebug: true` asks the frame for its readout (`prefs.fsdebug`).
 
 import { PAYLOAD_JSON_MAX, PayloadReadError, readSharedPayload } from '../replay/shared';
 import { pipe } from '../replay/codec';
@@ -69,10 +74,14 @@ export interface FrameHostOptions {
   meta?: { title: string; description: string };
   /** The replay starts paused (default true: the watch page's, ADR 0155 W1); Play or Space in the frame starts it. */
   paused?: boolean;
+  /** The frame shows the fullscreen-turn readout (the page's `?fsdebug`, stage 73 round 3). */
+  fsdebug?: boolean;
 }
 
 export interface FrameHost {
   frame: HTMLIFrameElement;
+  /** Tells the frame the page's window changed: it measures again (`debug`: the page's readout lines). */
+  relayout(debug?: string): void;
   /** Removes the frame and stops listening. */
   dispose(): void;
 }
@@ -158,7 +167,7 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
       void Promise.all([fonts, wire]).then(([list, bytes]) => {
         const target = frame.contentWindow;
         if (!target) return;
-        const prefs = { paused: o.paused !== false };
+        const prefs = { paused: o.paused !== false, ...(o.fsdebug ? { fsdebug: true } : {}) };
         const meta = o.meta ? { title: o.meta.title, description: o.meta.description } : undefined;
         target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs, ...(meta ? { meta } : {}) }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
@@ -177,6 +186,10 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
   o.container.appendChild(frame);
   return {
     frame,
+    relayout: (debug) => {
+      if (!played) return;
+      frame.contentWindow?.postMessage({ t: 'wc-relayout', v: FRAME_PROTOCOL, ...(debug !== undefined ? { debug } : {}) }, '*');
+    },
     dispose: () => {
       win.removeEventListener('message', onMessage);
       o.container.classList.remove('is-filled');

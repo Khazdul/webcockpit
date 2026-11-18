@@ -17,8 +17,15 @@
 //   frame → parent   {t: 'wc-error', v: 1, text}       when it cannot play
 //   frame → parent   {t: 'wc-fullscreen', v: 1, on}    fill the window (below)
 //   parent → frame   {t: 'wc-fs-state', v: 1, on}      the frame fills it, or not
-// The frame takes messages only from `parent`, only the first `wc-play`,
-// and `wc-fs-state`; anything else is ignored.
+//   parent → frame   {t: 'wc-relayout', v: 1, debug?}  the page's window changed
+//                    (a turn, fullscreen left): measure again (stage 73
+//                    round 3, src/replay/frame-fit.ts); `debug`: the page's
+//                    `?fsdebug` lines, plain text, capped, shown with
+//                    `textContent` only
+// `wc-play`'s `prefs.fsdebug: true` turns the frame's readout on (the
+// page's `?fsdebug`). The frame takes messages only from `parent`, only
+// the first `wc-play`, `wc-fs-state` and `wc-relayout`; anything else is
+// ignored.
 //
 // Fullscreen (owner's test of stage 64): the frame is allowed fullscreen
 // (`allow="fullscreen *"`), so the Fullscreen button, `F` and Esc put the
@@ -49,6 +56,7 @@ import { PayloadReadError, readSharedPayload } from './shared';
 import { canFullscreen, exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { type ReplayFullscreen, type ReplayPage, fail, openReplay } from './page';
 import { replayPhone } from './phone';
+import { type FrameFit, PARENT_DEBUG_MAX, installFrameFit } from './frame-fit';
 
 export const FRAME_PROTOCOL = 1;
 export const FRAME_FONTS_MAX = 64;
@@ -146,6 +154,11 @@ export function framePaused(prefs: unknown): boolean {
   return typeof prefs === 'object' && prefs !== null && (prefs as Record<string, unknown>).paused === true;
 }
 
+/** Whether a `wc-play` message's `prefs` turn the fullscreen-turn readout on (only `fsdebug: true` does). */
+export function frameFsDebug(prefs: unknown): boolean {
+  return typeof prefs === 'object' && prefs !== null && (prefs as Record<string, unknown>).fsdebug === true;
+}
+
 /** Longest title and description the frame takes (as the pub API's, src/watch/api.ts). */
 export const FRAME_TITLE_MAX = 400;
 export const FRAME_DESC_MAX = 2000;
@@ -188,6 +201,7 @@ export function startFrame(o: FrameOptions): () => void {
   const root = doc.getElementById('app') ?? doc.body;
   const parent = win.parent;
   let taken = false;
+  let fit: FrameFit | null = null;
   const post = (msg: Record<string, unknown>): void => {
     // The parent's origin is not known to an opaque frame; nothing posted is private.
     if (parent && parent !== win) parent.postMessage({ ...msg, v: FRAME_PROTOCOL }, '*');
@@ -198,11 +212,17 @@ export function startFrame(o: FrameOptions): () => void {
     const d = e.data as Record<string, unknown> | null;
     if (typeof d !== 'object' || d === null || d.v !== FRAME_PROTOCOL) return;
     if (d.t === 'wc-fs-state' && typeof d.on === 'boolean') return fs.filled(d.on);
+    if (d.t === 'wc-relayout') {
+      if (typeof d.debug === 'string') fit?.parentText(d.debug.slice(0, PARENT_DEBUG_MAX));
+      fit?.kick('page');
+      return;
+    }
     if (taken || d.t !== 'wc-play') return;
     taken = true;
     const payload = d.payload;
     const fonts = frameFonts(d.fonts);
     const meta = frameMeta(d.meta);
+    const debug = frameFsDebug(d.prefs);
     void (async () => {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
@@ -210,6 +230,8 @@ export function startFrame(o: FrameOptions): () => void {
         // Every shared run opens under its poster, paused at the start (stage 73, ADR 0162),
         // whatever `prefs.paused` says.
         const page = openReplay(doc, root, p, { fullscreen: fs, poster: meta, ...(phone ? { phone } : {}) });
+        // A phone or tablet follows its window through a turn reported late (stage 73 round 3).
+        if (phone) fit = installFrameFit(win, root, page.host, { debug });
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';

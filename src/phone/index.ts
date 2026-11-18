@@ -798,6 +798,16 @@ class Layer {
    * player was moved into History's box, the box changed size). The lens
    * and its key row are placed again, in one layout. Nothing in the live game.
    */
+  /**
+   * Sizes the lens again from the cockpit as it is now (the host's
+   * `nudgeLayout`: a turn reported late, where no resize of the window
+   * came after the cockpit's last size; stage 73 round 3).
+   */
+  refit(): void {
+    if (this.disposed) return;
+    this.syncLens();
+  }
+
   setClear(clear: PhoneReplayClear): void {
     if (!this.replay || this.disposed) return;
     const right = Math.max(0, clear.right);
