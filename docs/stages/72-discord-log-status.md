@@ -42,7 +42,7 @@ Discord admin) made a webhook for `#log-status` on 2026-11-17. Background:
 - [x] Migration, flag, secret type, cron poster and deleter, logo URL
 - [x] Unit tests against a fake Discord (post, wait id, delete, 429/5xx
       retry next tick, escape, no mentions, no secret → nothing)
-- [x] Review, merge (staging deploy pending)
+- [x] Review, merge, staging (run 44205436304; `test:prod` 36/36 on staging)
 - [ ] Release; secret set in production; the existing log posted by hand;
       flag on (the owner's word)
 

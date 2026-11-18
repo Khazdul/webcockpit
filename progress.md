@@ -105,7 +105,8 @@ with no stage of their own. Remove a line when it is done.
 ### 2026-11-18 — Stage 72: Hall of Fame logs in Discord #log-status
 
 - **Done:** Nazgum made a webhook for MUME's `#log-status`. The owner picked: name "MUME Cockpit" with our logo; only new logs (the one listed today posted by hand); a post is deleted when its log leaves the Hall of Fame; tested against a fake Discord only. Built by an agent (`worker/discord.ts`, migration 0008, flag `discord` off everywhere, secret `DISCORD_WEBHOOK_URL`; ADR 0161), reviewed, merged. Unit 5557 passed, typecheck green.
-- **Next:** staging deploy (migration 0008); release; then on the owner's word: `wrangler secret put DISCORD_WEBHOOK_URL` in production (the URL is in the owner's Discord DM, never in the repo), flag on, today's log queued by hand (stage file test guide).
+- **Staging:** deploy run 44205436304 (migration 0008); `test:prod` 36/36 on staging.
+- **Next:** release; then on the owner's word: `wrangler secret put DISCORD_WEBHOOK_URL` in production (the URL is in the owner's Discord DM, never in the repo), flag on, today's log queued by hand (stage file test guide).
 - **Open:** `https\://` escaping not seen in real Discord; an edited title does not update the post.
 
 ### 2026-11-18 — Stage 71: the shared replay with the lens, on staging
