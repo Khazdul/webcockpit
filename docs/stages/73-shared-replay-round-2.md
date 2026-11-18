@@ -176,30 +176,21 @@ Round 1 (2026-11-18, on staging):
 1. [ ] Desktop: the wheel over the lens also scrolls the log.
 2. [ ] Phone/tablet: no header row (character and date) over the player
    in a shared run.
-3. [ ] The poster: the log's title at the top (not the character's name),
+3. [x] The poster: the log's title at the top (not the character's name),
    its description under it (a centred block, left-aligned lines), the
    character and the date smaller somewhere fitting. All text and the
    play icon white.
-4. [ ] The poster covers exactly the player's area, no visible border,
+4. [x] The poster covers exactly the player's area, no visible border,
    melting into the player. Three looks to compare: the TV, a plain glass,
    and a third of our choosing. **Mockups first; the owner picks and
    approves before the poster is changed.**
 
-   Points 3–4: **mockups ready** (branch `stage-73-poster-r1`). The words
-   of point 3 and three looks, each edge to edge with no rim: `tv` (the
-   tube face reworked), `glass` (plain frosted glass), `cinema` (a film
-   title card: dark gradients from top and foot, a soft vignette, a wider
-   title). Dev only: `?poster=tv|glass|cinema` on the watch page; without
-   it the poster is part C's, unchanged. The publication's title and
-   description reach the frame in `wc-play`'s `meta` (plain text, capped:
-   `frameMeta`, src/replay/frame.ts); the look in `prefs.poster`. Shots
-   (`WC_POSTER_MOCKUPS=1 npx playwright test poster-mockups
-   --project=chromium`), desktop 1440×900, phone portrait (Pixel 7, the
-   frame alone), tablet landscape 1180×820:
-   - `img/73-r1-poster-tv-desktop.png`, `-tv-phone.png`, `-tv-tablet.png`
-   - `img/73-r1-poster-glass-desktop.png`, `-glass-phone.png`,
-     `-glass-tablet.png`
-   - `img/73-r1-poster-cinema-desktop.png`, `-cinema-phone.png`,
-     `-cinema-tablet.png`
-   - side by side: `img/73-r1-poster-overview-desktop.png`,
-     `-overview-phone.png`, `-overview-tablet.png`
+   Points 3–4 done (branch `stage-73-poster-r1`, ADR 0162 addendum
+   "round 1"): three looks were mocked up (TV, glass, cinema); the owner
+   picked the plain glass with the cinema look's larger, wider title and
+   its layout. It is the one poster, in the frame and the exported file.
+   The publication's title and description reach the frame in `wc-play`'s
+   `meta` (plain text, capped: `frameMeta`). The player's control box is
+   hidden while the poster is up and shows when the run starts. Shots:
+   `img/73-c-desktop.png`, `img/73-c-phone-portrait.png`,
+   `img/73-c-phone-landscape.png`, `img/73-c-tablet-landscape.png`.
