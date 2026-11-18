@@ -576,7 +576,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
             title: linkTitle(d, s.character, s.startUs),
             titleIsDefault: d.title.trim() === '',
             listed: shareAs === 'hof',
-            build: async () => sealLinkPayload(await prepareLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource())),
+            build: async (maxBytes: number) =>
+              sealLinkPayload(await prepareLinkPayload(data.chain, data.events, d, settings.get(), maps ? await maps.source() : bundledMapSource()), { maxBytes }),
           }) as VNode,
           { overlay: true },
         );

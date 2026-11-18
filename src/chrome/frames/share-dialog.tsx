@@ -95,8 +95,12 @@ export interface ShareDialogProps {
   title: string;
   /** The doc has no title of its own (the hint says where the proposal comes from). */
   titleIsDefault?: boolean;
-  /** Builds the payload (the editor's data, exactly as for HTML), validated and gzip. */
-  build(): Promise<LinkPayload>;
+  /**
+   * Builds the payload (the editor's data, exactly as for HTML), validated
+   * and gzip; past `maxBytes` with Desert's tiles, with the default ones
+   * (src/share/link-seal.ts).
+   */
+  build(maxBytes: number): Promise<LinkPayload>;
   /** Hall of Fame (stage 65): the listed form; the run goes to the Community. */
   listed?: boolean;
 }
@@ -143,7 +147,8 @@ export const ShareDialog = lookFrame(function ShareDialog(p: ShareDialogProps): 
   const linkRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    void p.build().then(
+    // The account's limit is not known yet: the default one decides the tiles.
+    void p.build(DEFAULT_ACCOUNT_LIMITS.payloadMaxBytes).then(
       (link) => alive.current && setBuilt({ ok: true, link }),
       () => alive.current && setBuilt({ ok: false }),
     );

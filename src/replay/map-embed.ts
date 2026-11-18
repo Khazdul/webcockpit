@@ -38,6 +38,8 @@ export interface EmbedMapOptions {
    * and `ReplayMap.tints`.
    */
   tileset?: TilesetOverlay;
+  /** The id of `tileset`, carried as `ReplayMap.tileset` (a share link's Desert, ADR 0154 addendum 2026-11-18). */
+  tilesetId?: string;
   /**
    * A share link's map (review fix S6): the subset without the player's own
    * room notes, and a neutral name instead of the map file's.
@@ -86,6 +88,7 @@ export async function embedReplayMap(payload: ReplayPayload, source: MapSource, 
     files,
     ...(o.tileset?.streamsAsIs ? { streamsAsIs: true } : {}),
     ...(o.tileset?.tints ? { tints: { ...o.tileset.tints } } : {}),
+    ...(o.tilesetId !== undefined ? { tileset: o.tilesetId } : {}),
   };
   return { ...payload, map };
 }
