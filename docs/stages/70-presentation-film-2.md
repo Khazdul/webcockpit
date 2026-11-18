@@ -153,3 +153,53 @@ Open from the community capture (2026-11-17): the one real published run
 has no stars or comments, and the Hall of Fame is empty (five votes
 needed). Re-capture (`node record/capture-community.ts`) before act 7 is
 recorded. A share on camera adds the film account's run as a second log.
+
+### Full draft, round 1 (2026-11-18, on the 5:58 cut)
+
+Times are the owner's, roughly, in the 5:58 draft.
+
+1. **0:03.** Community is missing from the start menu. Act 0 runs with the
+   cloud flags like the rest, so the menu matches act 6.
+2. **1:00.** Don't show Group's settings being turned on (NPC visibility
+   All, Fight card). They are on from the start, off camera.
+3. **1:21.** Backgrounds: Paper, Teal, Black. Hold Paper and Teal about
+   1 s longer each.
+4. **1:43.** Timers is shown with "Time text" off.
+5. **1:36, before Timers.** A new segment with a caption in the spirit of
+   "Panes can be docked and customised":
+   - Group is moved to dock at the top, above the map.
+   - Its borders are turned off, and the background is set to Clear.
+   - Group is resized so that it sits relative to the map as in
+     `img/70-group-docked-target.png` (a slim strip over the map's
+     column).
+   - The rest of the film carries on with that layout.
+6. **2:40 (the phone).** The upper pane part is resized to about half its
+   present height, to show it can be set to taste. No caption.
+7. **3:42, Mercenaries.** The script looks as if it had been on when the
+   mercenary was hired, so our grouped mercenary shows as registered in
+   it. This is staged on purpose, to show the script with an active
+   mercenary. The cost is changed to 1 gold by tapping the field in the
+   mercenary pane.
+8. **3:49.** The dock demo (Timers dragged into a dock and back) goes; 5
+   covers it.
+9. **4:23.** About 4 s more on the spotlight in the viewer.
+10. **5:30.** The music ends at 5:29.7 ("Sunset Plains" is 5:29.68 long).
+    The whole film must end with the music, with no loop. The film is
+    rebalanced to land there, and the main session proposes how.
+11. **Community and the watch page** must look as they do now, after the
+    owner's own changes made in parallel (stages 71–73, up to 0.20.1).
+    The film's takes are recorded on current main.
+
+**The main session's plan for 10.** With 2–9, the cut would run to about
+6:13, so about 45 s must go.
+- Act 1: tighten the arrival, the fountain and the mercenary. The pause
+  before the gold stays at about 2.5 s. About −8 s.
+- Act 4: compress the phone's walk into Bree and the gate call. Messages,
+  the panes and the turn stay. About −8 s.
+- Act 5: shorter holds on arriving at the inn and in Profile. About −5 s.
+- Act 6: Diary goes, the Log in page is skipped, and the recovery code is
+  held shorter. About −10 s.
+- Act 7: from 40 s to about 30 s, with a shorter export editor hold and a
+  shorter play on the watch page. About −10 s.
+- Act 8: the end card is timed to the music's tail, and the last frame is
+  at 5:29.7. About −4 s.
