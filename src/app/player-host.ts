@@ -147,7 +147,7 @@ import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } fro
  * takes.
  */
 export interface PlayerPhone {
-  mount(deps: PhoneReplayDeps): { dispose(): void; setClear(clear: PhoneReplayClear): void };
+  mount(deps: PhoneReplayDeps): { dispose(): void; setClear(clear: PhoneReplayClear): void; refit?(): void };
   kit: PhoneKit;
   /** The look kit's controls (the menu's settings page; never shown over a replay). Absent: none (the HTML replay). */
   controls?: PhoneControls;
@@ -343,6 +343,8 @@ export class PlayerHost {
   private deskSpot: DeskLensSpot | null = null;
   private deskLevel: DeskLevel = DESK_LEVEL_DEFAULT;
   private deskGrid: { cols: number; rows: number; under: number } | null = null;
+  /** Phone: sizes the current layer's lens again from the cockpit as it is now (`nudgeLayout`). */
+  private phoneRefit: () => void = () => {};
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -799,8 +801,12 @@ export class PlayerHost {
     };
     const off = app.cockpit.onLayout(measure);
     measure();
+    this.phoneRefit = () => {
+      if (this.appRef === app) layer.refit?.();
+    };
     return () => {
       off();
+      this.phoneRefit = () => {};
       layer.dispose();
     };
   }
@@ -1001,6 +1007,21 @@ export class PlayerHost {
   }
 
   // --------------------------------------------------------------- layout
+
+  /**
+   * Lays the player out again from the sizes as they are now: the cell
+   * size, the cockpit, the phone layer's lens and the control box. For a
+   * window that reported its size late or in steps (an iPad turned in
+   * fullscreen, stage 73 round 3), where no resize of the player's own
+   * came after the last step. Idempotent: the same sizes lay out the same.
+   */
+  nudgeLayout(): void {
+    if (this.closed) return;
+    this.relayout();
+    this.appRef?.cockpit.scheduleRelayout();
+    this.phoneRefit();
+    this.view?.refresh();
+  }
 
   /** Theme and cell size from the player settings and the window. */
   private relayout(): void {

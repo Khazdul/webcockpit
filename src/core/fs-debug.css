@@ -1,0 +1,27 @@
+/* The fullscreen-turn diagnostic (src/core/fs-debug.ts, `?fsdebug`):
+ * small, in a corner, over everything, never in the way of a tap. */
+.wc-fsdebug {
+  position: fixed;
+  z-index: 2147483647;
+  margin: 0;
+  max-width: min(440px, calc(100% - 16px));
+  padding: 4px 6px;
+  font: 10px/1.25 ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #b6ffb0;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(182, 255, 176, 0.45);
+  pointer-events: none;
+  user-select: none;
+}
+
+.wc-fsdebug-top-left {
+  top: 4px;
+  left: 4px;
+}
+
+.wc-fsdebug-bottom-left {
+  bottom: 4px;
+  left: 4px;
+}

@@ -691,6 +691,20 @@ export class Cockpit {
       this.ro = new ResizeObserver(() => this.scheduleRelayout());
       this.ro.observe(this.el);
     }
+    // Phone: upright or on its side also reads the screen's orientation (`landscapeLayout`),
+    // which iPadOS reports after the new size when turning in fullscreen (stage 73 round 3):
+    // the size alone then laid the landscape window out upright, and nothing laid it out again.
+    const win = doc.defaultView;
+    if (this.phone && win) {
+      const turned = (): void => this.scheduleRelayout();
+      const so = (win.screen as Screen & { orientation?: EventTarget }).orientation;
+      win.addEventListener('orientationchange', turned);
+      so?.addEventListener?.('change', turned);
+      this.unsubs.push(() => {
+        win.removeEventListener('orientationchange', turned);
+        so?.removeEventListener?.('change', turned);
+      });
+    }
     this.relayoutNow();
   }
 

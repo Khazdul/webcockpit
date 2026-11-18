@@ -63,6 +63,9 @@ import type { Comment, PubMeta, ReportKind, ReportReason, Stars } from '../../sh
 import { skyCss } from '../start/sky/look';
 import { startSkyLook } from '../start/start-look';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
+import { type WatchTurn, installWatchTurn } from './turn';
+import { device } from '../core/device';
+import { fsDebugAsked } from '../core/fs-debug';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import { Comments, type RaterRole, RunStars } from './community';
 import {
@@ -202,11 +205,15 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     if (!bytes || !box || !meta) return;
     let alive = true;
     let made: FrameHost | null = null;
+    let turn: WatchTurn | null = null;
+    // `?fsdebug`: the fullscreen-turn readout on the page and in the frame (stage 73 round 3).
+    const fsdebug = fsDebugAsked(location.search);
     openFrame({
       container: box,
       bytes,
       base: siteBaseUrl(),
       meta: { title: meta.title, description: meta.description },
+      ...(fsdebug ? { fsdebug } : {}),
       onPlay: () => {
         if (!alive) return;
         setPlaying(true);
@@ -221,8 +228,11 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     }).then(
       (h) => {
         made = h;
-        if (alive) host.current = h;
-        else h.dispose();
+        if (!alive) return h.dispose();
+        host.current = h;
+        // A touch device follows the window through a turn in fullscreen (src/watch/turn.ts).
+        const page = box.closest<HTMLElement>('.wc-watch');
+        if (page && (device().touch || fsdebug)) turn = installWatchTurn(page, h, { debug: fsdebug });
       },
       (err: unknown) => {
         if (!alive) return;
@@ -232,6 +242,7 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     );
     return () => {
       alive = false;
+      turn?.dispose();
       made?.dispose();
       host.current = null;
       setPlaying(false);
@@ -662,6 +673,8 @@ export function startWatch(root: HTMLElement, path: string = location.pathname, 
   const admin = new URLSearchParams(search).has('admin');
   document.title = 'Shared log · WebCockpit';
   root.replaceChildren();
+  // The page's root fills the window by CSS on a phone too, not by the measured visual viewport (watch.css; stage 73 round 3).
+  root.classList.add('wc-watch-app');
   const host = document.createElement('div');
   host.className = 'wc-chrome wc-look wc-watch';
   root.appendChild(host);
@@ -686,11 +699,16 @@ function stillSky(host: HTMLElement): void {
   };
   paint();
   let queued = 0;
-  addEventListener('resize', () => {
+  const again = (): void => {
     if (queued) return;
     queued = requestAnimationFrame(() => {
       queued = 0;
       paint();
     });
-  });
+  };
+  addEventListener('resize', again);
+  // A turn in fullscreen may end with no resize of the page (stage 73 round 3).
+  addEventListener('orientationchange', again);
+  document.addEventListener('fullscreenchange', again);
+  document.addEventListener('webkitfullscreenchange', again);
 }

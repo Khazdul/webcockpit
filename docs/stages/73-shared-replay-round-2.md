@@ -212,13 +212,35 @@ the Small font; upright the player is a third lower than the window
 Round 3 (2026-11-18, the owner's iPad, after 0.20.0), only in fullscreen
 while turning:
 
-1. [ ] Portrait fullscreen → landscape: the fullscreen view is not quite
+1. [x] Portrait fullscreen → landscape: the fullscreen view is not quite
    right; something spills below, only about half the player box shows.
    Leaving fullscreen in landscape: a small black area at the top, and
    about 25–30 % of the window at the right stays black.
-2. [ ] Landscape fullscreen → portrait: about 4–5 rows of black above
+2. [x] Landscape fullscreen → portrait: about 4–5 rows of black above
    everything. Leaving fullscreen: a small black area at the top and
    about 25–30 % at the bottom black.
 
 (820/1180 ≈ 0.69: the black part matches a size kept from the other
 orientation.)
+
+   Points 1–2 built (branch `stage-73-ipad-fs`, ADR 0160 addendum "stage 73
+   round 3"); not yet seen on the iPad (no WebKit here). Causes found: the
+   frame's cockpit kept the upright layout when the new size came before
+   the new orientation (nothing laid it out again on the turn), and the
+   watch page's root was sized by the measured visual viewport, which kept
+   the old height. Now the cockpit lays out again on a turn, the page's
+   root fills the window by CSS, both windows measure again for a second
+   after every change (the page tells the frame, `wc-relayout`), the
+   frame's root is sized to its window by number while CSS leaves it at
+   the old size, and leaving fullscreen scrolls to the top and makes WebKit
+   lay the page out again. Shots: `img/73-r3-tablet-portrait-to-landscape.png`,
+   `img/73-r3-tablet-landscape-to-portrait.png`.
+
+   **Test (owner, iPad):** open a shared run, Play, the lens's fullscreen
+   key; turn portrait → landscape and back, in play; leave fullscreen in
+   each orientation. Wanted: the whole box inside the window in fullscreen,
+   and no black band or black part of the window after leaving. If anything
+   is still wrong, open the same link with `?fsdebug` at the end
+   (`…/r/<id>?fsdebug`), repeat, and screenshot: the green readout in the
+   frame's top left (in fullscreen) and the page's bottom left (outside it)
+   shows each window's sizes, the rectangles and the last event.

@@ -16,6 +16,21 @@
   color: var(--lk-text);
 }
 
+/* A phone or tablet (stage 73 round 3, the iPad turned in fullscreen): the
+ * app's root on a phone is placed by the measured visual viewport
+ * (ui.css, `--wc-vv-h`/`--wc-vv-top`), which iPadOS left at the old
+ * orientation's size after a turn in fullscreen (black where it ended). A
+ * phone's fields have our own keyboard (ADR 0139) and the kit's fields keep
+ * themselves in view of a device's (look-controls.tsx), so the watch page's
+ * root fills the window by CSS alone. `--wc-watch-vh` (src/watch/turn.ts)
+ * is `.wc-watch`'s own height, measured, in place of `100dvh` below: the
+ * viewport units may also be the old orientation's for a while. */
+html.wc-phone #app.wc-watch-app {
+  top: 0;
+  bottom: 0;
+  height: auto;
+}
+
 .wc-watch > .wc-stack {
   position: absolute;
   inset: 0;
@@ -71,7 +86,7 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 2 * var(--lk-box-m, clamp(12px, 1.9vw, 28px)) - 70px);
-  height: calc(100dvh - 2 * var(--lk-box-m, clamp(12px, 1.9vw, 28px)) - 70px);
+  height: calc(var(--wc-watch-vh, 100dvh) - 2 * var(--lk-box-m, clamp(12px, 1.9vw, 28px)) - 70px);
   min-height: 300px;
 }
 
@@ -285,7 +300,7 @@
   .wc-watch-screen .wc-watch-slot {
     flex: none;
     height: calc(100vh - 8px - 62px);
-    height: calc(100dvh - 8px - 62px);
+    height: calc(var(--wc-watch-vh, 100dvh) - 8px - 62px);
     min-height: 300px;
   }
 
@@ -337,7 +352,7 @@
 @media (max-width: 760px) and (orientation: portrait) {
   .wc-watch-screen .wc-watch-slot {
     height: calc((100vh - 8px - 62px) * 0.67);
-    height: calc((100dvh - 8px - 62px) * 0.67);
+    height: calc((var(--wc-watch-vh, 100dvh) - 8px - 62px) * 0.67);
   }
 }
 

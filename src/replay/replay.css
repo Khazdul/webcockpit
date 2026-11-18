@@ -7,3 +7,17 @@
   font-family: var(--font-mono, monospace);
   color: var(--term-fg, #c0c0c0);
 }
+
+/* The shared replay's frame (src/replay/frame-fit.ts, stage 73 round 3):
+ * where the root does not fill the frame's window after a turn reported
+ * late (iPadOS in fullscreen), it is sized to the window by number. Wins
+ * over the phone's fixed root (ui.css) while the class is on. */
+html.wc-frame-sized #app {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: var(--wc-frame-w) !important;
+  height: var(--wc-frame-h) !important;
+}

@@ -15,7 +15,8 @@
 //
 // `phone` project (Pixel 7); a tablet is the same device at a tablet's
 // screen (the frame's window decides the device flags, src/replay/phone.ts).
-import { type FrameLocator, type Locator, type Page, expect, test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { type CDPSession, type FrameLocator, type Locator, type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
 import { SENDER, frameIsFullscreen, openWatch, playing, poster, replay, setUp } from './watch-page';
 
@@ -191,4 +192,178 @@ test('tablet: turning in fullscreen during play keeps the whole box inside the w
     el.style.height = '';
     window.dispatchEvent(new Event('resize'));
   });
+});
+
+// Stage 73 round 3 (ADR 0160 addendum "the iPad fullscreen turn"): iPadOS turned in fullscreen
+// reports the new size before the screen's orientation, and the page's measured sizes late.
+
+type Metrics = { width: number; height: number };
+const PORTRAIT: Metrics = { width: 820, height: 1180 };
+const LANDSCAPE: Metrics = { width: 1180, height: 820 };
+
+const sessions = new WeakMap<Page, CDPSession>();
+
+/** Turns the device: its size, and the screen's orientation as `orientation` says (it may lag behind the size). */
+async function turn(page: Page, s: Metrics, orientation: 'portrait' | 'landscape'): Promise<void> {
+  // One session per page: the override ends with the session.
+  let cdp = sessions.get(page);
+  if (!cdp) sessions.set(page, (cdp = await page.context().newCDPSession(page)));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: s.width,
+    height: s.height,
+    deviceScaleFactor: 2,
+    mobile: true,
+    screenWidth: s.width,
+    screenHeight: s.height,
+    screenOrientation: orientation === 'landscape' ? { type: 'landscapePrimary', angle: 90 } : { type: 'portraitPrimary', angle: 0 },
+  });
+}
+
+/** The frame's layout: its window, its root and cockpit, the box, and whether the cockpit lies on its side. */
+async function frameLayout(r: FrameLocator) {
+  return r.locator('html').evaluate(() => {
+    const rect = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+    const app = rect('#app');
+    const cock = rect('.wc-cockpit');
+    const box = rect('.wc-player-box');
+    const host = (window as unknown as { __wcReplay?: { host: { app: { cockpit: { phoneGameLayout: { landscape: boolean } | null } } | null } } }).__wcReplay?.host;
+    return {
+      iw: innerWidth,
+      ih: innerHeight,
+      app: { l: app.left, t: app.top, r: app.right, b: app.bottom },
+      cock: { l: cock.left, t: cock.top, r: cock.right, b: cock.bottom },
+      box: { t: box.top, r: box.right, b: box.bottom },
+      land: host?.app?.cockpit.phoneGameLayout?.landscape ?? null,
+    };
+  });
+}
+
+/** The frame's content fills its window both ways (no area outside the root or the cockpit), and the box is inside it. */
+function fills(f: Awaited<ReturnType<typeof frameLayout>>, land: boolean): boolean {
+  const near = (a: number, b: number, d = 1.5): boolean => Math.abs(a - b) <= d;
+  return (
+    near(f.app.l, 0) &&
+    near(f.app.t, 0) &&
+    near(f.app.r, f.iw) &&
+    near(f.app.b, f.ih) &&
+    near(f.cock.l, 0) &&
+    near(f.cock.t, 0) &&
+    // The cockpit ends left of the rail (12 px) and within a few px of the bottom (whole cells).
+    f.cock.r >= f.iw - 12 - 2 &&
+    f.cock.b >= f.ih - 2 &&
+    f.box.t >= 0 &&
+    f.box.b <= f.ih - 8 &&
+    f.box.r <= f.iw - 36 &&
+    f.land === land
+  );
+}
+
+/** The page's layout: its window, the page's root boxes, the frame's element, and the measured first-view height. */
+async function pageLayout(page: Page) {
+  return page.evaluate(() => {
+    const rect = (s: string) => {
+      const b = document.querySelector(s)!.getBoundingClientRect();
+      return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height };
+    };
+    const watch = document.querySelector<HTMLElement>('.wc-watch')!;
+    return { iw: innerWidth, ih: innerHeight, app: rect('#app'), watch: rect('.wc-watch'), frame: rect('.wc-watch-slot iframe'), vh: watch.style.getPropertyValue('--wc-watch-vh') };
+  });
+}
+
+/** The page fills the window (no black where an old size ends), the frame inside it, its content filling the frame. */
+async function pageFills(page: Page, r: FrameLocator, land: boolean): Promise<boolean> {
+  const p = await pageLayout(page);
+  const f = await frameLayout(r);
+  const near = (a: number, b: number, d = 1.5): boolean => Math.abs(a - b) <= d;
+  return (
+    near(p.app.t, 0) &&
+    near(p.app.b, p.ih) &&
+    near(p.app.r, p.iw) &&
+    near(p.watch.t, 0) &&
+    near(p.watch.b, p.ih) &&
+    near(p.watch.r, p.iw) &&
+    p.vh === `${p.ih}px` &&
+    p.frame.l >= 0 &&
+    p.frame.r <= p.iw &&
+    near(f.iw, p.frame.w, 2) &&
+    near(f.ih, p.frame.h, 2) &&
+    fills(f, land)
+  );
+}
+
+for (const [from, to] of [
+  ['portrait', 'landscape'],
+  ['landscape', 'portrait'],
+] as const) {
+  test(`tablet: ${from} fullscreen → ${to}, reported in steps, and out of fullscreen: the frame and the page fill the window`, async ({ page }) => {
+    const a = from === 'portrait' ? PORTRAIT : LANDSCAPE;
+    const b = from === 'portrait' ? LANDSCAPE : PORTRAIT;
+    await page.setViewportSize(a);
+    const r = await openLong(page);
+    await play(page, r);
+    await r.locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]').tap();
+    await expect.poll(() => frameIsFullscreen(page)).toBe(true);
+    await expect.poll(async () => fills(await frameLayout(r), from === 'landscape')).toBe(true);
+    // The new size first, the screen still in the old orientation (iPadOS), then the orientation.
+    await turn(page, b, from);
+    await expect.poll(async () => (await frameLayout(r)).iw).toBe(b.width);
+    await page.waitForTimeout(300);
+    await turn(page, b, to);
+    await expect.poll(async () => fills(await frameLayout(r), to === 'landscape')).toBe(true);
+    // The root laid out at the old orientation's size, with no resize of the window after it.
+    await r.locator('#app').evaluate((el, s) => {
+      el.style.width = `${s.width}px`;
+      el.style.height = `${s.height}px`;
+    }, a);
+    await expect.poll(async () => fills(await frameLayout(r), to === 'landscape')).toBe(true);
+    expect(await r.locator('html').evaluate((h) => h.classList.contains('wc-frame-sized'))).toBe(true);
+    // CSS right again: the numbers give way at the next measurement.
+    await r.locator('#app').evaluate((el) => {
+      el.style.width = '';
+      el.style.height = '';
+    });
+    await expect.poll(() => r.locator('html').evaluate((h) => h.classList.contains('wc-frame-sized'))).toBe(false);
+    expect(await frameIsFullscreen(page)).toBe(true);
+    // Out of fullscreen in the new orientation; the page's visual viewport still published at the old height.
+    await r.locator('html').evaluate(() => document.exitFullscreen());
+    await expect.poll(() => frameIsFullscreen(page)).toBe(false);
+    await page.evaluate((h) => {
+      // As if the visual viewport never told the page the new height (a sheet's `!important` wins over what is published).
+      const st = document.createElement('style');
+      st.textContent = `html { --wc-vv-h: ${h}px !important; --wc-vv-top: 0px !important; }`;
+      document.head.appendChild(st);
+    }, a.height);
+    await expect.poll(() => pageFills(page, r, to === 'landscape'), { timeout: 10_000 }).toBe(true);
+    // (The window's size is the CDP override's, which `page.screenshot` does not take: the session's own capture.)
+    const shot = await sessions.get(page)!.send('Page.captureScreenshot', {});
+    writeFileSync(`docs/stages/img/73-r3-tablet-${from}-to-${to}.png`, Buffer.from(shot.data, 'base64'));
+  });
+}
+
+test('tablet: ?fsdebug shows the readout in the page and in the frame, with the page\'s lines in the frame', async ({ page }) => {
+  await page.setViewportSize(PORTRAIT);
+  const s = await setUp(page);
+  s.pubs.add({ id: LONG, owner: SENDER, title: 'A long walk', lengthS: 40, payload: longPayload() });
+  await openWatch(page, LONG, '&fsdebug');
+  await playing(page);
+  const r = replay(page);
+  await expect(page.locator('.wc-fsdebug')).toContainText('PAGE');
+  await expect(page.locator('.wc-fsdebug')).toContainText('inner 820×1180');
+  await expect(r.locator('.wc-fsdebug')).toContainText('FRAME');
+  await expect(r.locator('.wc-fsdebug')).toContainText('cockpit');
+  await turn(page, LANDSCAPE, 'landscape');
+  await expect(page.locator('.wc-fsdebug')).toContainText('inner 1180×820');
+  // The page's lines reach the frame (in fullscreen only the frame shows).
+  await expect(r.locator('.wc-fsdebug')).toContainText('— page —');
+  await expect(r.locator('.wc-fsdebug')).toContainText('inner 1180×820');
+  // No style attribute in the frame (its CSP).
+  expect(await r.locator('.wc-fsdebug').getAttribute('style')).toBeNull();
+});
+
+test('tablet: without ?fsdebug there is no readout', async ({ page }) => {
+  await page.setViewportSize(PORTRAIT);
+  const r = await openLong(page);
+  await expect(r.locator('.wc-ph-lens')).toBeVisible();
+  await expect(page.locator('.wc-fsdebug')).toHaveCount(0);
+  await expect(r.locator('.wc-fsdebug')).toHaveCount(0);
 });
