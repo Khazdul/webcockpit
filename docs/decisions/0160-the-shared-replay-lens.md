@@ -247,3 +247,91 @@ The owner's direction (docs/stages/73-shared-replay-round-2.md, points 1–6).
   and by laying the frame's root out 60 px taller than its window (the
   box stays inside; without the lift it does not). WebKit is not
   installed here, so not run on WebKit.
+
+## Addendum (stage 73 round 3, 2026-11-18): the iPad fullscreen turn
+
+The owner's iPad after 0.20.0: turned while the shared run was in
+fullscreen, the view kept a size of the old orientation (portrait →
+landscape: the view spilled below and half the box showed; landscape →
+portrait: black rows above it), and after leaving fullscreen the page had
+a black band at the top and black over the right (or bottom) 25–30 %:
+820/1180, a side of the old orientation.
+
+**Causes found** (WebKit is not installed here, so not seen on WebKit;
+the first two reproduced in Chromium by emulating the steps iPadOS takes):
+
+1. **The frame's cockpit kept the upright layout on its side.** The phone
+   layout lies on its side when the cockpit is wider than tall *and*
+   `screen.orientation` does not say portrait (`landscapeLayout`). iPadOS
+   reports the new size before the new orientation; the size's
+   ResizeObserver laid the cockpit out upright in a landscape window, and
+   the orientation that came after it laid out nothing
+   (`src/layout/cockpit.ts` `relayoutPhoneGame`).
+2. **The watch page's root was sized by the measured visual viewport.**
+   On a phone or tablet `#app` is `position: fixed` at
+   `top: var(--wc-vv-top)` and `height: var(--wc-vv-h)` (ui.css, published
+   by `installPhoneViewport`), and the watch page's `.wc-watch` (a
+   `.wc-chrome`) is placed inside it. A visual viewport that did not report
+   the turn (the page is not shown while the frame is in fullscreen) left
+   the whole page at the old height and offset: black at the bottom and a
+   band at the top after fullscreen ended.
+3. **Likely, not provable here:** the first view's height in `100dvh`
+   (`.wc-watch-screen`), and WebKit's own layout size of the page, may keep
+   the old orientation's for a while after a turn in fullscreen; the frame's
+   window may get its resize late or not at all.
+
+**The fix:**
+
+- The cockpit lays out again on `orientationchange` and
+  `screen.orientation`'s `change` (phone only).
+- The watch page's root fills the window by CSS (`#app.wc-watch-app` at
+  `top: 0; bottom: 0`, watch.css), not by the measured viewport. The first
+  view's height is `.wc-watch`'s own (`--wc-watch-vh`, measured from that
+  CSS box, falling back to `100dvh`; a computer never sets it).
+- Both windows follow every source of a change and measure again a few
+  times up to a second after it (`src/core/viewport-settle.ts`
+  `watchViewport`: resize, orientationchange, `screen.orientation`,
+  visual viewport resize and scroll, fullscreenchange with its prefix, a
+  ResizeObserver of the root; ticks at 0, 50, 200, 500 and 1000 ms, ending
+  early when two reads agree after 500 ms). The page (`src/watch/turn.ts`,
+  touch devices only) tells the frame at each tick with a new message,
+  `{t: 'wc-relayout', v: 1, debug?}`, taken only from `parent`; the frame
+  (`src/replay/frame-fit.ts`, phone or tablet only) then lays the player out
+  again (`PlayerHost.nudgeLayout`: cells, cockpit, the lens's size, the
+  box).
+- Where the frame's root does not fill the frame's window after a tick (laid
+  out at the old size), it is sized to the window by number
+  (`wc-frame-sized` on `<html>`, `--wc-frame-w/h` through CSSOM, no style
+  attribute). In fullscreen, once the turn has settled, a window larger than
+  the turned screen and the other way round is taken as the old
+  orientation's, and the root takes the screen's size. Each tick takes the
+  class away and measures CSS's layout first, so the numbers stand only
+  while CSS is wrong.
+- Leaving fullscreen: both windows scroll back to the top, and the page
+  writes its viewport meta once changed (`minimum-scale=1`) and back, so
+  WebKit computes the page's layout size again; at once and 500 ms later.
+- Desktop: none of it runs (the page's watch only on a touch device, the
+  frame's only in the phone layout). Android: the same sizes come out, a
+  few more layouts after a change.
+
+**The diagnostic switch:** `?fsdebug` on the watch page (`/r/<id>?fsdebug`)
+shows a small readout at the page's bottom left and the frame's top left
+(src/core/fs-debug.ts; text only, a class for the look, no style attribute:
+the frame's CSP): each window's inner size and `documentElement` client
+size, the visual viewport with its offsets and scale, the screen with its
+orientation (and `window.orientation`), fullscreen yes/no, the roots', the
+cockpit's, the box's and the frame's rectangles, whether the frame's root
+is sized by number, and the last event with its time. The page's lines are
+posted to the frame (`wc-play`'s `prefs.fsdebug`, `wc-relayout`'s `debug`,
+capped, plain text) and shown under the frame's own, since in fullscreen
+only the frame shows. Off by default.
+
+Tested in Chromium (`phone-watch-box`): turning a tablet in fullscreen
+with the size first and the orientation later, both ways; the frame's root
+laid out at the old orientation's size with no resize after it; leaving
+fullscreen with the page's visual viewport still published at the old
+height. Each asserts that the frame's root and cockpit fill its window,
+the box is inside it, the cockpit lies the right way, and the page's root
+boxes fill the window with the frame inside them. Without the fix the
+three parts fail (the cockpit upright, the root at the old size, the page
+at the old height).
