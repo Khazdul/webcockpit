@@ -253,3 +253,8 @@ orientation.)
    `?fsdebug&fsmode=frame|page|fill` (branch `stage-73-ipad-fs2`, ADR 0160
    addendum "round 3b"); the readout notes "insets" when it happens. The
    default stays `frame` until the owner picks.
+
+Round 3c (2026-11-18): the owner found the turn was only broken in Chrome
+on the iPad (Safari was always fine); `fill` works there and Safari still
+works on staging. Chrome on iOS now takes the fill (ADR 0160 addendum
+"round 3c"); released 0.20.1.

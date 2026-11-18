@@ -406,3 +406,14 @@ it), out by the lens key, Esc and `F`, and for `page` out by the system
 with the next tap entering again; `page` refused falls back to the fill;
 `frame` as before; a phone ignores `?fsmode=page`. Unit tests for the
 names and the frame's choice. Not run on WebKit.
+
+## Addendum (stage 73 round 3c, 2026-11-18): Chrome on iOS takes the fill
+
+The owner found that the turn in fullscreen was never broken in Safari on
+the iPad, only in Chrome (the readout's shrunken page viewport is Chrome
+for iOS's), and that `page` made no difference there while `fill` works.
+So the watch page picks `fill` for a tablet in Chrome on iOS
+(`chromeOnIos`: `CriOS` in the user agent, or the `__gCrWeb` object Chrome
+injects, since its iPad asks for the desktop site); Safari and every other
+browser keep the frame's own fullscreen. `?fsmode` and `?fsdebug` stay as
+switches for testing.
