@@ -208,3 +208,17 @@ on staging (2026-11-18): it looks right now.
 Round 2 (2026-11-18): on a phone (not a tablet) a shared run opens with
 the Small font; upright the player is a third lower than the window
 (`watch.css`). Then "publicera ny version": released 0.20.0.
+
+Round 3 (2026-11-18, the owner's iPad, after 0.20.0), only in fullscreen
+while turning:
+
+1. [ ] Portrait fullscreen → landscape: the fullscreen view is not quite
+   right; something spills below, only about half the player box shows.
+   Leaving fullscreen in landscape: a small black area at the top, and
+   about 25–30 % of the window at the right stays black.
+2. [ ] Landscape fullscreen → portrait: about 4–5 rows of black above
+   everything. Leaving fullscreen: a small black area at the top and
+   about 25–30 % at the bottom black.
+
+(820/1180 ≈ 0.69: the black part matches a size kept from the other
+orientation.)
