@@ -61,7 +61,16 @@ run log player and Spotlights are untouched, as in stage 71.
 ## Plan and tasks
 
 - [ ] A. Desktop: the bug (1), points 2–6. ADR 0160 addendum.
-- [ ] B. Phone and tablet: points 7–10.
+- [x] B. Phone and tablet: points 7–10. (Branch `stage-73b-phone`; ADR 0160
+      addendum "stage 73 part B".) The box floats at the bottom right and
+      hides as on desktop (`PlayerViewOptions.touchFloat`, touch-sized keys;
+      upright compact: no To the start, the speed one key), no command row
+      kept; the fight card off; the lens ×1.5 on a phone (not a tablet,
+      `lensReplayScaledPx`); the box clamped into the visual viewport on
+      every resize/turn/fullscreen change (point 9). History's run log
+      player keeps its docked bar. Tests: `tests/unit/shared-phone-box.test.ts`,
+      `tests/e2e/phone-watch-box.spec.ts`; screenshots
+      `docs/stages/img/73-b-*.png`.
 - [ ] C. The poster: point 11.
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.

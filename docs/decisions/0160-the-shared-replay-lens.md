@@ -138,3 +138,49 @@ The corner keys sit on the lens's diagonals, centred on the ring's outer
 edge (`--dl-key-at` in desk-lens.css), 44 px. Group and Timers share one
 height and keep a row of air between them and under the lens while the
 rows allow; the air goes before either float drops below 5 rows.
+
+## Addendum (stage 73 part B, 2026-11-18): phone and tablet
+
+- **The box floats** (owner's point 7). A shared run on a phone or tablet
+  has no docked bar: the cockpit keeps no command row
+  (`phoneReplay.bar` false) and the control box is the desktop's, at the
+  bottom right left of the rail's markers, over the log
+  (`PlayerViewOptions.touchFloat`). It hides as on a computer: 6 s after the
+  last activity in play, not in pause; a tap on the log shows it (the
+  tap's click presses nothing that appeared under it, as before), and a
+  tap on the lens's keys reaches the lens while it is hidden. The header
+  keeps the docked one's rule (no key hints, from the game text's left
+  edge, ending left of the lens's corner key: the host's `TouchHead`).
+  Keys are touch-sized (`data-touch`: 36 px, Play 40 px); compact (a phone
+  upright) the box drops To the start and the stepper arrows and the speed
+  is one key that steps round, so it leaves the left part of the width to
+  the log (238 of 376 px on a Pixel 7). History's run log player keeps
+  its docked bar.
+- **No fight card** (point 8): `sharedPhoneSettings` sets
+  `phone.fightCard` off.
+- **The lens half as large again on a phone** (point 10):
+  `PhoneReplay.lensScale` 1.5 (`SHARED_PHONE_LENS_SCALE`, not on a tablet:
+  `PlayerPhone.tablet` from `device().tablet`), through
+  `lensReplayScaledPx`: at most half the player's width upright and two
+  thirds of its height on its side (ring included), at most 285 px, never
+  under the run log player's size. A tablet is already at the lens's
+  largest (190 px) and keeps it.
+- **The iPad turn in fullscreen** (point 9). Not reproducible without a
+  device. The docked bar was placed in absolute px (`top`, `height`) from
+  the cockpit's command-row rectangle and the root's `clientHeight`, taken
+  at the cockpit's layout; iPadOS reports a turn's new size in steps and
+  late in fullscreen (the layout viewport and the visual viewport disagree
+  for a while), so a rectangle measured on one step and a window shown on
+  the next puts part of the bar under the bottom edge. Android delivers
+  the sizes together, which fits it not being seen there. The fix does
+  not depend on that order: the floating box is anchored by CSS `bottom`
+  to the root (no measured rectangle), and is lifted and moved in by what
+  the root reaches past the visible part of the window (`boxLift` against
+  `visibleBox`: the visual viewport, within the layout viewport). It is
+  measured again on the window's `resize` and `orientationchange`, the
+  visual viewport's `resize` and `scroll`, and `fullscreenchange`
+  (prefixed too), and once more 150 ms and 500 ms later. Tested in
+  Chromium by turning a tablet's metrics while the frame is in fullscreen,
+  and by laying the frame's root out 60 px taller than its window (the
+  box stays inside; without the lift it does not). WebKit is not
+  installed here, so not run on WebKit.
