@@ -6,7 +6,7 @@
 // the player's cursor does not move. The touch side is
 // phone-watch-map-zoom.spec.ts; the rest of the lens is watch-lens.spec.ts.
 import { expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp, startRun } from './watch-page';
+import { openWatch, pausedInFrame, playing, replay, setUp, startRun } from './watch-page';
 import { lensMap, mapSent, recordMapWorker } from './watch-map';
 
 test("the wheel over the watch page's lens steps its zoom levels, Ctrl+wheel too; the page stays put", async ({ page }) => {
@@ -42,4 +42,61 @@ test("the wheel over the watch page's lens steps its zoom levels, Ctrl+wheel too
   expect((await mapSent(page)).filter((m) => m.t === 'zoom')).toEqual([]);
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
   expect(await r.locator('.wc-player').evaluate((el) => el.textContent?.length ?? 0)).toBeGreaterThanOrEqual(lines);
+});
+
+// Stage 73 round 1: the wheel over the lens moved the paused player's
+// cursor and scrolled the log under it (it bubbled to the player's root).
+// Every wheel over the lens (the glass, the rim band, a dot, a touchpad's
+// coasting in the rest after a step) only zooms.
+test('paused, the wheel over the lens leaves the cursor and the log where they are', async ({ page }) => {
+  test.setTimeout(60_000);
+  await recordMapWorker(page);
+  await setUp(page);
+  await openWatch(page);
+  await playing(page);
+  await startRun(page);
+  await lensMap(page);
+  const r = replay(page);
+  await page.waitForTimeout(1500);
+  await r.locator('.wc-player').click({ position: { x: 100, y: 300 } });
+  await page.keyboard.press('Space');
+  await pausedInFrame(page);
+  // The wheel over the log moves the cursor up: the log is scrolled back from its end.
+  await page.mouse.move(100, 300);
+  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -100);
+  await expect(r.locator('.wc-player-cursor')).toHaveCount(1);
+  const level = async (): Promise<number> => Number(await r.locator('.wc-dl').getAttribute('data-level'));
+  /** The cursor's line and every scroller's position. */
+  const state = async (): Promise<string> =>
+    r.locator('body').evaluate((b) => {
+      const cur = b.querySelector('.wc-player-cursor');
+      const rows = cur ? [...(cur.parentElement?.children ?? [])].indexOf(cur) : -1;
+      const tops = [...b.querySelectorAll('.wc-scroller')].map((s) => s.scrollTop);
+      return JSON.stringify({ rows, text: cur?.textContent, tops });
+    });
+  const s0 = await state();
+  const b = (await r.locator('.wc-dl').boundingBox())!;
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  // The glass.
+  await page.mouse.move(cx, cy);
+  await page.mouse.wheel(0, 100);
+  await expect.poll(level).toBe(1);
+  // A touchpad's coasting in the rest after a step.
+  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, 15);
+  await page.waitForTimeout(400);
+  // The rim band.
+  await page.mouse.move(b.x + b.width - 2, cy);
+  await expect(r.locator('.wc-dl-rim')).toHaveCSS('cursor', 'ew-resize');
+  await page.mouse.wheel(0, 100);
+  await expect.poll(level).toBe(2);
+  await page.waitForTimeout(400);
+  // A dot.
+  const d = (await r.locator('.wc-dl-dot').nth(2).boundingBox())!;
+  await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2);
+  await page.mouse.wheel(0, -100);
+  await expect.poll(level).toBe(1);
+  await page.waitForTimeout(400);
+  expect(await state()).toBe(s0);
+  await pausedInFrame(page);
 });
