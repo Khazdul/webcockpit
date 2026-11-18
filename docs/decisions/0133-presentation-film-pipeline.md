@@ -773,3 +773,50 @@ goes to a second desktop take:
   "Loading player", then an empty box) and its Back's are jumped over
   in the composition (`film2Plan`'s pieces): plain cuts where the page
   changes anyway, about 2.5 s in all.
+
+## Addendum (2026-11-18): film 2, owner round 1 on the full draft
+
+The owner's eleven items (`docs/stages/70-presentation-film-2.md`, "Full
+draft, round 1") and the music's end. All takes were recorded again on
+main at 0.20.1, with the community re-captured first.
+
+- **The film ends with the music.** "Sunset Plains" plays once, at full
+  volume, to its end (329.68 s): `Film2` is `floor(329.68 × 60)` frames.
+  Its full sound ends at about 322.7 s (RMS of the file, 0.1 s steps); the
+  picture fades to black over its tail from 323.0 s. The end card comes
+  at 316.5 s, or 1.6 s after the start page is back if that is later
+  (`CARD_AT_S`; a console warning if the card would come after 318.5 s).
+  The take's last start page has its quote hidden from the moment it
+  loads (under Community), so the card's time is the composition's.
+- **Act 0 with the cloud flags.** film2-a serves the captured community
+  through the fakes and opens the start page with `?cloudtest`, on the
+  capture's date (`takeBPage`), so its menu has the owner row and
+  Community as act 6 does.
+- **Group docked above the map (item 5).** A floating pane docks only from
+  the screen-edge zones, so Group is dragged to the right edge at the top:
+  it goes into the right dock's lane before the map. Then its Border and
+  Background look buttons (their tooltips are the browser's `title`,
+  marked `tip` and drawn by the film; under the button when it is at the
+  top edge), and the boundary under it is dragged 3 rows down: four rows,
+  its two members. Every later take starts from that state
+  (`dockGroupInPage` in `record/lib/film-state.ts`: Group at `desired` 4
+  before the map, the map at 45, borderless and clear). The map's lane
+  being shorter would give the Character pane room, so Character is set
+  off. A look button's pointer press did not always take in the headless
+  page; the take checks the setting and clicks the button directly when it
+  did not (the press ring shows either way).
+- **Off camera now:** Group's NPC visibility All and Fight card, and
+  Timers' Time text off (every take).
+- **Mercenaries (item 7), staged:** before the take, the script's store
+  gets Tod's contract (`shell.scripts.storeSet('mercenaries', 'mercs',
+  …)`, ending about 23 minutes on), as if the script had been on at the
+  hire; switched on in Scripts, the pane shows Tod "here" with his time
+  left, and a click on Cost [10s] in the pane's top row sets 1 gold.
+- **The device act, 50 s (was 55):** the walk into Bree at 2×, the tells
+  and Messages earlier, and on the phone the strip's band dragged up to
+  about half the strip's height after the swipes (item 6). The tablet and
+  phone takes carry the docked-Group state and no time text.
+- **Cuts:** the Log in page is cut out of act 6 (from the owner row's
+  press to Create account settled), with the watch page's two loads as
+  before. The Timers dock demo and Diary are gone; the spotlight plays
+  12 s.

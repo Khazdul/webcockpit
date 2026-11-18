@@ -89,31 +89,31 @@ old film's manuscript, scenes and takes stay for reference.
    - Whether the camera move is "wow" enough, or should be a slide or
      morph of the picture itself.
 
-### 70b — the full draft (acts 0–8)
+### 70b — the full draft (acts 0–8), round 1
 
-1. Open `video/out/film2-draft.mp4` (5:58), or `film2-draft-small.mp4`
-   on the phone. Acts 0–4 are as approved; the new part starts at 2:57.
+1. Open `video/out/film2-draft.mp4` (5:29.7, it ends with the music), or
+   `film2-draft-small.mp4` on the phone.
 2. What it shows:
-   - 2:57–3:57 act 5: the inn with the barman behind; Profile (`fk` →
-     `kill wolf`, the Editor, Find), Scripts (Almanac, Mercenaries on,
-     cost 20), Timers dragged to the left dock and back out to float.
-   - 3:57–5:06 act 6: Exit, History (the log player in the wolf fight,
-     Rasta's Half-Elf spotlight, Diary), Create account (`demo`, a fake
-     account), then the same account on a phone with the Bree session.
-   - 5:06–5:46 act 7: Share → Hall of Fame → the rules → Publish → the
-     link → Open Community (the real log, Random Runes, warlords, players
-     online) → the real log's watch page.
-   - 5:46–5:58 act 8: back to the start page at sunrise, the end card,
-     the fade.
-3. Feedback wanted:
-   - The length: 5:58, about 30–40 s over the 5:15–5:30 aim. Where to cut
-     (candidates: the Timers drag, Diary, the Log in page before Create
-     account, the export editor's hold).
-   - Hall of Fame (listed) instead of a plain Link, so Open Community
-     leads straight to the Community page with the film's run under New.
-   - The phone shot's place (right of the middle, the caption at left).
-   - The dawn by the watch page's Back (a page load) rather than a sunrise
-     on camera.
+   - 0:00–0:22 act 0: the start page (now with the owner row and
+     Community), Enter MUME, the login.
+   - 0:22–1:10 act 1: Bree, Comm, the mercenary, Group (already set),
+     Settings with Paper, Teal and Black.
+   - 1:10–1:46 act 2: the strike, the gate, Map; 1:21–1:36 Group docked
+     above the map, borderless, clear and a slim strip ("Panes can be
+     docked and customised."); Timers without time text.
+   - 1:46–2:03 act 3: the wolf, Statistics.
+   - 2:03–2:53 act 4: the device act; on the phone the strip made about
+     half as tall at 2:40.
+   - 2:53–3:39 act 5: Profile, Scripts, Mercenaries on with Tod in its
+     pane, the cost changed to 1 gold in the pane (3:32).
+   - 3:39–4:40 act 6: Exit, History (log player, the Half-Elf spotlight
+     about 12 s), Create account, the phone (4:32–4:40).
+   - 4:40–5:11 act 7: Share → Hall of Fame → Publish → Community → the
+     watch page.
+   - 5:11–5:30 act 8: the start page at sunrise, the end card at 5:16.5,
+     the fade with the music's tail from 5:23.
+3. Feedback wanted: the docking segment (pace, the caption), the shorter
+   phone strip, the Mercenaries staging, and the ending on the music.
 
 ## Owner feedback
 
@@ -160,11 +160,15 @@ Times are the owner's, roughly, in the 5:58 draft.
 
 1. **0:03.** Community is missing from the start menu. Act 0 runs with the
    cloud flags like the rest, so the menu matches act 6.
+   **Outcome (2026-11-18, 9e933cce):** act 0 runs on the cloud fakes with the captured community; the menu has the owner row (Guest · log in) and Community, as in act 6.
 2. **1:00.** Don't show Group's settings being turned on (NPC visibility
    All, Fight card). They are on from the start, off camera.
+   **Outcome (2026-11-18, 9e933cce):** NPC visibility All and the Fight card are set off camera; Group just comes on (0:47).
 3. **1:21.** Backgrounds: Paper, Teal, Black. Hold Paper and Teal about
    1 s longer each.
+   **Outcome (2026-11-18, 9e933cce):** Paper, Teal, Black, each held about 3 s (1:02.6, 1:05.6, 1:08.6).
 4. **1:43.** Timers is shown with "Time text" off.
+   **Outcome (2026-11-18, 9e933cce, 8e8a1467, bfd95311):** Time text is off in every take, desktop, tablet and phone.
 5. **1:36, before Timers.** A new segment with a caption in the spirit of
    "Panes can be docked and customised":
    - Group is moved to dock at the top, above the map.
@@ -173,22 +177,29 @@ Times are the owner's, roughly, in the 5:58 draft.
      `img/70-group-docked-target.png` (a slim strip over the map's
      column).
    - The rest of the film carries on with that layout.
+   **Outcome (2026-11-18, 9e933cce, 30ba9d2e):** 1:20.8–1:35.5, after Map: Group dragged to the right screen edge and docked above the map, Border off, Background Clear (both tooltips shown), its lower edge dragged down to four rows (its two members), as in the picture. Caption "Panes can be docked and customised." Every later take starts in that layout (Character kept off: the shorter map lane would have given it room).
 6. **2:40 (the phone).** The upper pane part is resized to about half its
    present height, to show it can be set to taste. No caption.
+   **Outcome (2026-11-18, 8e8a1467):** after the swipes the strip's band is dragged up, from about 190 to 85 px (2:39.7). No caption.
 7. **3:42, Mercenaries.** The script looks as if it had been on when the
    mercenary was hired, so our grouped mercenary shows as registered in
    it. This is staged on purpose, to show the script with an active
    mercenary. The cost is changed to 1 gold by tapping the field in the
    mercenary pane.
+   **Outcome (2026-11-18, bfd95311):** staged as asked: the script's store holds Tod's contract before the take, so switching it on shows "Tod ● here" with about 22 minutes left; the cost goes to 1 gold by a click on Cost [10s] in the pane (3:32.6; MERC "Payments are now 1 gold"). The cost choice in Scripts is no longer touched.
 8. **3:49.** The dock demo (Timers dragged into a dock and back) goes; 5
    covers it.
+   **Outcome (2026-11-18, bfd95311):** the Timers drag is gone.
 9. **4:23.** About 4 s more on the spotlight in the viewer.
+   **Outcome (2026-11-18, bfd95311):** the spotlight plays 12 s in the viewer (3:58.4–4:11.9).
 10. **5:30.** The music ends at 5:29.7 ("Sunset Plains" is 5:29.68 long).
     The whole film must end with the music, with no loop. The film is
     rebalanced to land there, and the main session proposes how.
+   **Outcome (2026-11-18, 30ba9d2e):** the film is 19,780 frames, 5:29.67, the music's own end (329.68 s, no loop, no fade of the music). The end card comes at 5:16.5; the picture fades with the tail from 5:23.0. Per act against the 5:58 draft: acts 0–3 +1 s (the gear −10, act 1 tightened −6, the docking +15, backgrounds +2), act 4 −5 (the walk at 2×, the phone's steps closer; the strip resize +2), act 5 −15 (the dock demo, the cost choice, shorter holds), act 6 −7 (Diary, the Log in page cut, shorter code and player holds; the spotlight +4), act 7 −9 (no row press, shorter holds and play), act 8 +7 (the start page and card held to the music's tail).
 11. **Community and the watch page** must look as they do now, after the
     owner's own changes made in parallel (stages 71–73, up to 0.20.1).
     The film's takes are recorded on current main.
+   **Outcome (2026-11-18, all takes):** every take recorded on main at 0.20.1 (the caption reads 0.20); Community shows Log of the day, and the watch page the lens. The community re-captured first: still 1 listed run, no stars, no comments, 2 notes, no Hall of Fame.
 
 **The main session's plan for 10.** With 2–9, the cut would run to about
 6:13, so about 45 s must go.
