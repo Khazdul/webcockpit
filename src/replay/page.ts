@@ -169,50 +169,56 @@ export function openReplay(
         host?.engine?.play(),
       )
     : null;
-  host = new PlayerHost({
-    root,
-    settings,
-    onClose: () => {},
-    map: replayMapHost(payload.map),
-    panes: SHARED_PANES,
-    lens: { fullscreen: fs },
-    ...(o.phone ? { phone: o.phone } : {}),
-    ...(o.wall ? { wall: o.wall } : {}),
-  });
-  host.openChain(
-    payload.runs,
-    [],
-    { character: payload.character, level: payload.level },
-    {
-      edits: payloadEdits(payload),
-      ...(o.autoplay === false || poster ? { autoplay: false } : {}),
-      ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
-      marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
-      view: {
-        header: () => replayHeader(payload),
-        onEsc: () => fs.exit(),
-        keys: (e) => {
-          if (e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'f' && e.key !== 'F')) return false;
-          fs.toggle();
-          return true;
+  // A player that fails to open leaves no poster over the failure (stage 73 review fix).
+  try {
+    host = new PlayerHost({
+      root,
+      settings,
+      onClose: () => {},
+      map: replayMapHost(payload.map),
+      panes: SHARED_PANES,
+      lens: { fullscreen: fs },
+      ...(o.phone ? { phone: o.phone } : {}),
+      ...(o.wall ? { wall: o.wall } : {}),
+    });
+    host.openChain(
+      payload.runs,
+      [],
+      { character: payload.character, level: payload.level },
+      {
+        edits: payloadEdits(payload),
+        ...(o.autoplay === false || poster ? { autoplay: false } : {}),
+        ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
+        marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
+        view: {
+          header: () => replayHeader(payload),
+          onEsc: () => fs.exit(),
+          keys: (e) => {
+            if (e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'f' && e.key !== 'F')) return false;
+            fs.toggle();
+            return true;
+          },
+          railHoverTime: true,
+          closeTitle: null,
+          // A phone has Fullscreen on the lens (stage 71); a computer keeps it in the box.
+          boxButtons: o.phone
+            ? []
+            : [
+                {
+                  label: () => (fs.is() ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
+                  icon: () => (fs.is() ? 'fullscreenExit' : 'fullscreen'),
+                  onClick: () => fs.toggle(),
+                },
+              ],
         },
-        railHoverTime: true,
-        closeTitle: null,
-        // A phone has Fullscreen on the lens (stage 71); a computer keeps it in the box.
-        boxButtons: o.phone
-          ? []
-          : [
-              {
-                label: () => (fs.is() ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
-                icon: () => (fs.is() ? 'fullscreenExit' : 'fullscreen'),
-                onClick: () => fs.toggle(),
-              },
-            ],
+        // A computer has the Panes popup (Map, the lens, Group and Timers; stage 73); a phone the lens's panes key (stage 71).
+        viewerSettings: o.phone ? 'display' : true,
       },
-      // A computer has the Panes popup (Map, the lens, Group and Timers; stage 73); a phone the lens's panes key (stage 71).
-      viewerSettings: o.phone ? 'display' : true,
-    },
-  );
+    );
+  } catch (err) {
+    poster?.dispose();
+    throw err;
+  }
   if (poster) {
     const engine = host.engine;
     // What the run shows at its start is drawn under the poster (a seek delivers it).
