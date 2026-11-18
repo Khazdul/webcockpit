@@ -117,7 +117,8 @@ export function Tip({ from, to, text, box }: { from: number; to: number; text: s
         style={{
           position: 'absolute',
           right: 1920 - (box.x + box.w) - 4,
-          top: box.y - 40,
+          // above the button; below it when the button is at the top of the screen
+          top: box.y < 48 ? box.y + box.h + 8 : box.y - 40,
           padding: '5px 11px 6px',
           borderRadius: 5,
           background: 'rgba(20, 18, 16, 0.96)',

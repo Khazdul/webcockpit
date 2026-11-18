@@ -39,10 +39,18 @@ export const FILM2_TAKES = { a: 'film2-a', b: 'film2-b', phone2: 'film2-phone' }
 /** The version as the film names it: major and minor (0.17). */
 const VERSION = pkg.version.split('.').slice(0, 2).join('.');
 
-/** The end card comes up this long after the start page is back (s), holds, then picture and music fade together. */
-const CARD_DELAY_S = 1.6;
-const CARD_HOLD_S = 4.2;
-const FADE_S = 3.0;
+/**
+ * The film ends with the music (owner round 1, item 10): "Sunset Plains" is
+ * 329.68 s long and plays once. Its full sound ends at about 322.7 s and its
+ * own tail dies away over the last 7 s: the picture fades to black over that
+ * tail, and the last frame is the music's last.
+ */
+export const MUSIC_S = 329.68;
+const TAIL_FROM_S = 323.0;
+/** The end card should be up by the music's last bars (a warning in the studio's console otherwise). */
+const CARD_LATEST_S = 318.5;
+/** Where the card comes when the film leaves room for it: about 6.5 s before the tail. */
+const CARD_AT_S = 316.5;
 
 /** Film s where act 4 starts (take A's `sync`). */
 export const act4At = (a: TimelineFile): number => marker(a, 'sync').t - marker(a, 'film0').t;
@@ -57,32 +65,36 @@ export function film2Plan(a: TimelineFile, b: TimelineFile) {
   /** Take B s from its film0. */
   const tb = (kind: string): number => marker(b, kind).t - b0;
   const at5 = act4At(a) + DEVICES.end;
-  const out = tb('phone-out');
-  const phoneAt = at5 + out;
-  const resumeAt = phoneAt + PHONE_SHOT.end;
-  /** Take B stretches [from, to) in take s, the first before the phone shot. */
+  /** Take B stretches [from, to) in take s; the phone shot comes after the second. */
   const spans: [number, number][] = [
-    [0, out],
+    [0, tb('owner') + 0.2],
+    // the Log in page cut out (owner round 1): from the owner row's press to Create account, settled
+    [tb('create-up'), tb('phone-out')],
     [tb('phone-in'), tb('watch') + 0.15],
     [tb('watch-up') + 0.4, tb('watch-back') + 0.15],
     [tb('dawn'), Infinity],
   ];
   const pieces: { at: number; from: number; to: number }[] = [];
   let at = at5;
+  let phoneAt = 0;
   for (const [i, [from, to]] of spans.entries()) {
-    if (i === 1) at = resumeAt;
+    if (i === 2) {
+      phoneAt = at;
+      at += PHONE_SHOT.end;
+    }
     pieces.push({ at, from, to });
     at += to - from;
   }
+  const resumeAt = phoneAt + PHONE_SHOT.end;
   /** Take B s (from film0) → film s (a moment in a skipped stretch maps to the next piece's start). */
   const fromB = (s: number): number => {
     for (const p of pieces) if (s < p.to) return p.at + Math.max(0, s - p.from);
     return pieces.at(-1)!.at + (s - pieces.at(-1)!.from);
   };
-  const startAgain = fromB(tb('start-again'));
-  const cardFrom = startAgain + CARD_DELAY_S;
-  const fadeFrom = cardFrom + CARD_HOLD_S;
-  return { b0, at5, phoneAt, resumeAt, pieces, fromB, cardFrom, fadeFrom, end: fadeFrom + FADE_S };
+  // the card on the music's last bars, at least a moment after the start page is back
+  const cardFrom = Math.max(fromB(tb('start-again')) + 1.6, CARD_AT_S);
+  if (cardFrom > CARD_LATEST_S) console.warn(`Film2: the end card comes at ${cardFrom.toFixed(1)} s, after the music's last bars (${CARD_LATEST_S} s)`);
+  return { b0, at5, phoneAt, resumeAt, pieces, fromB, cardFrom, fadeFrom: TAIL_FROM_S, end: MUSIC_S };
 }
 
 /** The film's length, s. */
@@ -126,7 +138,8 @@ export function Film2({ a, tablet, phone, b, phone2 }: Film2Props) {
 
   const ease = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) } as const;
   const black = interpolate(frame, [0, f(1.4), f(plan.fadeFrom), durationInFrames - 1], [1, 0, 0, 1], ease);
-  const volume = (fr: number): number => interpolate(fr, [0, f(0.4), f(plan.fadeFrom), durationInFrames - 1], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) });
+  // the music once, at full volume to its own end (a short fade in at the start only)
+  const volume = (fr: number): number => interpolate(fr, [0, f(0.4)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
@@ -159,13 +172,15 @@ export function Film2({ a, tablet, phone, b, phone2 }: Film2Props) {
       {/* act 1: once Comm is up, through Eilwen's chat; then the appearance */}
       <LowerThird {...span(m('pane', 'comm') + 0.8, m('segment', 'merc-arrives') - 0.2)} text="Conversations get a pane of their own." />
       <LowerThird {...span(m('font-list'), m('settings-closed') + 0.3)} text="Customise fonts, colours and more." />
+      {/* act 2: Group docked above the map, its look and height (owner round 1, item 5) */}
+      <LowerThird {...span(m('dock-caption'), m('dock-done') + 1.2)} text="Panes can be docked and customised." />
       {/* act 2: once the spells are in the Timers pane */}
       <LowerThird {...span(m('segment', 'casts') + 3.6, m('segment', 'casts') + 7.6)} text="The Timers pane tracks spells, buffs and more." />
       {/* act 3: from the kill (Last kill shows) until the camera pulls back in act 4 */}
       <LowerThird {...span(kill, at4 + 3.0)} text="Statistics follow every kill." />
       {/* act 5: each caption first, then the pointer goes to the icon */}
       <LowerThird {...span(mb('profile-caption'), mb('profile-closed') + 0.2)} text="Open the profile to create aliases, actions and keys from the menu or in the editor." />
-      <LowerThird {...span(mb('scripts-caption'), mb('scripts-closed'))} text="A Lua scripting engine for anything more complex." />
+      <LowerThird {...span(mb('scripts-caption'), mb('merc-cost') + 1.0)} text="A Lua scripting engine for anything more complex." />
       {/* act 6: History; the account, from the owner row naming it through the phone */}
       <LowerThird {...span(mb('history') + 0.5, mb('history-closed'))} text="Every session is saved and can be replayed." />
       <LowerThird {...span(mb('owner-in') + 0.3, plan.resumeAt - 0.2)} text="An account keeps profiles, scripts, settings and runs in sync." />
@@ -174,7 +189,7 @@ export function Film2({ a, tablet, phone, b, phone2 }: Film2Props) {
       {/* act 8: the end card, centred low over the start page at sunrise */}
       <LowerThird from={f(plan.cardFrom)} dur={durationInFrames - f(plan.cardFrom) + f(1)} text={[`WebCockpit ${VERSION}`, 'mumecockpit.com · Free and open source']} center />
       <AbsoluteFill style={{ backgroundColor: 'black', opacity: black }} />
-      <Audio src={staticFile('music/sunset-plains.wav')} volume={volume} loop />
+      <Audio src={staticFile('music/sunset-plains.wav')} volume={volume} />
     </AbsoluteFill>
   );
 }

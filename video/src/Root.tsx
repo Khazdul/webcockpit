@@ -40,7 +40,7 @@ export function Root() {
           const a = await loadTimeline(FILM2_TAKES.a);
           const b = await loadTimeline(FILM2_TAKES.b);
           return {
-            durationInFrames: Math.round(film2Length(a, b) * FPS),
+            durationInFrames: Math.floor(film2Length(a, b) * FPS),
             props: {
               ...props,
               a,
