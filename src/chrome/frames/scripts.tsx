@@ -58,6 +58,7 @@ import {
   LookFlash,
   Rule,
   Toggle,
+  useBoxSettled,
   Well,
   letterAction,
   lookFrame,
@@ -162,21 +163,25 @@ function useScriptList(lib: ScriptLibrary): { list: ScriptInfo[]; ready: boolean
 /**
  * Compile errors of the scripts the host has not loaded (off, or no host
  * yet), checked lazily without running them; the page re-renders as the
- * answers come in.
+ * answers come in. The check starts once the page has settled
+ * (`useBoxSettled`): its first run loads and compiles the Lua runtime, a
+ * long main-thread task that used to land in the page's opening morph
+ * (stage 74, ADR 0164).
  */
 function useSyntaxProblems(list: readonly ScriptInfo[], running: (name: string) => boolean | null): SyntaxLookup {
   const [, setDone] = useState(0);
   const wanted = list.filter((s) => problemText(s) === null && running(s.name) !== true);
   const todo = wanted.filter((s) => knownSyntaxProblem(s.name, s.source) === undefined);
   const todoKey = todo.map((s) => s.name + ':' + s.updated).join(',');
+  const settled = useBoxSettled();
   useEffect(() => {
-    if (todo.length === 0) return;
+    if (!settled || todo.length === 0) return;
     let alive = true;
     void Promise.all(todo.map((s) => syntaxProblem(s.name, s.source))).then(() => alive && setDone((n) => n + 1));
     return () => {
       alive = false;
     };
-  }, [todoKey]);
+  }, [todoKey, settled]);
   return (s) => (running(s.name) === true ? null : knownSyntaxProblem(s.name, s.source));
 }
 
