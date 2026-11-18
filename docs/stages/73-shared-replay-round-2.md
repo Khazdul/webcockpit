@@ -184,3 +184,6 @@ Round 1 (2026-11-18, on staging):
    melting into the player. Three looks to compare: the TV, a plain glass,
    and a third of our choosing. **Mockups first; the owner picks and
    approves before the poster is changed.**
+
+The map outside the lens (point 1): seen in Firefox; the owner checked
+on staging (2026-11-18): it looks right now.

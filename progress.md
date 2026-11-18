@@ -108,7 +108,7 @@ with no stage of their own. Remove a line when it is done.
 - **Done:** the owner's 13 points (desktop lens without keys, drag to move, four zoom dots, Panes popup back; the map outside the lens; phone/tablet floating box, no fight card, larger lens, iPad turn; the poster; Back straight to the Community; Desert for shared runs). Five parallel agent branches (A–E) merged on `stage-73`, then `main`. ADR 0160 addenda A/B, 0155 and 0154 addenda, ADR 0162 (the poster).
 - **Decided:** the map always follows (no pan); the wheel steps the dots; the poster also in the exported file; Desert is swapped in by the watch page at view time (embedding it measured +2.9 MB per link: dropped).
 - **Checks:** unit 5594 passed; full e2e alone 1959 passed, 3 failed (6/6 alone: load); review: four small findings fixed. Staging deploy run 44332944655, `test:prod` 36/36 on staging.
-- **Open:** the map bug's cause is a hypothesis (Firefox compositor surface dropping the clip, Mozilla bug 2068303; the canvas masked on desktop and phone): the owner's browser not yet known; the iPad fix untested on a device; the poster's date is the recording's, the band's the publication's.
+- **Open:** the iPad fix untested on a device; the poster's date is the recording's, the band's the publication's.
 - **Next:** the owner's test (stage file's test guide), release on his word.
 
 ### 2026-11-18 — Stage 72: Hall of Fame logs in Discord #log-status
