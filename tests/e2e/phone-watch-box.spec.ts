@@ -104,6 +104,12 @@ for (const [name, size, tablet] of CASES) {
     // Into the fight: no fight card.
     await expect(r.locator('.wc-player')).toContainText('Line 4', { timeout: 15_000 });
     await expect(r.locator('.wc-ph-fight')).toBeHidden();
+    // A phone opens with the Small font (12 px, fitted to the screen; the recorded one is ~17 px there), a tablet with the recorded one (stage 73, owner).
+    const px = await r.locator('.wc-output').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    if (tablet) expect(px).toBeGreaterThan(13);
+    else expect(px).toBeLessThanOrEqual(12.5);
+    // The frame upright on a phone: a third lower than the window (the band and the foot in the first view).
+    if (!tablet && !landscape) expect(frame.height).toBeLessThan(size.height * 0.7);
     await expect(r.locator('.wc-player-header')).toHaveCount(0);
     const slug = name.replace(' ', '-');
     await page.screenshot({ path: `docs/stages/img/73-b-${slug}.png` });

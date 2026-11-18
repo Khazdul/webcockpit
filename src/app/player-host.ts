@@ -346,6 +346,8 @@ export class PlayerHost {
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
+    // A shared run on a phone (not a tablet) opens with the Small font (stage 73, owner).
+    if (opts.lens && opts.phone && !opts.phone.tablet) this.viewer = { ...this.viewer, font: 'small' };
     const doc = opts.root.ownerDocument;
     this.el = doc.createElement('div');
     this.el.className = 'wc-player';

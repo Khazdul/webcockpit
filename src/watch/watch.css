@@ -331,6 +331,16 @@
   }
 }
 
+/* A phone upright (stage 73, owner): the player a third lower than the
+ * window, so the band and the run's foot fit in the first view. Fullscreen
+ * still fills the window (the frame's own fullscreen). */
+@media (max-width: 760px) and (orientation: portrait) {
+  .wc-watch-screen .wc-watch-slot {
+    height: calc((100vh - 8px - 62px) * 0.67);
+    height: calc((100dvh - 8px - 62px) * 0.67);
+  }
+}
+
 /* The frame fills the window where the browser has no element fullscreen
  * (the iPhone; src/watch/frame-host.ts): over the band. Stage 65: over the
  * frame around it too; its window lets go of what would hold a fixed child
