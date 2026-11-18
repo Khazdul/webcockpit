@@ -138,7 +138,7 @@ run log player and Spotlights are untouched, as in stage 71.
       takes the poster away when the player fails to open, and rethrows.
 - [x] E. Staging deploy (run 44332944655), `test:prod` 36/36 on staging
       (a first run straight after the deploy failed 9, two reruns 36/36).
-- [ ] F. The owner's test on staging; release on his word.
+- [x] F. The owner's test on staging (round 1 above, round 2 below); released 0.20.0 on his word.
 
 ## Test guide
 
@@ -204,3 +204,7 @@ Round 1 (2026-11-18, on staging):
 
 The map outside the lens (point 1): seen in Firefox; the owner checked
 on staging (2026-11-18): it looks right now.
+
+Round 2 (2026-11-18): on a phone (not a tablet) a shared run opens with
+the Small font; upright the player is a third lower than the window
+(`watch.css`). Then "publicera ny version": released 0.20.0.
