@@ -48,7 +48,7 @@ import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
 import { replayPhone } from './phone';
 import type { PlayerPhone } from '../app/player-host';
-import { type Poster, mountPoster } from './poster';
+import { type Poster, type PosterLook, mountPoster } from './poster';
 
 /** Header hints; all of them give way when narrow (Inv §7.7). */
 export const REPLAY_HINTS: ReadonlyArray<HeaderHint> = [
@@ -114,6 +114,28 @@ export async function startReplay(doc: Document = document): Promise<ReplayPage 
   return openReplay(doc, root, payload, { poster: true, ...(phone ? { phone } : {}) });
 }
 
+/** What a shared run's poster is given beyond the payload (`openReplay`'s `poster`). */
+export interface PosterOptions {
+  /** The publication's title (the watch page's meta); else the payload's. */
+  title?: string;
+  /** The publication's description (a look shows it). */
+  description?: string;
+  /** One of the looks under comparison (stage 73 round 1). */
+  look?: PosterLook;
+}
+
+function posterInfo(payload: ReplayPayload, o: PosterOptions) {
+  // Part C's poster (no look) keeps its words as built: the payload's title.
+  const title = o.look && o.title?.trim() ? o.title : payload.title;
+  return {
+    title,
+    character: payload.character,
+    startUs: payload.startUs,
+    durationMs: 0,
+    ...(o.look ? { look: o.look, description: o.description ?? '' } : {}),
+  };
+}
+
 /**
  * What the Fullscreen button, `F` and Esc do. The file's own: the
  * document's fullscreen. The shared replay's frame passes its own
@@ -143,13 +165,16 @@ function docFullscreen(doc: Document): ReplayFullscreen {
  * same way (`sharedPayload`, src/share/shared-panes.ts, when `needsShared`).
  * `poster: true` (the file and the watch page's frame): the run opens
  * paused at its start under the poster (src/replay/poster.ts), which
- * starts it when clicked; `autoplay` is then not read.
+ * starts it when clicked; `autoplay` is then not read. An object instead
+ * of `true` gives the poster the publication's words (the watch page's
+ * meta, through the frame) and one of the looks under comparison (stage 73
+ * round 1; dev only, src/watch/frame-host.ts).
  */
 export function openReplay(
   doc: Document,
   root: HTMLElement,
   given: ReplayPayload,
-  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean; phone?: PlayerPhone; poster?: boolean } = {},
+  o: { wall?: Wall; fullscreen?: ReplayFullscreen; autoplay?: boolean; phone?: PlayerPhone; poster?: boolean | PosterOptions } = {},
 ): ReplayPage {
   // A payload shared since W3 is already as a shared run carries it: no second pass over its text (review fix 2 CR6).
   const payload = needsShared(given) ? sharedPayload(given) : given;
@@ -165,7 +190,7 @@ export function openReplay(
   // Made before the player, so its key listener runs before the player's.
   let host: PlayerHost | null = null;
   const poster = o.poster
-    ? mountPoster(doc, { title: payload.title, character: payload.character, startUs: payload.startUs, durationMs: 0 }, () =>
+    ? mountPoster(doc, posterInfo(payload, o.poster === true ? {} : o.poster), () =>
         host?.engine?.play(),
       )
     : null;

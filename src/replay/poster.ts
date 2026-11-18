@@ -6,6 +6,11 @@
 // character, the date and the played length under it, a large play key in
 // the middle and the MUME Cockpit wordmark at the bottom right.
 //
+// Stage 73 round 1 (mockups, the owner picks one): three looks
+// (`POSTER_LOOKS`, `data-look`) edge to edge over the player, with the
+// publication's title and description and a small foot line, in white.
+// Without a look the poster is the one above, unchanged.
+//
 // A click or tap anywhere on it, or Enter or Space, takes it away and
 // starts the run (`onStart`). While it is up no other key reaches the
 // player: a capture listener on the window, registered before the
@@ -26,6 +31,26 @@ import { fmtDate } from "./title";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/**
+ * The poster's looks under comparison (owner's round 1 of stage 73,
+ * points 3 and 4; mockups, not yet chosen): `tv` a tube face edge to
+ * edge, `glass` a plain frosted glass, `cinema` a film's title card (dark
+ * gradients and a soft vignette over the paused log). Each covers the
+ * player's whole area with no border or inset, and carries the round's
+ * words: the publication's title, its description, the character and the
+ * date in a small line at the foot, all in white. No look (the default,
+ * and every production page): the poster as stage 73 part C built it.
+ */
+export const POSTER_LOOKS = ["tv", "glass", "cinema"] as const;
+export type PosterLook = (typeof POSTER_LOOKS)[number];
+
+/** `raw` when it names a look, else undefined. */
+export function posterLook(raw: unknown): PosterLook | undefined {
+  return (POSTER_LOOKS as readonly unknown[]).includes(raw)
+    ? (raw as PosterLook)
+    : undefined;
+}
+
 /** What the poster shows. */
 export interface PosterInfo {
   /** The run's title ('' when it has none: the character takes its place). */
@@ -35,6 +60,10 @@ export interface PosterInfo {
   startUs: number;
   /** The played length, ms (0: unknown, not shown). */
   durationMs: number;
+  /** The publication's description (the watch page's meta; a look only). */
+  description?: string;
+  /** One of the looks under comparison; none: part C's poster. */
+  look?: PosterLook;
 }
 
 /** "1 h 15 min", "42 min", "50 s". */
@@ -57,6 +86,25 @@ export function posterText(i: PosterInfo): { title: string; sub: string[] } {
   if (Number.isFinite(i.startUs) && i.startUs > 0) sub.push(fmtDate(i.startUs));
   if (i.durationMs > 0) sub.push(posterLength(i.durationMs));
   return { title, sub };
+}
+
+/**
+ * A look's words: the title (the publication's, else the run's, else the
+ * character), the description, and the small line at the foot: the
+ * character, the date and the played length.
+ */
+export function posterLookText(i: PosterInfo): {
+  title: string;
+  description: string;
+  meta: string[];
+} {
+  const who = i.character.trim();
+  const title = i.title.trim() || who || "MUME";
+  const meta: string[] = [];
+  if (who) meta.push(who);
+  if (Number.isFinite(i.startUs) && i.startUs > 0) meta.push(fmtDate(i.startUs));
+  if (i.durationMs > 0) meta.push(posterLength(i.durationMs));
+  return { title, description: (i.description ?? "").trim(), meta };
 }
 
 /** Long titles get a smaller face (`data-len`). */
@@ -238,10 +286,15 @@ export function mountPoster(
   onStart: () => void,
 ): Poster {
   const win = doc.defaultView;
-  const text = posterText(info);
+  const look = info.look;
+  const lookText = look ? posterLookText(info) : null;
+  const text = lookText
+    ? { title: lookText.title, sub: lookText.meta }
+    : posterText(info);
   const el = doc.createElement("div");
   el.className = "wc-poster";
   el.setAttribute("data-poster", "");
+  if (look) el.setAttribute("data-look", look);
 
   const screen = doc.createElement("div");
   screen.className = "wc-poster-screen";
@@ -264,7 +317,15 @@ export function mountPoster(
     sub.hidden = parts.length === 0;
   };
   fillSub(text.sub);
-  top.appendChild(sub);
+  // A look: the description under the title (a centred block, its lines
+  // left-aligned), the small line at the foot beside the wordmark.
+  if (lookText?.description) {
+    const d = doc.createElement("p");
+    d.className = "wc-poster-desc";
+    d.textContent = lookText.description;
+    top.appendChild(d);
+  }
+  if (!look) top.appendChild(sub);
 
   const play = doc.createElement("button");
   play.type = "button";
@@ -284,7 +345,12 @@ export function mountPoster(
   glass.className = "wc-poster-glass";
   glass.setAttribute("aria-hidden", "true");
 
-  screen.append(top, play, logo, glass);
+  if (look) {
+    const foot = doc.createElement("footer");
+    foot.className = "wc-poster-foot";
+    foot.append(sub, logo);
+    screen.append(top, play, foot, glass);
+  } else screen.append(top, play, logo, glass);
   el.appendChild(screen);
 
   let up = true;
@@ -394,6 +460,11 @@ export function mountPoster(
       up = false;
       remove(false);
     },
-    setLength: (ms) => fillSub(posterText({ ...info, durationMs: ms }).sub),
+    setLength: (ms) =>
+      fillSub(
+        look
+          ? posterLookText({ ...info, durationMs: ms }).meta
+          : posterText({ ...info, durationMs: ms }).sub,
+      ),
   };
 }

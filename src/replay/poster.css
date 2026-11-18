@@ -256,3 +256,272 @@
     width: clamp(64px, 22vmin, 120px);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* The looks under comparison (stage 73 round 1, points 3 and 4; mockups,
+ * `data-look` on the layer, dev only: `?poster=tv|glass|cinema` on the
+ * watch page). Each covers the player's area edge to edge: no padding, no
+ * rounded face, no rim, so its edges melt into the player under it. The
+ * words are white: the publication's title, its description (a centred
+ * block of left-aligned lines), and a small foot line (the character, the
+ * date, the length) at the bottom left, the wordmark at the bottom right. */
+
+.wc-poster[data-look] {
+  padding: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.wc-poster[data-look] .wc-poster-screen {
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+
+.wc-poster[data-look] .wc-poster-top {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(92%, 44em);
+  padding-top: clamp(20px, 8vh, 84px);
+}
+
+.wc-poster[data-look] .wc-poster-title {
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.85),
+    0 0 26px rgb(0 0 0 / 0.55);
+}
+
+.wc-poster-desc {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(100%, 52ch);
+  margin: clamp(12px, 2.6vmin, 26px) auto 0;
+  text-align: left;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
+  font-size: clamp(13px, 1.85vmin, 16px);
+  line-height: 1.55;
+  color: rgb(255 255 255 / 0.86);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
+.wc-poster-foot {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 clamp(14px, 3.4vmin, 40px) clamp(12px, 3vmin, 34px);
+}
+
+.wc-poster[data-look] .wc-poster-sub {
+  justify-content: flex-start;
+  margin: 0;
+  gap: 0.2em 1.3em;
+  font-size: clamp(11px, 1.45vmin, 13px);
+  letter-spacing: 0.04em;
+  color: rgb(255 255 255 / 0.62);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.wc-poster[data-look] .wc-poster-mark {
+  flex: none;
+  padding: 0;
+}
+
+/* The play key in white. */
+.wc-poster[data-look] .wc-poster-play {
+  color: #fff;
+}
+
+.wc-poster[data-look] .wc-poster-glyph {
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 16px rgb(255 255 255 / 0.16));
+}
+
+.wc-poster[data-look] .wc-poster-ring {
+  fill: rgb(255 255 255 / 0.06);
+  stroke: #fff;
+}
+
+.wc-poster[data-look] .wc-poster-tri {
+  fill: #fff;
+  stroke: #fff;
+}
+
+.wc-poster[data-look] .wc-poster-hint,
+.wc-poster[data-look] .wc-poster-play:focus-visible .wc-poster-hint {
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.wc-poster[data-look]:hover .wc-poster-glyph,
+.wc-poster[data-look] .wc-poster-play:focus-visible .wc-poster-glyph {
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 24px rgb(255 255 255 / 0.3));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wc-poster[data-look] .wc-poster-ring {
+    animation-name: wc-poster-breathe-white;
+  }
+
+  @keyframes wc-poster-breathe-white {
+    0%,
+    100% {
+      fill: rgb(255 255 255 / 0.04);
+    }
+    50% {
+      fill: rgb(255 255 255 / 0.11);
+    }
+  }
+}
+
+/* (a) The TV: the tube's face edge to edge. The log dim and soft behind
+ * it, the corners falling off into the dark as a curved screen's do (so
+ * the edges meet the player's black, no rim), fine scanlines, a faint
+ * aperture grille, the curve's glare at the top left. */
+.wc-poster[data-look="tv"] {
+  background: rgb(2 3 4 / 0.52);
+  -webkit-backdrop-filter: blur(1.2px) saturate(0.6);
+  backdrop-filter: blur(1.2px) saturate(0.6);
+}
+
+.wc-poster[data-look="tv"] .wc-poster-screen {
+  background:
+    radial-gradient(
+      ellipse 70% 60% at 50% 46%,
+      rgb(225 238 255 / 0.05),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 135% 125% at 50% 50%,
+      transparent 48%,
+      rgb(0 0 0 / 0.78) 100%
+    );
+}
+
+.wc-poster[data-look="tv"] .wc-poster-glass {
+  background:
+    radial-gradient(
+      ellipse 55% 40% at 22% 6%,
+      rgb(255 255 255 / 0.09),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 56%,
+      rgb(255 255 255 / 0.022) 62%,
+      transparent 70%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(255 60 60 / 0.022) 0 1px,
+      rgb(60 255 60 / 0.018) 1px 2px,
+      rgb(60 60 255 / 0.022) 2px 3px
+    );
+}
+
+.wc-poster[data-look="tv"] .wc-poster-glass::after {
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    rgb(0 0 0 / 0.24) 2px 3px
+  );
+}
+
+/* (b) Plain glass: a pane of frosted glass laid on the player. The log
+ * blurred to soft light behind it, a slight cool tint, one broad sheen
+ * across it; nothing else. */
+.wc-poster[data-look="glass"] {
+  background: rgb(14 17 22 / 0.36);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
+  backdrop-filter: blur(12px) saturate(1.15) brightness(0.78);
+}
+
+.wc-poster[data-look="glass"] .wc-poster-screen {
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.05),
+    transparent 34%,
+    transparent 70%,
+    rgb(0 0 0 / 0.22)
+  );
+}
+
+.wc-poster[data-look="glass"] .wc-poster-glass {
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    rgb(255 255 255 / 0.045) 36%,
+    transparent 54%
+  );
+}
+
+.wc-poster[data-look="glass"] .wc-poster-glass::after {
+  content: none;
+}
+
+/* (c) Cinema: a film's title card. Night falls from the top behind the
+ * title and rises from the foot, the log shows through the middle as a
+ * soft, colourless scene, and a wide vignette closes it in. No lines, no
+ * glare: the type carries it (a wider, larger title). */
+.wc-poster[data-look="cinema"] {
+  background: rgb(0 0 0 / 0.18);
+  -webkit-backdrop-filter: blur(2.5px) saturate(0.35) brightness(0.85);
+  backdrop-filter: blur(2.5px) saturate(0.35) brightness(0.85);
+}
+
+.wc-poster[data-look="cinema"] .wc-poster-screen {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(0 0 0 / 0.9) 0%,
+      rgb(0 0 0 / 0.5) 30%,
+      rgb(0 0 0 / 0.14) 52%,
+      rgb(0 0 0 / 0.55) 76%,
+      rgb(0 0 0 / 0.94) 100%
+    ),
+    radial-gradient(
+      ellipse 95% 85% at 50% 50%,
+      transparent 45%,
+      rgb(0 0 0 / 0.55) 100%
+    );
+}
+
+.wc-poster[data-look="cinema"] .wc-poster-glass {
+  display: none;
+}
+
+.wc-poster[data-look="cinema"] .wc-poster-title {
+  font-size: clamp(24px, 6vmin, 64px);
+  letter-spacing: 0.07em;
+}
+
+.wc-poster[data-look="cinema"] .wc-poster-title[data-len="mid"] {
+  font-size: clamp(20px, 4.6vmin, 48px);
+}
+
+.wc-poster[data-look="cinema"] .wc-poster-title[data-len="long"] {
+  font-size: clamp(18px, 3.6vmin, 38px);
+}
+
+/* Short and wide (a phone in landscape): the description in two lines. */
+@media (max-height: 420px) {
+  .wc-poster[data-look] .wc-poster-top {
+    padding-top: 14px;
+  }
+
+  .wc-poster-desc {
+    margin-top: 8px;
+    -webkit-line-clamp: 2;
+  }
+}

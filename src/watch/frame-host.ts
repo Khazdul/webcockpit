@@ -23,7 +23,9 @@
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
 // `wc-play`, the payload's bytes and the fonts transferred, and `prefs`:
 // `{paused: true}` unless `paused: false` is asked, so the replay starts
-// paused, ADR 0155 W1), `wc-error` and `wc-fullscreen`.
+// paused, ADR 0155 W1; `meta`, the publication's title and description for
+// the poster, and in dev only `prefs.poster`, a look under comparison,
+// stage 73 round 1), `wc-error` and `wc-fullscreen`.
 //
 // Fullscreen: `allow="fullscreen *"`, not the attribute's default `'src'`
 // (the origin of the frame's URL): the sandbox makes the frame's origin
@@ -64,6 +66,10 @@ export interface FrameHostOptions {
   onError?: (text: string) => void;
   /** The frame has the payload (after `wc-play` is posted). */
   onPlay?: () => void;
+  /** The publication's words for the poster (its meta; stage 73 round 1). */
+  meta?: { title: string; description: string };
+  /** One of the poster's looks under comparison (dev only: `?poster=`; stage 73 round 1). */
+  posterLook?: string;
   /** The replay starts paused (default true: the watch page's, ADR 0155 W1); Play or Space in the frame starts it. */
   paused?: boolean;
 }
@@ -155,8 +161,9 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
       void Promise.all([fonts, wire]).then(([list, bytes]) => {
         const target = frame.contentWindow;
         if (!target) return;
-        const prefs = { paused: o.paused !== false };
-        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs }, '*', [bytes, ...list.map((x) => x.data)]);
+        const prefs = { paused: o.paused !== false, ...(o.posterLook ? { poster: o.posterLook } : {}) };
+        const meta = o.meta ? { title: o.meta.title, description: o.meta.description } : undefined;
+        target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs, ...(meta ? { meta } : {}) }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
       });
     } else if (d.t === 'wc-error') {

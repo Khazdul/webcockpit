@@ -206,6 +206,9 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
       container: box,
       bytes,
       base: siteBaseUrl(),
+      meta: { title: meta.title, description: meta.description },
+      // The poster's looks under comparison (stage 73 round 1): `?poster=tv|glass|cinema`, dev only.
+      ...(import.meta.env.DEV ? { posterLook: new URLSearchParams(location.search).get('poster') ?? undefined } : {}),
       onPlay: () => {
         if (!alive) return;
         setPlaying(true);

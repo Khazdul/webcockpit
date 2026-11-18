@@ -9,9 +9,17 @@ import {
   mountPoster,
   posterLength,
   posterLogo,
+  posterLook,
+  posterLookText,
   posterText,
   titleSize,
 } from "../../src/replay/poster";
+import {
+  FRAME_DESC_MAX,
+  FRAME_TITLE_MAX,
+  frameLook,
+  frameMeta,
+} from "../../src/replay/frame";
 import { defaultSettings } from "../../src/settings";
 import { defaultExportDoc } from "../../src/share/edits";
 import {
@@ -202,5 +210,95 @@ describe("openReplay with the poster", () => {
     expect(page.poster).toBeNull();
     expect(document.querySelector(".wc-poster")).toBeNull();
     expect(page.host.engine!.playing).toBe(true);
+  });
+});
+
+// Stage 73 round 1 (points 3 and 4): the looks under comparison, and the
+// publication's words the watch page sends the frame.
+describe("the poster’s looks (round 1 mockups)", () => {
+  it("knows only its three looks", () => {
+    expect(posterLook("tv")).toBe("tv");
+    expect(posterLook("glass")).toBe("glass");
+    expect(posterLook("cinema")).toBe("cinema");
+    expect(posterLook("crt")).toBeUndefined();
+    expect(posterLook(undefined)).toBeUndefined();
+    expect(frameLook({ paused: true, poster: "glass" })).toBe("glass");
+    expect(frameLook({ poster: "<b>" })).toBeUndefined();
+    expect(frameLook(null)).toBeUndefined();
+  });
+
+  it("a look's words: the title, the description, and the character, date and length at the foot", () => {
+    expect(
+      posterLookText({
+        title: "A fight",
+        character: "Rasta",
+        startUs: START,
+        durationMs: 4_500_000,
+        description: "  Two lines\nof it. ",
+      }),
+    ).toEqual({
+      title: "A fight",
+      description: "Two lines\nof it.",
+      meta: ["Rasta", "2026-09-26", "1 h 15 min"],
+    });
+  });
+
+  it("builds the description and the foot as text, no style attributes", () => {
+    const p = mountPoster(
+      document,
+      {
+        title: "A fight",
+        character: "Rasta",
+        startUs: START,
+        durationMs: 0,
+        description: "<i>x</i>",
+        look: "cinema",
+      },
+      () => {},
+    );
+    posters.push(p);
+    expect(p.el.getAttribute("data-look")).toBe("cinema");
+    expect(p.el.querySelector(".wc-poster-desc")!.textContent).toBe("<i>x</i>");
+    expect(p.el.querySelector("i")).toBeNull();
+    expect(p.el.querySelector(".wc-poster-foot .wc-poster-sub")!.textContent).toBe(
+      "Rasta2026-09-26",
+    );
+    expect(p.el.querySelector(".wc-poster-foot .wc-poster-logo")).not.toBeNull();
+    expect(p.el.querySelectorAll("[style]")).toHaveLength(0);
+  });
+
+  it("the frame takes the meta as plain, capped text", () => {
+    expect(frameMeta(undefined)).toEqual({ title: "", description: "" });
+    expect(frameMeta({ title: 5, description: ["x"] })).toEqual({ title: "", description: "" });
+    const m = frameMeta({
+      title: "  A‮bad\u0007\n title ",
+      description: "One\r\n\n\n\n\u0000two⁦ ",
+    });
+    expect(m).toEqual({ title: "Abad title", description: "One\n\ntwo" });
+    const long = frameMeta({ title: "x".repeat(5000), description: "y".repeat(9000) });
+    expect(long.title).toHaveLength(FRAME_TITLE_MAX);
+    expect(long.description).toHaveLength(FRAME_DESC_MAX);
+  });
+
+  it("openReplay gives a look the publication's title over the payload's; part C's poster keeps the payload's", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const a = openReplay(document, root, payload("Export title"), {
+      wall: new FakeWall(),
+      poster: { title: "Published title", description: "Notes.", look: "tv" },
+    });
+    posters.push(a.poster!);
+    expect(a.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Published title");
+    expect(a.poster!.el.querySelector(".wc-poster-desc")!.textContent).toBe("Notes.");
+    a.host.dispose();
+    a.poster!.dispose();
+    const b = openReplay(document, root, payload("Export title"), {
+      wall: new FakeWall(),
+      poster: { title: "Published title", description: "Notes." },
+    });
+    posters.push(b.poster!);
+    expect(b.poster!.el.hasAttribute("data-look")).toBe(false);
+    expect(b.poster!.el.querySelector(".wc-poster-title")!.textContent).toBe("Export title");
+    expect(b.poster!.el.querySelector(".wc-poster-desc")).toBeNull();
   });
 });
