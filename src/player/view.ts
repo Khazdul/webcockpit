@@ -73,6 +73,19 @@
 // elsewhere. The header shows no key hints with `dock` (a touch device has
 // no such keys): only its left part, from the left edge.
 //
+// Floating on a phone or tablet (stage 73, ADR 0160 addendum; a shared
+// run): with `touchFloat` the box floats and hides as on a computer (it
+// is no docked bar), with the touch device's larger keys (`data-touch`;
+// compact, it drops To the start and the stepper's arrows, and the speed
+// is one key that steps round, as the narrow docked bar's),
+// and the header is the docked one's (no key hints, from the left edge,
+// ending where the host says). The box is kept inside the visible part of
+// the window (`boxLift`: the visual viewport, measured again on every
+// resize, turn, visual viewport change and fullscreen change, and once
+// more after `VIEWPORT_RECHECK_MS`): iPadOS turning in fullscreen reports
+// the new size late, and a root laid out taller than what shows must not
+// put the box under the window's edge.
+//
 // Viewer settings (ADR 0021, as 0114): with `settings`, Display (font size
 // and colours) and, when it has panes, Panes (pane toggles and Reset
 // layout) open popups above the box. The box takes the pointer (clicks and
@@ -133,6 +146,9 @@ const BOX_MARGIN = 8;
 const POP_GAP = 8;
 const POP_TOP = 6;
 
+/** Floating on a touch device (option `touchFloat`): the viewport is measured again this long after a change, ms (iPadOS reports a turn's size late). */
+export const VIEWPORT_RECHECK_MS = [150, 500] as const;
+
 /** The docked bar (option `dock`): the least width that holds every key, the stepper and the whole time, px. */
 const DOCK_FULL_W = 600;
 
@@ -144,6 +160,43 @@ export interface DockRect {
   height: number;
   /** The header's row ends here (px from the root's left edge): something of the host's stands in the row right of it. Absent: the row has the width. */
   headRight?: number;
+}
+
+/** Option `touchFloat`: where the header's row begins and ends, px from the root's left edge. */
+export interface TouchHead {
+  /** Where the game text begins (landscape with the strip open: right of its column). */
+  left: number;
+  /** The header's row ends here (the lens's corner key, a hood plate). Absent: the row has the width. */
+  headRight?: number;
+}
+
+/** A rectangle in a window's client px (a root's `getBoundingClientRect`, the visible part of the window). */
+export interface ClientBox {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * How far the box must be lifted from the root's bottom edge and moved in
+ * from its right edge, px, to stand inside `vis` (the visible part of the
+ * window) where the root reaches past it. 0 and 0 where it does not.
+ */
+export function boxLift(root: ClientBox, vis: ClientBox): { bottom: number; right: number } {
+  const ok = (n: number): number => (Number.isFinite(n) && n > 0 ? Math.ceil(n) : 0);
+  return { bottom: ok(root.bottom - vis.bottom), right: ok(root.right - vis.right) };
+}
+
+/** The visible part of `win` in its client px: the visual viewport where there is one, and never past the layout viewport. */
+export function visibleBox(win: Window): ClientBox {
+  const iw = win.innerWidth || 0;
+  const ih = win.innerHeight || 0;
+  const vv = win.visualViewport;
+  if (!vv || !(vv.width > 0 && vv.height > 0)) return { left: 0, top: 0, right: iw, bottom: ih };
+  const right = vv.offsetLeft + vv.width;
+  const bottom = vv.offsetTop + vv.height;
+  return { left: vv.offsetLeft, top: vv.offsetTop, right: iw > 0 ? Math.min(iw, right) : right, bottom: ih > 0 ? Math.min(ih, bottom) : bottom };
 }
 
 /** What the in-app log player's header shows (`runHeader`). */
@@ -232,6 +285,12 @@ export interface PlayerViewOptions {
    * Read on every render; the host calls `refresh()` when it changes.
    */
   dock?: () => DockRect | null;
+  /**
+   * The box floats on a phone or tablet (see the file header): where the
+   * header's row begins and ends now, or null (the whole row). Read on
+   * every render; the host calls `refresh()` when it changes. Not with `dock`.
+   */
+  touchFloat?: () => TouchHead | null;
 }
 
 /** The pane part of the viewer settings (the Panes popup). */
@@ -323,6 +382,8 @@ export class PlayerView {
   private readonly ro: ResizeObserver | null = null;
   private raf: number | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Option `touchFloat`: the later measurements after a viewport change. */
+  private readonly vpTimers: Array<ReturnType<typeof setTimeout>> = [];
   private shown = true;
   /** When a press showed the hidden chrome (ms, `performance.now`): its click must not press what appeared under it. */
   private revealedAt = -Infinity;
@@ -395,7 +456,7 @@ export class PlayerView {
     this.speedEl.className = 'wc-player-speed';
     this.speedEl.title = 'Speed (1–6)';
     const dock = !opts.bare && opts.dock !== undefined;
-    if (dock) {
+    if (dock || this.touchFloat) {
       // The narrow bar's speed key (the stepper's arrows are not shown there): the next speed, round.
       this.speedEl.setAttribute('role', 'button');
       this.speedEl.setAttribute('aria-label', 'Speed: the next');
@@ -475,6 +536,15 @@ export class PlayerView {
     this.marksEl.addEventListener('click', this.onMarkClick);
     this.marksEl.addEventListener('pointerover', this.onMarkOver);
     this.marksEl.addEventListener('pointerout', this.onMarkOut);
+    if (this.touchFloat) {
+      this.boxEl.toggleAttribute('data-touch', true);
+      this.win.addEventListener('resize', this.onViewport);
+      this.win.addEventListener('orientationchange', this.onViewport);
+      this.win.visualViewport?.addEventListener('resize', this.onViewport);
+      this.win.visualViewport?.addEventListener('scroll', this.onViewport);
+      this.doc.addEventListener('fullscreenchange', this.onViewport);
+      this.doc.addEventListener('webkitfullscreenchange', this.onViewport);
+    }
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.schedule());
       this.ro.observe(opts.root);
@@ -859,7 +929,8 @@ export class PlayerView {
   private renderHeader(W: number, w: number, cols: number): void {
     const given = this.o.header(this.o.engine.run);
     // Docked (a phone or tablet): no key hints, a touch device has no such keys; the left part has the room.
-    const hd = this.o.dock && !this.o.bare ? { left: given.left, hints: [] } : given;
+    const touchHead = !this.o.bare && (this.o.dock !== undefined || this.touchFloat);
+    const hd = touchHead ? { left: given.left, hints: [] } : given;
     const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
     const full = hintsWidth(hd.hints.map((x) => x.text));
     const extra = HEADER_GAP + 2 * CHIP_PAD;
@@ -868,8 +939,8 @@ export class PlayerView {
     // Docked: from the left edge. Where the bar begins right of it (landscape with the strip and
     // Comm column open: the game text begins there too) the header ends there, cut if it must be:
     // it lies over the column, not over the game text's first line.
-    if (this.o.dock && !this.o.bare) {
-      const r = this.o.dock();
+    if (touchHead) {
+      const r = this.o.dock ? this.o.dock() : (this.o.touchFloat?.() ?? null);
       const edge = r?.left ?? 0;
       hc = edge > 0 ? Math.max(1, Math.min(cols, Math.floor(edge / w))) : cols;
       // (And left of the lens's corner key where the host says that stands in the row.)
@@ -952,9 +1023,16 @@ export class PlayerView {
     const tighter = tight && tightRoom < this.compactBoxW - this.startW;
     if (tight !== this.boxEl.hasAttribute('data-tight')) this.boxEl.toggleAttribute('data-tight', tight);
     if (tighter !== this.boxEl.hasAttribute('data-tighter')) this.boxEl.toggleAttribute('data-tighter', tighter);
-    const right = RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT);
+    let right = RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT);
+    let bottom = BOX_BOTTOM;
+    // Floating on a touch device: inside the visible part of the window, wherever the root reaches.
+    if (this.touchFloat) {
+      const lift = boxLift(this.o.root.getBoundingClientRect(), visibleBox(this.win));
+      right += lift.right;
+      bottom += lift.bottom;
+    }
     this.boxEl.style.right = `${right}px`;
-    this.boxEl.style.bottom = `${BOX_BOTTOM}px`;
+    this.boxEl.style.bottom = `${bottom}px`;
     // The popups hang from the box's right edge: never wider than the room left of it.
     this.boxEl.style.setProperty('--pc-pop-max', `${Math.max(160, W - right - BOX_MARGIN)}px`);
   }
@@ -1162,6 +1240,19 @@ export class PlayerView {
     for (const l of m.letters) d.append(kindIcon(this.doc, LETTER_KIND[l], 'wc-player-mark-ic'));
     return d;
   }
+
+  /** Option `touchFloat` (not bare, not docked). */
+  private get touchFloat(): boolean {
+    return !this.o.bare && this.o.dock === undefined && this.o.touchFloat !== undefined;
+  }
+
+  /** The window changed size, turned, zoomed or went in or out of fullscreen: measure now and again a little later. */
+  private readonly onViewport = (): void => {
+    if (this.disposed) return;
+    this.schedule();
+    for (const t of this.vpTimers.splice(0)) clearTimeout(t);
+    for (const ms of VIEWPORT_RECHECK_MS) this.vpTimers.push(setTimeout(() => this.schedule(), ms));
+  };
 
   // ------------------------------------------------------------ show/hide
 
@@ -1480,6 +1571,13 @@ export class PlayerView {
     root.removeEventListener('wheel', this.onWheel);
     root.removeEventListener('click', this.onStageClick);
     this.boxEl.removeEventListener('wheel', this.onBoxWheel);
+    this.win.removeEventListener('resize', this.onViewport);
+    this.win.removeEventListener('orientationchange', this.onViewport);
+    this.win.visualViewport?.removeEventListener('resize', this.onViewport);
+    this.win.visualViewport?.removeEventListener('scroll', this.onViewport);
+    this.doc.removeEventListener('fullscreenchange', this.onViewport);
+    this.doc.removeEventListener('webkitfullscreenchange', this.onViewport);
+    for (const t of this.vpTimers.splice(0)) clearTimeout(t);
     this.ro?.disconnect();
     if (this.raf !== null) this.win.cancelAnimationFrame(this.raf);
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
