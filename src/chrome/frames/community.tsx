@@ -31,10 +31,14 @@
 // logs' with ✕ over the list. Back (Esc) leaves a sender's runs, then a
 // search, then goes to the menu.
 //
-// A run opens the watch page `<base>r/<id>?from=community` in this tab;
-// the watch page's Back then goes to `<base>?community`, which opens this
-// page again on the view it had (kept in sessionStorage, `VIEW_KEY`;
-// community-model.ts, ADR 0155 "As built (stage 65 C1)").
+// A run opens over this page as a frame on the start surface (stage 74 A,
+// ADR 0163; src/watch/embed.tsx): no page load, the surface's morph, the
+// address `<base>r/<id>?from=community` while it shows; its Back pops it
+// and this page is as it was left. A reload on that address (or a bare
+// link) is the standalone watch page, whose Back goes to
+// `<base>?community`, which opens this page again on the view it had (kept
+// in sessionStorage, `VIEW_KEY`; community-model.ts, ADR 0155 "As built
+// (stage 65 C1)").
 //
 // The phone (a narrow page): a dashboard, no tabs. The search field and
 // the players' figure, the newest five logs with All logs and Hall of Fame
@@ -68,7 +72,7 @@ import { accountState, onAccountState } from '../../cloud/account/state';
 import { type CommunityApi, communityAllowed, communityApi } from '../../cloud/community/api';
 import { markCommunityPageSeen } from '../../cloud/community/counter';
 import { config } from '../../cloud/config';
-import { watchHref } from '../../watch/href';
+import { openWatchFrame } from '../../watch/embed';
 import { HIDDEN_TEXT, REASONS, REPORT_MAX, reportText } from '../../watch/model';
 import {
   Box,
@@ -162,11 +166,10 @@ function keepView(v: CommunityView): void {
   }
 }
 
-const base = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? '/';
-
-/** Opens a run's watch page in this tab (Back there comes here again). */
-function openRun(id: string): void {
-  location.assign(watchHref(id, 'community', base()));
+/** Opens a run over this page (the watch page as a frame, src/watch/embed.tsx; Back there pops it and this page is as it was left). */
+function useOpenRun(): (id: string) => void {
+  const nav = useNav();
+  return (id) => openWatchFrame(nav, id, 'community');
 }
 
 /** Log in: the account chunk's page over this one. */
@@ -188,6 +191,7 @@ const SUB_TITLES: Record<CommunitySub, string> = { runs: 'All logs', hof: 'Hall 
 
 export const CommunityFrame = lookFrame(function CommunityFrame(p: { restore?: boolean }): VNode {
   const nav = useNav();
+  const openRun = useOpenRun();
   const isTop = useIsTop();
   const api = useMemo<CommunityApi>(() => communityApi(), []);
   const [view, setView] = useState<CommunityView>(() => (p.restore ? readView() : { sort: DEFAULT_SORT, page: 1 }));
@@ -825,6 +829,7 @@ function StarsCell(p: { r: GalleryRow }): VNode {
 
 /** A run: a press opens it, a press on the sender opens the sender's runs. */
 function RunRow(p: { r: GalleryRow; rank: number | null; cur: boolean; narrow: boolean; mine: boolean; onBy(name: string): void }): VNode {
+  const openRun = useOpenRun();
   const r = p.r;
   const sender = (
     <button
@@ -906,6 +911,7 @@ function Players(p: { n: number | undefined }): VNode | null {
 }
 
 function DayBox(p: { day: CommunityBoxes['today'] }): VNode | null {
+  const openRun = useOpenRun();
   const day = p.day;
   if (!day) return null;
   return (
@@ -938,6 +944,7 @@ function WarBox(p: { mume: CommunityBoxes['mume'] }): VNode | null {
 }
 
 function BoxColumn(p: { boxes: BoxesState }): VNode {
+  const openRun = useOpenRun();
   const b = p.boxes;
   if (b === null) return <aside class="wc-cy-col is-loading" aria-busy="true" />;
   if (b === 'failed') return <aside class="wc-cy-col is-failed" />;
@@ -990,6 +997,7 @@ function WarSide(p: { title: string; cls: string; list: { name: string; race: st
 
 /** A newest run on the dashboard: "Title (Char)", sender · date, the mean; a tap opens it. */
 function DashRow(p: { r: GalleryRow; mine: boolean }): VNode {
+  const openRun = useOpenRun();
   const r = p.r;
   const mean = meanText(r.stars);
   return (
