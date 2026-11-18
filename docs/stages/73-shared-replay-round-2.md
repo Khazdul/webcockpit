@@ -47,6 +47,12 @@ run log player and Spotlights are untouched, as in stage 71.
     - and something more if it looks good.
     Clicking it starts the run; the layer goes and the log shows as usual.
 
+### Back from a published log
+
+12. On a published log opened from the Community, **Back** first shows the
+    start menu and then the Community. It must go **straight to the
+    Community**. (Added 2026-11-18, same session.)
+
 ## Decisions taken in the session (technical, no owner pick needed)
 
 - Without pan the desktop map always follows the player; the follow key
@@ -63,6 +69,7 @@ run log player and Spotlights are untouched, as in stage 71.
 - [ ] A. Desktop: the bug (1), points 2–6. ADR 0160 addendum.
 - [ ] B. Phone and tablet: points 7–10.
 - [ ] C. The poster: point 11.
+- [ ] D2. The watch page's Back goes straight to the Community (point 12).
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.
