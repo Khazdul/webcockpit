@@ -173,3 +173,18 @@ describe('?fsmode (stage 73 round 3b)', () => {
     expect(asked.at(-1)).toEqual([false, undefined]);
   });
 });
+
+describe('Chrome on iOS gets the fill (stage 73 round 3c)', () => {
+  it('finds Chrome on iOS by CriOS or __gCrWeb; Safari and others keep the frame', async () => {
+    const { chromeOnIos, fsModeFor } = await import('../../src/core/fs-debug');
+    const crios = { navigator: { userAgent: 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0 Mobile/15E148 Safari/604.1' } };
+    const crDesktop = { navigator: { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15' }, __gCrWeb: {} };
+    const safari = { navigator: { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15' } };
+    expect(chromeOnIos(crios)).toBe(true);
+    expect(chromeOnIos(crDesktop)).toBe(true);
+    expect(chromeOnIos(safari)).toBe(false);
+    expect(fsModeFor('', crios)).toBe('fill');
+    expect(fsModeFor('', safari)).toBe(null);
+    expect(fsModeFor('?fsmode=frame', crios)).toBe('frame');
+  });
+});

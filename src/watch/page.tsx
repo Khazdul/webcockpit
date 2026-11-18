@@ -65,7 +65,7 @@ import { startSkyLook } from '../start/start-look';
 import { type FrameHost, PayloadReadError, openFrame, siteBaseUrl } from './frame-host';
 import { type WatchTurn, installWatchTurn } from './turn';
 import { device } from '../core/device';
-import { fsDebugAsked, fsModeAsked } from '../core/fs-debug';
+import { fsDebugAsked, fsModeFor } from '../core/fs-debug';
 import { type Got, type WatchMode, countView, fetchMeta, fetchPayload, sendReport } from './api';
 import { Comments, type RaterRole, RunStars } from './community';
 import {
@@ -208,8 +208,8 @@ export const WatchPage = lookFrame(function WatchPage(p: WatchProps): VNode {
     let turn: WatchTurn | null = null;
     // `?fsdebug`: the fullscreen-turn readout on the page and in the frame (stage 73 round 3).
     const fsdebug = fsDebugAsked(location.search);
-    // `?fsmode=frame|page|fill`: a tablet's way into fullscreen, for testing on the iPad (stage 73 round 3b).
-    const fsmode = fsModeAsked(location.search);
+    // A tablet's way into fullscreen (stage 73 round 3b/3c): `?fsmode=frame|page|fill`, else `fill` in Chrome on iOS (its frame fullscreen breaks on a turn), else the frame's own.
+    const fsmode = fsModeFor(location.search, window);
     openFrame({
       container: box,
       bytes,

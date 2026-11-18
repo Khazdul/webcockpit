@@ -40,6 +40,23 @@ export function fsModeOf(raw: unknown): FsMode | null {
   return typeof raw === 'string' && (FS_MODES as readonly string[]).includes(raw) ? (raw as FsMode) : null;
 }
 
+/**
+ * Chrome on iOS/iPadOS (stage 73 round 3c): its element fullscreen of the
+ * frame breaks on a turn (the page's viewport shrinks by the toolbars and
+ * stays so; Safari is fine). `CriOS` in the mobile user agent, or the
+ * `__gCrWeb` object Chrome for iOS injects (its iPad requests the desktop
+ * site, whose user agent does not say Chrome).
+ */
+export function chromeOnIos(win: { navigator?: { userAgent?: string } } & object = globalThis): boolean {
+  const ua = win.navigator?.userAgent ?? '';
+  return /\bCriOS\//.test(ua) || '__gCrWeb' in win;
+}
+
+/** A tablet's fullscreen mode on the watch page: the one asked by `?fsmode`, else `fill` in Chrome on iOS, else none (`frame`). */
+export function fsModeFor(search: string, win: { navigator?: { userAgent?: string } } & object = globalThis): FsMode | null {
+  return fsModeAsked(search) ?? (chromeOnIos(win) ? 'fill' : null);
+}
+
 /** The watch page's `?fsmode=frame|page|fill` (null: not asked, or not one of the three). */
 export function fsModeAsked(search: string): FsMode | null {
   return fsModeOf(new URLSearchParams(search).get('fsmode'));
