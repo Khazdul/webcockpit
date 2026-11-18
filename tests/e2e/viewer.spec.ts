@@ -257,6 +257,9 @@ test('the HTML replay has the map lens, Panes (Timers, Group, Map) and Display w
   p.on('pageerror', (e) => errors.push(e.message));
   await p.goto(`file://${path}`);
   await p.waitForFunction(() => (window as unknown as { __wcReplay?: unknown }).__wcReplay != null);
+  // The poster (stage 73, ADR 0162) holds the run; a click plays it.
+  await p.locator('.wc-poster').click();
+  await expect(p.locator('.wc-poster')).toHaveCount(0);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await p.keyboard.press(' ');
   await expect(chrome(p).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');

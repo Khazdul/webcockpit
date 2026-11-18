@@ -16,7 +16,7 @@
 // screen (the frame's window decides the device flags, src/replay/phone.ts).
 import { type FrameLocator, type Locator, type Page, expect, test } from '@playwright/test';
 import { demoPayload } from './cloud-pub-fake';
-import { SENDER, frameIsFullscreen, openWatch, playing, replay, setUp } from './watch-page';
+import { SENDER, frameIsFullscreen, openWatch, playing, poster, replay, setUp } from './watch-page';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -42,8 +42,11 @@ async function openLong(page: Page): Promise<FrameLocator> {
   return replay(page);
 }
 
-/** Starts the run (the watch page opens it paused): the box is at the frame's foot, under the fold of the scrolling page. */
+/** Starts the run: a tap on its poster (ADR 0162); the box is at the frame's foot, under the fold of the scrolling page. */
 async function play(page: Page, r: FrameLocator): Promise<void> {
+  await expect(poster(page)).toBeVisible({ timeout: 20_000 });
+  await poster(page).tap();
+  await expect(poster(page)).toHaveCount(0);
   await page.locator('.wc-watch-page').evaluate((el) => (el.scrollTop = el.scrollHeight));
   const btn = r.locator('.wc-pc-play');
   if ((await btn.getAttribute('data-playing')) !== 'true') await btn.tap();
