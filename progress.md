@@ -110,7 +110,7 @@ with no stage of their own. Remove a line when it is done.
 - **Checks:** unit 5594 passed; full e2e alone 1959 passed, 3 failed (6/6 alone: load); review: four small findings fixed. Staging deploy run 44332944655, `test:prod` 36/36 on staging.
 - **Open:** the iPad fix untested on a device; the poster's date is the recording's, the band's the publication's; on a phone upright the watch page's band pushes the poster's foot below the fold.
 - **Round 1 (owner, on staging):** the map bug gone in Firefox; the lens's wheel no longer moves the log (it bubbled to the player's pause cursor); no header row on phone/tablet; the poster: three mockups, the owner picked glass with the title card's type, the publication's title and description, white, edge to edge, the control box hidden under it. Staging run 44356590248, `test:prod` 36/36.
-- **Round 2 (owner):** a shared run on a phone opens with the Small font; the player a third lower upright. Then released 0.20.0 on his word.
+- **Round 2 (owner):** a shared run on a phone opens with the Small font; the player a third lower upright. Released 0.20.0 on his word (deploy run 44359639115, `test:prod` 36/36 on mumecockpit.com).
 
 ### 2026-11-18 — Stage 72: Hall of Fame logs in Discord #log-status
 
