@@ -1526,3 +1526,45 @@ the floor is what a reader can count; the order inside stays Top's. The
 gallery's sorts (Log, Stars, Com., Views) are unchanged, so a new log is
 still found there and can collect its votes. The Hall of Fame's texts say
 "A log needs five votes to enter."
+
+## Addendum 2026-11-18: Back to the Community without the menu (stage 73 part D)
+
+The owner: on a published log opened from the Community, the watch
+page's Back showed the start menu for a moment, then the Community slid
+in over it. It must go straight to the Community. The cause: Back is a
+full page load of `<base>?community` (`backHref`); the start page drew
+the menu, and only on idle time asked the flags, then loaded the account
+chunk, then pushed the page over the menu with the morph from the menu's
+box. `?account` and `?account=published` did the same.
+
+- **The arrival** (src/chrome/start-arrival.ts). A start page loaded
+  with `?community` or `?account…` arrives on that page: until it is
+  pushed, the surface carries `is-arriving` (start.css), which hides the
+  menu frame (`.wc-start-main`) and the scenery (wordmark, almanac) by
+  `visibility`; the sky stays drawn. The morph stage (`still` option)
+  plans no morph and the stack's hold is 0 while it lasts, so the page
+  shows at once and the menu's frame is hidden at once under it. The menu
+  swallows its keys meanwhile (nothing acts on it unseen).
+- **It ends** two frames after `endArrival`: the page was pushed (the
+  pushed page's own scenery, the lifted wordmark or the sub-page's small
+  one, is then in place, and the scenery's transitions are off while it
+  arrives, so none plays), the page is not allowed (a guest's `?account`,
+  `share`/`gallery` off) or failed to load (the menu shows, with its
+  flash), or at the latest after `ARRIVAL_MS` = 3 s (a slow link: the
+  menu shows, and the page morphs in over it later, as before).
+- **No idle wait.** The flags (`communityAllowed('read')`, or the
+  account state) and the account chunk are asked at once and side by
+  side. This is a deliberate exception to spec §7.0 rule 1 (nothing of
+  the cloud competes with the cold start): the viewer asked for that page
+  by pressing Back, and nothing else is shown until it is there.
+- **The first paint** (src/boot/first-paint.ts) on such a load draws the
+  sky and the loading line centred, without the wordmark and the menu's
+  empty loading panel, which the page coming does not show.
+- Esc / Back from the Community still lands on the menu, as before. The
+  phone and the tablet share the start surface and the same path.
+- Tests: tests/e2e/start-arrival.spec.ts (desktop, a tablet; the Account
+  page and Published runs; a guest's `?account` and `gallery` off show
+  the menu), tests/e2e/phone-start-arrival.spec.ts: a sampler from the
+  first paint checks each frame until the page shows (the menu, the morph
+  proxy, the wordmark, the first paint's panel: never). tests/unit/
+  start-arrival.test.ts.
