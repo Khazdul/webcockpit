@@ -244,3 +244,12 @@ orientation.)
    (`…/r/<id>?fsdebug`), repeat, and screenshot: the green readout in the
    frame's top left (in fullscreen) and the page's bottom left (outside it)
    shows each window's sizes, the rectangles and the last event.
+
+   **Round 3b** (2026-11-18): not fixed on the iPad. The readout
+   (`img/73-r3-ipad-{1,2,3}-*.png`) showed the page's `innerHeight` about
+   136 pt under its `clientHeight` after a turn in the frame's fullscreen
+   (WebKit's toolbar insets on a fullscreen page), with the frame's own
+   numbers all right. Three ways into fullscreen to try on the iPad, with
+   `?fsdebug&fsmode=frame|page|fill` (branch `stage-73-ipad-fs2`, ADR 0160
+   addendum "round 3b"); the readout notes "insets" when it happens. The
+   default stays `frame` until the owner picks.

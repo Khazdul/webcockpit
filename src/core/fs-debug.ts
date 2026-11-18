@@ -25,6 +25,27 @@ export function fsDebugAsked(search: string): boolean {
 }
 
 /**
+ * How a touch tablet's shared run goes fullscreen (stage 73 round 3b, ADR
+ * 0160 addendum): `frame` the frame's own document in element fullscreen
+ * (the default, as before), `page` the watch page's document in element
+ * fullscreen with the frame filling it, `fill` no element fullscreen, the
+ * frame filling the window (the iPhone's way). For testing on the iPad.
+ */
+export const FS_MODES = ['frame', 'page', 'fill'] as const;
+export type FsMode = (typeof FS_MODES)[number];
+export const FS_MODE_DEFAULT: FsMode = 'frame';
+
+/** `raw` when it is one of the three names exactly, else null. */
+export function fsModeOf(raw: unknown): FsMode | null {
+  return typeof raw === 'string' && (FS_MODES as readonly string[]).includes(raw) ? (raw as FsMode) : null;
+}
+
+/** The watch page's `?fsmode=frame|page|fill` (null: not asked, or not one of the three). */
+export function fsModeAsked(search: string): FsMode | null {
+  return fsModeOf(new URLSearchParams(search).get('fsmode'));
+}
+
+/**
  * Mounts the readout in `doc` (`corner`: where; `title`: which window) and
  * keeps it current: `lines()` at each `update`, and every second while it
  * is shown (a late size that came with no event).

@@ -15,7 +15,9 @@
 //                    for the poster (stage 73 round 1), plain text, capped
 //                    (`frameMeta`)
 //   frame → parent   {t: 'wc-error', v: 1, text}       when it cannot play
-//   frame → parent   {t: 'wc-fullscreen', v: 1, on}    fill the window (below)
+//   frame → parent   {t: 'wc-fullscreen', v: 1, on, how?}  fill the window (below);
+//                    `how: 'page'`: put the page's own document in fullscreen
+//                    (a tablet's `?fsmode=page`, stage 73 round 3b)
 //   parent → frame   {t: 'wc-fs-state', v: 1, on}      the frame fills it, or not
 //   parent → frame   {t: 'wc-relayout', v: 1, debug?}  the page's window changed
 //                    (a turn, fullscreen left): measure again (stage 73
@@ -23,7 +25,8 @@
 //                    `?fsdebug` lines, plain text, capped, shown with
 //                    `textContent` only
 // `wc-play`'s `prefs.fsdebug: true` turns the frame's readout on (the
-// page's `?fsdebug`). The frame takes messages only from `parent`, only
+// page's `?fsdebug`); `prefs.fsmode` (`frame`, `page` or `fill`, the
+// page's `?fsmode`) picks a tablet's way into fullscreen (`frameFullscreen`). The frame takes messages only from `parent`, only
 // the first `wc-play`, `wc-fs-state` and `wc-relayout`; anything else is
 // ignored.
 //
@@ -57,6 +60,7 @@ import { canFullscreen, exitFullscreen, isFullscreen, onFullscreenChange, toggle
 import { type ReplayFullscreen, type ReplayPage, fail, openReplay } from './page';
 import { replayPhone } from './phone';
 import { type FrameFit, PARENT_DEBUG_MAX, installFrameFit } from './frame-fit';
+import { FS_MODE_DEFAULT, type FsMode, fsModeOf } from '../core/fs-debug';
 
 export const FRAME_PROTOCOL = 1;
 export const FRAME_FONTS_MAX = 64;
@@ -119,17 +123,26 @@ export async function registerFonts(doc: Document, fonts: readonly FrameFont[]):
 /**
  * The frame's fullscreen: the document's own where the browser gives it,
  * else filling the parent's window (`ask(on)` posts `wc-fullscreen`;
- * `filled(on)` takes the parent's `wc-fs-state`).
+ * `filled(on)` takes the parent's `wc-fs-state`). A tablet's `?fsmode`
+ * (`setMode`, stage 73 round 3b): `page` asks the parent to put its own
+ * document in fullscreen (`ask(true, 'page')`), `fill` always asks it to
+ * fill its window; `frame` is the way above. Either way the parent's
+ * answer is the state.
  */
-export function frameFullscreen(doc: Document, ask: (on: boolean) => void): ReplayFullscreen & { filled(on: boolean): void } {
+export function frameFullscreen(
+  doc: Document,
+  ask: (on: boolean, how?: 'page') => void,
+): ReplayFullscreen & { filled(on: boolean): void; setMode(mode: FsMode): void; readonly mode: FsMode } {
   let filled = false;
+  let mode: FsMode = FS_MODE_DEFAULT;
   const fns: Array<() => void> = [];
   return {
     is: () => filled || isFullscreen(doc),
     toggle: () => {
       if (filled) ask(false);
       else if (isFullscreen(doc)) exitFullscreen(doc);
-      else if (!canFullscreen(doc)) ask(true);
+      else if (mode === 'page') ask(true, 'page');
+      else if (mode === 'fill' || !canFullscreen(doc)) ask(true);
       // Refused (Firefox on iPad offers the API but never enters): fill instead.
       else void toggleFullscreen(doc).then((ok) => ok || ask(true));
     },
@@ -146,6 +159,12 @@ export function frameFullscreen(doc: Document, ask: (on: boolean) => void): Repl
       filled = on;
       for (const fn of fns) fn();
     },
+    setMode: (m) => {
+      mode = m;
+    },
+    get mode() {
+      return mode;
+    },
   };
 }
 
@@ -157,6 +176,16 @@ export function framePaused(prefs: unknown): boolean {
 /** Whether a `wc-play` message's `prefs` turn the fullscreen-turn readout on (only `fsdebug: true` does). */
 export function frameFsDebug(prefs: unknown): boolean {
   return typeof prefs === 'object' && prefs !== null && (prefs as Record<string, unknown>).fsdebug === true;
+}
+
+/**
+ * The fullscreen mode a `wc-play` message's `prefs.fsmode` asks for (one
+ * of the three names exactly, else the default), used only on a tablet
+ * (`tablet`); a phone and a computer keep the default (stage 73 round 3b).
+ */
+export function frameFsMode(prefs: unknown, tablet: boolean): FsMode {
+  if (!tablet || typeof prefs !== 'object' || prefs === null) return FS_MODE_DEFAULT;
+  return fsModeOf((prefs as Record<string, unknown>).fsmode) ?? FS_MODE_DEFAULT;
 }
 
 /** Longest title and description the frame takes (as the pub API's, src/watch/api.ts). */
@@ -206,7 +235,7 @@ export function startFrame(o: FrameOptions): () => void {
     // The parent's origin is not known to an opaque frame; nothing posted is private.
     if (parent && parent !== win) parent.postMessage({ ...msg, v: FRAME_PROTOCOL }, '*');
   };
-  const fs = frameFullscreen(doc, (on) => post({ t: 'wc-fullscreen', on }));
+  const fs = frameFullscreen(doc, (on, how) => post({ t: 'wc-fullscreen', on, ...(how ? { how } : {}) }));
   const onMessage = (e: MessageEvent): void => {
     if (e.source !== parent || parent === win) return;
     const d = e.data as Record<string, unknown> | null;
@@ -227,11 +256,12 @@ export function startFrame(o: FrameOptions): () => void {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
         const [p, , phone] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts), replayPhone(win)]);
+        fs.setMode(frameFsMode(d.prefs, phone?.tablet === true));
         // Every shared run opens under its poster, paused at the start (stage 73, ADR 0162),
         // whatever `prefs.paused` says.
         const page = openReplay(doc, root, p, { fullscreen: fs, poster: meta, ...(phone ? { phone } : {}) });
         // A phone or tablet follows its window through a turn reported late (stage 73 round 3).
-        if (phone) fit = installFrameFit(win, root, page.host, { debug });
+        if (phone) fit = installFrameFit(win, root, page.host, { debug, fsLine: () => `fsmode ${fs.mode}  parent-fs ${fs.is() && !isFullscreen(doc) ? 'on' : 'off'}` });
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';

@@ -39,6 +39,15 @@
 // its ancestors activation too) when turning it on, and answers with
 // `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
 //
+// A tablet's `?fsmode` (stage 73 round 3b, ADR 0160 addendum "round 3b"),
+// passed to the frame as `prefs.fsmode`: `frame` as above (the default);
+// `fill` the frame always asks for the fill; `page` it asks with
+// `{t: 'wc-fullscreen', on: true, how: 'page'}`, and the page, in the
+// handler at once (the activation is the tap's), puts its own document in
+// element fullscreen and fills it with the frame (`is-filled`); refused,
+// the fill stays. Leaving it (the frame's `on: false`, or the system's
+// swipe or Esc: `fullscreenchange`) ends the fill and tells the frame.
+//
 // `relayout` posts `{t: 'wc-relayout', v, debug?}`: the page's window
 // changed (a turn, fullscreen left; src/watch/turn.ts), the frame measures
 // again (stage 73 round 3); `debug` is the page's `?fsdebug` readout.
@@ -50,6 +59,11 @@ import { validatePayload } from '../replay/validate';
 import type { ReplayPayload } from '../share/payload';
 import { withSharedTiles } from '../share/shared-tiles';
 import { fetchReplayFonts } from '../replay/export';
+import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
+import { FS_MODE_DEFAULT, type FsMode } from '../core/fs-debug';
+
+/** How many of the fullscreen notes the readout keeps. */
+const FS_NOTES_MAX = 5;
 
 /** The frame document's path under the site's base (scripts/frame-html.ts `FRAME_PATH`). */
 export const FRAME_PATH = 'r/frame';
@@ -76,10 +90,18 @@ export interface FrameHostOptions {
   paused?: boolean;
   /** The frame shows the fullscreen-turn readout (the page's `?fsdebug`, stage 73 round 3). */
   fsdebug?: boolean;
+  /** A tablet's way into fullscreen (the page's `?fsmode`, stage 73 round 3b); default `frame`. */
+  fsmode?: FsMode;
 }
 
 export interface FrameHost {
   frame: HTMLIFrameElement;
+  /** The fullscreen mode asked for (`?fsmode`; `frame` when none). */
+  readonly fsmode: FsMode;
+  /** Whether the frame fills the window (`is-filled`: the fill, or the page's own fullscreen). */
+  readonly filled: boolean;
+  /** What happened to the page's own fullscreen and the fill, latest last (the `?fsdebug` readout). */
+  fsNotes(): string[];
   /** Tells the frame the page's window changed: it measures again (`debug`: the page's readout lines). */
   relayout(debug?: string): void;
   /** Removes the frame and stops listening. */
@@ -152,11 +174,43 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
   frame.style.cssText = 'display:block;width:100%;height:100%;border:0';
   let played = false;
   let filled = false;
+  const fsmode = o.fsmode ?? FS_MODE_DEFAULT;
+  const notes: string[] = [];
+  const note = (text: string): void => {
+    notes.push(`${text} @${(performance.now() / 1000).toFixed(2)}s`);
+    if (notes.length > FS_NOTES_MAX) notes.shift();
+  };
   const fill = (on: boolean): void => {
     if (on === filled) return;
     filled = on;
     o.container.classList.toggle('is-filled', on);
     frame.contentWindow?.postMessage({ t: 'wc-fs-state', v: FRAME_PROTOCOL, on }, '*');
+  };
+  // `?fsmode=page` (stage 73 round 3b): the page's own document in fullscreen, the frame filling
+  // it (`is-filled`). Asked for at once in the message's handler: the tap in the frame gave the
+  // page its user activation too (HTML's activation notification reaches the ancestors, in
+  // Chromium and WebKit). Refused: the fill stays, as `fill`.
+  let pageFs = false;
+  const root = doc.documentElement;
+  const offFs = onFullscreenChange(() => {
+    if (isFullscreen(doc, root)) {
+      if (!pageFs) note('page fs entered');
+      pageFs = true;
+    } else if (pageFs) {
+      // Left by the system (the swipe, Esc) or by the frame's ask: the frame learns it.
+      pageFs = false;
+      note('page fs left');
+      fill(false);
+    }
+  }, doc);
+  const enterPage = (active: boolean | null): void => {
+    note(`page fs asked (activation ${active === null ? '?' : active ? 'yes' : 'no'})`);
+    if (!isFullscreen(doc)) {
+      void toggleFullscreen(doc).then((ok) => {
+        if (!ok) note('page fs refused → fill');
+      });
+    }
+    fill(true);
   };
   const onMessage = (e: MessageEvent): void => {
     if (e.source !== frame.contentWindow || e.origin !== 'null') return;
@@ -167,7 +221,7 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
       void Promise.all([fonts, wire]).then(([list, bytes]) => {
         const target = frame.contentWindow;
         if (!target) return;
-        const prefs = { paused: o.paused !== false, ...(o.fsdebug ? { fsdebug: true } : {}) };
+        const prefs = { paused: o.paused !== false, ...(o.fsdebug ? { fsdebug: true } : {}), ...(o.fsmode ? { fsmode: o.fsmode } : {}) };
         const meta = o.meta ? { title: o.meta.title, description: o.meta.description } : undefined;
         target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs, ...(meta ? { meta } : {}) }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
@@ -176,9 +230,18 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
       const text = typeof d.text === 'string' ? d.text.slice(0, ERROR_MAX) : 'This replay could not be played.';
       o.onError?.(text);
     } else if (d.t === 'wc-fullscreen' && typeof d.on === 'boolean') {
+      if (!d.on) {
+        if (pageFs || isFullscreen(doc, root)) exitFullscreen(doc);
+        fill(false);
+        return;
+      }
       const ua = (win.navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
-      if (d.on && ua && !ua.isActive) return;
-      fill(d.on);
+      if (ua && !ua.isActive) {
+        if (o.fsmode) note('fs refused: no user activation');
+        return;
+      }
+      if (d.how === 'page' && fsmode === 'page') enterPage(ua ? true : null);
+      else fill(true);
     }
   };
   win.addEventListener('message', onMessage);
@@ -186,12 +249,19 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
   o.container.appendChild(frame);
   return {
     frame,
+    fsmode,
+    get filled() {
+      return filled;
+    },
+    fsNotes: () => notes.slice(),
     relayout: (debug) => {
       if (!played) return;
       frame.contentWindow?.postMessage({ t: 'wc-relayout', v: FRAME_PROTOCOL, ...(debug !== undefined ? { debug } : {}) }, '*');
     },
     dispose: () => {
       win.removeEventListener('message', onMessage);
+      offFs();
+      if (pageFs) exitFullscreen(doc);
       o.container.classList.remove('is-filled');
       frame.remove();
     },
