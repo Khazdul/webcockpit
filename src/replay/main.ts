@@ -4,6 +4,7 @@
 
 import '../ui/ui.css';
 import './replay.css';
+import './poster.css';
 import { startReplay } from './page';
 
 // `window.__wcReplay`: the running page (the browser tests, the console).

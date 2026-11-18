@@ -126,6 +126,19 @@ test('the HTML replay plays from file:// with no network and no storage', async 
 
   const { page: p, errors } = await openFile(browser, html, info.outputPath('replay.html'));
   await expect(p).toHaveTitle('Demo fight');
+  // Stage 73 (ADR 0162): the file opens under its poster, paused at the start; a click plays it.
+  const poster = p.locator('.wc-poster');
+  await expect(poster).toBeVisible();
+  await expect(poster.locator('.wc-poster-title')).toHaveText('Demo fight');
+  await expect(poster.locator('.wc-poster-sub')).toContainText('Rasta');
+  await expect(poster.locator('.wc-poster-logo')).toHaveAttribute('aria-label', 'MUME Cockpit');
+  await p.keyboard.press('ArrowRight');
+  expect(await p.evaluate(() => (window as unknown as { __wcReplay: { host: { engine: { position: number; playing: boolean } } } }).__wcReplay.host.engine.position)).toBe(0);
+  await poster.click();
+  await expect(poster).toHaveCount(0);
+  await expect
+    .poll(() => p.evaluate(() => (window as unknown as { __wcReplay: { host: { engine: { playing: boolean } } } }).__wcReplay.host.engine.playing))
+    .toBe(true);
   // The cut lines are not in the file.
   const texts = await p.evaluate(() =>
     (window as unknown as { __wcReplay: { payload: { runs: Array<{ text: string }> } } }).__wcReplay.payload.runs.map((r) => r.text).join(''),
@@ -254,6 +267,7 @@ test('?replayhtml= builds the demo replay and opens it', async ({ page }) => {
   await page.goto('/?replayhtml=runs-demo.jsonl.gz');
   await expect.poll(() => page.url()).toMatch(/^blob:/);
   await expect(chrome(page).locator('.wc-player-header')).toContainText('Rasta · 2026-09-26');
+  await page.locator('.wc-poster').click();
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
   expect(errors).toEqual([]);
 });

@@ -10,7 +10,7 @@
 // `phone` project (Pixel 7), the watch page's frame, in portrait and in
 // landscape.
 import { type Locator, type Page, expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp } from './watch-page';
+import { openWatch, playing, replay, setUp, startRun } from './watch-page';
 
 const box = async (l: Locator): Promise<{ x: number; y: number; width: number; height: number }> => (await l.boundingBox())!;
 
@@ -38,6 +38,7 @@ for (const [name, size] of [
     await setUp(page);
     await openWatch(page);
     await playing(page);
+    await startRun(page);
     const r = replay(page);
     // The phone layout, with the phone layer over it.
     await expect(r.locator('.wc-cockpit[data-phone-game]')).toBeVisible();
@@ -92,6 +93,7 @@ test('phone: the lens\'s fullscreen key puts the frame in fullscreen and back', 
   await setUp(page);
   await openWatch(page);
   await playing(page);
+  await startRun(page);
   const key = replay(page).locator('.wc-ph-lens .wc-ph-sat[data-sat="fullscreen"]');
   await key.tap();
   await expect

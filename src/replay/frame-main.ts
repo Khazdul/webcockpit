@@ -5,6 +5,7 @@
 
 import '../ui/ui.css';
 import './replay.css';
+import './poster.css';
 import { startFrame } from './frame';
 
 // `window.__wcReplay`: the running page, once playing (the browser tests),

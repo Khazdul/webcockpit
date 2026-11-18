@@ -1,0 +1,258 @@
+/* The shared run's poster (src/replay/poster.ts, ADR 0162): a glass screen
+ * over the paused replay. Fixed colours, not the exporter's theme: the
+ * poster is the app's own face (dark amber phosphor, iron and mithril).
+ * Cheap: gradients and one small backdrop blur, painted once; the only
+ * motion is the play ring's slow glow and the fade when it goes, both off
+ * with reduced motion. */
+
+.wc-poster {
+  --wcp-amber: #ffb000;
+  --wcp-ember: #b8741a;
+  --wcp-ash: #bfae95;
+  --wcp-deep: #070504;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  padding: clamp(6px, 1.6vmin, 18px);
+  background: rgb(4 3 2 / 0.55);
+  -webkit-backdrop-filter: blur(1.5px) saturate(0.7);
+  backdrop-filter: blur(1.5px) saturate(0.7);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  opacity: 1;
+  transition: opacity 260ms ease-out;
+}
+
+.wc-poster[data-going] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The tube's face: rounded like a screen, dark at its rim (vignette), the
+ * paused log faintly behind it. */
+.wc-poster-screen {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  border-radius: clamp(10px, 3.2vmin, 34px) / clamp(12px, 4vmin, 42px);
+  background:
+    radial-gradient(
+      ellipse 75% 70% at 50% 46%,
+      rgb(255 176 0 / 0.07),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 120% 110% at 50% 50%,
+      rgb(7 5 4 / 0.15) 45%,
+      rgb(7 5 4 / 0.82) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1px rgb(255 214 150 / 0.06),
+    inset 0 0 clamp(30px, 10vmin, 120px) rgb(0 0 0 / 0.9),
+    0 0 0 clamp(3px, 0.8vmin, 8px) rgb(20 15 11 / 0.9),
+    0 0 0 calc(clamp(3px, 0.8vmin, 8px) + 1px) rgb(255 200 140 / 0.08);
+}
+
+/* Glass: faint scanlines, the curve's glare at the top left, a softer
+ * reflection at the bottom right. Over everything, never hit. */
+.wc-poster-glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      ellipse 60% 42% at 24% 8%,
+      rgb(255 240 220 / 0.11),
+      transparent 70%
+    ),
+    linear-gradient(
+      158deg,
+      rgb(255 245 230 / 0.07) 0%,
+      rgb(255 245 230 / 0.02) 30%,
+      transparent 31%
+    ),
+    radial-gradient(
+      ellipse 40% 30% at 86% 96%,
+      rgb(255 230 200 / 0.04),
+      transparent 70%
+    );
+}
+
+/* The scanlines, darkening only. */
+.wc-poster-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    rgb(0 0 0 / 0.2) 2px 3px
+  );
+}
+
+.wc-poster-top {
+  max-width: min(92%, 34em);
+  padding-top: clamp(18px, 7vh, 72px);
+  text-align: center;
+}
+
+.wc-poster-title {
+  margin: 0;
+  font-family: "Cinzel", "Cormorant SC", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(22px, 5.2vmin, 54px);
+  line-height: 1.18;
+  letter-spacing: 0.035em;
+  color: #ffc847;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow:
+    0 0 1px rgb(255 200 80 / 0.9),
+    0 0 18px rgb(255 160 0 / 0.38),
+    0 2px 0 rgb(0 0 0 / 0.7);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.wc-poster-title[data-len="mid"] {
+  font-size: clamp(19px, 4.2vmin, 44px);
+}
+
+.wc-poster-title[data-len="long"] {
+  font-size: clamp(17px, 3.4vmin, 36px);
+}
+
+.wc-poster-sub {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15em 1.6em;
+  margin: clamp(8px, 1.8vmin, 18px) 0 0;
+  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
+  font-size: clamp(12px, 1.9vmin, 17px);
+  color: var(--wcp-ash);
+  letter-spacing: 0.02em;
+}
+
+/* The play key: a phosphor ring with a filled triangle. It has the focus
+ * from the start (Enter plays), so its focus shows as the brighter glow
+ * the hover gives, not as an outline box. */
+.wc-poster-play {
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  gap: clamp(6px, 1.4vmin, 14px);
+  margin: 0;
+  padding: clamp(6px, 1.5vmin, 14px);
+  border: 0;
+  border-radius: 24px;
+  background: none;
+  color: var(--wcp-amber);
+  cursor: pointer;
+  font: inherit;
+}
+
+.wc-poster-glyph {
+  display: block;
+  width: clamp(76px, 19vmin, 168px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgb(255 160 0 / 0.55))
+    drop-shadow(0 0 22px rgb(255 140 0 / 0.25));
+  transition:
+    transform 140ms ease-out,
+    filter 140ms ease-out;
+}
+
+.wc-poster-ring {
+  fill: rgb(255 176 0 / 0.06);
+  stroke: var(--wcp-amber);
+  stroke-width: 3.2;
+}
+
+.wc-poster-tri {
+  fill: var(--wcp-amber);
+  stroke: var(--wcp-amber);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.wc-poster-hint {
+  font-family: var(--font-mono, "DejaVu Sans Mono", monospace);
+  font-size: clamp(12px, 1.8vmin, 16px);
+  letter-spacing: 0.08em;
+  color: var(--wcp-ember);
+}
+
+.wc-poster:hover .wc-poster-glyph,
+.wc-poster-play:focus-visible .wc-poster-glyph {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 7px rgb(255 176 0 / 0.75))
+    drop-shadow(0 0 30px rgb(255 150 0 / 0.38));
+}
+
+.wc-poster-play:focus {
+  outline: none;
+}
+
+.wc-poster-play:focus-visible .wc-poster-hint {
+  color: var(--wcp-amber);
+}
+
+/* The wordmark, bottom right, a little sunk into the glass. */
+.wc-poster-mark {
+  justify-self: end;
+  padding: 0 clamp(14px, 3.4vmin, 40px) clamp(12px, 3vmin, 34px) 0;
+  opacity: 0.88;
+}
+
+.wc-poster-logo {
+  display: block;
+  width: clamp(104px, 20vmin, 230px);
+  height: auto;
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wc-poster-ring {
+    animation: wc-poster-breathe 3.6s ease-in-out infinite;
+  }
+
+  @keyframes wc-poster-breathe {
+    0%,
+    100% {
+      fill: rgb(255 176 0 / 0.05);
+    }
+    50% {
+      fill: rgb(255 176 0 / 0.13);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-poster,
+  .wc-poster-glyph {
+    transition: none;
+  }
+}
+
+/* Short and wide (a phone in landscape): less air above the title. */
+@media (max-height: 420px) {
+  .wc-poster-top {
+    padding-top: 14px;
+  }
+
+  .wc-poster-glyph {
+    width: clamp(64px, 22vmin, 120px);
+  }
+}

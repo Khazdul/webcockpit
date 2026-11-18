@@ -6,7 +6,7 @@
 // the player's cursor does not move. The touch side is
 // phone-watch-map-zoom.spec.ts; the rest of the lens is watch-lens.spec.ts.
 import { expect, test } from '@playwright/test';
-import { openWatch, playing, replay, setUp } from './watch-page';
+import { openWatch, playing, replay, setUp, startRun } from './watch-page';
 import { lensMap, mapSent, recordMapWorker } from './watch-map';
 
 test("the wheel over the watch page's lens steps its zoom levels, Ctrl+wheel too; the page stays put", async ({ page }) => {
@@ -15,6 +15,7 @@ test("the wheel over the watch page's lens steps its zoom levels, Ctrl+wheel too
   await setUp(page);
   await openWatch(page);
   await playing(page);
+  await startRun(page);
   await lensMap(page);
   const r = replay(page);
   const level = async (): Promise<number> => Number(await r.locator('.wc-dl').getAttribute('data-level'));
