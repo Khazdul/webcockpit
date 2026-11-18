@@ -352,6 +352,18 @@ export function tilesetOverlay(t: Tileset | null): TilesetOverlay | undefined {
   };
 }
 
+/**
+ * The tileset of a shared run (a share link or a Community log; owner,
+ * 2026-11-18, ADR 0154 addendum): Desert, whatever set the sender draws.
+ * A concrete set, so no season applies.
+ */
+export const SHARED_TILESET = 'desert';
+
+/** The overlay a shared run's map is drawn with (`SHARED_TILESET`). */
+export function sharedOverlay(): TilesetOverlay {
+  return tilesetOverlay(setById(SHARED_TILESET) ?? null)!;
+}
+
 /** The overlay for a choice in game month `month`. */
 export function overlayFor(id: string, month: number): TilesetOverlay | undefined {
   return tilesetOverlay(resolveTileset(id, month));

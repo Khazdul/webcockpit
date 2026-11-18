@@ -118,7 +118,11 @@ run log player and Spotlights are untouched, as in stage 71.
   scenery hidden over the sky, morph and hold off, until the page is pushed
   (3 s safety timeout); the flags and the chunk are asked at once. Branch
   `stage-73d-watch-back`. ADR 0155 addendum 2026-11-18.
-- [ ] E2. Desert is the tileset of shared and published runs (point 13).
+- [x] E2. Desert is the tileset of shared and published runs (owner,
+  2026-11-18; point 13). The watch page gives every payload Desert's
+  tiles before the frame gets it, so runs already published show it too;
+  links keep storing the small default tiles (embedding Desert measured
+  +2.9 MB per link: dropped). ADR 0154 addendum 2026-11-18.
 - [ ] D. Merge, full e2e alone, review.
 - [ ] E. Staging deploy, `test:prod` on staging.
 - [ ] F. The owner's test on staging; release on his word.

@@ -15,7 +15,9 @@
 // `validatePayload`, src/replay/codec.ts `readSharedPayload`): the page
 // needs its fonts (fetched from the page's own origin as the exporter
 // fetches them, only families of `FONTS`). A payload the page refuses
-// never reaches the frame.
+// never reaches the frame. Its map is drawn in Desert's tiles, a shared
+// run's (ADR 0154 addendum 2026-11-18): the page gives the payload
+// Desert's tiles from its own origin before it is posted.
 //
 // Messages are taken only from the frame's own window with the origin
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
@@ -36,7 +38,8 @@
 // its ancestors activation too) when turning it on, and answers with
 // `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
 
-import { PayloadReadError, readSharedPayload } from '../replay/shared';
+import { PayloadReadError, payloadBytes, readSharedPayload } from '../replay/shared';
+import { withSharedTiles } from '../share/shared-tiles';
 import { fetchReplayFonts } from '../replay/export';
 
 /** The frame document's path under the site's base (scripts/frame-html.ts `FRAME_PATH`). */
@@ -91,6 +94,17 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     // Without its fonts the replay still plays, in the browser's monospace.
     () => [],
   );
+  // A shared run's map in Desert's tiles (owner, 2026-11-18; src/share/shared-tiles.ts):
+  // a link stores the default tiles, so every payload is retiled here, on
+  // the page, which may fetch them; the frame validates the result as any
+  // payload. Without them (a fetch failed) it plays with the tiles it has.
+  const wire: Promise<ArrayBuffer> = withSharedTiles(payload, { assetBase: url('map/'), fetch: f }).then(
+    async (p) => (p === payload ? src.slice().buffer : (await payloadBytes(p)).slice().buffer),
+    (err: unknown) => {
+      console.warn(`WebCockpit: the shared run plays with its own tiles (${err instanceof Error ? err.message : String(err)})`);
+      return src.slice().buffer;
+    },
+  );
 
   const frame = doc.createElement('iframe');
   frame.setAttribute('sandbox', 'allow-scripts');
@@ -113,10 +127,9 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     if (typeof d !== 'object' || d === null || d.v !== FRAME_PROTOCOL) return;
     if (d.t === 'wc-ready' && !played) {
       played = true;
-      void fonts.then((list) => {
+      void Promise.all([fonts, wire]).then(([list, bytes]) => {
         const target = frame.contentWindow;
         if (!target) return;
-        const bytes = src.slice().buffer;
         const prefs = { paused: o.paused !== false };
         target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();

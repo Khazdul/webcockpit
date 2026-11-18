@@ -970,3 +970,60 @@ without the band.
   made-up events with the wrong origin, version, `on` or `t`) change
   nothing. phone-watch-page.spec: both on the Pixel 7.
 - **Entry chunk:** 31 366 bytes, unchanged.
+
+## Addendum 2026-11-18 (stage 73 part E): Desert is a shared run's tileset
+
+Owner (2026-11-18): "Desert" is the tileset of runs shared by a link or
+published in the Community. Until now a link embedded MMapper's default
+tiles (ADR 0020 addendum 2026-10-10, as the HTML file does), whatever set
+the sender drew. The HTML file downloaded for oneself keeps the default
+tiles (the owner named only links and the Community). History's player,
+Spotlights and the live Map pane are untouched: they draw the user's own
+set from the site (`base` asset source).
+
+### Decision
+
+- **The watch page draws every payload in Desert**
+  (`src/share/shared-tiles.ts` `withSharedTiles`, called by `openFrame` in
+  src/watch/frame-host.ts). The page has read and validated the payload
+  already; it fetches Desert's file for each `pixmaps/` key the payload
+  carries (`overlayPath(sharedOverlay(), key)`: the set's file, else the
+  default for what Desert lacks: walls, doors, `char-*`, three loads, road
+  and underwater terrain), drops any `streamsAsIs` and `tints` (Desert
+  has MMapper's river tint and room tints), gzips the result
+  (`payloadBytes`) and posts those bytes in `wc-play`. Fonts, the subset
+  and everything else are as stored. The frame is unchanged: it validates
+  the bytes as any payload. So **runs already published show Desert**,
+  with no change to R2 or the Worker. A fetch that fails plays the payload
+  with its own tiles (a console warning), never an error.
+- **Why the page and not the frame:** the frame has `connect-src 'none'`
+  and `img-src data: blob:`, so it can fetch nothing; a second channel (a
+  `tiles` field in `wc-play`) would need its own validation in the frame,
+  while re-encoding the payload reuses `validatePayload` as it is and
+  leaves the handshake at version 1.
+- **Uploads keep the default tiles** (main session's decision, same day).
+  Embedding Desert was built and measured first: `map-demo.log` (852
+  subset rooms, 90 pixmaps) sealed to 3.50 MB with Desert against 0.61 MB
+  with the default tiles, +2.9 MB per link on upload and on every view
+  (a payload from R2 is not shared between runs, while Desert's files on
+  the site are cached by the browser across runs), against the latency
+  target and R2's cost, and it would have needed a fallback near the
+  5 MiB limit that changed which logs can be shared. Since the page
+  retiles every payload anyway, the stored payload stays small and needs
+  no marker of its tileset; `ReplayMap` and the validator are unchanged.
+- **Seasons** do not apply: Desert is a concrete set
+  (`SHARED_TILESET`, `sharedOverlay()` in src/map/tilesets.ts).
+
+### Consequences
+
+- A view costs the page about 90 tile fetches from its own origin
+  (Desert's 4.0 MB set at most, cached after the first run) and one gzip
+  of the payload (tens of ms) before the frame gets it.
+- The validator's pixel bound (`MAP_IMAGE_TOTAL_PX`, 32 Mpx) admits the
+  whole of Desert with the default files (about 6.4 Mpx).
+- Tests: `tests/unit/shared-tiles.test.ts` (the overlay, when a payload
+  needs it, the retile, a failed fetch, a new link storing the default
+  tiles and drawn in Desert); `tests/e2e/watch-desert.spec.ts` (Chromium
+  and Firefox: an old payload with Gefe & Rik's tiles and a new link both
+  give the frame's map worker exactly Desert's files, the default's for
+  what Desert lacks, with MMapper's flow and room tints).
