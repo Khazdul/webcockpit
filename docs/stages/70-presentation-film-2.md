@@ -1,6 +1,6 @@
 # Stage 70 — Presentation film 2
 
-Status: **In progress** (started 2026-11-17).
+Status: **In progress** (started 2026-11-17). Paused 2026-11-18 after round 1: the owner finds the cut "ganska bra" and will polish it in a new session. No master for now.
 
 ## Goal
 
@@ -68,7 +68,7 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Acts 7–8 recorded (community, dawn; take `film2-b`; community re-captured first).
 - [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 5:58; `film2-draft-small.mp4` for the phone).
 - [ ] Owner feedback rounds.
-- [ ] Master and 4K.
+- [ ] Master and 4K. Not now (owner, 2026-11-18): the H.264 draft stays as it is until the polish session.
 
 ## Test guide
 
@@ -214,3 +214,21 @@ Times are the owner's, roughly, in the 5:58 draft.
   shorter play on the watch page. About −10 s.
 - Act 8: the end card is timed to the music's tail, and the last frame is
   at 5:29.7. About −4 s.
+
+**Verdict on round 1 (2026-11-18):** "Det är ganska bra." No full-quality
+master now. The owner picks it up in a new session to polish it.
+
+**Where to start next session:**
+- The cut: `video/out/film2-draft.mp4` (5:29.67), and the copy for the
+  owner's phone, `film2-draft-small.mp4` (under 30 MB).
+- The render config is the git-ignored `video/out/tmp/h264.config.ts`.
+  Recreate it if `out/` is cleaned.
+- Re-record with `npm run record -- film2-a | devices-tablet |
+  devices-phone | film2-b | film2-phone`, one at a time, on port 5189.
+- Known small things:
+  - the wolf shows as a third row in the Group strip;
+  - the account reload and the log player's start show loading for a
+    moment;
+  - the last start page's quote no longer fades on camera;
+  - there are no stars or comments on the real log. Re-capture with
+    `node record/capture-community.ts` before act 7 is re-recorded.

@@ -71,7 +71,7 @@
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Done; released 0.16.0, the owner's feedback in 0.16.1 (2026-11-17) | `docs/stages/68-owner-fixes.md` |
-| 70 | Presentation film 2 | In progress (round 1 built: 5:29.7, ends with the music; with the owner) | `docs/stages/70-presentation-film-2.md` |
+| 70 | Presentation film 2 | In progress (round 1 "ganska bra"; paused for a polish session, no master yet) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 | 71 | The shared replay with the lens | Done, released 0.18.0 | `docs/stages/71-shared-replay-lens.md` |
@@ -109,6 +109,16 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-18 (close) — Stage 70: round 1 seen, session closed
+
+- **Done:** the owner saw round 1 (5:29.67, ends with the music): "ganska
+  bra". He wants no full-quality master or 4K for now.
+- **Next:** a new session to polish film 2, starting from the stage file's
+  "Where to start next session".
+- **Open:** see the stage file (the Group strip's third row, loading
+  flashes, no stars or comments on the real log).
+- **Commits:** this one.
 
 ### 2026-11-18 — Stage 70: film 2, owner round 1 on the full draft
 
