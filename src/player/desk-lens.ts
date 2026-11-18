@@ -259,7 +259,7 @@ export class DeskLens {
   private readonly rim: HTMLDivElement;
   private readonly dots: HTMLButtonElement[] = [];
   private readonly unsubs: Array<() => void> = [];
-  /** The box last given to the cockpit (px; null: none, the map is off). */
+  /** The box last given to the cockpit (px; null: none yet). Kept while the map is off (the cockpit places nothing then). */
   private box: PhoneLensSpot | null = null;
   private shownKey = '';
   private rimKey = '';
@@ -321,7 +321,7 @@ export class DeskLens {
     this.watchDrag(this.glass, 'move');
     this.watchDrag(this.rim, 'size');
     this.rim.addEventListener('pointermove', (e) => {
-      if (this.drag || !this.box) return;
+      if (this.drag || !this.lensBox) return;
       const r = this.el.getBoundingClientRect();
       this.rim.style.cursor = rimCursor(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
     });
@@ -340,7 +340,7 @@ export class DeskLens {
 
   /** The lens's box as given to the cockpit (tests); null before the first, or while the map is off. */
   get lensBox(): Readonly<PhoneLensSpot> | null {
-    return this.box;
+    return this.deps.mapOn() ? this.box : null;
   }
 
   /** The zoom level (tests). */
@@ -364,7 +364,7 @@ export class DeskLens {
   /** The wheel over the lens: one level a notch (or a touchpad's worth), then a short rest. */
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
-    if (!this.box || e.deltaY === 0) return;
+    if (!this.lensBox || e.deltaY === 0) return;
     if (e.timeStamp < this.wheelRestUntil) return;
     const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;
     // A turn the other way starts over.
@@ -399,12 +399,13 @@ export class DeskLens {
     this.map.zoomTo(deskLensZoom(level, box.size));
   }
 
-  /** The box for the cockpit's size now (none while the map is off), given to the cockpit when it changed. */
+  /**
+   * The box for the cockpit's size now, given to the cockpit when it
+   * changed. Also while the map is off (stage 73 review fix): the cockpit
+   * then places no map, and turning the map on lays it out in the lens in
+   * that same layout, never docked or floating first.
+   */
   private ask(): void {
-    if (!this.deps.mapOn()) {
-      this.give(null);
-      return;
-    }
     const { cockpit, cells } = this.deps;
     const W = cockpit.el.clientWidth;
     const H = cockpit.el.clientHeight;
@@ -443,7 +444,7 @@ export class DeskLens {
     // Stage 73's bug fix (ADR 0160 addendum): the dressing, the circle and the shift come
     // from the box the map pane's cells were laid out for, never from one given since
     // (that one waits for its own layout), so the map is never shifted out of its circle.
-    if (!laid || !rect || !this.box || !(W > 0 && H > 0)) {
+    if (!laid || !rect || !this.lensBox || !(W > 0 && H > 0)) {
       this.el.hidden = true;
       this.shownKey = '';
       return;
@@ -506,7 +507,7 @@ export class DeskLens {
     };
     el.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
-      if (this.drag || e.button !== 0 || !this.box) return;
+      if (this.drag || e.button !== 0 || !this.lensBox || !this.box) return;
       e.preventDefault();
       const r = this.deps.cockpit.el.getBoundingClientRect();
       const cx = r.left + this.box.left + this.box.size / 2;

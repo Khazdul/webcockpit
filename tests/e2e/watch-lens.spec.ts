@@ -140,9 +140,23 @@ test('the desktop lens: no keys, the Panes popup has Map, Group and Timers; drag
   await pop.locator('[data-pane="map"]').click();
   await expect(lens).toBeHidden();
   await expect(r.locator('.wc-pane[data-pane="map"]')).toBeHidden();
+  // Stage 73 review fix: turned on again, the map pane never shows docked or floating
+  // first (one layout by the recorded layout before the lens's box came back).
+  await r.locator('.wc-pane[data-pane="map"]').evaluate((el: HTMLElement) => {
+    const w = window as unknown as { zzMapBad: string[] };
+    w.zzMapBad = [];
+    const check = (): void => {
+      if (!el.hidden && (!el.hasAttribute('data-desk-lens') || el.hasAttribute('data-floating') || el.hasAttribute('data-framed'))) {
+        w.zzMapBad.push(`${el.style.left},${el.style.top},${el.style.width},${el.style.height}`);
+      }
+    };
+    new MutationObserver(check).observe(el, { attributes: true, attributeFilter: ['hidden', 'style', 'data-desk-lens', 'data-floating', 'data-framed'] });
+  });
   await pop.locator('[data-pane="map"]').click();
   await expect(lens).toBeVisible();
   await expect(r.locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
+  await page.waitForTimeout(150);
+  expect(await r.locator('.wc-pane[data-pane="map"]').evaluate(() => (window as unknown as { zzMapBad: string[] }).zzMapBad)).toEqual([]);
   expect(await box(lens)).toEqual(l0);
   await pop.locator('[data-pane="group"]').click();
   await pop.locator('[data-pane="timers"]').click();

@@ -1033,7 +1033,10 @@ export class Cockpit {
     placeEl(this.gameEl, r.game, cell);
     placeEl(this.inputEl, r.input, cell);
     const boxes = new Map(r.panes.map((p) => [p.id, p]));
-    this.deskLensRect = lens && !r.tooSmall ? lensCells(lens, cell, r.cols, r.rows) : null;
+    // The box stays while the map is off (stage 73 review fix): turned on again, the map
+    // goes straight into the lens, never through a docked or floating layout.
+    const lensMapOn = lens !== null && paneSettingsOf(s.panes, 'map').on;
+    this.deskLensRect = lens && lensMapOn && !r.tooSmall ? lensCells(lens, cell, r.cols, r.rows) : null;
     this.deskLensLaidBox = this.deskLensRect && lens;
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
@@ -1151,7 +1154,9 @@ export class Cockpit {
    * from the cockpit's top left corner), above the floats; the player's
    * lens (src/player/desk-lens.ts) clips it to the circle, shifts it by
    * the part of a cell that is left and dresses it. Nothing is written to
-   * the layout. Not on a phone (it has `setPhoneLens`).
+   * the layout. While the map pane is off the box is kept but nothing is
+   * placed, so turning it on lays it out in the lens at once. Not on a
+   * phone (it has `setPhoneLens`).
    */
   setDeskLens(box: PhoneLensSpot | null): void {
     if (this.phone) return;
