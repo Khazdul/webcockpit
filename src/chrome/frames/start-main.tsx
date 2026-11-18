@@ -43,7 +43,8 @@
 // "99+ new") is src/cloud/community/counter.ts's, asked with the sync's
 // cadence while the menu is the top frame (`useCommunityRow`). The address
 // `<base>?community` (the watch page's Back for a run opened from the
-// Community page) opens the page on its kept view after the first render.
+// Community page) opens the page on its kept view, the menu hidden until
+// it is there (start-arrival.ts); `?account` the Account page likewise.
 //
 // Scripts needs the script library, which the shell always has; only
 // tests mount the page without it, and then the row is not there. Options
@@ -72,6 +73,7 @@ import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, commun
 import { communityNews, onCommunityNews, watchCommunityNews } from '../../cloud/community/news';
 import { communityAllowed } from '../../cloud/community/allowed';
 import { takeStartRow } from './start-request';
+import { arriving, endArrival } from '../start-arrival';
 
 export interface StartMainProps {
   onEnter: () => void;
@@ -170,6 +172,8 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   }, [isTop]);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
+    // The menu waits hidden for the page asked for (start-arrival.ts): no key acts on it unseen.
+    if (arriving()) return true;
     if (kit(e)) return true;
     const l = letterOf(e);
     // A waiting owner row comes in on the menu's next key (useAccountRow); U opens it at once.
@@ -491,6 +495,7 @@ function useAccountPages(nav: ReturnType<typeof useNav>): (opens: OwnerView['ope
       .catch(() => nav.flash('The account pages could not be loaded. Check the connection and try again.', 'fail'))
       .finally(() => {
         loading.current = false;
+        endArrival();
       });
   };
 }
@@ -582,6 +587,7 @@ function useCommunityPage(nav: ReturnType<typeof useNav>): (restore: boolean) =>
       .catch(() => nav.flash('The Community could not be loaded. Check the connection and try again.', 'fail'))
       .finally(() => {
         loading.current = false;
+        endArrival();
       });
   };
 }
@@ -611,11 +617,15 @@ function takeStartQuery(name: string): string | null {
 
 // `<base>?community` (the watch page's Back for a run opened from the
 // Community page, src/watch/href.ts `backHref`): the page opens over the
-// menu once the flags are known, on its kept view.
+// menu on its kept view. The start page arrives on it (start-arrival.ts,
+// ADR 0155 addendum 2026-11-18): the menu waits hidden, and the flags and
+// the page's chunk are asked at once and side by side, not on idle time
+// (the viewer asked for the page). Not allowed: the menu shows.
 function useCommunityAddress(open: (restore: boolean) => void): void {
   useEffect(() => {
     if (takeStartQuery('community') === null) return;
-    whenIdle(() => void communityAllowed('read').then((on) => on && open(true)));
+    preloadAccountChunk();
+    void communityAllowed('read').then((on) => (on ? open(true) : endArrival()));
   }, []);
 }
 
@@ -623,19 +633,23 @@ function useCommunityAddress(open: (restore: boolean) => void): void {
 // for a run opened from the Account page or its Published runs view,
 // src/watch/href.ts `backHref`, ADR 0155 W1): that page opens over the
 // menu once the account's state is known, logged in only (else the menu
-// stays).
+// shows). The start page arrives on it as on the Community page.
 function useAccountAddress(openAccount: (opens: OwnerView['opens']) => void): void {
   useEffect(() => {
     const value = takeStartQuery('account');
     if (value === null) return;
     const view = value === 'published' ? 'published' : 'account';
-    whenIdle(
-      () =>
-        void watchAccountState().then((st) => {
-          if (st.enabled === true && accountState().name !== null) openAccount(view);
-        }),
+    preloadAccountChunk();
+    void watchAccountState().then(
+      (st) => (st.enabled === true && accountState().name !== null ? openAccount(view) : endArrival()),
+      () => endArrival(),
     );
   }, []);
+}
+
+/** Starts the account pages' chunk (./account: the Community page too) now; its opener takes it from the module cache. */
+function preloadAccountChunk(): void {
+  import('./account').catch(() => {});
 }
 
 // Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit
