@@ -64,7 +64,8 @@
 // told through `replay.onState`.
 // A shared run (stage 71, ADR 0160) adds the lens's fullscreen key
 // (`replay.fullscreen`: the player's own) and drops its Comm key
-// (`replay.comm` false).
+// (`replay.comm` false), and on a phone the lens half as large again
+// (`replay.lensScale`, stage 73).
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
@@ -78,7 +79,7 @@ import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
 import { LensView } from './lens';
-import { type LensLevel, LENS_MIN_PX, LENS_RING_PX, lensFullPx, lensLevel, lensReplayPx, lensZoom } from './lens-zoom';
+import { type LensLevel, LENS_MIN_PX, LENS_RING_PX, lensFullPx, lensLevel, lensReplayScaledPx, lensZoom } from './lens-zoom';
 import { type LensRoom, type LensSpot, fitLens, lensIsSet, lensMax, lensRoom, lensWant, moveLens, resizeLens } from './lens-place';
 import type { MapPane } from '../panes/map';
 import type { CommPane } from '../panes/comm';
@@ -228,6 +229,8 @@ export interface PhoneReplay {
   fullscreen?: (() => void) | undefined;
   /** False: no Comm key on the lens (a shared run has no Comm). Absent: the key, as in the game. */
   comm?: boolean | undefined;
+  /** A shared run on a phone (stage 73): the lens's default size this many times the run log player's, within the screen (`lensReplayScaledPx`). Absent: 1. */
+  lensScale?: number | undefined;
 }
 
 /** The layer over a replay: the base and `replay`, and nothing of a live session. */
@@ -1487,7 +1490,7 @@ class Layer {
     const { cockpit } = this.deps;
     const W = cockpit.el.clientWidth;
     const H = cockpit.el.clientHeight;
-    return lensReplayPx(W, H, cockpit.phoneGameLayout?.landscape ?? W > H);
+    return lensReplayScaledPx(W, H, cockpit.phoneGameLayout?.landscape ?? W > H, this.replay?.lensScale ?? 1);
   }
 
   /**

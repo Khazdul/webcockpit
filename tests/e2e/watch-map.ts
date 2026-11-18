@@ -29,11 +29,6 @@ export async function mapSent(page: Page): Promise<Sent[]> {
   return frame.evaluate(() => (window as unknown as { __mapSent: Sent[] }).__mapSent.slice());
 }
 
-/** Sum of the relative zoom steps sent (positive: in). */
-export async function zoomSteps(page: Page): Promise<number> {
-  return (await mapSent(page)).filter((m) => m.t === 'zoom').reduce((a, m) => a + m.steps!, 0);
-}
-
 /** The map lens's canvas (a shared run's map is the lens from the start, stage 71), once its map runs. */
 export async function lensMap(page: Page): Promise<Locator> {
   const r = replay(page);

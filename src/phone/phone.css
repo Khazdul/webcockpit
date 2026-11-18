@@ -399,6 +399,17 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane-map {
   background: #000;
 }
 
+/* And its canvas masked to the same circle, as the desktop lens's (stage 73,
+ * ADR 0160 addendum part A): Firefox's GPU WebRender may promote a busy WebGL
+ * canvas to a compositor surface that drops the pane's circular clip
+ * (Mozilla bug 2068303); a mask on the canvas itself keeps the circle. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane-map .wc-map-canvas {
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 calc(var(--ph-lens-size, 150px) / 2 - 0.5px), transparent calc(var(--ph-lens-size, 150px) / 2));
+  mask-image: radial-gradient(circle at 50% 50%, #000 calc(var(--ph-lens-size, 150px) / 2 - 0.5px), transparent calc(var(--ph-lens-size, 150px) / 2));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
 /* The dressing over it (src/phone/lens.ts; JS sets left, top and the
  * size): all static paint, no filter. */
 /* The square box takes no taps: only the round glass and the keys do, so the

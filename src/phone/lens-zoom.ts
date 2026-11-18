@@ -73,6 +73,26 @@ export function lensReplayPx(w: number, h: number, landscape: boolean): number {
   return Math.min(LENS_FULL_MAX_PX, Math.max(LENS_MIN_PX, Math.floor(side + 1e-6) - 2 * LENS_RING_PX));
 }
 
+/** A shared run on a phone, scaled (`PhoneReplay.lensScale`): the most of the player's width (upright) and height (on its side) the lens takes, ring and all, and its largest diameter. */
+export const LENS_SCALED_SHARE_PORTRAIT = 0.5;
+export const LENS_SCALED_SHARE_LANDSCAPE = 0.66;
+export const LENS_SCALED_MAX_PX = 285;
+
+/**
+ * The lens's full diameter over a replay at `scale` times `lensReplayPx`
+ * (a shared run on a phone, stage 73: 1.5), kept within the screen: its
+ * outer measure at most half the width upright and two thirds of the
+ * height on its side, and never over `LENS_SCALED_MAX_PX`; never smaller
+ * than `lensReplayPx`. A scale of 1 (or none usable) is `lensReplayPx`.
+ */
+export function lensReplayScaledPx(w: number, h: number, landscape: boolean, scale: number): number {
+  const base = lensReplayPx(w, h, landscape);
+  if (!(scale > 1) || !Number.isFinite(scale)) return base;
+  const side = landscape ? h * LENS_SCALED_SHARE_LANDSCAPE : w * LENS_SCALED_SHARE_PORTRAIT;
+  const cap = Number.isFinite(side) && side > 0 ? Math.floor(side + 1e-6) - 2 * LENS_RING_PX : base;
+  return Math.max(base, Math.min(LENS_SCALED_MAX_PX, cap, Math.floor(base * scale + 1e-6)));
+}
+
 /** The worker's zoom that shows `LENS_ROOMS[level]` rooms across a lens `px` wide. */
 export function lensZoom(level: LensLevel, px: number): number {
   return px / (LENS_ROOMS[level] * PX_PER_ROOM);

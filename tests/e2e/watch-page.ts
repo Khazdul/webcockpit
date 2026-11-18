@@ -65,6 +65,19 @@ export async function playing(page: Page): Promise<void> {
   await expect(replay(page).locator('.wc-player')).toBeVisible({ timeout: 20_000 });
 }
 
+/**
+ * The run's poster (stage 73, ADR 0162) in the frame: every shared run
+ * opens under it, paused at the start. A click on it starts the run.
+ */
+export const poster = (page: Page): Locator => replay(page).locator('.wc-poster');
+
+/** Clicks the poster away (the run starts) and waits until it has gone. */
+export async function startRun(page: Page): Promise<void> {
+  await expect(poster(page)).toBeVisible({ timeout: 20_000 });
+  await poster(page).click();
+  await expect(poster(page)).toHaveCount(0);
+}
+
 /** The replay in the frame is paused (`data-playing` of its Play key, src/player/view.ts). */
 export async function pausedInFrame(page: Page): Promise<void> {
   await expect(replay(page).locator('.wc-pc-play')).toHaveAttribute('data-playing', 'false', { timeout: 20_000 });

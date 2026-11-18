@@ -138,3 +138,112 @@ The corner keys sit on the lens's diagonals, centred on the ring's outer
 edge (`--dl-key-at` in desk-lens.css), 44 px. Group and Timers share one
 height and keep a row of air between them and under the lens while the
 rows allow; the air goes before either float drops below 5 rows.
+
+## Addendum (stage 73 part A, 2026-11-18): the desktop lens, round 2
+
+The owner's direction (docs/stages/73-shared-replay-round-2.md, points 1–6).
+
+- **The bug: the map outside the lens.** The owner's screenshot (Firefox,
+  `docs/stages/img/73-owner-map-outside-lens.png`) shows the map in the
+  whole cells round the ring: the pane's rectangle without its circle.
+  The JS state was right in every case we could make (resizes, a backward
+  seek, moves and resizes of the lens: `clip-path`, `--dl-size`, the shift
+  and the cells agree, and a red fill over the pane shows nothing outside
+  the circle in headless Chromium and Firefox). The cause is the
+  compositor: a large WebGL canvas that presents frame after frame (the
+  map following the player while the run plays) may be promoted by
+  Firefox's GPU WebRender to a compositor surface of its own, which keeps
+  only the rectangle of an ancestor's rounded clip (Mozilla bug 2068303,
+  open; reported on macOS, the same carve-out serves the layer compositor
+  elsewhere). Hence "sometimes": only while the canvas is promoted. The
+  fix, the workaround that bug names: the canvas itself is masked to the
+  circle (`mask-image: radial-gradient(...)` in desk-lens.css), which makes
+  WebRender refuse the promotion; the pane's `clip-path` stays (hit
+  testing, the rest of the pane). As hygiene, the lens now shifts and
+  clips the map only for the box the cockpit laid the pane's cells out for
+  (`Cockpit.deskLensLaid`), never for one given since: before, a box given
+  inside a layout's listener was drawn with the previous layout's cells
+  until the next frame (longer while a seek holds the paint gate).
+  Headless browsers have no GPU compositor, so no e2e can make the
+  promotion happen: `watch-lens.spec.ts` checks that the canvas carries
+  the mask and that nothing of the pane paints outside the circle through
+  resizes, a backward seek, a move and a resize. The phone lens
+  (src/phone, `--ph-lens-size`) uses the same clip-path alone; a phone has
+  not shown it, but Firefox on Android could. Left to the phone's owner
+  (stage 73 part B) or a follow-up.
+- **No keys on the lens.** Group, Timers, fullscreen, the move handle and
+  the follow key go. **Map, Group and Timers are the control box's Panes
+  popup's again** (`viewerSettings: true` on a computer; a phone keeps
+  `'display'`). Map turns the lens on and off (`DeskLensDeps.mapOn`, the
+  composed settings' `panes.map.on`): off, the cockpit gets no lens box
+  and the map pane is off as any pane. The host composes `map.on = true`
+  under the viewer's overrides in a shared run on a computer, so the map
+  is on at the start and Reset layout keeps it on; Group and Timers are
+  off at the start (the shared payload's panes) and float at the bottom
+  right as before.
+- **A drag anywhere on the lens moves it.** The glass (`.wc-dl-glass`, a
+  circle over the map, `cursor: grab`) takes the mouse; the map never does
+  (its lens look is the phone's, without `hand`). The rim's band lies
+  above the glass in the DOM, so it wins where the two meet.
+- **Without a pan the map always follows the player.** The hand lens of
+  `MapPane` (pan, wheel zoom, `following`, the double click) is removed.
+  The worker's `follow` message stays: harmless, always on, unit-tested.
+- **Four zoom levels** (`DESK_LENS_ROOMS` 8, 14, 24 and 44 rooms across
+  the lens; the nearest, stage 71's opening zoom, is the default). The
+  zoom follows the diameter, as on the phone: a resize shows the same
+  rooms larger or smaller. Four dots at the bottom centre of the glass in
+  the phone's pip look (copied into desk-lens.css; 7 px dots in 16 px
+  buttons) pick a level; the lit one is the level. **The wheel over the
+  lens steps one level** per 60 px gathered (a mouse notch is 100; a
+  touchpad's small deltas, Ctrl or not, gather) and then rests 220 ms, so
+  a touchpad's coasting does not run through all four; up is nearer, as
+  the map pane's wheel; clamped, no wrap. The host keeps the level across
+  App rebuilds with the place and size (it no longer starts over after a
+  backward seek).
+- **The default place is a row lower**: two rows down from the top
+  (`deskLensDefault`).
+## Addendum (stage 73 part B, 2026-11-18): phone and tablet
+
+- **The box floats** (owner's point 7). A shared run on a phone or tablet
+  has no docked bar: the cockpit keeps no command row
+  (`phoneReplay.bar` false) and the control box is the desktop's, at the
+  bottom right left of the rail's markers, over the log
+  (`PlayerViewOptions.touchFloat`). It hides as on a computer: 6 s after the
+  last activity in play, not in pause; a tap on the log shows it (the
+  tap's click presses nothing that appeared under it, as before), and a
+  tap on the lens's keys reaches the lens while it is hidden. The header
+  keeps the docked one's rule (no key hints, from the game text's left
+  edge, ending left of the lens's corner key: the host's `TouchHead`).
+  Keys are touch-sized (`data-touch`: 36 px, Play 40 px); compact (a phone
+  upright) the box drops To the start and the stepper arrows and the speed
+  is one key that steps round, so it leaves the left part of the width to
+  the log (238 of 376 px on a Pixel 7). History's run log player keeps
+  its docked bar.
+- **No fight card** (point 8): `sharedPhoneSettings` sets
+  `phone.fightCard` off.
+- **The lens half as large again on a phone** (point 10):
+  `PhoneReplay.lensScale` 1.5 (`SHARED_PHONE_LENS_SCALE`, not on a tablet:
+  `PlayerPhone.tablet` from `device().tablet`), through
+  `lensReplayScaledPx`: at most half the player's width upright and two
+  thirds of its height on its side (ring included), at most 285 px, never
+  under the run log player's size. A tablet is already at the lens's
+  largest (190 px) and keeps it.
+- **The iPad turn in fullscreen** (point 9). Not reproducible without a
+  device. The docked bar was placed in absolute px (`top`, `height`) from
+  the cockpit's command-row rectangle and the root's `clientHeight`, taken
+  at the cockpit's layout; iPadOS reports a turn's new size in steps and
+  late in fullscreen (the layout viewport and the visual viewport disagree
+  for a while), so a rectangle measured on one step and a window shown on
+  the next puts part of the bar under the bottom edge. Android delivers
+  the sizes together, which fits it not being seen there. The fix does
+  not depend on that order: the floating box is anchored by CSS `bottom`
+  to the root (no measured rectangle), and is lifted and moved in by what
+  the root reaches past the visible part of the window (`boxLift` against
+  `visibleBox`: the visual viewport, within the layout viewport). It is
+  measured again on the window's `resize` and `orientationchange`, the
+  visual viewport's `resize` and `scroll`, and `fullscreenchange`
+  (prefixed too), and once more 150 ms and 500 ms later. Tested in
+  Chromium by turning a tablet's metrics while the frame is in fullscreen,
+  and by laying the frame's root out 60 px taller than its window (the
+  box stays inside; without the lift it does not). WebKit is not
+  installed here, so not run on WebKit.

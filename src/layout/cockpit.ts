@@ -579,6 +579,8 @@ export class Cockpit {
   private deskLens: PhoneLensSpot | null = null;
   /** Desktop: the map pane's cells as the lens's, at the last layout (null: no lens laid out). */
   private deskLensRect: Rect | null = null;
+  /** The lens's box that `deskLensRect` was laid out for (it may differ from `deskLens` until the next layout). */
+  private deskLensLaidBox: PhoneLensSpot | null = null;
   /** Phone game layout: the place of a lens the user moved or resized (`setPhoneLensFit`); null: no one to ask. */
   private pgLensFit: PhoneLensFit | null = null;
   /** Phone game layout: the pane the strip shows (`setPhoneStrip`); null: the strip is closed. */
@@ -1031,7 +1033,11 @@ export class Cockpit {
     placeEl(this.gameEl, r.game, cell);
     placeEl(this.inputEl, r.input, cell);
     const boxes = new Map(r.panes.map((p) => [p.id, p]));
-    this.deskLensRect = lens && !r.tooSmall ? lensCells(lens, cell, r.cols, r.rows) : null;
+    // The box stays while the map is off (stage 73 review fix): turned on again, the map
+    // goes straight into the lens, never through a docked or floating layout.
+    const lensMapOn = lens !== null && paneSettingsOf(s.panes, 'map').on;
+    this.deskLensRect = lens && lensMapOn && !r.tooSmall ? lensCells(lens, cell, r.cols, r.rows) : null;
+    this.deskLensLaidBox = this.deskLensRect && lens;
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
       const b = boxes.get(id);
@@ -1148,7 +1154,9 @@ export class Cockpit {
    * from the cockpit's top left corner), above the floats; the player's
    * lens (src/player/desk-lens.ts) clips it to the circle, shifts it by
    * the part of a cell that is left and dresses it. Nothing is written to
-   * the layout. Not on a phone (it has `setPhoneLens`).
+   * the layout. While the map pane is off the box is kept but nothing is
+   * placed, so turning it on lays it out in the lens at once. Not on a
+   * phone (it has `setPhoneLens`).
    */
   setDeskLens(box: PhoneLensSpot | null): void {
     if (this.phone) return;
@@ -1161,6 +1169,16 @@ export class Cockpit {
   /** Desktop: the map pane's cells as the lens's at the last layout; null: no lens laid out. */
   get deskLensCells(): Readonly<Rect> | null {
     return this.deskLensRect;
+  }
+
+  /**
+   * Desktop: the lens's box (px) the map pane's cells were laid out for at
+   * the last layout (`deskLensCells`); null: none. A box given since by
+   * `setDeskLens` waits for the next layout: the lens shifts and clips the
+   * map for this one (stage 73, ADR 0160 addendum).
+   */
+  get deskLensLaid(): Readonly<PhoneLensSpot> | null {
+    return this.deskLensLaidBox;
   }
 
   /**

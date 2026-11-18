@@ -42,6 +42,7 @@ import { applyWordmarkLight, markBox, paintWordmark, wordmarkLight } from '../st
 import geometryCss from '../start/geometry.css?inline';
 import { FONTS, preloadFont, preloadStartFaces } from '../theme/fonts';
 import { MIRROR_KEY, firstAppearance, panelTop } from './first-paint-data';
+import { arrivalOf } from '../chrome/start-arrival';
 
 /** The loading panel shows only after this long, so a fast (cached) start never flashes it. */
 const LOADER_SHOW_MS = 150;
@@ -93,6 +94,9 @@ function start(win: Window): void {
   // The watch page (`<base>r/<id>`, stage 64, ADR 0154) has no start page either: the line alone.
   const watch = /\/r\/[^/]*\/?$/.test(win.location.pathname);
   const offline = params.has('replay') || params.has('bench') || params.has('fixture') || watch;
+  // The start page arriving on a page (`?community`, `?account`: the watch page's Back; src/chrome/start-arrival.ts):
+  // the sky and the line alone, centred; no wordmark and no menu panel, which the page does not show.
+  const arrival = !offline && arrivalOf(win.location.search) !== null;
   const a = firstAppearance(params.has('safe') ? null : readMirror(), flags.phone || flags.desktopSite);
 
   // The page colours (src/theme/apply.ts sets the same and the rest).
@@ -175,13 +179,15 @@ function start(win: Window): void {
       brand.setAttribute('aria-hidden', 'true');
       const mark = el(doc, 'div', 'wc-wordmark-host');
       brand.append(mark);
-      loader.classList.add('wcf-panel');
-      box.replaceChildren(sky, brand, loader);
+      if (!arrival) loader.classList.add('wcf-panel');
+      box.replaceChildren(...(arrival ? [sky, loader] : [sky, brand, loader]));
       const look = startSkyLook({ w: sky.clientWidth, h: sky.clientHeight });
       sky.style.background = skyCss(look).all;
-      paintWordmark(mark, look, 'full');
-      // The menu panel's top, as the start menu lays it out (src/chrome/start.css .wc-sm-stage).
-      loader.style.top = panelTop(getComputedStyle(brand).display !== 'none' ? brand.offsetHeight : null);
+      if (!arrival) {
+        paintWordmark(mark, look, 'full');
+        // The menu panel's top, as the start menu lays it out (src/chrome/start.css .wc-sm-stage).
+        loader.style.top = panelTop(getComputedStyle(brand).display !== 'none' ? brand.offsetHeight : null);
+      }
       timer ??= setInterval(refresh, REFRESH_MS);
     }
     drawLine();

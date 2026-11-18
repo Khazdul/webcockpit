@@ -9,7 +9,8 @@
 //                     fonts: [{family, weight, range?, data: ArrayBuffer}], prefs?}
 //                    prefs: {paused?: boolean}: `paused: true` opens the
 //                    replay paused at its start (the watch page's, ADR 0155
-//                    W1); anything else plays at once, as before
+//                    W1); since stage 73 the poster (ADR 0162) holds every
+//                    run paused at its start, so it is no longer read
 //   frame → parent   {t: 'wc-error', v: 1, text}       when it cannot play
 //   frame → parent   {t: 'wc-fullscreen', v: 1, on}    fill the window (below)
 //   parent → frame   {t: 'wc-fs-state', v: 1, on}      the frame fills it, or not
@@ -177,10 +178,9 @@ export function startFrame(o: FrameOptions): () => void {
       try {
         if (!(payload instanceof ArrayBuffer)) throw new PayloadReadError('This replay could not be read (no data).');
         const [p, , phone] = await Promise.all([readSharedPayload(payload), registerFonts(doc, fonts), replayPhone(win)]);
-        const paused = framePaused(d.prefs);
-        const page = openReplay(doc, root, p, { fullscreen: fs, autoplay: !paused, ...(phone ? { phone } : {}) });
-        // Paused: what the run shows at its start is drawn (a seek delivers it; play would).
-        if (paused) page.host.engine?.seek(0);
+        // Every shared run opens under its poster, paused at the start (stage 73, ADR 0162),
+        // whatever `prefs.paused` says.
+        const page = openReplay(doc, root, p, { fullscreen: fs, poster: true, ...(phone ? { phone } : {}) });
         o.onPlay?.(page);
       } catch (err) {
         const text = err instanceof PayloadReadError ? err.text : 'This replay could not be played.';

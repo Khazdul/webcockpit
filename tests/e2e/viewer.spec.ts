@@ -60,27 +60,32 @@ const pane = (page: Page, id: string) => player(page).locator(`.wc-pane[data-pan
 
 /**
  * The settings round every mode runs: toggles, themes, font. `shared`: a
- * shared run's replay (stage 65): only Map, Timers and Group, all off at
- * the start; Timers is turned on first.
+ * shared run's replay (stage 65): only Map, Timers and Group; the map is
+ * the lens, on at the start (stage 73); Timers is turned on first.
  */
 async function settingsRound(page: Page, shared = false): Promise<void> {
   await expect(panesPop(page)).toBeHidden();
   if (shared) {
-    // A shared run (stage 71, ADR 0160): no Panes popup; the map is the lens, and Timers is
-    // the lens's bottom right key, off at the start.
-    await expect(box(page).locator('[data-act="panes"]')).toHaveCount(0);
-    const key = player(page).locator('.wc-dl-key[data-key="timers"]');
+    // A shared run (stage 71, ADR 0160; stage 73): the map is the lens, on at the start; the
+    // Panes popup has Timers, Group and Map (Map on), and Timers is turned on first.
     await expect(player(page).locator('.wc-pane:visible')).toHaveCount(1);
     await expect(player(page).locator('.wc-pane[data-pane="map"][data-desk-lens]')).toBeVisible();
-    await key.click();
-    await expect(key).toHaveAttribute('aria-pressed', 'true');
+    await box(page).locator('[data-act="panes"]').click();
+    await expect(panesPop(page)).toBeVisible();
+    expect(await panesPop(page).locator('[data-pane]').evaluateAll((bs) => bs.map((b) => `${(b as HTMLElement).dataset.pane}:${b.getAttribute('aria-checked')}`))).toEqual([
+      'timers:false',
+      'group:false',
+      'map:true',
+    ]);
+    const timers = panesPop(page).locator('[data-pane="timers"]');
+    await timers.click();
+    await expect(timers).toHaveAttribute('aria-checked', 'true');
     // The pane turned on shows; nothing else does.
     await expect(player(page).locator('.wc-pane:visible')).toHaveCount(2);
     await expect(pane(page, 'timers')).toBeVisible();
-    await key.click();
+    await timers.click();
     await expect(pane(page, 'timers')).toBeHidden();
-    await expect(key).toHaveAttribute('aria-pressed', 'false');
-    await key.click();
+    await timers.click();
     await expect(pane(page, 'timers')).toBeVisible();
   } else {
     await box(page).locator('[data-act="panes"]').click();
@@ -220,7 +225,7 @@ test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Re
   expect(errors).toEqual([]);
 });
 
-test('the HTML replay has the map lens, Timers on its key, and Display with the same settings (file://, no storage)', async ({ page, browser }, info) => {
+test('the HTML replay has the map lens, Panes (Timers, Group, Map) and Display with the same settings (file://, no storage)', async ({ page, browser }, info) => {
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   const html = await page.evaluate(async () => {
@@ -252,6 +257,9 @@ test('the HTML replay has the map lens, Timers on its key, and Display with the 
   p.on('pageerror', (e) => errors.push(e.message));
   await p.goto(`file://${path}`);
   await p.waitForFunction(() => (window as unknown as { __wcReplay?: unknown }).__wcReplay != null);
+  // The poster (stage 73, ADR 0162) holds the run; a click plays it.
+  await p.locator('.wc-poster').click();
+  await expect(p.locator('.wc-poster')).toHaveCount(0);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await p.keyboard.press(' ');
   await expect(chrome(p).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');

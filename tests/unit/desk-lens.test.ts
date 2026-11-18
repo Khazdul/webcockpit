@@ -1,5 +1,6 @@
 // The desktop lens of a shared run (src/player/desk-lens.ts, ADR 0160): its
-// default place, the clamp into the player, the rim's cursor, and where
+// default place, the clamp into the player, the rim's cursor, the zoom
+// levels (stage 73), and where
 // Group and Timers float; and the phone layer's settings of a shared run
 // (src/app/player-host.ts `sharedPhoneSettings`).
 import { describe, expect, it } from 'vitest';
@@ -9,7 +10,11 @@ import {
   DESK_LENS_DEFAULT_MAX,
   DESK_LENS_DEFAULT_MIN,
   DESK_LENS_MIN,
+  DESK_LENS_ROOMS,
+  DESK_LEVEL_DEFAULT,
   deskLensBox,
+  deskLensZoom,
+  deskLevelStep,
   deskLensDefault,
   deskLensMax,
   deskLensSpotOf,
@@ -22,20 +27,22 @@ import { defaultSettings } from '../../src/settings';
 import { dockPanes } from '../../src/layout/types';
 
 describe('desk lens: place and size', () => {
-  it('opens at the top right, under the header row, a third of the short side within its limits', () => {
+  it('opens at the top right, two rows down, a third of the short side within its limits', () => {
     const d = deskLensDefault(1376, 850, 17);
     expect(d.size).toBe(Math.round(850 * 0.32));
     expect(d.right).toBe(DESK_CLEAR_RIGHT + DESK_KEY_OVER);
-    expect(d.top).toBeGreaterThan(17);
+    // A row lower than stage 71's (the header's row and one more, stage 73).
+    expect(d.top).toBe(2 * 17 + DESK_KEY_OVER + 6);
+    expect(deskLensDefault(1376, 850, 17.4).top).toBe(2 * 18 + DESK_KEY_OVER + 6);
     expect(deskLensDefault(400, 300, 17).size).toBe(DESK_LENS_DEFAULT_MIN);
     expect(deskLensDefault(3000, 2000, 17).size).toBe(DESK_LENS_DEFAULT_MAX);
   });
 
-  it('keeps the box and its keys inside the cockpit, and the size within its limits', () => {
+  it('keeps the box and its ring inside the cockpit, and the size within its limits', () => {
     const W = 1000;
     const H = 700;
     expect(deskLensBox({ right: 34, top: 30, size: 260 }, W, H)).toEqual({ left: W - 34 - 260, top: 30, size: 260 });
-    // Dragged past the left and the bottom edges: back inside, with the keys' overhang.
+    // Dragged past the left and the bottom edges: back inside, with the ring's overhang.
     expect(deskLensBox({ right: 5000, top: 5000, size: 260 }, W, H)).toEqual({ left: DESK_KEY_OVER, top: H - 260 - DESK_KEY_OVER, size: 260 });
     // Past the right and the top edges.
     expect(deskLensBox({ right: -400, top: -50, size: 260 }, W, H)).toEqual({ left: W - 260 - DESK_KEY_OVER, top: DESK_KEY_OVER, size: 260 });
@@ -47,6 +54,25 @@ describe('desk lens: place and size', () => {
   it('turns a box back into its spot', () => {
     const box = deskLensBox({ right: 40, top: 60, size: 300 }, 1200, 800);
     expect(deskLensBox(deskLensSpotOf(box, 1200), 1200, 800)).toEqual(box);
+  });
+
+  it('has four zoom levels, nearest first, opening at the nearest; the zoom follows the diameter', () => {
+    expect(DESK_LENS_ROOMS).toHaveLength(4);
+    expect([...DESK_LENS_ROOMS].sort((a, b) => a - b)).toEqual([...DESK_LENS_ROOMS]);
+    expect(DESK_LEVEL_DEFAULT).toBe(0);
+    expect(deskLensZoom(0, 352)).toBeCloseTo(352 / (8 * 44), 9);
+    // Twice the diameter, twice the zoom: the same rooms across.
+    expect(deskLensZoom(2, 560)).toBeCloseTo(2 * deskLensZoom(2, 280), 9);
+    // Inside the map worker's limits (0.04 to 5) at every size the lens can have.
+    expect(deskLensZoom(3, DESK_LENS_MIN)).toBeGreaterThan(0.04);
+    expect(deskLensZoom(0, 640)).toBeLessThan(5);
+  });
+
+  it('steps a level nearer or further, clamped', () => {
+    expect(deskLevelStep(0, 1)).toBe(1);
+    expect(deskLevelStep(2, -1)).toBe(1);
+    expect(deskLevelStep(0, -1)).toBe(0);
+    expect(deskLevelStep(3, 1)).toBe(3);
   });
 
   it('shows the resize cursor along the radius', () => {

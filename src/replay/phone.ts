@@ -22,5 +22,5 @@ export async function replayPhone(win: Window): Promise<PlayerPhone | undefined>
   initDevice(win);
   if (!device().phone) return undefined;
   const [phone, kit] = await Promise.all([import('../phone'), import('../app/phone-kit')]);
-  return { mount: (deps) => phone.mountPhoneLayer(deps), kit: kit.PHONE_KIT };
+  return { mount: (deps) => phone.mountPhoneLayer(deps), kit: kit.PHONE_KIT, tablet: device().tablet };
 }

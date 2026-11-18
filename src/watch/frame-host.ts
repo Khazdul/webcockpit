@@ -15,7 +15,9 @@
 // `validatePayload`, src/replay/codec.ts `readSharedPayload`): the page
 // needs its fonts (fetched from the page's own origin as the exporter
 // fetches them, only families of `FONTS`). A payload the page refuses
-// never reaches the frame.
+// never reaches the frame. Its map is drawn in Desert's tiles, a shared
+// run's (ADR 0154 addendum 2026-11-18): the page gives the payload
+// Desert's tiles from its own origin before it is posted.
 //
 // Messages are taken only from the frame's own window with the origin
 // `'null'` (an opaque origin): `wc-ready` once (answered with one
@@ -36,7 +38,11 @@
 // its ancestors activation too) when turning it on, and answers with
 // `{t: 'wc-fs-state', on}`. That is all a frame's message can do.
 
-import { PayloadReadError, readSharedPayload } from '../replay/shared';
+import { PAYLOAD_JSON_MAX, PayloadReadError, readSharedPayload } from '../replay/shared';
+import { pipe } from '../replay/codec';
+import { validatePayload } from '../replay/validate';
+import type { ReplayPayload } from '../share/payload';
+import { withSharedTiles } from '../share/shared-tiles';
 import { fetchReplayFonts } from '../replay/export';
 
 /** The frame document's path under the site's base (scripts/frame-html.ts `FRAME_PATH`). */
@@ -75,6 +81,28 @@ export function siteBaseUrl(doc: Document = document): string {
 }
 
 /**
+ * The wire form of `retiled` (the payload in Desert's tiles), or of the
+ * `original` bytes when the frame would refuse it: its JSON over `max`
+ * (`PAYLOAD_JSON_MAX`) or failing `validatePayload` (the frame's checks,
+ * the map files' among them). The page accepted the original, so a run it
+ * shows never fails in the frame for the retile alone (stage 73 review fix).
+ */
+export async function retiledWire(retiled: ReplayPayload, original: Uint8Array, max = PAYLOAD_JSON_MAX): Promise<ArrayBuffer> {
+  const keep = (why: string): ArrayBuffer => {
+    console.warn(`WebCockpit: the shared run plays with its own tiles (${why})`);
+    return original.slice().buffer;
+  };
+  const json = new TextEncoder().encode(JSON.stringify(retiled));
+  if (json.byteLength > max) return keep('too large in Desert');
+  try {
+    validatePayload(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(json)));
+  } catch {
+    return keep('not valid in Desert');
+  }
+  return (await pipe(json, new CompressionStream('gzip'))).slice().buffer;
+}
+
+/**
  * Reads the payload (a `PayloadReadError` when the page refuses it),
  * fetches its fonts, and opens the frame in `o.container`.
  */
@@ -90,6 +118,17 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     (list) => list.map((x) => ({ family: x.family, weight: x.weight, ...(x.unicodeRange ? { range: x.unicodeRange } : {}), data: x.data.slice().buffer })),
     // Without its fonts the replay still plays, in the browser's monospace.
     () => [],
+  );
+  // A shared run's map in Desert's tiles (owner, 2026-11-18; src/share/shared-tiles.ts):
+  // a link stores the default tiles, so every payload is retiled here, on
+  // the page, which may fetch them; the frame validates the result as any
+  // payload. Without them (a fetch failed) it plays with the tiles it has.
+  const wire: Promise<ArrayBuffer> = withSharedTiles(payload, { assetBase: url('map/'), fetch: f }).then(
+    (p) => (p === payload ? src.slice().buffer : retiledWire(p, src)),
+    (err: unknown) => {
+      console.warn(`WebCockpit: the shared run plays with its own tiles (${err instanceof Error ? err.message : String(err)})`);
+      return src.slice().buffer;
+    },
   );
 
   const frame = doc.createElement('iframe');
@@ -113,10 +152,9 @@ export async function openFrame(o: FrameHostOptions): Promise<FrameHost> {
     if (typeof d !== 'object' || d === null || d.v !== FRAME_PROTOCOL) return;
     if (d.t === 'wc-ready' && !played) {
       played = true;
-      void fonts.then((list) => {
+      void Promise.all([fonts, wire]).then(([list, bytes]) => {
         const target = frame.contentWindow;
         if (!target) return;
-        const bytes = src.slice().buffer;
         const prefs = { paused: o.paused !== false };
         target.postMessage({ t: 'wc-play', v: FRAME_PROTOCOL, payload: bytes, fonts: list, prefs }, '*', [bytes, ...list.map((x) => x.data)]);
         o.onPlay?.();
