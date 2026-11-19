@@ -1,25 +1,30 @@
-// The device prototype of film 2 (video/manuscript-2.md act 6, stage 70;
-// owner round 1): one live session that goes on from a desktop to a
-// tablet to a phone, one device live at a time, about 55 s.
+// The device act of film 2 (video/manuscript-2.md act 4, stage 70; owner
+// rounds 1 and 2): one live session that goes on from a desktop to a
+// tablet to a phone and back to the desktop, one device live at a time.
 //
 // Three takes of the same game timeline (record/scenes/devices.ts), one per
 // device, are placed in one "world": a generic monitor, a tablet in
 // landscape and a phone side by side. Each take is aligned by its `sync`
-// marker, which is the film's 0 (the schedule: src/devices.ts). Only the
+// marker, which is the act's 0 (the schedule: src/devices.ts). Only the
 // live device plays: a device that is left freezes on the moment it was
 // left and its screen goes dark (asleep); the next one wakes on that same
 // moment and plays on. A camera moves over the world:
 //
 //   0-3.4     the desktop's screen fills the frame (the wolf fight)
 //   3.4-5.0   it pulls back to all three; the desktop is left at 5.6 and the
-//             tablet wakes, in the wide view (the tablet is never zoomed)
-//   14.2      the tablet is left and the phone wakes; the camera goes in
-//             and the sleeping desktop and tablet fade into the dark, until
-//             only the phone is seen
-//   18-27     the walk back into Bree on the compass; tells arrive
-//   28.5-35   Messages: two chats; 37-43 the pane strip, Timers and Group
-//   45        the phone turns to landscape (the frame turns here; its take
-//             changed viewport); 48.3 the map lens moved, 51 made larger
+//             tablet wakes, in the wide view, under the act's caption
+//   9.2-10.7  in on the tablet: the fight, `butch corpse`; then the map lens
+//             moved, made larger and its zoom stepped by taps
+//   22.5      back out; at 24.1 the tablet is left and the phone wakes; the
+//             camera goes in and the sleeping desktop and tablet fade into
+//             the dark, until only the phone is seen
+//   27-33     the walk back into Bree on the compass; tells arrive
+//   33-39     Messages: two chats; 40.3-48.7 the pane strip, Timers and Group,
+//             its band made smaller
+//   49.3-52.9 the phone is left; the camera goes out to the wide view and in
+//             to the monitor, which wakes on the next desktop take (film 2's
+//             take B, `back`), and ends with its screen filling the frame on
+//             that take's own first frame
 //
 // Touches on the tablet and the phone (from the takes' input logs) show as
 // a fingertip's ring, which follows a drag.
@@ -81,37 +86,47 @@ interface Cam {
   z: number;
 }
 
-const CAMS: Record<'desk' | 'all' | 'phone' | 'phoneLand', Cam> = {
+const CAMS: Record<'desk' | 'all' | 'tablet' | 'phone', Cam> = {
   // the desktop's screen exactly fills the frame
   desk: { ...center(SCREEN.desktop), z: WIDTH / MON.w },
   // all three, a little above the middle (the caption goes below)
   all: { x: 0, y: -monTall / 2 + 40, z: 1760 / totalW },
+  // the tablet, bezel and all, nearly the frame's height (owner round 2, item 4)
+  tablet: { ...center(SCREEN.tablet), z: 940 / TAB.h },
   // only the phone, upright
   phone: { ...center(SCREEN.phone), z: 960 / PHO.h },
-  // only the phone, on its side
-  phoneLand: { ...center(SCREEN.phone), z: 1640 / PHO.h },
 };
 
-/** The camera's moves: [from s, to s, from, to]; it holds between them. */
-const MOVES: [number, number, Cam, Cam][] = [
-  [3.4, 5.0, CAMS.desk, CAMS.all],
-  [DEVICES.toPhone + 0.5, DEVICES.toPhone + 2.3, CAMS.all, CAMS.phone],
-  // in once the phone has turned most of the way: its long side across the frame never overflows the height
-  [DEVICES.rotate + 0.55 * DEVICES.rotateS, DEVICES.rotate + DEVICES.rotateS + 0.5, CAMS.phone, CAMS.phoneLand],
+/**
+ * The camera's moves: [from s, to s, from, to, dip]; it holds between them.
+ * `dip` > 0 is one continuous move that goes out through a wider view on the
+ * way (the zoom in log space bowed down by `dip` at the middle).
+ */
+const MOVES: [number, number, Cam, Cam, number][] = [
+  [3.4, 5.0, CAMS.desk, CAMS.all, 0],
+  [DEVICES.tabletIn, DEVICES.tabletIn + 1.5, CAMS.all, CAMS.tablet, 0],
+  [DEVICES.tabletOut, DEVICES.tabletOut + 1.4, CAMS.tablet, CAMS.all, 0],
+  [DEVICES.toPhone + 0.5, DEVICES.toPhone + 2.3, CAMS.all, CAMS.phone, 0],
+  // back to the desktop (owner round 2, item 5): out from the phone to about the wide view, over to the
+  // monitor and in until its screen fills the frame, in one eased move
+  [DEVICES.back, DEVICES.back + DEVICES.backS, CAMS.phone, CAMS.desk, (Math.log(CAMS.phone.z) + Math.log(CAMS.desk.z)) / 2 - Math.log(CAMS.all.z * 1.08)],
 ];
 const ease = Easing.bezier(0.45, 0, 0.2, 1);
+/** The return's ease: a little softer at both ends (no whip). */
+const easeBack = Easing.bezier(0.5, 0, 0.3, 1);
 
 function camAt(t: number): Cam {
   let cam = MOVES[0]![2];
-  for (const [a, b, from, to] of MOVES) {
+  for (const [a, b, from, to, dip] of MOVES) {
     if (t < a) break;
     if (t >= b) {
       cam = to;
       continue;
     }
-    const k = ease((t - a) / (b - a));
+    const k = (dip > 0 ? easeBack : ease)((t - a) / (b - a));
     // zoom in log space, the point linearly: an even feel of speed
-    cam = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: Math.exp(Math.log(from.z) + (Math.log(to.z) - Math.log(from.z)) * k) };
+    const lz = Math.log(from.z) + (Math.log(to.z) - Math.log(from.z)) * k - dip * 4 * k * (1 - k);
+    cam = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: Math.exp(lz) };
   }
   return cam;
 }
@@ -122,8 +137,10 @@ function camAt(t: number): Cam {
 const LIVE: Record<Dev, [number, number]> = {
   desktop: [-Infinity, DEVICES.toTablet],
   tablet: [DEVICES.toTablet, DEVICES.toPhone],
-  phone: [DEVICES.toPhone, Infinity],
+  phone: [DEVICES.toPhone, DEVICES.back],
 };
+/** Back to the desktop: the monitor wakes on the next take this long into the return. */
+const BACK_WAKE_S = 0.5;
 /** A device left holds its last picture this long, then its screen goes dark over SLEEP_S. */
 const HOLD_S = 0.35;
 const SLEEP_S = 0.8;
@@ -180,9 +197,10 @@ export function touchesOf(tl: TimelineFile): Touch[] {
 }
 
 /** A take on a screen at film time `film` (or frozen at `frozenAt`), aligned by its `sync` marker. */
-export function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null; sheen?: number }) {
+export function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: number; dark: number; film: number; frozenAt: number | null; touches: Touch[] | null; sheen?: number; at0?: number }) {
   const { tl, rect, crop } = o;
-  const sync = marker(tl, 'sync').t;
+  /** The take's s at film 0: its `sync` unless given. */
+  const sync = o.at0 ?? marker(tl, 'sync').t;
   const k = rect.w / crop.w;
   const now = (o.frozenAt ?? o.film) + sync;
   const rings: ReactNode[] = [];
@@ -278,61 +296,60 @@ export function Slab(o: { s: Rect; k: number; bezel: number; radius: number; glo
  * marker on the same clock: film 2's take A runs into it, so the act starts
  * on the very frame its desktop shot left off (the screen fills the frame,
  * square-cornered, with no glass sheen, until the camera pulls back).
+ * `next`, with `nextAt` (its s at the act's end), is the desktop take that
+ * the return to the monitor wakes on: the act's last frame is that take's
+ * frame at `nextAt`, full-frame, so the film goes on in it without a cut.
+ * Without it the act ends on the phone.
  */
-export function DevicesAct({ desktop, tablet, phone }: { desktop: TimelineFile; tablet: TimelineFile; phone: TimelineFile }) {
+export function DevicesAct({ desktop, tablet, phone, next, nextAt }: { desktop: TimelineFile; tablet: TimelineFile; phone: TimelineFile; next?: TimelineFile; nextAt?: number }) {
   const frame = useCurrentFrame();
   const t = frame / FPS;
-  const cam = camAt(t);
+  const back = next !== undefined && nextAt !== undefined;
+  const cam = back ? camAt(t) : camAt(Math.min(t, DEVICES.back));
   const toFrame = (r: Rect): Rect => ({ x: (r.x - cam.x) * cam.z + WIDTH / 2, y: (r.y - cam.y) * cam.z + HEIGHT / 2, w: r.w * cam.z, h: r.h * cam.z });
   const k = cam.z;
-  const st = { desktop: screenState(t, 'desktop'), tablet: screenState(t, 'tablet'), phone: screenState(t, 'phone') };
+  const st = { desktop: screenState(t, 'desktop'), tablet: screenState(t, 'tablet'), phone: back ? screenState(t, 'phone') : screenState(Math.min(t, DEVICES.back - 0.01), 'phone') };
   // the glow marks the live device only while all three are seen
   const wide = interpolate(k, [CAMS.all.z * 1.02, CAMS.all.z * 1.15], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const glow = (d: Dev): number => st[d].live * wide;
-  // Going in to the phone, the sleeping desktop and tablet fade into the dark: only the phone is seen.
-  const others = interpolate(t, [DEVICES.toPhone + 0.6, DEVICES.toPhone + 2.0], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  // Going in to the phone, the sleeping desktop and tablet fade into the dark: only the phone is seen;
+  // on the way back to the desktop they come out of it again.
+  const others = Math.max(
+    interpolate(t, [DEVICES.toPhone + 0.6, DEVICES.toPhone + 2.0], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+    back ? interpolate(t, [DEVICES.back + 0.1, DEVICES.back + 0.35 * DEVICES.backS], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 0,
+  );
+  // The monitor wakes on the next take on the way back (from its sleeping ghost's darkness).
+  const wakeAt = DEVICES.back + BACK_WAKE_S;
+  const woken = back && t >= wakeAt;
+  const deskState = woken ? { dark: interpolate(t, [wakeAt, wakeAt + 0.45], [ASLEEP, 0], { extrapolateRight: 'clamp' }), frozenAt: null, live: 1 } : st.desktop;
+  const glow = (d: Dev): number => (d === 'desktop' ? deskState.live : st[d].live) * wide;
 
-  // The phone: upright, turning (its last upright picture turns with it), then on its side, live.
-  const rotA = DEVICES.rotate;
-  const rotB = DEVICES.rotate + DEVICES.rotateS;
-  const turn = ease(interpolate(t, [rotA, rotB], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }));
-  const landIn = interpolate(t, [rotB, rotB + 0.3], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const ps = toFrame(SCREEN.phone);
-  const pc = { x: ps.x + ps.w / 2, y: ps.y + ps.h / 2 };
-  const land: Rect = { x: pc.x - ps.h / 2, y: pc.y - ps.w / 2, w: ps.h, h: ps.w };
   const portraitCrop = { w: Math.round(390 * phone.dpr), h: Math.round(844 * phone.dpr) };
-  const landCrop = { w: portraitCrop.h, h: portraitCrop.w };
-  const phoneTouches = touchesOf(phone);
 
-  // how much the desktop's screen fills the frame (1 at the start: it is the full-frame shot)
+  // how much the desktop's screen fills the frame (1 at the start and the end: it is the full-frame shot)
   const fill = interpolate(k, [CAMS.all.z, CAMS.desk.z], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const ds = toFrame(SCREEN.desktop);
   return (
     <AbsoluteFill style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 42%, #1c1f26 0%, #111318 55%, #0a0b0e 100%)' }}>
       {others > 0 ? (
         <AbsoluteFill style={{ opacity: others }}>
-          <Monitor s={toFrame(SCREEN.desktop)} k={k} glow={glow('desktop')}>
-            <Screen tl={desktop} rect={toFrame(SCREEN.desktop)} crop={{ w: desktop.width, h: desktop.height }} radius={2 * k * (1 - fill)} sheen={1 - fill} {...st.desktop} film={t} touches={null} />
+          <Monitor s={ds} k={k} glow={glow('desktop')}>
+            {woken ? (
+              <Screen tl={next!} at0={nextAt! - DEVICES.end} rect={ds} crop={{ w: next!.width, h: next!.height }} radius={2 * k * (1 - fill)} sheen={1 - fill} {...deskState} film={t} touches={null} />
+            ) : (
+              <Screen tl={desktop} rect={ds} crop={{ w: desktop.width, h: desktop.height }} radius={2 * k * (1 - fill)} sheen={1 - fill} {...st.desktop} film={t} touches={null} />
+            )}
           </Monitor>
           <Slab s={toFrame(SCREEN.tablet)} k={k} bezel={TAB.bezel} radius={26} glow={glow('tablet')} cam="left" buttons="top">
             <Screen tl={tablet} rect={toFrame(SCREEN.tablet)} crop={{ w: tablet.width, h: tablet.height }} radius={8 * k} {...st.tablet} film={t} touches={touchesOf(tablet)} />
           </Slab>
         </AbsoluteFill>
       ) : null}
-      {t < rotB + 0.3 ? (
-        <div style={{ position: 'absolute', inset: 0, transform: `rotate(${-90 * turn}deg)`, transformOrigin: `${pc.x}px ${pc.y}px` }}>
-          <Slab s={ps} k={k} bezel={PHO.bezel} radius={40} glow={glow('phone')} cam="top" buttons="right">
-            <Screen tl={phone} rect={ps} crop={portraitCrop} radius={30 * k} {...st.phone} frozenAt={t >= rotA ? rotA : st.phone.frozenAt} film={t} touches={phoneTouches} />
-          </Slab>
-        </div>
-      ) : null}
-      {t >= rotB ? (
-        <div style={{ position: 'absolute', inset: 0, opacity: landIn }}>
-          <Slab s={land} k={k} bezel={PHO.bezel} radius={40} glow={0} cam="left" buttons="top">
-            <Screen tl={phone} rect={land} crop={landCrop} radius={30 * k} dark={0} frozenAt={null} film={t} touches={phoneTouches} />
-          </Slab>
-        </div>
-      ) : null}
-      <LowerThird from={f(DEVICES.toTablet + 0.6)} dur={f(DEVICES.toPhone - DEVICES.toTablet - 0.4)} text="The same session, picked up on a tablet, then on a phone." center />
+      <Slab s={ps} k={k} bezel={PHO.bezel} radius={40} glow={glow('phone')} cam="top" buttons="right">
+        <Screen tl={phone} rect={ps} crop={portraitCrop} radius={30 * k} {...st.phone} film={t} touches={touchesOf(phone)} />
+      </Slab>
+      {/* in the wide view, before the camera goes in on the tablet */}
+      <LowerThird from={f(DEVICES.toTablet + 0.3)} dur={f(DEVICES.tabletIn + 0.5 - DEVICES.toTablet - 0.3)} text="The same session, picked up on a tablet, then on a phone." center />
     </AbsoluteFill>
   );
 }

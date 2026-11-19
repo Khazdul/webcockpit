@@ -1,16 +1,20 @@
-// The device prototype of film 2 (video/manuscript-2.md act 6, stage 70;
-// owner round 1): one live session that goes on from a desktop to a tablet
-// to a phone, one device live at a time. Three takes of the same game
-// timeline, one per device, recorded one after the other:
+// Film 2's device act (video/manuscript-2.md act 4, stage 70; owner rounds 1
+// and 2): one live session that goes on from a desktop to a tablet to a
+// phone, one device live at a time. Three takes of the same game timeline,
+// one per device, recorded one after the other:
 //
 //   devices-desktop  1600×900 CSS at DPR 1.2 (the film's 1920×1080): Map
 //                    docked, Group and Timers floating, typed on a keyboard
+//                    (the prototype's; film 2 uses film2-a as its desktop)
 //   devices-tablet   1180×820 CSS (an iPad in landscape), mobile and touch,
-//                    DPR 1: the phone's game layout (ADR 0140)
+//                    DPR 1.5 (the camera goes in on it, owner round 2): the
+//                    phone's game layout (ADR 0140); after the fight the map
+//                    lens moved, made about half again as large and its zoom
+//                    stepped by taps (round 53k)
 //   devices-phone    390×844 CSS, mobile and touch, DPR 1.2: the phone's game
 //                    layout (ADR 0136-0138); later Messages (Comm) with two
-//                    chats, the pane strip swiped, then turned to landscape
-//                    (844×390, ADR 0137) and the map lens moved and enlarged
+//                    chats, the pane strip swiped and its band made smaller
+//                    (no landscape turn since owner round 2)
 //
 // Off camera every take is brought to the same moment: the Bree run's GMCP
 // and text from its start to 119.0 s sent fast down a mocked socket (no
@@ -114,11 +118,10 @@ function devicesScene(device: Device): Scene {
   const mobile = device !== 'desktop';
   const viewport = { desktop: undefined, tablet: { width: 1180, height: 820 }, phone: { width: 390, height: 844 } }[device];
   /** The take runs this long past sync (a device left is only seen frozen), s. */
-  const endS = { desktop: DEVICES.toTablet + 1.5, tablet: DEVICES.toPhone + 1.5, phone: DEVICES.end + 0.5 }[device];
+  const endS = { desktop: DEVICES.toTablet + 1.5, tablet: DEVICES.toPhone + 1.5, phone: DEVICES.back + 1.0 }[device];
   return {
-    mode: device === 'tablet' ? 'intel-1-png' : 'intel-1.2-png',
-    // the phone turns to landscape mid-take
-    ...(device === 'phone' ? { canvas: { width: 844, height: 844 } } : {}),
+    // the tablet at DPR 1.5: the camera goes in on it (about 1400 px wide on the frame)
+    mode: device === 'tablet' ? 'intel-1.5-png' : 'intel-1.2-png',
     page: { ...FILM_PAGE, ...(viewport ? { viewport, mobile: true } : {}) },
 
     async setup(page) {
@@ -301,8 +304,48 @@ function devicesScene(device: Device): Scene {
           if (kbdUp && (!next || DIRS[next.cmd] || (next.at ?? 0) - (st.at ?? 0) > 2500)) await fold();
         }
       })();
-      // The phone's own steps (src/devices.ts), each after a rest: Messages, the pane strip, landscape, the lens.
+      /** The lens's box now (CSS px): its centre and radius. */
+      const lens = async (): Promise<{ x: number; y: number; r: number } | null> => {
+        const b = await page.locator('.wc-ph-lens').first().boundingBox();
+        return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2, r: b.width / 2 } : null;
+      };
+      // The tablet's own steps (owner round 2, item 4), fairly quick, by touch: the lens a little
+      // down and left, held (the resize arms at 400 ms) and pulled outwards to about 1.5 times its
+      // size, then four taps on the glass, each one zoom level further out and the last back to the
+      // nearest (round 53k).
+      const tabletLens = async (c: CDPSession): Promise<void> => {
+        await until(S(DEVICES.lensMove));
+        const l1 = await lens();
+        if (!l1) return console.warn('  no lens on the tablet');
+        console.log(`  the lens: ${(2 * l1.r).toFixed(0)} px at ${l1.x.toFixed(0)}, ${l1.y.toFixed(0)}`);
+        await drag(c, { x: l1.x + 8, y: l1.y + 6 }, { x: l1.x - 90, y: l1.y + 58 }, 850);
+        marks.mark('ui', 'lens moved');
+        await until(S(DEVICES.lensResize));
+        const l2 = await lens();
+        if (!l2) return;
+        // the rim follows the finger: half the growth in diameter, out along the diagonal
+        const grow = l2.r;
+        const from = { x: l2.x + l2.r * 0.42, y: l2.y + l2.r * 0.34 };
+        const k = grow / 2 / Math.hypot(0.42, 0.34);
+        await drag(c, from, { x: from.x + 0.42 * k, y: from.y + 0.34 * k }, 900, 650);
+        marks.mark('ui', 'lens larger');
+        await sleep(300);
+        const l3 = await lens();
+        if (l3) console.log(`  the lens: ${(2 * l2.r).toFixed(0)} → ${(2 * l3.r).toFixed(0)} px`);
+        const level = async (): Promise<string> => (await page.locator('.wc-ph-lens-glass').first().getAttribute('aria-label').catch(() => null)) ?? '?';
+        for (const at of DEVICES.lensTaps) {
+          await until(S(at));
+          const l = (await lens()) ?? l3!;
+          await touchAt(c, { x: l.x + (rnd() - 0.5) * l.r * 0.5, y: l.y + (rnd() - 0.2) * l.r * 0.4 }, 80 + rnd() * 40);
+          marks.mark('ui', 'lens zoom');
+          await sleep(250);
+          console.log(`  the lens zoom: ${await level()}`);
+        }
+      };
+
+      // The phone's own steps (src/devices.ts), each after a rest: Messages, the pane strip.
       const ui = (async () => {
+        if (device === 'tablet' && cdp) return tabletLens(cdp);
         if (device !== 'phone' || !cdp) return;
         const tap = async (at: number, sel: string, label: string): Promise<void> => {
           await until(S(at));
@@ -344,28 +387,6 @@ function devicesScene(device: Device): Scene {
           console.log(`  the strip: ${before.toFixed(0)} → ${after.toFixed(0)} px`);
         }
         await tap(DEVICES.panesClose, panes, 'panes closed');
-        await until(S(DEVICES.rotate + 0.15));
-        await page.setViewportSize({ width: 844, height: 390 });
-        marks.mark('rotate', 'landscape');
-        const lens = async (): Promise<{ x: number; y: number; r: number } | null> => {
-          const b = await page.locator('.wc-ph-lens').first().boundingBox();
-          return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2, r: b.width / 2 } : null;
-        };
-        await until(S(DEVICES.lensMove));
-        const l1 = await lens();
-        if (!l1) console.warn('  no lens in landscape');
-        else {
-          await drag(cdp, { x: l1.x + 6, y: l1.y + 4 }, { x: l1.x - 64, y: l1.y + 26 }, 900);
-          marks.mark('ui', 'lens moved');
-        }
-        await until(S(DEVICES.lensResize));
-        const l2 = await lens();
-        if (l2) {
-          // held still to arm the resize (400 ms), then out from the centre: the rim follows the finger
-          const from = { x: l2.x + l2.r * 0.45, y: l2.y + l2.r * 0.35 };
-          await drag(cdp, from, { x: from.x + 18, y: from.y + 14 }, 800, 650);
-          marks.mark('ui', 'lens larger');
-        }
       })();
       await Promise.all([out, cmds, ui]);
       await until(S(endS));
