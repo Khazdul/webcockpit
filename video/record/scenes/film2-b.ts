@@ -1,44 +1,47 @@
-// Film 2, take B (video/manuscript-2.md draft 2, acts 5-8): one continuous
+// Film 2, take B (video/manuscript-2.md draft 3, acts 5-8): one continuous
 // desktop take after the device act, timed by picture from its `film0`
-// marker (the film cuts to it from the phone in landscape at the Prancing
-// Pony's sign).
+// marker. The device act's camera comes back to the monitor on this take's
+// last seconds before `film0` (the Prancing Pony's sign, still) and fills
+// the frame on `film0`, so the film goes on in it without a cut.
 //
 //   act 5  the inn: Gittan goes in from the sign, the barman offers his
 //          quest and goes on talking behind the windows. Profile (the
 //          caption first, the pointer slowly to the icon, its tooltip, the
 //          click): `fk` → `kill wolf` on the Lite form, the Editor, Find, the
-//          line held. Scripts: Almanac, Mercenaries on, its cost 20. Timers
-//          dragged from floating to the left dock and back.
+//          line held. Scripts: Almanac, Mercenaries on (its pane shows Tod:
+//          staged), then in its settings the cost 20 and autopay on (owner
+//          round 2, item 6).
 //   act 6  Exit; the start page at night; History: Sessions (the Bree
 //          session's log player in the wolf fight), Spotlights (Rasta's PvP
-//          kill of a Half-Elf in the viewer), Diary; Back. The owner row,
-//          Log in, Create account with the film's fake account (the
-//          password masked), the recovery code, Continue: the page reloads
-//          into the account, the owner row shows it. `phone-out` /
-//          `phone-in`: the film cuts to the phone take (film2-phone) between.
-//   act 7  History, the Bree session's Share: the export editor, Hall of
-//          Fame, the dialog with the rules, ticked, Publish, the link; Open
-//          Community: the real published log, Random Runes, the warlords,
-//          players online; the real log's watch page, its player a few
-//          seconds.
-//   act 8  Back: the start page reloads (Community over it, then the menu),
-//          and the night has become sunrise (the clock moved off camera
-//          while the watch page was up).
+//          kill of a Half-Elf in the viewer); Back. The owner row, Log in
+//          (cut out of the film), Create account with the film's fake
+//          account (the password masked), the recovery code, Continue: the
+//          page reloads into the account, the owner row shows it.
+//   act 7  History, the Bree session's Share: the export editor, a few lines
+//          selected and excluded, a comment added (owner round 2, item 8);
+//          Hall of Fame, the dialog with the rules, ticked, Publish, the
+//          link; Open Community: the real published log, Random Runes, the
+//          warlords, players online; the real log's watch page (a frame on
+//          the start surface since 0.21: the morph, no page load), its
+//          player a few seconds; Back (the morph back to Community).
+//   act 8  Back to the start page at night (`night`); off the film the start
+//          page is loaded again with MUME's clock at sunrise (`dawn`): the
+//          film dissolves from the one to the other.
 //
 // Off camera the game is brought to the sign where act 4's phone left it
-// (the run fast to 152.1 s), with the panes as act 3 left them (Map docked;
-// Statistics, Group and Timers floating; NPCs All and the Fight card; the
-// weather on at the films' clear night; khazdul). The community is the
-// captured real one, served through the cloud fakes (record/lib/community.ts);
-// the account is made on camera on the fakes. The take's own live run is
-// removed from History after Exit, so History holds the film's runs only, as
-// the phone's does.
+// (the run fast to 152.1 s), with the panes as act 3 left them (Map docked,
+// Group docked above it, borderless and clear; Timers floating; NPCs All
+// and the Fight card; the weather on at the films' clear night; khazdul).
+// The community is the captured real one, served through the cloud fakes
+// (record/lib/community.ts); the account is made on camera on the fakes.
+// The take's own live run is removed from History after Exit, so History
+// holds the film's runs only.
 import type { Locator, Page, WebSocketRoute } from '@playwright/test';
-import { type DevWindow, type Step, play, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { type DevWindow, type Step, play, sleep, startMenu } from '../../../scripts/lib/mume-feed.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { type CommunityFakes, communityServer, readCapture, serveCommunity } from '../lib/community.ts';
-import { CLEAR_NIGHT, FILM_FLOATS, FILM_NIGHT, FILM_PAGE, dockGroup, freshStart, prepareFilm } from '../lib/film-state.ts';
+import { CLEAR_NIGHT, FILM_FLOATS, FILM_NIGHT, FILM_PAGE, FILM_SKY, dockGroup, freshStart, prepareFilm } from '../lib/film-state.ts';
 import { filmUi } from '../lib/film-ui.ts';
 import { Pointer, seeded } from '../lib/mouse.ts';
 import { mockMumeLogin } from '../lib/mume-login.ts';
@@ -50,6 +53,13 @@ const SEED = 20261119;
 /** The film's own account, on the cloud fakes only (made on camera; nothing reaches a real server). */
 export const FILM_ACCOUNT = { name: 'demo', password: 'starlight-over-bree' } as const;
 
+/** The export editor's lines dragged over and excluded (the pony led and grouped, at the top of the log), and the row (from the top) the comment goes before (owner round 2, item 8). */
+const EXCLUDE_FROM = 'lead pony';
+const EXCLUDE_TO = 'is now a group member';
+const COMMENT_ROW = 1;
+/** The comment: plain, the film's own, about this run. */
+const FILM_COMMENT = 'Two wolves on the way out of Bree.';
+
 /** Where act 4's phone leaves the run (the Prancing Pony's sign), run s. */
 const SIGN = 152.1;
 /** The barman's monologue begins (after `nod barman`), run s. */
@@ -58,9 +68,6 @@ const TALK = 172.6;
 /** MUME's clock (game minutes) when Exit shows the start page (the same night, a little later), and at sunrise (act 8). */
 export const ACT6_NIGHT = FILM_NIGHT + 35;
 export const DAWN = FILM_NIGHT - 5 + 5 * 60 + 5;
-
-/** Where Statistics floats (as film2-a leaves it). */
-const STATS_FLOAT = { x: 78, y: 4, w: 32, h: 15 } as const;
 
 /** The page's date: a minute after the community capture (its ages read as on the site). */
 export const takeBPage = () => ({ ...FILM_PAGE, now: readCapture().capturedAt + 60_000 });
@@ -71,7 +78,7 @@ const CELL = { w: 10, h: 900 / 49 } as const;
 /** Sets the film's stage on a page already on the start page (prepareFilm done): the panes as act 3 leaves them. */
 async function stagePanes(page: Page): Promise<void> {
   await page.evaluate(
-    ({ stats, floats }) => {
+    ({ floats }) => {
       type D = {
         weather: { enabled: boolean };
         panes: Record<string, { on: boolean }>;
@@ -84,7 +91,9 @@ async function stagePanes(page: Page): Promise<void> {
       const wc = (window as unknown as { __wc: { settings: { update(fn: (d: D) => void): void } } }).__wc;
       wc.settings.update((d) => {
         d.weather.enabled = true;
-        for (const p of ['map', 'group', 'timers', 'statistics']) d.panes[p]!.on = true;
+        // no Statistics since owner round 2 (item 3)
+        for (const p of ['map', 'group', 'timers']) d.panes[p]!.on = true;
+        d.panes.statistics!.on = false;
         d.profile = 'khazdul';
         d.group.npcMode = 'all';
         d.group.fight = true;
@@ -92,14 +101,13 @@ async function stagePanes(page: Page): Promise<void> {
         for (const l of d.layout.docks.right.lanes) l.panes = l.panes.filter((p) => p.id !== 'comm');
         d.layout.floating = [
           ...d.layout.floating.filter((f) => !['statistics', 'group', 'timers', 'comm'].includes(f.id)),
-          { id: 'statistics', ...stats },
           { id: 'timers', ...floats.timers },
         ];
         // the windows a little shorter than their default, so the lower thirds sit below them (cells)
         d.windows = { ...d.windows, profile: { x: 12, y: 4, w: 142, h: 37 }, scripts: { x: 12, y: 4, w: 142, h: 37 } };
       });
     },
-    { stats: STATS_FLOAT, floats: FILM_FLOATS },
+    { floats: FILM_FLOATS },
   );
   // Group docked above the map, borderless and clear, as act 2 leaves it (owner round 1, item 5)
   await dockGroup(page);
@@ -180,7 +188,8 @@ export const film2B: Scene = {
     const server = state.server as WebSocketRoute;
     const c = state.c as CommunityFakes;
     marks.mark('active', 'the take');
-    const film0 = Date.now() + 800;
+    // the device act's camera comes back to the monitor on the take's last 3.6 s before film0: a still sign
+    const film0 = Date.now() + 4500;
     marks.markAt(film0, 'film0', 'act 5');
     const T = (s: number): number => film0 + s * 1000;
     const nowS = (): number => (Date.now() - film0) / 1000;
@@ -229,11 +238,11 @@ export const film2B: Scene = {
     void game.catch(() => {});
 
     // Profile: the caption, the icon, the Lite form, the Editor with Find
-    marks.markAt(T(3.2), 'profile-caption', 'the Profile caption');
-    await iconClick('profile', 6.8, 'profile');
+    marks.markAt(T(2.4), 'profile-caption', 'the Profile caption');
+    await iconClick('profile', 5.8, 'profile');
     const pe = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) .wc-pe');
-    await calm(pe.locator('.wc-pe-rit[data-rail="alias"]'), 'alias-rail', 'Aliases', 1.0);
-    await calm(pe.locator('[data-btn="NEW"]'), 'alias-new', 'New entry', 1.0);
+    await calm(pe.locator('.wc-pe-rit[data-rail="alias"]'), 'alias-rail', 'Aliases', 0.8);
+    await calm(pe.locator('[data-btn="NEW"]'), 'alias-new', 'New entry', 0.8);
     await sleep(350);
     await type('fk');
     await sleep(250);
@@ -243,8 +252,8 @@ export const film2B: Scene = {
     await sleep(500);
     await page.keyboard.press('Escape');
     marks.mark('alias', 'fk → kill wolf');
-    await calm(pe.locator('.wc-pe-views [data-opt="editor"]'), 'editor', 'the Editor view', 1.2);
-    await sleep(700);
+    await calm(pe.locator('.wc-pe-views [data-opt="editor"]'), 'editor', 'the Editor view', 1.0);
+    await sleep(600);
     // the new line in view: khazdul is long, so the editor's Find goes to it
     if (!(await pe.locator('.cm-line', { hasText: '#alias {fk} {kill wolf}' }).count())) {
       await page.keyboard.press('Control+f');
@@ -256,8 +265,8 @@ export const film2B: Scene = {
       if ((await find.inputValue().catch(() => '')) !== '{fk}') console.warn('  Find did not take the typing');
       marks.mark('find', 'Find {fk}');
     }
-    // the found line held about two seconds
-    await sleep(1800);
+    // the found line held about a second and a half
+    await sleep(1500);
     const x = page.locator('.wc-win[data-win="profile"] .wc-win-x');
     if (await x.count()) await calm(x.first(), 'profile-closed', 'the Profile window closes', 0.5);
     else {
@@ -268,14 +277,26 @@ export const film2B: Scene = {
     // Scripts: Almanac briefly, then Mercenaries switched on: its pane shows Tod (staged, see setup)
     await sleep(300);
     marks.mark('scripts-caption', 'the Scripts caption');
-    await iconClick('scripts', nowS() + 2.4, 'scripts');
+    await iconClick('scripts', nowS() + 1.8, 'scripts');
     const sw = page.locator('.wc-win[data-win="scripts"]');
-    await calm(sw.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').first(), 'script', 'almanac', 1.0);
-    await sleep(500);
-    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-scr-name').first(), 'script', 'mercenaries', 1.0);
-    await sleep(600);
-    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-lk-toggle').first(), 'merc-on', 'Mercenaries on', 1.5);
-    await sleep(600);
+    await calm(sw.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').first(), 'script', 'almanac', 0.6);
+    await sleep(200);
+    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-scr-name').first(), 'script', 'mercenaries', 0.8);
+    await sleep(400);
+    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-lk-toggle').first(), 'merc-on', 'Mercenaries on', 2.0);
+    // its own settings (owner round 2, item 6): the cost 20 silver (paid as 1 gold), then autopay on; about 2 s on each before the click
+    const set = (name: string): Locator => sw.locator(`.wc-scr-set[data-set="${name}"]`).first();
+    await set('cost').waitFor({ timeout: 3000 }).catch(() => console.warn('  no cost setting in Scripts'));
+    await calm(set('cost').locator('.wc-lk-opt[data-opt="1"]').first(), 'merc-cost', 'cost 20 silver', 2.0);
+    await sleep(300);
+    await calm(set('autopay').locator('.wc-lk-toggle').first(), 'merc-autopay', 'autopay on', 2.0);
+    await sleep(300);
+    const merc = await page.evaluate(() => {
+      const el = (n: string) => document.querySelector(`.wc-win[data-win="scripts"] .wc-scr-set[data-set="${n}"]`);
+      return { cost: el('cost')?.querySelector('.wc-lk-opt.is-on')?.textContent ?? '?', autopay: el('autopay')?.querySelector('.wc-lk-toggle')?.getAttribute('aria-checked') ?? '?' };
+    });
+    if (merc.autopay !== 'true' || !/20/.test(merc.cost)) console.warn(`  the Mercenaries settings: cost ${merc.cost}, autopay ${merc.autopay}`);
+    await sleep(900);
     const sx = page.locator('.wc-win[data-win="scripts"] .wc-win-x');
     if (await sx.count()) await calm(sx.first(), 'scripts-closed', 'the Scripts window closes', 0.5);
     else {
@@ -294,39 +315,25 @@ export const film2B: Scene = {
       }
     }
 
-    // The Mercenaries pane: Tod's contract; its cost changed to 1 gold with a click on Cost [10s]
+    // The Mercenaries pane: Tod's contract (staged), the cost the setting gave it
     const mp = page.locator('.wc-pane[data-pane="mercenaries/main"]');
     await mp.waitFor({ state: 'visible', timeout: 3000 }).catch(() => console.warn('  no Mercenaries pane'));
     const rows = mp.locator('.wc-pane-content .wc-prow');
     const tod = await rows.nth(1).textContent().catch(() => '');
     if (!/Tod/.test(tod ?? '')) console.warn(`  the Mercenaries pane does not show Tod: "${tod}"`);
-    const head = (await rows.nth(0).textContent()) ?? '';
-    const ci = head.indexOf('[10s]');
-    if (ci < 0) console.warn(`  no Cost [10s] in "${head}"`);
-    else {
-      const cell = await page.evaluate(() => {
-        const st = getComputedStyle(document.documentElement);
-        return { w: parseFloat(st.getPropertyValue('--cell-w')), h: parseFloat(st.getPropertyValue('--cell-h')) };
-      });
-      const cb = (await mp.locator('.wc-pane-content').boundingBox())!;
-      const cx = cb.x + (ci + 2.2) * cell.w;
-      const cy = cb.y + 0.5 * cell.h;
-      await pointer.hoverPoint(cx, cy, T(nowS() + 1.3));
-      marks.markAt(await pointer.pressAt(T(nowS() + 1.5)), 'merc-cost', 'cost 1 gold');
-      await sleep(400);
-      const head2 = (await rows.nth(0).textContent()) ?? '';
-      if (!head2.includes('[1g]')) console.warn(`  the cost did not change: "${head2}"`);
-    }
-    await sleep(1000);
+    const head = (await rows.nth(0).textContent().catch(() => '')) ?? '';
+    if (!head.includes('[1g]')) console.warn(`  the pane's cost is not 1 gold: "${head}"`);
+    await sleep(700);
 
     // ---------------------------------------------------------------- act 6: memory and the account
     // the start page shows the same night a little later (the game's clock is the film's)
     await setClock(page, ACT6_NIGHT);
-    await iconClick('exit', nowS() + 2.2, 'exit-icon');
-    marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), Date.now() + 1100, { quick: true }), 'exit', 'Exit');
+    // (a plain click: the icon's tooltip was seen at Profile and Scripts)
+    marks.markAt(await pointer.clickAt(mb('exit'), Date.now() + 1300), 'exit-icon', 'exit');
+    marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), Date.now() + 900, { quick: true }), 'exit', 'Exit');
     await page.locator('.wc-start').waitFor();
-    // The take's own live run out of History: only the film's runs, as on the phone.
-    await sleep(1200);
+    // The take's own live run out of History: only the film's runs.
+    await sleep(800);
     const removed = await page.evaluate(async () => {
       type S = { id: string; saved: boolean };
       const lib = (await (window as unknown as { __wc: { runs(): Promise<{ listSessions(n: number): Promise<S[]>; remove(s: S): Promise<void> }> } }).__wc.runs());
@@ -339,12 +346,12 @@ export const film2B: Scene = {
     await pointer.moveTo(1180, 640);
 
     // History: Sessions with the Bree session's log player in the wolf fight
-    marks.markAt(await pointer.clickAt(menu('history'), Date.now() + 2200), 'history', 'History');
+    marks.markAt(await pointer.clickAt(menu('history'), Date.now() + 1700), 'history', 'History');
     const hist = frame().locator('.wc-hist');
     await hist.locator('.wc-lk-tr').first().waitFor();
     const bree = hist.locator('.wc-lk-tr', { hasText: '12:07' }).first();
     await calm(bree, 'bree-row', 'the Bree session', 0.8);
-    await calm(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), 'runlog', 'the log player', 1.2);
+    await calm(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), 'runlog', 'the log player', 1.0);
     const engine = 'window.__wc.shell.playerHost.engine';
     await page.waitForFunction(`window.__wc.shell.playerHost?.engine?.duration > 0`, undefined, { timeout: 15_000 });
     await page.evaluate(() => {
@@ -361,19 +368,19 @@ export const film2B: Scene = {
     // into the second wolf's fight (run 118 s), and play
     await page.evaluate(`${engine}.seek(118e6)`).catch(() => {});
     marks.mark('player', 'the wolf fight plays');
-    await sleep(4500);
+    await sleep(3600);
     await page.keyboard.press('Escape');
     marks.mark('player-closed', 'back to Sessions');
-    await sleep(700);
+    await sleep(500);
 
     // Spotlights: the wall, Rasta's PvP kill of *a Half-Elf* in the viewer, Back
-    await calm(frame().locator('.wc-htab[data-tab="spotlights"]'), 'tab', 'spotlights', 1.2);
+    await calm(frame().locator('.wc-htab[data-tab="spotlights"]'), 'tab', 'spotlights', 1.0);
     const wall = frame().locator('.wc-spw');
     await wall.locator('.wc-spw-card').first().waitFor();
     const rasta = wall.locator('.wc-spw-card', { hasText: 'Half-Elf' }).first();
     // a double click opens a card in the viewer (the wall's `activateOn: 'dblclick'`)
-    await pointer.hoverAt(rasta, Date.now() + 2400);
-    await sleep(1100);
+    await pointer.hoverAt(rasta, Date.now() + 1900);
+    await sleep(900);
     await page.mouse.down({ clickCount: 1 });
     await page.mouse.up({ clickCount: 1 });
     await sleep(110);
@@ -381,16 +388,16 @@ export const film2B: Scene = {
     await page.mouse.up({ clickCount: 2 });
     marks.mark('rasta', 'the Half-Elf spotlight');
     await page.locator('.wc-start .wc-spv-count').first().waitFor({ timeout: 8000 }).catch(() => console.warn('  no spotlight viewer'));
-    await sleep(12_000);
+    await sleep(10_000);
     const back1 = page.locator('.wc-start button[aria-label="Back (Esc)"]').first();
     if (await back1.isVisible()) await calm(back1, 'back-wall', 'Back to the wall', 0.6);
     else {
       await page.keyboard.press('Escape');
       marks.mark('back-wall', 'Back to the wall');
     }
-    await sleep(600);
+    await sleep(400);
     await calm(backBtn(), 'history-closed', 'back on the start page', 0.8);
-    await sleep(500);
+    await sleep(300);
 
     // The owner row: Log in, Create account with the film's account; the password masked
     await calm(page.locator('.wc-start .wc-sm-item[data-key="owner"]').first(), 'owner', 'Guest · log in', 1.0);
@@ -398,10 +405,10 @@ export const film2B: Scene = {
     // the Log in page is cut out of the film (owner round 1): from the owner row's press to Create account
     marks.markAt(await pointer.clickAt(frame().locator('[data-link="create"]'), Date.now() + 700, { quick: true }), 'create', 'Create account');
     await frame().locator('[data-page="create"]').waitFor();
-    await sleep(700);
+    await sleep(500);
     marks.mark('create-up', 'the Create account page');
     const field = (id: string): Locator => frame().locator(`[data-field="${id}"] input`);
-    await sleep(600);
+    await sleep(400);
     await field('name').focus();
     marks.mark('typing', 'the account name');
     await type(FILM_ACCOUNT.name, 110, 200);
@@ -423,25 +430,22 @@ export const film2B: Scene = {
     if ((await field('password').getAttribute('type')) !== 'password') console.warn('  the password is not masked');
     const create = frame().locator('[data-btn="CREATE"]');
     await page.waitForFunction(() => document.querySelector('.wc-start .wc-frame:not([hidden]) [data-btn="CREATE"]')?.getAttribute('aria-disabled') !== 'true', null, { timeout: 8000 }).catch(() => console.warn('  Create account stays off'));
-    await calm(create, 'create-press', 'Create account', 1.4);
+    await calm(create, 'create-press', 'Create account', 1.0);
     await frame().locator('[data-page="code"]').waitFor({ timeout: 15_000 });
     marks.mark('code', 'the recovery code');
-    await sleep(800);
+    await sleep(600);
     const code = (await frame().locator('.wc-ac-code-p > span').allTextContents()).join('-');
     await field('last').focus();
     await type(code.slice(-4), 120, 200);
-    await calm(frame().locator('[data-btn="CONTINUE"]'), 'continue', 'Continue', 1.0);
+    await calm(frame().locator('[data-btn="CONTINUE"]'), 'continue', 'Continue', 0.8);
     // the page reloads into the account's space; the owner row names it
     await page.waitForLoadState('load');
     await page.locator('.wc-start .wc-sm-item[data-key="owner"]', { hasText: FILM_ACCOUNT.name }).waitFor({ timeout: 20_000 }).catch(() => console.warn('  the owner row does not name the account'));
     marks.mark('owner-in', 'the owner row names the account');
-    await sleep(1600);
-    marks.mark('phone-out', 'the film cuts to the phone');
     await sleep(1000);
-    marks.mark('phone-in', 'back on the desktop');
 
     // ---------------------------------------------------------------- act 7: community
-    await calm(menu('history'), 'history2', 'History', 0.8);
+    await calm(menu('history'), 'history2', 'History', 0.6);
     const hist2 = frame().locator('.wc-hist');
     await hist2.locator('.wc-lk-tr').first().waitFor();
     // the Bree session is the first row, chosen as History opens
@@ -449,16 +453,47 @@ export const film2B: Scene = {
       console.warn('  the Bree session is not the chosen row: pressed');
       await calm(hist2.locator('.wc-lk-tr', { hasText: '12:07' }).first(), 'bree-row', 'the Bree session', 0.6);
     }
-    await calm(hist2.locator('[data-btn="EXPORT"]'), 'share', 'Share', 1.0);
+    await calm(hist2.locator('[data-btn="EXPORT"]'), 'share', 'Share', 0.8);
     await frame().locator('.wc-exp-row').first().waitFor();
+    await sleep(600);
+    // The editor's own way (owner round 2, item 8): a few lines dragged over and excluded, then a comment added
+    const exp = frame().locator('.wc-exp');
+    const entries = exp.locator('.wc-exp-row[data-kind="entry"]');
+    const rowBox = async (i: number) => (await entries.nth(i).boundingBox())!;
+    // (a typed command is its own kind of row)
+    const textBox = async (t: string) => (await exp.locator('.wc-exp-row', { hasText: t }).first().boundingBox({ timeout: 5000 }))!;
+    const [ra, rb] = [await textBox(EXCLUDE_FROM), await textBox(EXCLUDE_TO)];
+    await pointer.hoverPoint(ra.x + 60, ra.y + ra.height / 2, T(nowS() + 1.1));
+    marks.markAt(await pointer.dragTo(rb.x + 260, rb.y + rb.height / 2, Date.now() + 500, { ms: 700, holdMs: 300 }), 'exp-select', 'lines selected');
     await sleep(300);
-    await calm(frame().locator('.wc-exp-outs [data-opt="HOF"]'), 'hof', 'Hall of Fame', 1.1);
-    await calm(frame().locator('.wc-exp [data-btn="EXPORT"]'), 'share-dialog', 'the share dialog', 1.0);
+    const nsel = await exp.locator('.wc-exp-row.is-sel').count();
+    if (nsel < 2) console.warn(`  ${nsel} rows selected`);
+    await calm(exp.locator('[data-btn="EXCLUDE"]'), 'exp-exclude', 'Exclude', 1.0);
+    await sleep(1100);
+    // the comment: the cursor to its row (a press), Add comment, typed, saved
+    const cb = await rowBox(COMMENT_ROW);
+    await pointer.hoverPoint(cb.x + 80, cb.y + cb.height / 2, T(nowS() + 1.0));
+    marks.markAt(await pointer.pressAt(Date.now() + 400), 'exp-row', 'the comment row');
+    await calm(exp.locator('[data-btn="COMMENT"]'), 'exp-comment', 'Add comment', 0.8);
+    const ta = exp.locator('.wc-exp-comp textarea').first();
+    await ta.waitFor({ timeout: 3000 }).catch(() => console.warn('  no comment composer'));
+    await sleep(350);
+    await ta.focus().catch(() => {});
+    await type(FILM_COMMENT, 45, 85);
+    if ((await ta.inputValue().catch(() => '')) !== FILM_COMMENT) {
+      console.warn('  the comment did not take the typing: filled');
+      await ta.fill(FILM_COMMENT);
+    }
+    await sleep(400);
+    await calm(exp.locator('.wc-exp-comp [data-btn="SAVE"]'), 'exp-saved', 'the comment saved', 0.7);
+    await sleep(1100);
+    await calm(frame().locator('.wc-exp-outs [data-opt="HOF"]'), 'hof', 'Hall of Fame', 0.8);
+    await calm(frame().locator('.wc-exp [data-btn="EXPORT"]'), 'share-dialog', 'the share dialog', 0.8);
     const dlg = frame().locator('[data-dlg="share"]');
     await dlg.waitFor();
-    await sleep(1200);
-    await calm(dlg.locator('[data-field="rules"]'), 'rules', 'the rules ticked', 1.0);
-    await calm(frame().locator('[data-btn="PUBLISH"]'), 'publish', 'Publish', 1.0);
+    await sleep(900);
+    await calm(dlg.locator('[data-field="rules"]'), 'rules', 'the rules ticked', 0.8);
+    await calm(frame().locator('[data-btn="PUBLISH"]'), 'publish', 'Publish', 0.8);
     const done = frame().locator('[data-dlg="share-done"]');
     await done.waitFor({ timeout: 20_000 });
     // the dev server's address in the link reads as the site's (the film shows mumecockpit.com)
@@ -467,48 +502,67 @@ export const film2B: Scene = {
       if (i) i.value = i.value.replace(/^https?:\/\/[^/]+/, 'https://mumecockpit.com');
     });
     marks.mark('published', 'the link');
-    await sleep(1400);
-    await calm(frame().locator('[data-btn="COMMUNITY"]'), 'community', 'Open Community', 1.0);
+    await sleep(1100);
+    await calm(frame().locator('[data-btn="COMMUNITY"]'), 'community', 'Open Community', 0.8);
     const cy = frame().locator('.wc-cy');
     await cy.locator('.wc-cy-row').first().waitFor({ timeout: 15_000 });
     await cy.locator('.wc-cy-note').first().waitFor({ timeout: 10_000 }).catch(() => console.warn('  no Random Runes notes'));
     await cy.locator('[data-box="players"]').waitFor({ timeout: 10_000 }).catch(() => console.warn('  no players online'));
     marks.mark('community-up', 'the Community page');
     await pointer.moveTo(1240, 520);
-    await sleep(2200);
+    await sleep(1200);
     // the real log's watch page (no stars or comments yet at the capture: a few seconds of its player)
     const real = c.runs[0]!;
-    await calm(cy.locator('.wc-cy-row', { hasText: real.title }).first(), 'watch', real.title, 1.5);
+    await calm(cy.locator('.wc-cy-row', { hasText: real.title }).first(), 'watch', real.title, 0.8);
+    // a frame on the start surface since 0.21 (ADR 0163): the morph, the address by pushState, no page load
     await page.waitForURL(`**/r/${real.id}**`, { timeout: 15_000 });
     await page.locator('.wc-watch-page[data-watch="playing"]').waitFor({ timeout: 30_000 });
     const fl2 = page.frameLocator('.wc-watch-slot iframe');
     await fl2.locator('.wc-player').waitFor({ timeout: 30_000 });
     marks.mark('watch-up', 'the watch page');
-    await sleep(600);
-    await calm(fl2.locator('button.wc-pc-play').first(), 'watch-play', 'Play', 1.0);
+    await sleep(300);
+    await calm(fl2.locator('button.wc-pc-play').first(), 'watch-play', 'Play', 0.8);
     await sleep(500);
     // into the battle
     for (let i = 0; i < 4; i++) {
       await page.keyboard.press('ArrowRight');
       await sleep(90);
     }
-    await sleep(2400);
+    await sleep(1400);
+    // Back: the frame pops, the morph back to the Community page as it was
+    await calm(page.locator('.wc-watch-page .wc-lk-back').first(), 'watch-back', 'Back', 0.8);
+    await page.locator('.wc-watch-page').waitFor({ state: 'detached', timeout: 15_000 }).catch(() => console.warn('  the watch page stays'));
+    await page.locator('.wc-start .wc-cy').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => console.warn('  no Community page after Back'));
+    marks.mark('community-again', 'the Community page again');
+    await sleep(700);
+    await calm(backBtn(), 'community-back', 'Back to the start page', 0.8);
+    await page.locator('.wc-start .wc-sm-item[data-key="enter"]').first().waitFor({ state: 'visible', timeout: 10_000 });
+    await sleep(700);
+    // the hand leaves the mouse, low on the right
+    await pointer.moveTo(1580, 880);
+    marks.mark('start-again', 'the start page at night');
+    await sleep(1100);
+    marks.mark('night', 'the night start page: the dissolve to sunrise starts');
 
     // ---------------------------------------------------------------- act 8: dawn
-    // while the watch page is up, MUME's clock is moved on to sunrise: the start page reads it as it loads
+    // Off the film (under the dissolve's far side): MUME's clock moved on to sunrise and the start
+    // page loaded again, so its sky is the sunrise's. The quote stays out: the end card's place.
+    await sleep(3200);
     await setClock(page, DAWN);
-    await calm(page.locator('.wc-watch-page .wc-lk-back'), 'watch-back', 'Back', 1.0);
-    await page.waitForURL('**/?community**', { timeout: 15_000 });
-    // the quote stays out of this last start page (under Community as it loads): the end card's place
-    await page.addStyleTag({ content: '.wc-start .wc-sm-quote { opacity: 0 !important; }' }).catch(() => {});
-    await frame().locator('.wc-cy').waitFor({ timeout: 15_000 });
-    marks.mark('dawn', 'the start page at sunrise');
-    await sleep(1200);
-    await calm(backBtn(), 'community-back', 'Back to the start page', 0.8);
-    marks.mark('start-again', 'the start page');
-    // the hand leaves the mouse, low on the right
-    await sleep(700);
-    await pointer.moveTo(1580, 880);
+    await page.addInitScript(() => {
+      const put = () => {
+        const st = document.createElement('style');
+        st.textContent = '.wc-start .wc-sm-quote { opacity: 0 !important; }';
+        document.head.appendChild(st);
+      };
+      if (document.head) put();
+      else document.addEventListener('DOMContentLoaded', put);
+    });
+    await page.goto(`/?skyWeather=${FILM_SKY}&cloudtest`);
+    await startMenu(page);
+    await page.locator('.wc-start .wc-sm-item[data-key="owner"]', { hasText: FILM_ACCOUNT.name }).waitFor({ timeout: 20_000 }).catch(() => console.warn('  the dawn start page does not name the account'));
+    await sleep(2500);
+    marks.mark('dawn', 'the start page at sunrise, settled');
     // the start page under the end card until the music's tail has faded (Film2 times the card by the music)
     await sleep(30_000);
     marks.mark('active-end', 'the take');

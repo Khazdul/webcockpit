@@ -35,7 +35,7 @@ export function Root() {
         height={HEIGHT}
         fps={FPS}
         durationInFrames={FPS * 330}
-        defaultProps={{ a: null, tablet: null, phone: null, b: null, phone2: null } satisfies Film2Props}
+        defaultProps={{ a: null, tablet: null, phone: null, b: null } satisfies Film2Props}
         calculateMetadata={async ({ props }) => {
           const a = await loadTimeline(FILM2_TAKES.a);
           const b = await loadTimeline(FILM2_TAKES.b);
@@ -47,7 +47,6 @@ export function Root() {
               b,
               tablet: await loadTimeline(DEVICES_TAKES.tablet),
               phone: await loadTimeline(DEVICES_TAKES.phone),
-              phone2: await loadTimeline(FILM2_TAKES.phone2),
             },
           };
         }}
