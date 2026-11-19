@@ -280,3 +280,7 @@ pairs; whether a film scene (`video/`) was cut to the old 1.3 s opening.
 4. About and Back at once, several times; Community -> a log -> Back ->
    Back. No jumps, nothing left half-faded.
 
+## Released
+
+Owner, 2026-11-19, after round 3 on computer and phone (a brief test):
+go, publish. Released as 0.21.0.
