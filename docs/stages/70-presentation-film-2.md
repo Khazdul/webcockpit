@@ -69,7 +69,8 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 5:58; `film2-draft-small.mp4` for the phone).
 - [x] Owner feedback, round 1 (2026-11-18).
 - [x] Owner feedback, round 2 (2026-11-19): all takes re-recorded on 0.21.0 with the fog fix.
-- [ ] Owner feedback on the round 2 draft.
+- [x] Owner feedback, round 3 (2026-11-19): film2-a, the tablet, the phone and take B re-recorded.
+- [ ] Owner feedback on the round 3 draft.
 - [ ] Master and 4K. Not now (owner, 2026-11-18): the H.264 draft stays as it is until the polish session.
 
 ## Test guide
@@ -149,6 +150,33 @@ old film's manuscript, scenes and takes stay for reference.
    the move back to the monitor, the Mercenaries settings, the export
    editor's steps and its caption, the dissolve to dawn, and the pace
    overall (holds were trimmed to keep the end on the music).
+
+### 70d — the full draft, round 3
+
+1. Open `video/out/film2-draft.mp4` (5:29.67, it ends with the music), or
+   `film2-draft-small.mp4` on the phone.
+2. What it shows:
+   - 0:00–0:22 act 0: the start page, Enter MUME, the login.
+   - 0:22–1:18 act 1: Bree; Comm, Eilwen's chat, and Gittan's answer typed
+     in the pane's reply line (0:37–0:40), Eilwen's two answers (0:41.6,
+     0:43.0); the mercenary; Group; Settings.
+   - 1:18–1:48 act 2: the gate, Map, Group docked (1:31), Timers.
+   - 1:48–2:04 act 3: the first wolf.
+   - 2:04–2:57 act 4: the tablet (in at 2:13, the lens 2:19–2:26), the
+     phone from 2:28 (it freezes at 2:53 on a clean prompt under the
+     Prancing Pony's sign), back to the monitor 2:53.3–2:56.9.
+   - 2:57–3:31 act 5: Profile (the alias on the Lite form, closed at
+     3:13), Scripts with Mercenaries, quicker (3:20–3:26).
+   - 3:31–4:18 act 6: Exit, History, the spotlight, Create account.
+   - 4:18–5:10 act 7: the export editor (excluded lines 4:26, the comment
+     4:31–4:36), Hall of Fame, the title "The wolf fur hunt" in the share
+     dialog (4:44–4:46), Publish, Community, the watch page started with
+     its big play button (5:01), Back.
+   - 5:10–5:30 act 8: the start page at night, then a slow dissolve to
+     sunrise (5:10.9–5:18.4) under the end card (5:16.5); the fade from
+     5:23.
+3. Feedback wanted: the Comm reply (its words and pace), the dawn's
+   pace, the title in the share dialog, and the pace of acts 5–7 now.
 
 ## Owner feedback
 
@@ -368,3 +396,57 @@ The end card is at 5:16.5 as before, 2.4 s after the dawn is in.
   morph; the night start page's pointer rests in the bottom right corner
   under the dissolve.
 - No master yet (ProRes / 4K): the main session renders it.
+
+### Full draft, round 3 (2026-11-19, on the round 2 cut)
+
+Times are the owner's, in the round 2 draft (5:29.67).
+
+1. **0:43, a reply in Comm.** Gittan answers Eilwen in the Comm pane's
+   own input: out to hunt wolves, hoping for a wolf fur; Eilwen answers
+   that she saw a pack outside the West Gate, then "be safe!".
+   **Outcome (2026-11-19, 4111b7eb):** the reply stays where the chat
+   is, before the mercenary is hired, so he is not named: "heading out to
+   hunt wolves, hoping for a wolf fur!", typed in the reply line
+   (0:37.2–0:40.1; the pane sends `tell Eilwen …`). MUME's answer is
+   staged as the owner's runs have it ("Ok." and the tell filed as
+   yours), then Eilwen: "saw a pack just outside the west gate earlier"
+   (0:41.6) and "be safe!" (0:43.0). The mercenary arrives 6 s later
+   than before (0:44.4). The device takes carry the same talk, and
+   Eilwen's tell on the way back now asks "back already? any luck with
+   the furs?".
+2. **2:29, "east east".** Two echoed commands just before a game window
+   freezes. **Outcome (2026-11-19, 4111b7eb):** they were the phone's
+   last compass taps. The run typed `e e` ahead of the answers; a tap is
+   slower, so they landed after the Prancing Pony's sign and were echoed
+   under it, where the phone is left. The walk now drops a command typed
+   ahead of the last one's answer and one just before the walk's last
+   room; the phone freezes on a clean prompt (2:53.3). The game is fed by
+   the run either way.
+3. **2:59, Profile.** Drop the Editor. **Outcome (2026-11-19,
+   494e265e):** the alias on the Lite form, about 2 s, closed (2:59.3–
+   3:13.1, was 2:53–3:11). Caption: "Open the profile to create aliases,
+   actions and keys."
+4. **3:30, Mercenaries quicker.** **Outcome (2026-11-19, 494e265e):**
+   about 1 s on each step (was 2 s) and brisker pointer moves (no
+   overshoot): Mercenaries 3:20.0, on 3:22.0, cost 20 3:23.7, autopay
+   3:25.5 (the four took 9.3 s, now 5.5 s).
+5. **4:39, the comment.** **Outcome (2026-11-19, 494e265e):** "Hunting
+   wolves for their furs outside Bree." (4:30.7–4:36.4).
+6. **4:46, a title.** **Outcome (2026-11-19, 494e265e):** the title is
+   set where the share sets it, in the Hall of Fame dialog's Title
+   field: the proposed title selected and typed over as "The wolf fur
+   hunt" (4:44.4–4:46.4), then the rules and Publish. The film's run is
+   listed under that title on the Community page.
+7. **5:01, the big play button.** **Outcome (2026-11-19, 494e265e):** the
+   watch page is started with the play button in the middle of the frame
+   (5:00.9), then the arrows go into the battle.
+8. **5:12, a slower dawn.** **Outcome (2026-11-19, 494e265e):** the
+   dissolve from the night start page to the sunrise is 7.5 s (was 2.6),
+   from 0.5 s after the night page is back: 5:10.9–5:18.4, under the end
+   card (5:16.5, as before); the tail's fade from 5:23.0.
+
+**Length.** Still 19,780 frames, 5:29.67, the card at 5:16.5. The Comm
+reply added 6 s to act 1; dropping the Editor and the quicker
+Mercenaries gave about 9 s back, the title took about 3 s. The night start
+page comes back at 5:10.4, as in round 2. All four takes were recorded
+again (film2-a, devices-tablet, devices-phone, film2-b).

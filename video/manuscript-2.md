@@ -1,6 +1,6 @@
 # Presentation film 2 — manuscript
 
-Draft 3 (2026-11-19), after the owner's round 2 on the full draft. Draft 2
+Draft 3 (2026-11-19), after the owner's rounds 2 and 3 on the full draft. Draft 2
 (2026-11-17) was the detailed manuscript; its device act was the approved
 prototype (`DevicesProto`, round 1, "Det här blir bra"). The owner's
 decisions and both rounds of feedback are in
@@ -51,12 +51,14 @@ first film.
 - Enter MUME, MUME's real welcome screen, the name and the masked
   password.
 
-### 1 · Bree (0:22–1:12)
+### 1 · Bree (0:22–1:18)
 
 1. Gittan arrives in the Prancing Pony. No panes yet.
 2. A staged Public line and a tell from Eilwen. **Comm** on from Panes,
-   floating; Eilwen's chat. Caption: *Conversations get a pane of their
-   own.*
+   floating; Eilwen's chat. Gittan answers in the pane's own reply line:
+   *heading out to hunt wolves, hoping for a wolf fur!*; Eilwen: *saw a
+   pack just outside the west gate earlier*, then *be safe!* (round 3).
+   Caption: *Conversations get a pane of their own.*
 3. The mercenary: 10 silver refused, a pause of about 2.5 s, 1 gold,
    grouped. **Group** on, floating (NPCs All and the Fight card set off
    camera).
@@ -64,7 +66,7 @@ first film.
    backgrounds Paper, Teal (about 3 s each), Black. Caption: *Customise
    fonts, colours and more.*
 
-### 2 · The wilds (1:12–1:42)
+### 2 · The wilds (1:18–1:48)
 
 1. Comm off; rain, heavy rain, the strike in the street; out through the
    West Gate. **Map** on, docked.
@@ -76,14 +78,14 @@ first film.
 3. The spells; **Timers** on, floating, no time text. Caption: *The Timers
    pane tracks spells, buffs and more.*
 
-### 3 · The wolves (1:42–1:58)
+### 3 · The wolves (1:48–2:04)
 
 The storm clears; the walk into the hills; the first wolf (the room, then
 the attack, Tod joins, the bolt, the kill; `l` shows the second wolf). No
 Statistics (owner round 2). The second wolf's `k wolf` on the desktop
 starts act 4 without a cut.
 
-### 4 · Everywhere (1:58–2:51)
+### 4 · Everywhere (2:04–2:57)
 
 One live device at a time; a device left freezes, then sleeps.
 
@@ -105,20 +107,21 @@ One live device at a time; a device left freezes, then sleeps.
 
 No landscape turn on the phone any more.
 
-### 5 · Make it yours (2:51–3:34)
+### 5 · Make it yours (2:57–3:31)
 
 On the desktop, in the inn, with the barman's quest behind:
 
 1. **Profile**: the caption first, the icon, its tooltip, the click. `fk`
-   → `kill wolf` on the Lite form, then **Editor** with Find. Caption:
-   *Open the profile to create aliases, actions and keys from the menu or
-   in the editor.*
+   → `kill wolf` on the Lite form, about 2 s, closed (no Editor since
+   round 3). Caption: *Open the profile to create aliases, actions and
+   keys.*
 2. **Scripts**: Almanac, then **Mercenaries** switched on (its pane shows
    Tod: staged on purpose), then in its own settings the cost set to 20
-   (paid as 1 gold) and autopay on, about 2 s on each before the click.
+   (paid as 1 gold) and autopay on, about 1 s on each before the click
+   (round 3).
    Caption: *A Lua scripting engine for anything more complex.*
 
-### 6 · Memory and the account (3:34–4:21)
+### 6 · Memory and the account (3:31–4:18)
 
 1. Exit to the start page (night).
 2. **History**: Sessions, the Bree session's log player in the wolf fight.
@@ -131,23 +134,25 @@ On the desktop, in the inn, with the barman's quest behind:
    settings are kept / in the cloud, in sync across your devices.* (The
    phone shot is gone: owner round 2.)
 
-### 7 · Community (4:21–5:11)
+### 7 · Community (4:18–5:10)
 
 1. History, the export editor for the Bree session: a few lines dragged
-   over and **Excluded**, then **Add comment**: *Two wolves on the way out
-   of Bree.*, saved. Hall of Fame, the share dialog (its rules), Publish,
+   over and **Excluded**, then **Add comment**: *Hunting wolves for their
+   furs outside Bree.*, saved. Hall of Fame, the share dialog with its
+   Title typed over as *The wolf fur hunt* (round 3), its rules, Publish,
    the link. Caption over the editor and the share: *Edit, comment on and
    share your runs with friends or the community.*
 2. The **Community** page: the real published log ("Moria e-gate battle"),
    Random Runes with the two real notes, the warlords, players online; the
    film's shared run under New. The real log's watch page opens as a frame
    on the start surface (the morph, no page load since 0.21) and plays a
-   few seconds; Back morphs to Community again.
+   few seconds, started with the big play button in the middle of the
+   frame (round 3); Back morphs to Community again.
 
-### 8 · Dawn (5:11–5:29.67)
+### 8 · Dawn (5:10–5:29.67)
 
-Back to the start page at night; it dissolves (2.6 s) into the same page
-at sunrise (the take loads it again with MUME's clock moved, off the
+Back to the start page at night; it dissolves slowly (7.5 s, under the
+end card) into the same page at sunrise (the take loads it again with MUME's clock moved, off the
 film). The end card: *WebCockpit 0.21 / mumecockpit.com · Free and open
 source*. The picture fades with the music's tail.
 
