@@ -71,7 +71,7 @@
 | 65 | The community | Released 0.14.0 (2026-11-16); `gallery`, `runes` off in production until the owner opens them (part F) | `docs/stages/65-community.md` |
 | 66 | The admin panel | Done, released 0.15.0 | `docs/stages/66-admin-panel.md` |
 | 68 | The owner's four points (sun, Comm, tablet keyboard, link previews) | Done; released 0.16.0, the owner's feedback in 0.16.1 (2026-11-17) | `docs/stages/68-owner-fixes.md` |
-| 70 | Presentation film 2 | In progress (round 1 "ganska bra"; paused for a polish session, no master yet) | `docs/stages/70-presentation-film-2.md` |
+| 70 | Presentation film 2 | In progress (round 3 built; master rendering) | `docs/stages/70-presentation-film-2.md` |
 | 69 | Balloon notices | Done, released 0.17.0 (desktop only, off by default; the owner's images and flight tuning later) | `docs/stages/69-balloons.md` |
 | 67 | The start menu and History with tabs | Done, released 0.11.0 (with the enforced CSP) | `docs/stages/67-start-menu.md` |
 | 71 | The shared replay with the lens | Done, released 0.18.0 | `docs/stages/71-shared-replay-lens.md` |
@@ -122,6 +122,25 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-19 — Stage 70: film 2, rounds 2 and 3
+
+- **Done:** the owner's round-2 items (fog streaks, Group docked at its
+  height, no Statistics, the tablet zoomed with the lens by touch, no phone
+  landscape, a camera move back to the monitor, Mercenaries cost/autopay in
+  Scripts, an account caption instead of the phone shot, export edits before
+  Share) and round 3 (Comm reply to Eilwen, no "east east" echo, Profile
+  without the Editor, quicker Mercenaries, the comment, the title "The wolf
+  fur hunt", the big play button, a 7.5 s dawn). Every take re-recorded on
+  0.21.0. Still 5:29.67, ending with the music.
+- **Fix in the app:** fog streaks on the right edge at an odd canvas width
+  (the engine cleared its half-size cache half a column short).
+- **Next:** the owner's verdict on the round 3 demo; the master
+  (`out/webcockpit-film2-*`) was started after round 3 (a reboot killed the
+  round-2 4K step). Test guide 70d.
+- **Open:** "Loading the log" shows about 2 s on the watch page; the
+  spotlight runs 10 s (12 s asked in round 1).
+- **Commits:** 4e626c52…dfdc547e and this one.
 
 ### 2026-11-19 — Release 0.21.0 (stage 74)
 
