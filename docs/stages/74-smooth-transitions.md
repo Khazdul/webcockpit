@@ -237,3 +237,46 @@ only by the existing specs.
 Feedback wanted: is 140 + 380 + 220 ms right next to About's slower
 opening; does the wordmark moving with the frame read better than its
 old move; on the phone, the wordmark's return after the Account page.
+
+## Round 3 — one clock for every morph (ADR 0165 addendum)
+
+Owner, 2026-11-19, after round 2 on phone and desktop: the quick menu
+<-> Profile transition feels better than the slow menu <-> About one;
+one tempo everywhere, the quick one. (The wordmark with the frame: fine.)
+
+- `MOTION.clock` (`look-motion.ts`): out 140, flight 380, in 220 ms, for
+  every pair; 740 ms where `open` was 1300 and `close` 1180. It replaces
+  the `open`, `close`, `swap`, `resize` and `hold` tables. `start.css`
+  declares the same numbers (`--lk-out`, `--lk-fly`, `--lk-in`); a unit
+  test holds them equal.
+- The wordmark around a large box lifts and fades over 0-220 ms and
+  comes back over 440-740 ms; the almanac 0-140 and 520-740. Nothing in
+  the scenery runs past the plan.
+- The hold's slack is 400 ms (was 120): with a 140 ms hold a slow first
+  frame unmounted the old frame before the proxy showed.
+- Bench against round 1's "after": phone flights clean (no interval over
+  34 ms). Scripts' first visit: its syntax check (after the page has
+  settled) now falls about 900 ms after the tap, one task of 107 ms
+  (phone 4x) to 161 ms (6x), 36 ms on an unthrottled desktop; nothing is
+  moving then, but a tap in that moment waits. Not remedied. Desktop,
+  About: now and then one 35-50 ms interval at the fade start (proposal 1).
+- At 2560x1440 the frame's edges peak at about 120 px per frame (58
+  before). If that reads as abrupt, a flight of 460-480 ms for all pairs
+  is a one-number change.
+
+Checks on the merged tree: typecheck clean, unit 5630 passed, full e2e
+at 5 workers 2019 passed, none failed.
+
+Not verified: a real phone, WebKit; desktop `?morph=pieces` on the large
+pairs; whether a film scene (`video/`) was cut to the old 1.3 s opening.
+
+### Test guide, round 3
+
+1. Phone and desktop: About, Scripts, History, Community, in and out.
+   The same tempo as Profile; nothing still moving once the page reads.
+2. The largest monitor at hand: About and Scripts in and out. Too abrupt?
+3. Phone, fresh load, Scripts first: tap or scroll the moment the page
+   appears. A short stop about a second after the tap?
+4. About and Back at once, several times; Community -> a log -> Back ->
+   Back. No jumps, nothing left half-faded.
+

@@ -111,6 +111,19 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-19 — Stage 74 round 3: one clock for every morph
+
+- **Done:** the owner after round 2: the quick transition is the better
+  one; the same everywhere. `MOTION.clock` (140 + 380 + 220 ms) for every
+  pair, the CSS on the same numbers, hold slack 400 ms (ADR 0165
+  addendum). Merged, on staging.
+- **Next:** the owner's test (stage file, "Test guide, round 3"), then a
+  release on his word.
+- **Open:** Scripts' syntax check is a 100-160 ms task (throttled phone)
+  a moment after the page shows; a large monitor may want 460-480 ms;
+  `profile-place.spec.ts:444` flaky in Firefox on main.
+- **Commits:** fa867abb, b9c9dc3e and this one.
+
 ### 2026-11-19 — Stage 74 round 2: the menu morphs to a normal box
 
 - **Done:** the owner on staging: the changes feel good; fullscreen and
