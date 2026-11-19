@@ -67,7 +67,9 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Act 4 in the film (the approved device prototype; `DevicesAct`, joined to act 3 without a cut).
 - [x] Acts 7–8 recorded (community, dawn; take `film2-b`; community re-captured first).
 - [x] The `Film2` composition, full cut, music laid under (`video/out/film2-draft.mp4`, 5:58; `film2-draft-small.mp4` for the phone).
-- [ ] Owner feedback rounds.
+- [x] Owner feedback, round 1 (2026-11-18).
+- [x] Owner feedback, round 2 (2026-11-19): all takes re-recorded on 0.21.0 with the fog fix.
+- [ ] Owner feedback on the round 2 draft.
 - [ ] Master and 4K. Not now (owner, 2026-11-18): the H.264 draft stays as it is until the polish session.
 
 ## Test guide
@@ -114,6 +116,39 @@ old film's manuscript, scenes and takes stay for reference.
      the fade with the music's tail from 5:23.
 3. Feedback wanted: the docking segment (pace, the caption), the shorter
    phone strip, the Mercenaries staging, and the ending on the music.
+
+### 70c — the full draft, round 2
+
+1. Open `video/out/film2-draft.mp4` (5:29.67, it ends with the music), or
+   `film2-draft-small.mp4` on the phone. Recorded on 0.21.0 (the caption
+   reads 0.21).
+2. What it shows:
+   - 0:00–0:22 act 0: the start page, Enter MUME, the login.
+   - 0:22–1:12 act 1: Bree, Comm, the mercenary, Group, Settings.
+   - 1:12–1:42 act 2: the strike, the gate, Map; 1:25 Group docked above
+     the map, landing at once as the four-row strip, then Border off and
+     Background Clear (no resize on camera); Timers.
+   - 1:42–1:58 act 3: the first wolf (no Statistics).
+   - 1:58–2:51 act 4: the device act. 2:04 the tablet picks up in the
+     wide view under the caption; 2:07 the camera goes in on it; the
+     fight, `butch corpse`; 2:13–2:20 by touch: the lens moved, made
+     about 1.5 times larger, four taps through its zoom levels; 2:22 the
+     phone, Messages (2:31), the pane strip and its band (2:38–2:47);
+     2:47–2:51 the camera back out and in to the monitor, into the inn.
+   - 2:51–3:34 act 5: Profile; Scripts with Mercenaries on, then its cost
+     20 (3:25) and autopay (3:28) in its own settings.
+   - 3:34–4:21 act 6: Exit, History, the spotlight, Create account under
+     the new caption about the cloud.
+   - 4:21–5:11 act 7: the export editor: the pony lines excluded (4:30),
+     a comment added (4:35–4:40); Share, Hall of Fame, Publish,
+     Community, the watch page opened and closed with the morph (4:57,
+     5:05).
+   - 5:11–5:30 act 8: the start page at night dissolves into sunrise
+     (5:11.5–5:14.1), the end card at 5:16.5, the fade from 5:23.
+3. Feedback wanted: the tablet zoom and the lens (pace, the four taps),
+   the move back to the monitor, the Mercenaries settings, the export
+   editor's steps and its caption, the dissolve to dawn, and the pace
+   overall (holds were trimmed to keep the end on the music).
 
 ## Owner feedback
 
@@ -232,3 +267,104 @@ master now. The owner picks it up in a new session to polish it.
   - the last start page's quote no longer fades on camera;
   - there are no stars or comments on the real log. Re-capture with
     `node record/capture-community.ts` before act 7 is re-recorded.
+
+### Full draft, round 2 (2026-11-19, on the 5:29 cut)
+
+Times are the owner's, in the 5:29 draft of round 1. Since that cut the
+app went to 0.21.0 (stage 74: the new morph clock, the menu's panel
+morph, the watch page as a frame on the start surface); every take is
+recorded again on it, the community re-captured first (still one listed
+run, no stars or comments, two notes).
+
+1. **1:17, fog streaks.** Light vertical streaks along the right screen
+   edge where fog bands are. Fixed in the app by another agent.
+   **Outcome (2026-11-19, 4e626c52, merged to main before film2-a was
+   recorded):** film2-a re-recorded with the fix; the right edge
+   (x 1800-1919) during the rain and fog shows no streaks.
+2. **1:26, Group docking.** Group got a low height when docked and was
+   then dragged taller. It should land at the right height (the slim
+   four-row strip) at once; Border off and Background Clear stay, with
+   "Panes can be docked and customised."
+   **Outcome (2026-11-19, 08c412b3):** the app has no remembered dock
+   height for a pane docked from floating: it gets its default rows
+   (Group 6), and the lane is shared out by the panes' `desired` sizes.
+   With the default map (330) Group got one row. The take now seeds the
+   map's own size in the lane (`desired` 60, as a player who had sized
+   the map before) off camera, and Group lands at four rows, framed and
+   borderless (measured 3.99 rows). No app change, no resize on camera.
+   Docked at 1:25.1, Border and Background to 1:32.3.
+3. **1:56, Statistics.** Drop the Statistics segment and its caption.
+   **Outcome (2026-11-19, 08c412b3, 32e6b6e4):** gone from film2-a and
+   take B; the first wolf plays a little quicker (1.4×) and acts 2-3 move
+   3 s earlier: act 4 starts at 1:58.0 (was 2:03).
+4. **2:10, the tablet.** Zoom in on the live tablet; by touch, fairly
+   quickly: move the lens a little, make it about 50 % larger, zoom a few
+   times. Drop the phone's landscape turn and its lens.
+   **Outcome (2026-11-19, b279da83):** the tablet take is at DPR 1.5. The
+   caption is read in the wide view (2:04-2:08), then the camera goes in
+   on the tablet (2:07.2-2:08.7): the fight, `butch corpse` on our
+   keyboard; the lens dragged a little (2:13.4), held and pulled from 190
+   to 285 px (2:14.9), four taps (2:16.9-2:19.6: mid, far, area, back to
+   near). Out again at 2:20.5; the phone at 2:22.1. No landscape: the
+   phone keeps our keyboard, Messages with two chats, the strip swipes
+   and its resize.
+5. **2:55, back to the desktop.** A camera move instead of the cut.
+   **Outcome (2026-11-19, b279da83, 32e6b6e4):** 2:47.3-2:50.9 (3.6 s,
+   one eased move): the phone sleeps, the camera goes out to about the
+   wide view and in to the monitor, which wakes on take B (the inn's
+   sign) 0.5 s into the move; the act's last frame is take B's `film0`
+   full-frame, so act 5 runs on without a cut.
+6. **3:25, Mercenaries.** Cost 20 and autopay on from the script's own
+   settings in Scripts, not the pane; about 2 s before each click.
+   **Outcome (2026-11-19, 32e6b6e4):** Mercenaries on (3:22.1), cost 20
+   (3:25.1), autopay on (3:28.4), each after a 2 s rest on it; the pane
+   reads `Autopay [on] Cost [1g]` with Tod (staged as before). The pane
+   click is gone. The Lua caption stays over it.
+7. **4:33, the account.** Drop the phone shot and its caption; a lower
+   third while the account is being created.
+   **Outcome (2026-11-19, 32e6b6e4):** `film2-phone`, `PhoneShot` and the
+   split are gone. "Create an account and your settings are kept / in the
+   cloud, in sync across your devices." (two lines) from the Create
+   account page (4:08.0) to the recovery code (4:17.7). The account's own
+   reload ("Loading client") is now cut over (a plain cut at a page
+   load).
+8. **4:50, sharing.** Exclude a few lines and add a comment in the
+   export editor first; then Share. New caption.
+   **Outcome (2026-11-19, 32e6b6e4):** the pony lines (`lead pony` to
+   `gro pony`) dragged over and excluded (4:27.6-4:29.8), the cursor to
+   the top, Add comment, "Two wolves on the way out of Bree." typed and
+   saved (4:34.7-4:40.1); then Hall of Fame, the dialog, Publish, the
+   link. "Edit, comment on and share your runs with friends or the
+   community." from the editor (4:24.4) to Community (4:53.8).
+
+**With 0.21 (no item):** the watch page opens and closes with the morph
+on camera (4:57.0, 5:05.3), no page-load cuts. Without a reload the
+start page no longer comes up at sunrise by itself, so act 8 is: Back to
+the start page at night, then a 2.6 s dissolve to the same page loaded
+again at sunrise (5:11.5-5:14.1). The Panes popup morphs in now, so the
+films' pane step takes the row once the popup has landed (a quick click
+once turned Character on).
+
+**Length.** Still 19,780 frames, 5:29.67, the music once. The round 2
+content came out about 30 s longer (the tablet's lens, the return move,
+the Mercenaries settings, the export edits, the morphs), so holds were
+trimmed in take B (shorter rests between steps outside settings, the
+spotlight 10 s instead of 12, the log player 3.6 s, Exit without its
+tooltip, the watch page's play 1.4 s) and in the device act (1.7 s).
+The end card is at 5:16.5 as before, 2.4 s after the dawn is in.
+
+**Where to start next session (after round 2):**
+- The cut: `video/out/film2-draft.mp4` (5:29.67) and
+  `film2-draft-small.mp4` for the phone; contact sheet
+  `film2-draft-sheet.png`.
+- Re-record with `npm run record -- film2-a | devices-tablet |
+  devices-phone | film2-b` (no `film2-phone` any more), one at a time,
+  on port 5189. The device schedule is `video/src/devices.ts`; take B's
+  length decides where the end card can come (`film2Plan` warns past
+  318.5 s).
+- Known small things: the tablet's and phone's captures run at about
+  12 frames a second where only the sky moves (more while a finger
+  moves); the watch page shows "Loading the log" for about 2 s after its
+  morph; the night start page's pointer rests in the bottom right corner
+  under the dissolve.
+- No master yet (ProRes / 4K): the main session renders it.

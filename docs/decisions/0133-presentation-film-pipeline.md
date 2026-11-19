@@ -820,3 +820,38 @@ main at 0.20.1, with the community re-captured first.
   press to Create account settled), with the watch page's two loads as
   before. The Timers dock demo and Diary are gone; the spotlight plays
   12 s.
+
+## Addendum (2026-11-19): film 2, owner round 2 on the full draft
+
+The owner's eight items (`docs/stages/70-presentation-film-2.md`, "Full
+draft, round 2"), on 0.21.0 (stage 74) with the fog fix (4e626c52).
+
+- **A pane docked from floating lands at its default rows** (Group 6)
+  and the lane is shared by `desired` sizes; the app remembers no dock
+  height for it. film2-a seeds the map's own `desired` in the right lane
+  (60, a size a player could have dragged earlier) off camera, so Group
+  lands at four rows, framed or not. No app change, no resize on camera.
+- **The device act is one continuous stretch between two desktop takes.**
+  `DevicesAct` takes `next` and `nextAt`: on the way back the monitor
+  wakes on that take, and the act's last frame is its frame at `nextAt`
+  full-frame (`Screen` plays a take that starts after the act's 0 from a
+  later frame). The return is one eased move whose log zoom is bowed
+  down to about the wide view at its middle (no stop on the way). Take B
+  leads its `film0` by 4.5 s for it.
+- **The tablet is zoomed**, so its take is at DPR 1.5 (1770 × 1230;
+  about 1350 px wide on the frame). The lens is driven like the phone's
+  (timed CDP touches): a drag, a held drag for the size (the rim follows
+  the finger: half the growth in diameter), four taps (each one level;
+  the fourth wraps to the nearest). The phone has no landscape take any
+  more (no square canvas).
+- **No page loads at the watch page since 0.21** (a frame on the start
+  surface): its morphs are shown. The dawn, which came from the Back's
+  reload, is now a 2.6 s dissolve in `film2Plan` between the start page
+  at night and the same page loaded again off the film at sunrise
+  (`fade` on a piece). The account's own reload is cut over.
+- **The Panes popup morphs in (0.21).** `filmUi.paneOn` takes the row's
+  box once it is still and warns when any other pane changed: a quick
+  click on a moving popup once turned Character on.
+- **Length.** The content came out about 30 s longer; holds were trimmed
+  in take B and the device act, so the film is still 19,780 frames with
+  the card at 316.5 s.
