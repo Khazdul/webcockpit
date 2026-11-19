@@ -137,7 +137,14 @@ export function Film2({ a, tablet, phone, b }: Film2Props) {
         <Sequence key={i} from={f(p.at)} {...(Number.isFinite(p.to) ? { durationInFrames: f(p.at + p.to - p.from) - f(p.at) } : {})}>
           <AbsoluteFill style={p.fade > 0 ? { opacity: interpolate(frame, [f(p.at), f(p.at + p.fade)], [0, 1], ease) } : undefined}>
             <OffthreadVideo src={staticFile(`recordings/${b.scene}.mp4`)} trimBefore={f(plan.b0 + p.from)} muted style={{ width: '100%', height: '100%' }} />
-            <Cursor tl={b} startS={plan.b0 + p.from} restS={2.5} />
+            {i === 0 ? (
+              // the camera ends on this take's first frame with the pointer resting on it: it fades in, no pop
+              <AbsoluteFill style={{ opacity: interpolate(frame, [f(p.at), f(p.at + 0.4)], [0, 1], ease) }}>
+                <Cursor tl={b} startS={plan.b0 + p.from} restS={2.5} />
+              </AbsoluteFill>
+            ) : (
+              <Cursor tl={b} startS={plan.b0 + p.from} restS={2.5} />
+            )}
           </AbsoluteFill>
         </Sequence>
       ))}

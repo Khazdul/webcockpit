@@ -29,7 +29,7 @@
 // Touches on the tablet and the phone (from the takes' input logs) show as
 // a fingertip's ring, which follows a drag.
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, Audio, Easing, Freeze, interpolate, OffthreadVideo, staticFile, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Audio, Easing, Freeze, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from 'remotion';
 import { LowerThird } from '../components/Caption';
 import { DEVICES } from '../devices';
 import { FPS, HEIGHT, type TimelineFile, WIDTH, f, marker } from '../timeline';
@@ -226,14 +226,16 @@ export function Screen(o: { tl: TimelineFile; rect: Rect; crop: Crop; radius: nu
       />,
     );
   }
-  const video = (
+  // a take that starts after the act's 0 (the next desktop take on the way back) starts that much later
+  const player = (
     <OffthreadVideo
       src={staticFile(`recordings/${tl.scene}.mp4`)}
-      trimBefore={f(sync)}
+      trimBefore={Math.max(0, f(sync))}
       muted
       style={{ position: 'absolute', left: 0, top: 0, width: tl.width * k, height: tl.height * k, maxWidth: 'none', display: 'block' }}
     />
   );
+  const video = sync < 0 ? <Sequence from={f(-sync)} layout="none">{player}</Sequence> : player;
   return (
     <div style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.w, height: rect.h, borderRadius: o.radius, overflow: 'hidden', background: '#000' }}>
       {o.dark < 1 ? (o.frozenAt !== null ? <Freeze frame={Math.max(0, f(o.frozenAt))}>{video}</Freeze> : video) : null}
