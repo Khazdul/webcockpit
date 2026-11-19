@@ -61,8 +61,8 @@ describe('About text', () => {
   });
 
   it('keeps the key/value rows of What is inside, Credits, MUME and Getting started as tables', () => {
-    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
-    expect(kv('credits')).toEqual(['MMapper', 'Tilesets', 'Cockpit', 'MUME', 'Fonts', 'Libraries', 'TinTin++']);
+    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Community', 'Phone']);
+    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'TinTin++', 'Fonts', 'Libraries']);
     expect(kv('mume')).toEqual(['Website', 'Discord']);
     expect(kv('start')).toEqual(['Newcomers', 'First steps', 'Basics', 'Guides']);
     expect(kv('pvp')).toEqual([]);
@@ -109,7 +109,7 @@ describe('About text', () => {
 
   it('gives each section a unique letter, marked in its rail label', () => {
     const letters = ABOUT_NAV.map((n) => n.letter);
-    expect(letters).toEqual(['w', 'm', 'g', 'b', 'i', 's', 'k', 'u', 'c', 'l']);
+    expect(letters).toEqual(['w', 'm', 'g', 'b', 'i', 'u', 's', 'c', 'k', 'l']);
     expect(new Set(letters).size).toBe(letters.length);
     for (const n of ABOUT_NAV) expect(n.nav.toLowerCase()).toContain(n.letter);
   });

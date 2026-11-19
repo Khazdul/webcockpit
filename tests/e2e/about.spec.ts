@@ -36,8 +36,8 @@ async function openAbout(page: Page): Promise<void> {
   await morphDone(page);
 }
 
-const LETTERS = ['W', 'M', 'G', 'B', 'I', 'S', 'K', 'U', 'C', 'L'];
-const SECTIONS = ['intro', 'mume', 'start', 'pvp', 'inside', 'settings', 'knows', 'lua', 'credits', 'licence'];
+const LETTERS = ['W', 'M', 'G', 'B', 'I', 'U', 'S', 'C', 'K', 'L'];
+const SECTIONS = ['intro', 'mume', 'start', 'pvp', 'inside', 'lua', 'settings', 'credits', 'knows', 'licence'];
 
 test('the leaf: small wordmark and version, sections, rail with letters, seal; Esc leaves', async ({ page }) => {
   const errors = watchErrors(page);
@@ -62,14 +62,14 @@ test('the leaf: small wordmark and version, sections, rail with letters, seal; E
     'GETTING STARTED',
     'BUILT FOR PVP',
     'WHAT IS INSIDE',
-    'SETTINGS',
-    'WHAT THE SITE KNOWS',
     'LUA SCRIPTS',
+    'ACCOUNT AND SETTINGS',
     'CREDITS',
+    'WHAT THE SITE KNOWS',
     'LICENCE',
   ]);
-  await expect(lookBox(page).locator('[data-sec="inside"] .wc-lk-kv dt')).toHaveText(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
-  await expect(lookBox(page).locator('[data-sec="credits"] .wc-lk-kv dt').first()).toHaveText('MMapper');
+  await expect(lookBox(page).locator('[data-sec="inside"] .wc-lk-kv dt')).toHaveText(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Community', 'Phone']);
+  await expect(lookBox(page).locator('[data-sec="credits"] .wc-lk-kv dt').first()).toHaveText('MUME');
   await expect(lookBox(page).locator('.wc-about-colophon img')).toHaveCount(1);
   // The rail: ten rows, each with its letter; the intro lit at the top.
   await expect(rail(page)).toBeVisible();

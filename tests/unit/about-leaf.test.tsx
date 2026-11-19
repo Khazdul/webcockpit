@@ -37,18 +37,18 @@ describe('aboutSections', () => {
       'GETTING STARTED',
       'BUILT FOR PVP',
       'WHAT IS INSIDE',
-      'SETTINGS',
-      'WHAT THE SITE KNOWS',
       'LUA SCRIPTS',
+      'ACCOUNT AND SETTINGS',
       'CREDITS',
+      'WHAT THE SITE KNOWS',
       'LICENCE',
     ]);
   });
 
   it('groups key/value rows and keeps the paragraphs', () => {
     const kv = (id: string) => secs.find((s) => s.id === id)!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
-    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
-    expect(kv('credits')).toEqual(['MMapper', 'Tilesets', 'Cockpit', 'MUME', 'Fonts', 'Libraries', 'TinTin++']);
+    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Community', 'Phone']);
+    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'TinTin++', 'Fonts', 'Libraries']);
     expect(kv('mume')).toEqual(['Website', 'Discord']);
     const mume = secs.find((s) => s.id === 'mume')!.blocks;
     expect(mume.map((b) => ('p' in b ? 'p' : 'kv'))).toEqual(['p', 'p', 'p', 'p', 'kv']);
@@ -93,12 +93,12 @@ describe('aboutTokens', () => {
       ['mume.org/help/newbie', 'https://mume.org/help/newbie'],
       ['mume.org/help/basics', 'https://mume.org/help/basics'],
       ['docs.mume.org/wiki/guides', 'https://docs.mume.org/wiki/guides'],
-      ['abuse@mumecockpit.com', 'mailto:abuse@mumecockpit.com'],
       ['github.com/MUME/MMapper', 'https://github.com/MUME/MMapper'],
-      ['fonts/README.md', '/app/fonts/README.md'],
       ['tintin.mudhalla.net', 'https://tintin.mudhalla.net'],
-      ['LICENSE.txt', '/app/LICENSE.txt'],
+      ['fonts/README.md', '/app/fonts/README.md'],
+      ['abuse@mumecockpit.com', 'mailto:abuse@mumecockpit.com'],
       ['github.com/Khazdul/webcockpit', 'https://github.com/Khazdul/webcockpit'],
+      ['LICENSE.txt', '/app/LICENSE.txt'],
       ['THIRD_PARTY_NOTICES.md', '/app/THIRD_PARTY_NOTICES.md'],
     ]);
   });
@@ -314,7 +314,7 @@ describe('About: the leaf', () => {
     await mountAbout();
     await key('c');
     expect(lit()).toBe('Credits');
-    expect(top()).toBe(8 * SEC + 30 - 18);
+    expect(top()).toBe(7 * SEC + 30 - 18);
     await settle();
     expect(lit()).toBe('Credits');
     await key('l');
@@ -329,7 +329,7 @@ describe('About: the leaf', () => {
     await act(async () => q('.wc-about-rail .wc-lk-row[data-sec-link="lua"]')!.click());
     await settle();
     expect(lit()).toBe('Lua scripts');
-    expect(top()).toBe(7 * SEC + 30 - 18);
+    expect(top()).toBe(5 * SEC + 30 - 18);
     await act(async () => q('.wc-about-strip .wc-lk-opt[data-opt="mume"]')!.click());
     await settle();
     expect(pill()).toBe('MUME');
@@ -420,15 +420,17 @@ describe("the privacy page's account section (flag `accounts`)", () => {
   const { text, nav } = withAccounts(PRIVACY_TEXT, PRIVACY_NAV);
   const secs = aboutSections(text, nav);
 
-  it('replaces Coming later in its place, and the two sentences an account makes untrue', () => {
+  it('replaces Coming later in its place, the three sentences an account makes untrue, and ends with Delete account', () => {
     expect(secs.map((x) => x.id)).toEqual(PRIVACY_NAV.map((n) => (n.id === 'later' ? 'accounts' : n.id)));
     expect(text).not.toContain('COMING LATER');
     expect(text).toContain('unless you choose to have an account (see Accounts below).');
     expect(text).not.toContain('is ever sent to the site');
     const guest = PRIVACY_TEXT.replace(/COMING LATER\n[^\n]*\n/, '').split('\n');
-    const shown = text.replace(`${PRIVACY_ACCOUNTS}\n`, '').split('\n');
+    expect(text).toContain('so export what you want to keep first, unless an account keeps it.');
+    expect(text.endsWith('\nTo remove an account and everything in it, use Delete account on the Account page.')).toBe(true);
+    const shown = text.replace(`${PRIVACY_ACCOUNTS}\n`, '').split('\n').slice(0, -1);
     expect(shown.length).toBe(guest.length);
-    expect(shown.filter((l, i) => l !== guest[i]).length).toBe(2);
+    expect(shown.filter((l, i) => l !== guest[i]).length).toBe(3);
     expect(nav.find((n) => n.id === 'accounts')).toBe(PRIVACY_ACCOUNTS_NAV);
   });
 
@@ -439,12 +441,12 @@ describe("the privacy page's account section (flag `accounts`)", () => {
     expect(PRIVACY_ACCOUNTS_NAV.nav).toBe('Accounts');
   });
 
-  it('a paragraph and the five rows, each row one line', () => {
+  it('a paragraph and the six rows, each row one line', () => {
     const sec = secs.find((x) => x.id === 'accounts')!;
     expect(sec.title).toBe('ACCOUNTS');
     expect(sec.blocks.filter((b) => 'p' in b)).toHaveLength(1);
     const rows = sec.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
-    expect(rows).toEqual(['What is stored', 'Comm history', 'Sessions', 'Limits', 'Deleting']);
+    expect(rows).toEqual(['What is stored', 'Runs', 'Comm history', 'Sessions', 'Limits', 'Deleting']);
   });
 
   it('says the figures the Worker keeps to', () => {

@@ -21,13 +21,13 @@
 import type { LeafNav } from './about';
 
 /** The page's date while the share links section shows. */
-export const PRIVACY_SHARE_UPDATED = 'Last changed 17 November 2026';
+export const PRIVACY_SHARE_UPDATED = 'Last changed 19 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_SHARE = `SHARE LINKS
-A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included); the game's own status data that the Map, Timers and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), but no channel records and no other pane; the map of the rooms the log passes, if it passes any (without your own room notes or the name of your map file); the display settings the replay needs; and the title and description you give it. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared log is not encrypted: it is meant to be watched.
+A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included); the game's own status data that the Map, Timers and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), but no channel records and no other pane; the map of the rooms the log passes, if it passes any (without your own room notes or the name of your map file); the display settings the replay needs; and the title and description you give it. With it goes a preview picture of the log's first lines, drawn in this browser, that chat apps show when the link is pasted. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared log is not encrypted: it is meant to be watched.
   Who can watch   Anyone with the link, without an account. A Link log is not listed anywhere, but whoever has it can pass it on. A Hall of Fame log is listed in the Community for everyone. Whoever can watch a log can also save a copy of it, and a saved copy is theirs: removing the log does not reach it.
-  What is kept    The log as you cut it, its title, description, character, level (not shown on the pages, but part of the log's public data) and length, when it was made, and how many have watched it. A view is counted once a day for each device and network, by the random number of the heartbeat (made for this browser if it has none) and a scrambled form of the address that changes every day; which devices watched is deleted after two days.
+  What is kept    The log as you cut it, its preview picture, its title, description, character, level (not shown on the pages, but part of the log's public data) and length, when it was made, and how many have watched it. A view is counted once a day for each device and network, by the random number of the heartbeat (made for this browser if it has none) and a scrambled form of the address that changes every day; which devices watched is deleted after two days.
   Removing it     Remove a log on the Account page under Published logs, whenever you like: the link then says it was removed, and the log is deleted. Delete account removes all your shared logs.
   Reports         Anyone with an account can report a log, once; the sender is not told who. A log that breaks the rules is removed, and one that five accounts report is hidden until we have looked. A report is kept with the account that sent it. Without an account, write to abuse@mumecockpit.com with the link.`;
 
@@ -37,6 +37,7 @@ The Community page lists the logs shared to the Hall of Fame. Reading it needs n
   Stars           Your stars on a log are kept with your account, and you can change or take them back; the log shows the mean and the number of votes, not who gave them.
   Comments        A comment on a log's watch page is public: it is shown under the log with your account name (as you wrote it when you made the account) and its time, to everyone who can watch the log, with or without an account. You remove your own; the log's sender can remove any on their log.
   Random Runes    A note on the board is public: it is shown with your account name and its time to everyone who opens the Community page, with or without an account. It stays until you remove it or delete your account.
+  Discord         A log listed in the Hall of Fame is also posted in the #log-status channel of MUME's Discord: its title, your account name, the character and the link, which Discord shows with the preview picture. When the log leaves the Hall of Fame, the post is deleted. Discord is a service of its own, and a copy it keeps of the preview is out of our reach.
   New for you     To show "new" on the menu, the time you last opened the Community page is kept with your account (or in this browser without one), and the time you last looked at your published logs.
   Reports         Comments and notes are reported as logs are, and five accounts hide one until we have looked. Delete account removes your stars, comments and notes.`;
 
@@ -47,6 +48,9 @@ export const PRIVACY_COMMUNITY_NAV: LeafNav[number] = { id: 'community', head: '
 export const PRIVACY_SHARE_NAV: LeafNav[number] = { id: 'share', head: 'SHARE LINKS', nav: 'Share links', letter: 'l' };
 
 const WHO = '\nWHO RUNS IT\n';
+/** The Discord row of "WHO RUNS IT" (stage 72, ADR 0161), with the community section. */
+const CONTACT = '\n  Contact ';
+const WHO_DISCORD = "\n  Discord         Only the posts of Hall of Fame logs (under The community) go there. MUME's Discord server is run by MUME, under Discord's own terms.";
 
 /**
  * The privacy page's text and rail with the share links section (and, with
@@ -58,7 +62,7 @@ export function withShare(text: string, nav: LeafNav, o: { community?: boolean }
   const body = o.community ? `${PRIVACY_SHARE}\n${PRIVACY_COMMUNITY}` : PRIVACY_SHARE;
   const entries = o.community ? [PRIVACY_SHARE_NAV, PRIVACY_COMMUNITY_NAV] : [PRIVACY_SHARE_NAV];
   return {
-    text: text.replace(WHO, `\n${body}${WHO}`),
+    text: text.replace(WHO, `\n${body}${WHO}`).replace(CONTACT, o.community ? `${WHO_DISCORD}${CONTACT}` : CONTACT),
     nav: at < 0 ? [...nav, ...entries] : [...nav.slice(0, at), ...entries, ...nav.slice(at)],
   };
 }

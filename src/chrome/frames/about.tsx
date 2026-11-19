@@ -14,7 +14,8 @@
 // served at the site root, see vite.config.ts) are links that open in a new
 // tab; game commands (#help, ?safe, help newbie, who ranger, ...) are set in
 // the terminal font. The text was cut down for newcomers on 2026-11-08 (ADR
-// 0132 addendum): Getting started is about starting MUME.
+// 0132 addendum): Getting started is about starting MUME. Reviewed on 2026-11-19
+// against 0.21.0 (accounts, share links, the Community).
 //
 // The contents rail at the left (a strip of pills above the text when the
 // box is narrow) follows the reading: the section whose head has passed a
@@ -25,7 +26,7 @@
 // jumped-to section stays lit.
 //
 // Keys: ↑ / ↓ about 40 px, PgUp / PgDn / Space / Enter 85 % of the view
-// (Shift+Space back), Home / End, the letters W M G B I S K U C L, Esc / Back.
+// (Shift+Space back), Home / End, the letters W M G B I U S C K L, Esc / Back.
 //
 // The privacy page (stage 59, ADR 0147) is the same leaf with its own text
 // (privacy-text.ts, letters P E Y K A C W R): `PrivacyFrame`, opened from
@@ -58,7 +59,7 @@ import { accountsEnabled } from '../../cloud/account/state';
 import { flagOn } from '../../cloud/config';
 import { PRIVACY_NAV, PRIVACY_TEXT, PRIVACY_UPDATED } from './privacy-text';
 
-export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server between you and the game, and your settings, profiles and runs kept only in this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
+export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, and no server between you and the game. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
 
 MUME — MULTI-USERS IN MIDDLE-EARTH
 MUME is a free, text-based multiplayer game set in Tolkien's Middle-earth in the late Third Age, the years before the War of the Ring. It has run continuously since 1991, is kept alive by a volunteer community, and is one of the oldest active DikuMUDs.
@@ -72,7 +73,7 @@ MUME is free to play. No subscription, just connect.
   Discord         discord.gg/XkZN55am9a
 
 GETTING STARTED
-Choose Enter MUME on the start page and follow the prompts to create an account and your first character. Once you are in, the menu bar at the right end of the input line holds Profile, Scripts, Panes and Settings. On a phone, ☰ opens it.
+Choose Enter MUME on the start page and follow the prompts to create your MUME account and first character. Once you are in, the menu bar at the right end of the input line holds Profile, Scripts, Panes and Settings. On a phone, ☰ opens it.
 
 A new character is a newcomer until level 13, and the game goes easy on you until then. You start in the Halls of Mandos: pray to the tower hills takes you to the Tower Hills, the recommended first area. Type help newbie for the first steps. Take it slowly: consider a monster before you attack it, and flee when a fight turns against you.
 
@@ -94,33 +95,36 @@ WHAT IS INSIDE
   Profile         Your aliases, actions, highlights, macros and timers. Edit them as a form or as text; #help explains every command. Import brings in profiles from TinTin++, JMC, Powwow and Mudlet.
   Map             Reads MMapper maps and follows you as you move.
   Weather         The sky and weather of Middle-earth over the whole client, driven by the game.
-  Runs            Every login is recorded in this browser. History on the start page looks back at your runs (Sessions, Spotlights and the Diary), and Share turns one into an HTML replay anyone can open.
+  Runs            Every login is recorded. History on the start page looks back at your runs (Sessions, Spotlights and the Diary). Download saves one as an HTML replay; with an account, Share makes it a link anyone can open, or lists it in the Hall of Fame.
+  Community       The logs players have shared to the Hall of Fame, with stars, comments and the log of the day, and Random Runes, a board for short notes. Community on the start page; reading needs no account.
   Phone           Log in, chat and play lightly from a phone, with a layout for the thumb and its own on-screen keyboard. Real play is for a computer.
 
-SETTINGS
-Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
-
-WHAT THE SITE KNOWS
-Your game goes straight from this browser to MUME. Nothing you type, no character or account name and no password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. That is all. No IP address is kept, and who is online is never shown. The privacy page has the details: what is kept, for how long, and how to remove it. To report abuse, or to have something removed, write to abuse@mumecockpit.com.
-
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. A script's settings are tiles on its panel, and take effect at once. A bundled script opens read-only; Duplicate makes an editable copy. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Scripts, on the start page or in the game's menu bar, holds ready-made scripts to turn on: an almanac, a port key manager, map search and more. Their settings take effect at once. A bundled script opens read-only; Duplicate makes an editable copy. The editor completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
+
+ACCOUNT AND SETTINGS
+Settings, profiles, scripts and runs are kept in this browser. An account is your own choice: log in from the start menu, and they are kept in step between your devices, encrypted in this browser before they leave it. Without an account, use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 CREDITS
+  MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
+  Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
   Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
-  Cockpit         The terminal client for MUME that WebCockpit is modelled on.
-  MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
-  Fonts           The fonts for the game text, Cinzel and Cormorant Garamond are each under their own licence, listed in fonts/README.md. Lucida Console is used only when installed and is not part of WebCockpit.
-  Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
+  Fonts           The terminal fonts, Cinzel and Cormorant Garamond are each under their own licence, listed in fonts/README.md. Lucida Console is used only when installed and is not part of WebCockpit.
+  Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
+
+WHAT THE SITE KNOWS
+Your game goes straight from this browser to MUME: nothing you type in the game, no character name and no MUME password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. No IP address is kept, and who is online is never shown.
+
+An account keeps your user name and your things, encrypted so that the site cannot read them. A run you share is public: anyone with the link can watch it, and one in the Hall of Fame is listed in the Community. Stars, comments and notes show your account name. The privacy page has the details: what is kept, for how long, and how to remove it. To report abuse, or to have something removed, write to abuse@mumecockpit.com.
 
 LICENCE
-WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). The fonts, libraries and map assets it ships are each under their own licence. Licence text: LICENSE.txt. Source code: github.com/Khazdul/webcockpit
+WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). The fonts, libraries and map assets it ships keep their own licences and terms; the map's room texts belong to MUME.
 
 MUME is run by its own team; WebCockpit is an independent client and is not made or endorsed by MUME.
 
-Third-party notices: THIRD_PARTY_NOTICES.md`;
+Source code: github.com/Khazdul/webcockpit. Licence text: LICENSE.txt. Third-party notices: THIRD_PARTY_NOTICES.md`;
 
 // ------------------------------------------------------------ the text as structure
 
@@ -142,10 +146,10 @@ export const ABOUT_NAV: LeafNav = [
   { id: 'start', head: 'GETTING STARTED', nav: 'Getting started', letter: 'g' },
   { id: 'pvp', head: 'BUILT FOR PVP', nav: 'Built for PvP', letter: 'b' },
   { id: 'inside', head: 'WHAT IS INSIDE', nav: 'What is inside', letter: 'i' },
-  { id: 'settings', head: 'SETTINGS', nav: 'Settings', letter: 's' },
-  { id: 'knows', head: 'WHAT THE SITE KNOWS', nav: 'What the site knows', letter: 'k' },
   { id: 'lua', head: 'LUA SCRIPTS', nav: 'Lua scripts', letter: 'u' },
+  { id: 'settings', head: 'ACCOUNT AND SETTINGS', nav: 'Account and settings', letter: 's' },
   { id: 'credits', head: 'CREDITS', nav: 'Credits', letter: 'c' },
+  { id: 'knows', head: 'WHAT THE SITE KNOWS', nav: 'What the site knows', letter: 'k' },
   { id: 'licence', head: 'LICENCE', nav: 'Licence', letter: 'l' },
 ];
 

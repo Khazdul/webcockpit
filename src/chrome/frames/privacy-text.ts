@@ -11,14 +11,14 @@
 import type { LeafNav } from './about';
 
 /** Shown under the wordmark at the head of the page. */
-export const PRIVACY_UPDATED = 'Last changed 16 November 2026';
+export const PRIVACY_UPDATED = 'Last changed 19 November 2026';
 
 export const PRIVACY_TEXT = `WebCockpit runs in your browser. Your game goes straight from the browser to MUME, and what you set up here (settings, profiles, scripts, maps and recorded runs) is kept in this browser only. This page says what the site itself learns, and what it does with it.
 
 WHAT IS SENT
 While the page is open and on screen, or in the game, it sends the site a small heartbeat: when it loads, every five minutes after that, and when you move between the start page, the game and a replay. A tab in the background sends none, unless it is in the game. Each heartbeat holds these five things and nothing else:
   Device          A random number made for this browser the first time it sends a heartbeat, kept in the browser's local storage as wc.device. It says nothing about who you are, and it is not tied to your characters or to any account.
-  Version         The WebCockpit version, such as 0.9.3.
+  Version         The WebCockpit version, such as 0.21.0.
   Device type     Desktop, tablet or phone.
   Browser         The family only: Firefox, Chrome, Safari, Edge, Samsung Internet or other.
   State           On the start page, playing, or watching a replay.
@@ -41,7 +41,7 @@ COMING LATER
 Accounts, to keep your profiles and settings in step between devices, and shared logs, to publish a log for others to watch, do not exist yet. When they come, this page will say what they keep before you can use them, and both will be your own choice.
 
 WHO RUNS IT
-  Hosting         The site runs on Cloudflare, which processes the data above on WebCockpit's behalf. The database that holds it is kept in Cloudflare's EU jurisdiction.
+  Hosting         The site runs on Cloudflare, which processes the data above on WebCockpit's behalf. The database and the stored files that hold it are kept in Cloudflare's EU jurisdiction.
   Contact         abuse@mumecockpit.com, for questions about this page, to have data removed, or to report abuse.
 
 REMOVING IT
