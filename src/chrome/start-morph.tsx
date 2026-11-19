@@ -14,14 +14,17 @@
 // timeline, so the hand-overs (old box out, proxy in, proxy out, new box
 // in) fall on the same frame.
 //
-// The proxy's flight is transforms only (stage 74, ADR 0164): the proxy is
-// drawn in pieces (`proxyFlight`, look-motion.ts; `MorphProxy`,
-// start-surface.tsx; look.css), each moved, scaled or faded by an animation
-// the compositor runs, so a frame of the flight is no layout, no paint and no
-// raster, and the main thread's work (the new page's mount, a first-use
-// cost) cannot hold it back. Only the hood's width is still laid out (a
-// small plate, and its position is its holder's transform). The proxy's
-// rectangle mid-flight is its pane's (`proxyRect`).
+// The proxy flies in one of two ways (stage 74, ADR 0164; `proxyInPieces`).
+// On a desktop it is one box whose `left`, `top`, `width` and `height` are
+// animated: laid out and painted every frame on the main thread, which a
+// desktop has to spare. On a phone or a tablet it is drawn in pieces
+// (`proxyFlight`, look-motion.ts; `MorphProxy`, start-surface.tsx;
+// look.css), each moved, scaled or faded by an animation the compositor
+// runs, so a frame of the flight is no layout, no paint and no raster, and
+// the main thread's work (the new page's mount, a first-use cost) cannot
+// hold it back; only the hood's width is still laid out there (a small
+// plate, and its position is its holder's transform). The proxy's
+// rectangle mid-flight is `proxyRect`.
 //
 // Each look frame on the surface is wrapped in a `LookHost` (the surface's
 // `wrap`): it tells the stage when its frame becomes the top one, carries
@@ -56,6 +59,7 @@ import {
   reducedMotion,
   snapRect,
 } from './kit/look';
+import { device } from '../core/device';
 import { useIsOverlay, useIsTopFrame } from './kit/stack';
 
 /** A large box covering at least this share of the view calms the sky behind it. */
@@ -103,12 +107,40 @@ const hoodWidth = (box: Element): number => {
   return hood ? hood.offsetWidth || PLAIN_HOOD : PLAIN_HOOD;
 };
 
+const geo = (r: MorphRect): Keyframe => ({
+  left: `${r.left}px`,
+  top: `${r.top}px`,
+  width: `${r.width}px`,
+  height: `${r.height}px`,
+  visibility: 'visible',
+});
+
+/**
+ * Whether the proxy is drawn in pieces and flies on the compositor (a
+ * phone or a tablet), or is one laid-out box (a desktop). Measured (ADR
+ * 0164): in pieces the flight needs nothing of the main thread, which is
+ * what a phone is short of, but its large pieces are rastered whole when
+ * the flight starts, which on a large desktop window cost a frame or two
+ * that the laid-out proxy does not drop there. `?morph=pieces` and
+ * `?morph=layout` force either (to compare on a device).
+ */
+export function proxyInPieces(): boolean {
+  let asked: string | null = null;
+  try {
+    asked = new URLSearchParams(globalThis.location?.search ?? '').get('morph');
+  } catch {
+    // no address: the device decides
+  }
+  if (asked === 'pieces') return true;
+  if (asked === 'layout') return false;
+  return device().phone;
+}
+
 /** The proxy's pieces in the DOM (`MorphProxy`, start-surface.tsx). */
 export const PROXY_PIECE_CLASS: Record<ProxyPiece, string> = {
   shadowFrom: 'wc-lk-px-shadow-a',
   shadowTo: 'wc-lk-px-shadow-b',
-  paneFrom: 'wc-lk-px-pane-a',
-  paneTo: 'wc-lk-px-pane-b',
+  pane: 'wc-lk-px-pane',
   top: 'wc-lk-px-e-t',
   bottom: 'wc-lk-px-e-b',
   left: 'wc-lk-px-e-l',
@@ -122,9 +154,9 @@ export const PROXY_PIECE_CLASS: Record<ProxyPiece, string> = {
 
 const piece = (proxy: Element, p: ProxyPiece): HTMLElement | null => proxy.querySelector<HTMLElement>(`:scope > .${PROXY_PIECE_CLASS[p]}`);
 
-/** Where the proxy is now: its pane's rectangle (a pane is drawn at one end's size and scaled to the proxy's). */
+/** Where the proxy is now: in pieces its pane's rectangle (drawn at the flight's larger size and scaled to the proxy's), else its own. */
 function proxyRect(proxy: Element): MorphRect {
-  return rectOf(piece(proxy, 'paneFrom') ?? proxy);
+  return rectOf(piece(proxy, 'pane') ?? proxy);
 }
 
 /** An animation that keeps a new box hidden until its landing. */
@@ -297,44 +329,10 @@ export class MorphStage {
     if (f && proxy && canAnimate(proxy)) {
       proxy.hidden = false;
       const timing: KeyframeAnimationOptions = { delay: f.at, duration: f.ms, easing: f.easing, fill: 'backwards' };
-      // The pieces: drawn once for this flight, then only transformed and faded (the compositor's work).
-      const dpr = proxy.ownerDocument.defaultView?.devicePixelRatio || 1;
-      const pieces = proxyFlight(snapRect(f.from, dpr), snapRect(f.to, dpr));
-      proxy.style.setProperty('--lk-mw', `${pieces.edgeSize.width}px`);
-      proxy.style.setProperty('--lk-mh', `${pieces.edgeSize.height}px`);
-      const sized: [ProxyPiece, { width: number; height: number }][] = [
-        ['shadowFrom', pieces.fromSize],
-        ['paneFrom', pieces.fromSize],
-        ['shadowTo', pieces.toSize],
-        ['paneTo', pieces.toSize],
-      ];
-      for (const [p, size] of sized) {
-        const el = piece(proxy, p);
-        if (!el) continue;
-        el.style.width = `${size.width}px`;
-        el.style.height = `${size.height}px`;
-      }
-      // Visible from the start to the landing (but for `show`, below: a later animation wins).
-      const shown = quiet(proxy.animate([{ visibility: 'visible' }, { visibility: 'visible' }], timing));
-      let lead: Animation | null = null;
-      for (const p of PROXY_PIECES) {
-        const el = piece(proxy, p);
-        if (!el || !canAnimate(el)) continue;
-        const fade = pieces.fade[p];
-        const a = quiet(
-          el.animate(
-            fade
-              ? [
-                  { transform: pieces.from[p], opacity: fade[0] },
-                  { transform: pieces.to[p], opacity: fade[1] },
-                ]
-              : [{ transform: pieces.from[p] }, { transform: pieces.to[p] }],
-            timing,
-          ),
-        );
-        if (p === 'paneFrom') lead = a;
-      }
-      this.flight = lead ?? shown;
+      if (piece(proxy, 'pane')) this.flight = this.flyPieces(proxy, f.from, f.to, timing);
+      // Laid out: the proxy's own geometry, visible from the start to the landing.
+      else this.flight = quiet(proxy.animate([geo(f.from), geo(f.to)], timing));
+      // Hidden until `show` (a later animation wins).
       if (f.show > 0) quiet(proxy.animate([{ visibility: 'hidden' }, { visibility: 'hidden' }], { duration: f.show }));
       const hood = proxy.querySelector<HTMLElement>('.wc-lk-hood');
       if (hood && canAnimate(hood)) {
@@ -440,6 +438,49 @@ export class MorphStage {
     );
     if (!after) (a as Tagged).wcLand = true;
     host.anims.push(a);
+  }
+
+  /**
+   * The proxy in pieces (a touch device): each piece is drawn once for this
+   * flight, then only transformed and faded, which the compositor does.
+   * Returns the animation the flight ends with.
+   */
+  private flyPieces(proxy: HTMLElement, from: MorphRect, to: MorphRect, timing: KeyframeAnimationOptions): Animation {
+    const dpr = proxy.ownerDocument.defaultView?.devicePixelRatio || 1;
+    const pieces = proxyFlight(snapRect(from, dpr), snapRect(to, dpr));
+    proxy.style.setProperty('--lk-mw', `${pieces.maxSize.width}px`);
+    proxy.style.setProperty('--lk-mh', `${pieces.maxSize.height}px`);
+    const sized: [ProxyPiece, { width: number; height: number }][] = [
+      ['shadowFrom', pieces.fromSize],
+      ['shadowTo', pieces.toSize],
+    ];
+    for (const [p, size] of sized) {
+      const el = piece(proxy, p);
+      if (!el) continue;
+      el.style.width = `${size.width}px`;
+      el.style.height = `${size.height}px`;
+    }
+    // Visible from the start to the landing.
+    const shown = quiet(proxy.animate([{ visibility: 'visible' }, { visibility: 'visible' }], timing));
+    let lead: Animation | null = null;
+    for (const p of PROXY_PIECES) {
+      const el = piece(proxy, p);
+      if (!el || !canAnimate(el)) continue;
+      const fade = pieces.fade[p];
+      const a = quiet(
+        el.animate(
+          fade
+            ? [
+                { transform: pieces.from[p], opacity: fade[0] },
+                { transform: pieces.to[p], opacity: fade[1] },
+              ]
+            : [{ transform: pieces.from[p] }, { transform: pieces.to[p] }],
+          timing,
+        ),
+      );
+      if (p === 'pane') lead = a;
+    }
+    return lead ?? shown;
   }
 
   /** Cancels what the stage put on a frame (it is the top again). */

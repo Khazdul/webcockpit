@@ -29,7 +29,8 @@ import {
   useBoxSettled,
 } from '../../src/chrome/kit/look';
 import { FrameStack, type Nav, useNav } from '../../src/chrome/kit/stack';
-import { LookHost, MorphCtx, MorphStage } from '../../src/chrome/start-morph';
+import { LookHost, MorphCtx, MorphStage, proxyInPieces } from '../../src/chrome/start-morph';
+import { setDeviceForTest } from '../../src/core/device';
 import { LookWordmark } from '../../src/chrome/start-surface';
 import { calmTier } from '../../src/start/sky';
 import { SHEEN_FIRST_MS } from '../../src/start/wordmark-svg';
@@ -321,7 +322,7 @@ describe('the proxy in pieces (stage 74, ADR 0164)', () => {
     return { x: Number(m[1]), y: Number(m[2]), kx: Number(m[3]), ky: Number(m[4]) };
   };
 
-  it('every piece is a translate and a scale; at each end the soft pieces of that end are unscaled', () => {
+  it('every piece is a translate and a scale; the pane is drawn at the larger size, each end has its own shadows', () => {
     const f = proxyFlight(PANEL, LARGE);
     for (const p of PROXY_PIECES) {
       expect(() => parse(f.from[p])).not.toThrow();
@@ -329,17 +330,23 @@ describe('the proxy in pieces (stage 74, ADR 0164)', () => {
     }
     expect(f.fromSize).toEqual({ width: 360, height: 399 });
     expect(f.toSize).toEqual({ width: 1386, height: 846 });
-    expect(f.edgeSize).toEqual({ width: 1386, height: 846 });
-    // At the start the start's pane and shadow are the box itself; at the landing the landing's are.
-    expect(parse(f.from.paneFrom)).toEqual({ x: 540, y: 264, kx: 1, ky: 1 });
+    expect(f.maxSize).toEqual({ width: 1386, height: 846 });
+    // The pane: the large box itself at the landing, shrunk to the panel at the start.
+    expect(parse(f.to.pane)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
+    expect(parse(f.from.pane).x).toBe(540);
+    expect(parse(f.from.pane).kx).toBeCloseTo(360 / 1386, 3);
+    expect(parse(f.from.pane).ky).toBeCloseTo(399 / 846, 3);
+    // The shadows: at the start the start's are the box's own, at the landing the landing's are.
     expect(parse(f.from.shadowFrom)).toEqual({ x: 540, y: 264, kx: 1, ky: 1 });
-    expect(parse(f.to.paneTo)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
     expect(parse(f.to.shadowTo)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
-    // The other end's are scaled to the rectangle.
-    expect(parse(f.from.paneTo).kx).toBeCloseTo(360 / 1386, 3);
-    expect(parse(f.to.paneFrom).ky).toBeCloseTo(846 / 399, 3);
-    // The landing's pieces fade in over the start's; the start's shadow fades out.
-    expect(f.fade).toEqual({ shadowFrom: [1, 0], shadowTo: [0, 1], paneTo: [0, 1] });
+    expect(parse(f.to.shadowFrom).ky).toBeCloseTo(846 / 399, 3);
+    // The landing's shadows fade in as the start's fade out; nothing else fades.
+    expect(f.fade).toEqual({ shadowFrom: [1, 0], shadowTo: [0, 1] });
+    // The other way round the pane is still drawn at the larger size and never scaled up.
+    const back = proxyFlight(LARGE, PANEL);
+    expect(back.maxSize).toEqual(f.maxSize);
+    expect(parse(back.from.pane)).toEqual({ x: 27, y: 27, kx: 1, ky: 1 });
+    expect(parse(back.to.pane).kx).toBeLessThan(1);
   });
 
   it('the pieces stand on the rectangle: edges along it, corners in it, the hood at its top centre', () => {
@@ -376,6 +383,22 @@ describe('the proxy in pieces (stage 74, ADR 0164)', () => {
         }
       }
     }
+  });
+
+  it('in pieces on a phone or a tablet, one laid-out box on a desktop; ?morph= forces either', () => {
+    setDeviceForTest({ touch: false, phone: false });
+    expect(proxyInPieces()).toBe(false);
+    setDeviceForTest({ touch: true, phone: false }); // a touch laptop: the desktop's layout
+    expect(proxyInPieces()).toBe(false);
+    setDeviceForTest({ touch: true, phone: true });
+    expect(proxyInPieces()).toBe(true);
+    setDeviceForTest({ touch: true, phone: true, tablet: true });
+    expect(proxyInPieces()).toBe(true);
+    vi.stubGlobal('location', { search: '?morph=layout' });
+    expect(proxyInPieces()).toBe(false);
+    setDeviceForTest({ touch: false, phone: false });
+    vi.stubGlobal('location', { search: '?morph=pieces' });
+    expect(proxyInPieces()).toBe(true);
   });
 
   it('a degenerate rectangle gives finite transforms', () => {

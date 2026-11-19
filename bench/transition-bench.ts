@@ -214,6 +214,8 @@ interface FrameStats {
   worst: number;
   /** ms from the click to the first frame after it (the click's own work). */
   first: number;
+  /** When the intervals over 34 ms ended (ms from the click) and how long each was. */
+  slow: [number, number][];
   /** The flight (the frames while the proxy is out). */
   fly: { n: number; over20: number; over34: number; worst: number };
 }
@@ -221,6 +223,7 @@ interface FrameStats {
 function frameStats(frames: number[], flying: number[], t0: number, len: number): FrameStats {
   const d: number[] = [];
   const fd: number[] = [];
+  const slow: [number, number][] = [];
   let first = NaN;
   for (let i = 1; i < frames.length; i++) {
     const t = frames[i]!;
@@ -231,6 +234,7 @@ function frameStats(frames: number[], flying: number[], t0: number, len: number)
       continue;
     }
     d.push(t - prev);
+    if (t - prev > 34) slow.push([Math.round(t - t0), Math.round(t - prev)]);
     if (flying[i] && flying[i - 1]) fd.push(t - prev);
   }
   const over = (xs: number[], ms: number): number => xs.filter((x) => x > ms).length;
@@ -242,6 +246,7 @@ function frameStats(frames: number[], flying: number[], t0: number, len: number)
     p95: pct(d, 95),
     worst: max(d),
     first,
+    slow,
     fly: { n: fd.length, over20: over(fd, 20), over34: over(fd, 34), worst: max(fd) },
   };
 }

@@ -315,13 +315,14 @@ export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): 
  * the main thread (the new page's mount, a first-use cost) cannot hold it
  * back.
  *
- * - The soft parts, whose look depends on the box's size, are drawn twice,
- *   once at each end's size, and scaled to the rectangle: the pane (the
- *   iron and the window glass with its glow and inner shadow; `paneFrom`,
- *   and over it `paneTo`, which fades in) and the box's outer shadows
- *   (`shadowFrom` fades out as `shadowTo` fades in). At each end the
- *   proxy is exactly the box of that size; in between it is the blend of
- *   the two.
+ * - The pane (`pane`: the iron and the window glass with its glow and
+ *   inner shadow) is drawn once, at the larger of the flight's two sizes,
+ *   and scaled to the rectangle: at the large end it is exactly the box;
+ *   smaller, its soft parts shrink with it.
+ * - The box's outer shadows, which a small box over the sky shows most,
+ *   are drawn twice, once at each end's size, and scaled to the
+ *   rectangle: `shadowFrom` fades out as `shadowTo` fades in, so at each
+ *   end they are exactly that box's.
  * - The four edges (`top`, `bottom`, `left`, `right`: the border, the iron
  *   band and the window's own border, `PROXY_EDGE` px thick) are drawn at
  *   the larger size and scaled along their length only, so every line
@@ -339,8 +340,7 @@ export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): 
 export type ProxyPiece =
   | 'shadowFrom'
   | 'shadowTo'
-  | 'paneFrom'
-  | 'paneTo'
+  | 'pane'
   | 'top'
   | 'bottom'
   | 'left'
@@ -351,7 +351,7 @@ export type ProxyPiece =
   | 'br'
   | 'hood';
 
-export const PROXY_PIECES: readonly ProxyPiece[] = ['shadowFrom', 'shadowTo', 'paneFrom', 'paneTo', 'top', 'bottom', 'left', 'right', 'tl', 'tr', 'bl', 'br', 'hood'];
+export const PROXY_PIECES: readonly ProxyPiece[] = ['shadowFrom', 'shadowTo', 'pane', 'top', 'bottom', 'left', 'right', 'tl', 'tr', 'bl', 'br', 'hood'];
 
 /** An edge piece's thickness (px): the border, the 7 px of iron, the window's border and its lit line. */
 export const PROXY_EDGE = 10;
@@ -365,11 +365,11 @@ export interface ProxySize {
 }
 
 export interface ProxyFlight {
-  /** The size each end's soft pieces are drawn at: that end's own. */
+  /** The size each end's shadows are drawn at: that end's own. */
   fromSize: ProxySize;
   toSize: ProxySize;
-  /** The size the edges are drawn at: the larger of the two ends on each axis. */
-  edgeSize: ProxySize;
+  /** The size the pane and the edges are drawn at: the larger of the two ends on each axis. */
+  maxSize: ProxySize;
   /** Each piece's transform at the flight's start and at its landing. */
   from: Record<ProxyPiece, string>;
   to: Record<ProxyPiece, string>;
@@ -402,8 +402,7 @@ export function proxyAt(r: MorphRect, from: ProxySize, to: ProxySize): Record<Pr
   return {
     shadowFrom: box(from),
     shadowTo: box(to),
-    paneFrom: box(from),
-    paneTo: box(to),
+    pane: box({ width: w, height: h }),
     top: at(r.left, r.top, sx, 1),
     bottom: at(r.left, bottom - PROXY_EDGE, sx, 1),
     left: at(r.left, r.top + PROXY_EDGE, 1, se),
@@ -423,9 +422,9 @@ export function proxyFlight(from: MorphRect, to: MorphRect): ProxyFlight {
   return {
     fromSize,
     toSize,
-    edgeSize: { width: Math.max(from.width, to.width), height: Math.max(from.height, to.height) },
+    maxSize: { width: Math.max(from.width, to.width), height: Math.max(from.height, to.height) },
     from: proxyAt(from, fromSize, toSize),
     to: proxyAt(to, fromSize, toSize),
-    fade: { shadowFrom: [1, 0], shadowTo: [0, 1], paneTo: [0, 1] },
+    fade: { shadowFrom: [1, 0], shadowTo: [0, 1] },
   };
 }

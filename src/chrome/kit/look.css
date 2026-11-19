@@ -6,8 +6,8 @@
  * Cormorant (bundled, src/theme/fonts.ts START_FACES and LOOK_FACES).
  *
  * This file: the box, its places and pages, its slots, layout B's proxy
- * (in pieces that only take a transform: stage 74, ADR 0164) and the
- * flash (package 42a, ADR 0127). The tokens are in
+ * (one box on a desktop; on a phone or a tablet pieces that only take a
+ * transform: stage 74, ADR 0164) and the flash (package 42a, ADR 0127). The tokens are in
  * look-tokens.css, the glass buttons, Back, the icons and the shortcut
  * letters in look-glass.css (whose rules the player's Back uses, 42f). Stage 42-0
  * split them out.
@@ -88,7 +88,8 @@
 
 /* ------------------------------------------------------------ the box */
 
-.wc-lk-box {
+.wc-lk-box,
+.wc-lk-morph {
   position: relative;
   box-sizing: border-box;
   padding: 7px;
@@ -345,32 +346,12 @@
 
 /* An empty iron frame that carries the motion between two boxes (the
  * start surface's, src/chrome/start-morph.tsx). Visible only while an
- * animation says so.
+ * animation says so. It is drawn in one of two ways (`proxyInPieces`,
+ * start-morph.tsx; stage 74, ADR 0164).
  *
- * Its flight is transforms and opacity only (stage 74, ADR 0164): the
- * frame is drawn in pieces, each of them moved, scaled or faded by the
- * compositor (`proxyFlight`, look-motion.ts), so a frame of the flight is
- * no layout, no paint and no raster. At each end of a flight the pieces
- * together are the box above at that size, pixel for pixel:
- *
- * - `.wc-lk-px-shadow`: the box's two outer shadows, scaled with the box.
- *   Two of them, one drawn at each end's size (`-a` the start's, fading
- *   out; `-b` the landing's, fading in);
- * - `.wc-lk-px-pane`: the box's iron and, 9 px in, the window's glass
- *   (`.wc-lk-mwin`: the large window's fill and its inner shadow), scaled
- *   with the box. Two as well (`-b` fades in over `-a`);
- * - `.wc-lk-px-e-*`: the four edges, 10 px thick, drawn at the larger of
- *   the two sizes (`--lk-mw` × `--lk-mh`, set per flight) and scaled
- *   along their length only: the border, its lit or dark inner line, the iron, the
- *   window's border and its lit line (the side edges run between the top
- *   and the bottom one);
- * - `.wc-lk-px-c-*`: the four corners, only moved: the bracket, and under
- *   its inner corner the pixels where the window's border turns;
- * - `.wc-lk-px-h`: the hood's holder at the top centre, only moved (the
- *   plate's own width is the one thing still laid out).
- *
- * No `will-change` (it would pin the scaled pieces' raster scale) and no
- * paint containment (the pieces lie outside the root's empty box). */
+ * On a desktop: one box, the box above without content (the brackets, the
+ * plain hood and the window glass `.wc-lk-mwin` are its children), fixed,
+ * its geometry animated, contained so its layout touches nothing else. */
 .wc-lk-morph {
   position: fixed;
   z-index: 2;
@@ -380,18 +361,71 @@
   height: 0;
   visibility: hidden;
   pointer-events: none;
-  contain: layout style;
+  contain: strict;
 }
 
 .wc-lk-morph[hidden] {
   display: none;
 }
 
-.wc-lk-morph > * {
+.wc-lk-morph > .wc-lk-hood {
+  padding: 0;
+}
+
+.wc-lk-mwin {
+  position: absolute;
+  inset: 7px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.1), inset 0 0 40px rgba(0, 0, 0, 0.65);
+}
+
+/* On a phone or a tablet (`.wc-lk-px`): its flight is transforms and
+ * opacity only. The frame is drawn in pieces, each of them moved, scaled
+ * or faded by the compositor (`proxyFlight`, look-motion.ts), so a frame
+ * of the flight is no layout, no paint and no raster. At the larger end
+ * of a flight the pieces together are the box above, pixel for pixel; at
+ * the smaller end the frame and the shadows are, and the glass's glow
+ * and inner shadow are the large one's, shrunk:
+ *
+ * - `.wc-lk-px-shadow`: the box's two outer shadows, scaled with the box.
+ *   Two of them, one drawn at each end's size (`-a` the start's, fading
+ *   out; `-b` the landing's, fading in);
+ * - `.wc-lk-px-pane`: the box's iron and, 9 px in, the window's glass
+ *   (`.wc-lk-mwin`: the large window's fill and its inner shadow), drawn
+ *   at the larger of the two sizes (`--lk-mw` × `--lk-mh`, set per
+ *   flight) and scaled with the box;
+ * - `.wc-lk-px-e-*`: the four edges, 10 px thick, drawn at that size and
+ *   scaled along their length only: the border, its lit or dark inner
+ *   line, the iron, the window's border and its lit line (the side edges
+ *   run between the top and the bottom one);
+ * - `.wc-lk-px-c-*`: the four corners, only moved: the bracket, and under
+ *   its inner corner the pixels where the window's border turns;
+ * - `.wc-lk-px-h`: the hood's holder at the top centre, only moved (the
+ *   plate's own width is the one thing still laid out).
+ *
+ * The root is an empty box at the viewport's origin: no iron of its own,
+ * no `will-change` (it would pin the scaled pieces' raster scale) and no
+ * paint containment (the pieces lie outside it). */
+.wc-lk-morph.wc-lk-px {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  contain: layout style;
+}
+
+.wc-lk-px > * {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
+}
+
+.wc-lk-px-pane {
+  width: var(--lk-mw, 0);
+  height: var(--lk-mh, 0);
 }
 
 .wc-lk-px-shadow {
@@ -416,23 +450,11 @@
   border: 1px solid transparent;
 }
 
-.wc-lk-mwin {
-  position: absolute;
+.wc-lk-px-pane > .wc-lk-mwin {
   inset: 8px;
+  border: 0;
+  border-radius: 0;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.65);
-}
-
-/* Around the glass, over the pane's iron band, a ring in the colours of
- * the glass's shadowed rim (lit at the top centre as the glass is). At
- * the pane's own size the edges cover it; a pane scaled up (the smaller
- * end's, while the box is larger) would show its iron band inside the
- * edges as a pale frame, and shows the rim carried on instead. */
-.wc-lk-px-pane::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border: 9px solid #17140f;
-  border-image: radial-gradient(55% 70px at 50% 0, #2c241a, #17140f) 9;
 }
 
 /* An edge: the iron band with the border (`::before`, 8 px) and the

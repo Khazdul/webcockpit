@@ -62,7 +62,7 @@ import { MOTION, type Scenery, SceneryCtx, isLookFrame, reducedMotion, useScener
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { FrameStack, useIsTopFrame } from './kit/stack';
 import { almanacLines } from './start-layout';
-import { LookHost, MorphCtx, MorphStage } from './start-morph';
+import { LookHost, MorphCtx, MorphStage, proxyInPieces } from './start-morph';
 import { arriving, onArrival } from './start-arrival';
 import './start.css';
 
@@ -509,14 +509,29 @@ function GridFrame(p: { children: ComponentChildren }): VNode {
 /**
  * Layout B's proxy (look.css `.wc-lk-morph`): an empty iron frame that
  * carries the motion from one box's rectangle to the next
- * (src/chrome/start-morph.tsx). It is drawn in pieces that only take a
- * transform or an opacity (stage 74, ADR 0164; `proxyFlight`,
- * kit/look-motion.ts): the outer shadows and the pane (the iron and the
- * window glass), each drawn once per end of the flight, the four edges,
- * the four corners with their brackets, and the hood on its holder. Idle,
- * it is `hidden`.
+ * (src/chrome/start-morph.tsx). On a desktop it is one box with its four
+ * brackets, the hood and the window glass, its geometry animated. On a
+ * phone or a tablet (`proxyInPieces`; stage 74, ADR 0164) it is drawn in
+ * pieces that only take a transform or an opacity (`proxyFlight`,
+ * kit/look-motion.ts): the outer shadows (drawn once per end of the
+ * flight), the pane (the iron and the window glass), the four edges, the
+ * four corners with their brackets, and the hood on its holder. Idle, it
+ * is `hidden`.
  */
 function MorphProxy(p: { proxyRef: { current: HTMLDivElement | null } }): VNode {
+  const pieces = useMemo(proxyInPieces, []);
+  if (!pieces) {
+    return (
+      <div class="wc-lk-morph" ref={p.proxyRef} hidden aria-hidden="true">
+        <i class="wc-lk-br wc-lk-b1" />
+        <i class="wc-lk-br wc-lk-b2" />
+        <i class="wc-lk-br wc-lk-b3" />
+        <i class="wc-lk-br wc-lk-b4" />
+        <div class="wc-lk-hood is-plain" />
+        <div class="wc-lk-mwin" />
+      </div>
+    );
+  }
   const corner = (at: 'tl' | 'tr' | 'bl' | 'br', n: number): VNode => (
     <div class={`wc-lk-px-c wc-lk-px-c-${at}`}>
       <i class="wc-lk-px-cp" />
@@ -524,13 +539,10 @@ function MorphProxy(p: { proxyRef: { current: HTMLDivElement | null } }): VNode 
     </div>
   );
   return (
-    <div class="wc-lk-morph" ref={p.proxyRef} hidden aria-hidden="true">
+    <div class="wc-lk-morph wc-lk-px" ref={p.proxyRef} hidden aria-hidden="true">
       <div class="wc-lk-px-shadow wc-lk-px-shadow-a" />
       <div class="wc-lk-px-shadow wc-lk-px-shadow-b" />
-      <div class="wc-lk-px-pane wc-lk-px-pane-a">
-        <div class="wc-lk-mwin" />
-      </div>
-      <div class="wc-lk-px-pane wc-lk-px-pane-b">
+      <div class="wc-lk-px-pane">
         <div class="wc-lk-mwin" />
       </div>
       <i class="wc-lk-px-e wc-lk-px-e-t" />
