@@ -1,6 +1,6 @@
 # Stage 70 — Presentation film 2
 
-Status: **In progress** (started 2026-11-17). Paused 2026-11-18 after round 1: the owner finds the cut "ganska bra" and will polish it in a new session. No master for now.
+Status: **Done** (2026-11-19, round 3 approved).
 
 ## Goal
 
@@ -450,3 +450,5 @@ reply added 6 s to act 1; dropping the Editor and the quicker
 Mercenaries gave about 9 s back, the title took about 3 s. The night start
 page comes back at 5:10.4, as in round 2. All four takes were recorded
 again (film2-a, devices-tablet, devices-phone, film2-b).
+
+**Verdict on round 3 (2026-11-19):** "Det här ser bra ut. Vi nöjer oss så här." Done. The upload is `video/out/webcockpit-film2-youtube.mp4` (4K H.264, 759.6 MiB).
