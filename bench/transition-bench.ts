@@ -3,7 +3,7 @@
 //   node bench/transition-bench.ts [--no-build] [--dist DIR] [--rounds 5] [--throttle 4,6]
 //                                  [--geometries phone,tablet,…] [--scenarios about,scripts,…] [--browser firefox]
 //                                  [--settle 2500] [--label TEXT] [--out FILE] [--json FILE]
-//                                  [--css CSS] [--trace-dir DIR]
+//                                  [--css CSS] [--scene QUERY] [--trace-dir DIR]
 //
 // Builds the app (or serves an existing build: `--no-build`, `--dist DIR`
 // for another output directory, so a baseline build and a changed one can
@@ -37,8 +37,9 @@
 // morph's plan is at most 1.3 s):
 //
 // - animation frame intervals (the page's rAF): count, the ones over 20,
-//   34 and 50 ms, p95, the worst, and the same for the frames while the
-//   proxy is out (the flight);
+//   34 and 50 ms, p95, the worst, when each interval over 34 ms ended (ms
+//   from the click: in the JSON, `frames.slow`), and the same counts for
+//   the frames while the proxy is out (the flight);
 // - a DevTools trace of the window: main-thread time by kind (script,
 //   style, layout, paint and pre-paint, layerize and commit, GC), the
 //   raster and image-decode time on every thread, the GPU process's time,
@@ -54,6 +55,11 @@
 // asks for, but not what that raster costs on a phone, nor texture
 // upload, thermal limits or a 120 Hz panel. Raster and GPU time are
 // reported unthrottled, as a measure of the work asked for.
+//
+// `--css` adds a style sheet to the page and `--scene` replaces the sky's
+// query (anything may be appended: `…&morph=pieces` forces the proxy in
+// pieces, `…&morph=layout` the laid-out one, src/chrome/start-morph.tsx),
+// both for attribution: what a part costs, how a variant does.
 //
 // Every run ends with `RESULT {json}` on stdout; `--json FILE` writes the
 // rows. The report goes to `--out` (default bench/results/transitions.md).
