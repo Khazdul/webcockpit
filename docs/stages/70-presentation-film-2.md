@@ -71,7 +71,7 @@ old film's manuscript, scenes and takes stay for reference.
 - [x] Owner feedback, round 2 (2026-11-19): all takes re-recorded on 0.21.0 with the fog fix.
 - [x] Owner feedback, round 3 (2026-11-19): film2-a, the tablet, the phone and take B re-recorded.
 - [ ] Owner feedback on the round 3 draft.
-- [ ] Master and 4K. Not now (owner, 2026-11-18): the H.264 draft stays as it is until the polish session.
+- [x] Master and 4K (round 3, 2026-11-19): `video/out/webcockpit-film2-master.mov` (ProRes 4444), `webcockpit-film2.mp4` (HEVC 10-bit), `-youtube.mp4` (4K H.264, the upload), `-h264.mp4`; all 5:29.67.
 
 ## Test guide
 
