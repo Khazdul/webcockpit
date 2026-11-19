@@ -63,21 +63,120 @@ Two parts, built in parallel in worktrees, merged by the main session.
 
 ## Tasks
 
-- [ ] A: watch page embedded on the start surface (Community, Published runs)
-- [ ] A: address and browser Back; title
-- [ ] A: unit and e2e tests (desktop and phone), existing watch specs green
-- [ ] B: transition bench, baseline numbers
-- [ ] B: fixes, after numbers
-- [ ] Merge, full checks (typecheck, unit, full e2e alone at 5 workers)
-- [ ] ADRs, test guide, session log
+- [x] A: watch page embedded on the start surface (Community, Published runs)
+- [x] A: address and browser Back; title
+- [x] A: unit and e2e tests (desktop and phone), existing watch specs green
+- [x] B: transition bench, baseline numbers
+- [x] B: fixes, after numbers
+- [x] Merge, full checks (typecheck, unit, full e2e alone at 5 workers):
+      1997 passed, 4 failed. `share-link.spec.ts:464` (both browsers)
+      expected the old address after Back, corrected; `watch-page.spec.ts:386`
+      passes alone; `phone-own-keyboard-editors.spec.ts:218` fails 3 of 4
+      alone, and the same on the commit before this stage (63881fa0)
+- [x] ADRs (0163, 0164), test guide, session log
 
 ## Results
 
-(filled in by the build)
+### Part A (ADR 0163)
+
+A run opened from the Community page or Published runs is the watch page
+pushed as a frame on the start surface (`src/watch/embed.tsx`,
+`embed-session.ts`): no page load, the morph runs, Back pops it and the
+page below is as it was. The address is the run's while it shows
+(`pushState`); the in-app Back is `history.back()`, so the browser's Back
+and a swipe go the same way. Beyond the plan:
+
+- Esc is Back on the embedded page (as on the other sub-pages); once the
+  replay has the keys, B and Esc are the player's.
+- Forward after Back does nothing (the page steps back again).
+- The browser's Back with the Report dialog open closes the dialog and
+  the run in one step.
+- `.wc-watch-screen` is a subgrid from 1000 px instead of
+  `display: contents` (an element without a box cannot fade); the same
+  rectangles, standalone too.
+- A bare link stays the standalone page; its Back is still a page load.
+- The sky is not paused while the replay is in fullscreen (calm rate).
+
+### Part B (ADR 0164)
+
+Measured in headless Chromium on production builds, 3 rounds, phone
+(4x and 6x CPU throttle), tablet and desktop; the tables are in
+`bench/results/transitions-74-{before,after,compare}.md`.
+
+Causes found:
+
+1. The proxy's flight animated `left/top/width/height`: it needed the
+   main thread every frame. With the main thread blocked for 500 ms
+   mid-flight the old proxy froze and then jumped 155 px; and the proxy
+   was almost all of a transition's raster work.
+2. Scripts' first visit compiled the Lua runtime (its syntax check)
+   120-150 ms after the tap: a 180-320 ms task under throttle, about
+   45 ms on an unthrottled desktop.
+3. A first visit's click frame costs two to three times a second one
+   (first-time text layout), before any motion. Not fixed.
+
+Not causes: fonts, images or chunks fetched on opening About; the sky;
+the wordmark's and the scenery's transitions.
+
+Built:
+
+- On a phone or a tablet the proxy is made of pieces that take only a
+  transform or an opacity (pane, shadows, four edges, four corners), so
+  the flight runs on the compositor; same geometry and timings. Blocked
+  main thread: the proxy now moves every frame. Raster asked for on a
+  phone opening About: 877 -> 169 ms; GPU process time roughly halved.
+- On a desktop the proxy is as before: the pieces measured worse there
+  (one or two 35-75 ms intervals at the start of the flight on large
+  windows). `?morph=pieces` / `?morph=layout` force either, to compare.
+- Scripts checks syntax once the page has settled: worst frame on the
+  first visit 215 -> 26 ms (phone 4x), 47 -> 20 ms (desktop 1920, 1x).
+
+Limits: nothing was measured on a real phone; the throttle slows the main
+thread only, and on this machine's GPU the baseline's frame intervals were
+already clean, so the bench shows work removed, not a seen stutter
+removed. The click frame on the pieces path is 5-25 ms longer under
+throttle (thirteen animations to set up). Firefox on a desktop is
+unchanged by construction; WebKit was not run.
+
+Proposals not built (the owner's call):
+
+1. Swaps and History's tabs: fade the window as one layer, not each
+   child (an occasional 35-50 ms interval at the fade start on desktops).
+2. Enter MUME's sweep animates `mask-position` (a repaint per frame for
+   4 s): rebuild it compositor-only.
+3. Warm the pages' text layout at idle after the first paint, to shorten
+   the first visit's click frame.
 
 ## Test guide
 
-(written at the end of the build)
+Staging or the dev server; phone first.
+
+1. Phone, fresh load (close the tab first). Within a few seconds tap
+   **About**. The frame should grow evenly, with no stops. Back, About
+   again: first and second time should feel alike.
+2. The same with **Scripts** as the first thing after a fresh load: the
+   short stop as the frame started to grow should be gone (the red marks
+   on scripts that do not compile come a moment after the page).
+3. Compare old and new on the phone: add `?morph=layout` to the address
+   (the old way), fresh load, tap About; then `?morph=pieces` (the new,
+   the phone's default). Which is smoother, the first time above all?
+   Does the flying frame look right (brackets, hood, glow), with no jump
+   when the page appears?
+4. **Community** -> a log: no blink; the frame morphs and the log's
+   content fades in; the address is `/r/<id>?from=community`. Back (the
+   button, B or Esc outside the replay, the browser's Back, a swipe):
+   soft, and the Community is where it was left (page, cursor, scroll).
+5. Account -> Published runs -> a title: the same.
+6. In a log: Report, then the browser's Back (both go); reload the page
+   (the standalone log page, as before).
+7. Phone and tablet, in a log opened from the Community: fullscreen,
+   turn the device both ways, leave fullscreen, Back. Chrome on the iPad
+   above all. Anything that differs from the standalone log page?
+8. Desktop (Chrome and Firefox): About, Scripts, History, Community -> a
+   log. Should feel as before or better; if curious, `?morph=pieces`.
+
+Feedback wanted: is the phone smoother (step 3 decides whether the pieces
+stay); the choices listed under Results, part A; the three proposals.
 
 ## Owner feedback
 

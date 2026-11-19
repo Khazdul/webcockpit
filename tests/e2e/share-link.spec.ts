@@ -461,16 +461,19 @@ test('Published runs: no section with share off', async ({ page }) => {
 
 // The owner's feedback on stage 65 (ADR 0155 W1), with `gallery` off: the
 // title opens the watch page; its Back comes to the Account page again.
+// Since stage 74 (ADR 0163) the run is a frame on the start surface: Back
+// is the browser's, so the address is the start page's own again.
 test('Published runs: a press on the title opens the watch page; Back returns to the Account page', async ({ page }) => {
   const s = await server();
   s.addPub(NAME, { id: 'Ab3dE5fG7hJk', title: 'Clearing the ranger camp' });
   await openAccountPage(page, s);
   const title = pubRows(page).locator('[data-pub-title]');
   await expect(title).toHaveAttribute('href', '/r/Ab3dE5fG7hJk?from=account&cloudtest');
+  const start = page.url();
   await title.click();
   await expect(page).toHaveURL(/\/r\/Ab3dE5fG7hJk\?from=account&cloudtest$/);
   await page.locator('.wc-watch [data-btn="BACK"]').first().click();
   await expect(pageOf(page, 'account')).toBeVisible({ timeout: 15_000 });
   await expect(pubRows(page)).toHaveCount(1);
-  await expect(page).toHaveURL(/\/\?cloudtest$/);
+  await expect(page).toHaveURL(start);
 });
