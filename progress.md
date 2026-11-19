@@ -111,6 +111,18 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-19 — Stage 74 round 2: the menu morphs to a normal box
+
+- **Done:** the owner on staging: the changes feel good; fullscreen and
+  a turn tried on phone and iPad. His wish: Profile and the account
+  pages open softly too. Built: menu <-> normal/tall is a `swap` (140 +
+  380 + 220 ms), the wordmark on the flight's clock, a flight follows a
+  box that grows after mount (ADR 0165). Merged, on staging.
+- **Next:** the owner's test (stage file, "Test guide, round 2"), then a
+  release on his word. Stage 70's polish still waits.
+- **Open:** as below; proposal 1 (one-layer swaps) explained, undecided.
+- **Commits:** 5ddaefb5…d9dff9a9 and this one.
+
 ### 2026-11-19 — Stage 74: smooth transitions
 
 - **Done:** owner report (a blink into and out of a log; choppy page

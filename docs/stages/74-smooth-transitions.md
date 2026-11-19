@@ -180,3 +180,60 @@ stay); the choices listed under Results, part A; the three proposals.
 
 ## Owner feedback
 
+- **2026-11-19, on staging (649ce63):** the changes feel good. Fullscreen
+  and a turn in a log opened from the Community tried on the phone and
+  the iPad (test guide 7): fine. New wish: pages with a normal box opened
+  from the menu (Profile, the account) have never had the soft
+  transition; they should (round 2 below). He asked what "one layer"
+  in proposal 1 means; explained, no decision.
+
+## Round 2 — the menu morphs to a normal box (ADR 0165)
+
+Menu <-> normal/tall was the one boxed pair with no plan (`none`, stage
+41: only the wordmark moved). It is now a `swap` on the normal <-> normal
+clock: content out 0-140 ms, the proxy flies 140-520, content in 520-740;
+no new `MOTION` entry, the holds unchanged. Pages: Profile, Log in (a
+guest), Account (logged in; tall on a phone).
+
+- The wordmark's move to its sub-page place now runs on the flight's
+  clock and easing (380 ms, was 0.8 s of its own), so mark and frame
+  travel as one; end states unchanged. The stage hands CSS the clock
+  (`--lk-fly-at`, `--lk-fly-land`, `data-lk-from`).
+- Phone, tall box: the wordmark and the almanac fade out before the
+  proxy flies over their place and come back at the landing.
+- A flight now follows its box (`MorphStage.retarget`): the Profiles
+  list's box grows a frame after mount (167 -> 282 px), and the proxy
+  landed on the stale rectangle.
+- Reduced motion: the two boxes fade as a whole.
+- Worst frame, menu -> Profile, first visit: 40 ms (phone 4x), 18 ms
+  (desktop 1x); second visit and Back 18-20 ms.
+
+Checks on the merged tree: typecheck clean; full e2e at 5 workers 2013
+passed, 1 failed (`import.spec.ts:148` in Firefox, passes 3 of 3 alone);
+unit 5631 passed on two runs after one run with a single failure whose
+name was not captured.
+
+Not verified: a real phone, WebKit; the tall Account on a phone only by
+the frame-by-frame e2e, not in pictures; the chains through these pages
+only by the existing specs.
+
+### Test guide, round 2
+
+1. Desktop: menu -> **Profile**. The items fade, the frame widens and
+   moves up together with the wordmark, the list fades in. Back: the
+   reverse, the items and the quote last.
+2. The owner row: **Log in** as a guest (type the name at once: the
+   letters land in the field while the frame still moves), **Account**
+   logged in.
+3. Profile and Esc at once, a few times: the frame turns round where it
+   is and ends on the menu.
+4. Phone: Profile and Log in (our keyboard comes up while the frame
+   flies). Logged in: Account fills the screen; the wordmark and the
+   almanac fade away before the frame grows over them and come back when
+   the menu's panel has landed.
+5. Chains: menu -> Profile -> Edit -> Back -> Back; menu -> Account ->
+   Published logs -> Back -> Back; Log in -> Create account -> Back.
+
+Feedback wanted: is 140 + 380 + 220 ms right next to About's slower
+opening; does the wordmark moving with the frame read better than its
+old move; on the phone, the wordmark's return after the Account page.
