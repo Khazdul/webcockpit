@@ -95,7 +95,7 @@ function mod(id: string, fps: number, scale?: number) {
  * order. With `jitter` (ms) each animation frame's callback runs up to that
  * late (or early, when negative) against its vsync time, as in a busy worker.
  */
-function harness(modules: Module[], jitter = 0) {
+function harness(modules: Module[], jitter = 0, g: Geometry = geom) {
   let now = 1000;
   /** The last vsync's time (the grid; `now` may run a little behind it with jitter). */
   let vs = now;
@@ -110,12 +110,12 @@ function harness(modules: Module[], jitter = 0) {
     },
     modules,
   );
-  const back = new FakeCanvas(800, 600), front = new FakeCanvas(800, 600);
+  const back = new FakeCanvas(Math.round(g.W * g.dpr), Math.round(g.H * g.dpr)), front = new FakeCanvas(Math.round(g.W * g.dpr), Math.round(g.H * g.dpr));
   engine.handle({
     t: 'init',
     back: back as unknown as OffscreenCanvas,
     front: front as unknown as OffscreenCanvas,
-    geom,
+    geom: g,
     theme: { bg: '#000000', fg: '#c0c0c0' },
     cats: { ...ALL_CATEGORIES },
     state: { ...DEFAULT_STATE },
@@ -196,6 +196,33 @@ describe('WeatherEngine frame rate', () => {
     const c = fog.backs.at(-1) as { canvas: FakeCanvas };
     expect(c).not.toBe(h.back);
     expect([c.canvas.width, c.canvas.height]).toEqual([400, 300]);
+  });
+
+  it('clears every pixel of an odd-sized half-resolution cache and of the canvases, in their own pixels (the fog\'s edge streaks)', () => {
+    // 1601 CSS px (a 1600 px window at DPR 1.2): the fog's cache is 801 px, and W · 0.5 ends half way across its last column
+    const fog = mod('fog', FPS_SLOW, 0.5);
+    const h = harness([fog], 0, { ...geom, W: 1601, out: { ...geom.out, w: 1601 } });
+    h.run(300);
+    const cache = fog.backs.at(-1) as Record<string, unknown> & { canvas: FakeCanvas };
+    expect([cache.canvas.width, cache.canvas.height]).toEqual([801, 300]);
+    const watch = (ctx: Record<string, unknown> & { canvas: FakeCanvas }, k: number) => {
+      const clears: number[][] = [];
+      let m = [k, 0, 0, k, 0, 0]; // the context's own transform between frames
+      const stack: number[][] = [];
+      ctx.save = () => void stack.push(m);
+      ctx.restore = () => void (m = stack.pop() ?? m);
+      ctx.setTransform = (...a: number[]) => void (m = a);
+      // a clear in device px: the rect under the transform
+      ctx.clearRect = (x: number, y: number, w: number, hh: number) => void clears.push([m[0]! * x + m[4]!, m[3]! * y + m[5]!, m[0]! * w, m[3]! * hh]);
+      return clears;
+    };
+    const cc = watch(cache, 0.5);
+    const bc = watch(h.back as Record<string, unknown> & { canvas: FakeCanvas }, 1);
+    h.run(1000);
+    expect(cc.length).toBeGreaterThan(0);
+    for (const c of cc) expect(c).toEqual([0, 0, 801, 300]);
+    expect(bc.length).toBeGreaterThan(0);
+    for (const c of bc) expect(c).toEqual([0, 0, 1601, 600]);
   });
 
   it('copies only the region a cached module reports (Module.extent), on the cache\'s pixel grid, not below the mask', () => {

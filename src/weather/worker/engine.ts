@@ -121,6 +121,22 @@ interface Cache {
   band?: CanvasGradient;
 }
 
+/**
+ * Clears all of a canvas, in its own pixels. Not `clearRect(0, 0, W, H)`
+ * under the context's transform: a cache at half resolution of an odd
+ * canvas (1601 px: a 1600 CSS px window at DPR 1.2 is 1601 CSS px wide) is
+ * 801 px, and W · 0.5 ends half way across its last column, which Chrome's
+ * GPU canvas clears only half (anti-aliased) every frame. The fog drawn
+ * there each frame then piled up to its full colour: light streaks down the
+ * right edge (the film, 2026-11-19).
+ */
+export function clearCanvas(ctx: Ctx): void {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+}
+
 const DRAW_OPS = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage', 'fillText', 'strokeText', 'putImageData'] as const;
 
 /**
@@ -554,11 +570,11 @@ export class WeatherEngine {
     env.set = this.director.setS ?? NaN;
     const t0 = performance.now();
     const { back, front } = env;
-    back.clearRect(0, 0, env.W, env.H);
+    clearCanvas(back);
     // The front canvas is often empty (no rain, wisps or body effects): left
     // alone while it was and stays so (no clear, no mask).
     const fl = this.frontLayer!;
-    if (this.frontDirty) front.clearRect(0, 0, env.W, env.H);
+    if (this.frontDirty) clearCanvas(front);
     fl.drawn = false;
     const loop = this.rate;
     // While a mix value moves (a transition: clouds coming, a fade, rain
@@ -582,8 +598,8 @@ export class WeatherEngine {
           sl.busy = this.runModule(mod, back, front, mdt, now);
         } else {
           const c = this.cacheOf(sl, scale);
-          if (c.back.drawn) c.back.ctx.clearRect(0, 0, env.W, env.H);
-          if (c.front.drawn) c.front.ctx.clearRect(0, 0, env.W, env.H);
+          if (c.back.drawn) clearCanvas(c.back.ctx);
+          if (c.front.drawn) clearCanvas(c.front.ctx);
           c.back.drawn = c.front.drawn = false;
           env.back = c.back.ctx;
           env.front = c.front.ctx;
