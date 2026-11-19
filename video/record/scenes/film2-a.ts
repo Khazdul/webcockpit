@@ -6,6 +6,8 @@
 //          welcome screen; the name and the masked password
 //   act 1  Gittan in the Prancing Pony; a narrate on Public and a tell from
 //          Eilwen (staged, feeds/comm.ts); Comm on, floating, Eilwen's chat;
+//          Gittan answers in the pane's reply line, Eilwen answers twice
+//          (owner round 3);
 //          the mercenary (10 silver refused, a pause, 1 gold, grouped);
 //          Group on (NPCs All and the Fight card set off camera, owner round
 //          1); Settings: tabs, Weather effects on (the clear night),
@@ -32,7 +34,7 @@ import type { Locator, Page } from '@playwright/test';
 import { type DevWindow, type Step, gmcpBytes, lineBytes, play, sleep } from '../../../scripts/lib/mume-feed.ts';
 import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
-import { BREE_ARRIVAL_COMM, commStep } from '../../feeds/comm.ts';
+import { BREE_ARRIVAL_COMM, BREE_REPLY, BREE_REPLY_ANSWERS, commMine, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { communityServer, serveCommunity } from '../lib/community.ts';
 import { CLEAR_NIGHT, freshStart, prepareFilm, shootingStar } from '../lib/film-state.ts';
@@ -85,22 +87,22 @@ export const SEGMENTS: Segment[] = [
   { name: 'public', at: 29.8, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[0]!, MERC_PROMPT)] },
   { name: 'eilwen', at: 31.0, ex: ex({ from: 15.8, to: 15.8 }), staged: [commStep(BREE_ARRIVAL_COMM[1]!, MERC_PROMPT)] },
   // (staged) the mercenary arrives
-  { name: 'merc-arrives', at: 38.4, ex: ex({ from: 64.6, to: 64.6 }), staged: [{ out: Buffer.concat(['', 'A citizen mercenary has arrived from the west.', '', MERC_PROMPT].map(lineBytes)) }] },
+  { name: 'merc-arrives', at: 44.4, ex: ex({ from: 64.6, to: 64.6 }), staged: [{ out: Buffer.concat(['', 'A citizen mercenary has arrived from the west.', '', MERC_PROMPT].map(lineBytes)) }] },
   // 10 silver, refused and given back
-  { name: 'merc', at: 39.6, ex: ex({ from: 64.6, to: 65.5, primeFrom: 15.8, speed: 1 }), typeDelay: 45 },
+  { name: 'merc', at: 45.6, ex: ex({ from: 64.6, to: 65.5, primeFrom: 15.8, speed: 1 }), typeDelay: 45 },
   // a visible pause (at least 2.5 s from the returned silver to the first key), then 1 gold
-  { name: 'merc-gold', at: 43.3, ex: ex({ from: 67.5, to: 68.0, primeFrom: 65.5, speed: 1 }), typeDelay: 45 },
+  { name: 'merc-gold', at: 49.3, ex: ex({ from: 67.5, to: 68.0, primeFrom: 65.5, speed: 1 }), typeDelay: 45 },
   // grouped
-  { name: 'merc-group', at: 45.4, ex: ex({ from: 70.7, to: 71.3, primeFrom: 68.0, speed: 1 }), typeDelay: 45 },
+  { name: 'merc-group', at: 51.4, ex: ex({ from: 70.7, to: 71.3, primeFrom: 68.0, speed: 1 }), typeDelay: 45 },
   // to the West Gate, `sa open`, out through it (after the strike in the street)
-  { name: 'gate', at: 77.0, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
+  { name: 'gate', at: 83.0, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
   // shield, arm, invis (Timers comes on as they start, once Group is docked)
-  { name: 'casts', at: 94.6, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
+  { name: 'casts', at: 100.6, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
   // west and north into the hills: the Plains with two wolves, then east into the Grassy Hills
-  { name: 'walk', at: 102.2, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
+  { name: 'walk', at: 108.2, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
   // the first wolf: k wolf, Tod joins, the lightning bolt, the kill; `l` shows the second wolf
   // (a little quicker since the Statistics segment went, owner round 2 item 3)
-  { name: 'wolf1', at: 107.0, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.4, maxGap: 1.2, dropCmds: [/^get coins/] }), typeDelay: 70 },
+  { name: 'wolf1', at: 113.0, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.4, maxGap: 1.2, dropCmds: [/^get coins/] }), typeDelay: 70 },
 ];
 
 /** UI moments, film s. */
@@ -108,34 +110,37 @@ const UI = {
   commPanes: 32.6,
   comm: 33.3,
   chat: 35.6,
-  groupPanes: 46.6,
-  group: 47.3,
-  settings: 49.0,
-  tabs: [50.6, 52.1, 53.6] as const, // Text input, Mapper, Weather effects
-  weatherOn: 55.4,
-  appearance: 57.4,
-  fontOpen: 58.8,
-  fontClose: 60.8,
+  // Gittan's reply in the pane's own line (owner round 3), Eilwen's two answers
+  reply: 37.2,
+  replyAnswers: [41.6, 43.0] as const,
+  groupPanes: 52.6,
+  group: 53.3,
+  settings: 55.0,
+  tabs: [56.6, 58.1, 59.6] as const, // Text input, Mapper, Weather effects
+  weatherOn: 61.4,
+  appearance: 63.4,
+  fontOpen: 64.8,
+  fontClose: 66.8,
   backgrounds: [
-    ['#f4ecd8', 62.6], // Paper, held about 3 s
-    ['#002b36', 65.6], // Teal, held about 3 s
-    ['#000000', 68.6], // Black again
+    ['#f4ecd8', 68.6], // Paper, held about 3 s
+    ['#002b36', 71.6], // Teal, held about 3 s
+    ['#000000', 74.6], // Black again
   ] as const,
-  settingsClose: 69.8,
-  commOffPanes: 70.8,
-  commOff: 71.5,
-  mapPanes: 79.0,
-  map: 79.7,
+  settingsClose: 75.8,
+  commOffPanes: 76.8,
+  commOff: 77.5,
+  mapPanes: 85.0,
+  map: 85.7,
   // Group docked above the map (from the right screen edge, where a floating pane docks), its look, its height
-  dockCaption: 80.8,
-  dockGrab: 82.6,
+  dockCaption: 86.8,
+  dockGrab: 88.6,
   // (3 s earlier since round 2: no resize drag)
-  timersPanes: 94.8,
-  timers: 95.5,
+  timersPanes: 100.8,
+  timers: 101.5,
 } as const;
 
 /** The weather's moments, film s. */
-const SKY = { rain: 71.4, heavy: 73.4, strike: 75.4, strikeLeadMs: 210, clear: 99.7 } as const;
+const SKY = { rain: 77.4, heavy: 79.4, strike: 81.4, strikeLeadMs: 210, clear: 105.7 } as const;
 
 /** Where Comm floats (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px): at the top right before the map is docked there (it is turned off before the gate). */
 const FLOATS = { comm: { x: 104, y: 1, w: 55, h: 21 } } as const;
@@ -282,6 +287,28 @@ export const film2A: Scene = {
       // Comm on (floating, top right), Eilwen's chat
       await paneOn('comm', UI.commPanes, UI.comm);
       await choose(page.locator('.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="Eilwen"]').first(), UI.chat, 'chat', 'Eilwen', 1.6);
+      // Gittan answers in the chat's own reply line (not the game's command line); the mock ignores
+      // the `tell` the pane sends, so MUME's echo of it is staged, then Eilwen's answers (owner round 3)
+      const reply = page.locator('.wc-pane[data-pane="comm"] .wc-cm-reply input').first();
+      marks.markAt(await pointer.clickAt(reply, T(UI.reply)), 'reply', 'the reply line');
+      await sleep(250);
+      const rr = seeded(SEED + 7);
+      for (const ch of BREE_REPLY.text) {
+        await page.keyboard.type(ch);
+        await sleep(30 + rr() * 25);
+      }
+      await sleep(300);
+      await page.keyboard.press('Enter');
+      marks.mark('reply-sent', 'the reply sent');
+      await sleep(150);
+      server.send(commMine(BREE_REPLY.to, BREE_REPLY.text, MERC_PROMPT).out);
+      if ((await reply.inputValue().catch(() => '')) !== '') console.warn('  the reply line kept its text');
+      if (Date.now() > T(UI.replyAnswers[0]!) - 900) console.warn(`  the reply was sent late: ${((Date.now() - T(0)) / 1000).toFixed(1)} s`);
+      for (const [i, m] of BREE_REPLY_ANSWERS.entries()) {
+        await until(T(UI.replyAnswers[i]!));
+        server.send(commStep(m, MERC_PROMPT).out);
+        marks.mark('reply-answer', m.text);
+      }
 
       // Group on (floating; its NPCs and Fight card were set off camera)
       await paneOn('group', UI.groupPanes, UI.group);

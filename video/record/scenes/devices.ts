@@ -32,7 +32,7 @@ import type { CDPSession, Page, WebSocketRoute } from '@playwright/test';
 import { type DevWindow, GMCP, IAC, WILL, type Step, gmcpBytes, sleep } from '../../../scripts/lib/mume-feed.ts';
 import { DEVICES } from '../../src/devices.ts';
 import { arrival } from '../../feeds/arrival.ts';
-import { BREE_ARRIVAL_COMM, BREE_TELLS, commStep } from '../../feeds/comm.ts';
+import { BREE_TELLS, breeAct1Comm, commStep } from '../../feeds/comm.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { CLEAR_NIGHT, FILM_PAGE, dockGroup, prepareFilm } from '../lib/film-state.ts';
 import { seeded } from '../lib/mouse.ts';
@@ -66,8 +66,14 @@ export function deviceSteps(runs: Map<string, Run>): Step[] {
   const walk = excerptFeed(runs, { ...EXCERPT, from: WALK_FROM, to: TO, speed: DEVICES.walkSpeed, maxGap: 0.8 });
   const first = walk.steps.find((s) => 'cmd' in s)!.at ?? 0;
   const shift = DEVICES.walk * 1000 - first;
+  // (owner round 3) A command typed ahead of the last one's answer goes: a thumb on the compass is
+  // slower than the run's typing, so it lands after the room it led to and is echoed at the end.
+  // The same for a command just before the walk's last answer (the Prancing Pony's sign): its tap
+  // would land after it, and the window would be left with that echo under the sign.
+  const lastOut = Math.max(...walk.steps.filter((s) => 'out' in s).map((s) => s.at ?? 0));
+  const walkSteps = walk.steps.filter((s, i) => !('cmd' in s && ((i > 0 && 'cmd' in walk.steps[i - 1]!) || lastOut - (s.at ?? 0) < 350)));
   const tells = BREE_TELLS.map((m, i) => ({ ...commStep(m, '*# R Mana:Hot>'), at: DEVICES.tells[i]! * 1000 }));
-  return [...fight.steps, ...walk.steps.map((s) => ({ ...s, at: (s.at ?? 0) + shift })), ...tells].sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
+  return [...fight.steps, ...walkSteps.map((s) => ({ ...s, at: (s.at ?? 0) + shift })), ...tells].sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
 }
 
 const DIRS: Record<string, string> = { n: 'north', e: 'east', s: 'south', w: 'west', u: 'up', d: 'down' };
@@ -176,8 +182,8 @@ function devicesScene(device: Device): Scene {
       const a = arrival();
       ws.send('out' in a.arrive ? a.arrive.out : Buffer.alloc(0));
       await sleep(500);
-      // Film 2's act 1 talk (staged, invented names), so Messages holds it later as on the desktop
-      for (const m of BREE_ARRIVAL_COMM) ws.send(commStep(m, '*# R Mana:Burning>').out);
+      // Film 2's act 1 talk (staged, invented names; Gittan's reply too), so Messages holds it later as on the desktop
+      for (const st of breeAct1Comm('*# R Mana:Burning>')) ws.send(st.out);
       await sleep(300);
       // The run fast to the fight: its server side only, in sends of about 32 KiB.
       const runs = loadBackup(FILM_BACKUP);
