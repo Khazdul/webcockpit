@@ -20,7 +20,7 @@ import { type Page, expect, test } from '@playwright/test';
 import { DESKTOP, accountRow, field, frame, openStart, pageOf, watchErrors } from './account-pages';
 import { fakeAccountApi } from './cloud-account-fake';
 import { morphDone, morphProxy, reducedMotion } from './look';
-import { brandOverFrame, edgesOf, landingGap, startMorphWatch, stopMorphWatch, watchMorph } from './menu-morph';
+import { blanks, brandOverFrame, edgesOf, landingGap, startMorphWatch, stopMorphWatch, watchMorph } from './menu-morph';
 
 test.use({ viewport: DESKTOP });
 
@@ -44,23 +44,23 @@ for (const how of ['', '&morph=pieces'] as const) {
     const there = await watchMorph(page, () => row(page, 'profile').click());
     expect(there.plans, 'menu → Profile').toEqual(['swap']);
     expect(there.flew, 'the proxy flew').toBe(true);
-    expect(there.blank, 'frames with nothing drawn').toBe(0);
+    expect(there.blank, blanks(there)).toBe(0);
     expect(brandOverFrame(there), 'the wordmark over the frame').toEqual([]);
     await expect(page.locator(SUB)).toBeVisible();
     const box = await edgesOf(page, SUB);
     expect(box[2] - box[0], 'a normal box is wider than the panel').toBeGreaterThan(panel[2] - panel[0] + 100);
     // The Profile list's box grows a moment after its mount: the proxy lands on the box as it is.
-    expect(landingGap(there, box), 'the proxy landed on the box').toBeLessThan(12);
+    expect(landingGap(there, box), 'the proxy landed on the box').toBeLessThan(2);
     await expect(page.locator('.wc-start')).toHaveClass(/\bis-sub\b/);
     await expect(page.locator(`${SUB} > .wc-lk-win > *`).first()).toHaveCSS('opacity', '1');
 
     const back = await watchMorph(page, () => page.keyboard.press('Escape'));
     expect(back.plans, 'Profile → menu').toEqual(['swap']);
     expect(back.flew).toBe(true);
-    expect(back.blank).toBe(0);
+    expect(back.blank, blanks(back)).toBe(0);
     expect(brandOverFrame(back)).toEqual([]);
     await expect(page.locator(PANEL)).toBeVisible();
-    expect(landingGap(back, await edgesOf(page, PANEL)), 'the proxy landed on the panel').toBeLessThan(12);
+    expect(landingGap(back, await edgesOf(page, PANEL)), 'the proxy landed on the panel').toBeLessThan(2);
     expect(await edgesOf(page, PANEL), 'the panel is where it was').toEqual(panel);
     await expect(page.locator('.wc-start')).toHaveClass(/\bis-main\b/);
     await expect(row(page, 'profile')).toHaveCSS('opacity', '1');
@@ -83,7 +83,7 @@ test('menu → Log in morphs; the name field has the focus from the mount and ta
   const w = await stopMorphWatch(page);
   expect(w.plans).toEqual(['swap']);
   expect(w.flew).toBe(true);
-  expect(w.blank).toBe(0);
+  expect(w.blank, blanks(w)).toBe(0);
   expect(brandOverFrame(w)).toEqual([]);
   // From the first frame of the plan to the last, the focus is the field's.
   const planned = w.frames.filter((f) => f.plan);
@@ -92,12 +92,12 @@ test('menu → Log in morphs; the name field has the focus from the mount and ta
   await expect(pageOf(page, 'login')).toBeVisible();
   await expect(field(page, 'name')).toHaveValue('Olev');
   await expect(field(page, 'name')).toBeFocused();
-  expect(landingGap(w, await edgesOf(page, SUB))).toBeLessThan(12);
+  expect(landingGap(w, await edgesOf(page, SUB))).toBeLessThan(2);
 
   const back = await watchMorph(page, () => frame(page).locator('.wc-lk-back').click());
   expect(back.plans).toEqual(['swap']);
   expect(back.flew).toBe(true);
-  expect(back.blank).toBe(0);
+  expect(back.blank, blanks(back)).toBe(0);
   await expect(page.locator(PANEL)).toBeVisible();
   await expect(accountRow(page)).toHaveCSS('opacity', '1');
   expect(errors).toEqual([]);
@@ -143,9 +143,9 @@ test('Back mid-flight turns the proxy round from where it is; open and Back in a
   expect(turn.from, 'the flight back').not.toBeNull();
   for (let i = 0; i < 4; i++) expect(Math.abs(turn.from![i]! - turn.at[i]!), `the proxy turned round where it was (${turn.from} from ${turn.at})`).toBeLessThan(1.5);
   expect(panel[0] - turn.at[0]!, 'it had left the panel').toBeGreaterThan(20);
-  expect(w.blank).toBe(0);
+  expect(w.blank, blanks(w)).toBe(0);
   await expect(page.locator(PANEL)).toBeVisible();
-  expect(landingGap(w, panel)).toBeLessThan(12);
+  expect(landingGap(w, panel)).toBeLessThan(2);
   expect(await edgesOf(page, PANEL)).toEqual(panel);
   await expect(row(page, 'profile')).toHaveCSS('opacity', '1');
   await expect(page.locator('.wc-start')).toHaveClass(/\bis-main\b/);
