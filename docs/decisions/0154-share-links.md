@@ -1027,3 +1027,10 @@ set from the site (`base` asset source).
   and Firefox: an old payload with Gefe & Rik's tiles and a new link both
   give the frame's map worker exactly Desert's files, the default's for
   what Desert lacks, with MMapper's flow and room tints).
+
+## Addendum 2026-11-18: the watch page also as a frame (stage 74 A)
+
+ADR 0163: opened from the Community page or Published runs, the watch
+page is a frame on the start surface (no page load); `<base>r/<id>` loaded
+directly is the standalone page described here. A view is counted once per
+mount of the page (a page load, or a run opened as a frame).

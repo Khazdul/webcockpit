@@ -1568,3 +1568,13 @@ box. `?account` and `?account=published` did the same.
   first paint checks each frame until the page shows (the menu, the morph
   proxy, the wordmark, the first paint's panel: never). tests/unit/
   start-arrival.test.ts.
+
+## Addendum 2026-11-18: a run opens as a frame, not a page load (stage 74 A)
+
+Superseded in part by ADR 0163: a run opened from the Community page or
+from Published runs is no longer a page load (`location.assign`, "As
+built (stage 65 C1)" and W1 above) but the watch page pushed as a frame on
+the start surface, with the address `watchHref` by `history.pushState`;
+its Back pops the frame. `backHref`, `?community` / `?account…` and the
+arrival above remain for the standalone page (a bare link, a reload on a
+run's address).

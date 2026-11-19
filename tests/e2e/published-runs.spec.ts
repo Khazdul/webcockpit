@@ -20,6 +20,7 @@ import type { FakeAccountServer } from './cloud-account-fake';
 import { fakeAccountApi } from './cloud-account-fake';
 import { DAY, MB, apiLog, logInToAccount, pubRows, server, startPage, voter } from './community-pub';
 import { pinDemoClock } from './demo-clock';
+import { docMark, embGone, embedded, mark, morphs } from './watch-embed';
 
 test.use({ viewport: DESKTOP });
 
@@ -260,9 +261,13 @@ test('the owner row stops at 99+; nothing for a guest; nothing asked with galler
 });
 
 // The owner's feedback on stage 65 (ADR 0155 W1): a press on a run's title
-// opens its watch page in this tab; the watch page's Back comes to Published
-// runs again. The title is a stop of the view's ring (Tab, Enter).
-test('a press on the title opens the watch page; its Back returns to Published runs; Tab and Enter reach it too', async ({ page }) => {
+// opens the run; its Back comes to Published runs again. The title is a
+// stop of the view's ring (Tab, Enter). Since stage 74 A (ADR 0163) the
+// run opens as a frame over the view, with no page load (a mark on
+// `window` survives, the surface morphs), at the run's address; Back pops
+// it and the view is as it was. (Here the run's meta is not served: the
+// page shows its failed state; the replay itself: watch-embed.spec.ts.)
+test('a press on the title opens the run over the view with no page load; its Back returns to Published runs; Tab and Enter reach it too', async ({ page }) => {
   const errors = watchErrors(page);
   const s = await server();
   seedRuns(s);
@@ -271,20 +276,39 @@ test('a press on the title opens the watch page; its Back returns to Published r
   await openView(page);
   const title = row(page, 'Ab3dE5fG7hJk').locator('[data-pub-title]');
   await expect(title).toHaveAttribute('href', '/r/Ab3dE5fG7hJk?from=published&cloudtest');
+  const docTitle = await page.title();
+  const start = page.url();
+  await mark(page);
+  const doc = await docMark(page);
   await title.click();
   await expect(page).toHaveURL(/\/r\/Ab3dE5fG7hJk\?from=published&cloudtest$/);
-  await expect(page.locator('.wc-watch')).toBeVisible();
-  await page.locator('.wc-watch [data-btn="BACK"]').first().click();
-  // The start page, then Published runs over it; the query leaves the address.
-  await expect(view(page)).toBeVisible({ timeout: 15_000 });
+  await expect(embedded(page)).toBeVisible();
+  expect(await docMark(page), 'no document was loaded').toBe(doc);
+  await expect(page.locator('.wc-start')).toHaveAttribute('data-lk-box', 'large');
+  await expect(page.locator('.wc-start')).not.toHaveAttribute('data-lk-morph', /./, { timeout: 5000 });
+  expect((await morphs(page)).length, 'the surface morphed').toBeGreaterThan(0);
+  await embedded(page).locator('[data-btn="BACK"]').first().click();
+  // Published runs again, as it was; the address and the title put back.
+  await expect(view(page)).toBeVisible();
   await expect(pubRows(page)).toHaveCount(4);
-  await expect(page).toHaveURL(/\/\?cloudtest$/);
-  // The keyboard: Tab walks to the first run's title (the first stop), Enter opens it.
+  expect(page.url()).toBe(start);
+  await embGone(page, docTitle);
+  expect(await docMark(page)).toBe(doc);
+  expect((await morphs(page)).length, 'the morph back').toBeGreaterThan(0);
+  // The keyboard: Tab walks to the first run's title (the first stop), Enter opens it; the browser's Back returns.
   const first = pubRows(page).first().locator('[data-pub-title]');
   const href = (await first.getAttribute('href'))!;
   await page.keyboard.press('Tab');
   await expect(first).toHaveClass(/is-sel/);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`${href.replace(/[?]/g, '\\?')}$`));
+  await expect(embedded(page)).toBeVisible();
+  expect(await docMark(page)).toBe(doc);
+  await page.goBack();
+  await expect(view(page)).toBeVisible();
+  await expect(first).toHaveClass(/is-sel/);
+  expect(page.url()).toBe(start);
+  await embGone(page, docTitle);
+  expect(await docMark(page)).toBe(doc);
   expect(errors).toEqual([]);
 });

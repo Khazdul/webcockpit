@@ -1,8 +1,11 @@
 // The start page's arrival on a page (stage 73 part D, ADR 0155 addendum
-// 2026-11-18): the watch page's Back for a run opened from the Community
-// page or the Account page is `<base>?community`, `<base>?account` or
-// `<base>?account=published` (src/watch/href.ts `backHref`), a full page
-// load. The page asked for opens over the menu once its flags and its
+// 2026-11-18): the standalone watch page's Back for a run opened from the
+// Community page or the Account page is `<base>?community`,
+// `<base>?account` or `<base>?account=published` (src/watch/href.ts
+// `backHref`), a full page load. (Since stage 74 A, ADR 0163, a run opened
+// from those pages is a frame on the start surface and its Back pops it;
+// this is the way back after a reload on a run's address, or from a link
+// that carries `?from=`.) The page asked for opens over the menu once its flags and its
 // chunk are there; until then the start page holds its menu and its
 // scenery hidden (the sky alone is drawn) and the surface's morph and
 // hold are off, so the viewer sees the page asked for straight away, not

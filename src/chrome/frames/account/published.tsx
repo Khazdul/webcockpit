@@ -39,8 +39,11 @@
 // clipboard and says so on the page's flash. Every text from the server is
 // written as text.
 //
-// A press on a run's title opens its watch page in this tab (`watchHref`;
-// owner's feedback on stage 65, ADR 0155 W1); its Back comes here again.
+// A press on a run's title opens the run over this page, as a frame on
+// the start surface (stage 74 A, ADR 0163; src/watch/embed.tsx: no page
+// load, the address `watchHref` while it shows); its Back pops it. The
+// title is still a link to that address: a press with Ctrl, Shift, Meta or
+// the middle button is the browser's (a new tab: the standalone page).
 //
 // The keyboard: the section's stops (`usePublished().stops`: the rows'
 // `OPEN:<id>` (the title), `COPY:<id>`, `EDIT:<id>`, `REMOVE:<id>`, or the one row's `PUBLISHED`,
@@ -56,6 +59,7 @@ import { communityNews, markCommunitySeen, refreshCommunityNews } from '../../..
 import { type PubErrorCode, createPubApi, shareEnabled } from '../../../cloud/pub/api';
 import { communityAllowed } from '../../../cloud/community/allowed';
 import { cleanDescription, cleanTitle, codePointCount, linkPath, linkUrl, sizeWords, typedDescription, typedTitle } from '../../../share/link';
+import { openWatchFrame } from '../../../watch/embed';
 import { watchHref } from '../../../watch/href';
 import { copyText } from '../../kit/clipboard';
 import { Box, BoxBody, Dialog, Field, GlassButton, Icon, LookFlash, Rule, Stars, TextArea, Toggle, lookFrame } from '../../kit/look';
@@ -102,7 +106,7 @@ export interface PublishedView {
 
 const api = createPubApi();
 
-const openRun = (p: MyPub, from: 'account' | 'published'): void => location.assign(watchHref(p.id, from));
+const openRun = (nav: Nav, p: MyPub, from: 'account' | 'published'): void => openWatchFrame(nav, p.id, from);
 
 
 /** New reactions on the runs, summed (each run's counts are capped at 99 by the server). */
@@ -164,7 +168,7 @@ export function usePublished(nav: Nav, host: () => AccountHost): PublishedView {
             ? [{ id: 'PUBLISHED', run: openView }]
             : []
           : (pubs ?? []).flatMap((p) => [
-              { id: `OPEN:${p.id}`, run: () => openRun(p, 'account') },
+              { id: `OPEN:${p.id}`, run: () => openRun(nav, p, 'account') },
               { id: `COPY:${p.id}`, run: () => copy(p) },
               // A hidden run cannot be edited until the admin has looked (the Worker's 403 hidden).
               ...(p.state === 'hidden' ? [] : [{ id: `EDIT:${p.id}`, run: () => edit(p) }]),
@@ -247,6 +251,7 @@ function PubList(p: {
   onRemove(p: MyPub): void;
 }): VNode {
   const at = p.at;
+  const nav = useNav();
   return (
     <ul class={'wc-lk-rows is-flat wc-ac-publist' + (p.community ? ' is-view' : '')} aria-label="Published logs">
       {p.pubs.map((pub) => {
@@ -270,6 +275,12 @@ function PubList(p: {
                 title="Watch this log"
                 tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  // A plain press opens the run here; with a modifier or another button the link is the browser's.
+                  if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  openRun(nav, pub, p.community ? 'published' : 'account');
+                }}
               >
                 {pub.title}
               </a>
@@ -420,7 +431,7 @@ export const PublishedFrame = lookFrame(function PublishedFrame(props: Published
     stops: [
       ...(error ? [{ id: 'PUBRETRY', run: reload }] : []),
       ...(pubs ?? []).flatMap((p) => [
-        { id: `OPEN:${p.id}`, run: () => openRun(p, 'published') },
+        { id: `OPEN:${p.id}`, run: () => openRun(nav, p, 'published') },
         { id: `COPY:${p.id}`, run: () => copy(p) },
         ...(p.state === 'hidden' ? [] : [{ id: `EDIT:${p.id}`, run: () => edit(p) }]),
         { id: `REMOVE:${p.id}`, run: () => remove(p) },
