@@ -1,5 +1,5 @@
-// The lantern kit's motion (stage 42, ADR 0127): every timing of layout B
-// "Rummet växer" in one place, the plan of a transition between two boxes
+// The lantern kit's motion (stage 42, ADR 0127; one clock for every morph
+// since stage 74, ADR 0165): its timings in one place, the plan of a transition between two boxes
 // (`morphPlan`, pure; the start surface runs it, src/chrome/start-morph.tsx)
 // and the one reduced-motion helper of the kit. Package 42a owns this file.
 //
@@ -9,49 +9,39 @@
 
 import { useEffect, useState } from 'preact/hooks';
 
-/** The choreography of layout B (stage 42 "Decisions": the table), and the box swap. */
+/**
+ * The kit's motion. Every morph between two boxes runs on one clock
+ * (`clock`; the owner's decision of 2026-11-19, ADR 0165 addendum: the
+ * quick tempo of the menu's panel ↔ a normal box everywhere, where the
+ * opening to a large box took 200 + 780 + 320 ms and its closing
+ * 240 + 680 + 260 ms): the old content fades out, the proxy flies, the
+ * new content fades in. The scenery's CSS (start.css: the wordmark, the
+ * almanac) follows the same clock.
+ */
 export const MOTION = {
-  open: {
-    /** The menu items fade out. */
-    items: { ms: 200 },
-    /** The wordmark lifts and fades, from 0 (start.css: `.wc-start.is-large .wc-start-brand`). */
-    wordmark: { ms: 620, lift: 46, easing: 'cubic-bezier(.5,0,.5,1)' },
-    /** The quote and the almanac fade out. */
-    scenery: { ms: 350 },
-    /** The proxy grows from the panel's rect. */
-    box: { delay: 200, ms: 780, easing: 'cubic-bezier(.55,0,.15,1)' },
-    /** The hood stays 74 px wide until this fraction of the growth, then takes its width. */
-    hood: { narrow: 74, until: 0.25 },
-    /** The content fades in once the box has landed. */
-    content: { ms: 320 },
-  },
-  close: {
-    /** The content fades, then the proxy shrinks to the panel. */
-    content: { ms: 240 },
-    box: { ms: 680 },
-    /** The hood is back to 74 px by this fraction of the shrink. */
-    hood: { narrow: 74, by: 0.75 },
-    /** The wordmark settles back (start.css: `.wc-start.is-from-large .wc-start-brand`). */
-    wordmark: { delay: 320, ms: 700, easing: 'cubic-bezier(.3,.7,.3,1)' },
-    /** The quote and the almanac fade in after the shrink. */
-    scenery: { ms: 350 },
-    /** The menu items fade in after the shrink. */
-    items: { ms: 260 },
+  clock: {
+    /** The old box's content fades out (the menu's items and its quote, a page's content). */
+    out: 140,
+    /** The proxy flies from the old rectangle to the new one, once the content is out. */
+    fly: 380,
+    /** The new box's content fades in, once the proxy has landed. */
+    in: 220,
+    /** The flight's easing. */
+    easing: 'cubic-bezier(.55,0,.15,1)',
   },
   /**
-   * One box to another of its own kind (large → large, normal → normal), and
-   * the menu's panel to a normal box and back (stage 74): the content fades
-   * out, a different rectangle flies in `resize`, the content fades in.
-   * (start.css: the wordmark's move between the menu's place and a
-   * sub-page's takes `resize` too, on the flight's clock.)
+   * The hood's plate over the flight: growing out of a smaller box it stays
+   * the old box's width until `open` of the way, then takes the new one's;
+   * shrinking back it has the new width by `close` of the way; between two
+   * boxes of one kind by `swap`. (`narrow`: the plain plate's width, px.)
    */
-  swap: { title: 200, out: 140, in: 220, resize: 380 },
-  /** Normal → normal of another size: the height morphs, the content cross-fades. */
-  resize: { ms: 380 },
+  hood: { narrow: 74, open: 0.25, close: 0.75, swap: 0.5 },
+  /** Around a large box the wordmark lifts this far (px) and fades (start.css). */
+  wordmark: { lift: 46 },
+  /** A new title cross-fades in the hood. */
+  swap: { title: 200 },
   /** Reduced motion: fades only. */
   reduced: { open: 260, close: 240 },
-  /** The stack's hold (42c): the frame below stays drawn on open, a popped frame while it fades. */
-  hold: { open: 200, close: 240 },
 } as const;
 
 /** Whether the user asks for reduced motion (now). */
@@ -155,7 +145,7 @@ export interface MorphPlan {
 }
 
 /** The plain hood plate's width (px). */
-export const PLAIN_HOOD = 74;
+export const PLAIN_HOOD = MOTION.hood.narrow;
 
 const NONE: MorphPlan = { type: 'none', out: 0, sceneryOut: 0, flight: null, land: 0, in: 0, sceneryIn: 0, whole: false };
 
@@ -174,18 +164,21 @@ export function planLength(p: MorphPlan): number {
 /**
  * Plans the transition from the old top frame's box to the new one's (a
  * pure function of their kinds and rectangles; the start surface runs it).
+ * Every pair of boxes runs on `MOTION.clock`: the old content fades out
+ * (140 ms), the proxy flies to the new rectangle (380 ms), the new
+ * content fades in (220 ms).
  *
- * - menu or normal → large: `open` (the box grows out of the old one);
- *   large → menu or normal: `close` (it shrinks back);
- * - large → large and normal → normal: `swap` (the box stays; the content
- *   cross-fades, and a different rectangle morphs in `MOTION.swap.resize`);
- * - menu ↔ normal (stage 74; `none` until then, the page changed at once):
- *   a `swap` too, on the same clock (the size change is small). The
- *   menu's items and its quote fade with the content, and the hood keeps
- *   to the menu's plain plate near the panel as in `open` and `close`. The
- *   wordmark moves to its other place during the flight (start.css);
+ * - menu, normal or tall → large: `open` (the box grows out of the old
+ *   one); large → menu, normal or tall: `close` (it shrinks back);
+ * - large → large, normal → normal and menu ↔ normal: `swap` (the same
+ *   rectangle only cross-fades its content);
  * - anything with an old-look frame, a frame without a box or an unknown
  *   rectangle: `none`.
+ *
+ * The types differ in the hood (it keeps to the smaller box's plate near
+ * it) and in reduced motion; the menu's quote (`.wc-lk-fades`) fades with
+ * the content at either end. The wordmark and the almanac move by CSS on
+ * the same clock (start.css).
  *
  * With reduced motion nothing grows: `open` and `close` become `fade`
  * (the boxes fade as a whole, ≤ 260 ms), menu ↔ normal too (two boxes in
@@ -196,13 +189,12 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
   if (!from || !to || !boxed(from.kind) || !boxed(to.kind)) return NONE;
   const fk = from.kind;
   const tk = to.kind;
+  const C = MOTION.clock;
   const small = (k: BoxKind): boolean => k !== 'large';
+  const sub = (k: BoxKind): boolean => k === 'normal' || k === 'tall';
   const flying = !!from.flying;
   const shown = !!from.shown && !flying;
-  const fromHood = from.hood ?? PLAIN_HOOD;
-  const toHood = to.hood ?? PLAIN_HOOD;
-  const sub = (k: BoxKind): boolean => k === 'normal' || k === 'tall';
-  // The menu's panel to a sub-page's box (`enter`) or back (`leave`): a swap with the menu's scenery.
+  // The menu's panel to a sub-page's box (`enter`) or back (`leave`): a swap between two boxes in two places.
   const enter = fk === 'menu' && sub(tk);
   const leave = sub(fk) && tk === 'menu';
   let type: MorphPlan['type'];
@@ -212,11 +204,9 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
   else if ((sub(fk) && sub(tk)) || enter || leave) type = 'swap';
   else return NONE;
 
+  const out = shown ? C.out : 0;
   if (reduced) {
-    if (type === 'swap' && !enter && !leave) {
-      const out = shown ? MOTION.swap.out : 0;
-      return { ...NONE, type, out, land: out, in: MOTION.swap.in };
-    }
+    if (type === 'swap' && !enter && !leave) return { ...NONE, type, out, land: out, in: C.in };
     if (type === 'open' || enter) {
       const ms = MOTION.reduced.open;
       return { ...NONE, type: 'fade', whole: true, out: shown ? ms : 0, sceneryOut: shown ? ms : 0, in: ms };
@@ -225,85 +215,37 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
     return { ...NONE, type: 'fade', whole: true, out: shown ? MOTION.reduced.close : 0 };
   }
 
-  if (type === 'swap') {
-    const out = shown ? MOTION.swap.out : 0;
-    // The menu's quote goes with its items, and comes back with them.
-    const scenery = { sceneryOut: enter ? out : 0, sceneryIn: leave ? MOTION.swap.in : 0 };
-    const moves = !!from.rect && !!to.rect && !sameRect(from.rect, to.rect);
-    if (!moves) return { ...NONE, type, out, ...scenery, land: out, in: MOTION.swap.in };
-    const at = flying ? 0 : out;
-    const ms = MOTION.swap.resize;
-    // The hood: from the menu's plain plate as `open` widens it, back to it as `close` narrows it.
-    const hood = enter
-      ? { until: MOTION.open.hood.until, mode: 'open' as const }
-      : leave
-        ? { until: MOTION.close.hood.by, mode: 'close' as const }
-        : { until: 0.5, mode: 'close' as const };
-    return {
-      ...NONE,
-      type,
-      out,
-      ...scenery,
-      flight: {
-        from: from.rect!,
-        to: to.rect!,
-        show: at,
-        at,
-        ms,
-        easing: MOTION.open.box.easing,
-        hood: { from: fromHood, to: toHood, ...hood },
-      },
-      land: at + ms,
-      in: MOTION.swap.in,
-    };
+  // The frames' own scenery (the menu's quote) goes with the old content and comes with the new.
+  const fades = { out, sceneryOut: out, in: C.in, sceneryIn: C.in };
+  if (!from.rect || !to.rect) {
+    // A box grows out of another or shrinks back to it: without their rectangles nothing can be shown.
+    if (type !== 'swap') return NONE;
+    return { ...NONE, type, ...fades, land: out };
   }
-
-  if (!from.rect || !to.rect) return NONE;
-
-  if (type === 'open') {
-    const out = shown ? MOTION.open.items.ms : 0;
-    const at = flying ? 0 : MOTION.open.box.delay;
-    const ms = MOTION.open.box.ms;
-    return {
-      type,
-      out,
-      sceneryOut: shown ? MOTION.open.scenery.ms : 0,
-      flight: {
-        from: from.rect,
-        to: to.rect,
-        show: shown ? out : 0,
-        at,
-        ms,
-        easing: MOTION.open.box.easing,
-        hood: { from: fromHood, to: toHood, until: MOTION.open.hood.until, mode: 'open' },
-      },
-      land: at + ms,
-      in: MOTION.open.content.ms,
-      sceneryIn: MOTION.open.content.ms,
-      whole: false,
-    };
-  }
-
-  // close: the content fades, then the proxy shrinks; the menu's items and its quote come back after
-  const out = shown ? MOTION.close.content.ms : 0;
+  // A swap in one rectangle only cross-fades its content.
+  if (type === 'swap' && sameRect(from.rect, to.rect)) return { ...NONE, type, ...fades, land: out };
   const at = flying ? 0 : out;
-  const ms = MOTION.close.box.ms;
+  // The hood: from a smaller box's plate as the box grows, back to it as it shrinks.
+  const H = MOTION.hood;
+  const hood =
+    type === 'open' || enter
+      ? { until: H.open, mode: 'open' as const }
+      : type === 'close' || leave
+        ? { until: H.close, mode: 'close' as const }
+        : { until: H.swap, mode: 'close' as const };
   return {
     type,
-    out,
-    sceneryOut: 0,
+    ...fades,
     flight: {
       from: from.rect,
       to: to.rect,
       show: at,
       at,
-      ms,
-      easing: MOTION.open.box.easing,
-      hood: { from: fromHood, to: toHood, until: MOTION.close.hood.by, mode: 'close' },
+      ms: C.fly,
+      easing: C.easing,
+      hood: { from: from.hood ?? PLAIN_HOOD, to: to.hood ?? PLAIN_HOOD, ...hood },
     },
-    land: at + ms,
-    in: MOTION.close.items.ms,
-    sceneryIn: MOTION.close.scenery.ms,
+    land: at + C.fly,
     whole: false,
   };
 }
@@ -311,25 +253,14 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
 /**
  * The stack's hold (42c's `FrameStackProps.hold`) for a frame change away
  * from a top frame whose box is `from`: how long the frame below (a push)
- * or the popped frame (a pop) stays drawn. The longest any plan from that
- * box needs; the surface hides the frame sooner when its plan is shorter.
+ * or the popped frame (a pop) stays drawn, which is while its content
+ * fades (the clock's `out`; with reduced motion the whole box's fade).
+ * The surface hides the frame sooner when its plan is shorter.
  */
 export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): number {
   if (!boxed(from)) return 0;
-  // A pop from a normal or tall box can land on a large box below it (an
-  // `open`: its content fades for `open.items` before the proxy shows) or
-  // on a normal one or the menu (a `swap`, shorter): hold for the longer.
-  // A push from the menu is an `open` (its quote fades for `open.scenery`)
-  // or a `swap` to a normal box (shorter).
   if (reduced) return dir === 'push' || from !== 'large' ? MOTION.reduced.open : MOTION.reduced.close;
-  if (dir === 'push') {
-    if (from === 'menu') return MOTION.open.scenery.ms;
-    if (from === 'large') return MOTION.close.content.ms;
-    return MOTION.open.items.ms;
-  }
-  if (from === 'large') return MOTION.close.content.ms;
-  if (from === 'menu') return 0;
-  return Math.max(MOTION.open.items.ms, MOTION.swap.out);
+  return MOTION.clock.out;
 }
 
 // ------------------------------------------------------------ the proxy's pieces

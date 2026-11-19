@@ -52,36 +52,57 @@
   display: none;
 }
 
-/* The wordmark between the menu's place and a sub-page's smaller one
- * (stage 74: the menu's panel morphs to a normal box and back, a `swap`
- * of kit/look-motion.ts): it moves with the proxy's flight, on its clock
- * (`MOTION.swap.resize`, the flight's easing, starting when the flight
- * does: `--lk-fly-at`, set by src/chrome/start-morph.tsx, 0 for a
- * reversal mid-flight), so the mark and the frame's top edge keep their
- * distance and read as one motion.
+/* The scenery moves on the morph's one clock (stage 74, ADR 0165;
+ * `MOTION.clock` in kit/look-motion.ts, whose numbers these are: a unit
+ * test holds the two together): the old content fades out (`--lk-out`),
+ * the proxy flies (`--lk-fly`, `--lk-ease`), the new content fades in
+ * (`--lk-in`). The stage (src/chrome/start-morph.tsx) sets, per change,
+ * when the flight starts (`--lk-fly-at`: `--lk-out`, or 0 for a reversal
+ * mid-flight) and when it lands (`--lk-fly-land`). Nothing here runs past
+ * the landing plus `--lk-in`, the plan's end. */
+.wc-start-scenery {
+  --lk-out: 140ms;
+  --lk-fly: 380ms;
+  --lk-in: 220ms;
+  --lk-ease: cubic-bezier(0.55, 0, 0.15, 1);
+  --lk-fly-at: var(--lk-out);
+  --lk-fly-land: calc(var(--lk-out) + var(--lk-fly));
+  /* The wordmark and the almanac leave a growing box's way while the old
+   * content fades and the proxy is still slow (the flight's first 80 ms,
+   * about a twentieth of its way), and come back as it lands, done with
+   * the new content. */
+  --lk-away: calc(var(--lk-fly-at) + 80ms);
+  --lk-back-at: max(0ms, var(--lk-fly-land) - 80ms);
+  --lk-back: calc(var(--lk-in) + 80ms);
+}
+
+/* The wordmark between the menu's place and a sub-page's smaller one: it
+ * moves with the proxy's flight, on its clock, so the mark and the frame's
+ * top edge keep their distance and read as one motion.
  * (`translate`: the menu's drop on a tablet, src/start/geometry.css.) */
 .wc-start-brand {
   transition:
-    transform 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s),
-    translate 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s);
+    transform var(--lk-fly) var(--lk-ease) var(--lk-fly-at),
+    translate var(--lk-fly) var(--lk-ease) var(--lk-fly-at);
 }
 
 .wc-start.is-sub .wc-start-brand {
   transform: scale(0.62) translateY(-14px);
 }
 
-/* Layout B (stage 42a, ADR 0127; the timings are MOTION in
- * kit/look-motion.ts): while a large box is open the wordmark lifts 46 px
- * and fades (from where it rests: the full mark, or the sub-page's smaller
- * one), and it settles back after the box has begun to shrink. Transform
- * and opacity only (no filter on the masked mark). */
+/* Layout B (stage 42a, ADR 0127): while a large box is open the wordmark
+ * is lifted 46 px and faded (from where it rests: the full mark, or the
+ * sub-page's smaller one). It goes before the frame reaches it
+ * (`--lk-away`) and settles back as the frame lands (`--lk-back-at`,
+ * `--lk-back`). Transform and opacity only (no filter on the masked
+ * mark). */
 .wc-start.is-large .wc-start-brand {
   transform: translateY(-46px) scale(0.97);
   opacity: 0;
   transition:
-    transform 0.62s cubic-bezier(0.5, 0, 0.5, 1),
-    translate 0.62s cubic-bezier(0.5, 0, 0.5, 1),
-    opacity 0.62s cubic-bezier(0.5, 0, 0.5, 1);
+    transform var(--lk-away) ease-in,
+    translate var(--lk-away) ease-in,
+    opacity var(--lk-away) ease-in;
 }
 
 .wc-start.is-large.is-lift-sub .wc-start-brand {
@@ -90,42 +111,41 @@
 
 .wc-start.is-from-large .wc-start-brand {
   transition:
-    transform 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s,
-    translate 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s,
-    opacity 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s;
+    transform var(--lk-back) ease-out var(--lk-back-at),
+    translate var(--lk-back) ease-out var(--lk-back-at),
+    opacity var(--lk-back) ease-out var(--lk-back-at);
 }
 
 /* The phone: no wordmark and no almanac around a tall box (data-lk-box:
  * the top box's kind, src/chrome/start-morph.tsx). The box reaches over
- * both, so they fade with the old box's content, before the proxy flies
- * (`MOTION.swap.out`), and after a tall box (`data-lk-from`) they come
- * back when the next box has landed (`--lk-fly-land`), with its content
- * (`MOTION.swap.in`). Not for a large box: its own rules above. */
+ * both, so they fade with the old box's content, before the proxy flies,
+ * and after a tall box (`data-lk-from`) they come back when the next box
+ * has landed, with its content. Not for a large box: its own rules. */
 html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-brand,
 html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.14s ease,
-    visibility 0s 0.14s,
-    transform 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s),
-    translate 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s);
+    opacity var(--lk-out) ease,
+    visibility 0s var(--lk-out),
+    transform var(--lk-fly) var(--lk-ease) var(--lk-fly-at),
+    translate var(--lk-fly) var(--lk-ease) var(--lk-fly-at);
 }
 
 html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
-  transition: color 2.5s, text-shadow 2.5s, opacity 0.14s ease, visibility 0s 0.14s;
+  transition: color 2.5s, text-shadow 2.5s, opacity var(--lk-out) ease, visibility 0s var(--lk-out);
 }
 
 html.wc-phone .wc-start[data-lk-from="tall"]:not(.is-large, [data-lk-box="tall"]) .wc-start-brand {
   transition:
-    opacity 0.22s ease var(--lk-fly-land, 0s),
-    visibility 0s var(--lk-fly-land, 0s),
-    transform 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s),
-    translate 0.38s cubic-bezier(0.55, 0, 0.15, 1) var(--lk-fly-at, 0.14s);
+    opacity var(--lk-in) ease var(--lk-fly-land),
+    visibility 0s var(--lk-fly-land),
+    transform var(--lk-fly) var(--lk-ease) var(--lk-fly-at),
+    translate var(--lk-fly) var(--lk-ease) var(--lk-fly-at);
 }
 
 html.wc-phone .wc-start[data-lk-from="tall"]:not(.is-large, [data-lk-box="tall"]) .wc-start-almanac {
-  transition: color 2.5s, text-shadow 2.5s, opacity 0.22s ease var(--lk-fly-land, 0s), visibility 0s var(--lk-fly-land, 0s);
+  transition: color 2.5s, text-shadow 2.5s, opacity var(--lk-in) ease var(--lk-fly-land), visibility 0s var(--lk-fly-land);
 }
 
 /* The almanac at the bottom right: date, time · period · year, version. */
@@ -176,10 +196,11 @@ html.wc-phone .wc-start[data-lk-from="tall"]:not(.is-large, [data-lk-box="tall"]
   transition: color 2.5s, text-shadow 2.5s;
 }
 
-/* Layout B: the almanac fades while a large box is open, and comes back
- * after the box has shrunk (the content's fade and the shrink: 0.92 s). */
+/* Layout B: the almanac fades with the old content while a large box
+ * opens (the box grows over it), and comes back with the new content
+ * once the box has shrunk. */
 .wc-start-almanac {
-  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s;
+  transition: color 2.5s, text-shadow 2.5s, opacity var(--lk-out);
 }
 
 .wc-start.is-large .wc-start-almanac {
@@ -187,7 +208,7 @@ html.wc-phone .wc-start[data-lk-from="tall"]:not(.is-large, [data-lk-box="tall"]
 }
 
 .wc-start.is-from-large .wc-start-almanac {
-  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s 0.92s;
+  transition: color 2.5s, text-shadow 2.5s, opacity var(--lk-in) var(--lk-fly-land);
 }
 
 /* The arrival on a page (`?community`, `?account`: the watch page's Back;

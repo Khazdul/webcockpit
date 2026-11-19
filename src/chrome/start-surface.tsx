@@ -291,16 +291,16 @@ export function StartSurface(p: StartSurfaceProps): VNode {
     if (s === 'large') {
       setLiftSub(was === 'sub');
       setFromLarge(false);
-    } else if (was === 'large') setFromLarge(true);
+    } else setFromLarge(was === 'large');
     setSceneryNow(s);
   }, []);
   useEffect(() => {
     if (!fromLarge) return;
-    const c = MOTION.close;
-    const t = setTimeout(
-      () => setFromLarge(false),
-      Math.max(c.wordmark.delay + c.wordmark.ms, c.content.ms + c.box.ms + c.scenery.ms) + 60,
-    );
+    // Until the close's plan has run out (the wordmark and the almanac are back with the new
+    // content), and well past it: the class only picks their transition, and taking it away while
+    // one still runs would end it (a slow first frame starts the transitions late; this timer not).
+    const c = MOTION.clock;
+    const t = setTimeout(() => setFromLarge(false), c.out + c.fly + c.in + 400);
     return () => clearTimeout(t);
   }, [fromLarge]);
 

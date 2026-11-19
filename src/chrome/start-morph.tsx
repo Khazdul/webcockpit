@@ -70,8 +70,16 @@ import { useIsOverlay, useIsTopFrame } from './kit/stack';
 /** A large box covering at least this share of the view calms the sky behind it. */
 export const CALM_COVER = 0.85;
 
-/** ms a held frame stays mounted past its plan's need (the animation clock lags the hold's timer). */
-const HOLD_SLACK = 120;
+/**
+ * ms a held frame stays mounted past its plan's need. The hold is a timer
+ * from the frame change; the plan runs on the animation clock, which
+ * starts with the first frame after it, and that frame is the new page's
+ * mount: late on a slow device (a phone's first visit, a loaded browser).
+ * The old frame hides itself on the animation clock, so the slack never
+ * shows it longer; it must only outlast that first frame, or nothing is
+ * drawn between the old box and the proxy.
+ */
+const HOLD_SLACK = 400;
 
 /** What the stage knows of one frame on the surface. */
 interface Host {

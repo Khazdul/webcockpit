@@ -7,11 +7,13 @@
 //
 // More for shooting: `--base URL` shoots a running server instead of a
 // build; `--steps open,close,…` picks the steps (default `open,close`:
-// About; `profile-open,profile-close`: the menu's panel to Profile's
-// normal box and back; `login-open,login-close`: the owner row to Log in,
-// a tall box on a phone, on a dev server only (`--base`: `?cloudtest` and a
-// guest's answers from the account API); stage 74 part C); `--query '&morph=pieces'` adds
-// to the address; `--at 0,140,…` replaces the steps' times.
+// About; `<row>-open,<row>-close` for `profile`, `scripts`, `history`, and
+// on a dev server only (`--base`: `?cloudtest`, a guest's answers and the
+// flags from the account API) `login`, the owner row to Log in, and
+// `community`, whose page then has nothing to list);
+// `--geometries phone,tablet,desktop,desktop-odd,desktop-large`;
+// `--query '&morph=pieces'` adds to the address; `--at 0,140,…` replaces
+// the steps' times (default: ten times over the morph's one clock).
 //
 // Shooting: serves the build in `--dist` (`vite preview`; build it first:
 // `npx vite build --outDir DIR`), opens the start page with a frozen sky
@@ -20,6 +22,14 @@
 // animation of the document is paused and set to fixed times of the plan
 // (`currentTime`), and the page is photographed at each: `<geometry>-
 // <step>-<ms>.png`.
+//
+// (What the pictures cannot show: the page's timers run on while its
+// animations stand still. The old frame's hold ends, so pictures before
+// about 140 ms may lack the old content; and after a large box closes
+// the surface drops `is-from-large` after about a second, which ends the
+// wordmark's and the almanac's waiting transitions: in a close's pictures
+// they are back too early. Their real timing: the e2e specs' frame
+// records, tests/e2e/menu-morph.ts.)
 //
 // Comparing: for every picture in both sets, the count of pixels that
 // differ at all, of those that differ by more than 8 and by more than 32
@@ -104,22 +114,23 @@ const GEOS = [
   { name: 'tablet', g: { width: 820, height: 1180, dpr: 2 }, q: '&tablet=phone', mobile: true },
   { name: 'desktop', g: { width: 1920, height: 1080, dpr: 1 }, q: '', mobile: false },
   { name: 'desktop-odd', g: { width: 1367, height: 771, dpr: 1 }, q: '', mobile: false },
+  { name: 'desktop-large', g: { width: 2560, height: 1440, dpr: 1 }, q: '', mobile: false },
 ].filter((g) => opt('geometries', 'phone,tablet,desktop,desktop-odd').split(',').includes(g.name));
 const ITEM = (key: string): string => `.wc-start .wc-frame:not([hidden]) .wc-sm-item[data-key="${key}"]`;
 const BACK = '.wc-start .wc-frame:not([hidden]) .wc-lk-back';
-// The menu's panel ↔ a normal box (a `swap`: 140 ms out, 380 ms of flight, 220 ms in).
-const SUB_AT = [60, 139, 200, 270, 330, 400, 519, 560, 640, 740];
+// Every morph runs on one clock (ADR 0165 addendum): 140 ms out, 380 ms of flight, 220 ms in.
+const CLOCK_AT = [60, 139, 200, 270, 330, 400, 519, 560, 640, 740];
 const AT = opt('at', '');
-const STEPS = [
-  { name: 'open', target: ITEM('about'), at: [200, 260, 400, 600, 800, 979, 1100] },
-  { name: 'close', target: BACK, at: [240, 300, 500, 700, 919, 1000] },
-  { name: 'profile-open', target: ITEM('profile'), at: SUB_AT },
-  { name: 'profile-close', target: BACK, at: SUB_AT },
-  { name: 'login-open', target: ITEM('owner'), at: SUB_AT },
-  { name: 'login-close', target: BACK, at: SUB_AT },
-]
-  .filter((s) => opt('steps', 'open,close').split(',').includes(s.name))
-  .map((s) => (AT ? { ...s, at: AT.split(',').map(Number) } : s));
+// `<row>-open` taps the menu's row, `<row>-close` the page's Back; `open` and `close` are About's.
+const ROWS: Record<string, string> = { about: 'about', profile: 'profile', login: 'owner', scripts: 'scripts', history: 'history', community: 'community' };
+const STEPS = opt('steps', 'open,close')
+  .split(',')
+  .map((name) => {
+    const m = /^(?:(\w+)-)?(open|close)$/.exec(name);
+    const key = m && ROWS[m[1] ?? 'about'];
+    if (!m || !key) throw new Error(`no such step: ${name}`);
+    return { name, target: m[2] === 'open' ? ITEM(key) : BACK, at: AT ? AT.split(',').map(Number) : CLOCK_AT };
+  });
 
 const port = await new Promise<number>((res, rej) => {
   const s = createServer();
@@ -142,12 +153,12 @@ try {
     });
     const page = await ctx.newPage();
     // The owner row needs the account API's flags (and `?cloudtest`, a dev server's hook): a guest's answers.
-    const login = STEPS.some((s) => s.name.startsWith('login-'));
+    const login = STEPS.some((s) => /^(login|community)-/.test(s.name));
     if (login) {
       const { DEFAULT_ACCOUNT_LIMITS } = await import('../shared/cloud/api');
       await page.route('**/api/**', (route) => {
         const config = new URL(route.request().url()).pathname === '/api/config';
-        const body = config ? { flags: { accounts: true }, turnstileSiteKey: 'bench', limits: DEFAULT_ACCOUNT_LIMITS, time: Date.now() } : { error: 'not_found' };
+        const body = config ? { flags: { accounts: true, share: true, gallery: true }, turnstileSiteKey: 'bench', limits: DEFAULT_ACCOUNT_LIMITS, time: Date.now() } : { error: 'not_found' };
         return route.fulfill({ status: config ? 200 : 404, contentType: 'application/json', body: JSON.stringify(body) });
       });
     }

@@ -59,6 +59,34 @@ test('phone: menu → Profile → Back morphs in pieces: the proxy lands on the 
   expect(errors).toEqual([]);
 });
 
+test('phone: menu → About → Back on the one clock, in pieces: the wordmark is gone before the frame reaches it and back after it', async ({ page }) => {
+  const errors = watchErrors(page);
+  await fakeAccountApi(page);
+  await openStart(page, PHONE_Q);
+  await expect(accountRow(page)).toBeVisible();
+  const panel = await edgesOf(page, PANEL);
+  const LARGE = '.wc-start .wc-frame:not([hidden]) .wc-lk-large > .wc-lk-box';
+
+  const there = await watchMorph(page, () => row(page, 'about').tap());
+  expect(there.plans).toEqual(['open']);
+  expect(there.flew).toBe(true);
+  expect(there.blank, blanks(there)).toBe(0);
+  expect(brandOverFrame(there), 'the wordmark over the frame, opening').toEqual([]);
+  await expect(page.locator(LARGE)).toBeVisible();
+  expect(landingGap(there, await edgesOf(page, LARGE))).toBeLessThan(2);
+
+  const home = await watchMorph(page, () => back(page).tap());
+  expect(home.plans).toEqual(['close']);
+  expect(home.flew).toBe(true);
+  expect(home.blank, blanks(home)).toBe(0);
+  expect(brandOverFrame(home), 'the wordmark over the frame, closing').toEqual([]);
+  await expect(page.locator(PANEL)).toBeVisible();
+  expect(landingGap(home, panel)).toBeLessThan(2);
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.wc-start-almanac')).toHaveCSS('opacity', '1');
+  expect(errors).toEqual([]);
+});
+
 test('phone: menu → Log in morphs; the field has the focus from the mount, our keyboard comes up and the proxy lands on the box', async ({ page }) => {
   const errors = watchErrors(page);
   await fakeAccountApi(page);

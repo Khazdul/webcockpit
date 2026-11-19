@@ -206,109 +206,97 @@ describe('Box variants and scenery', () => {
 
 describe('morphPlan', () => {
   const end = (kind: MorphEnd['kind'], rect = PANEL, more: Partial<MorphEnd> = {}): MorphEnd => ({ kind, rect, ...more });
+  const NORMAL = R(340, 240, 760, 420);
 
-  it('menu → large opens: items fade, the proxy grows from the panel after 200 ms, the content fades in', () => {
+  it('one clock (stage 74, ADR 0165): 140 ms out, 380 ms of flight, 220 ms in; the scenery’s CSS has the same numbers', async () => {
+    expect(MOTION.clock).toMatchObject({ out: 140, fly: 380, in: 220, easing: 'cubic-bezier(.55,0,.15,1)' });
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(resolve(process.cwd(), 'src/chrome/start.css'), 'utf8');
+    expect(css).toContain(`--lk-out: ${MOTION.clock.out}ms;`);
+    expect(css).toContain(`--lk-fly: ${MOTION.clock.fly}ms;`);
+    expect(css).toContain(`--lk-in: ${MOTION.clock.in}ms;`);
+    expect(css.replace(/0\./g, '.')).toContain(`--lk-ease: ${MOTION.clock.easing.replace(/,/g, ', ')};`);
+  });
+
+  it('every pair of boxes that moves runs on the clock: 740 ms from the change', () => {
+    const kinds = ['menu', 'normal', 'tall', 'large'] as const;
+    const rect = (k: string) => (k === 'large' ? LARGE : k === 'menu' ? PANEL : NORMAL);
+    for (const fk of kinds)
+      for (const tk of kinds) {
+        if (fk === 'menu' && tk === 'menu') continue;
+        if (rect(fk) === rect(tk)) continue;
+        const p = morphPlan(end(fk, rect(fk), { shown: true }), end(tk, rect(tk)));
+        expect(p, `${fk} → ${tk}`).toMatchObject({ out: 140, sceneryOut: 140, land: 520, in: 220, sceneryIn: 220, whole: false });
+        expect(p.flight, `${fk} → ${tk}`).toMatchObject({ from: rect(fk), to: rect(tk), show: 140, at: 140, ms: 380, easing: MOTION.clock.easing });
+        expect(planLength(p), `${fk} → ${tk}`).toBe(740);
+      }
+  });
+
+  it('menu → large opens: the hood keeps the panel’s plain plate for the first quarter', () => {
     const p = morphPlan(end('menu', PANEL, { shown: true, hood: 74 }), end('large', LARGE, { hood: 120 }));
     expect(p.type).toBe('open');
-    expect(p.out).toBe(200);
-    expect(p.sceneryOut).toBe(350);
-    expect(p.flight).toMatchObject({ from: PANEL, to: LARGE, show: 200, at: 200, ms: 780 });
     expect(p.flight!.hood).toEqual({ from: 74, to: 120, until: 0.25, mode: 'open' });
-    expect(p.land).toBe(980);
-    expect(p.in).toBe(320);
-    expect(planLength(p)).toBe(1300);
   });
 
-  it('without the hold the proxy stands in the panel for 200 ms, from the start', () => {
+  it('without the hold the old frame is gone: the proxy flies at once', () => {
     const p = morphPlan(end('menu', PANEL, { shown: false }), end('large', LARGE));
-    expect(p.out).toBe(0);
-    expect(p.sceneryOut).toBe(0);
-    expect(p.flight).toMatchObject({ show: 0, at: 200 });
+    expect(p).toMatchObject({ out: 0, sceneryOut: 0, land: 380 });
+    expect(p.flight).toMatchObject({ show: 0, at: 0 });
   });
 
-  it('large → menu closes: the content fades 240 ms, the proxy shrinks 680 ms, items and quote come back', () => {
+  it('large → menu closes: the hood is the plain plate again by three quarters', () => {
     const p = morphPlan(end('large', LARGE, { shown: true, hood: 120 }), end('menu', PANEL, { hood: 74 }));
     expect(p.type).toBe('close');
-    expect(p.out).toBe(240);
-    expect(p.flight).toMatchObject({ from: LARGE, to: PANEL, at: 240, ms: 680 });
     expect(p.flight!.hood).toEqual({ from: 120, to: 74, until: 0.75, mode: 'close' });
-    expect(p.land).toBe(920);
-    expect(p.in).toBe(260);
-    expect(p.sceneryIn).toBe(350);
   });
 
   it('a reversal mid-flight starts from the proxy at once', () => {
     const mid = R(300, 150, 800, 600);
     const p = morphPlan(end('large', mid, { shown: true, flying: true }), end('menu'));
     expect(p.type).toBe('close');
-    expect(p.out).toBe(0);
-    expect(p.flight).toMatchObject({ from: mid, show: 0, at: 0 });
+    expect(p).toMatchObject({ out: 0, land: 380, in: 220 });
+    expect(p.flight).toMatchObject({ from: mid, show: 0, at: 0, ms: 380 });
+    const again = morphPlan(end('menu', mid, { shown: true, flying: true }), end('large', LARGE));
+    expect(again).toMatchObject({ type: 'open', out: 0, land: 380 });
+    expect(again.flight).toMatchObject({ from: mid, show: 0, at: 0 });
   });
 
   it('normal → large opens from the normal box; large → normal closes to it', () => {
     const normal = R(340, 300, 760, 300);
-    expect(morphPlan(end('normal', normal, { shown: true }), end('large', LARGE)).flight?.from).toEqual(normal);
+    expect(morphPlan(end('normal', normal, { shown: true }), end('large', LARGE))).toMatchObject({ type: 'open', flight: { from: normal } });
     expect(morphPlan(end('large', LARGE, { shown: true }), end('tall', normal)).type).toBe('close');
   });
 
-  it('large → large swaps: the content cross-fades; a new width morphs in 380 ms', () => {
+  it('large → large swaps: the same rectangle only cross-fades; a new width flies', () => {
     const same = morphPlan(end('large', LARGE, { shown: true }), end('large', LARGE));
     expect(same).toMatchObject({ type: 'swap', out: 140, land: 140, in: 220, flight: null });
     const wider = morphPlan(end('large', CAPPED, { shown: true }), end('large', LARGE));
     expect(wider.flight).toMatchObject({ from: CAPPED, to: LARGE, at: 140, ms: 380 });
+    expect(wider.flight!.hood).toMatchObject({ until: 0.5, mode: 'close' });
     expect(wider.land).toBe(520);
   });
 
-  it('normal → normal of another height morphs; the same rect only cross-fades', () => {
+  it('normal → normal of another height flies; the same rect only cross-fades', () => {
     const a = R(340, 300, 760, 229);
     const b = R(340, 300, 760, 365);
     expect(morphPlan(end('normal', a, { shown: true }), end('normal', b)).flight).toMatchObject({ ms: 380 });
     expect(morphPlan(end('normal', a, { shown: true }), end('normal', a)).flight).toBeNull();
   });
 
-  it('menu → normal swaps (stage 74): items and quote fade 140 ms, the proxy flies 380 ms from the panel, the content fades in', () => {
-    const normal = R(340, 240, 760, 420);
+  it('menu ↔ normal swaps (stage 74): the hood as in open and close', () => {
     for (const kind of ['normal', 'tall'] as const) {
-      const p = morphPlan(end('menu', PANEL, { shown: true, hood: 74 }), end(kind, normal, { hood: 150 }));
-      expect(p).toMatchObject({ type: 'swap', out: 140, sceneryOut: 140, land: 520, in: 220, sceneryIn: 0, whole: false });
-      expect(p.flight).toMatchObject({ from: PANEL, to: normal, show: 140, at: 140, ms: 380 });
-      // the hood keeps the menu's plain plate at first, as in `open`
+      const p = morphPlan(end('menu', PANEL, { shown: true, hood: 74 }), end(kind, NORMAL, { hood: 150 }));
+      expect(p.type).toBe('swap');
       expect(p.flight!.hood).toEqual({ from: 74, to: 150, until: 0.25, mode: 'open' });
-      expect(planLength(p)).toBe(740);
+      const q = morphPlan(end(kind, NORMAL, { shown: true, hood: 150 }), end('menu', PANEL, { hood: 74 }));
+      expect(q.type).toBe('swap');
+      expect(q.flight!.hood).toEqual({ from: 150, to: 74, until: 0.75, mode: 'close' });
     }
-    // without the hold the old frame is gone: the proxy flies at once
-    const bare = morphPlan(end('menu', PANEL, { shown: false }), end('normal', normal));
-    expect(bare).toMatchObject({ out: 0, sceneryOut: 0, land: 380 });
-    expect(bare.flight).toMatchObject({ show: 0, at: 0 });
-  });
-
-  it('normal → menu swaps back: the content fades, the proxy flies to the panel, items and quote fade in', () => {
-    const normal = R(340, 240, 760, 420);
-    for (const kind of ['normal', 'tall'] as const) {
-      const p = morphPlan(end(kind, normal, { shown: true, hood: 150 }), end('menu', PANEL, { hood: 74 }));
-      expect(p).toMatchObject({ type: 'swap', out: 140, sceneryOut: 0, land: 520, in: 220, sceneryIn: 220, whole: false });
-      expect(p.flight).toMatchObject({ from: normal, to: PANEL, show: 140, at: 140, ms: 380 });
-      // the hood is the plain plate again before the landing, as in `close`
-      expect(p.flight!.hood).toEqual({ from: 150, to: 74, until: 0.75, mode: 'close' });
-    }
-  });
-
-  it('menu ↔ normal reverses mid-flight from the proxy at once', () => {
     const mid = R(300, 280, 500, 380);
     const back = morphPlan(end('normal', mid, { shown: true, flying: true }), end('menu', PANEL));
     expect(back).toMatchObject({ type: 'swap', out: 0, land: 380, in: 220, sceneryIn: 220 });
     expect(back.flight).toMatchObject({ from: mid, to: PANEL, show: 0, at: 0, ms: 380 });
-    const again = morphPlan(end('menu', mid, { shown: true, flying: true }), end('normal', R(340, 240, 760, 420)));
-    expect(again).toMatchObject({ type: 'swap', out: 0, sceneryOut: 0, land: 380 });
-    expect(again.flight).toMatchObject({ from: mid, show: 0, at: 0 });
-  });
-
-  it('menu ↔ normal with reduced motion: the two boxes fade as a whole, nothing flies', () => {
-    const normal = R(340, 240, 760, 420);
-    const enter = morphPlan(end('menu', PANEL, { shown: true }), end('normal', normal), true);
-    expect(enter).toMatchObject({ type: 'fade', whole: true, out: 260, sceneryOut: 260, in: 260, land: 0, flight: null });
-    const leave = morphPlan(end('tall', normal, { shown: true }), end('menu', PANEL), true);
-    expect(leave).toMatchObject({ type: 'fade', whole: true, out: 240, in: 0, land: 0, flight: null });
   });
 
   it('anything with an old-look frame, a frame without a box or no old frame does not morph', () => {
@@ -324,22 +312,23 @@ describe('morphPlan', () => {
     const close = morphPlan(end('large', LARGE, { shown: true }), end('menu'), true);
     expect(close).toMatchObject({ type: 'fade', whole: true, out: 240, in: 0, flight: null });
     const swap = morphPlan(end('large', CAPPED, { shown: true }), end('large', LARGE), true);
-    expect(swap.flight).toBeNull();
-    for (const p of [open, close, swap]) expect(Math.max(p.out, p.in)).toBeLessThanOrEqual(260);
+    expect(swap).toMatchObject({ type: 'swap', out: 140, land: 140, in: 220, flight: null });
+    const enter = morphPlan(end('menu', PANEL, { shown: true }), end('normal', NORMAL), true);
+    expect(enter).toMatchObject({ type: 'fade', whole: true, out: 260, sceneryOut: 260, in: 260, land: 0, flight: null });
+    const leave = morphPlan(end('tall', NORMAL, { shown: true }), end('menu', PANEL), true);
+    expect(leave).toMatchObject({ type: 'fade', whole: true, out: 240, in: 0, land: 0, flight: null });
+    for (const p of [open, close, swap, enter, leave]) expect(Math.max(p.out, p.in)).toBeLessThanOrEqual(260);
   });
 
-  it('morphHold: as long as the longest plan away from the box needs', () => {
-    // a push from the menu: the quote fades for 350 ms before a large box (140 before a normal one)
-    expect(morphHold('menu', 'push')).toBe(350);
-    expect(morphHold('normal', 'push')).toBe(200);
-    expect(morphHold('large', 'push')).toBe(240);
-    expect(morphHold('large', 'pop')).toBe(240);
-    // a pop from a normal or tall box onto a large one is an `open`: its content fades for 200 ms
-    expect(morphHold('normal', 'pop')).toBe(200);
-    expect(morphHold('tall', 'pop')).toBe(200);
+  it('morphHold: while the old content fades (140 ms; with reduced motion the box’s fade)', () => {
+    for (const k of ['menu', 'normal', 'tall', 'large'] as const) {
+      expect(morphHold(k, 'push')).toBe(140);
+      expect(morphHold(k, 'pop')).toBe(140);
+    }
     expect(morphHold('grid', 'push')).toBe(0);
     expect(morphHold('none', 'pop')).toBe(0);
     expect(morphHold('menu', 'push', true)).toBe(260);
+    expect(morphHold('large', 'pop', true)).toBe(240);
   });
 
   it('morphHold covers the old box until its plan no longer needs it (every pair, both motions)', () => {
@@ -352,7 +341,7 @@ describe('morphPlan', () => {
             if (dir === 'pop' && fk === 'menu') continue; // the menu is the root; it is never popped
             const p = morphPlan(end(fk, rect(fk), { shown: true }), end(tk, rect(tk)), reduced);
             // the old box is drawn until its fade ends and, without a fade, until the proxy shows
-            const needs = Math.max(p.out, p.flight ? Math.min(p.flight.show, p.flight.at) : 0);
+            const needs = Math.max(p.out, p.sceneryOut, p.flight ? Math.min(p.flight.show, p.flight.at) : 0);
             expect(morphHold(fk, dir, reduced), `${fk} → ${tk} ${dir}${reduced ? ' reduced' : ''}`).toBeGreaterThanOrEqual(needs);
           }
   });

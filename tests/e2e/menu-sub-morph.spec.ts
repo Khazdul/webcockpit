@@ -170,6 +170,87 @@ test('Back mid-flight turns the proxy round from where it is; open and Back in a
   expect(errors).toEqual([]);
 });
 
+// One clock for every morph (ADR 0165 addendum): the large pairs at the quick tempo.
+test('menu → About → Back on the one clock: the proxy lands on the box, a frame is always drawn, the wordmark is gone before the frame reaches it and back after it', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  const panel = await edgesOf(page, PANEL);
+  const LARGE = '.wc-start .wc-frame:not([hidden]) .wc-lk-large > .wc-lk-box';
+
+  const there = await watchMorph(page, () => row(page, 'about').click());
+  expect(there.plans).toEqual(['open']);
+  expect(there.flew).toBe(true);
+  expect(there.blank, blanks(there)).toBe(0);
+  expect(brandOverFrame(there), 'the wordmark over the frame, opening').toEqual([]);
+  await expect(page.locator(LARGE)).toBeVisible();
+  expect(landingGap(there, await edgesOf(page, LARGE))).toBeLessThan(2);
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('opacity', '0');
+  await expect(page.locator('.wc-start-almanac')).toHaveCSS('opacity', '0');
+
+  const back = await watchMorph(page, () => page.keyboard.press('Escape'));
+  expect(back.plans).toEqual(['close']);
+  expect(back.flew).toBe(true);
+  expect(back.blank, blanks(back)).toBe(0);
+  expect(brandOverFrame(back), 'the wordmark over the frame, closing').toEqual([]);
+  await expect(page.locator(PANEL)).toBeVisible();
+  expect(landingGap(back, panel)).toBeLessThan(2);
+  // Nothing of the scenery is still on its way once the plan has ended.
+  await expect(page.locator('.wc-start')).not.toHaveAttribute('data-lk-morph', /./);
+  expect(await page.locator('.wc-start-scenery').evaluate((el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running' && !/color|shadow/.test((a as CSSTransition).transitionProperty ?? '')).length)).toBe(0);
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('transform', 'none');
+  await expect(page.locator('.wc-start-almanac')).toHaveCSS('opacity', '1');
+  await expect(row(page, 'about')).toHaveCSS('opacity', '1');
+  expect(errors).toEqual([]);
+});
+
+test('Back mid-flight on the way to a large box turns the proxy round from where it is', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  const panel = await edgesOf(page, PANEL);
+  await startMorphWatch(page);
+  const turn = await page.evaluate(
+    ({ left }) =>
+      new Promise<{ at: number[]; from: number[] | null }>((done) => {
+        const px = document.querySelector<HTMLElement>('.wc-lk-morph')!;
+        const tick = (): void => {
+          const r = px.getBoundingClientRect();
+          if (px.hidden || getComputedStyle(px).visibility !== 'visible' || left - r.left <= 40) return void requestAnimationFrame(tick);
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              const first = px
+                .getAnimations()
+                .map((a) => (a.effect as KeyframeEffect).getKeyframes()[0] as unknown as Record<string, string>)
+                .find((k) => k && typeof k['left'] === 'string' && typeof k['width'] === 'string');
+              done({
+                at: [r.left, r.top, r.width, r.height],
+                from: first ? ['left', 'top', 'width', 'height'].map((k) => Number.parseFloat(first[k]!)) : null,
+              });
+            }),
+          );
+        };
+        document.querySelector<HTMLElement>('.wc-start .wc-sm-item[data-key="about"]')!.click();
+        requestAnimationFrame(tick);
+      }),
+    { left: panel[0] },
+  );
+  await morphDone(page);
+  const w = await stopMorphWatch(page);
+  expect(w.plans).toEqual(['open', 'close']);
+  expect(turn.from, 'the flight back').not.toBeNull();
+  for (let i = 0; i < 4; i++) expect(Math.abs(turn.from![i]! - turn.at[i]!), `the proxy turned round where it was (${turn.from} from ${turn.at})`).toBeLessThan(1.5);
+  expect(w.blank, blanks(w)).toBe(0);
+  await expect(page.locator(PANEL)).toBeVisible();
+  expect(landingGap(w, panel)).toBeLessThan(2);
+  await expect(page.locator('.wc-start')).toHaveClass(/\bis-main\b/);
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.wc-start-brand')).toHaveCSS('transform', 'none');
+  await expect(row(page, 'about')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.wc-start .wc-frame')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
 test('reduced motion: menu ↔ Profile fades the two boxes, nothing flies', async ({ page }) => {
   await reducedMotion(page);
   await open(page);
