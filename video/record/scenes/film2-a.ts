@@ -12,11 +12,13 @@
 //          Appearance: the font list, backgrounds Paper, Teal, Black
 //   act 2  Comm off; rain, heavy rain, the strike in the street; out of the
 //          West Gate; Map on, docked; Group dragged to dock above the map,
-//          its border off, its background Clear, resized to a slim strip
-//          (owner round 1, item 5); the spells with Timers on, floating
+//          where it lands as a slim four-row strip (owner round 2, item 2:
+//          the map's size is the player's, set off camera), its border
+//          off, its background Clear; the spells with Timers on, floating
 //          (Time text off)
 //   act 3  the storm clears; the walk into the hills, the first wolf (the
-//          room, then the attack); Statistics on, floating; the kill; `l`
+//          room, then the attack, the kill; `l`). No Statistics (owner
+//          round 2, item 3)
 //   act 4  from the `sync` marker the device act's clock (src/devices.ts):
 //          the second wolf's `k wolf`, on until the desktop is left. The
 //          composition plays this take on the monitor in act 4, so act 3
@@ -93,11 +95,12 @@ export const SEGMENTS: Segment[] = [
   // to the West Gate, `sa open`, out through it (after the strike in the street)
   { name: 'gate', at: 77.0, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
   // shield, arm, invis (Timers comes on as they start, once Group is docked)
-  { name: 'casts', at: 97.6, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
+  { name: 'casts', at: 94.6, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
   // west and north into the hills: the Plains with two wolves, then east into the Grassy Hills
-  { name: 'walk', at: 105.2, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
+  { name: 'walk', at: 102.2, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
   // the first wolf: k wolf, Tod joins, the lightning bolt, the kill; `l` shows the second wolf
-  { name: 'wolf1', at: 110.0, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.15, maxGap: 1.5, dropCmds: [/^get coins/] }), typeDelay: 70 },
+  // (a little quicker since the Statistics segment went, owner round 2 item 3)
+  { name: 'wolf1', at: 107.0, ex: ex({ from: 103.6, to: 119.0, primeFrom: 103.6, speed: 1.4, maxGap: 1.2, dropCmds: [/^get coins/] }), typeDelay: 70 },
 ];
 
 /** UI moments, film s. */
@@ -126,19 +129,23 @@ const UI = {
   // Group docked above the map (from the right screen edge, where a floating pane docks), its look, its height
   dockCaption: 80.8,
   dockGrab: 82.6,
-  timersPanes: 97.0,
-  timers: 97.7,
-  statsPanes: 113.2,
-  stats: 113.9,
+  // (3 s earlier since round 2: no resize drag)
+  timersPanes: 94.8,
+  timers: 95.5,
 } as const;
 
 /** The weather's moments, film s. */
-const SKY = { rain: 71.4, heavy: 73.4, strike: 75.4, strikeLeadMs: 210, clear: 102.7 } as const;
+const SKY = { rain: 71.4, heavy: 73.4, strike: 75.4, strikeLeadMs: 210, clear: 99.7 } as const;
 
-/** Where Comm and Statistics float (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px). */
-// Comm at the top right before the map is docked there (it is turned off before the gate);
-// Statistics above Group and Timers, left of the map's lane.
-const FLOATS = { comm: { x: 104, y: 1, w: 55, h: 21 }, statistics: { x: 78, y: 4, w: 32, h: 15 } } as const;
+/** Where Comm floats (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px): at the top right before the map is docked there (it is turned off before the gate). */
+const FLOATS = { comm: { x: 104, y: 1, w: 55, h: 21 } } as const;
+/**
+ * The map's size in the right dock's lane, as the player left it in an earlier session
+ * (owner round 2, item 2): the app gives a pane docked from floating its default rows (Group
+ * 6) and shares the lane out between `desired` sizes, so with the map at 60 Group lands at
+ * four rows (its two members) both framed and borderless. The default map (330) left it one.
+ */
+const MAP_DESIRED = 60;
 
 function segmentSteps(runs: Map<string, Run>, seg: Segment): Step[] {
   if (seg.staged) return seg.staged.map((s) => ({ ...s, at: 0 }));
@@ -209,9 +216,9 @@ export const film2A: Scene = {
   async setup(page) {
     await serveCommunity(page, await communityServer());
     await prepareFilm(page);
-    // khazdul selected off camera (act 0 has no Profile); Comm and Statistics float (both off yet)
+    // khazdul selected off camera (act 0 has no Profile); Comm floats (off yet); the map's size the player's
     await page.evaluate(
-      ({ floats }) => {
+      ({ floats, mapDesired }) => {
         type D = { profile: string; group: { npcMode: string; fight: boolean }; timers: { timeText: boolean }; layout: { docks: { right: { lanes: { size: number; panes: { id: string }[] }[] } }; floating: { id: string; x: number; y: number; w: number; h: number }[] } };
         const wc = (window as unknown as { __wc: { settings: { update(fn: (d: D) => void): void } } }).__wc;
         wc.settings.update((d) => {
@@ -223,15 +230,14 @@ export const film2A: Scene = {
           // Character stays off (with the map's lane shorter once Group docks, it would find room)
           (d as unknown as { panes: Record<string, { on: boolean }> }).panes.character!.on = false;
           // the right dock's lane keeps its width for the map, with no pane in it
-          for (const l of d.layout.docks.right.lanes) l.panes = l.panes.filter((p) => p.id !== 'comm');
-          d.layout.floating = [
-            ...d.layout.floating.filter((f) => f.id !== 'comm' && f.id !== 'statistics'),
-            { id: 'statistics', ...floats.statistics },
-            { id: 'comm', ...floats.comm },
-          ];
+          for (const l of d.layout.docks.right.lanes) {
+            l.panes = l.panes.filter((p) => p.id !== 'comm');
+            for (const p of l.panes as { id: string; desired: number }[]) if (p.id === 'map') p.desired = mapDesired;
+          }
+          d.layout.floating = [...d.layout.floating.filter((f) => f.id !== 'comm'), { id: 'comm', ...floats.comm }];
         });
       },
-      { floats: FLOATS },
+      { floats: FLOATS, mapDesired: MAP_DESIRED },
     );
     await sleep(600);
     const login = await mockMumeLogin(page);
@@ -314,8 +320,8 @@ export const film2A: Scene = {
       marks.mark('map-located', 'the map finds Gittan');
 
       // Group docked above the map: a floating pane docks from the screen edge; it goes into the
-      // right dock's lane before the map. Then its border off, its background Clear, and its height
-      // pulled to show its two members (a slim strip over the map's column, owner round 1 item 5).
+      // right dock's lane before the map, at four rows (its two members; MAP_DESIRED). Then its
+      // border off and its background Clear (owner rounds 1 and 2, items 5 and 2).
       marks.markAt(T(UI.dockCaption), 'dock-caption', 'the docking caption');
       const gbox = async () => (await page.locator('.wc-pane-group').boundingBox())!;
       const g0 = await gbox();
@@ -348,11 +354,10 @@ export const film2A: Scene = {
       };
       await look('border', 0.8);
       await look('glass', 0.7);
-      await sleep(300);
-      const g1 = await gbox();
-      const edge = g1.y + g1.height - 2;
-      await pointer.hoverPoint(g1.x + g1.width * 0.4, edge, Date.now() + 650);
-      marks.markAt(await pointer.dragTo(g1.x + g1.width * 0.4, edge + 3.1 * CELL.h, Date.now() + 300, { ms: 900, holdMs: 250 }), 'dock-done', 'Group a slim strip');
+      marks.mark('dock-done', 'Group docked, borderless and clear');
+      const gh = ((await gbox()).height / CELL.h).toFixed(2);
+      if (Math.abs(Number(gh) - 4) > 0.2) console.warn(`  Group is ${gh} rows high, not 4`);
+      else console.log(`  Group docked: ${gh} rows`);
       if (Date.now() > T(UI.timersPanes) - 2100) console.warn(`  the docking ran late: ${((Date.now() - T(0)) / 1000).toFixed(1)} s`);
       await sleep(400);
       const gs = await page.evaluate(() => {
@@ -366,10 +371,8 @@ export const film2A: Scene = {
       await paneOn('timers', UI.timersPanes, UI.timers);
       // (one take showed no Timers although its switch was on; the next did: warn if it happens again)
       await page.locator('.wc-pane-timers').waitFor({ state: 'visible', timeout: 2000 }).catch(() => console.warn('  the Timers pane is not shown'));
-      // Statistics on during the first wolf
-      await paneOn('statistics', UI.statsPanes, UI.stats);
       // the hand leaves the mouse low on the right, away from the panes
-      await pointer.hoverAt(page.locator('.wc-input-field'), T(UI.stats + 2.5));
+      await pointer.hoverAt(page.locator('.wc-input-field'), T(UI.timers + 3.0));
     })();
 
     // The weather: clouds and rain, heavy rain, the strike in the street, then the storm clears.
