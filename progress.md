@@ -86,6 +86,9 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
 
+- The weather fog fix (4e626c52, streaks on the right edge at an odd
+  canvas width) is on main but not released: it goes out with the next
+  release.
 - Stage 74: Scripts' syntax check (the Lua runtime's compile) is one
   100-160 ms task on a throttled phone about a second after the page's
   first opening. A bare link's Back (`/r/<id>` loaded directly) is still
