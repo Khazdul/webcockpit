@@ -5,6 +5,14 @@
 //   node bench/transition-shots.ts --dist DIR --out DIR                  shoot one build
 //   node bench/transition-shots.ts --compare DIR_A DIR_B [--out DIR]     compare two sets
 //
+// More for shooting: `--base URL` shoots a running server instead of a
+// build; `--steps open,close,…` picks the steps (default `open,close`:
+// About; `profile-open,profile-close`: the menu's panel to Profile's
+// normal box and back; `login-open,login-close`: the owner row to Log in,
+// a tall box on a phone, on a dev server only (`--base`: `?cloudtest` and a
+// guest's answers from the account API); stage 74 part C); `--query '&morph=pieces'` adds
+// to the address; `--at 0,140,…` replaces the steps' times.
+//
 // Shooting: serves the build in `--dist` (`vite preview`; build it first:
 // `npx vite build --outDir DIR`), opens the start page with a frozen sky
 // (`skyFreeze`) at a phone's, a tablet's and two desktop geometries, and
@@ -97,10 +105,21 @@ const GEOS = [
   { name: 'desktop', g: { width: 1920, height: 1080, dpr: 1 }, q: '', mobile: false },
   { name: 'desktop-odd', g: { width: 1367, height: 771, dpr: 1 }, q: '', mobile: false },
 ].filter((g) => opt('geometries', 'phone,tablet,desktop,desktop-odd').split(',').includes(g.name));
+const ITEM = (key: string): string => `.wc-start .wc-frame:not([hidden]) .wc-sm-item[data-key="${key}"]`;
+const BACK = '.wc-start .wc-frame:not([hidden]) .wc-lk-back';
+// The menu's panel ↔ a normal box (a `swap`: 140 ms out, 380 ms of flight, 220 ms in).
+const SUB_AT = [60, 139, 200, 270, 330, 400, 519, 560, 640, 740];
+const AT = opt('at', '');
 const STEPS = [
-  { name: 'open', target: '.wc-start .wc-frame:not([hidden]) .wc-sm-item[data-key="about"]', at: [200, 260, 400, 600, 800, 979, 1100] },
-  { name: 'close', target: '.wc-start .wc-frame:not([hidden]) .wc-lk-back', at: [240, 300, 500, 700, 919, 1000] },
-];
+  { name: 'open', target: ITEM('about'), at: [200, 260, 400, 600, 800, 979, 1100] },
+  { name: 'close', target: BACK, at: [240, 300, 500, 700, 919, 1000] },
+  { name: 'profile-open', target: ITEM('profile'), at: SUB_AT },
+  { name: 'profile-close', target: BACK, at: SUB_AT },
+  { name: 'login-open', target: ITEM('owner'), at: SUB_AT },
+  { name: 'login-close', target: BACK, at: SUB_AT },
+]
+  .filter((s) => opt('steps', 'open,close').split(',').includes(s.name))
+  .map((s) => (AT ? { ...s, at: AT.split(',').map(Number) } : s));
 
 const port = await new Promise<number>((res, rej) => {
   const s = createServer();
@@ -110,8 +129,9 @@ const port = await new Promise<number>((res, rej) => {
     s.close(() => res(port));
   });
 });
-const server = await preview({ preview: { port, strictPort: true, host: '127.0.0.1' }, logLevel: 'warn', build: { outDir: DIST } });
-const base = (server.resolvedUrls?.local[0] ?? '').replace(/\/$/, '');
+const BASE = opt('base', '');
+const server = BASE ? null : await preview({ preview: { port, strictPort: true, host: '127.0.0.1' }, logLevel: 'warn', build: { outDir: DIST } });
+const base = (BASE || (server!.resolvedUrls?.local[0] ?? '')).replace(/\/$/, '');
 try {
   for (const geo of GEOS) {
     const t = await L.launchTarget('chromium', geo.g);
@@ -121,21 +141,41 @@ try {
       ...(geo.mobile ? { isMobile: true, hasTouch: true } : {}),
     });
     const page = await ctx.newPage();
-    await page.goto(`${base}/?skyHour=19.1&skyMonth=0&skyDay=21&skyYear=3040&skyFreeze${geo.q}`);
+    // The owner row needs the account API's flags (and `?cloudtest`, a dev server's hook): a guest's answers.
+    const login = STEPS.some((s) => s.name.startsWith('login-'));
+    if (login) {
+      const { DEFAULT_ACCOUNT_LIMITS } = await import('../shared/cloud/api');
+      await page.route('**/api/**', (route) => {
+        const config = new URL(route.request().url()).pathname === '/api/config';
+        const body = config ? { flags: { accounts: true }, turnstileSiteKey: 'bench', limits: DEFAULT_ACCOUNT_LIMITS, time: Date.now() } : { error: 'not_found' };
+        return route.fulfill({ status: config ? 200 : 404, contentType: 'application/json', body: JSON.stringify(body) });
+      });
+    }
+    await page.goto(`${base}/?skyHour=19.1&skyMonth=0&skyDay=21&skyYear=3040&skyFreeze${login ? '&cloudtest' : ''}${geo.q}${opt('query', '')}`);
     await page.waitForSelector('html[data-wc-boot="ready"]', { timeout: 60_000 });
     await L.pause(3000);
     for (const step of STEPS) {
       const el = page.locator(step.target).first();
       await el.waitFor({ state: 'visible' });
-      // The tap and the freeze in one task of the page: no frame of the plan runs free.
+      // The tap and the freeze in one task of the page: no frame of the plan runs free. (The
+      // scenery's CSS transitions start with the frame's style, after its callbacks: they are
+      // caught at the next frame's, a frame old; every time is set below.)
       await el.evaluate((node) => {
         (node as HTMLElement).click();
-        return new Promise<void>((done) =>
-          requestAnimationFrame(() => {
+        const root = document.querySelector<HTMLElement>('.wc-start');
+        const t0 = performance.now();
+        return new Promise<void>((done) => {
+          const freeze = (): void => {
+            // (A page that opens a moment after its tap, as the account's: wait for its plan.)
+            if (root && !root.dataset['lkMorph'] && performance.now() - t0 < 1000) return void requestAnimationFrame(freeze);
             for (const a of document.getAnimations()) a.pause();
-            done();
-          }),
-        );
+            requestAnimationFrame(() => {
+              for (const a of document.getAnimations()) a.pause();
+              done();
+            });
+          };
+          requestAnimationFrame(freeze);
+        });
       });
       for (const ms of step.at) {
         await page.evaluate((ms) => {
@@ -154,6 +194,6 @@ try {
     console.log(`${geo.name}: shot`);
   }
 } finally {
-  await new Promise<void>((res) => server.httpServer.close(() => res()));
+  if (server) await new Promise<void>((res) => server.httpServer.close(() => res()));
 }
-writeFileSync(join(OUT, 'README.txt'), `transition-shots of ${DIST}\n`);
+writeFileSync(join(OUT, 'README.txt'), `transition-shots of ${BASE || DIST}\n`);
