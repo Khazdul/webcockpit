@@ -7,8 +7,8 @@
 //   act 5  the inn: Gittan goes in from the sign, the barman offers his
 //          quest and goes on talking behind the windows. Profile (the
 //          caption first, the pointer slowly to the icon, its tooltip, the
-//          click): `fk` → `kill wolf` on the Lite form, the Editor, Find, the
-//          line held. Scripts: Almanac, Mercenaries on (its pane shows Tod:
+//          click): `fk` → `kill wolf` on the Lite form, held, closed (no
+//          Editor since owner round 3). Scripts: Almanac, Mercenaries on (its pane shows Tod:
 //          staged), then in its settings the cost 20 and autopay on (owner
 //          round 2, item 6).
 //   act 6  Exit; the start page at night; History: Sessions (the Bree
@@ -58,7 +58,9 @@ const EXCLUDE_FROM = 'lead pony';
 const EXCLUDE_TO = 'is now a group member';
 const COMMENT_ROW = 1;
 /** The comment: plain, the film's own, about this run. */
-const FILM_COMMENT = 'Two wolves on the way out of Bree.';
+const FILM_COMMENT = 'Hunting wolves for their furs outside Bree.';
+/** The shared log's title (owner round 3), typed in the share dialog's Title field. */
+const FILM_TITLE = 'The wolf fur hunt';
 
 /** Where act 4's phone leaves the run (the Prancing Pony's sign), run s. */
 const SIGN = 152.1;
@@ -208,9 +210,9 @@ export const film2B: Scene = {
       }
     };
     /** The pointer onto `el`, a rest of `wait` s so the eye finds it, the press `wait` s after it arrives; from `after` s (film) at the earliest. */
-    const calm = async (el: Locator, kind: string, label: string, wait = 1.5, after = nowS()): Promise<number> => {
-      const at = Math.max(after, nowS()) + 0.9 + wait;
-      await pointer.hoverAt(el, T(at - wait));
+    const calm = async (el: Locator, kind: string, label: string, wait = 1.5, after = nowS(), quick = false): Promise<number> => {
+      const at = Math.max(after, nowS()) + (quick ? 0.6 : 0.9) + wait;
+      await pointer.hoverAt(el, T(at - wait), { quick });
       const t = await pointer.pressAt(T(at));
       marks.markAt(t, kind, label);
       return (t - film0) / 1000;
@@ -237,7 +239,7 @@ export const film2B: Scene = {
     // (the game is left at Exit; its steps then go nowhere)
     void game.catch(() => {});
 
-    // Profile: the caption, the icon, the Lite form, the Editor with Find
+    // Profile: the caption, the icon, the alias on the Lite form (no Editor since owner round 3), about 2 s, closed
     marks.markAt(T(2.4), 'profile-caption', 'the Profile caption');
     await iconClick('profile', 5.8, 'profile');
     const pe = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) .wc-pe');
@@ -252,21 +254,7 @@ export const film2B: Scene = {
     await sleep(500);
     await page.keyboard.press('Escape');
     marks.mark('alias', 'fk → kill wolf');
-    await calm(pe.locator('.wc-pe-views [data-opt="editor"]'), 'editor', 'the Editor view', 1.0);
-    await sleep(600);
-    // the new line in view: khazdul is long, so the editor's Find goes to it
-    if (!(await pe.locator('.cm-line', { hasText: '#alias {fk} {kill wolf}' }).count())) {
-      await page.keyboard.press('Control+f');
-      await sleep(400);
-      const find = pe.locator('[data-field="find"] input').first();
-      await find.focus().catch(() => console.warn('  no Find field'));
-      await type('{fk}');
-      await page.keyboard.press('Enter');
-      if ((await find.inputValue().catch(() => '')) !== '{fk}') console.warn('  Find did not take the typing');
-      marks.mark('find', 'Find {fk}');
-    }
-    // the found line held about a second and a half
-    await sleep(1500);
+    await sleep(1300);
     const x = page.locator('.wc-win[data-win="profile"] .wc-win-x');
     if (await x.count()) await calm(x.first(), 'profile-closed', 'the Profile window closes', 0.5);
     else {
@@ -279,17 +267,18 @@ export const film2B: Scene = {
     marks.mark('scripts-caption', 'the Scripts caption');
     await iconClick('scripts', nowS() + 1.8, 'scripts');
     const sw = page.locator('.wc-win[data-win="scripts"]');
-    await calm(sw.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').first(), 'script', 'almanac', 0.6);
+    await calm(sw.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').first(), 'script', 'almanac', 0.6, nowS(), true);
     await sleep(200);
-    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-scr-name').first(), 'script', 'mercenaries', 0.8);
-    await sleep(400);
-    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-lk-toggle').first(), 'merc-on', 'Mercenaries on', 2.0);
-    // its own settings (owner round 2, item 6): the cost 20 silver (paid as 1 gold), then autopay on; about 2 s on each before the click
+    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-scr-name').first(), 'script', 'mercenaries', 0.5, nowS(), true);
+    await sleep(250);
+    // (owner round 3: about 1 s on each and brisker moves, instead of 2 s)
+    await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-lk-toggle').first(), 'merc-on', 'Mercenaries on', 1.0, nowS(), true);
+    // its own settings (owner round 2, item 6): the cost 20 silver (paid as 1 gold), then autopay on
     const set = (name: string): Locator => sw.locator(`.wc-scr-set[data-set="${name}"]`).first();
     await set('cost').waitFor({ timeout: 3000 }).catch(() => console.warn('  no cost setting in Scripts'));
-    await calm(set('cost').locator('.wc-lk-opt[data-opt="1"]').first(), 'merc-cost', 'cost 20 silver', 2.0);
-    await sleep(300);
-    await calm(set('autopay').locator('.wc-lk-toggle').first(), 'merc-autopay', 'autopay on', 2.0);
+    await calm(set('cost').locator('.wc-lk-opt[data-opt="1"]').first(), 'merc-cost', 'cost 20 silver', 1.0, nowS(), true);
+    await sleep(200);
+    await calm(set('autopay').locator('.wc-lk-toggle').first(), 'merc-autopay', 'autopay on', 1.0, nowS(), true);
     await sleep(300);
     const merc = await page.evaluate(() => {
       const el = (n: string) => document.querySelector(`.wc-win[data-win="scripts"] .wc-scr-set[data-set="${n}"]`);
@@ -491,7 +480,20 @@ export const film2B: Scene = {
     await calm(frame().locator('.wc-exp [data-btn="EXPORT"]'), 'share-dialog', 'the share dialog', 0.8);
     const dlg = frame().locator('[data-dlg="share"]');
     await dlg.waitFor();
-    await sleep(900);
+    await sleep(700);
+    // the title, where the share sets it (owner round 3): the proposed one selected and typed over
+    const titleIn = dlg.locator('[data-field="title"] input').first();
+    await calm(titleIn, 'title', 'the title field', 0.7);
+    await sleep(150);
+    await page.keyboard.press('Control+a');
+    await sleep(120);
+    await type(FILM_TITLE, 60, 110);
+    if ((await titleIn.inputValue().catch(() => '')) !== FILM_TITLE) {
+      console.warn('  the title did not take the typing: filled');
+      await titleIn.fill(FILM_TITLE);
+    }
+    marks.mark('title-typed', FILM_TITLE);
+    await sleep(600);
     await calm(dlg.locator('[data-field="rules"]'), 'rules', 'the rules ticked', 0.8);
     await calm(frame().locator('[data-btn="PUBLISH"]'), 'publish', 'Publish', 0.8);
     const done = frame().locator('[data-dlg="share-done"]');
@@ -521,7 +523,12 @@ export const film2B: Scene = {
     await fl2.locator('.wc-player').waitFor({ timeout: 30_000 });
     marks.mark('watch-up', 'the watch page');
     await sleep(300);
-    await calm(fl2.locator('button.wc-pc-play').first(), 'watch-play', 'Play', 0.8);
+    // the big play button in the middle of the frame (owner round 3), not the control bar's
+    const big = fl2.locator('.wc-poster-play').first();
+    await big.waitFor({ state: 'visible', timeout: 5000 }).catch(() => console.warn('  no big play button'));
+    await calm(big, 'watch-play', 'Play', 0.8);
+    await sleep(300);
+    if (await big.isVisible().catch(() => false)) console.warn('  the big play button is still up');
     await sleep(500);
     // into the battle
     for (let i = 0; i < 4; i++) {
@@ -547,7 +554,8 @@ export const film2B: Scene = {
     // ---------------------------------------------------------------- act 8: dawn
     // Off the film (under the dissolve's far side): MUME's clock moved on to sunrise and the start
     // page loaded again, so its sky is the sunrise's. The quote stays out: the end card's place.
-    await sleep(3200);
+    // (The night page is held for the whole dissolve, about 7.5 s since owner round 3.)
+    await sleep(8000);
     await setClock(page, DAWN);
     await page.addInitScript(() => {
       const put = () => {

@@ -55,8 +55,10 @@ const CARD_AT_S = 316.5;
 /** Film s where act 4 starts (take A's `sync`). */
 export const act4At = (a: TimelineFile): number => marker(a, 'sync').t - marker(a, 'film0').t;
 
-/** The dissolve from the start page at night to the same page at sunrise (act 8), s. */
-const DAWN_DISSOLVE_S = 2.6;
+/** The dissolve from the start page at night to the same page at sunrise (act 8), s: slow (owner round 3), it runs under the end card. */
+const DAWN_DISSOLVE_S = 7.5;
+/** The dissolve starts this long after the night start page is back. */
+const DAWN_AFTER_S = 0.5;
 
 /**
  * Where acts 5-8 lie in the film (s): take B in pieces. The Log in page is
@@ -75,7 +77,7 @@ export function film2Plan(a: TimelineFile, b: TimelineFile) {
     // the account's own reload (Continue: a "Loading client" box) cut over, a plain cut at a page load
     { from: tb('create-up'), to: tb('continue') + 0.4, fade: 0 },
     // (the owner row is in the page about 0.9 s before the reloaded start page has drawn its menu)
-    { from: tb('owner-in') + 0.9, to: tb('night') + DAWN_DISSOLVE_S, fade: 0 },
+    { from: tb('owner-in') + 0.9, to: tb('start-again') + DAWN_AFTER_S + DAWN_DISSOLVE_S, fade: 0 },
     { from: tb('dawn'), to: Infinity, fade: DAWN_DISSOLVE_S },
   ];
   const pieces: { at: number; from: number; to: number; fade: number }[] = [];
@@ -90,9 +92,10 @@ export function film2Plan(a: TimelineFile, b: TimelineFile) {
     for (const p of pieces) if (s < p.to) return p.at + Math.max(0, s - p.from);
     return pieces.at(-1)!.at + (s - pieces.at(-1)!.from);
   };
-  // the card on the music's last bars, at least a moment after the dawn is in
+  // the card on the music's last bars, at least a moment after the night start page is back (the dawn may still be coming in under it)
   const dawnIn = pieces.at(-1)!.at + DAWN_DISSOLVE_S;
-  const cardFrom = Math.max(dawnIn + 1.0, CARD_AT_S);
+  const cardFrom = Math.max(fromB(tb('start-again')) + 2.5, CARD_AT_S);
+  if (dawnIn > TAIL_FROM_S - 1.0) console.warn(`Film2: the dawn is in only at ${dawnIn.toFixed(1)} s, near the tail's fade (${TAIL_FROM_S} s)`);
   if (cardFrom > CARD_LATEST_S) console.warn(`Film2: the end card comes at ${cardFrom.toFixed(1)} s, after the music's last bars (${CARD_LATEST_S} s)`);
   return { b0, at5, pieces, fromB, dawnIn, cardFrom, fadeFrom: TAIL_FROM_S, end: MUSIC_S };
 }
@@ -161,7 +164,7 @@ export function Film2({ a, tablet, phone, b }: Film2Props) {
       {/* act 2: once the spells are in the Timers pane */}
       <LowerThird {...span(m('segment', 'casts') + 3.6, m('segment', 'casts') + 7.6)} text="The Timers pane tracks spells, buffs and more." />
       {/* act 5: each caption first, then the pointer goes to the icon */}
-      <LowerThird {...span(mb('profile-caption'), mb('profile-closed') + 0.2)} text="Open the profile to create aliases, actions and keys from the menu or in the editor." />
+      <LowerThird {...span(mb('profile-caption'), mb('profile-closed') + 0.2)} text="Open the profile to create aliases, actions and keys." />
       {/* (through Mercenaries on, its cost and autopay in its settings: owner round 2, item 6) */}
       <LowerThird {...span(mb('scripts-caption'), mb('merc-autopay') + 1.2)} text="A Lua scripting engine for anything more complex." />
       {/* act 6: History; the account, while the Create account page is filled in (owner round 2, item 7) */}

@@ -194,13 +194,16 @@ export class Pointer {
     return down;
   }
 
-  /** Moves straight onto `el` (no click), arriving at `at` (epoch ms); `slow`: an unhurried move the eye can follow. */
-  async hoverAt(el: Locator, at: number, o: { slow?: boolean } = {}): Promise<void> {
+  /** Moves straight onto `el` (no click), arriving at `at` (epoch ms); `slow`: an unhurried move the eye can follow; `quick`: a brisker one, no overshoot. */
+  async hoverAt(el: Locator, at: number, o: { slow?: boolean; quick?: boolean } = {}): Promise<void> {
     await this.rest(at - (o.slow ? 3600 : 2100));
     const b = await this.box(el);
     const p = this.plan(b);
     if (o.slow) {
       p.ms *= 2.4;
+      p.over = null;
+    } else if (o.quick) {
+      p.ms *= 0.65;
       p.over = null;
     }
     await this.rest(at - p.ms - (p.over ? p.fixMs + 50 : 0));
