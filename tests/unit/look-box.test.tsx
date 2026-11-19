@@ -266,9 +266,52 @@ describe('morphPlan', () => {
     expect(morphPlan(end('normal', a, { shown: true }), end('normal', a)).flight).toBeNull();
   });
 
-  it('menu ↔ normal and anything with an old-look frame do not morph', () => {
-    expect(morphPlan(end('menu'), end('normal')).type).toBe('none');
-    expect(morphPlan(end('normal'), end('menu')).type).toBe('none');
+  it('menu → normal swaps (stage 74): items and quote fade 140 ms, the proxy flies 380 ms from the panel, the content fades in', () => {
+    const normal = R(340, 240, 760, 420);
+    for (const kind of ['normal', 'tall'] as const) {
+      const p = morphPlan(end('menu', PANEL, { shown: true, hood: 74 }), end(kind, normal, { hood: 150 }));
+      expect(p).toMatchObject({ type: 'swap', out: 140, sceneryOut: 140, land: 520, in: 220, sceneryIn: 0, whole: false });
+      expect(p.flight).toMatchObject({ from: PANEL, to: normal, show: 140, at: 140, ms: 380 });
+      // the hood keeps the menu's plain plate at first, as in `open`
+      expect(p.flight!.hood).toEqual({ from: 74, to: 150, until: 0.25, mode: 'open' });
+      expect(planLength(p)).toBe(740);
+    }
+    // without the hold the old frame is gone: the proxy flies at once
+    const bare = morphPlan(end('menu', PANEL, { shown: false }), end('normal', normal));
+    expect(bare).toMatchObject({ out: 0, sceneryOut: 0, land: 380 });
+    expect(bare.flight).toMatchObject({ show: 0, at: 0 });
+  });
+
+  it('normal → menu swaps back: the content fades, the proxy flies to the panel, items and quote fade in', () => {
+    const normal = R(340, 240, 760, 420);
+    for (const kind of ['normal', 'tall'] as const) {
+      const p = morphPlan(end(kind, normal, { shown: true, hood: 150 }), end('menu', PANEL, { hood: 74 }));
+      expect(p).toMatchObject({ type: 'swap', out: 140, sceneryOut: 0, land: 520, in: 220, sceneryIn: 220, whole: false });
+      expect(p.flight).toMatchObject({ from: normal, to: PANEL, show: 140, at: 140, ms: 380 });
+      // the hood is the plain plate again before the landing, as in `close`
+      expect(p.flight!.hood).toEqual({ from: 150, to: 74, until: 0.75, mode: 'close' });
+    }
+  });
+
+  it('menu ↔ normal reverses mid-flight from the proxy at once', () => {
+    const mid = R(300, 280, 500, 380);
+    const back = morphPlan(end('normal', mid, { shown: true, flying: true }), end('menu', PANEL));
+    expect(back).toMatchObject({ type: 'swap', out: 0, land: 380, in: 220, sceneryIn: 220 });
+    expect(back.flight).toMatchObject({ from: mid, to: PANEL, show: 0, at: 0, ms: 380 });
+    const again = morphPlan(end('menu', mid, { shown: true, flying: true }), end('normal', R(340, 240, 760, 420)));
+    expect(again).toMatchObject({ type: 'swap', out: 0, sceneryOut: 0, land: 380 });
+    expect(again.flight).toMatchObject({ from: mid, show: 0, at: 0 });
+  });
+
+  it('menu ↔ normal with reduced motion: the two boxes fade as a whole, nothing flies', () => {
+    const normal = R(340, 240, 760, 420);
+    const enter = morphPlan(end('menu', PANEL, { shown: true }), end('normal', normal), true);
+    expect(enter).toMatchObject({ type: 'fade', whole: true, out: 260, sceneryOut: 260, in: 260, land: 0, flight: null });
+    const leave = morphPlan(end('tall', normal, { shown: true }), end('menu', PANEL), true);
+    expect(leave).toMatchObject({ type: 'fade', whole: true, out: 240, in: 0, land: 0, flight: null });
+  });
+
+  it('anything with an old-look frame, a frame without a box or no old frame does not morph', () => {
     expect(morphPlan(end('grid'), end('large')).type).toBe('none');
     expect(morphPlan(end('large'), end('grid')).type).toBe('none');
     expect(morphPlan(end('none'), end('large')).type).toBe('none');
@@ -286,6 +329,7 @@ describe('morphPlan', () => {
   });
 
   it('morphHold: as long as the longest plan away from the box needs', () => {
+    // a push from the menu: the quote fades for 350 ms before a large box (140 before a normal one)
     expect(morphHold('menu', 'push')).toBe(350);
     expect(morphHold('normal', 'push')).toBe(200);
     expect(morphHold('large', 'push')).toBe(240);

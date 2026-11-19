@@ -38,7 +38,13 @@ export const MOTION = {
     /** The menu items fade in after the shrink. */
     items: { ms: 260 },
   },
-  /** One large box to another: the box stays. */
+  /**
+   * One box to another of its own kind (large → large, normal → normal), and
+   * the menu's panel to a normal box and back (stage 74): the content fades
+   * out, a different rectangle flies in `resize`, the content fades in.
+   * (start.css: the wordmark's move between the menu's place and a
+   * sub-page's takes `resize` too, on the flight's clock.)
+   */
   swap: { title: 200, out: 140, in: 220, resize: 380 },
   /** Normal → normal of another size: the height morphs, the content cross-fades. */
   resize: { ms: 380 },
@@ -135,7 +141,7 @@ export interface MorphFlight {
  *   the whole box) fades in over `in`, its own scenery over `sceneryIn`.
  *
  * `none`: nothing animates (the old frame goes at once, the new one shows
- * at once), as stage 41 built menu ↔ normal and as every old-look frame is.
+ * at once), as every old-look frame is.
  */
 export interface MorphPlan {
   type: 'none' | 'open' | 'close' | 'swap' | 'fade';
@@ -173,13 +179,18 @@ export function planLength(p: MorphPlan): number {
  *   large → menu or normal: `close` (it shrinks back);
  * - large → large and normal → normal: `swap` (the box stays; the content
  *   cross-fades, and a different rectangle morphs in `MOTION.swap.resize`);
- * - menu ↔ normal: `none` (stage 41: the wordmark's own move);
+ * - menu ↔ normal (stage 74; `none` until then, the page changed at once):
+ *   a `swap` too, on the same clock (the size change is small). The
+ *   menu's items and its quote fade with the content, and the hood keeps
+ *   to the menu's plain plate near the panel as in `open` and `close`. The
+ *   wordmark moves to its other place during the flight (start.css);
  * - anything with an old-look frame, a frame without a box or an unknown
  *   rectangle: `none`.
  *
  * With reduced motion nothing grows: `open` and `close` become `fade`
- * (the boxes fade as a whole, ≤ 260 ms) and `swap` keeps only its content
- * fades.
+ * (the boxes fade as a whole, ≤ 260 ms), menu ↔ normal too (two boxes in
+ * two places), and a `swap` between boxes of one kind keeps only its
+ * content fades.
  */
 export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = false): MorphPlan {
   if (!from || !to || !boxed(from.kind) || !boxed(to.kind)) return NONE;
@@ -190,19 +201,23 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
   const shown = !!from.shown && !flying;
   const fromHood = from.hood ?? PLAIN_HOOD;
   const toHood = to.hood ?? PLAIN_HOOD;
+  const sub = (k: BoxKind): boolean => k === 'normal' || k === 'tall';
+  // The menu's panel to a sub-page's box (`enter`) or back (`leave`): a swap with the menu's scenery.
+  const enter = fk === 'menu' && sub(tk);
+  const leave = sub(fk) && tk === 'menu';
   let type: MorphPlan['type'];
   if (small(fk) && tk === 'large') type = 'open';
   else if (fk === 'large' && small(tk)) type = 'close';
   else if (fk === 'large' && tk === 'large') type = 'swap';
-  else if ((fk === 'normal' || fk === 'tall') && (tk === 'normal' || tk === 'tall')) type = 'swap';
+  else if ((sub(fk) && sub(tk)) || enter || leave) type = 'swap';
   else return NONE;
 
   if (reduced) {
-    if (type === 'swap') {
+    if (type === 'swap' && !enter && !leave) {
       const out = shown ? MOTION.swap.out : 0;
       return { ...NONE, type, out, land: out, in: MOTION.swap.in };
     }
-    if (type === 'open') {
+    if (type === 'open' || enter) {
       const ms = MOTION.reduced.open;
       return { ...NONE, type: 'fade', whole: true, out: shown ? ms : 0, sceneryOut: shown ? ms : 0, in: ms };
     }
@@ -212,14 +227,23 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
 
   if (type === 'swap') {
     const out = shown ? MOTION.swap.out : 0;
+    // The menu's quote goes with its items, and comes back with them.
+    const scenery = { sceneryOut: enter ? out : 0, sceneryIn: leave ? MOTION.swap.in : 0 };
     const moves = !!from.rect && !!to.rect && !sameRect(from.rect, to.rect);
-    if (!moves) return { ...NONE, type, out, land: out, in: MOTION.swap.in };
+    if (!moves) return { ...NONE, type, out, ...scenery, land: out, in: MOTION.swap.in };
     const at = flying ? 0 : out;
     const ms = MOTION.swap.resize;
+    // The hood: from the menu's plain plate as `open` widens it, back to it as `close` narrows it.
+    const hood = enter
+      ? { until: MOTION.open.hood.until, mode: 'open' as const }
+      : leave
+        ? { until: MOTION.close.hood.by, mode: 'close' as const }
+        : { until: 0.5, mode: 'close' as const };
     return {
       ...NONE,
       type,
       out,
+      ...scenery,
       flight: {
         from: from.rect!,
         to: to.rect!,
@@ -227,7 +251,7 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
         at,
         ms,
         easing: MOTION.open.box.easing,
-        hood: { from: fromHood, to: toHood, until: 0.5, mode: 'close' },
+        hood: { from: fromHood, to: toHood, ...hood },
       },
       land: at + ms,
       in: MOTION.swap.in,
@@ -294,7 +318,9 @@ export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): 
   if (!boxed(from)) return 0;
   // A pop from a normal or tall box can land on a large box below it (an
   // `open`: its content fades for `open.items` before the proxy shows) or
-  // on a normal one (a `swap`, shorter): hold for the longer.
+  // on a normal one or the menu (a `swap`, shorter): hold for the longer.
+  // A push from the menu is an `open` (its quote fades for `open.scenery`)
+  // or a `swap` to a normal box (shorter).
   if (reduced) return dir === 'push' || from !== 'large' ? MOTION.reduced.open : MOTION.reduced.close;
   if (dir === 'push') {
     if (from === 'menu') return MOTION.open.scenery.ms;

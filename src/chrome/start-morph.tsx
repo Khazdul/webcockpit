@@ -31,7 +31,10 @@
 // the frame's outermost box (`BoxHostCtx`) and its settled state
 // (`useBoxSettled`). The stage keeps the top box's rectangle current with
 // a ResizeObserver (never per frame), and from it whether a large box
-// covers most of the view (the sky's calm rate).
+// covers most of the view (the sky's calm rate). A new box whose rectangle
+// changes while the proxy is on its way to it (content that comes a moment
+// after the mount, as the Profile list's; our keyboard opening on a phone)
+// retargets the flight: it lands on the box as it is (`retarget`).
 //
 // The stack's hold (42c, `FrameStackProps.hold`) keeps the old frame drawn
 // while its content fades; without it the old frame goes at once and the
@@ -47,12 +50,14 @@ import {
   BoxHostCtx,
   BoxSettledCtx,
   type MorphEnd,
+  type MorphFlight,
   type MorphPlan,
   type MorphRect,
   PLAIN_HOOD,
   morphHold,
   morphPlan,
   PROXY_PIECES,
+  type ProxyFlight,
   type ProxyPiece,
   planLength,
   proxyFlight,
@@ -171,7 +176,7 @@ function quiet(a: Animation): Animation {
 const canAnimate = (el: Element): boolean => typeof (el as HTMLElement).animate === 'function';
 
 export interface MorphStageOptions {
-  /** The surface's root (its data attributes: `data-lk-box`, `data-lk-morph`). */
+  /** The surface's root (its data attributes: `data-lk-box`, `data-lk-morph`, `data-lk-from`). */
   root(): HTMLElement | null;
   /** The proxy element (`.wc-lk-morph`). */
   proxy(): HTMLElement | null;
@@ -191,6 +196,8 @@ export class MorphStage {
   private seen = new WeakMap<Host, Observed>();
   private nextId = 1;
   private flight: Animation | null = null;
+  /** The running flight's plan and its pieces' animations (`retarget`). */
+  private flying: { f: MorphFlight; to: Host; pieces: Partial<Record<ProxyPiece, Animation>> } | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private ro: ResizeObserver | null = null;
   private observedBox: Element | null = null;
@@ -309,7 +316,16 @@ export class MorphStage {
     const prevFrame = prev?.frame() ?? null;
     const prevBox = prev?.box?.el ?? null;
     const root = this.o.root();
-    if (root) root.dataset['lkMorph'] = plan.type;
+    if (root) {
+      root.dataset['lkMorph'] = plan.type;
+      // For the scenery's own transitions (start.css): the kind of box this change comes from, and
+      // the plan's clock on the scenery's element (the wordmark moves with the flight between the
+      // menu's place and a sub-page's; on a phone it comes back after a tall box has landed).
+      root.dataset['lkFrom'] = from?.kind ?? 'none';
+      const scenery = root.querySelector<HTMLElement>(':scope > .wc-start-scenery');
+      scenery?.style.setProperty('--lk-fly-at', `${plan.flight ? plan.flight.at : plan.out}ms`);
+      scenery?.style.setProperty('--lk-fly-land', `${plan.land}ms`);
+    }
 
     // The old frame: its content (or its whole box) fades, then it hides; its own scenery fades.
     if (prev && prevFrame && drawn(prevFrame)) {
@@ -329,6 +345,7 @@ export class MorphStage {
     if (f && proxy && canAnimate(proxy)) {
       proxy.hidden = false;
       const timing: KeyframeAnimationOptions = { delay: f.at, duration: f.ms, easing: f.easing, fill: 'backwards' };
+      this.flying = { f, to: next, pieces: {} };
       if (piece(proxy, 'pane')) this.flight = this.flyPieces(proxy, f.from, f.to, timing);
       // Laid out: the proxy's own geometry, visible from the start to the landing.
       else this.flight = quiet(proxy.animate([geo(f.from), geo(f.to)], timing));
@@ -347,6 +364,7 @@ export class MorphStage {
         () => {
           if (this.flight === flight) {
             this.flight = null;
+            this.flying = null;
             proxy.hidden = true;
           }
         },
@@ -448,6 +466,22 @@ export class MorphStage {
   private flyPieces(proxy: HTMLElement, from: MorphRect, to: MorphRect, timing: KeyframeAnimationOptions): Animation {
     const dpr = proxy.ownerDocument.defaultView?.devicePixelRatio || 1;
     const pieces = proxyFlight(snapRect(from, dpr), snapRect(to, dpr));
+    this.sizePieces(proxy, pieces);
+    // Visible from the start to the landing.
+    const shown = quiet(proxy.animate([{ visibility: 'visible' }, { visibility: 'visible' }], timing));
+    let lead: Animation | null = null;
+    for (const p of PROXY_PIECES) {
+      const el = piece(proxy, p);
+      if (!el || !canAnimate(el)) continue;
+      const a = quiet(el.animate(pieceFrames(pieces, p), timing));
+      if (this.flying) this.flying.pieces[p] = a;
+      if (p === 'pane') lead = a;
+    }
+    return lead ?? shown;
+  }
+
+  /** The sizes the pieces are drawn at for a flight: the pane and the edges at the larger, each end's shadows at its own. */
+  private sizePieces(proxy: HTMLElement, pieces: ProxyFlight): void {
     proxy.style.setProperty('--lk-mw', `${pieces.maxSize.width}px`);
     proxy.style.setProperty('--lk-mh', `${pieces.maxSize.height}px`);
     const sized: [ProxyPiece, { width: number; height: number }][] = [
@@ -460,27 +494,39 @@ export class MorphStage {
       el.style.width = `${size.width}px`;
       el.style.height = `${size.height}px`;
     }
-    // Visible from the start to the landing.
-    const shown = quiet(proxy.animate([{ visibility: 'visible' }, { visibility: 'visible' }], timing));
-    let lead: Animation | null = null;
-    for (const p of PROXY_PIECES) {
-      const el = piece(proxy, p);
-      if (!el || !canAnimate(el)) continue;
-      const fade = pieces.fade[p];
-      const a = quiet(
-        el.animate(
-          fade
-            ? [
-                { transform: pieces.from[p], opacity: fade[0] },
-                { transform: pieces.to[p], opacity: fade[1] },
-              ]
-            : [{ transform: pieces.from[p] }, { transform: pieces.to[p] }],
-          timing,
-        ),
-      );
-      if (p === 'pane') lead = a;
+  }
+
+  /**
+   * The new box's rectangle changed while the proxy is on its way to it (a
+   * page whose content comes a moment after its mount, as the Profile
+   * list's; on a phone our keyboard opening for a field that took the
+   * focus at mount): the flight keeps its clock and lands on the box as
+   * it now is. Before the proxy has moved, which is the usual case,
+   * nothing of it shows; later the proxy steps by its progress's share of
+   * the change instead of the box jumping by all of it at the landing.
+   */
+  private retarget(host: Host, rect: MorphRect): void {
+    const fl = this.flying;
+    const proxy = this.o.proxy();
+    if (!fl || fl.to !== host || !this.flight || !proxy || this.flight.playState === 'finished') return;
+    const same =
+      Math.abs(fl.f.to.left - rect.left) < 0.5 &&
+      Math.abs(fl.f.to.top - rect.top) < 0.5 &&
+      Math.abs(fl.f.to.width - rect.width) < 0.5 &&
+      Math.abs(fl.f.to.height - rect.height) < 0.5;
+    if (same) return;
+    fl.f.to = rect;
+    const set = (a: Animation | null | undefined, frames: Keyframe[]): void => {
+      (a?.effect as KeyframeEffect | null | undefined)?.setKeyframes?.(frames);
+    };
+    if (!piece(proxy, 'pane')) {
+      set(this.flight, [geo(fl.f.from), geo(rect)]);
+      return;
     }
-    return lead ?? shown;
+    const dpr = proxy.ownerDocument.defaultView?.devicePixelRatio || 1;
+    const pieces = proxyFlight(snapRect(fl.f.from, dpr), snapRect(rect, dpr));
+    this.sizePieces(proxy, pieces);
+    for (const p of PROXY_PIECES) set(fl.pieces[p], pieceFrames(pieces, p));
   }
 
   /** Cancels what the stage put on a frame (it is the top again). */
@@ -494,6 +540,7 @@ export class MorphStage {
     if (!proxy) return;
     for (const a of proxy.getAnimations?.({ subtree: true }) ?? []) a.cancel();
     this.flight = null;
+    this.flying = null;
     proxy.hidden = true;
   }
 
@@ -523,6 +570,7 @@ export class MorphStage {
     }
     const rect = rectOf(el);
     this.seen.set(host, { rect, hood: hoodWidth(el) });
+    this.retarget(host, rect);
     const view = el.ownerDocument.defaultView;
     const area = (view?.innerWidth ?? 0) * (view?.innerHeight ?? 0);
     this.setCalm(host.box?.kind === 'large' && area > 0 && (rect.width * rect.height) / area >= CALM_COVER);
@@ -539,6 +587,17 @@ export class MorphStage {
     const root = this.o.root();
     if (root) root.dataset['lkBox'] = kindOf(host);
   }
+}
+
+/** A piece's keyframes for a flight: its transform at each end, and for the shadows their cross-fade. */
+function pieceFrames(pieces: ProxyFlight, p: ProxyPiece): Keyframe[] {
+  const fade = pieces.fade[p];
+  return fade
+    ? [
+        { transform: pieces.from[p], opacity: fade[0] },
+        { transform: pieces.to[p], opacity: fade[1] },
+      ]
+    : [{ transform: pieces.from[p] }, { transform: pieces.to[p] }];
 }
 
 /** Whether the proxy is visible now (its animations may hide it before its flight). */
