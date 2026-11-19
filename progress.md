@@ -86,6 +86,18 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
 
+- Stage 74: Scripts' syntax check (the Lua runtime's compile) is one
+  100-160 ms task on a throttled phone about a second after the page's
+  first opening. A bare link's Back (`/r/<id>` loaded directly) is still
+  a page load. Three proposals not built (stage file): one-layer fades
+  for swaps and History's tabs, Enter MUME's sweep compositor-only,
+  warming the pages' text layout at idle. On a 2560 px window the flight
+  may want 460-480 ms (one number, `MOTION.clock.fly`). WebKit never run
+  on the pieces proxy. `?morph=pieces|layout` stays as a switch.
+- Flaky on main, from before stage 74: `phone-own-keyboard-editors.spec.ts:218`
+  (a completion taken with Tab; fails 3 of 4 alone, may be a real fault),
+  `profile-place.spec.ts:444` in Firefox (1 of 4), `import.spec.ts:148`
+  in Firefox (once under load).
 - Stage 73: Chrome on an iPad plays a shared run's fullscreen as the
   fill (Safari keeps the real one); History's run log player and the game
   in Chrome on an iPad may break the same way on a turn (untested). The
