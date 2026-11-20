@@ -123,6 +123,27 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-20 — Stage 69: balloon notices, look round 2 (mockups)
+
+- **Done:** the owner's own generated images did not work out; he asked
+  for five new directions, less childish (Tolkien and Pratchett, not a
+  children's mobile game). A test stage with five skins, each drawn by a
+  subagent and checked by screenshots:
+  `notes/research/balloons/round2/` (`index.html` as the published
+  artifact, `local.html` to open from disk, `shot.mjs` for screenshots).
+  1 The Auditor (a goblin clerk in a patched balloon, a ledger entry),
+  2 The Raven (a scroll with a wax seal), 3 The Lantern (a lit paper sky
+  lantern), 4 Written in the Stars (a constellation with an atlas label,
+  an ink form by day), 5 The Chronicle (a vellum leaf written as you
+  watch). Nothing under `src/` changed.
+- **Next:** the owner picks a direction (or a mix) in the browser; then
+  the chosen one is refined and built as a skin (`skin.ts`; 4 and 5 do
+  not fly, so they need more than a skin: an ADR 0159 addendum).
+- **Open:** the goblin's face is small (subtle moods read alike); the
+  raven is a blue line drawing at night; the lantern is squat; the
+  four-kill sheaf of 4 is cluttered; reduced motion little tested.
+- **Commits:** this one.
+
 ### 2026-11-20 — Release 0.21.2: the demo video linked
 
 - **Done:** the owner asked where to share MUME Cockpit (Reddit, Discord,

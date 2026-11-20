@@ -1,0 +1,122 @@
+<title>Kill Notices Round 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Cormorant+SC:wght@600&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one cockpit screen (game text left, sky lane right, prompt below) with the notice skins playing over it; a strip of direction tabs above, event keys below, then a sheet of every mood at rest. Single dark look, like the client. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10;
+  --panel: #12151a;
+  --line: #272c34;
+  --text: #c9c6b8;
+  --dim: #8b8a80;
+  --amber: #e2b34a;
+  --ink: #06070a;
+  --f-title: "Cinzel", "Trajan Pro", Georgia, serif;
+  --f-book: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+}
+html, body { background: var(--bg); color: var(--text); }
+body { font-family: var(--f-book); font-size: 17px; line-height: 1.4; padding-block: 18px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 14px; }
+h1 { font-family: var(--f-title); font-weight: 700; font-size: 20px; letter-spacing: .06em; margin: 0; color: var(--amber); }
+h2 { font-family: var(--f-title); font-weight: 500; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; margin: 10px 0 0; color: var(--dim); }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.head p { margin: 0; color: var(--dim); max-width: 70ch; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 6px; align-items: center; }
+.keys .lab { font-family: var(--f-mono); font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .12em; margin-right: 4px; }
+.keys .gap { width: 10px; }
+button { font: 600 12px var(--f-mono); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 7px 11px; cursor: pointer; }
+button:hover { border-color: var(--amber); }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button[aria-pressed="true"] { background: #2a2413; border-color: var(--amber); color: var(--amber); }
+.tabs button { font: 500 14px var(--f-title); letter-spacing: .04em; padding: 9px 14px; }
+.tabs button i { font: 400 11px var(--f-mono); color: var(--dim); margin-right: 8px; font-style: normal; }
+.blurb { margin: 0; color: var(--text); max-width: 80ch; min-height: 2.8em; font-style: italic; }
+
+/* the cockpit screen */
+.stage { position: relative; height: min(700px, 80vh); min-height: 520px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--ink); isolation: isolate; }
+.sky { position: absolute; inset: 0; transition: opacity .6s; }
+.sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.band { position: absolute; inset: 0; background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 38%, rgba(6,7,10,.55) 56%, rgba(6,7,10,0) 72%); }
+.layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.out { position: absolute; left: 0; top: 0; bottom: 34px; width: 82ch; max-width: 100%; box-sizing: border-box; padding: 10px 12px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; font-family: var(--f-mono); font-size: 13px; line-height: 1.5; }
+.out div { white-space: pre-wrap; overflow-wrap: anywhere; }
+.out .room { color: #6fb3c7; } .out .mob { color: #d8c26a; } .out .dead { color: #e07a6a; font-weight: 600; }
+.out .xp { color: #a3bd72; } .out .say { color: #b79ad8; } .out .cmd { color: var(--amber); }
+.prompt { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; box-sizing: border-box; display: flex; align-items: center; padding: 0 12px; background: #0e1014; border-top: 1px solid var(--line); color: var(--amber); font-family: var(--f-mono); font-size: 13px; }
+.prompt b { color: var(--dim); font-weight: 400; margin-left: 8px; }
+
+/* the sheet of moods at rest */
+.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.cell { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; display: grid; grid-template-rows: 1fr auto; }
+.cell .pic { position: relative; min-height: 300px; display: grid; place-items: center; padding: 14px 8px; overflow: hidden; }
+.cell .pic > * { position: relative; }
+.cell .cap { font: 400 11px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); padding: 6px 10px; border-top: 1px solid var(--line); background: var(--panel); }
+.sheet[data-sky="night"] .pic { background: linear-gradient(180deg, #070b18, #131b33); }
+.sheet[data-sky="dusk"] .pic { background: linear-gradient(180deg, #1b1f3d, #6b3f4f 70%, #c9764a); }
+.sheet[data-sky="day"] .pic { background: linear-gradient(180deg, #3f6f9f, #86aecb); }
+.sheet[data-sky="overcast"] .pic { background: linear-gradient(180deg, #4a515a, #7a828a); }
+</style>
+
+<div class="wrap">
+  <div class="head">
+    <h1>Kill notices, round 2</h1>
+    <p>Five directions for the same events: a kill with its XP and rating, a player kill, several kills at once, a level up, a death and an achievement.</p>
+  </div>
+  <div class="tabs" id="tabs" role="group" aria-label="Direction"></div>
+  <p class="blurb" id="blurb"></p>
+
+  <div class="stage" id="stage">
+    <div class="sky" id="sky"><canvas id="skycv"></canvas></div>
+    <div class="band"></div>
+    <div class="layer" id="l-sky"></div>
+    <div class="out" id="out"></div>
+    <div class="layer" id="l-front"></div>
+    <div class="prompt">424/424hp 187/187m 162/162mv<b>&gt;</b></div>
+  </div>
+
+  <div class="keys" id="keys" role="group" aria-label="Events">
+    <span class="lab">Kill</span>
+    <button id="k-poor" data-ev="poor">Poor</button>
+    <button id="k-meh" data-ev="meh">Meh</button>
+    <button id="k-good" data-ev="good">Good</button>
+    <button id="k-great" data-ev="great">Great</button>
+    <button id="k-superb" data-ev="superb">Superb</button>
+    <button id="k-calibrating" data-ev="calibrating">Unrated</button>
+    <button id="k-pvp" data-ev="pvp">Player kill</button>
+    <button id="k-burst" data-ev="burst">Four at once</button>
+    <span class="gap"></span>
+    <span class="lab">Moments</span>
+    <button id="k-levelup" data-ev="levelup">Level up</button>
+    <button id="k-death" data-ev="death">Death</button>
+    <button id="k-achievement" data-ev="achievement">Achievement</button>
+    <span class="gap"></span>
+    <button id="k-clear" data-ev="clear">Clear</button>
+  </div>
+  <div class="keys" id="skies" role="group" aria-label="Sky">
+    <span class="lab">Sky</span>
+    <button id="s-night" data-sky="night">Night</button>
+    <button id="s-dusk" data-sky="dusk">Dusk</button>
+    <button id="s-day" data-sky="day">Day</button>
+    <button id="s-overcast" data-sky="overcast">Overcast</button>
+    <span class="gap"></span>
+    <span class="lab">Pace</span>
+    <button id="p-quick" data-pace="1">Quick</button>
+    <button id="p-real" data-pace="0.5">As in the game</button>
+  </div>
+
+  <h2>Every notice at rest</h2>
+  <div class="sheet" id="sheet" data-sky="night"></div>
+</div>
+
+<script src="harness.js"></script>
+<script src="skins/1-auditor.js"></script>
+<script src="skins/2-raven.js"></script>
+<script src="skins/3-lantern.js"></script>
+<script src="skins/4-stars.js"></script>
+<script src="skins/5-chronicle.js"></script>
+<script>Harness.start();</script>
