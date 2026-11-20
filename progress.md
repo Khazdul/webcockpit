@@ -138,7 +138,9 @@ with no stage of their own. Remove a line when it is done.
 - **Production:** deploy run 44609640326 green; `test:prod` 36/36 on
   mumecockpit.com; the new About text is in the live bundle.
 - **Next:** stage 70's polish (as before).
-- **Commits:** 6a051a69, b2f68c07, this one.
+- **After:** README brought up to date the same way (3be749b7); ADR 0132
+  addendum for About's new order (6dcd83ab).
+- **Commits:** 6a051a69, b2f68c07, 6a41cfc7, 3be749b7, 6dcd83ab, this one.
 
 ### 2026-11-19 — Stage 70: film 2, rounds 2 and 3
 
