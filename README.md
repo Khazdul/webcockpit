@@ -1,9 +1,11 @@
 # WebCockpit
 
 A MUD client for [MUME](https://mume.org) that runs entirely in your
-browser. No installation and no server of its own: the page connects
-straight to MUME, and everything you create (profiles, runs, settings,
-maps) stays in your browser. It is the browser sibling of
+browser. No installation and no server between you and the game: the
+page connects straight to MUME. What you create (profiles, runs,
+settings, maps) is kept in your browser; an optional account keeps it
+in step between your devices, encrypted so that the server cannot read
+it. It is the browser sibling of
 [MUME Cockpit][cockpit], with the same panes, menus and TUI look, and
 aims for tt++-level features and latency.
 
@@ -57,7 +59,7 @@ it sit the forged-iron MUME wordmark with its mithril inlay, the
 menu, a Tolkien quote and, at the bottom right, the date and time in
 Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
 letter of each entry (E Enter MUME, P Profile, S Scripts, H History
-with its tabs Sessions, Spotlights and Diary, A About); Esc goes back. The mouse and a tap
+with its tabs Sessions, Spotlights and Diary, C Community, A About); Esc goes back. The mouse and a tap
 work too. Each entry opens its page in a large box that grows out of
 the menu, with Back at the top left; the letters marked in a page's
 buttons are its shortcuts. The browser tab's icon is the same iron "M".
@@ -170,8 +172,18 @@ you save them.
 
 **Export editor.** Cut spans from a run, write comments at their place
 in the log to narrate it, and export plain text or a self-contained
-HTML replay that anyone can open without WebCockpit. It works on a
-phone too.
+HTML replay that anyone can open without WebCockpit. With an account,
+Share makes the run a link anyone can watch, or lists it in the Hall of
+Fame. It works on a phone too.
+
+**Accounts and the Community.** An account is optional. It keeps
+profiles, scripts, settings, Comm history and saved runs in step between
+devices, encrypted in the browser with a key that only your password or
+recovery code unlocks. The Community page lists the logs shared to the
+Hall of Fame, with stars, comments, the log of the day and Random Runes,
+a board for short notes; Hall of Fame logs are also posted in MUME's
+Discord. What the server keeps is on the
+[privacy page](https://mumecockpit.com/privacy).
 
 <div align="center">
 <img width="400" alt="Export editor" src="docs/img/exporteditor.png" />
