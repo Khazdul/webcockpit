@@ -123,6 +123,28 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-20 — Stage 69: balloon notices, look round 3 (mockups)
+
+- **Done:** the owner's verdict on round 2: the stars are best, none is
+  perfect; a notice need not fly away (his ideas: somebody who looks up
+  and ducks down, something lowered from the top). Five new skins on the
+  same stage, each by a subagent with screenshots:
+  `notes/research/balloons/round3/` (published artifact; `local.html`
+  from disk). 1 The Gatewarden (a dwarf peers over the prompt's edge with
+  a chalk slate), 2 Attercop (a spider lowers the kill in silk with a
+  tag), 3 The Shadow Play (a lit screen, cut-paper puppets act the kill),
+  4 The Cards (a woodcut fortune card is dealt and turned), 5 The
+  Astrolabe (a brass instrument, the pointer reads the rating); the
+  round 2 stars as a sixth tab. Nothing under `src/` changed.
+- **Next:** the owner picks; the chosen one is refined, then built (none
+  of these flies: a new notice kind beside `flight.ts`, an ADR 0159
+  addendum).
+- **Open:** the warden's level-up arm is clumsy and its skin puts
+  fingers in a layer over the prompt; the puppet heap of four kills is a
+  tangle; the astrolabe's limb words are too small to read; reduced
+  motion little tested.
+- **Commits:** this one.
+
 ### 2026-11-20 — Stage 69: balloon notices, look round 2 (mockups)
 
 - **Done:** the owner's own generated images did not work out; he asked
