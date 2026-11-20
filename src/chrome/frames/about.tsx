@@ -9,13 +9,14 @@
 // lead-in, then each section (a Cinzel head with a short rule, Cormorant
 // paragraphs, key/value rows as a small two-column table), and the colophon
 // (an ornament rule and the "M" seal). Web addresses (mume.org,
-// docs.mume.org, discord.gg, github.com, tintin.mudhalla.net) and the
+// docs.mume.org, discord.gg, github.com, tintin.mudhalla.net, youtu.be) and the
 // site's own files (LICENSE.txt, THIRD_PARTY_NOTICES.md, fonts/README.md,
 // served at the site root, see vite.config.ts) are links that open in a new
 // tab; game commands (#help, ?safe, help newbie, who ranger, ...) are set in
 // the terminal font. The text was cut down for newcomers on 2026-11-08 (ADR
 // 0132 addendum): Getting started is about starting MUME. Reviewed on 2026-11-19
-// against 0.21.0 (accounts, share links, the Community).
+// against 0.21.0 (accounts, share links, the Community). The intro links
+// the demo video (2026-11-20).
 //
 // The contents rail at the left (a strip of pills above the text when the
 // box is narrow) follows the reading: the section whose head has passed a
@@ -59,7 +60,7 @@ import { accountsEnabled } from '../../cloud/account/state';
 import { flagOn } from '../../cloud/config';
 import { PRIVACY_NAV, PRIVACY_TEXT, PRIVACY_UPDATED } from './privacy-text';
 
-export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, and no server between you and the game. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
+export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, and no server between you and the game. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same. A short demo shows it in play: youtu.be/6fVwlGGckUg
 
 MUME — MULTI-USERS IN MIDDLE-EARTH
 MUME is a free, text-based multiplayer game set in Tolkien's Middle-earth in the late Third Age, the years before the War of the Ring. It has run continuously since 1991, is kept alive by a volunteer community, and is one of the oldest active DikuMUDs.
@@ -198,7 +199,7 @@ export function aboutSections(text: string, nav: LeafNav = ABOUT_NAV): AboutSect
 export type AboutToken = { text: string } | { link: string; href: string } | { cmd: string } | { page: 'privacy'; text: string };
 
 const LINK_RE =
-  /\b((?:docs\.mume\.org|mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe|\bpray to the tower hills|\bhelp newbie|\bwho ranger|\bconsider|\bflee|\bwc\.device)(?!\w)|\b([\w.+-]+@mumecockpit\.com)\b|\b(privacy page)\b/g;
+  /\b((?:docs\.mume\.org|mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net|youtu\.be)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe|\bpray to the tower hills|\bhelp newbie|\bwho ranger|\bconsider|\bflee|\bwc\.device)(?!\w)|\b([\w.+-]+@mumecockpit\.com)\b|\b(privacy page)\b/g;
 /** The site's own files (served from `public/` or by vite.config.ts). */
 const LOCAL_FILES = new Set(['LICENSE.txt', 'THIRD_PARTY_NOTICES.md', 'fonts/README.md']);
 

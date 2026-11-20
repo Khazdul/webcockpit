@@ -77,6 +77,7 @@ describe('About text', () => {
     expect(links).toEqual(
       expect.arrayContaining([
         'https://mume.org',
+        'https://youtu.be/6fVwlGGckUg',
         'https://discord.gg/XkZN55am9a',
         'https://github.com/MUME/MMapper',
         'https://tintin.mudhalla.net',
@@ -92,7 +93,7 @@ describe('About text', () => {
         'mailto:abuse@mumecockpit.com',
       ]),
     );
-    expect(links).toHaveLength(13);
+    expect(links).toHaveLength(14);
     expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual([
       'pray to the tower hills',
       'help newbie',

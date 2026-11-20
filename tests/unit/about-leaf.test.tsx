@@ -87,6 +87,7 @@ describe('aboutTokens', () => {
   it('finds every link: web addresses over https, the site files under the base', () => {
     const links = aboutTokens(ABOUT_TEXT, '/app/').flatMap((t) => ('link' in t ? [[t.link, t.href]] : []));
     expect(links).toEqual([
+      ['youtu.be/6fVwlGGckUg', 'https://youtu.be/6fVwlGGckUg'],
       ['mume.org', 'https://mume.org'],
       ['discord.gg/XkZN55am9a', 'https://discord.gg/XkZN55am9a'],
       ['docs.mume.org/resources/newcomers', 'https://docs.mume.org/resources/newcomers'],
@@ -225,7 +226,7 @@ describe('About: the leaf', () => {
     const mail = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a[href^="mailto:"]')];
     expect(mail.map((a) => [a.textContent, a.target])).toEqual([['abuse@mumecockpit.com', '']]);
     const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a:not([href="/privacy"]):not([href^="mailto:"])')];
-    expect(links).toHaveLength(12);
+    expect(links).toHaveLength(13);
     for (const a of links) {
       expect(a.target).toBe('_blank');
       expect(a.rel).toBe('noopener noreferrer');
