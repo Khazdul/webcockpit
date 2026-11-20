@@ -406,3 +406,26 @@ give a picture of what WebCockpit is and let the user find the rest.
 - The link pattern learns `docs.mume.org` (before it, only the
   `mume.org/...` tail would have been a link); the new game commands are
   set in the terminal font.
+
+## Addendum 2026-11-19: About after accounts, share links and the Community (0.21.1)
+
+The owner asked for What the site knows just before Licence and a review
+of what had gone out of date. Approved as a whole (before/after proposal
+in the session, the log in progress.md):
+
+- **Order**: W M G B I U S C K L. Lua scripts moves up after What is
+  inside; What the site knows moves to just before Licence.
+- **Settings** becomes **Account and settings** (letter S kept): what is
+  kept in the browser, and that an optional account keeps it in step,
+  encrypted. The intro no longer speaks of storage.
+- "Only in this browser" is gone from the intro, Runs and What the site
+  knows; What is inside gains a Community row; Runs says Download (HTML)
+  and Share (a link or the Hall of Fame).
+- **What the site knows**: what passes is about the game ("nothing you
+  type in the game"); a second paragraph on the account and on what is
+  public (shared runs, stars, comments, notes). The short form of
+  /privacy, which got the same review (runs in Accounts, what a deletion
+  leaves, the preview picture, the Discord posts).
+- **Credits** in the order MUME, Cockpit, MMapper, Tilesets, TinTin++,
+  Fonts, Libraries. **Licence**: the map's room texts belong to MUME (the
+  map file has no licence); the three links in one closing paragraph.
