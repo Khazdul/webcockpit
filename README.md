@@ -13,6 +13,29 @@ aims for tt++-level features and latency.
 <img alt="Gameplay at sunset: the game text, the map, timers, group and channels, with the weather effects on" src="docs/img/hero.png" />
 </p>
 
+<p align="center">
+<a href="https://youtu.be/6fVwlGGckUg"><b>▶ Watch the demo on YouTube</b></a>
+&nbsp;·&nbsp;
+<a href="https://mumecockpit.com/"><b>Play now at mumecockpit.com</b></a>
+</p>
+
+## At a glance
+
+- **Nothing to install.** Open a link and play; the browser connects
+  straight to MUME, with nothing in between.
+- **Panes driven by GMCP:** character, spell timers, group, chats, the
+  map and live XP statistics. Dock them on any side or let them float.
+- **A map** that reads MMapper files and follows you as you move.
+- **MUME's sky and weather in real time** over the whole client: sun
+  and moon on the game clock, rain, fog, lightning and snow.
+- **Scripting:** a tt++-style profile (actions, aliases, macros and
+  more) and sandboxed Lua 5.4 scripts with an editor and a manual.
+  Imports profiles from TinTin++, Mudlet, JMC and Powwow.
+- **Every session recorded:** replay it, cut and annotate it, and share
+  it as a link or a standalone HTML file.
+- **An optional account** keeps everything in step between devices,
+  encrypted so that the server cannot read it.
+
 ## Run it
 
 Open <https://mumecockpit.com/> in a desktop Chrome or
