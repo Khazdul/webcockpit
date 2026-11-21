@@ -59,28 +59,21 @@ export function passengerOf(race: string | null | undefined, subrace?: string | 
 }
 
 /** A passenger's module: the rig's spec for it (rig.ts). */
-export type PassengerModule = typeof import('./passengers/dwarf');
+export interface PassengerModule {
+  passenger: import('./rig').PassengerDef;
+}
 
-/**
- * Each passenger's chunk. TEMPORARY (stage 75, the dwarf as the proof):
- * only the dwarf is ported so far, so every passenger flies as the dwarf
- * until its own module exists; then each id gets its own
- * `() => import('./passengers/<id>')` here and nothing else changes.
- */
+/** Each passenger's own lazy chunk (a player needs one; the rig is shared). */
 const CHUNKS: Readonly<Record<PassengerId, () => Promise<PassengerModule>>> = {
   dwarf: () => import('./passengers/dwarf'),
-  elf: () => import('./passengers/dwarf'),
-  human: () => import('./passengers/dwarf'),
-  hobbit: () => import('./passengers/dwarf'),
-  troll: () => import('./passengers/dwarf'),
-  goblin: () => import('./passengers/dwarf'),
-  orc: () => import('./passengers/dwarf'),
-  numenorean: () => import('./passengers/dwarf'),
+  elf: () => import('./passengers/elf'),
+  human: () => import('./passengers/human'),
+  hobbit: () => import('./passengers/hobbit'),
+  troll: () => import('./passengers/troll'),
+  goblin: () => import('./passengers/goblin'),
+  orc: () => import('./passengers/orc'),
+  numenorean: () => import('./passengers/numenorean'),
 };
-
-/** The id that actually flies for `id` (differs only while a passenger is not ported yet). */
-export const PORTED: ReadonlySet<PassengerId> = new Set<PassengerId>(['dwarf']);
-export const fliesAs = (id: PassengerId): PassengerId => (PORTED.has(id) ? id : 'dwarf');
 
 /** Loads a passenger's chunk (once; the module system caches it). */
 export function loadPassenger(id: PassengerId): Promise<PassengerModule> {

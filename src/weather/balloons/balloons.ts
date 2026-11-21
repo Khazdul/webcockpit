@@ -39,7 +39,7 @@ import './balloons.css';
 import { type Notice, isKillNotice, kindOf, signFor } from './feed';
 import { BURN_STILL, type FlightPlan, type LaneGeom, burnStep, burnTarget, canJoin, extendRead, flightAt, planFlight } from './flight';
 import { addSignFonts, removeSignFonts } from './fonts';
-import { type PassengerId, fliesAs, loadPassenger } from './passenger';
+import { type PassengerId, loadPassenger } from './passenger';
 import { type Rig, type RigCtx, type SkyMode, createRig } from './rig';
 import { type BalloonSkin, RIG_SIZE, type SkinFactory } from './skin';
 
@@ -173,7 +173,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
   };
   /** The rigs already made, by passenger (a notice for one launches at once). */
   const ready = new Map<PassengerId, Rig>();
-  const who = (o?: ShowOpts): PassengerId => fliesAs(o?.passenger ?? host.passenger?.() ?? 'goblin');
+  const who = (o?: ShowOpts): PassengerId => o?.passenger ?? host.passenger?.() ?? 'goblin';
 
   const place = (f: Flight): void => {
     const fr = flightAt(f.plan, f.t);

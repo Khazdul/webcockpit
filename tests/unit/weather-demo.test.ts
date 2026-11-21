@@ -539,7 +539,7 @@ describe('?weather with the cockpit built later (the start page)', () => {
 describe('#weather balloon race (stage 75)', () => {
   const game = (vars: Record<string, unknown>) => ({ char: { statusVars: new Map(Object.entries(vars)) } }) as never;
   it('says the race and subrace the client holds and the passenger they give', () => {
-    expect(raceLine(game({ race: 'Man', subrace: 'Dunadan' }))).toBe('Balloons: race "Man", subrace "Dunadan"; the passenger is the human (it flies as the dwarf until the human is drawn).');
+    expect(raceLine(game({ race: 'Man', subrace: 'Dunadan' }))).toBe('Balloons: race "Man", subrace "Dunadan"; the passenger is the human.');
     expect(raceLine(game({ race: 'Dwarf' }))).toBe('Balloons: race "Dwarf", subrace ""; the passenger is the dwarf.');
     expect(raceLine(game({}))).toContain('no race yet');
     expect(raceLine(undefined)).toContain('the passenger is the goblin');

@@ -235,7 +235,7 @@ test('a real kill sends a balloon up with its name and XP (calibrating: no ratin
   server!.send(gmcp('Char.StatusVars {"race":"Man","subrace":"Dunadan"}'));
   await page.locator('.wc-input-field').fill('#weather balloon race');
   await page.keyboard.press('Enter');
-  await expect(rows(page).filter({ hasText: 'the passenger is the human (it flies as the dwarf' })).toHaveCount(1);
+  await expect(rows(page).filter({ hasText: 'race "Man", subrace "Dunadan"; the passenger is the human.' })).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 

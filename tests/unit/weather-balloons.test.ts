@@ -32,7 +32,7 @@ import {
 } from '../../src/weather/balloons/flight';
 import { rasterSkinOf } from '../../src/weather/balloons/image-skin';
 import { RIG_SIZE } from '../../src/weather/balloons/skin';
-import { PASSENGER_IDS, fliesAs, passengerOf, raceWords } from '../../src/weather/balloons/passenger';
+import { PASSENGER_IDS, isPassengerId, loadPassenger, passengerOf, raceWords } from '../../src/weather/balloons/passenger';
 
 const kill = (mobName: string, xpDelta: number, us = 1): RunEvent => ({ type: 'kill', us, logUs: us, mobName, xpDelta });
 
@@ -465,8 +465,12 @@ describe('the passenger by race (stage 75)', () => {
     expect(raceWords('Black Númenórean')).toEqual(['black', 'numenorean']);
   });
 
-  it('only the dwarf is ported: every passenger flies as the dwarf for now (temporary)', () => {
-    expect(PASSENGER_IDS.map(fliesAs)).toEqual(PASSENGER_IDS.map(() => 'dwarf'));
+  it('each of the eight is its own module, its spec under its own id', async () => {
+    for (const id of PASSENGER_IDS) {
+      expect(isPassengerId(id)).toBe(true);
+      expect((await loadPassenger(id)).passenger.id).toBe(id);
+    }
+    expect(isPassengerId('wizard')).toBe(false);
   });
 });
 

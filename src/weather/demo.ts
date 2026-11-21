@@ -33,7 +33,7 @@
 
 import './demo.css';
 import { BURST_GAP_MS, type Face, type Notice, SAMPLE_BURST, type SampleWord, SAMPLE_KILLS, sampleNotice } from './balloons/feed';
-import { type PassengerId, fliesAs, passengerOf } from './balloons/passenger';
+import { type PassengerId, passengerOf } from './balloons/passenger';
 import type { GameState } from '../gmcp/state';
 import { categoriesOf } from './controller';
 import { DEMO_SCRIPTS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
@@ -115,9 +115,8 @@ export function raceLine(game: Pick<GameState, 'char'> | undefined): string {
   };
   const race = get('race'), sub = get('subrace');
   const id = passengerOf(race, sub);
-  const flies = fliesAs(id);
   const seen = race || sub ? `race "${race ?? ''}", subrace "${sub ?? ''}"` : 'no race yet (not logged in, or MUME has not sent Char.StatusVars)';
-  return `Balloons: ${seen}; the passenger is the ${id}${flies !== id ? ` (it flies as the ${flies} until the ${id} is drawn)` : ''}.`;
+  return `Balloons: ${seen}; the passenger is the ${id}.`;
 }
 
 /** `#weather balloon [as <passenger>] [face|levelup|death|achievement|burst]`: a made-up notice's balloon (or four kills in two seconds). */
