@@ -123,6 +123,20 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-21 — Stage 69: balloon notices, verdict on round 4 and the brief for round 5
+
+- **Done:** no new mockups. The owner's verdict on round 4 and the plan
+  are written down in `notes/research/balloons/round5-brief.md`. The
+  concept is settled: a passenger in a balloon with a hung sign, and the
+  passenger is the race the player plays (elf girl, dwarf, human,
+  hobbit, troll, orc, Black Númenórean; from `Char.StatusVars`). The
+  envelope carries the rating, patched and saggy up to new and ornate,
+  with ornament by people. Out: costumes, blowers, floating effects,
+  the flame in front of the envelope.
+- **Next:** round 5, design only: a revised look for each of the seven
+  passengers, shared rig first. Building comes in the session after.
+- **Open:** five questions to the owner, listed in the brief.
+
 ### 2026-11-21 — Stage 69: balloon notices, look round 4 (mockups)
 
 - **Done:** the owner's verdict on round 3: the original goblin in a
