@@ -272,7 +272,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'A kill and a level up',
-    look: 'goblins in balloons rise slowly from below with the kill and its XP, then the new level, rest low, then drift off into the sky (Balloons, desktop)',
+    look: 'balloons, flown by someone of your race, rise slowly from below with the kill and its XP, then the new level, rest low, then drift off into the sky (Balloons, desktop)',
     signal: 'a kill: … is dead! R.I.P. and the XP; Char.Vitals xp past a level',
     dur: 5,
     acts: [
@@ -568,7 +568,7 @@ export function parseWeatherCommand(args: string): WeatherCommand {
 }
 
 export const WEATHER_USAGE =
-  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst] shows a balloon notice for a made-up kill, level up, death or achievement (desktop only); #weather balloon as <passenger> [what] flies another passenger (dwarf, elf, human, hobbit, troll, goblin, orc, numenorean); #weather balloon race says which race the client sees and the passenger it gives.';
+  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst] shows a balloon notice for a made-up kill, level up, death or achievement (desktop only); #weather balloon as <passenger> [what] flies another passenger: dwarf, elf, human, hobbit, troll, goblin, orc or numenorean; #weather balloon race says which race the client sees and the passenger it gives.';
 
 /** "1:35". */
 export function clockText(ms: number): string {

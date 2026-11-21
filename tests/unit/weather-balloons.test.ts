@@ -2,7 +2,7 @@
 // their merge; round 2: level up, death, achievement), the sky lane, the
 // flight's phases as functions of time and a seed (round 2: a balloon's
 // motion: continuous velocity, a speed cap, the readable spot low, varied
-// shrinking), and the raster skin's file contract.
+// shrinking); stage 75: the leading burner, the passenger by race, the sky.
 import { describe, expect, it } from 'vitest';
 import type { RunEvent } from '../../src/runs/events';
 import { KillRater } from '../../src/runs/kill-rating';
@@ -30,7 +30,6 @@ import {
   posAt,
   skyLane,
 } from '../../src/weather/balloons/flight';
-import { rasterSkinOf } from '../../src/weather/balloons/image-skin';
 import { RIG_SIZE } from '../../src/weather/balloons/skin';
 import { PASSENGER_IDS, isPassengerId, loadPassenger, passengerOf, raceWords } from '../../src/weather/balloons/passenger';
 
@@ -323,33 +322,6 @@ describe('flight', () => {
     expect(p.read0.x - (RIG_SIZE.w * p.scale) / 2).toBeGreaterThanOrEqual(8);
     expect(p.read0.x + (RIG_SIZE.w * p.scale) / 2).toBeLessThanOrEqual(692);
     expect(p.read0.y + RIG_SIZE.h * p.scale).toBeLessThanOrEqual(NARROW.protect.fadeTop);
-  });
-});
-
-describe('raster skins', () => {
-  const dir = '/public/balloons/goblin/';
-  const base = [`${dir}balloon.webp`, `${dir}basket-front.webp`, `${dir}passenger-calibrating.webp`];
-  it('needs balloon, basket-front and passenger-calibrating; a missing mood falls back to calibrating', () => {
-    expect(rasterSkinOf([], 'goblin')).toBeNull();
-    expect(rasterSkinOf([`${dir}balloon.webp`, `${dir}basket-front.webp`], 'goblin')).toBeNull();
-    const r = rasterSkinOf([...base, `${dir}passenger-great.webp`, `${dir}passenger-great-blink.webp`], 'goblin', '/x/')!;
-    expect(r.balloon).toBe('/x/balloons/goblin/balloon.webp');
-    expect(r.front).toBe('/x/balloons/goblin/basket-front.webp');
-    expect(r.passenger.great).toBe('/x/balloons/goblin/passenger-great.webp');
-    expect(r.passenger.poor).toBe('/x/balloons/goblin/passenger-calibrating.webp');
-    expect(r.blink).toEqual({ great: '/x/balloons/goblin/passenger-great-blink.webp' });
-    expect(r.wave).toBeNull();
-    expect(rasterSkinOf(base, 'other')).toBeNull();
-  });
-
-  it('round 2: levelup → superb, achievement → great, death → poor, then calibrating', () => {
-    const url = (m: string) => `/balloons/goblin/passenger-${m}.webp`;
-    const none = rasterSkinOf(base, 'goblin')!;
-    for (const m of ['levelup', 'death', 'achievement'] as const) expect(none.passenger[m]).toBe(url('calibrating'));
-    const kin = rasterSkinOf([...base, `${dir}passenger-superb.webp`, `${dir}passenger-great.webp`, `${dir}passenger-poor.webp`], 'goblin')!;
-    expect([kin.passenger.levelup, kin.passenger.achievement, kin.passenger.death]).toEqual([url('superb'), url('great'), url('poor')]);
-    const own = rasterSkinOf([...base, `${dir}passenger-superb.webp`, `${dir}passenger-levelup.webp`, `${dir}passenger-death.webp`, `${dir}passenger-achievement.webp`], 'goblin')!;
-    expect([own.passenger.levelup, own.passenger.achievement, own.passenger.death]).toEqual([url('levelup'), url('achievement'), url('death')]);
   });
 });
 

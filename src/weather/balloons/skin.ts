@@ -5,12 +5,10 @@
 // its own parts. Neither the flight nor the kill feed knows what a skin
 // looks like.
 //
-// Since stage 75 the look is the shared rig (rig.ts) with one passenger
-// (passengers/<id>.ts) chosen per balloon from the player's race
-// (passenger.ts); its size is the rig's, 204 × 363 (`RIG_SIZE`). The old
-// SVG goblin (goblin.ts) and the raster skin (image-skin.ts) still
-// implement this seam until they are removed (stage 75 part D); they are
-// no longer the default.
+// Since stage 75 the look is the shared rig (rig.ts) with one of eight
+// passengers (passengers/<id>.ts) chosen per balloon from the player's
+// race (passenger.ts); its size is the rig's, 204 × 363 (`RIG_SIZE`). (The
+// stage 69 SVG goblin, the raster skin and the shared plank are gone.)
 
 import type { Mood, SignContent } from './feed';
 import type { Phase } from './flight';

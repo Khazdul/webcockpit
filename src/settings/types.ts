@@ -391,8 +391,9 @@ export interface WeatherSettings {
   /** Sleeping, stunned, incapacitated, dying. */
   body: boolean;
   /**
-   * Balloon notices (stage 69, ADR 0159): a goblin in a balloon shows each
-   * kill and its XP. Off by default, new and stored settings alike (an
+   * Balloon notices (stage 69, ADR 0159): a balloon shows each kill and its
+   * XP (stage 75: flown by someone of the race you play). Off by default,
+   * new and stored settings alike (an
    * additive field: a missing one is off, no settings version). Not a
    * worker category: the balloons are main-thread DOM (src/weather/balloons/).
    */
