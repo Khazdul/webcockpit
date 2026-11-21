@@ -87,6 +87,13 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
 
+- Stage 75: the race strings of a Zaugurz orc, a Black Númenórean and a
+  Beorning are unknown (matching is by word; `#weather balloon race`
+  shows what the client sees); only a Tarkhnarb orc tried by the owner.
+  Whether Balloons should be on by default (off; the owner's call).
+  `script-code-editor.spec.ts:312` in Firefox failed under load in two
+  full runs (passes alone). Any full e2e run rewrites `docs/stages/img`
+  (restore with `git checkout -- docs/stages/img` before committing).
 - Stage 74: Scripts' syntax check (the Lua runtime's compile) is one
   100-160 ms task on a throttled phone about a second after the page's
   first opening. A bare link's Back (`/r/<id>` loaded directly) is still

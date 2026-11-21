@@ -6,7 +6,7 @@ design rounds later the look is approved: eight passengers on one shared
 rig, chosen by the race the player plays. This stage builds that look into
 the application.
 
-**Status: built (all eight passengers, the removals); review, the full e2e and staging next. The cost in Firefox's software compositor is fixed without a change of look (ADR 0159 round 3, "The layers are fixed").** The design was approved by the owner
+**Status: done, released 0.22.0 (2026-11-21).** All eight passengers, the removals, the review fixed, the Firefox software compositor at 60 fps without a change of look (ADR 0159 round 3). The design was approved by the owner
 on 2026-11-21 ("Godkänt, bygg så").
 
 ## What is approved (the source to build from)
@@ -182,8 +182,8 @@ if it grows past an addendum).
       kinds, reduced motion, nothing loads with Balloons off) in Firefox
       and Chromium; the production CSP walk enforced with all eight.
 - [x] ADR 0159 addendum (or a new ADR): round 3.
-- [ ] Review (`/code-review`), fixes, full e2e alone on the machine.
-- [ ] F: staging, the test guide filled in, handed to the owner.
+- [x] Review (`/code-review` high: 2 important, 4 nits, all fixed), full e2e alone on the machine.
+- [x] F: staging, the test guide filled in, handed to the owner; released 0.22.0.
 
 ## Known weak spots carried over from the design
 
