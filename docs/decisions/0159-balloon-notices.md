@@ -221,11 +221,13 @@ the cap's hurry and "Later" for level up, achievements and death.
 
 The owner approved the round 5 mockup (`notes/research/balloons/round5/`):
 eight passengers on one shared rig, chosen by the player's race. This
-addendum covers the port and the dwarf, the first passenger built (the
-proof); the other seven follow on the same seam. It supersedes the
-"Decision" parts above on the skin seam, the default skin, the readable
-time and the sign; the section "Image skins" is retired with the removals
-(stage 75 part D).
+addendum covers the port: the rig, the dwarf first (the proof, approved
+on staging: "Det ser bra ut. Kör vidare med alla sju"), then the elf, the
+human woman, the hobbit, the troll, the goblin, the orc and the Black
+Númenórean. It supersedes the "Decision" parts above on the skin seam,
+the default skin, the readable time and the sign, and **retires the
+section "Image skins"** and the round 2 "Image contract": the raster skin
+is gone (below, "Removals").
 
 - **The CSP check.** The production policy (`public/_headers`, enforced
   on staging and production) allows what the mockup does: inline
@@ -256,7 +258,8 @@ time and the sign; the section "Image skins" is retired with the removals
   to be settled. Cinzel and Cormorant Garamond declare none.
 - **The porting form.** `balloons/rig.ts` is `rig.js` as TypeScript:
   same geometry, markup, CSS values and timings; `passengers/dwarf.ts` is
-  `skins/dwarf.js` likewise (a word diff shows only types). No harness:
+  `skins/dwarf.js` likewise (a word diff shows only types), and so are
+  the other seven (`passengers/<id>.ts`). No harness:
   `createRig(ctx, spec).make(sign)` returns a `BalloonSkin` for the
   product's flight. CSS stays as the mockup's strings (the dwarf's is
   generated from its pose tables): one `<style data-wc-rig>` per id and
@@ -300,12 +303,21 @@ time and the sign; the section "Image skins" is retired with the removals
   gave them, " · " between (the rig cuts a long line with an ellipsis).
 - **Lazy chunks** (`npx vite build`, gzip): the balloons' own code
   4.9 kB (`notices-*.js`; `balloons.ts`, `flight.ts`, `feed.ts`,
-  `fonts.ts`) and the rig 9.3 kB (`rig-*.js`, its own chunk because every
-  passenger imports it; it loads with the balloons), plus 0.2 kB of CSS;
-  the dwarf 19.8 kB (`dwarf-*.js`, 63.8 kB raw), fetched by a dynamic
-  `import()` when the balloons start (the player's passenger) or when a
-  notice needs another. `passenger.ts` maps every id to the dwarf until
-  the others are ported (marked TEMPORARY there).
+  `fonts.ts`) and the rig 9.4 kB (`rig-*.js`, its own chunk because every
+  passenger imports it; it loads with the balloons), plus 0.2 kB of CSS.
+  One chunk per passenger (`passenger.ts` `CHUNKS`, a dynamic `import()`
+  each), fetched when the balloons start (the player's) or when a notice
+  needs another (`#weather balloon as …`): elf 16.0 kB, goblin 16.6,
+  orc 16.7, hobbit 17.9, troll 18.1, human 18.2, Númenórean 18.4, dwarf
+  19.8 kB (47–64 kB raw). A player fetches one.
+- **The softer filter.** The elf, the human and the hobbit drew softer
+  copies of the rig's engraving filter. It is a rig option now:
+  `kit.filt(id, opts)` takes, beyond the wobble and the grain, the ink
+  tone's colour (`ink`), strength and offset (`blot`, `bias`) and the
+  grain's alpha (`ga`, `gb`); `kit.SOFT` is the elf's set. The three
+  passengers' filters are numerically the same as before (their `defs`
+  compared; only "0.7" became ".7"), and the look check is unchanged
+  (equal heights, 0.10–0.12 % of pixels differing, death aside, below).
 - **Choosing the passenger** (`passenger.ts`, unit tested): whole words,
   case-insensitive, diacritics folded, over race and subrace together;
   `numenor…`/`black` → numenorean (before "man"), `elf(ves)` → elf,
@@ -319,8 +331,26 @@ time and the sign; the section "Image skins" is retired with the removals
 - **Commands.** `#weather balloon as <passenger> [what]` flies that
   passenger (dwarf, elf, human, hobbit, troll, goblin, orc, numenorean);
   `#weather balloon race` says the race and subrace the client holds and
-  the passenger they give (and that it flies as the dwarf until drawn).
-  In `WEATHER_USAGE` and the `#weather` hint (`src/script/commands.ts`).
+  the passenger they give. In `WEATHER_USAGE` (it lists the eight ids)
+  and the `#weather` hint (`src/script/commands.ts`).
+- **Removals** (stage 75 part D, the owner's decision 3): the stage 69
+  SVG goblin (`goblin.ts`, `goblin.css`), the raster skin
+  (`image-skin.ts`, `bundledRasterSkin`, `public/balloons/` and its
+  README) and the shared plank (`sign.ts`, `sign.css`, `.wc-bsign-*`),
+  with their tests. The Settings help now says "A balloon shows each kill
+  and its XP, a level up, a death and an achievement, flown by someone of
+  the race you play. Desktop only." The unit tests' fixed skin is the rig
+  with the dwarf in its still form.
+- **The death notice's half pixel** (look check): six passengers' death
+  shots sat one device pixel (half a CSS px) higher in the product than in
+  the mockup. The harness, not the product: the mockup's sheet centres
+  each rig in a 428 px cell, so a rig of odd height (the death sign: 347
+  px) starts on a half pixel (`top` …671.67 against …171.17 for the
+  others); the product's rig is laid out on whole pixels. The human's
+  death rig is 348 px tall, so it does not show. Nothing to fix.
+- **Cost with mixed passengers:** five balloons (elf, troll, hobbit,
+  Númenórean, orc) in Chromium (headless) with `#perf`: 60 / 60 / 60 fps
+  (arrive + read, leave, drift), p95 16.7 ms, as with the dwarf.
 - **The look check.** The mockup's sheet (`local.html#dwarf`) and the
   product's rig at scale 1, both in their still form (reduced motion: no
   life, no animation), on one plain background, 2× device pixels, for the

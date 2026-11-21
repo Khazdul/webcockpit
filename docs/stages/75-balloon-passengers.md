@@ -6,7 +6,7 @@ design rounds later the look is approved: eight passengers on one shared
 rig, chosen by the race the player plays. This stage builds that look into
 the application.
 
-**Status: building. The dwarf flies in the product (the proof); the other seven passengers and the removals are next.** The design was approved by the owner
+**Status: built (all eight passengers, the removals); review, the full e2e and staging next. Open: the cost in Firefox's software compositor (ADR 0159 round 3, "Life and cost").** The design was approved by the owner
 on 2026-11-21 ("Godkänt, bygg så").
 
 ## What is approved (the source to build from)
@@ -158,11 +158,12 @@ if it grows past an addendum).
       bundled, `src/weather/balloons/fonts.ts`, `public/fonts/README.md`.)
 - [x] A: `SkinPose.burn`, the size, `READ_S`, the leading burner in
       `flight.ts`; lane and pane rules with the larger rig (unit tested).
-- [~] B: `rig.ts`; the dwarf first as the proof (flight, sign, cost);
-      then the other seven, one subagent each. The rig and the dwarf done
-      and checked against the mockup (ADR 0159 round 3); the seven to do.
-- [x] B: lazy chunk per passenger; sizes measured (rig 9.3 kB, dwarf
-      19.8 kB gzip).
+- [x] B: `rig.ts`; the dwarf first as the proof (flight, sign, cost);
+      then the other seven, one subagent each. All eight ported and look-
+      checked; the softer filter of the elf, the human and the hobbit is a
+      rig option (`kit.filt` options, `kit.SOFT`).
+- [x] B: lazy chunk per passenger; sizes measured (rig 9.4 kB; the
+      passengers 16.0–19.8 kB gzip, ADR 0159 round 3).
 - [x] B: the sign's 85 % decided: `zoom` where `CSS.supports`, else
       `transform: scale(.85)` with the measure scaled (`rig.ts` fit).
 - [~] B: life stops and filters ease once a balloon is far away;
@@ -172,12 +173,13 @@ if it grows past an addendum).
 - [x] C: `passenger.ts`, the race read per balloon, `#weather balloon
       as …` and `#weather balloon race` (in the usage and the `#weather`
       hint).
-- [ ] D: the removals.
-- [~] E: unit tests and e2e. Done for the dwarf (unit, the balloon
-      e2e in both browsers, the production CSP walk enforced); the seven
-      passengers' e2e with them.
-- [~] ADR 0159 addendum (or a new ADR). Round 3 written for the dwarf;
-      the seven passengers and the removals to add.
+- [x] D: the removals (goblin.ts/css, image-skin.ts, sign.ts/css,
+      public/balloons/, their tests; the Settings help by race).
+- [x] E: unit tests and e2e: unit suite; the balloon e2e (all eight
+      fly from their own chunks, the race picks the passenger, the dwarf's
+      kinds, reduced motion, nothing loads with Balloons off) in Firefox
+      and Chromium; the production CSP walk enforced with all eight.
+- [x] ADR 0159 addendum (or a new ADR): round 3.
 - [ ] Review (`/code-review`), fixes, full e2e alone on the machine.
 - [ ] F: staging, the test guide filled in, handed to the owner.
 
