@@ -299,7 +299,7 @@ test('stage 75: reduced motion: the rig\'s still form at the readable spot', asy
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
   await expect(layers(page)).toHaveCount(2);
   await type(page, '#weather balloon good');
-  const r = page.locator('.wc-balloons-front .wc-balloon > .rig');
+  const r = page.locator('.wc-balloon > .rig[data-kind="kill"]');
   await expect(r).toHaveClass(/rig-rm/);
   await expect(r).toHaveClass(/rig-at/);
   await expect(r).toHaveClass(/rig-still/);
@@ -309,6 +309,19 @@ test('stage 75: reduced motion: the rig\'s still form at the readable spot', asy
   expect(await at()).toBe(t0);
   // no running animation anywhere in it
   expect(await r.evaluate((e) => e.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length)).toBe(0);
+  // Changed mid-session (stage 75 review): the next balloon flies and lives, the still one stays still.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await type(page, '#weather balloon levelup');
+  const moving = page.locator('.wc-balloon > .rig[data-kind="levelup"]');
+  await expect(moving).toHaveCount(1);
+  await expect(moving).not.toHaveClass(/rig-rm/);
+  const y0 = await moving.evaluate((e) => (e.parentElement as HTMLElement).style.transform);
+  await expect.poll(() => moving.evaluate((e) => (e.parentElement as HTMLElement).style.transform)).not.toBe(y0);
+  await expect(r).toHaveClass(/rig-rm/);
+  // and back: the next one is still again
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await type(page, '#weather balloon death');
+  await expect(page.locator('.wc-balloon > .rig[data-kind="death"]')).toHaveClass(/rig-rm/);
   expect(errors).toEqual([]);
 });
 
