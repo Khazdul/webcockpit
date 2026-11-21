@@ -283,20 +283,25 @@ ${sleeve(u, -35, RY + 4, -40.5, 232)}${fist(-41, 227, 4.600)}`))}${Z('num-sgl', 
   const tears = () => `<div class="rig-a num-tears">${[[-10.2, 3, '4deg', 0], [5.2, 3, '-4deg', -2.6]].map(([x, y, a, dl]) => `<div class="num-tear" style="left:${CX + x}px;top:${HY + y}px;transform:rotate(${a})"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:9px;--dl:${dl - 2.9}s"></i></div>`).join('')}</div>`;
   const eyeglow = () => [-1, 1].map((s) => Z('num-eg', 13.5 * HS * s, HY)).join('');
 
-  // ---- the car: black lacquered woodwork like a small ship, carved panels, gilt rail, serpent prows ----
+  // ---- the car: black lacquered woodwork like a small ship, two tiers of carved panels, gilt rail and band, serpent prows ----
   const basket = (u) => {
     const neck = (s) => `M${52 * s},${RY + 5}C${59 * s},${RY + 1} ${62 * s},${RY - 7} ${59 * s},${RY - 13}C${57 * s},${RY - 17} ${52.5 * s},${RY - 16} ${53.5 * s},${RY - 12}`;
     const panel = (x0, x1) => `<path d="M${x0},${RY + 8}H${x1}L${n(x1 * .95)},${BY - 7}H${n(x0 * .95)}Z" fill="#110d0d" stroke-width=".8"/><path d="M${x0 + 1.5},${RY + 9.5}H${x1 - 1.5}" fill="none" stroke="#000" stroke-width="1.200" opacity=".5"/><path d="M${n(x0 * .95 + 1)},${BY - 8.3}H${n(x1 * .95 - 1)}" fill="none" stroke="${GOLD}" stroke-width=".6" opacity=".7"/>`;
     const wave = (x) => `M${x},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 6.5},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 13},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x - 1},${RY + 19.500}h22`;
-    return S('rig-rim', -68, RY - 22, 136, BY - RY + 30, `${G(u, `
+    // the car is deeper than it looks: a second tier of carved panels runs on down to K.BD behind the tablet (no floor is drawn)
+    const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), bw = n(wx(BY - 4)), bw2 = n(wx(BY + 3));
+    const panel2 = (x0, x1) => `<path d="M${n(x0 * .93)},${BY + 7}H${n(x1 * .93)}L${n(x1 * .885)},${BD - 4}H${n(x0 * .885)}Z" fill="#110d0d" stroke-width=".8"/><path d="M${n(x0 * .93 + 1.5)},${BY + 8.5}H${n(x1 * .93 - 1.5)}" fill="none" stroke="#000" stroke-width="1.200" opacity=".5"/>`;
+    const wave2 = (x) => `M${x},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 6.5},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 13},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x - 1},${BY + 21.500}h21`;
+    return S('rig-rim', -68, RY - 22, 136, BD - RY + 30, `${G(u, `
 ${ink2(neck(-1), 3, '#2b2630')}${ink2(neck(1), 3, '#3a3542')}<path d="${neck(-1)}${neck(1)}" fill="none" stroke="${GOLD}" stroke-width=".7" stroke-dasharray="1.200 2.400"/>
 <circle cx="-53.500" cy="${RY - 11.5}" r="1.800" fill="${GOLD}" stroke-width=".6"/><circle cx="53.500" cy="${RY - 11.5}" r="1.800" fill="${GOLD}" stroke-width=".6"/>
-<path d="M-52,${RY + 1}L-47,${BY - 3}Q0,${BY + 2.5} 47,${BY - 3}L52,${RY + 1}Z" fill="url(#nmw${u})" stroke-width="1.100"/>
-<path d="M-52,${RY + 1}L-47,${BY - 3}Q-34,${BY - .8} -24,${BY}L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-47,${BY - 3}Q-42,${BY - 2} -38,${BY - 1.5}L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
-${panel(-43, -16)}${panel(-12, 12)}${panel(16, 43)}
-<path d="${wave(-39)}${wave(19)}" fill="none" stroke="#8d8798" stroke-width=".8"/>
+<path d="M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z" fill="url(#nmw${u})" stroke-width="1.100"/>
+<path d="M-52,${RY + 1}L-46,${BD}H-22L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+${panel(-43, -16)}${panel(-12, 12)}${panel(16, 43)}${panel2(-43, -16)}${panel2(-12, 12)}${panel2(16, 43)}
+<path d="${wave(-39)}${wave(19)}${wave2(-36)}${wave2(-9.5)}${wave2(17)}" fill="none" stroke="#8d8798" stroke-width=".8"/>
 <g transform="translate(0,${RY + 15})">${sun(4.6, '#0d0b0d', '#c9ccd4', 12)}</g>
-<path d="M-47.500,${BY - 4.5}Q0,${BY + .8} 47.500,${BY - 4.500}" fill="none" stroke-width="2.400"/><path d="M-47.500,${BY - 4.5}Q0,${BY + .8} 47.500,${BY - 4.500}" fill="none" stroke="${GOLD}" stroke-width="1.100" stroke-dasharray="3 1.500"/>
+<path d="M${-bw},${BY - 4}H${bw}L${bw2},${BY + 3}H${-bw2}Z" fill="url(#nmk${u})" stroke-width="1"/><path d="M${-bw + 1.5},${BY - 2.2}H${bw - 1.5}" fill="none" stroke="${GOLD}" stroke-width="1.100" stroke-dasharray="3 1.500"/><path d="M${-bw2 + 1.5},${BY + 1.5}H${bw2 - 1.5}" fill="none" stroke="#8d8798" stroke-width=".5" opacity=".7"/>
+<path d="M-48,${BY - 2.5}h8v6h-8ZM40,${BY - 2.5}h8v6h-8Z" fill="${SILV}" stroke-width=".8"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="2.300" fill="url(#nmk${u})" stroke-width="1.100"/><path d="M-51,${RY - 1.3}H51" fill="none" stroke="${GOLD}" stroke-width=".9"/><path d="M-51,${RY + 1.6}H51" fill="none" stroke="#8d8798" stroke-width=".5" opacity=".7"/>
 <g fill="${GOLD}" stroke-width=".4"><circle cx="-34" cy="${RY + .4}" r="1.100"/><circle cx="-14" cy="${RY + .4}" r="1.100"/><circle cx="14" cy="${RY + .4}" r="1.100"/><circle cx="34" cy="${RY + .4}" r="1.100"/></g>`)}
 <g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="${SILV}" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="${SILV}" stroke-width=".8"/></g>`);
@@ -606,7 +611,7 @@ ${ring(w / 2 - HX)}${ring(w / 2 + HX)}`);
         behind: (u) => `<div class="num-lift"><div class="num-br"><div class="num-look"><div class="num-nod">${head(u)}${eyeglow()}${tears()}</div></div></div></div>
 ${staff(u)}${props(u)}`,
         front: () => tassel(-1) + tassel(1),
-        sign: { w: SW, hx: HX, bx: 44, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#1a0d0c', light: '#b04a40', w: 1.5 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#1a0d0c', light: '#b04a40', w: 1.5 }, board, pips },
         life: liven,
       });
     },

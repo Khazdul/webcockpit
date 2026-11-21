@@ -148,6 +148,16 @@ with no stage of their own. Remove a line when it is done.
   without page errors or rig warnings; flights traced in Chromium and
   Firefox without long frames. Looked at as night sheets only by the
   main session.
+- **Owner's verdict on the eight (same day):** dwarf, goblin and orc
+  OK; the troll not mentioned. Made: the elf's holding arm as a short
+  forearm from inside the cloak, nothing held on unrated, hood and lit
+  eyes on player kill; the woman smiles on great, laughs on superb with
+  a wine cup (no horn), the garland on level up; the hobbit with both
+  hands on the rim on unrated, beer, pie and a smoking pipe on superb,
+  a helm on player kill; the Númenórean's palm flame from spark to
+  blaze and a smile to a laugh over good, great, superb. **The deep
+  car:** every car runs down behind its sign to `K.BD` (322), no bottom
+  shown, the sign's cords on a lower band (`rig.js` checklist point 9).
 - **Next:** the owner's verdict on the seven (artifact, or
   `round5/local.html`); then the build session (brief, "For the build
   session afterwards").

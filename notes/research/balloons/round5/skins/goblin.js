@@ -275,17 +275,20 @@ ${Z('goblin-flw', 42, HY - 22, `<div class="rig-z goblin-pen">${SL('rig-rim', -2
     return Z('goblin-dng', 55, RY + 1, SL('rig-rim', -9, -1, 18, 30, `<path d="M0,0V11" fill="none" stroke="#17120e" stroke-width="1.800"/><path d="M0,0V11" fill="none" stroke="#9a8a66" stroke-width=".7"/>${G(u, `<g transform="translate(0,16.5)"><g fill="url(#gbi${u})" stroke-width=".8">${cog}</g><circle r="4.800" fill="url(#gbi${u})" stroke-width=".9"/><circle r="1.800" fill="#170f0a" stroke-width=".6"/><path d="M1.500,-3.800Q3.800,-2.500 3.900,.5" fill="none" stroke="#e3e9ec" stroke-width=".7" opacity=".7"/></g><path d="${tooth(-3, 21, 6.5, 1.8)}${tooth(3.2, 21.5, 5.5, 1.6)}" fill="#e9dfc2" stroke-width=".7"/>`)}`));
   };
 
-  // ---- the stolen crate: uneven planks, two battens, a plank nailed across a hole, a sacking patch, a pole lashed on for a rim ----
+  // ---- the stolen crate: uneven planks, battens, a plank nailed across a hole, a sacking patch, a pole lashed on for a rim.
+  // It is a tall crate: the planks run on down to K.BD behind the banner (no floor is drawn); the banner's cords hang from two bent nails in the lower batten ----
   const basket = (u) => {
+    const BD = K.BD;
     const nail = (x, y, a = 0) => `<g transform="translate(${x},${y}) rotate(${a})"><circle r="1" fill="#b9c0c5" stroke-width=".45"/><path d="M.8,.4l2.200,1.200" fill="none" stroke="#b9c0c5" stroke-width=".7"/></g>`;
     let pl = '';
-    [[-36, 1], [-19, -.6], [-2, .8], [15, -1], [32, .5]].forEach(([x, k]) => { pl += `M${x},${RY + 3}L${n(x * .93 + k)},${BY - 1}`; });
+    [[-36, 1], [-19, -.6], [-2, .8], [15, -1], [32, .5]].forEach(([x, k]) => { pl += `M${x},${RY + 3}L${n(x * .9 + k)},${BD}`; });
     const lash = (x) => `<path d="M${x - 3},${RY - 3.6}l2,7M${x},${RY - 3.6}l2,7M${x + 3},${RY - 3.6}l2,7" fill="none" stroke="#17120e" stroke-width="2"/><path d="M${x - 3},${RY - 3.6}l2,7M${x},${RY - 3.6}l2,7M${x + 3},${RY - 3.6}l2,7" fill="none" stroke="#c9b88c" stroke-width=".9"/>`;
-    return S('rig-rim', -62, RY - 6, 124, BY - RY + 14, `${G(u, `
-<path d="M-51,${RY + 1}L-47,${BY - 1.5}L-20,${BY - .5}L12,${BY - 1.5}L47,${BY - .5}L51,${RY + 1}Z" fill="url(#gbw${u})" stroke-width="1.1"/>
-<path d="M-51,${RY + 1}L-47,${BY - 1.5}L-24,${BY - .7}L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-51,${RY + 1}L-47,${BY - 1.5}L-37,${BY - 1}L-40,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
-<path d="${pl}" fill="none" stroke-width=".7" opacity=".8"/><path d="M-28,${RY + 14}v8M-10,${RY + 6}v6M7,${RY + 15}v9M24,${RY + 8}v5M40,${RY + 16}v7" fill="none" stroke="#c9a878" stroke-width=".7" opacity=".55"/>
-<path d="M-50,${RY + 7}L50,${RY + 6}L49.500,${RY + 10.5}L-49.500,${RY + 11.5}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-47.500,${BY - 9}L47.500,${BY - 8}L47,${BY - 4}L-47,${BY - 4.5}Z" fill="#5c4028" stroke-width=".9"/>
+    return S('rig-rim', -62, RY - 6, 124, BD - RY + 8, `${G(u, `
+<path d="M-51,${RY + 1}L-46,${BD}H46L51,${RY + 1}Z" fill="url(#gbw${u})" stroke-width="1.1"/>
+<path d="M-51,${RY + 1}L-46,${BD}H-23L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-51,${RY + 1}L-46,${BD}H-36L-40,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+<path d="${pl}" fill="none" stroke-width=".7" opacity=".8"/><path d="M-28,${RY + 14}v8M-10,${RY + 6}v6M7,${RY + 15}v9M24,${RY + 8}v5M40,${RY + 16}v7M-27,${RY + 36}v9M-9,${RY + 44}v8M9,${RY + 35}v7M25,${RY + 47}v9M39,${RY + 38}v6M-40,${RY + 52}v8" fill="none" stroke="#c9a878" stroke-width=".7" opacity=".55"/>
+<path d="M-50,${RY + 7}L50,${RY + 6}L49.500,${RY + 10.5}L-49.500,${RY + 11.5}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-49.500,${BY - 4.5}L49.500,${BY - 3.5}L49,${BY + 2}L-49,${BY + 1.5}Z" fill="#5c4028" stroke-width=".9"/><path d="M-46,${BY - 2.8}L46,${BY - 1.9}" fill="none" stroke="#c9a878" stroke-width=".6" opacity=".45"/>
+<path d="M-48,${RY + 50}L48,${RY + 51}L47.700,${RY + 55.5}L-47.700,${RY + 55}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-30,${RY + 37}l22,4l-1,5l-22,-4Z" fill="#a98a5c" stroke-width=".9"/>${nail(-27, RY + 40, 20)}${nail(-11, RY + 43.5, 190)}
 <path d="M-12,${RY + 13}l9,-1l1,8l-8,2Z" fill="#170f0a" stroke-width=".8"/>
 <path d="M-43,${RY + 22.5}L-3,${RY + 9}L-1,${RY + 14}L-41,${RY + 27.5}Z" fill="#a98a5c" stroke-width="1"/><path d="M-38,${RY + 23.5}L-8,${RY + 13.500}" fill="none" stroke-width=".5" opacity=".6"/>
 ${nail(-39, RY + 24, 30)}${nail(-34.5, RY + 22.6, -50)}${nail(-6, RY + 12.6, 10)}${nail(-10.5, RY + 14.5, 200)}
@@ -294,7 +297,7 @@ ${nail(-39, RY + 24, 30)}${nail(-34.5, RY + 22.6, -50)}${nail(-6, RY + 12.6, 10)
 <path d="M2,${RY + 15}Q7,${RY + 11} 12,${RY + 15}Q7,${RY + 18.5} 2,${RY + 15}Z" fill="#b3261c" stroke="none" opacity=".85"/><ellipse cx="7" cy="${RY + 15}" rx=".9" ry="2" fill="#170f0a" stroke="none"/>
 <rect x="-55" y="${RY - 3.2}" width="110" height="6.400" rx="3" fill="#7a5c3a" stroke-width="1.1"/><path d="M-55,${RY - 1}Q-55,${RY - 3.2} -52,${RY - 3.2}H-22V${RY + 3.2}H-52Q-55,${RY + 3.2} -55,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-50,${RY - 1.3}H50" fill="none" stroke="#d9c095" stroke-width=".8" opacity=".5"/>
 ${lash(-41)}${lash(-11)}${lash(13)}${lash(38)}`)}
-${ink2(`M-44,${BY - 2}v3.500q0,2.500 2.500,2.500`, 1.1, '#9aa2a8')}${ink2(`M44,${BY - 2}v3.500q0,2.500 -2.500,2.500`, 1.1, '#9aa2a8')}`);
+${ink2(`M-44,${BY - 2.5}v2.500q0,2.500 -2.500,2.500`, 1.2, '#9aa2a8')}${ink2(`M44,${BY - 2.5}v2.500q0,2.500 2.500,2.500`, 1.2, '#9aa2a8')}<g fill="#b9c0c5" stroke="#17120e" stroke-width=".5"><circle cx="-44" cy="${BY - 2.7}" r="1.300"/><circle cx="44" cy="${BY - 2.7}" r="1.300"/></g>`);
   };
 
   // ---- the burner: a dented cooking pot of coals hung on wires, a jagged grin cut in its side ----
@@ -595,7 +598,7 @@ ${mood === 'pvp' ? `<path d="M7,${top + 5.5}H${w - 7}" fill="none" stroke="${hem
         behind: (u) => `${sack(u)}<div class="goblin-lift"><div class="goblin-br"><div class="goblin-look"><div class="goblin-nod">${head(u)}${crown(u)}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}${rat(u)}${dangle(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, k: 15, c: 1.9, cord: { kind: 'rope', dark: '#17120e', light: '#b9a57a', w: 1.3 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 15, c: 1.9, cord: { kind: 'rope', dark: '#17120e', light: '#b9a57a', w: 1.3 }, board, pips },
         life: liven,
       });
     },

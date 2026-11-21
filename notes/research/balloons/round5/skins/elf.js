@@ -251,25 +251,31 @@ ${ink2(`M-47.200,${HY + 20}V${HY + 29}`, 2.6, '#cfd6d8')}${arm(u, -34, E, -46.6,
     return S('rig-rim', -56, RY - 10, 112, 20, G(u, h('elf-hL', -31, 1) + h('elf-hR', 31, -1)));
   };
 
-  // ---- the car: pale wood in flowing strakes, a swan's neck at the prow, a leaf-scroll at the stern ----
+  // ---- the car: a deep hull of pale wood in flowing strakes, a swan's neck at the prow, a leaf-scroll at the stern ----
   const basket = (u) => {
-    let ribs = '';
-    for (const x of [-40, -27, -13.5, 0, 13.5, 27, 40]) ribs += `M${x},${RY + 3}Q${n(x * .97)},${RY + 16} ${n(x * .8)},${BY - 1.5}`;
-    const hull = `M-52,${RY + 1}C-50,${RY + 17} -43,${BY - 1} -30,${BY - 1}Q0,${BY + 2} 30,${BY - 1}C43,${BY - 1} 50,${RY + 17} 52,${RY + 1}Z`;
-    const ring = (x) => `<circle cx="${x}" cy="${BY + 1}" r="2.300" fill="none" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${BY + 1}" r="2.300" fill="none" stroke="${SILVER}" stroke-width=".8"/>`;
-    return S('rig-rim', -76, RY - 30, 152, BY - RY + 38, `${G(u, `
+    // the hull is deeper than it looks: its sides run on down to K.BD behind the sign (no keel is drawn)
+    const BD = K.BD, wx = (y) => 52 - 6 * Math.pow((y - RY - 1) / (BD - RY - 1), .8);
+    let ribs = '', strakes = '';
+    for (const x of [-40, -27, -13.5, 0, 13.5, 27, 40]) ribs += `M${x},${RY + 3}Q${n(x * .96)},${RY + 30} ${n(x * .885)},${BD}`;
+    for (const y of [RY + 9, RY + 17, RY + 24, RY + 39, RY + 47, RY + 55, RY + 63, RY + 70]) { const a = n(wx(y) - .8); strakes += `M${-a},${y}Q0,${y + 5} ${a},${y}`; }
+    const side = (x) => `C${n(x * 51 / 52)},${RY + 22} ${n(x * 47.5 / 52)},${RY + 48} ${n(x * 46 / 52)},${BD}`;
+    const hull = `M-52,${RY + 1}${side(-52)}H46${side(52).replace(/^C(\S+) (\S+) (\S+)$/, (_, a, b, c) => `C${b} ${a} 52,${RY + 1}`)}Z`;
+    const by = BY + 1, bw = n(wx(BY) + 1.2);
+    const ring = (x) => `<path d="M${x - 3},${BY - 3.4}h6v3.400h-6Z" fill="${SILVER}" stroke="${INK}" stroke-width=".7"/><circle cx="${x}" cy="${by}" r="2.300" fill="none" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${by}" r="2.300" fill="none" stroke="${SILVER}" stroke-width=".8"/>`;
+    return S('rig-rim', -76, RY - 30, 152, BD - RY + 38, `${G(u, `
 ${ink2(`M-51,${RY + 2}C-61,${RY + 1} -64,${RY - 8} -60,${RY - 14}C-57,${RY - 18.500} -58,${RY - 23} -62.500,${RY - 23}`, 3.2, '#e2dcc6')}
 <path d="M-64.500,${RY - 24.2}L-71,${RY - 21.3}L-64.500,${RY - 20.3}Z" fill="${GOLD}" stroke-width=".8"/><ellipse cx="-62.500" cy="${RY - 22.6}" rx="3.600" ry="2.800" fill="#ece6d2" stroke-width=".9"/><circle cx="-63.600" cy="${RY - 23.2}" r=".6" fill="${INK}" stroke="none"/>
 <path d="M-57,${RY - 2}C-61,${RY - 6} -61,${RY - 11} -58.500,${RY - 14}" fill="none" stroke-width=".5" opacity=".6"/>
 ${ink2(`M51,${RY + 2}C60,${RY + 1} 63,${RY - 6} 60,${RY - 12}C58,${RY - 15.500} 53.500,${RY - 14} 55,${RY - 10.500}C55.800,${RY - 9} 57.500,${RY - 9.500} 57.500,${RY - 11}`, 2.4, '#e2dcc6')}
 <path d="${hull}" fill="url(#elfw${u})" stroke-width="1.1"/>
-<path d="M-52,${RY + 1}C-50,${RY + 17} -43,${BY - 1} -30,${BY - 1}Q-24,${BY - .4} -20,${BY}C-28,${RY + 20} -30,${RY + 10} -29,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}C-50,${RY + 17} -43,${BY - 1} -34,${BY - 1}C-40,${RY + 18} -42,${RY + 9} -41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+<path d="M-52,${RY + 1}${side(-52)}H-24L-29,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}${side(-52)}H-36L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
 <path d="${ribs}" fill="none" stroke-width=".55" opacity=".6"/>
-<path d="M-50.500,${RY + 9}Q0,${RY + 14} 50.500,${RY + 9}M-47,${RY + 17}Q0,${RY + 22.5} 47,${RY + 17}M-40,${RY + 24}Q0,${RY + 28.500} 40,${RY + 24}" fill="none" stroke-width=".7" opacity=".7"/>
+<path d="${strakes}" fill="none" stroke-width=".7" opacity=".7"/>
 <path d="M-46,${RY + 13.5}${[-34.5, -23, -11.5, 0, 11.5, 23, 34.5, 46].map((x, i) => `Q${n(x - 5.75)},${n(RY + 14.4 + (i % 2 ? 3.6 : -2.6) - (x / 46) ** 2)} ${x},${n(RY + 14.4 - (x / 46) ** 2 * .9)}`).join('')}" fill="none" stroke="#f6f8f4" stroke-width="1" opacity=".85"/>
 ${[-28.7, -5.7, 17.3, 40.3].map((x) => `<g transform="translate(${x},${RY + 11}) rotate(-52) scale(.36)">${leaf('#f1f3ee', 1.4)}</g>`).join('')}${[-40.3, -17.3, 5.7, 28.7].map((x) => `<g transform="translate(${x},${RY + 18.5}) rotate(128) scale(.36)">${leaf('#f1f3ee', 1.4)}</g>`).join('')}
+<path d="M${-bw},${BY - 3.6}Q0,${BY + .2} ${bw},${BY - 3.6}L${bw - .3},${BY + .6}Q0,${BY + 4.4} ${-bw + .3},${BY + .6}Z" fill="url(#elfi${u})" stroke-width="1"/><path d="M${-bw},${BY - 3.6}Q-34,${BY - 1.6} -24,${BY - 1.2}L-24,${BY + 3}Q-36,${BY + 2.4} ${-bw + .3},${BY + .6}Z" fill="${HP(u)}" stroke="none"/><path d="M${-bw + 4},${BY - 2}Q0,${BY + 1.4} ${bw - 4},${BY - 2}" fill="none" stroke="#fff" stroke-width=".7" opacity=".55"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.200" rx="3" fill="url(#elfi${u})" stroke-width="1.1"/><path d="M-51,${RY - 1.3}H51" fill="none" stroke="#fff" stroke-width=".8" opacity=".6"/><rect x="-54" y="${RY - 3}" width="26" height="6.200" rx="3" fill="${HP(u)}" stroke="none"/>`)}
-<g>${ring(-34)}${ring(34)}</g>`);
+<g>${ring(-40)}${ring(40)}</g>`);
   };
 
   // ---- the burner: a silver lamp shaped like an open flower, hung on two slender stems under the mouth ----
@@ -551,7 +557,7 @@ ${grad('elg' + u, [[0, '#262a66'], [.38, '#5b4486'], [.68, '#c97a84'], [1, '#f2c
         basket,
         behind: (u) => `<div class="elf-lift"><div class="elf-br"><div class="elf-look"><div class="elf-nod">${figure(u)}${locks(u)}${tears()}${magic()}</div></div></div></div>${props(u)}`,
         front: (u) => hands(u),
-        sign: { w: SW, hx: HX, bx: 34, k: 14, c: 1.9, cord: { kind: 'rope', dark: '#2e302b', light: '#d9dcd2', w: 1.1 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 40, by: BY + 1, k: 14, c: 1.9, cord: { kind: 'rope', dark: '#2e302b', light: '#d9dcd2', w: 1.1 }, board, pips },
         life: liven,
       });
     },

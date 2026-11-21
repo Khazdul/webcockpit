@@ -1,7 +1,7 @@
 // Round 5: "The Hobbit", built on the shared rig (rig.js). A respectable Shire
 // hobbit in shirt-sleeves and his best waistcoat, airborne against his better
-// judgement in a craft made at home: cloth from the linen press, a wicker
-// picnic hamper, and a brass kettle-stove hung under the mouth.
+// judgement in a craft made at home: cloth from the linen press, a tall wicker
+// hamper, and a brass kettle-stove hung under the mouth.
 //
 // THE HOBBITS' VOCABULARY (decided before drawing; rule 2 of the brief)
 //   Materials  what a hobbit hole holds: patchwork quilt and bed-linen, sacking,
@@ -300,24 +300,28 @@ ${mouths}
     return S('rig-rim', -56, RY - 10, 112, 20, G(u, h('hobbit-hL', -31) + h('hobbit-hR', 31)));
   };
 
-  // ---- the picnic hamper: wicker, a braided rim, a leather strap, a gingham cloth over the edge ----
+  // ---- the hamper: a tall wicker basket with a braided rim, a leather strap, a gingham cloth over the edge.
+  // It is deeper than it looks: the wicker runs on down to K.BD behind the sign (no floor is drawn), and a
+  // braided foot-band with two brass eyes for the sign's cords ends the part that shows.
   const basket = (u) => {
-    let st = '';
-    for (const x of [-42, -31, -20, -9, 2, 13, 24, 35, 45]) st += `M${x},${RY + 3}L${n(x * .915)},${BY - 1}`;
-    let br = '';
+    const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), wall = `M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z`;
+    let st = '', br = '', fb = '';
+    for (const x of [-42, -31, -20, -9, 2, 13, 24, 35, 45]) st += `M${x},${RY + 3}L${n(x * .885)},${BD}`;
     for (let x = -51; x < 52; x += 4.2) br += `M${n(x)},${RY + 3}l2.600,-5.500`;
-    return S('rig-rim', -62, RY - 6, 124, BY - RY + 14, `${G(u, `
-<path d="M-52,${RY + 1}L-47,${BY - 2}Q0,${BY + 2} 47,${BY - 2}L52,${RY + 1}Z" fill="url(#hbw${u})" stroke-width="1.1"/>
-<path d="M-52,${RY + 1}L-47,${BY - 2}Q0,${BY + 2} 47,${BY - 2}L52,${RY + 1}Z" fill="url(#hbk${u})" stroke="none"/>
-<path d="M-52,${RY + 1}L-47,${BY - 2}Q-35,${BY - .5} -25,${BY}L-28,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-47,${BY - 2}Q-42,${BY - 1.3} -38,${BY - 1}L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+    for (let x = -47; x < 48; x += 4.4) fb += `M${n(x)},${BY + 2.6}l2.400,-6`;
+    const a = n(wx(BY - 4) + .8), b = n(wx(BY + 3) + .8);
+    const eye = (x) => `<circle cx="${x}" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${BY + 1}" r="2.600" stroke="#e3c268" stroke-width=".8"/>`;
+    return S('rig-rim', -62, RY - 6, 124, BD - RY + 8, `${G(u, `
+<path d="${wall}" fill="url(#hbw${u})" stroke-width="1.1"/><path d="${wall}" fill="url(#hbk${u})" stroke="none"/>
+<path d="M-52,${RY + 1}L-46,${BD}H-22L-28,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
 <path d="${st}" fill="none" stroke-width=".7" opacity=".6"/>
-<path d="M-48.500,${BY - 7}Q0,${BY - 3} 48.500,${BY - 7}L47.500,${BY - 2}Q0,${BY + 2} -47.500,${BY - 2}Z" fill="#8a6a3c" stroke-width=".9"/>
-<path d="M-27,${RY + 2}L-25.500,${BY - 1}H-19.500L-21,${RY + 2}Z" fill="#6a4526" stroke-width=".9"/><rect x="-27.600" y="${RY + 11}" width="8" height="6.500" rx="1" fill="none" stroke-width="2.600"/><rect x="-27.600" y="${RY + 11}" width="8" height="6.500" rx="1" fill="none" stroke="#f0d98a" stroke-width="1.300"/><path d="M-23.600,${RY + 12}v5" fill="none" stroke-width=".8"/>
+<path d="M-27,${RY + 2}L-23.500,${BD}H-17.500L-21,${RY + 2}Z" fill="#6a4526" stroke-width=".9"/><rect x="-27.600" y="${RY + 11}" width="8" height="6.500" rx="1" fill="none" stroke-width="2.600"/><rect x="-27.600" y="${RY + 11}" width="8" height="6.500" rx="1" fill="none" stroke="#f0d98a" stroke-width="1.300"/><path d="M-23.600,${RY + 12}v5" fill="none" stroke-width=".8"/>
 <path d="M13,${RY - 1}H45L45.500,${RY + 10}L39,${RY + 17}L31,${RY + 11.5}L22.500,${RY + 16}L12.500,${RY + 9}Z" fill="#f3ead0" stroke-width="1"/><path d="M13,${RY - 1}H45L45.500,${RY + 10}L39,${RY + 17}L31,${RY + 11.5}L22.500,${RY + 16}L12.500,${RY + 9}Z" fill="url(#hbg${u})" stroke="none"/>
 <path d="M24,${RY + 3}q-1,6 -1.500,12M33,${RY + 3}q-1,4 -2,8M40,${RY + 3}q0,7 -1,13" fill="none" stroke-width=".5" opacity=".6"/>
+<path d="M${-a},${BY - 4}H${a}L${b},${BY + 3}H${-b}Z" fill="#a8824c" stroke-width="1"/><path d="${fb}" fill="none" stroke-width=".7" opacity=".8"/><path d="M${-a + 3},${BY - 2.6}H${a - 3}" fill="none" stroke="#f0dcae" stroke-width=".8" opacity=".55"/><path d="M${-a},${BY - 4}H-30L-29.500,${BY + 3}H${-b}Z" fill="${HP(u)}" stroke="none"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="3.200" fill="#b8935a" stroke-width="1.1"/><path d="${br}" fill="none" stroke-width=".7" opacity=".8"/><path d="M-50,${RY - 1.6}H50" fill="none" stroke="#f0dcae" stroke-width=".8" opacity=".6"/>
 <rect x="12" y="${RY - 3.5}" width="34" height="7.500" rx="3" fill="#f3ead0" stroke-width="1"/><rect x="12" y="${RY - 3.5}" width="34" height="7.500" rx="3" fill="url(#hbg${u})" stroke="none"/>`)}
-<g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#e3c268" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#e3c268" stroke-width=".8"/></g>`);
+<g fill="#170f0a">${eye(-44)}${eye(44)}</g>`);
   };
   // a string of onions hung on the hamper's side (it dangles)
   const onions = (u) => {
@@ -660,7 +664,7 @@ ${grad('hbs' + u, ['#c2937a', '#e0b896', '#f2d8b8'])}${grad('hbh' + u, ['#4a2f1c
 <div class="hobbit-lift"><div class="hobbit-br"><div class="hobbit-look"><div class="hobbit-nod">${head(u)}${wisp()}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}${onions(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#2a1b10', light: '#c9b07c', w: 1.4 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#2a1b10', light: '#c9b07c', w: 1.4 }, board, pips },
         life: liven,
       });
     },

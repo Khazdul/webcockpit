@@ -278,19 +278,25 @@ ${fore(u, 76, HY + 16, 75.5, HY - 15, 18.5, 13)}<path d="M67.800,${HY + 13}C70,$
     return S('rig-rim', -60, RY - 12, 120, 26, `<g filter="url(#rgf${u})">${h('troll-hL', -30)}${h('troll-hR', 30)}</g>`);
   };
 
-  // ---- the crate: three rough logs a side, lashed to corner posts; a plundered shield; rope loops for the sign ----
+  // ---- the cage: rough logs lashed to corner posts. It is deeper than it looks: the logs run on down to K.BD
+  // behind the sign (no floor is drawn). A lower rail just above the sign carries the two rope loops for it. ----
   const basket = (u) => {
+    const BD = K.BD;
     const log = (y, h, x0, x1, c) => `<path d="M${x0 + 3},${y}H${x1 - 3}Q${x1},${y} ${x1},${n(y + h / 2)}Q${x1},${y + h} ${x1 - 3},${y + h}H${x0 + 3}Q${x0},${y + h} ${x0},${n(y + h / 2)}Q${x0},${y} ${x0 + 3},${y}Z" fill="${c}" stroke-width="1"/><path d="M${x0 + 8},${n(y + h * .35)}h${n((x1 - x0) * .3)}M${n(x0 + (x1 - x0) * .5)},${n(y + h * .6)}h${n((x1 - x0) * .32)}M${x0 + 14},${n(y + h * .72)}h12" fill="none" stroke-width=".5" opacity=".7"/><path d="M${x0 + 5},${n(y + 1.6)}H${x1 - 8}" fill="none" stroke="#d2b384" stroke-width=".8" opacity=".45"/><ellipse cx="${n(x1 - 2.4)}" cy="${n(y + h / 2)}" rx="2" ry="${n(h / 2 - 1.2)}" fill="#c4a678" stroke-width=".6"/>`;
-    const post = (x) => `<path d="M${x - 3.2},${RY - 6}Q${x},${RY - 8} ${x + 3.2},${RY - 6}L${x + 3},${BY + 1.5}H${x - 3}Z" fill="url(#trw${u})" stroke-width="1"/><path d="M${x - 1},${RY - 2}V${BY - 2}" fill="none" stroke-width=".5" opacity=".6"/>`;
+    const rail = (y, c) => `<path d="M-53,${y - 3.8}H53Q57.500,${y - 3.8} 57.500,${y}Q57.500,${y + 3.7} 53,${y + 3.7}H-53Q-57.500,${y + 3.7} -57.500,${y}Q-57.500,${y - 3.8} -53,${y - 3.8}Z" fill="${c}" stroke-width="1.100"/><path d="M-52,${y - 1.9}H50" fill="none" stroke="#e3caa0" stroke-width=".9" opacity=".6"/><path d="M-30,${y + .7}h22M6,${y + 1.3}h26M-48,${y + 1.7}h10" fill="none" stroke-width=".5" opacity=".65"/><ellipse cx="54.500" cy="${y}" rx="2.200" ry="2.900" fill="#c4a678" stroke-width=".6"/><path d="M-57.500,${y}Q-57.500,${y - 3.8} -53,${y - 3.8}H-40V${y + 3.7}H-53Q-57.500,${y + 3.7} -57.500,${y}Z" fill="${HP(u)}" stroke="none"/>`;
+    const post = (x) => `<path d="M${x - 3.2},${RY - 6}Q${x},${RY - 8} ${x + 3.2},${RY - 6}L${x + 3},${BD}H${x - 3}Z" fill="url(#trw${u})" stroke-width="1"/><path d="M${x - 1},${RY - 2}V${BD - 2}" fill="none" stroke-width=".5" opacity=".6"/>`;
     const lash = (x, y) => ink2(`M${x - 4.6},${y - 2.6}L${x + 4.6},${y + 2.6}M${x - 4.6},${y + 2.6}L${x + 4.6},${y - 2.600}M${x - 4.6},${y}H${x + 4.6}`, 1.3, ROPE);
-    return S('rig-rim', -62, RY - 10, 124, BY - RY + 18, `${G(u, `
-${log(RY + 3.5, 8.5, -53, 55, `url(#trw${u})`)}${log(RY + 12, 8.5, -55, 52, '#7a5a3a')}${log(RY + 20.5, 8.7, -52, 54, `url(#trw${u})`)}
-<path d="M-55,${RY + 3.5}H-26L-28,${BY + 2}H-52Z" fill="${HP(u)}" stroke="none"/><path d="M-55,${RY + 3.5}H-41L-42,${BY + 2}H-52Z" fill="${HQ(u)}" stroke="none"/><path d="M-52,${BY - 4}H54V${BY + 2}H-52Z" fill="#000" opacity=".2" stroke="none"/>
+    const EXT = [[-53, 55], [-55, 52], [-52, 54], [-54, 53], [-53, 55], [-55, 52], [-52, 54], [-54, 53], [-53, 54]], LH = (BD - RY - 3.5) / EXT.length;
+    const logs = EXT.map(([a, b], i) => log(n(RY + 3.5 + i * LH), n(LH), a, b, i % 2 ? '#7a5a3a' : `url(#trw${u})`)).join('');
+    const loop = (x) => `<path d="M${x - 3.2},${BY - 3.5}h6.400v8h-6.400Z" fill="${ROPE}" stroke="#17120e" stroke-width=".9"/><path d="M${x - 3.2},${BY - 1}l6.400,-1.500M${x - 3.2},${BY + 1.5}l6.400,-1.500M${x - 3.2},${BY + 4}l6.400,-1.500" fill="none" stroke="#17120e" stroke-width=".6"/>`;
+    return S('rig-rim', -62, RY - 10, 124, BD - RY + 18, `${G(u, `
+${logs}
+<path d="M-55,${RY + 3.5}H-26L-27,${BD}H-55Z" fill="${HP(u)}" stroke="none"/><path d="M-55,${RY + 3.5}H-41L-42,${BD}H-55Z" fill="${HQ(u)}" stroke="none"/>
 ${post(-45)}${post(45)}
-<path d="M-53,${RY - 3.5}H53Q57.500,${RY - 3.5} 57.500,${RY + .3}Q57.500,${RY + 4} 53,${RY + 4}H-53Q-57.500,${RY + 4} -57.500,${RY + .3}Q-57.500,${RY - 3.5} -53,${RY - 3.5}Z" fill="#9a7a50" stroke-width="1.100"/><path d="M-52,${RY - 1.6}H50" fill="none" stroke="#e3caa0" stroke-width=".9" opacity=".6"/><path d="M-30,${RY + 1}h22M6,${RY + 1.6}h26M-48,${RY + 2}h10" fill="none" stroke-width=".5" opacity=".65"/><ellipse cx="54.500" cy="${RY + .3}" rx="2.200" ry="2.900" fill="#c4a678" stroke-width=".6"/><path d="M-57.500,${RY + .3}Q-57.500,${RY - 3.5} -53,${RY - 3.5}H-40V${RY + 4}H-53Q-57.500,${RY + 4} -57.500,${RY + .3}Z" fill="${HP(u)}" stroke="none"/>
-${lash(-45, RY + .3)}${lash(45, RY + .3)}${lash(-45, RY + 16.5)}${lash(45, RY + 16.5)}
-<g transform="translate(17,${RY + 17}) rotate(-12)">${shield(10, '#7d3a2c', '#d9d0b4')}</g>`)}
-<g fill="none"><path d="M-46.500,${BY}q2.500,5.500 5,0" stroke="#17120e" stroke-width="3.200"/><path d="M-46.500,${BY}q2.500,5.500 5,0" stroke="${ROPE}" stroke-width="1.600"/><path d="M41.500,${BY}q2.500,5.500 5,0" stroke="#17120e" stroke-width="3.200"/><path d="M41.500,${BY}q2.500,5.500 5,0" stroke="${ROPE}" stroke-width="1.600"/></g>`);
+${rail(RY + .3, '#9a7a50')}${rail(BY - .3, '#8f7048')}
+${lash(-45, RY + .3)}${lash(45, RY + .3)}${lash(-45, RY + 14.5)}${lash(45, RY + 14.5)}${lash(-45, BY - .3)}${lash(45, BY - .3)}${lash(-45, BY + 24)}${lash(45, BY + 24)}
+<g transform="translate(17,${RY + 15}) rotate(-12)">${shield(9.5, '#7d3a2c', '#d9d0b4')}</g>`)}
+${loop(-38)}${loop(38)}`);
   };
   // two things tied to the ends of the rim log, which swing: a sheep's skull, and a traveller's boot by its laces
   const danglers = (u) => Z('troll-dg troll-d1', -57, RY + 3, SL('rig-rim', -10, 0, 20, 30, G(u, `<path d="M0,0V11" fill="none" stroke-width="1.100"/><g transform="translate(0,15.500) scale(.86)"><path d="M-5,-5C-9,-5 -11,-1 -9.500,3C-8,1 -7,-1 -4.500,-1.500ZM5,-5C9,-5 11,-1 9.500,3C8,1 7,-1 4.500,-1.500Z" fill="${BONE2}" stroke-width=".8"/><path d="M-5.500,-4C-5.500,-8 5.500,-8 5.500,-4C6,0 4,3 3,5L2.200,11C1.500,13 -1.500,13 -2.200,11L-3,5C-4,3 -6,0 -5.500,-4Z" fill="${BONE}" stroke-width=".9"/><ellipse cx="-2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><ellipse cx="2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><path d="M-.9,7.500L0,5.500L.9,7.500L0,9.500Z" fill="${SOOT}" stroke="none"/></g>`)))
@@ -597,7 +603,7 @@ ${rich ? `<g transform="translate(9,1) rotate(160)">${tusk(7.5, BONE, 2)}</g><g 
 <div class="troll-hd"><div class="troll-look"><div class="troll-nod">${head(u)}${face(u)}${tears()}</div></div></div>
 ${leg(u)}${gnawed(u)}${pick(u)}${scratch(u)}${cup(u)}</div></div>`,
         front: (u) => `${hands(u)}${danglers(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, k: 11, c: 1.7, cord: { kind: 'rope', dark: '#17120e', light: ROPE, w: 2.2 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 38, by: BY + 2, k: 11, c: 1.7, cord: { kind: 'rope', dark: '#17120e', light: ROPE, w: 2.2 }, board, pips },
         life: liven,
       });
     },

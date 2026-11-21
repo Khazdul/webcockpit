@@ -247,20 +247,26 @@ ${F(nose + lips + cap)}</svg>`;
       + PR('orc-ban', u, -70, y - 44, `${fore(u, -38, E, -41, y + 28)}${ink2(`M-41,${RY + 4}L-45,${y - 33}`, 2, '#6b5237')}${ink2(`M-57,${y - 27}L-35,${y - 29.5}`, 1.6, '#6b5237')}<path d="M-56.500,${y - 26.5}L-36,${y - 28.500}L-35,${y + 1}L-40.500,${y - 4}L-45.500,${y + 3}L-51,${y - 3}L-56.500,${y + 2}Z" fill="${TAR}" stroke-width="1"/><path d="M-56.500,${y - 26.5}L-50,${y - 27}L-50.500,${y - 3.500}L-56.500,${y + 2}Z" fill="${HP(u)}" stroke="none"/><g transform="translate(-45.800,${y - 14}) scale(.7)">${rake('#d2382a', 3.4)}</g><g transform="translate(-45,${y - 34}) scale(.38)">${skull(u)}</g>${fist(-41, y + 27)}`, 'orc-pwl');
   };
 
-  // ---- the war basket: an iron-bound crate hung with two shields; eye-bolts underneath for the sign ----
+  // ---- the war basket: an iron-bound crate hung with two shields. It is deeper than it looks: the planks run on
+  // down to K.BD behind the sign (no floor is drawn); the sign's chains hang from eye-bolts on the lower iron band ----
   const basket = (u) => {
     const sh1 = `<g transform="translate(-14,${RY + 16})"><circle r="11" fill="#211d1c" stroke-width="1.100"/><circle r="11" fill="none" stroke="#6f767c" stroke-width="1.800"/><circle r="11.800" fill="none" stroke-width=".7"/><path d="M-11,0A11,11 0 0 0 -4,10.200L-3,7.500A8,8 0 0 1 -8,0Z" fill="${HP(u)}" stroke="none"/><g transform="scale(.62)">${rake('#c2301f', 3.6)}</g><path d="M4,-9l3,5l-2,2" fill="none" stroke-width=".7"/></g>`;
     const sh2 = `<g transform="translate(17,${RY + 15.5})"><circle r="10" fill="#6b5338" stroke-width="1.100"/><path d="M-9.500,-3H9.500M-9.500,3.500H9.500" fill="none" stroke-width=".5" opacity=".7"/><circle r="10" fill="none" stroke="#5a5f63" stroke-width="1.500"/><circle r="10.700" fill="none" stroke-width=".7"/><path d="M-10,0A10,10 0 0 0 -3.500,9.300L-2.500,7A7.500,7.500 0 0 1 -7.500,0Z" fill="${HP(u)}" stroke="none"/><circle r="3.400" fill="url(#orI${u})" stroke-width=".9"/><path d="M3,-8.500l2,6l-2.500,1M-7,4l4,2" fill="none" stroke-width=".9"/></g>`;
-    const strap = (s) => `<path d="M${s * 43},${RY + 2}L${s * 40.5},${BY - 1}H${s * 33.5}L${s * 35},${RY + 2}Z" fill="url(#orI${u})" stroke-width=".9"/><g fill="#b4babd" stroke-width=".4"><circle cx="${s * 39}" cy="${RY + 8}" r="1.100"/><circle cx="${s * 38}" cy="${RY + 16}" r="1.100"/><circle cx="${s * 37}" cy="${RY + 24}" r="1.100"/></g>`;
-    return S('rig-rim', -64, RY - 8, 128, BY - RY + 18, `${G(u, `
-<path d="M-51,${RY + 1}L-47,${BY - 1}H47L51,${RY + 1}Z" fill="url(#orW${u})" stroke-width="1.100"/>
-<path d="M-51,${RY + 1}L-47,${BY - 1}H-22L-25,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-51,${RY + 1}L-47,${BY - 1}H-36L-39,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+    const BD = K.BD, wx = (y) => 51 - 4 * (y - RY - 1) / 28;
+    let low = ''; for (let y = RY + 28.5; y < BD; y += 9) low += `M${n(-wx(y) + .5)},${y}H${n(wx(y) - .5)}`;
+    const strap = (s) => `<path d="M${s * 43},${RY + 2}L${s * n(wx(BD) - 4)},${BD}H${s * n(wx(BD) - 11)}L${s * 35},${RY + 2}Z" fill="url(#orI${u})" stroke-width=".9"/><g fill="#b4babd" stroke-width=".4"><circle cx="${s * 39}" cy="${RY + 8}" r="1.100"/><circle cx="${s * 38}" cy="${RY + 16}" r="1.100"/><circle cx="${s * 37}" cy="${RY + 24}" r="1.100"/></g>`;
+    const b = n(wx(BD));
+    return S('rig-rim', -64, RY - 8, 128, BD - RY + 8, `${G(u, `
+<path d="M-51,${RY + 1}L${-b},${BD}H${b}L51,${RY + 1}Z" fill="url(#orW${u})" stroke-width="1.100"/>
+<path d="M-51,${RY + 1}L${-b},${BD}H${n(-b + 22)}L-25,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-51,${RY + 1}L${-b},${BD}H${n(-b + 10)}L-39,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+<path d="${low}" fill="none" stroke-width=".8" opacity=".8"/>
 <path d="M-50,${RY + 10.5}H50M-48.500,${RY + 19.5}H48.500" fill="none" stroke-width=".8" opacity=".8"/><path d="M-28,${RY + 6}h9M2,${RY + 24}h12M26,${RY + 6.5}h8M-30,${RY + 23.5}h7" fill="none" stroke="#b79a6e" stroke-width=".7" opacity=".5"/>
 ${strap(-1)}${strap(1)}${sh1}${sh2}
 <path d="M-61,${RY}L-54,${RY - 2.5}V${RY + 3}ZM61,${RY}L54,${RY - 2.5}V${RY + 3}Z" fill="url(#orI${u})" stroke-width=".9"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="1.300" fill="url(#orI${u})" stroke-width="1.100"/><path d="M-51,${RY - 1.5}H51" fill="none" stroke="#e3e9ec" stroke-width=".8" opacity=".5"/><ellipse cx="30" cy="${RY + .5}" rx="9" ry="2" fill="#8a4a2a" opacity=".5" stroke="none"/>
 <g fill="#26292c" stroke-width=".4"><circle cx="-46" cy="${RY + .6}" r="1.100"/><circle cx="-23" cy="${RY + .6}" r="1.100"/><circle cx="0" cy="${RY + .6}" r="1.100"/><circle cx="23" cy="${RY + .6}" r="1.100"/><circle cx="46" cy="${RY + .6}" r="1.100"/></g>
-<path d="M-48,${BY - 4.5}H48V${BY - 1}H-48Z" fill="#3c4146" stroke-width=".8"/>`)}
+<path d="M${n(-wx(BY - 4) - 1)},${BY - 4}H${n(wx(BY - 4) + 1)}L${n(wx(BY + 3) + 1)},${BY + 3}H${n(-wx(BY + 3) - 1)}Z" fill="#3c4146" stroke-width=".9"/><path d="M-46,${BY - 2.5}H46" fill="none" stroke="#c9d0d4" stroke-width=".7" opacity=".45"/>
+<path d="M-47.500,${BY - 3}h7v5.500h-7ZM40.500,${BY - 3}h7v5.500h-7Z" fill="url(#orI${u})" stroke-width=".8"/>`)}
 <g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/></g>`);
   };
   // what hangs off the basket's corners and swings: a skull on a thong, a hook on a chain
@@ -561,7 +567,7 @@ ${lg('orW' + u, '#2a1e15', '#4a3828', '#6b5338')}${lg('orH' + u, '#e2d6b2', '#8a
         basket,
         behind: (u) => `<div class="orc-lift"><div class="orc-br"><div class="orc-look"><div class="orc-nod">${head(u)}${tears()}</div></div></div></div>${props(u)}`,
         front: (u) => `${hands(u)}${dangles(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
         life: liven,
       });
     },

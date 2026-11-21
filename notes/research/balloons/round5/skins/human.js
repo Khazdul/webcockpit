@@ -317,21 +317,22 @@ ${fist(38.5, HY + 29.5, 4.2)}`, 'human-garlw');
   // tears (death): two drops a cheek run slowly from the lid to the jaw, over a wet streak; they stay on her face
   const tears = () => `<div class="rig-a human-tears">${[[-8.5, 2.2, '4deg', 0], [3.5, 2.2, '-4deg', -2.5]].map(([x, yy, a, dl]) => `<div class="human-tear" style="left:${CX + x}px;top:${HY + yy}px;transform:rotate(${a})"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:8.5px;--dl:${dl - 2.9}s"></i></div>`).join('')}</div>`;
 
-  // ---- the car: honest wickerwork, a rope-bound rim, a round shield slung on it and a waterskin ----
+  // ---- the car: honest wickerwork, a rope-bound rim, a round shield slung on it and a waterskin; a bound lower band carries the sign's two rope loops ----
   const basket = (u) => {
-    const wv = `url(#huwv${u})`, body = `M-52,${RY + 1}L-47,${BY - 2}Q0,${BY + 2} 47,${BY - 2}L52,${RY + 1}Z`;
+    // the car is deeper than it looks: the wicker runs on down to K.BD behind the sign (no floor is drawn)
+    const BD = K.BD, wv = `url(#huwv${u})`, body = `M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z`;
     let st = '', tw = '', tb = '';
-    for (const x of [-42, -33, -24, -15, -6, 3, 12, 21, 30, 39]) st += `M${x},${RY + 3}L${n(x * .92)},${BY - 2}`;
+    for (const x of [-42, -33, -24, -15, -6, 3, 12, 21, 30, 39]) st += `M${x},${RY + 3}L${n(x * .885)},${BD}`;
     for (let x = -52; x <= 50; x += 4.2) tw += `M${n(x)},${RY + 3}l2.800,-5.600`;
-    for (let x = -46; x <= 44; x += 4.2) tb += `M${n(x)},${n(BY + .6 - (x / 47) ** 2 * 1.6)}l2.400,-4.600`;
+    for (let x = -46; x <= 44; x += 4.2) tb += `M${n(x)},${n(BY + 3.6 - (x / 47) ** 2 * 1.6)}l2.800,-5.600`;
     const sh = [-9, RY + 16.5];
     let arms = '';
     for (let i = 0; i < 4; i++) arms += `<path transform="rotate(${i * 90})" d="M0,0C1,-4 5,-6 8.500,-4.500C5,-4 3.500,-2 3,0Z" fill="#f1ead6" stroke-width=".6"/>`;
-    return S('rig-rim', -60, RY - 6, 120, BY - RY + 14, `${G(u, `
+    return S('rig-rim', -60, RY - 6, 120, BD - RY + 8, `${G(u, `
 <path d="${body}" fill="url(#huwk${u})" stroke-width="1.2"/><path d="${body}" fill="${wv}" stroke="none"/>
 <path d="${st}" fill="none" stroke-width=".7" opacity=".5"/>
-<path d="M-52,${RY + 1}L-47,${BY - 2}Q-34,${BY - .4} -24,${BY}L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-47,${BY - 2}Q-42,${BY - 1.2} -38,${BY - 1}L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
-<path d="M-48.500,${BY - 6.5}Q0,${BY - 2.5} 48.500,${BY - 6.5}L47,${BY - 1.5}Q0,${BY + 2.5} -47,${BY - 1.5}Z" fill="#7d5a32" stroke-width="1"/><path d="${tb}" fill="none" stroke-width=".6" opacity=".75"/>
+<path d="M-52,${RY + 1}L-46,${BD}H-22L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+<path d="M-50.200,${BY - 4}Q0,${BY} 50.200,${BY - 4}L49.600,${BY + 2.6}Q0,${BY + 6.6} -49.600,${BY + 2.6}Z" fill="#7d5a32" stroke-width="1"/><path d="${tb}" fill="none" stroke-width=".6" opacity=".75"/>
 <rect x="-54.500" y="${RY - 3.3}" width="109" height="7" rx="3.400" fill="#b08a52" stroke-width="1.2"/><path d="${tw}" fill="none" stroke-width=".65" opacity=".8"/><path d="M-51,${RY - 1.8}H50" fill="none" stroke="#ecd9a8" stroke-width=".9" opacity=".55" stroke-dasharray="2.600 1.600"/>
 <path d="M-54.500,${RY - 1}V${RY + 2}Q-54,${RY + 3.7} -51,${RY + 3.7}H-30V${RY - 3.3}H-51Q-54.500,${RY - 3.3} -54.500,${RY - 1}Z" fill="${HP(u)}" stroke="none"/>
 ${ink2(`M${sh[0] - 5},${RY + 3}L${sh[0] - 2},${sh[1] - 9}M${sh[0] + 7},${RY + 3}L${sh[0] + 3},${sh[1] - 9}`, 1.2, '#6a4526')}
@@ -637,7 +638,7 @@ ${lash(a)}${lash(b)}${lash(n(w / 2 - 22))}${lash(n(w / 2 + 22))}`);
         behind: (u) => `${spear(u)}
 <div class="human-lift"><div class="human-br">${body(u)}<div class="human-nw"><div class="human-look"><div class="human-nod">${head(u)}${tears()}</div></div></div>${plait(u)}${props(u)}</div></div>`,
         front: (u) => `${hands(u)}${waterskin(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, k: 12, c: 1.8, cord: { kind: 'rope', dark: '#2a1d12', light: '#c9b07c', w: 1.5 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12, c: 1.8, cord: { kind: 'rope', dark: '#2a1d12', light: '#c9b07c', w: 1.5 }, board, pips },
         life: liven,
       });
     },
