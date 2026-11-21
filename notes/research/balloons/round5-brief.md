@@ -117,17 +117,16 @@ artifact noted in `progress.md`).
 8. **Keep from round 4:** the sign hung on two ropes or chains from
    fixed points on the basket and redrawn each frame; the living face;
    3 seconds at the readable spot.
-9. **One drawing style for all eight**, so they read as one family.
-   The dwarf's tinted engraving is the candidate, since it is the one
-   the owner praised (see the open questions).
+9. **One drawing style for all eight:** the dwarf's tinted engraving
+   (decided, see the answers below).
 
 ## The owner's answers (2026-11-21)
 
 1. **The goblin stays**, as the Tarkhnarb orc's passenger. The Zaugurz
    orc gets the orc.
-2. **Style** (one drawing manner for all, or several): he asked what
-   was meant. Explained in the session; no answer yet. Proposed: the
-   dwarf's tinted engraving for all eight.
+2. **Style:** the dwarf's tinted engraving for all eight (wobbly pen
+   line, hatched shadows, muted tints, paper grain). Not the flat
+   storybook manner of round 4 skin 3.
 3. **A sign per people**, matching its character. As craft he likes the
    signs of round 4 skins 1, 2 and 5 best (the plank on two ropes from
    a spreader bar, the banner laced to a pole, the hobbit's board on
@@ -138,7 +137,7 @@ artifact noted in `progress.md`).
    (330 px, so about 363 px). To gain room, the whole drawing may be
    scaled down by 10 to 20 % instead.
 
-Still open: the style (2), and the passenger for an unknown race.
+Still open: the passenger for an unknown race (assumed: the goblin).
 
 ## How to work in round 5
 
