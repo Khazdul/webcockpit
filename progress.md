@@ -141,10 +141,20 @@ with no stage of their own. Remove a line when it is done.
   the chest; on death he weeps, tears running the whole time.
   Second pass: the gem arm moves half as much on superb; the tears are
   paler, more see-through and run at half the speed.
-- **Next:** the owner's word on those four; then the other seven
-  passengers, one subagent each, built on `rig.js`.
-- **Open:** four kills joined and achievement are 391 and 380 px tall
-  (limit 363); the visible flame is short (24 px between pot and mouth);
+- **The dwarf approved ("kör på"); the seven others drawn**, one
+  subagent each on `rig.js` (which first got a height fit: every sign
+  ends at or above 363 px): `skins/elf.js`, `human.js`, `hobbit.js`,
+  `troll.js`, `goblin.js`, `orc.js`, `numenorean.js`. All eight run
+  without page errors or rig warnings; flights traced in Chromium and
+  Firefox without long frames. Looked at as night sheets only by the
+  main session.
+- **Next:** the owner's verdict on the seven (artifact, or
+  `round5/local.html`); then the build session (brief, "For the build
+  session afterwards").
+- **Open:** on a tightened sign (four kills, achievement) the text sits
+  tight against the frame in several skins; skin-local copies of the
+  rig's filter (elf, human, hobbit) should move into `rig.js`; the
+  hobbit's rocket burst is borderline against rule 4; the visible flame is short (24 px between pot and mouth);
   the beard hides the breastplate; overcast and reduced motion not looked
   at; the pipe's smoke rings on good are borderline against rule 4.
 - **Commits:** this one.
