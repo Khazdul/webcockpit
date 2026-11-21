@@ -23,8 +23,8 @@ interface Face {
 
 /** The mockup's family name → ours. Longest first (the SC name contains the plain one). */
 const FAMILIES: ReadonlyArray<readonly [RegExp, string]> = [
-  [/"IM Fell English SC"/g, '"WCB Fell SC"'],
-  [/"IM Fell English"/g, '"WCB Fell"'],
+  [/"IM Fell English SC"/g, '"WCB Engraved SC"'],
+  [/"IM Fell English"/g, '"WCB Engraved"'],
   [/"Cormorant Garamond"/g, '"WCB Cormorant"'],
   [/(^|[\s,:])Cinzel(?=[\s,;])/g, '$1"WCB Cinzel"'],
 ];
@@ -37,9 +37,9 @@ export const FACES: readonly Face[] = [
   { family: 'WCB Cormorant', file: 'CormorantGaramond-MediumItalic-latin.woff2', weight: '500', style: 'italic' },
   { family: 'WCB Cormorant', file: 'CormorantGaramond-SemiBold-latin.woff2', weight: '600' },
   { family: 'WCB Cormorant', file: 'CormorantGaramond-SemiBoldItalic-latin.woff2', weight: '600', style: 'italic' },
-  { family: 'WCB Fell', file: 'IMFellEnglish-Regular-latin.woff2', weight: '400' },
-  { family: 'WCB Fell', file: 'IMFellEnglish-Italic-latin.woff2', weight: '400', style: 'italic' },
-  { family: 'WCB Fell SC', file: 'IMFellEnglishSC-Regular-latin.woff2', weight: '400' },
+  { family: 'WCB Engraved', file: 'WCBEngraved-Roman-latin.woff2', weight: '400' },
+  { family: 'WCB Engraved', file: 'WCBEngraved-Italic-latin.woff2', weight: '400', style: 'italic' },
+  { family: 'WCB Engraved SC', file: 'WCBEngravedSC-Regular-latin.woff2', weight: '400' },
 ];
 
 /** The CSS text with the mockup's family names replaced by the bundled faces' (rig.ts inserts it). */

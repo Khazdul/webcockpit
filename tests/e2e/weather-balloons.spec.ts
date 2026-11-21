@@ -189,7 +189,7 @@ test('round 2: desktop only: the phone layout never loads the balloons, and #wea
   await expect(rows(page).filter({ hasText: 'Balloons are desktop only' })).toHaveCount(1);
   // Nothing of them, and their chunk never fetched.
   await expect(layers(page)).toHaveCount(0);
-  expect(await page.evaluate(() => performance.getEntriesByType('resource').some((r) => /balloons\/(notices|balloons|flight|rig|passengers)|IMFell|Cinzel-Medium|SemiBold/.test(r.name)))).toBe(false);
+  expect(await page.evaluate(() => performance.getEntriesByType('resource').some((r) => /balloons\/(notices|balloons|flight|rig|passengers)|WCBEngraved|Cinzel-Medium|SemiBold/.test(r.name)))).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -334,7 +334,7 @@ test('stage 75: Balloons off loads nothing of them: no rig, no passenger chunk, 
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
   await page.waitForTimeout(1500);
   await expect(layers(page)).toHaveCount(0);
-  const fetched = await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /balloons\/(notices|balloons|rig|passengers|fonts)|IMFell|Cinzel-Medium|CormorantGaramond-SemiBold/.test(n)));
+  const fetched = await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /balloons\/(notices|balloons|rig|passengers|fonts)|WCBEngraved|Cinzel-Medium|CormorantGaramond-SemiBold/.test(n)));
   expect(fetched).toEqual([]);
   expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('WCB')))).toBe(false);
   // switched on and off again: the faces leave the document with the balloons
