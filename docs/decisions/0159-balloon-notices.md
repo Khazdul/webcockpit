@@ -216,3 +216,144 @@ the cap's hurry and "Later" for level up, achievements and death.
   `passenger-achievement.webp` (same canvas and placement); a missing one
   falls back levelup → superb, achievement → great, death → poor, then
   calibrating (`MOOD_FALLBACK`).
+
+## Addendum: round 3, the passengers (stage 75, 2026-11-21)
+
+The owner approved the round 5 mockup (`notes/research/balloons/round5/`):
+eight passengers on one shared rig, chosen by the player's race. This
+addendum covers the port and the dwarf, the first passenger built (the
+proof); the other seven follow on the same seam. It supersedes the
+"Decision" parts above on the skin seam, the default skin, the readable
+time and the sign; the section "Image skins" is retired with the removals
+(stage 75 part D).
+
+- **The CSP check.** The production policy (`public/_headers`, enforced
+  on staging and production) allows what the mockup does: inline
+  `<style>` and `style=""` (`style-src 'unsafe-inline'`), `data:` images,
+  and SVG filters, clips and patterns by `url(#id)` (same document). It
+  refuses Google Fonts (`font-src 'self'`). The production CSP walk
+  (`tests/e2e-prod/csp.spec.ts`, `WC_PROD_CSP=enforce`) now flies a dwarf
+  with a kill and an achievement: no violation in Chromium or Firefox.
+- **Fonts.** The signs' faces are bundled: Cinzel 500 (new) and 700,
+  Cormorant Garamond 500 upright and italic (existing files), 600 upright
+  and italic (new), IM Fell English roman and italic and IM Fell English
+  SC (new): Google Fonts' own Latin subsets, from `@fontsource/*@5.3.0`,
+  unmodified (`public/fonts/README.md` "Balloon sign faces"). They are
+  added with `FontFace` (`balloons/fonts.ts`) only while the balloons run
+  (never at the app's start, never with Balloons off; taken out of
+  `document.fonts` again on destroy), under family names of their own
+  (`WCB …`) so the app's one-weight Cinzel and Cormorant rules gain
+  nothing; the ported CSS keeps the mockup's family names and
+  `signFonts()` rewrites them as the style is inserted. A sign is made
+  once the faces have loaded (at most 2.5 s; the rig fits it again when a
+  face arrives later), so the height fit measures the real face. The new
+  files are 237 kB (the three IM Fell files 175 kB of it), fetched once.
+  **Open point before release** (owner: keep the files for now): IM Fell
+  English declares Reserved Font Names ("IM FELL English Roman",
+  "… Italic", "… SC"; google/fonts `METADATA.pb`, © 2007/2010 Igino
+  Marini); the files are Google's subsets under those names, used
+  unmodified. Whether such a subset is a Modified Version under OFL §3 is
+  to be settled. Cinzel and Cormorant Garamond declare none.
+- **The porting form.** `balloons/rig.ts` is `rig.js` as TypeScript:
+  same geometry, markup, CSS values and timings; `passengers/dwarf.ts` is
+  `skins/dwarf.js` likewise (a word diff shows only types). No harness:
+  `createRig(ctx, spec).make(sign)` returns a `BalloonSkin` for the
+  product's flight. CSS stays as the mockup's strings (the dwarf's is
+  generated from its pose tables): one `<style data-wc-rig>` per id and
+  document, reference-counted, removed with the last rig. The rig sits in
+  an absolutely positioned wrapper (`.wc-balloon`; the rig's own
+  `position: relative` is kept). Game strings only through
+  `textContent`; the markup strings are the code's own.
+- **The sign's 85 %.** CSS `zoom` on the inner element where
+  `CSS.supports('zoom', '0.85')` (Chromium, Safari, Firefox 126+); else
+  `transform: scale(.85)` from the top left, the sign's box set to the
+  scaled height, so the measurement and the height fit come out the same.
+- **The seam.** `SkinPose.burn` (0..1); the size is the rig's, 204 × 363
+  (`RIG_SIZE`, `K.W`, `K.MAXH`); a skin is made with its first sign
+  (`SkinFactory(doc, { sign })`); an optional `rest()`. The flight's tilt
+  is the rig's lean, its swing the car's (hinged at the mouth; the sign
+  lags it on its own spring), and glide and drift are the rig's `leave`.
+  The swing's lazy term is now the mockup's 1.2° at 1.6 rad/s (the old
+  2.5° at 2.1 moved only the plank).
+- **The burner** (`flight.ts`, the mockup's `fly()`). `burnTarget(p, t)`
+  reads the planned path `BURN_LEAD` 0.65 s ahead: the climb over 90 px/s
+  while it arrives (full while it rises, falling before it slows), the
+  pilot flame (0.1) while readable, a blast from 1 s before the leave to
+  0.9 s after it (up in 0.18 s, then 45 % down), and from then on the
+  climb over 34 px/s in long uneven pulls (0.78–1 at 2.1 rad/s): a
+  balloon still climbing in its glide or drift keeps burning, one that
+  drifts level or sinks shows the pilot flame. `burnStep` follows it (time
+  constants 0.11 s up, 0.32 s down), from 1 at the launch, per balloon in
+  `balloons.ts`. Reduced motion: a steady 0.15. Unit tested: the burner
+  leads the planned climb on arrival and roars about a second before the
+  leave while the balloon is still at rest.
+- **Readable time.** `READ_S` 3 s (+0–0.6 s), `READ_EXTEND` 0.7 s per
+  joined kill (the mockup's), cap `READ_MAX` 5 s (9 · 3 / 5.5).
+- **The lane and the panes with the larger rig.** Unchanged rules; the
+  unit tests run at 204 × 363: on 1920 × 1080 the lane is x 1075–1912
+  (needs 255 px), the readable spot 1177–1304, over the game pane.
+- **Reduced motion.** The flight holds the balloon at its readable spot
+  (fade in, read, fade out); the rig is its still form (`rig-rm rig-at
+  rig-still`, the rest pose, no life, no animation).
+- **The sign's text** (owner, 2026-11-21: approved). As the mockup writes
+  it: the XP in full ("12,400", lower-case "xp"), joined names as the game
+  gave them, " · " between (the rig cuts a long line with an ellipsis).
+- **Lazy chunks** (`npx vite build`, gzip): the balloons' own code
+  4.9 kB (`notices-*.js`; `balloons.ts`, `flight.ts`, `feed.ts`,
+  `fonts.ts`) and the rig 9.3 kB (`rig-*.js`, its own chunk because every
+  passenger imports it; it loads with the balloons), plus 0.2 kB of CSS;
+  the dwarf 19.8 kB (`dwarf-*.js`, 63.8 kB raw), fetched by a dynamic
+  `import()` when the balloons start (the player's passenger) or when a
+  notice needs another. `passenger.ts` maps every id to the dwarf until
+  the others are ported (marked TEMPORARY there).
+- **Choosing the passenger** (`passenger.ts`, unit tested): whole words,
+  case-insensitive, diacritics folded, over race and subrace together;
+  `numenor…`/`black` → numenorean (before "man"), `elf(ves)` → elf,
+  `dwarf(ves)` → dwarf, `hobbit(s)`, `troll(s)`, `beorn…` → human,
+  `orc(s)` with `zaug…` → orc, other `orc(s)` → goblin, `man`/`men`/`human`
+  → human, else the goblin. Read per balloon from `Char.StatusVars`
+  (`controller.ts`), so a new login needs no reload. The sky behind
+  (`data-sky`: the glow's strength, the night's pen halo) is read per
+  balloon too: night after dark, overcast under clouds, rain or snow,
+  dusk in the day's first and last tenth, else day (`skyModeOf`).
+- **Commands.** `#weather balloon as <passenger> [what]` flies that
+  passenger (dwarf, elf, human, hobbit, troll, goblin, orc, numenorean);
+  `#weather balloon race` says the race and subrace the client holds and
+  the passenger they give (and that it flies as the dwarf until drawn).
+  In `WEATHER_USAGE` and the `#weather` hint (`src/script/commands.ts`).
+- **The look check.** The mockup's sheet (`local.html#dwarf`) and the
+  product's rig at scale 1, both in their still form (reduced motion: no
+  life, no animation), on one plain background, 2× device pixels, for the
+  eleven notices (seven kill moods, four joined, level up, death,
+  achievement) at night and by day: the signs' heights are the same to the
+  pixel (364, 366, 346, 347), and after aligning (0 or 1 device px) 0.16–
+  0.49 % of the pixels differ by more than 8/255. What differs: text at a
+  sub-pixel offset (the mockup's sheet centres its cells at fractional
+  x), and the lantern's and the anvil's dangle, which follows the clock.
+  Once (by day) the mockup itself fitted the achievement a step smaller
+  than on another run (its fit ran before the faces had loaded); the
+  product's fit waits for the faces and did not vary.
+- **Life and cost** (the `#perf` overlay and an rAF meter beside it, the
+  game at 1920 × 1080 in `?replay`, the weather on; one balloon, or five
+  dwarves launched 0.4 s apart; mean fps over arrive + read, the first
+  12 s of the leave, and the drift after it):
+  - Chromium (headless): 60 / 60 / 60 with five, with or without `rest()`.
+  - Firefox, software WebRender (headless): the weather alone 60; the old
+    goblin 60 (one) and 60 / 53 / 55 (five); the dwarf **45 / 55 / 60**
+    with one, 34–48 / 40–55 / 45–60 with five (runs vary). Without
+    `rest()` the drift was 60 too, so `rest()` buys nothing measurable
+    there; it stays for the timers and the per-frame work it saves.
+  - The cause, by elimination (one dwarf): not the SVG filters (all off:
+    45), not the clip paths, not `will-change` on the parts or the
+    wrapper, not sub-pixel or 3D translation (rounded, 2D: 45), not the
+    flame, the sign, the ropes or the life. The balloon still costs
+    nothing while it does not move (60), nor moving with its parts
+    unrotated (59). Any rotation of the envelope or the car inside a
+    moving balloon, even a fixed 1°, brings it to 45: software WebRender
+    redraws rotated content of a moving element every frame. The drift's
+    changing scale is not the problem (60 after the leave).
+  - Not fixed: the lean and the car's swing are the approved look. The
+    owner plays with hardware WebRender (ADR 0135), where this case did
+    not show in stage 50's measurements; a headed run here gave no clean
+    number (the window ran at 29 fps with no balloon too). Open for the
+    main session (below).

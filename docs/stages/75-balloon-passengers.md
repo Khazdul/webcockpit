@@ -6,7 +6,7 @@ design rounds later the look is approved: eight passengers on one shared
 rig, chosen by the race the player plays. This stage builds that look into
 the application.
 
-**Status: paused (2026-11-21) partway through the dwarf proof; see the task list.** The design was approved by the owner
+**Status: building. The dwarf flies in the product (the proof); the other seven passengers and the removals are next.** The design was approved by the owner
 on 2026-11-21 ("Godkänt, bygg så").
 
 ## What is approved (the source to build from)
@@ -60,6 +60,14 @@ it, do not link it.
 5. **The rig as approved:** signs at 85 %, hung on long cords from just
    under the rim; the car runs down behind the sign; the flame leads the
    motion; 3 s at the readable spot; the whole rig at most 363 px tall.
+
+6. **The sign's text** (2026-11-21, approved): as the mockup writes it,
+   "1,900 xp", the joined names as the game gives them with " · " between.
+7. **A joined kill** adds 0.7 s readable (the mockup's; main session),
+   capped at 5 s.
+8. **Fonts:** keep the bundled IM Fell English files for now; its Reserved
+   Font Names are an open point before release (ADR 0159 round 3,
+   `public/fonts/README.md`).
 
 ## Plan
 
@@ -148,41 +156,28 @@ if it grows past an addendum).
       techniques; decide the porting form. (Inline `<style>`, `style=""`,
       `data:` and `url(#id)` filters pass; Google Fonts do not: the faces are
       bundled, `src/weather/balloons/fonts.ts`, `public/fonts/README.md`.)
-- [~] A: `SkinPose.burn`, the size, `READ_S`, the leading burner in
-      `flight.ts`; lane and pane rules with the larger rig. Partly: all
-      built (`burnTarget`/`burnStep`, READ_S 3 / READ_MAX 5, RIG_SIZE
-      204 × 363, the swing's lazy term the mockup's 1.2° at 1.6 rad/s);
-      existing lane/pane unit tests pass at 204 × 363. Missing: unit tests
-      for `burn` (leads the climb on arrival, blast before the leave).
+- [x] A: `SkinPose.burn`, the size, `READ_S`, the leading burner in
+      `flight.ts`; lane and pane rules with the larger rig (unit tested).
 - [~] B: `rig.ts`; the dwarf first as the proof (flight, sign, cost);
-      then the other seven, one subagent each. Partly: `rig.ts` and
-      `passengers/dwarf.ts` ported (typecheck clean; a word diff against
-      the mockup shows only types), wired as the default in `balloons.ts`
-      (async load queue, fonts, burn per balloon, `rest()`). Never run in a
-      browser yet; no look check, no screenshots.
-- [~] B: lazy chunk per passenger; sizes measured. Partly: dynamic
-      `import()` per passenger in `passenger.ts` (all ids → dwarf,
-      marked TEMPORARY); gzip sizes not measured.
+      then the other seven, one subagent each. The rig and the dwarf done
+      and checked against the mockup (ADR 0159 round 3); the seven to do.
+- [x] B: lazy chunk per passenger; sizes measured (rig 9.3 kB, dwarf
+      19.8 kB gzip).
 - [x] B: the sign's 85 % decided: `zoom` where `CSS.supports`, else
       `transform: scale(.85)` with the measure scaled (`rig.ts` fit).
 - [~] B: life stops and filters ease once a balloon is far away;
-      `#perf` in Chromium and Firefox. Partly: `rest()` (life stopped,
-      animations paused, no per-frame writes) at `REST_AFTER` in
-      `balloons.ts`; no measurement yet, the filter cost under the
-      drifting scale not examined.
-- [~] C: `passenger.ts`, the race read per balloon, `#weather balloon
-      as …` and `#weather balloon race`. Partly: `passengerOf` written (no
-      unit tests yet); `BalloonsHost.passenger`/`sky` and `show(n, {
-      passenger })` exist, but `controller.ts` does not pass the race
-      (`game.char.statusVars` race/subrace) or the sky yet, and the two
-      commands are not in `demo-script.ts`/`demo.ts` or the manual.
+      `#perf` in Chromium and Firefox. `rest()` built and measured; Firefox
+      software WebRender drops to ~45 fps while a dwarf arrives (rotated
+      parts in a moving element, not the filters): open, see the ADR.
+- [x] C: `passenger.ts`, the race read per balloon, `#weather balloon
+      as …` and `#weather balloon race` (in the usage and the `#weather`
+      hint).
 - [ ] D: the removals.
-- [~] E: unit tests and e2e. Partly: unit suite green (old tests
-      updated to 204 × 363, READ_S, the mockup's sign text: "1,900 xp",
-      " · "). `tests/e2e/weather-balloons.spec.ts` NOT updated: it still
-      expects the old plank (`.wc-bsign-*`, "+3.7kXP") and will fail now
-      that the rig is the default. CSP walk step not added.
-- [ ] ADR 0159 addendum (or a new ADR).
+- [~] E: unit tests and e2e. Done for the dwarf (unit, the balloon
+      e2e in both browsers, the production CSP walk enforced); the seven
+      passengers' e2e with them.
+- [~] ADR 0159 addendum (or a new ADR). Round 3 written for the dwarf;
+      the seven passengers and the removals to add.
 - [ ] Review (`/code-review`), fixes, full e2e alone on the machine.
 - [ ] F: staging, the test guide filled in, handed to the owner.
 

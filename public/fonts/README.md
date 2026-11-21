@@ -116,6 +116,16 @@ are reused; these are added:
 | `IMFellEnglish-Italic-latin.woff2` | IM Fell English (Google Fonts), Italic, Latin subset | `files/im-fell-english-latin-400-italic.woff2` from npm `@fontsource/im-fell-english@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2007, 2010 Igino Marini, Reserved Font Name "IM FELL English Italic" (`LICENSE-IMFellEnglish.txt`) |
 | `IMFellEnglishSC-Regular-latin.woff2` | IM Fell English SC (Google Fonts), Latin subset | `files/im-fell-english-sc-latin-400-normal.woff2` from npm `@fontsource/im-fell-english-sc@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2007, 2010 Igino Marini, Reserved Font Name "IM FELL English SC" (`LICENSE-IMFellEnglish.txt`; `ofl/imfellenglishsc/OFL.txt` is the same text) |
 
+**Open point before release (owner, 2026-11-21: keep the files for now).**
+IM Fell English declares Reserved Font Names ("IM FELL English Roman",
+"IM FELL English Italic", "IM FELL English SC"; google/fonts
+`METADATA.pb`). Google's Latin subsets are distributed under those names
+(by Google and by Fontsource), and they are used here unmodified, as the
+other faces above are; whether a subset counts as a Modified Version under
+OFL 1.1 §3 (which may not keep a Reserved Font Name) is to be settled
+before release. Cinzel has no Reserved Font Name; Cormorant Garamond's
+licence names none either.
+
 The files are Google Fonts' own Latin subsets (what the mockup loaded
 from Google), so the signs measure and look as approved. The IM Fell
 files are the largest (about 57 kB each); only the rating word, the
