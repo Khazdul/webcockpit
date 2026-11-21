@@ -334,9 +334,10 @@ ${Z('dwarf-glint', -49, gy - 5, SL('', 0, 0, 14, 14, '<path d="M7,0L8.200,5.800L
     return { lampArt, axe, pipe, seal, anvil };
   })();
 
-  // ---- the ore bucket: oak staves, two iron hoops, an iron rim, eye-bolts on the third hoop for the sign's chains ----
+  // ---- the ore bucket: oak staves, two iron hoops, an iron rim, eye-bolts under the rim for the sign's chains ----
   const basket = (u) => {
     // the bucket is deeper than it looks: the staves run on down to K.BD behind the sign (no floor is drawn)
+    const LX = n(HX * K.SS), LY = RY + K.CY;   // the two eye-bolts for the sign's chains, on plates just under the rim
     const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), y1 = RY + 8, y2 = RY + 18.5, y3 = RY + 27.5; let st = '', rv = '';
     for (const x of [-39, -26, -13, 0, 13, 26, 39]) st += `M${x},${RY + 3}L${n(x * .885)},${BD}`;
     for (const x of [-36, -18, 0, 18, 36]) rv += `<circle cx="${x}" cy="${n(y1 + 4.3 - (x / 36) ** 2 * 1.6)}" r="1.100"/><circle cx="${n(x * .95)}" cy="${n(y2 + 4.3 - (x / 36) ** 2 * 1.6)}" r="1.100"/>`;
@@ -351,8 +352,8 @@ ${ink2(`M-42,${RY + 9}L-19,${RY + 26}`, 1.8, '#9a744a')}${ink2(`M-49,${RY + 17}Q
 <g fill="none"><ellipse cx="29" cy="${RY + 17}" rx="6.500" ry="7.200" stroke-width="3.400"/><ellipse cx="29" cy="${RY + 17}" rx="6.500" ry="7.200" stroke="#bda26b" stroke-width="2"/><ellipse cx="29" cy="${RY + 17}" rx="3.200" ry="3.900" stroke-width="2.800"/><ellipse cx="29" cy="${RY + 17}" rx="3.200" ry="3.900" stroke="#a88d58" stroke-width="1.500"/></g>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="2.300" fill="url(#dwi${u})" stroke-width="1.1"/><path d="M-51,${RY - 1.5}H51" fill="none" stroke="#e3e9ec" stroke-width=".8" opacity=".55"/>
 <g fill="#30353a" stroke-width=".4"><circle cx="-45" cy="${RY + .8}" r="1.100"/><circle cx="-22" cy="${RY + .8}" r="1.100"/><circle cx="22" cy="${RY + .8}" r="1.100"/><circle cx="45" cy="${RY + .8}" r="1.100"/></g>
-<path d="M-48,${BY - 2.5}h8v5h-8ZM40,${BY - 2.5}h8v5h-8Z" fill="#70787e" stroke-width=".8"/>`)}
-<g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/></g>`);
+<path d="M${-LX - 4},${RY + 6}h8v6.500h-8ZM${LX - 4},${RY + 6}h8v6.500h-8Z" fill="#70787e" stroke-width=".8"/><g fill="#c9d0d4" stroke-width=".4"><circle cx="${-LX}" cy="${RY + 7.5}" r=".9"/><circle cx="${LX}" cy="${RY + 7.5}" r=".9"/></g>`)}
+<g fill="none">${[-LX, LX].map((x) => `<circle cx="${x}" cy="${LY}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${LY}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/>`).join('')}</g>`);
   };
 
   // ---- the burner: an iron forge-pot of coals hung on chains under the mouth ----
@@ -508,7 +509,7 @@ ${band(g, u, .5, .59, '#d9b24c')}${lattice(g, .512, .578, 14, '#3a2a18', 1)}${ba
     pvp: ['#2b2727', '#6a6260', '#171314', '#ff7a45'], levelup: ['#b08a45', '#f6e2a6', '#2b2038', '#fff0bd'],
     death: ['#1d1a17', '#5b554c', '#1b1d20', '#6a6358'], achievement: ['#c9a04b', '#fff0b8', '#1f4534', '#fff0bd'],
   };
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx: HX, mood, u }) => {
     const [edge, hi, face, riv] = PLATE[mood] || PLATE.meh, poor = mood === 'poor', rich = mood === 'superb';
     const lug = (x) => `<path d="M${x - 4},6.500V-2Q${x},-5 ${x + 4},-2V6.500Z" fill="${edge}" stroke-width="1"/><circle cx="${x}" cy="3.300" r="1.300" fill="${riv}" stroke-width=".5"/><circle cx="${x}" cy="-2.200" r="1.500" fill="#170f0a" stroke-width=".6"/>`;
     const rv = [[3.8, 3.8], [w - 3.8, 3.8], [3.8, h - 3.8], [w - 3.8, h - 3.8], [w / 2, 3.6], [w / 2, h - 3.6]].filter((_, i) => !(poor && i === 1))
@@ -640,7 +641,7 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
 <div class="dwarf-lift"><div class="dwarf-br"><div class="dwarf-look"><div class="dwarf-nod">${head(u)}${braids(u)}<div class="dwarf-pipew">${OLD.pipe(u)}<div class="rig-z dwarf-ring"><i></i><i></i></div></div>${hold(u)}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}<div class="dwarf-old">${OLD.seal(u)}<div class="rig-z dwarf-lan"><div class="dwarf-lgl"></div>${OLD.lampArt()}</div>${OLD.anvil(u)}</div>`,
-        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
+        sign: { w: SW, hx: HX, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
         life: liven,
       });
     },

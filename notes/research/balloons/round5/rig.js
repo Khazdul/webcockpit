@@ -21,12 +21,17 @@
 //                x -40..40, y HG..FY+16.
 //   RY 248       the basket's rim (half-width RIM 52). Ropes land on the rim
 //                at x = +-R1 (51) and +-R2 (45).
-//   BY 277       the lowest VISIBLE part of the car (the old basket bottom).
-//   SY 289       the sign's top edge.
-//   BD 322       the car's hidden bottom. The car is deeper than it looks:
+//   SY 300       the sign's top edge. The sign is shown at SS (0.85): the rig
+//                zooms it, so a skin writes its sign (width, board art,
+//                paddings, type) at full size and it comes out 15 % smaller.
+//   BY 277       no longer the car's bottom: just a y on the visible wall.
+//   BD 326       the car's hidden bottom. The car is deeper than it looks:
 //                its walls run straight on down to BD, behind the sign, so
 //                the passenger plausibly fits and no floor is ever seen.
-//                The sign (a later layer, at least 49 px tall) covers it.
+//                The sign (a later layer, at least 40 px tall) covers it.
+//   RY + CY      (255) where the sign's two cords are fixed to the car: just
+//                under the rim, at x = -+ sign.hx * SS, so the cords run
+//                straight down in front of the car's wall to the sign.
 //   MAXH 363     the whole rig with a three-line kill sign must fit in this.
 // The passenger must stay below y = FY + 20 in every pose and may never
 // cover x -16..16 above that line (the burner and the flame are there).
@@ -90,16 +95,17 @@
 //   behind(u)   html markup of the passenger and props BEHIND the basket rim.
 //   front(u)    html markup IN FRONT of the basket (hands on the rim, things
 //               hung on it).
-//   sign        { w, hx, bx, by, cord, k, c, below, board({ w, h, mood, kind, u }),
+//   sign        { w, hx, cord, k, c, below, board({ w, h, hx, mood, kind, u }),
 //                 pips(mood, notice) }
-//               w: the sign's width. hx / bx: half the distance between the
-//               two hanging points on the sign / on the car. by: the y of
-//               the car's two hanging points (default BY + 2); they must be
-//               drawn fixings on the car's visible wall, y about BY - 2..BY + 3.
+//               w: the sign's width and hx: half the distance between its
+//               two hanging points, both at FULL size (the rig shows the
+//               sign at K.SS). The cords start on the car at
+//               (-+ hx * K.SS, RY + K.CY); bx / by override that, rarely
+//               needed.
 //               k, c: spring stiffness and damping (lower k = heavier, later).
 //               board() returns svg markup for a board of exactly w x h (the
 //               text has been measured), drawn 0,0..w,h; the cords end at
-//               (w/2 -+ hx, -2). pips() returns a small trusted <svg> for the
+//               (w/2 -+ hx, -2) in the board's own px. pips() returns a small trusted <svg> for the
 //               rating row. The rig fills the text (textContent only) into
 //               .rig-tag .rig-title .rig-fig(.rig-unit) .rig-rate(.rig-word |
 //               .rig-q) .rig-more inside .rig-text; style them under
@@ -115,13 +121,15 @@
 // rig sees to it: after the text is filled it measures the sign, and if the
 // sign would end below MAXH it tightens the text in two steps (classes
 // rig-fit1, then rig-fit2 on the sign: smaller title and figure, tighter
-// leading; a long achievement text goes to 12 px and is clamped to four
+// leading; a long achievement text goes smaller and is clamped to four
 // lines with an ellipsis), and as a last resort hangs the sign up to 5 px
-// higher on shorter cords. The joined names (.rig-more) are
-// always one line with an ellipsis. A normal three-line kill is never
-// touched as long as the skin's sign is at most 73 px tall for it, so keep
+// higher. The joined names (.rig-more) are always one line with an
+// ellipsis. A normal three-line kill is never touched as long as the skin's
+// sign is at most 73 px tall for it at full size (62 px as shown), so keep
 // the skin's vertical padding at about 8 px. If a sign still does not fit,
 // the rig says so with console.warn; fix the skin's sign css then.
+// Type as shown (full size x 0.85): title 12.8, figure 21.3, unit 11.9,
+// rating word 10.6, joined names 10.2, tag 10.2 px.
 //
 // WRITING A NEW PASSENGER: THE CHECKLIST
 //   1. Do not edit rig.js or harness.js. Everything of yours goes in
@@ -151,20 +159,21 @@
 //      effects floating round the passenger; things held or done are fine.
 //   8. Game strings never touch your code: the rig fills the sign with
 //      textContent. Your board() and pips() return your own trusted svg.
-//   9. THE DEEP CAR. Draw the car's walls from the rim straight (or with
-//      the same gentle taper) down to K.BD, not to a floor at K.BY: no bottom
-//      edge, no underside, no feet. Continue the wall's own texture (weave,
-//      staves, planks, hatching) all the way down; it is hidden by the sign
-//      but shows for a moment at the sign's edges when the sign swings.
-//      Keep the wall at K.SY narrower than the sign by 12 px or more a side.
-//      End the VISIBLE part with something deliberate just above the sign
-//      (a lower band, hoop or rail at about y BY - 4..BY + 3) and fix the
-//      sign's two cords to it: lugs, eye-bolts or cleats drawn on the wall's
-//      front at (-bx, by) and (bx, by), with sign: { bx, by } to match (the
-//      dwarf: bx 44, by BY + 1). Nothing may dangle under the car any more:
-//      what hung there moves to the car's sides (hooks on the rim) or onto
-//      the wall above y K.SY - 4. A skin that still draws a floor at K.BY
-//      and passes no `by` renders exactly as before.
+//   9. THE DEEP CAR AND THE HUNG SIGN. Draw the car's walls from the rim
+//      straight (or with the same gentle taper) down to K.BD, not to a floor:
+//      no bottom edge, no underside, no feet. Continue the wall's own
+//      texture all the way down; it is hidden by the sign but shows for a
+//      moment at the sign's edges when the sign swings. Keep the wall at
+//      K.SY at least 8 px a side narrower than the sign AS SHOWN
+//      (sign.w * K.SS). Nothing may dangle under the car: such things hang
+//      from hooks on the rim at the car's sides.
+//      The sign hangs on two long cords from just under the rim. Draw the
+//      two fixings (lugs, eye-bolts, cleats, a toggle through the weave) on
+//      the wall's front at (-+ sign.hx * K.SS, K.RY + K.CY) and pass no
+//      bx / by. Keep hands, and anything else on the front of the car, clear
+//      of those two vertical lines. Write the sign at full size: w, hx, the
+//      board, paddings and type are all scaled by the rig. In board(), put
+//      the hanging hardware at (w/2 -+ hx, -2) using the hx you are given.
 //  10. Check: node shot.mjs <id> <dir> night (and day) with no page errors,
 //      look at the sheet, and watch the console for the rig's height warning.
 //
@@ -178,8 +187,8 @@
 
 const Rig = (() => {
   const NS = 'http://www.w3.org/2000/svg', INK = '#23170f', D = Math.PI / 180;
-  const K = Object.freeze({ W: 204, CX: 102, TOP: 8, HG: 112, MRX: 24, MRY: 5.5, ER: 80, FY: 136, RY: 248, RIM: 52, R1: 51, R2: 45, BY: 277, BD: 322, SY: 289, MAXH: 363 });
-  const { W, CX, HG, MRX, MRY, FY, RY, BY, SY } = K;
+  const K = Object.freeze({ W: 204, CX: 102, TOP: 8, HG: 112, MRX: 24, MRY: 5.5, ER: 80, FY: 136, RY: 248, RIM: 52, R1: 51, R2: 45, BY: 277, BD: 326, SY: 300, SS: .85, CY: 7, MAXH: 363 });
+  const { W, CX, HG, MRX, MRY, FY, RY, BY, SY, SS } = K;
   const n = (v) => +v.toFixed(1), n2 = (v) => +v.toFixed(2);
   const pp = (p) => `${n(p[0])},${n(p[1])}`;
   let uid = 0, serial = 0;
@@ -315,11 +324,12 @@ const Rig = (() => {
 .rig-clip{position:absolute;left:-40px;top:-60px;width:${W + 80}px;height:${RY + 5 + 60}px;overflow:hidden}
 .rig-in{position:absolute;left:40px;top:60px;width:${W}px;height:0}
 .rig-sign{position:absolute;top:${SY}px;transform-origin:50% 0;will-change:transform;text-align:center;font-family:"Cormorant Garamond",Georgia,serif;color:#ece5d2}
+.rig-zoom{position:relative}
 .rig-board{position:absolute;inset:0}
 .rig-board svg{position:absolute;left:0;top:0;overflow:visible;display:block}
 .rig-text{position:relative;padding:8px 10px}
 .rig-text>div:empty{display:none}
-.rig-tag{font:500 11px/1.4 Cinzel,Georgia,serif;letter-spacing:.24em;margin-right:-.24em;text-transform:uppercase}
+.rig-tag{font:500 12px/1.3 Cinzel,Georgia,serif;letter-spacing:.24em;margin-right:-.24em;text-transform:uppercase}
 .rig-title{font:italic 600 15px/1.07 "Cormorant Garamond",Georgia,serif;text-wrap:balance;overflow-wrap:anywhere}
 .rig-fig{font:600 25px/.96 "Cormorant Garamond",Georgia,serif;font-variant-numeric:lining-nums;white-space:nowrap}
 .rig-unit{font:italic 500 14px/1 "Cormorant Garamond",Georgia,serif;margin-left:3px}
@@ -359,10 +369,10 @@ const Rig = (() => {
   if (document.fonts) { document.fonts.ready.then(refit); document.fonts.addEventListener?.('loadingdone', refit); }
   let host = null;
   const measure = (R) => {
-    if (R.root.isConnected) return R.text.offsetHeight;
+    if (R.root.isConnected) return R.sign.offsetHeight;
     if (!host) { host = document.createElement('div'); host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none'; }
     document.body.append(host); host.append(R.root);
-    const h = R.text.offsetHeight;
+    const h = R.sign.offsetHeight;
     R.root.remove(); host.remove();
     return h;
   };
@@ -373,7 +383,11 @@ const Rig = (() => {
     if (spec.css) Harness.css(id, spec.css);
     const MOODS = spec.moods || ['calibrating', 'poor', 'meh', 'good', 'great', 'superb', 'pvp', 'levelup', 'death', 'achievement'];
     const norm = (m) => (MOODS.includes(m) ? m : 'calibrating');
-    const sg = { w: 158, hx: 58, bx: 44, by: BY + 2, k: 13, c: 1.9, below: 4, cord: {}, ...spec.sign };
+    const sg = { w: 158, hx: 58, k: 13, c: 1.9, below: 4, cord: {}, ...spec.sign };
+    // the sign is shown at K.SS; its cords run near vertical from just under the rim
+    const SWZ = sg.w * SS, HXZ = sg.hx * SS;
+    if (sg.bx == null) sg.bx = HXZ;
+    if (sg.by == null) sg.by = RY + K.CY;
     const extra = spec.lines || [];
 
     function setEnv(R, mood, fade) {
@@ -414,17 +428,17 @@ const Rig = (() => {
     function fit(R) {
       // the height limit: tighten the text in two steps until the sign ends at or above MAXH
       R.sign.classList.remove('rig-fit1', 'rig-fit2');
-      let h = Math.ceil(measure(R));
+      let h = Math.ceil(measure(R));                      // real px, after the zoom
       for (const cls of ['rig-fit1', 'rig-fit2']) { if (SY + h < K.MAXH) break; R.sign.classList.add(cls); h = Math.ceil(measure(R)); }
-      // last resort: shorter cords, the sign hangs up to 5 px higher
+      // last resort: the sign hangs up to 5 px higher
       R.lift = Math.max(0, Math.min(5, SY + h - K.MAXH + 1));
       R.sign.style.top = SY - R.lift + 'px';
       if (SY - R.lift + h >= K.MAXH && R.warned !== h) { R.warned = h; console.warn(`Rig: the ${id} sign for "${R.notice.kind}/${R.mood}" ends at y ${SY - R.lift + h}, below MAXH ${K.MAXH}. Reduce the sign's padding or type in the skin.`); }
-      const key = `${h}|${R.mood}|${R.notice.kind}`;
+      const bh = Math.round(h / SS), key = `${bh}|${R.mood}|${R.notice.kind}`;   // the board's height in the skin's own (unscaled) px
       if (key !== R.fitKey) {
         R.fitKey = key;
-        const art = sg.board ? sg.board({ w: sg.w, h, mood: R.mood, kind: R.notice.kind, u: R.u }) : `<rect width="${sg.w}" height="${h}" fill="#2a2420" stroke="${INK}"/>`;
-        R.board.replaceChildren(ctx.svg(`<svg class="rig-rim" xmlns="${NS}" width="${sg.w}" height="${h}" viewBox="0 0 ${sg.w} ${h}">${art}</svg>`));
+        const art = sg.board ? sg.board({ w: sg.w, h: bh, hx: sg.hx, mood: R.mood, kind: R.notice.kind, u: R.u }) : `<rect width="${sg.w}" height="${bh}" fill="#2a2420" stroke="${INK}"/>`;
+        R.board.replaceChildren(ctx.svg(`<svg class="rig-rim" xmlns="${NS}" width="${sg.w}" height="${bh}" viewBox="0 0 ${sg.w} ${bh}">${art}</svg>`));
       }
       R.h = SY - R.lift + h + sg.below;
       R.root.style.height = R.h + 'px';
@@ -443,9 +457,10 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
 <svg class="rig-s rig-lines" xmlns="${NS}" width="${W}" height="10">${cordG(`rgl${u}-s`, sg.cord)}</svg>
 </div>`);
       const q = (s) => root.querySelector(s), qa = (s) => [...root.querySelectorAll(s)];
-      const sign = E('div', `rig-sign ${id}-sign`), board = E('div', 'rig-board'), text = E('div', 'rig-text');
-      sign.style.width = sg.w + 'px'; sign.style.left = (W - sg.w) / 2 + 'px';
-      sign.append(board, text); root.append(sign);
+      const sign = E('div', `rig-sign ${id}-sign`), zoom = E('div', 'rig-zoom'), board = E('div', 'rig-board'), text = E('div', 'rig-text');
+      sign.style.width = SWZ + 'px'; sign.style.left = (W - SWZ) / 2 + 'px';
+      zoom.style.width = sg.w + 'px'; zoom.style.zoom = SS;
+      zoom.append(board, text); sign.append(zoom); root.append(sign);
       const R = {
         root, u, q, qa, sign, board, text, mood: norm(nt.mood), notice: nt, h: 0, lift: 0, fitKey: '', geo: null, envl: null,
         env: q('.rig-env'), envh: q('.rig-envh'), car: q('.rig-car'), eglow: q('.rig-eglow'), mglow: q('.rig-mglow'), halo: q('.rig-halo'), fl: q('.rig-fl'),
@@ -489,12 +504,12 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
         }
         R.ropeP.setAttribute('d', d);
         // the sign: a heavy thing on two cords, following the basket late
-        const bx = -AR * s, SYe = SY - R.lift, LC = Math.max(3, SYe - sg.by), DM = LC * .65;
-        sv += ((bx + f.swing * 1.5 - f.lean * 1.3 - sx) * sg.k - sv * sg.c) * dt; sx += sv * dt;
+        const bx = -AR * s, SYe = SY - R.lift, LC = Math.max(3, SYe - sg.by), DM = Math.min(LC * .65, 3.5);
+        sv += ((bx + f.swing * .7 - f.lean * .6 - sx) * sg.k * 1.6 - sv * sg.c * 1.9) * dt; sx += sv * dt;
         const dd = Math.max(-DM, Math.min(DM, sx - bx)), th = Math.asin(dd / LC), dy = -LC * (1 - Math.cos(th)) + AR * (c - 1), X = bx + dd;
-        const rot = phi * .55 + dd * .5, cr = Math.cos(rot * D), sr = Math.sin(rot * D);
+        const rot = phi * .4 + dd * .35, cr = Math.cos(rot * D), sr = Math.sin(rot * D), lo = 2 * SS;
         R.sign.style.transform = `translate(${X.toFixed(1)}px,${dy.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
-        const h1 = [CX + X - sg.hx * cr - 2 * sr, SYe + dy - sg.hx * sr - 2 * cr], h2 = [CX + X + sg.hx * cr - 2 * sr, SYe + dy + sg.hx * sr - 2 * cr];
+        const h1 = [CX + X - HXZ * cr - lo * sr, SYe + dy - HXZ * sr - lo * cr], h2 = [CX + X + HXZ * cr - lo * sr, SYe + dy + HXZ * sr - lo * cr];
         R.hangP.setAttribute('d', `M${pp(pc(-sg.bx, sg.by))}L${pp(h1)}M${pp(pc(sg.bx, sg.by))}L${pp(h2)}`);
         // the flame and its light: from burn alone
         const b = Math.max(0, Math.min(1, f.burn));
@@ -503,7 +518,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
         R.halo.style.opacity = (b * b * go).toFixed(2);
         R.mglow.style.opacity = (.12 + .88 * b).toFixed(2);
         R.eglow.style.opacity = (Math.pow(b, 1.3) * go).toFixed(2);
-        info.burn = b; info.lean = ea; info.swing = phi; info.hang = -phi + dd * 1.7; info.d = dd; info.dt = dt; info.now = now; info.phase = f.phase;
+        info.burn = b; info.lean = ea; info.swing = phi; info.hang = -phi + dd * 2.4; info.d = dd; info.dt = dt; info.now = now; info.phase = f.phase;
         if (life.frame) life.frame(info);
         for (let i = 0; i < extra.length; i++) R.extraP[i].setAttribute('d', `M${pp(extra[i].a(info, R))}L${pp(extra[i].b(info, R))}`);
         if (f.phase !== ph) {
@@ -531,7 +546,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
             fl.extend(700);
             if (ctx.reduced) return;
             // struck like a bell
-            R.sign.animate([0, 2.4, -2, 1.5, -1.1, .7, -.4, 0].map((x, i) => ({ transform: `translate(${x}px,${i === 1 ? 1.5 : 0}px) rotate(${x * .3}deg)` })), { duration: 430, easing: 'linear', composite: 'add' });
+            R.sign.animate([0, 1.3, -1.1, .8, -.6, .4, -.2, 0].map((x, i) => ({ transform: `translate(${x}px,${i === 1 ? .8 : 0}px) rotate(${x * .3}deg)` })), { duration: 430, easing: 'linear', composite: 'add' });
             if (R.life.struck) R.life.struck();
             if (was !== R.mood && R.root.classList.contains('rig-at') && R.life.changed) R.life.changed(R.mood, was);
           },
@@ -548,7 +563,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
           const loop = (now) => {
             if (R.root.isConnected) seen = true; else if (seen || now - t0 > 3000) return stop(R);
             const t = now - t0;
-            fr({ lean: Math.sin(t * .0007 + ph) * .9, swing: Math.sin(t * .0011 + ph) * 1.5 + Math.sin(t * .0023) * .5, phase: 'read', t, vy: 0, burn: .15 + .05 * Math.sin(t * .003) });
+            fr({ lean: Math.sin(t * .0007 + ph) * .6, swing: Math.sin(t * .0011 + ph) * .8 + Math.sin(t * .0023) * .25, phase: 'read', t, vy: 0, burn: .15 + .05 * Math.sin(t * .003) });
             requestAnimationFrame(loop);
           };
           requestAnimationFrame(loop);
