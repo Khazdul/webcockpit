@@ -543,9 +543,12 @@ export function createRig(ctx: RigCtx, spec: RigSpec): Rig {
   const measure = (R: RigState): number => {
     if (R.root.isConnected) return R.sign.offsetHeight;
     if (!host) { host = doc.createElement('div'); host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none'; }
+    // (put back where it was: a balloon's wrapper not yet in the page)
+    const parent = R.root.parentNode, next = R.root.nextSibling;
     doc.body.append(host); host.append(R.root);
     const h = R.sign.offsetHeight;
     R.root.remove(); host.remove();
+    if (parent) parent.insertBefore(R.root, next);
     return h;
   };
 
