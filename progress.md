@@ -79,6 +79,7 @@
 | 73 | The shared replay, round 2 | Done, released 0.20.1 | `docs/stages/73-shared-replay-round-2.md` |
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
+| 76 | The balloon film | Planned (manuscript draft 1, music chosen) | `docs/stages/76-balloon-film.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 

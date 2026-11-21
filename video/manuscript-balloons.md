@@ -21,7 +21,14 @@ WebSocket, cut in Remotion.
   selection and how many unique balloons there are in all.
 - **The opening.** A short, slightly comic title card: "WebCockpit, now
   with balloons" or similar.
-- **Music.** More tempo; five candidates in `~/Downloads/ballong-musik/`.
+- **Music** (2026-11-22, after two rounds of candidates in
+  `~/Downloads/ballong-musik/`): *Into The Wilds* by Scott Buckley (2024,
+  4:07, CC BY 4.0), `public/music/into-the-wilds.mp3` with its licence
+  note beside it. Its first section ends at about 1:21 (the level drops
+  at 82 s): the film runs to that break, about 1:21, and fades with it.
+  Credit, in the YouTube description from the moment of upload (the track
+  is in Content ID, claims come without it) and on the end card:
+  `'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au`
 
 ## Facts the captions rest on
 
@@ -94,8 +101,8 @@ Caption: *A selection: 8 passengers, 10 balloons each. 80 in all.*
 ### 4 · End card (1:10–1:15)
 
 *Turn them on in Settings → Weather effects.* /
-*WebCockpit 0.22 · mumecockpit.com · Free and open source*. The picture
-fades with the music.
+*WebCockpit 0.22 · mumecockpit.com · Free and open source*. A small
+music credit line. The picture fades with the music's section end.
 
 ## Light underground (owner, 2026-11-21)
 
@@ -107,8 +114,7 @@ are not staged.
 
 ## Open
 
-- The music: five candidates in `~/Downloads/ballong-musik/kandidater.html`.
-  Two of them (#1 Hitctrl, #3 peastman) are CC BY 3.0 and need a credit
-  line on the end card and in the YouTube description.
+- The acts' times stretch in proportion from 1:15 to about 1:21 on the
+  first cut.
 - Whether Rasta's dusk shows at all in the caves (to be judged on the
   first take).
