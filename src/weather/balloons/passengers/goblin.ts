@@ -190,7 +190,7 @@ const body = (u: number) => {
   let fur = 'M-33,58';
   [[-29, 70], [-25, 61], [-20, 73], [-14, 64], [-8, 76], [-2, 66], [4, 77], [9, 66], [15, 74], [20, 63], [25, 71], [29, 61], [33, 58]].forEach(([x, y]) => { fur += `L${x},${y}`; });
   let teeth = '';
-  [[-15, 70], [-8, 75.5], [0, 77.5], [8, 75.5], [15, 70]].forEach(([x, y], i) => { teeth += tooth(x, y, i === 2 ? 9 : 7, 2.2); });
+  ([[-15, 70], [-8, 75.5], [0, 77.5], [8, 75.5], [15, 70]] as const).forEach(([x, y], i) => { teeth += tooth(x, y, i === 2 ? 9 : 7, 2.2); });
   return `${arm(-1)}${arm(1)}<path d="${J}" fill="url(#gbl${u})" stroke-width="2"/><path d="M-47,134L-45,76C-43,62 -30,56 -18,53.500C-32,66 -34,90 -33,134Z" fill="url(#gbp${u})" stroke="none"/>
 <path d="M-47,134L-45,76C-43,62 -38,58 -32,56C-40,68 -41,92 -41,134Z" fill="url(#gbq${u})" stroke="none"/>
 <path d="M1,78V134" fill="none" stroke-width="1"/><path d="M-4,86l10,5M-4,96l10,5M-4,106l10,5M-4,116l10,5" fill="none" stroke="#d6c59a" stroke-width="1.4"/>
@@ -347,7 +347,7 @@ const swag = (g: EnvGeo, t: number, num: number, item: (i: number) => string, co
   return ink2(d, .9, cord) + it;
 };
 const coin = (r: number) => `<circle r="${r}" fill="#e0bb55" stroke-width=".7"/><path d="M${n(-r * .5)},${n(-r * .4)}Q0,${n(-r * .9)} ${n(r * .4)},${n(-r * .5)}" fill="none" stroke="#fff6d0" stroke-width=".7"/>`;
-const cap = (c: readonly number[], fill: string, rx = 8) => `<path d="M${n(c[0] - rx)},${n(c[1] + 4)}Q${n(c[0])},${n(c[1] - 4)} ${n(c[0] + rx)},${n(c[1] + 4)}Q${n(c[0])},${n(c[1] + 7.5)} ${n(c[0] - rx)},${n(c[1] + 4)}Z" fill="${fill}" stroke-width="1"/>`;
+const cap = (c: readonly [number, number], fill: string, rx = 8) => `<path d="M${n(c[0] - rx)},${n(c[1] + 4)}Q${n(c[0])},${n(c[1] - 4)} ${n(c[0] + rx)},${n(c[1] + 4)}Q${n(c[0])},${n(c[1] + 7.5)} ${n(c[0] - rx)},${n(c[1] + 4)}Z" fill="${fill}" stroke-width="1"/>`;
 // the great grin: a crescent across the bag, with teeth (or only its outline, for the sketch)
 const grin = (g: EnvGeo, k1: number, o: { sketch?: string; tooth?: string } = {}) => {
   const ks = g.along(13, -k1, k1), q = (k: number) => (k / k1) ** 2, top = (k: number) => .5 - .07 * q(k), bot = (k: number) => .685 - .255 * q(k);
@@ -356,7 +356,7 @@ const grin = (g: EnvGeo, k1: number, o: { sketch?: string; tooth?: string } = {}
   if (o.sketch) return `<path d="${d}" fill="none" stroke="${o.sketch}" stroke-width="1.100" stroke-dasharray="3.200 2.400"/>`;
   let th = '';
   for (let i = 1; i < ks.length - 2; i++) { const km = (ks[i]! + ks[i + 1]!) / 2, dp = .075 * (1 - q(km) * .8); th += `M${pp(up[i]!)}L${pp(g.pt(km, top(km) + dp))}L${pp(up[i + 1]!)}Z`; }
-  for (let i = 2; i < ks.length - 3; i++) { const km = ks[i + 1] - (ks[i + 1] - ks[i]) * .02, dp = .06 * (1 - q(km)); th += `M${pp(g.pt((ks[i] + ks[i + 1]) / 2, bot((ks[i] + ks[i + 1]) / 2)))}L${pp(g.pt(km, bot(km) - dp - .012))}L${pp(g.pt((ks[i + 1] + ks[i + 2]) / 2, bot((ks[i + 1] + ks[i + 2]) / 2)))}Z`; }
+  for (let i = 2; i < ks.length - 3; i++) { const km = ks[i + 1]! - (ks[i + 1]! - ks[i]!) * .02, dp = .06 * (1 - q(km)); th += `M${pp(g.pt((ks[i]! + ks[i + 1]!) / 2, bot((ks[i]! + ks[i + 1]!) / 2)))}L${pp(g.pt(km, bot(km) - dp - .012))}L${pp(g.pt((ks[i + 1]! + ks[i + 2]!) / 2, bot((ks[i + 1]! + ks[i + 2]!) / 2)))}Z`; }
   return `<path d="${d}" fill="#1c1210" stroke-width="1.400"/><path d="${th}" fill="${o.tooth || '#f1e9d4'}" stroke-width=".7"/>`;
 };
 const arrow = 'M0,-12L9,-1H4V11H-4V-1H-9Z';
@@ -545,10 +545,10 @@ const liven = (R: RigBalloon) => {
   };
   const twitch = () => {
     const i = rnd() < .5 ? 0 : 1, a = sad() ? 5 : -9;
-    bob(ears[i], `rotate(${a}deg)`, 260);
-    if (rnd() < .4) bob(ears[i], `rotate(${a * .7}deg)`, 220, { delay: 300 });
-    if (rnd() < .3) bob(ears[1 - i], `rotate(${a * .6}deg)`, 260, { delay: 90 });
-    if (rnd() < .35) bob(brows[i], 'translateY(-2.5px)', 320, { delay: 60 });
+    bob(ears[i]!, `rotate(${a}deg)`, 260);
+    if (rnd() < .4) bob(ears[i]!, `rotate(${a * .7}deg)`, 220, { delay: 300 });
+    if (rnd() < .3) bob(ears[1 - i]!, `rotate(${a * .6}deg)`, 260, { delay: 90 });
+    if (rnd() < .35) bob(brows[i]!, 'translateY(-2.5px)', 320, { delay: 60 });
     later(twitch, 1700 + rnd() * 3300);
   };
   if (!reduced) { lookAt(.5, -4.5, 1); later(blink, 400 + rnd() * 1600); later(glance, 800 + rnd() * 1000); later(twitch, 1100 + rnd() * 2200); }
