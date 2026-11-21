@@ -1,0 +1,603 @@
+<title>Character Pane Round 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700&display=swap&family=Source+Sans+3:wght@400;600;700">
+<style>
+/* Layout: a dark studio wall. A live bench (B3 card over Group, every switch from this round), then the icon
+   picker, the five vitals styles, the proposals that push past the brief, and the questions. Panes use Lykta. */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost: rgba(233,207,159,.11); --frost2: rgba(233,207,159,.05); --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --warn: #ff8c2a; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; }
+p { margin: 0; max-width: 70ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 60px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.box { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box p, .box li { color: var(--ink-dim); font-size: 15px; }
+.box ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+.box strong { color: var(--ink); }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0,1fr); } }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1 var(--mono); color: var(--ink-dim); letter-spacing: .08em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+
+/* Lykta pane */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 3; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.pane.off { padding: 0; background: none; box-shadow: none; }
+.pane.off > .hood { display: none; }
+.pane.off > .win { border: 0; border-radius: 4px; padding-top: 8px; background: #07090c; box-shadow: none; }
+.stackp { display: flex; flex-direction: column; gap: 6px; }
+
+/* bars */
+.b { position: relative; height: 7px; border-radius: 3px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); overflow: visible; }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > s { position: absolute; top: 0; bottom: 0; left: var(--a); width: calc(var(--z) - var(--a)); border-radius: 0 3px 3px 0; background: color-mix(in srgb, var(--c), #fff 55%); opacity: .55; text-decoration: none; }
+.b > .wim { position: absolute; left: var(--p); top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); z-index: 2; }
+.b > .notch { position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(10,12,16,.9) calc(10% - 2px) 10%); }
+.b > .in { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 6px; font: 700 10.5px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 3px rgba(0,0,0,.8); z-index: 1; }
+.b > .in small { font-weight: 400; opacity: .75; }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); } .warn { --c: var(--warn); }
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; }
+.vit .top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 3px; font-variant-numeric: tabular-nums; min-height: 13px; }
+.vit .k { font: 700 9.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.vit .n { font: 700 13px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.vit .n small { font-weight: 400; color: var(--dim); font-size: 11px; }
+.vit .b { height: 11px; border-radius: 4px; }
+/* styles */
+.vs-tube.fight .b { height: 15px; }
+.vs-fat .b { height: 17px; border-radius: 5px; } .vs-fat .top { display: none; } .vs-fat.fight .b { height: 20px; }
+.vs-seg .b { height: 12px; border-radius: 2px; } .vs-seg.fight .b { height: 15px; }
+.vs-big .n { font-size: 19px; } .vs-big .n small { font-size: 11px; } .vs-big .b { height: 8px; } .vs-big .top { min-height: 19px; } .vs-big.fight .b { height: 11px; }
+.vs-ghost .b { height: 12px; } .vs-ghost.fight .b { height: 15px; }
+.vit3.md .b { height: 8px; } .vit3.md .n { font-size: 11.5px; } .vit3.md.vs-fat .b { height: 13px; }
+
+/* group mock */
+.gp { display: flex; flex-direction: column; gap: 3px; }
+.gr { border-radius: 4px; padding: 2px 6px 6px; background: linear-gradient(180deg, rgba(233,207,159,.07), rgba(233,207,159,.025));
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.14), inset 0 0 0 1px rgba(233,207,159,.04), 0 1px 2px rgba(0,0,0,.45); }
+.pane.off .gr { background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); }
+.gr .t { display: flex; align-items: center; gap: 6px; height: 19px; min-width: 0; }
+.gr .nm { font: 700 13px/1 var(--mono); color: var(--text); }
+.gr .room { margin-left: auto; color: #8ea0b6; font-size: 12px; display: flex; gap: 4px; align-items: center; white-space: nowrap; overflow: hidden; min-width: 0; }
+.gr.away .nm { color: #7e7c77; } .gr.away .b > i { filter: brightness(.62) saturate(.8); }
+.gr .bars { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.gr .b { height: 5px; }
+.ico { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ico.pl { color: #6f9ee0; }
+
+/* card */
+.cw { display: grid; grid-template-columns: auto minmax(0,1fr) auto; column-gap: 12px; align-items: stretch; position: relative; }
+.cw.hero { grid-template-columns: minmax(0,1fr) auto; }
+.cw .mid { min-width: 0; display: flex; flex-direction: column; position: relative; z-index: 1; }
+.cw .foot { grid-column: 1 / -1; margin-top: 11px; position: relative; z-index: 1; }
+.nm2 { font: 700 20px/1.05 var(--display); letter-spacing: .05em; color: var(--lamp-hot); text-shadow: 0 0 10px rgba(233,207,159,.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.typel { font: italic 600 14.5px/1.2 var(--flavor); color: #cbbf9f; margin-top: 2px; }
+.runes { font: 13px/1 serif; letter-spacing: .3em; color: rgba(233,207,159,.3); margin-top: 3px; }
+.quietrule { height: 1px; background: linear-gradient(90deg, rgba(233,207,159,.22), rgba(233,207,159,.05) 80%, transparent); margin: 8px 0; }
+.icons { display: flex; align-items: center; gap: 9px; }
+.ti { width: 17px; height: 17px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); }
+.ti.posi.fight { stroke: var(--crit); }
+.isep { width: 1px; height: 14px; background: rgba(233,207,159,.22); }
+.postx { font: 12px/1 var(--mono); color: var(--text); }
+.disc { font: 11px/1.3 var(--mono); color: var(--dim); margin-top: 7px; }
+.disc .cl { border-bottom: 1px dotted rgba(233,207,159,.35); cursor: pointer; }
+
+/* portrait: transparent figure, faded in, no frame; the level ring sits at its upper left */
+.por { position: relative; flex: none; align-self: start; }
+.por .fig { position: absolute; inset: 0; -webkit-mask-image: radial-gradient(ellipse 62% 70% at 50% 40%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 62% 70% at 50% 40%, #000 55%, transparent 100%); }
+.por .fig.halo { background: radial-gradient(ellipse 55% 50% at 50% 42%, rgba(233,207,159,.16), transparent 75%); }
+.por svg.art { width: 100%; height: 100%; display: block; }
+.por .lr { position: absolute; left: -2px; top: -2px; z-index: 2; }
+.por.sleep svg.art { filter: grayscale(.8) brightness(.55); }
+.cw.hero .por { position: absolute; right: 26px; top: -22px; bottom: 0; width: 170px; height: auto; z-index: 0; pointer-events: none; }
+.cw.hero .por .fig { opacity: .55; -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%, #000 80%, transparent), linear-gradient(transparent, #000 15%, #000 60%, transparent);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, transparent, #000 45%, #000 80%, transparent), linear-gradient(transparent, #000 15%, #000 60%, transparent); mask-composite: intersect; }
+.cw.hero .por .lr { display: none; }
+
+/* level ring */
+.lr { position: relative; flex: none; display: grid; place-items: center; background: radial-gradient(circle, rgba(10,12,16,.85) 58%, transparent 62%); border-radius: 50%; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+
+/* vertical tabs (quiet) */
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; position: relative; z-index: 1; }
+.pane.off .vt { margin-top: -8px; padding-top: 6px; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 0 auto; font: 700 9px/1 var(--display); letter-spacing: .12em; padding: 6px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: var(--lamp-hot); background: var(--frost); box-shadow: inset 2px 0 0 var(--lamp); }
+.vt.locked button:not(.on) { opacity: .35; }
+.tpn { display: none; } .tpn.on { display: flex; flex-direction: column; }
+
+/* stats tab */
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 2px; }
+.abx { text-align: center; padding: 2px 0; }
+.abx small { display: block; font: 700 8px/1 var(--display); letter-spacing: .1em; color: var(--dim); }
+.abx b { display: block; font: 700 15px/1.25 var(--mono); }
+.abx em { display: block; font: 9px/1 var(--mono); font-style: normal; color: var(--faint); }
+.abx.up b, .abx.up em { color: var(--up); }
+.cmb { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; margin-top: 8px; }
+.cmb > div { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center; padding: 4px 6px; border-radius: 4px; background: rgba(0,0,0,.22); box-shadow: inset 0 0 0 1px rgba(233,207,159,.07); }
+.cmb .ti { grid-row: 1 / 3; width: 18px; height: 18px; stroke: var(--lamp); }
+.cmb b { font: 700 14px/1 var(--mono); color: var(--lamp-hot); }
+.cmb small { font: 700 8px/1.3 var(--display); letter-spacing: .1em; color: var(--dim); }
+.enc { display: flex; align-items: center; gap: 7px; margin-top: 8px; font: 11.5px/1.2 var(--mono); color: var(--text); }
+.enc i { font: italic 500 13.5px/1 var(--flavor); color: #cbbf9f; }
+.enc .pie { width: 13px; height: 13px; flex: none; }
+.statsl { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
+
+/* bio tab */
+.kv { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr); gap: 4px 10px; font: 11.5px/1.3 var(--mono); }
+.kv dt { color: var(--dim); } .kv dd { margin: 0; min-width: 0; } .kv dd.wide { grid-column: span 3; }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin: 0 2px 0 5px; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); }
+.coin:first-child { margin-left: 0; }
+.coin.g { background: #e5c158; } .coin.s { background: #c9ccd1; } .coin.c { background: #c07a46; }
+.flav { font: italic 500 14px/1.2 var(--flavor); color: #cbbf9f; margin-top: 6px; }
+
+/* icon picker */
+.picker { display: flex; flex-direction: column; gap: 10px; }
+.prow { display: grid; grid-template-columns: 110px repeat(5, minmax(0,1fr)); gap: 8px; align-items: stretch; }
+.prow > span { font: 600 14px/1.2 var(--display); color: var(--ink); align-self: center; letter-spacing: .04em; }
+.opt { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border-radius: 8px; background: #0d1015; border: 1px solid var(--rule); text-align: center; }
+.opt:hover { border-color: #4a4f5a; }
+.opt:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
+.opt.on { border-color: var(--lamp); background: #17150f; }
+.opt .pair { display: flex; gap: 10px; }
+.opt svg { width: 22px; height: 22px; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.opt svg.a { stroke: var(--lamp-hot); } .opt svg.z { stroke: var(--faint); }
+.opt small { font: 12px/1.2 var(--body); color: var(--ink-dim); }
+.opt b { font: 700 11px/1 var(--mono); color: var(--lamp); }
+@media (max-width: 700px) { .prow { grid-template-columns: repeat(5, minmax(0,1fr)); } .prow > span { grid-column: 1 / -1; } }
+
+.rowx { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.cap { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+.cap .pane { text-align: left; }
+.cap p { font-size: 14px; max-width: 46ch; }
+.push { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; align-items: start; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--tp); border-radius: 10px; padding: 20px; margin-top: 16px; }
+@media (max-width: 900px) { .push { grid-template-columns: minmax(0,1fr); } }
+.push h3 { color: var(--ink); margin-bottom: 6px; }
+.push p { color: var(--ink-dim); font-size: 15px; }
+.push .why { color: var(--ink); }
+.flipwrap { perspective: 1200px; }
+.flip { position: relative; transition: transform .6s cubic-bezier(.3,.7,.3,1); transform-style: preserve-3d; cursor: pointer; }
+.flip.over { transform: rotateY(180deg); }
+.flip > .face { backface-visibility: hidden; }
+.flip > .back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.q p { font-size: 15px; color: var(--ink-dim); }
+#tip { position: fixed; z-index: 50; white-space: pre; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="r-human" viewBox="0 0 60 75">
+      <path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#3c4a5e"/><rect x="26" y="45" width="8" height="12" fill="#b58c68"/>
+      <ellipse cx="30" cy="36" rx="11" ry="13" fill="#c9a27c"/><path d="M19 35C17 20 43 20 41 35C39 28 35 26 30 26S21 28 19 35Z" fill="#5a3b22"/>
+      <circle cx="26" cy="37" r="1.3" fill="#2a1d12"/><circle cx="34" cy="37" r="1.3" fill="#2a1d12"/><path d="M27 44h6" stroke="#8a5e44" stroke-width="1.2"/></symbol>
+<symbol id="r-elf" viewBox="0 0 60 75">
+      <path d="M17 30h26v30H17Z" fill="#d9c27a"/><path d="M5 78C7 61 18 56 30 56S53 61 55 78Z" fill="#3e5a44"/><rect x="26.5" y="45" width="7" height="12" fill="#cdb08e"/>
+      <path d="M20 36L12 27L21 41Z M40 36L48 27L39 41Z" fill="#e2c6a6"/><ellipse cx="30" cy="36" rx="10" ry="13.5" fill="#e2c6a6"/>
+      <path d="M20 34C19 20 41 20 40 34C37 27 34 25 30 25S23 27 20 34Z" fill="#e3cd86"/><path d="M20.5 30C26 28 34 28 39.5 30" stroke="#d8dde4" stroke-width="1.2" fill="none"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2b4a6a"/><circle cx="34" cy="37" r="1.2" fill="#2b4a6a"/></symbol>
+<symbol id="r-halfelf" viewBox="0 0 60 75">
+      <path d="M18 30h24v22H18Z" fill="#6b3524"/><path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#5a4630"/><rect x="26" y="45" width="8" height="12" fill="#c29e7a"/>
+      <path d="M20 37L15 31L21 41Z M40 37L45 31L39 41Z" fill="#d6b48e"/><ellipse cx="30" cy="36" rx="10.5" ry="13" fill="#d6b48e"/>
+      <path d="M19.5 35C18 20 42 20 40.5 35C38 27 34 25.5 30 25.5S22 27 19.5 35Z" fill="#7a3d27"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2a3b2a"/><circle cx="34" cy="37" r="1.2" fill="#2a3b2a"/></symbol>
+<symbol id="r-dwarf" viewBox="0 0 60 75">
+      <path d="M2 78C4 59 16 54 30 54S56 59 58 78Z" fill="#6a3b2a"/>
+      <ellipse cx="30" cy="40" rx="12.5" ry="12" fill="#c08f6a"/>
+      <path d="M17 42C17 63 26 71 30 73C34 71 43 63 43 42C39 50 21 50 17 42Z" fill="#8b5a2b"/><path d="M24 46C27 44 33 44 36 46" stroke="#6e4420" stroke-width="2" fill="none"/>
+      <path d="M16 37C16 21 44 21 44 37Z" fill="#8a9098"/><path d="M16 37h28" stroke="#5c6168" stroke-width="2"/><rect x="28.8" y="33" width="2.4" height="10" fill="#6e737a"/>
+      <circle cx="25" cy="40" r="1.3" fill="#1e140c"/><circle cx="35" cy="40" r="1.3" fill="#1e140c"/></symbol>
+<symbol id="r-hobbit" viewBox="0 0 60 75">
+      <path d="M10 78C12 64 20 59 30 59S48 64 50 78Z" fill="#4f6a35"/><path d="M24 60l6 8 6-8" fill="#c9b48a"/>
+      <path d="M19 41L16 36L20 44Z M41 41L44 36L40 44Z" fill="#e0b48c"/><circle cx="30" cy="42" r="12" fill="#e0b48c"/>
+      <g fill="#5a3a1e"><circle cx="21" cy="34" r="4"/><circle cx="26" cy="30" r="4.2"/><circle cx="32" cy="29.5" r="4.2"/><circle cx="38" cy="32" r="4"/><circle cx="40" cy="37" r="3"/><circle cx="19.5" cy="38" r="3"/></g>
+      <circle cx="24" cy="46" r="2.4" fill="#e89a86" opacity=".6"/><circle cx="36" cy="46" r="2.4" fill="#e89a86" opacity=".6"/>
+      <circle cx="26" cy="42" r="1.3" fill="#2a1d12"/><circle cx="34" cy="42" r="1.3" fill="#2a1d12"/><path d="M27 49q3 2 6 0" stroke="#8a5e44" stroke-width="1.2" fill="none"/></symbol>
+<symbol id="r-beorning" viewBox="0 0 60 75">
+      <path d="M1 78C3 57 14 50 30 50S57 57 59 78Z" fill="#5b3d24"/>
+      <ellipse cx="30" cy="39" rx="12.5" ry="13.5" fill="#b98b62"/><path d="M19 44C20 55 26 57 30 57S40 55 41 44C37 49 23 49 19 44Z" fill="#3b2516"/>
+      <path d="M13 42C11 22 21 14 30 14S49 22 47 42C45 30 39 25 30 25S15 30 13 42Z" fill="#6e4a2c"/>
+      <circle cx="17" cy="18" r="5" fill="#6e4a2c"/><circle cx="43" cy="18" r="5" fill="#6e4a2c"/><circle cx="17" cy="18" r="2.2" fill="#3b2516"/><circle cx="43" cy="18" r="2.2" fill="#3b2516"/>
+      <circle cx="25.5" cy="39" r="1.3" fill="#1e140c"/><circle cx="34.5" cy="39" r="1.3" fill="#1e140c"/></symbol>
+<symbol id="r-orc" viewBox="0 0 60 75">
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="r-troll" viewBox="0 0 60 75">
+      <path d="M-4 78C-2 54 12 48 30 48S62 54 64 78Z" fill="#5b5f5a"/>
+      <ellipse cx="30" cy="37" rx="17" ry="15.5" fill="#7f8a86"/><path d="M15 33C20 29 26 30 28 32M32 32C34 30 40 29 45 33" stroke="#4d5551" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="23" cy="35" r="1.2" fill="#ff9a3a"/><circle cx="37" cy="35" r="1.2" fill="#ff9a3a"/>
+      <ellipse cx="30" cy="41" rx="5" ry="4" fill="#6c7672"/><path d="M20 48q10 5 20 0" stroke="#3e4542" stroke-width="2" fill="none"/>
+      <path d="M23 48l1.5-3.5 1.5 3.5Z M34 48l1.5-3.5 1.5 3.5Z" fill="#d8d2bf"/></symbol>
+<symbol id="r-bn" viewBox="0 0 60 75">
+      <path d="M2 78C4 56 14 46 30 46S56 56 58 78Z" fill="#141416"/>
+      <path d="M12 52C10 26 19 12 30 12S50 26 48 52C44 46 40 44 30 44S16 46 12 52Z" fill="#1c1c20"/>
+      <ellipse cx="30" cy="37" rx="9.5" ry="12" fill="#cfc2b2"/><path d="M20.5 33C23 24 37 24 39.5 33C36 29 24 29 20.5 33Z" fill="#141416"/>
+      <path d="M21 31.5C26 29.5 34 29.5 39 31.5" stroke="#b9bec6" stroke-width="1.3" fill="none"/><circle cx="30" cy="30.2" r="1.4" fill="#c22a2a"/>
+      <path d="M24.5 37.5h3M32.5 37.5h3" stroke="#2a2124" stroke-width="1.5" stroke-linecap="round"/><path d="M27.5 44.5h5" stroke="#7d6a62" stroke-width="1"/></symbol>
+<symbol id="i-player" viewBox="0 0 24 24"><path d="M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4"/></symbol>
+<symbol id="i-resting" viewBox="0 0 24 24"><path d="M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16"/></symbol>
+<symbol id="p-fighting" viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2"/></symbol>
+</defs></svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 3</span>
+  <h1>B3, stilla kort</h1>
+  <p class="lede">Grunden är B3. Porträttet har ingen ram utan tonar in, och nivåringen sitter uppe till vänster på det. Stats har ikoner för OB, DB, PB och ABS och en diskret cirkel för packningen. Längre ner finns en ikonväljare, fem stilar för vitals och några förslag som går emot det du bad om (med skäl).</p>
+  <div class="changes">
+    <div><b>Porträttet utan ram.</b> Figuren har genomskinlig bakgrund och tonas in mot kanterna. Det är så dina riktiga bilder ska se ut.</div>
+    <div><b>Inga ord för vitals.</b> Är siffran inte exakt syns bara baren med sitt spann.</div>
+    <div><b>Ingen röd färg vid strid.</b> Porträttet ändras inte.</div>
+    <div><b>Borttaget:</b> affects (de hör hemma i Timers), speltid och session.</div>
+    <div><b>Packning</b> som text med en liten cirkel. Den blir orange och sedan röd på de två högsta stegen.</div>
+    <div><b>Ikoner:</b> fem förslag per ikon. Det du väljer syns direkt i kortet.</div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Prova</span><h2>Kortet ovanför Group pane</h2>
+      <p>Alla val från den här rundan finns här. Flikarna går att klicka på. Håll musen över nivåringen, HP-baren eller en förmåga.</p></div>
+    <div class="bench">
+      <div class="ctlrow">
+        <div class="ctl">Vitals <span class="seg" data-ctl="vstyle"><button data-v="tube" class="on">1 Rör</button><button data-v="fat">2 Tjock</button><button data-v="seg">3 Segment</button><button data-v="big">4 Stor siffra</button><button data-v="ghost">5 Skadeskugga</button></span></div>
+        <div class="ctl">Läge <span class="seg" data-ctl="mode"><button data-v="normal" class="on">Normal</button><button data-v="fight">Strid</button><button data-v="sleep">Sover</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Porträtt <span class="seg" data-ctl="port"><button data-v="side" class="on">Bredvid</button><button data-v="halo">Bredvid med sken</button><button data-v="hero">I bakgrunden</button></span></div>
+        <div class="ctl">Ram <span class="seg" data-ctl="border"><button data-v="on" class="on">På</button><button data-v="off">Av</button></span></div>
+        <div class="ctl">Bredd <span class="seg" data-ctl="width"><button data-v="760" class="on">760</button><button data-v="560">560</button><button data-v="420">420</button></span></div>
+        <div class="ctl">Du i Group <span class="seg" data-ctl="self"><button data-v="show" class="on">Visas</button><button data-v="hide">Döljs</button></span></div>
+        <div class="ctl">Runrad <span class="seg" data-ctl="runes"><button data-v="off" class="on">Av</button><button data-v="on">På</button></span></div>
+      </div>
+      <div class="scroll"><div id="bench" class="stackp"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Ikoner</span><h2>Välj ikoner</h2>
+      <p>Fem förslag per ikon, och varje förslag visas både tänt och släckt. Klicka på det du gillar så byts ikonen i kortet ovan (för OB/DB/PB/ABS: öppna fliken Stats). Säg sedan till exempel "Sneak 3, Ride 2 …".</p></div>
+    <div class="picker" id="picker"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Vitals</span><h2>Fem sätt att göra HP, mana och moves tydligare</h2>
+      <p>Alla tre visas i normalläge och i strid, där HP bara är känt som ett spann. I strid står det ingen siffra, bara baren.</p></div>
+    <div class="rowx" id="vstyles"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Utmaningar</span><h2>Förslag som går lite emot det du bad om</h2>
+      <p>Du bad mig pusha. Här är fem saker jag skulle prova, med skälet till varje.</p></div>
+
+    <div class="push"><div><h3>1. Dölj dig själv i Group när Character ligger ovanför</h3>
+      <p>Med Character direkt ovanför Group syns dina HP, mana och moves två gånger, och din rad tar plats från en annan medlem.</p>
+      <p class="why" style="margin-top:8px">Förslag: ett val i Groups kugghjul, "Show yourself: always | not under Character". Prova "Du i Group: Döljs" i bänken.</p></div>
+      <div class="cap"><span class="lbl">Skäl</span><p>Fyra medlemmar får plats i samma höjd som tre plus du. Du ser dig själv tydligare i kortet ändå.</p></div></div>
+
+    <div class="push"><div><h3>2. Skadeskugga i stället för siffror i strid</h3>
+      <p>Du vill inte ha orden, och i strid vet vi oftast inte siffran. Men det spelaren egentligen vill veta i strid är <em>hur hårt det senaste slaget var</em>. När baren sjunker ligger det förlorade kvar som en ljus skugga i ungefär en sekund och krymper sedan (stil 5 ovan).</p>
+      <p class="why" style="margin-top:8px">Det ger känsla för skadan utan text, och det fungerar likadant med exakta siffror och med spann.</p></div>
+      <div class="cap"><span class="lbl">Skäl</span><p>Spel som Street Fighter och Dark Souls gör så av samma anledning: man ser skadan även när man inte läser.</p></div></div>
+
+    <div class="push"><div><h3>3. Vänd kortet i stället för flikar</h3>
+      <p>Ett D&D-kort har en framsida och en baksida. Klicka på porträttet (eller tryck en tangent) så vänder sig kortet och Stats syns på baksidan. Då behövs ingen flikkolumn, och kortet får 20 px mer bredd. Bio kan ligga längst ner på baksidan.</p>
+      <p class="why" style="margin-top:8px">Nackdelen är att det inte syns att det finns en baksida. Det kan lösas med en liten vänd-ikon i hörnet.</p></div>
+      <div class="cap"><span class="lbl">Klicka på kortet</span><div class="flipwrap" id="flipdemo"></div></div></div>
+
+    <div class="push"><div><h3>4. Stats utan flik när panen är hög</h3>
+      <p>Flikar behövs bara när det inte får plats. Är panen tillräckligt hög visas Stats direkt under Status, och flikarna försvinner. Bio är fortfarande en flik, eller visas vid hover på namnet.</p>
+      <p class="why" style="margin-top:8px">Den som har gott om höjd slipper klicka. Den som har lite höjd får flikarna, som nu.</p></div>
+      <div class="cap"><span class="lbl">Hög pane, utan flikar</span><div id="tall"></div></div></div>
+
+    <div class="push"><div><h3>5. Porträttet i bakgrunden</h3>
+      <p>Bilderna du genererar kan vara större och mer stämningsfulla om de inte måste få plats i en liten ruta. Figuren ligger då svagt bakom texten och tonar ut åt alla håll, och kortet får tillbaka porträttets bredd. Prova "Porträtt: I bakgrunden" i bänken.</p>
+      <p class="why" style="margin-top:8px">Det känns mer som ett kort och mindre som ett formulär. Nackdelen är att texten måste vara läsbar ovanpå bilden.</p></div>
+      <div class="cap"><span class="lbl">Skäl</span><p>Stora bilder blir tydligare. På ett litet porträtt försvinner detaljerna ändå.</p></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Svar</span><h2>Runraden</h2></div>
+    <div class="box">
+      <p>Det var inte speltiden. Runraden var en svag rad under namnet i B2 där <strong>Rasta</strong> stod skrivet med runor: <span style="font:15px serif;letter-spacing:.3em;color:var(--lamp)">ᚱᚨᛋᛏᚨ</span>. Den var bara utsmyckning, ett sätt att få in Midgård utan att lägga till mer data. Slå på "Runrad" i bänken för att se den i B3. Mitt förslag är att lämna den av, eftersom B3 ska vara stilla.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Vilka ikoner?</h3><p>Ett nummer per rad i ikonväljaren, till exempel "Sneak 3, Ride 2, …".</p></div>
+      <div class="q"><h3>Vilken stil för vitals?</h3><p>Mitt förslag: 1 Rör eller 4 Stor siffra i normalläge, plus skadeskuggan (5) i båda lägena.</p></div>
+      <div class="q"><h3>Ska porträttet ha ett svagt sken bakom sig?</h3><p>"Bredvid med sken" ger figuren ett svagt ljus bakom, så att den inte försvinner mot en mörk pane. Utan sken blir det renare.</p></div>
+      <div class="q"><h3>Vilka av förslagen 1–5 vill du prova vidare?</h3><p>Jag tror mest på 1 (dölj dig själv i Group) och 2 (skadeskugga). 3 (vänd kortet) är det mest annorlunda.</p></div>
+      <div class="q"><h3>Packningens steg</h3><p>Vi känner bara till "Heavy, but we will manage…". Har du MUMEs hela lista med meningar? Annars samlar vi dem från loggar. Cirkeln blir orange på näst högsta steget och röd på högsta.</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const D = { name: 'Rasta', race: 'orc', raceName: 'Orc', citizen: 'GoblinTown', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], ma: [93, 111], mv: [98, 122], wimpy: 150, tog: { sneak: 1, ride: 0, climb: 1, swim: 0 }, mood: 'aggressive', speed: 'normal' };
+const RUNES = 'ᚱᚨᛋᛏᚨ';
+
+// Five options per icon: [name, 24×24 stroke path].
+const IC = {
+  sneak: ['Sneak', [
+    ['Fotspår', 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4'],
+    ['Kåpa', 'M12 3c-4.4 0-7 3.6-7 8.5V21h14v-9.5C19 6.6 16.4 3 12 3z M8.5 14.5c1-2.5 6-2.5 7 0 M9.5 11h.01 M14.5 11h.01'],
+    ['Smygande figur', 'M15 3.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M14 8.5l-4.5 3 3 3-1.5 6 M9.5 11.5L5 13 M12.5 14.5l4.5 1 1.5 4.5'],
+    ['Slutet öga', 'M3 11s3.5 4 9 4 9-4 9-4 M5.5 14l-1.5 2 M9.5 15.3L9 17.8 M14.5 15.3l.5 2.5 M18.5 14l1.5 2'],
+    ['Mask', 'M3 9c3-2.5 15-2.5 18 0 0 4.5-2 6.5-5 6.5-2 0-3-2-4-2s-2 2-4 2c-3 0-5-2-5-6.5z M7.5 11.5h2 M14.5 11.5h2']]],
+  ride: ['Ride', [
+    ['Hästhuvud', 'M6 21h12 M8 21c0-4 1.5-6.5 3.5-8.5-2.5.5-4.5.5-5.5-.5 0-3.5 3-6.5 6-7.5l1-2 1.2 2.2c2.5 1.3 4.3 4.5 4.3 8.3 0 3-.8 5.5-1.5 8'],
+    ['Hästsko', 'M6 20v-8.5a6 6 0 0 1 12 0V20 M4 20h4 M16 20h4 M6.2 15h.01 M17.8 15h.01 M7.6 9h.01 M16.4 9h.01'],
+    ['Sadel', 'M3 9.5c3 0 4 2 9 2s6-2 9-2c0 3.5-2.5 5.5-5.5 5.5h-7C5.5 15 3 13 3 9.5z M12 15v4.5 M9.5 19.5h5'],
+    ['Stigbygel', 'M9.5 3h5 M12 3v3 M7.5 19c0-6.5 1.8-10.5 4.5-13 2.7 2.5 4.5 6.5 4.5 13z M5.5 19h13'],
+    ['Ryttare', 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2']]],
+  climb: ['Climb', [
+    ['Berg och flagga', 'M2.5 20.5l6.5-11 3.5 5 2.5-3.5 6.5 9.5z M9 9.5V3.5 M9 3.5h4.5l-1 1.5 1 1.5H9'],
+    ['Rep med knopar', 'M9 3.5a3 3 0 0 1 6 0 M12 3.5V21 M10 8h4 M10 13h4 M10 18h4'],
+    ['Änterhake', 'M12 3v13 M7 11a5 5 0 0 0 10 0 M7 11l-2 1.5 M17 11l2 1.5 M10 3h4 M12 16v5'],
+    ['Stege', 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10'],
+    ['Klätterhacka', 'M4.5 8.5c4-4.5 11-4.5 15 0 M12 5.2V21 M10.5 21h3']]],
+  swim: ['Swim', [
+    ['Vågor och huvud', 'M2 15.5c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2 M2 20.5c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2 M12 4.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4'],
+    ['Simtag', 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2'],
+    ['Fisk', 'M3 12c3-4.5 8.5-5.5 12.5-3L21 6v12l-5.5-3C11.5 17.5 6 16.5 3 12z M8 11.2h.01'],
+    ['Bubblor', 'M9 12a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9 M16.5 6a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M10.5 3a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3'],
+    ['Droppe och våg', 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M8.5 14.5c1.2 0 1.2-1 2.4-1s1.2 1 2.4 1 1.2-1 2.4-1']]],
+  stand: ['Standing', [
+    ['Streckfigur', 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6'],
+    ['Stövlar', 'M4.5 20h6.5v-3.5l-2-1V4H6v11.5z M13 20h6.5v-3.5l-2-1V4H14.5v11.5z'],
+    ['Siluett', 'M12 2.5a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8 M9 9h6l1 7h-2l-.5 5.5h-3L10 16H8z'],
+    ['Pil upp', 'M4 21h16 M12 18V4 M8 8l4-4 4 4'],
+    ['Med svärd', 'M10 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M10 8.5v7 M6 11h8 M10 15.5l-2.5 6 M10 15.5l2.5 6 M18 3.5v13 M16.3 13.5h3.4']]],
+  ob: ['OB', [
+    ['Svärd', 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5'],
+    ['Korsade svärd', 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2'],
+    ['Yxa', 'M4.5 19.5l10-10 M12 7c1.5-3 5.5-4.5 9-1.5-1.5 1-2.5 4-1 7.5-3.5 1-6.5 0-8-2'],
+    ['Spjutspets', 'M12 2l3.2 6.5L12 14l-3.2-5.5z M12 14v8 M9.5 16.5h5'],
+    ['Pil', 'M4 20L16 8 M11 7h6v6 M4 20l1-4 M4 20l4-1']]],
+  db: ['DB', [
+    ['Väjande pil', 'M4 20c8 0 2-16 10-16h6 M17 1.5L20 4l-3 2.5'],
+    ['Undanväjande figur', 'M15.5 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M14.5 8l-4 5 3 3-2 5 M10.5 13L6.5 12 M3 6h4 M2 10h4 M3 14h3'],
+    ['Fjäder', 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7'],
+    ['Vind', 'M3 8h10a3 3 0 1 0-3-3 M3 12h15a3 3 0 1 1-3 3 M3 16h7'],
+    ['Delade pilar', 'M12 21v-7 M12 14L6 6 M12 14l6-8 M4 8.5L6 6l2.5 1 M19.5 8.5L18 6l-2.5 1']]],
+  pb: ['PB', [
+    ['Klingor i kors', 'M5 5l14 14 M19 5L5 19 M12 2v2.5 M2 12h2.5 M19.5 12H22'],
+    ['Pareringsklinga', 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5'],
+    ['Bucklare', 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6'],
+    ['Möts i spets', 'M4 21L13 6 M20 21L11 6 M9.5 3.5l2.5 2.5 2.5-2.5'],
+    ['Höjd hand', 'M8 13V5a1.5 1.5 0 0 1 3 0v6 M11 5V3.5a1.5 1.5 0 0 1 3 0V11 M14 5.5a1.5 1.5 0 0 1 3 0V12 M17 8a1.5 1.5 0 0 1 3 0v5c0 4-3 8-7 8s-6-2-8-5l-2-4a1.5 1.5 0 0 1 2.5-1.5L8 13']]],
+  abs: ['ABS', [
+    ['Sköld', 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z'],
+    ['Rustning', 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6'],
+    ['Hjälm', 'M5 15a7 7 0 0 1 14 0v4h-4.5v-4h-5v4H5z M12 8V4.5'],
+    ['Sköld som tar emot', 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z M9 10.5l3 3 3-3'],
+    ['Plåtar', 'M4 5h16v4H4z M6 10h12v4H6z M8 15h8v4H8z']]],
+};
+const pick = { sneak: 0, ride: 0, climb: 0, swim: 0, stand: 0, ob: 0, db: 0, pb: 0, abs: 0 };
+try { Object.assign(pick, JSON.parse(localStorage.getItem('wc-r3-pick') || '{}')); } catch (e) {}
+const st = { vstyle: 'tube', mode: 'normal', port: 'side', border: 'on', width: 760, self: 'show', runes: 'off' };
+
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const ic = (k, cls = 'ti') => `<svg class="${cls}" viewBox="0 0 24 24"><path d="${IC[k][1][pick[k]][1]}"/></svg>`;
+const useI = (id, cls) => `<svg class="${cls}" viewBox="0 0 24 24"><use href="#${id}"/></svg>`;
+
+function ring(size) {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `Level ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  return `<span class="lr" data-tip="${tip}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">
+    <circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.6)" stroke-width="2.6"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="#6e5832" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.3" stroke-dasharray="${D.tp * 100} 100" opacity=".8"/></svg><b>${D.level}</b></span>`;
+}
+
+function portrait(w, h, kind, mode) {
+  return `<div class="por${mode === 'sleep' ? ' sleep' : ''}" style="width:${w}px;height:${h}px"><div class="fig${kind === 'halo' ? ' halo' : ''}"><svg class="art" viewBox="0 0 60 75" preserveAspectRatio="xMidYMid meet"><use href="#r-${D.race}"/></svg></div>${ring(w > 70 ? 32 : 26)}</div>`;
+}
+
+function icons(mode) {
+  const t = ['sneak', 'ride', 'climb', 'swim'].map((k) => `<span data-tip="${k} ${D.tog[k] ? 'on' : 'off'}">${ic(k, 'ti' + (D.tog[k] ? ' on' : ''))}</span>`).join('');
+  let p;
+  if (mode === 'fight') p = `${useI('p-fighting', 'ti posi fight')}<span class="postx">fighting</span>`;
+  else if (mode === 'sleep') p = `<svg class="ti posi" viewBox="0 0 24 24"><path d="M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4"/></svg><span class="postx">sleeping</span>`;
+  else p = `${ic('stand', 'ti posi')}<span class="postx">standing</span>`;
+  return `<div class="icons">${t}<span class="isep"></span>${p}</div>`;
+}
+
+// One vital. exact: [cur,max] or null; span: [lo,hi] when only the band is known; ghost: [from,to] % of a recent loss.
+function vital(label, colCls, exact, span, style, extra = '', ghost = null) {
+  const p = exact ? pct(exact) : span[0];
+  const num = exact ? `${exact[0]}<small> / ${exact[1]}</small>` : '';
+  const fill = `<i style="--w:${p}%"></i>${span && !exact ? `<u style="--lo:${span[0]}%;--hi:${span[1]}%"></u>` : ''}${ghost ? `<s style="--a:${ghost[1]}%;--z:${ghost[0]}%"></s>` : ''}${style === 'seg' ? '<span class="notch"></span>' : ''}${extra}`;
+  if (style === 'fat') return `<div class="vit ${colCls}"><div class="b">${fill}<span class="in"><span>${label}</span><span>${num}</span></span></div></div>`;
+  return `<div class="vit ${colCls}"><div class="top"><span class="k">${label}</span><span class="n">${num}</span></div><div class="b">${fill}</div></div>`;
+}
+function vitals(style, mode, sizeCls = '') {
+  const fight = mode === 'fight';
+  const wp = Math.round((D.wimpy / D.hp[1]) * 100);
+  const wim = `<span class="wim" style="--p:${wp}%"></span>`;
+  const ghostHp = style === 'ghost' ? (fight ? [62, 46] : [78, 69]) : null;
+  const hpTip = fight ? 'HP: only the band is known (46–70 %)\nwimpy at 150 (56 %)' : 'HP 187 / 270 · 69 %\nwimpy at 150 (56 %)';
+  const hp = vital('HP', 'hp', fight ? null : D.hp, fight ? [46, 70] : null, style, wim, ghostHp).replace('<div class="vit', `<div data-tip="${hpTip}" class="vit`);
+  const ma = vital('MANA', 'ma', D.ma, null, style);
+  const mv = vital('MOVES', 'mv', fight ? null : D.mv, fight ? [30, 49] : null, style, '', style === 'ghost' && fight ? [45, 38] : null);
+  return `<div class="vit3 vs-${style}${fight ? ' fight' : ''} ${sizeCls}">${hp}${ma}${mv}</div>`;
+}
+
+function statusTab(o) {
+  const ringHere = o.port === 'hero' ? ring(30) : '';
+  return `<div style="display:flex;gap:10px;align-items:center"><div style="min-width:0;flex:1"><div class="nm2">${D.name}</div></div>${ringHere}</div>
+    ${o.runes === 'on' ? `<div class="runes">${RUNES}</div>` : ''}
+    <div class="typel">${D.raceName} of ${D.citizen}</div><div class="quietrule"></div>${icons(o.mode)}
+    <div class="disc"><span class="cl">${D.mood}</span> · casts ${D.speed} · wimpy <span class="cl">${D.wimpy}</span></div>`;
+}
+function encPie(step, of = 5) {
+  const col = step >= of ? 'var(--crit)' : step >= of - 1 ? 'var(--warn)' : 'var(--dim)';
+  return `<svg class="pie" viewBox="0 0 14 14" style="transform:rotate(-90deg)"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="2"/><circle cx="7" cy="7" r="5.5" fill="none" stroke="${col}" stroke-width="2" pathLength="100" stroke-dasharray="${(step / of) * 100} 100"/></svg>`;
+}
+function statsTab() {
+  const ab = [['STR', 18, 14, '+2', 'strength'], ['INT', 16, 15], ['WIS', 16, 16], ['DEX', 11, 8], ['CON', 12, 10], ['WIL', 16, 16], ['PER', 8, 8]];
+  const cells = ab.map(([k, v, base, d, aff]) => `<div class="abx${d ? ' up' : ''}" data-tip="${k} ${v}${d ? ` (${d} from ${aff})` : ''}\nbase ${base}"><small>${k}</small><b>${v}</b><em>${d || base}</em></div>`).join('');
+  const c = (k, v, label) => `<div data-tip="${label}">${ic(k)}<b>${v}</b><small>${k.toUpperCase()}</small></div>`;
+  return `<div class="ab">${cells}</div>
+    <div class="cmb">${c('ob', 137, 'Offensive bonus')}${c('db', -1, 'Dodge bonus')}${c('pb', 39, 'Parry bonus')}${c('abs', 43, 'Absorption')}</div>
+    <div class="enc" data-tip="Encumbrance step 4 of 5">${encPie(4)}<span>93 lb</span><i>Heavy, but we will manage…</i></div>`;
+}
+function bioTab() {
+  return `<dl class="kv">
+    <dt>Age</dt><dd>57 years</dd><dt>Birthday</dt><dd>in 5 months</dd>
+    <dt>Height</dt><dd>4′11″</dd><dt>Weight</dt><dd>8 st 5 lb</dd>
+    <dt>Citizen</dt><dd>GoblinTown</dd><dt>Fame</dt><dd>known (4)</dd>
+    <dt>Purse</dt><dd class="wide"><span class="coin g"></span>394<span class="coin s"></span>11<span class="coin c"></span>49</dd>
+  </dl><div class="flav">“Totally corrupted by the Evilness of Morgoth.”</div>`;
+}
+
+function card(o) {
+  o = Object.assign({}, st, o);
+  const fight = o.mode === 'fight';
+  const active = fight ? 0 : (o.tab || 0);
+  const names = ['Status', 'Stats', 'Bio'];
+  const tabs = o.noTabs ? '' : `<div class="vt${fight ? ' locked' : ''}">${names.map((n, i) => `<button data-tab="${i}" class="${i === active ? 'on' : ''}">${n.toUpperCase()}</button>`).join('')}</div>`;
+  const narrow = o.width < 500;
+  const port = portrait(narrow ? 76 : 96, narrow ? 96 : 120, o.port, o.mode);
+  let panels;
+  if (o.tall) panels = `<div class="tpn on">${statusTab(o)}<div class="quietrule" style="margin:10px 0 8px"></div>${statsTab()}</div>`;
+  else panels = [statusTab(o), statsTab(), bioTab()].map((h, i) => `<div class="tpn${i === active ? ' on' : ''}">${h}</div>`).join('');
+  const cls = `cw${o.port === 'hero' ? ' hero' : ''}`;
+  const inner = `<div class="${cls}" data-card>${o.port === 'hero' ? port : port}<div class="mid" style="min-height:${narrow ? 96 : 120}px">${panels}</div>${tabs}<div class="foot">${vitals(o.vstyle, o.mode, narrow ? 'md' : '')}</div></div>`;
+  const tabsFix = o.noTabs ? inner.replace('class="cw', 'style="grid-template-columns:auto minmax(0,1fr)" class="cw') : inner;
+  return `<div class="pane${o.border === 'off' ? ' off' : ''}" style="width:${o.width}px;max-width:none"><div class="hood">CHARACTER</div><div class="win">${tabsFix}</div></div>`;
+}
+
+function group(width, border, self) {
+  const M = [
+    { n: 'Rasta', here: 1, b: [69, 84, 80], pos: 'stand' },
+    { n: 'Kakaroto', room: 'Hall of Murals', b: [100, 78, 100], pos: 'rest' },
+    { n: 'Mrruhk', here: 1, b: [100, 100, 72], pos: 'stand' },
+    { n: 'Rheinmetall', room: 'Sinister-looking Cave', b: [100, 0, 100], pos: 'stand' },
+    { n: 'Ázukh', room: 'The Cracked Chamber', b: [80, 86, 100], pos: 'rest' },
+  ].filter((m) => self !== 'hide' || m.n !== 'Rasta');
+  const rows = M.map((m) => `<div class="gr${m.here ? '' : ' away'}"><div class="t">${useI('i-player', 'ico pl')}<span class="nm">${m.n}</span><span class="room">${m.room ? useI('i-pin', 'ico') + m.room : ''}</span>${m.pos === 'rest' ? useI('i-resting', 'ico') : `<svg class="ico" viewBox="0 0 24 24"><path d="${IC.stand[1][pick.stand][1]}"/></svg>`}</div>
+    <div class="bars"><span class="b hp"><i style="--w:${m.b[0]}%"></i></span><span class="b ma"><i style="--w:${m.b[1]}%"></i></span><span class="b mv"><i style="--w:${m.b[2]}%"></i></span></div></div>`).join('');
+  return `<div class="pane${border === 'off' ? ' off' : ''}" style="width:${width}px;max-width:none"><div class="hood">GROUP</div><div class="win"><div class="gp">${rows}</div></div></div>`;
+}
+
+function wireTabs(root) {
+  root.querySelectorAll('[data-card]').forEach((cw) => cw.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+    const i = +b.dataset.tab;
+    cw.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+    cw.querySelectorAll('.tpn').forEach((p, k) => p.classList.toggle('on', k === i));
+  })));
+}
+
+let benchTab = 0;
+function renderBench() {
+  const el = document.getElementById('bench');
+  const cur = el.querySelector('[data-tab].on'); if (cur) benchTab = +cur.dataset.tab;
+  el.innerHTML = card({ tab: benchTab }) + group(st.width, st.border, st.self);
+  wireTabs(el);
+}
+document.querySelectorAll('[data-ctl]').forEach((seg) => seg.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  const k = seg.dataset.ctl; st[k] = k === 'width' ? +b.dataset.v : b.dataset.v;
+  renderBench();
+}));
+
+function renderPicker() {
+  document.getElementById('picker').innerHTML = Object.entries(IC).map(([k, [label, opts]]) => `<div class="prow"><span>${label}</span>${opts.map(([n, d], i) =>
+    `<button class="opt${pick[k] === i ? ' on' : ''}" data-k="${k}" data-i="${i}"><span class="pair"><svg class="a" viewBox="0 0 24 24"><path d="${d}"/></svg><svg class="z" viewBox="0 0 24 24"><path d="${d}"/></svg></span><b>${label} ${i + 1}</b><small>${n}</small></button>`).join('')}</div>`).join('');
+}
+document.getElementById('picker').addEventListener('click', (e) => {
+  const b = e.target.closest('.opt'); if (!b) return;
+  pick[b.dataset.k] = +b.dataset.i;
+  try { localStorage.setItem('wc-r3-pick', JSON.stringify(pick)); } catch (err) {}
+  renderPicker(); renderBench(); renderStatic();
+});
+
+function renderStatic() {
+  const V = [['tube', '1 Rör', 'Som i runda 2: etikett och siffra ovanför en 11 px bar.'], ['fat', '2 Tjock', 'En 17 px bar med etikett och siffra inuti. Kompakt och tydlig.'], ['seg', '3 Segment', 'Tio segment, som ett TUI-mätare. Lätt att läsa av i tiondelar.'], ['big', '4 Stor siffra', 'Siffran är det viktiga och baren är tunnare. När vi bara har spannet syns bara baren.'], ['ghost', '5 Skadeskugga', 'Det senaste slaget ligger kvar som en ljus del en kort stund.']];
+  document.getElementById('vstyles').innerHTML = V.map(([s, h, p]) => `<div class="cap"><span class="lbl">${h}</span>
+    <div class="pane" style="width:380px;max-width:none"><div class="hood">CHARACTER</div><div class="win" style="padding-top:22px">${vitals(s, 'normal')}<div style="height:12px"></div>${vitals(s, 'fight')}</div></div><p>${p}</p></div>`).join('');
+  const fd = document.getElementById('flipdemo');
+  fd.innerHTML = `<div class="flip" id="flip"><div class="face">${card({ width: 330, noTabs: true, tab: 0, mode: 'normal', border: 'on' })}</div><div class="back">${card({ width: 330, noTabs: true, tab: 1, mode: 'normal', border: 'on' })}</div></div>`;
+  fd.querySelector('.back .tpn.on')?.classList.remove('on');
+  fd.querySelectorAll('.back .tpn')[1]?.classList.add('on');
+  fd.querySelector('#flip').addEventListener('click', (e) => e.currentTarget.classList.toggle('over'));
+  document.getElementById('tall').innerHTML = card({ width: 330, noTabs: true, tall: true, mode: 'normal', border: 'on' });
+}
+
+renderPicker(); renderBench(); renderStatic();
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
