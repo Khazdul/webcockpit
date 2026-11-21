@@ -38,10 +38,11 @@
 //   achievement  mallorn gold with a green band and a wreath of green leaves
 //                round a white star, silver ribbons
 //
-// HER: a held pose per mood, no large gestures. Unrated: she turns a leaf in
-// her fingers. Poor: a wilted flower. Good: a white flower. Great: a small
-// harp at her shoulder. Superb: a star-glass held up. Player kill: her bow,
-// strung. Level up: a hand to her heart, head a little bowed. Death: her hood
+// HER: a held pose per mood, no large gestures. What she holds is at her
+// chest, on a short forearm from under the cloak. Unrated: nothing, both hands
+// on the rail, a searching look. Poor: a wilted flower. Good: a white flower. Great: a small
+// harp at her shoulder. Superb: a star-glass held up. Player kill: her hood up, a faint
+// light in her eyes, her bow strung. Level up: a hand to her heart, head a little bowed. Death: her hood
 // drawn up, head bowed, eyes closed, weeping. Achievement: a silver cup.
 (() => {
   const { K, INK, kit } = Rig, { n, S, SL, Z, G, ink2, NS, pp } = kit, HP = kit.P, HQ = kit.Q;
@@ -51,21 +52,21 @@
   const SKIN = '#ecd6bd', GOWN = '#dfe3dc', SILVER = '#cfd6d8', GOLD = '#d2ad4a', LEAFG = '#3f7a4f';
 
   // ---- moods: how she holds her head, her face and her hands ----
-  const DEF = { rise: 0, hy: 0, hr: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: .5, px: 0, py: 0, sm: 0, sd: 0, hood: 0, hl: 1, hrt: 1, leaf: 0, wilt: 0, flower: 0, harp: 0, glass: 0, bow: 0, heart: 0, cup: 0 };
+  const DEF = { rise: 0, hy: 0, hr: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: .5, px: 0, py: 0, sm: 0, sd: 0, hood: 0, mag: 0, hl: 1, hrt: 1, wilt: 0, flower: 0, harp: 0, glass: 0, bow: 0, heart: 0, cup: 0 };
   const M = {
-    calibrating: { hr: 3, bly: -1.6, blr: -5, lid: .3, leaf: 1, hrt: 0 },
+    calibrating: { hr: 2.5, bly: -1.8, blr: -5, bry: -.6, lid: .2 },
     poor: { rise: -2, hr: -4, hy: 1.5, lid: 2.4, bly: .5, bry: .5, blr: 8, brr: 8, sd: 1, wilt: 1, hrt: 0 },
     meh: { hr: -2, lid: 2 },
     good: { sm: 1, lid: .4, flower: 1, hrt: 0 },
     great: { rise: 1, hr: 2.5, sm: 1, bly: -1, bry: -1, harp: 1, hrt: 0 },
     superb: { rise: 3, sm: 1, bly: -2, bry: -2, lid: 0, glass: 1, hrt: 0 },
-    pvp: { rise: 1, lid: 1.7, bly: 1.2, bry: 1.2, blr: -10, brr: -10, bow: 1, hl: 0 },
+    pvp: { rise: 1, lid: 1.7, bly: 1.2, bry: 1.2, blr: -10, brr: -10, bow: 1, hl: 0, hood: 1, mag: 1 },
     levelup: { hr: -3, hy: 1, lid: 3, sm: 1, heart: 1, hl: 0 },
     death: { rise: -3, hr: -7, hy: 3, lid: 7.4, blr: 9, brr: 9, sd: 1, hood: 1 },
     achievement: { rise: 2, sm: 1, bly: -1.5, bry: -1.5, cup: 1, hrt: 0 },
   };
   // where the thing she holds is, for her glances (pupil units)
-  const PROP = { calibrating: [2.4, -.6], poor: [2.4, .8], meh: [-2.2, .2], good: [2.2, .6], great: [2, 1], superb: [2.4, -.8], pvp: [0, 0], levelup: [0, 1], achievement: [2.3, .4] };
+  const PROP = { calibrating: [-2.4, -.3], poor: [1.4, 1.1], meh: [-2.2, .2], good: [1.4, 1], great: [2, 1], superb: [1.4, .9], pvp: [0, 0], levelup: [0, 1], achievement: [1.4, 1] };
   const RANK = { poor: 1, meh: 2, good: 3, great: 4, superb: 5 };
   const vars = (o) => Object.keys(o).filter((k) => k in DEF).map((k) => `--${k}:${o[k]}`).join(';');
   const show = (...names) => names.map((nm) => `.elf-${nm}{--x:var(--${nm})}`).join('');
@@ -93,9 +94,12 @@ ${Object.keys(M).map((m) => `.elf-v[data-mood=${m}]{${vars(M[m])}}`).join('\n')}
 .elf-m0,.elf-m1,.elf-m2,.elf-hood,.elf-hL,.elf-hR{transition:opacity calc(.3s*var(--k))}
 .elf-m0{opacity:calc(1 - var(--sm) - var(--sd))}.elf-m1{opacity:var(--sm)}.elf-m2{opacity:var(--sd)}
 .elf-hood{opacity:var(--hood)}
+.elf-shade{opacity:calc(var(--mag)*.34)}.elf-mi{opacity:calc(var(--mag)*.6)}
+.elf-mag{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--mag);transition:opacity calc(.4s*var(--k));transform-origin:${CX}px ${HY + PIV * HS}px;transform:translateY(calc(var(--hy)*${HS}px)) rotate(calc(var(--hr)*1deg))}
+.elf-mag i{position:absolute;top:${HY - 5.5}px;width:11px;height:11px;border-radius:50%;background:radial-gradient(closest-side,rgba(214,244,255,.5),rgba(150,214,255,.2) 45%,rgba(140,200,255,0));animation:elf-pu 2.8s ease-in-out infinite alternate}
 .elf-hL{opacity:var(--hl)}.elf-hR{opacity:var(--hrt)}
 .elf-p{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--x);transform:translateY(calc((1 - var(--x))*14px));transition:transform calc(.45s*var(--k)) cubic-bezier(.3,1.15,.5,1),opacity calc(.16s*var(--k))}
-${show('leaf', 'wilt', 'flower', 'harp', 'glass', 'bow', 'heart', 'cup')}
+${show('wilt', 'flower', 'harp', 'glass', 'bow', 'heart', 'cup')}
 .elf-lk{left:${CX}px;top:${HY + 8}px;will-change:transform}
 .elf-lk svg{left:-20px;top:-3px}
 .elf-gl{width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:radial-gradient(closest-side,rgba(240,248,255,.75),rgba(206,226,255,.22) 45%,rgba(200,220,255,0));opacity:calc(.35 + var(--go)*.6);animation:elf-gw 2.6s ease-in-out infinite alternate}
@@ -151,7 +155,7 @@ ${show('leaf', 'wilt', 'flower', 'harp', 'glass', 'bow', 'heart', 'cup')}
   // ---- her face and shoulders (head units; light from the right, as on the envelope) ----
   const alm = (s) => `M${-6.5 * s},.8Q${-2 * s},-4.400 ${3 * s},-3.200Q${5.6 * s},-2.600 ${7.2 * s},-1.800Q${3.5 * s},3 ${-1.5 * s},2.800Q${-4.5 * s},2.400 ${-6.5 * s},.8Z`;
   const eye = (s, u) => `<g transform="translate(${10.5 * s},0)"><g clip-path="url(#elc${s < 0 ? 'l' : 'r'}${u})"><path d="${alm(s)}" fill="#f3eee2"/><path d="M-9,-6H9V-1.800H-9Z" fill="#5a4636" opacity=".22"/>
-<g class="elf-pm"><g class="elf-pg"><circle r="3.100" fill="#5f8494"/><circle r="3.100" fill="none" stroke="#2c4350" stroke-width=".7"/><circle r="1.500" fill="#0d1216"/><circle cx="-1" cy="-1.300" r=".85" fill="#fff"/></g></g>
+<g class="elf-pm"><g class="elf-pg"><circle r="3.100" fill="#5f8494"/><circle r="3.100" fill="none" stroke="#2c4350" stroke-width=".7"/><circle r="1.500" fill="#0d1216"/><circle class="elf-mi" r="3.100" fill="#c6efff"/><circle class="elf-mi" r="1.100" fill="#ffffff"/><circle cx="-1" cy="-1.300" r=".85" fill="#fff"/></g></g>
 <g class="elf-bl"><path class="elf-lid" d="M-10,-18H10V-4.800H-10Z"/></g></g>
 <path d="${alm(s)}" fill="none" stroke="${INK}" stroke-width=".6"/>
 <path d="M${-6.5 * s},.8Q${-2 * s},-4.600 ${3 * s},-3.400Q${5.6 * s},-2.800 ${8.8 * s},-3.200" fill="none" stroke="${INK}" stroke-width="1.500" stroke-linecap="round"/>
@@ -178,7 +182,7 @@ ${FG(u, `<path d="M-26,14C-33,-18 -29,-50 0,-52C29,-50 33,-18 26,14L20,24H-20Z" 
 <path d="M-21,-10C-21,8 -16,26 -7,36C-12,24 -15.500,8 -15,-8C-15,-22 -13,-32 -9,-39C-18,-35 -22,-24 -21,-10Z" fill="#7a5340" opacity=".2" stroke="none"/><path d="M-21,-10C-21,8 -16,26 -7,36C-11,26 -17,8 -17.500,-8C-17.500,-22 -15,-32 -11,-38C-19,-34 -22,-24 -21,-10Z" fill="url(#elfp${u})" stroke="none"/>
 <ellipse cx="-12" cy="14" rx="5" ry="3.500" fill="#c9766a" opacity=".16" stroke="none"/><ellipse cx="13" cy="14" rx="5" ry="3.500" fill="#d98a7a" opacity=".18" stroke="none"/>
 <path d="M-1.600,-3C-2,6 -4,12 -3.600,15.500Q-1,18.800 2.800,17" fill="none" stroke-width=".9" opacity=".8"/><path d="M-4,17.500Q-5.500,16 -4.500,14" fill="none" stroke-width=".7" opacity=".6"/><path d="M-1.600,-3C-2,6 -4,12 -3.600,15.500L-1,16.500C-1.200,10 -.4,4 -.2,-3Z" fill="#7a5340" opacity=".08" stroke="none"/>
-<path d="M-3,35.500Q0,37 3,35.500" fill="none" stroke-width=".6" opacity=".45"/>`)}
+<path d="M-3,35.500Q0,37 3,35.500" fill="none" stroke-width=".6" opacity=".45"/><path class="elf-shade" d="M-21,-10C-22,-32 -12,-42 0,-42C12,-42 22,-32 21,-10C21,2 19,12 16,20Q0,10 -16,20C-19,12 -21,2 -21,-10Z" fill="#141c2a" stroke="none"/>`)}
 <g transform="translate(-10.500,-9.200) scale(-1,1)"><g class="elf-bL">${BROW}</g></g><g transform="translate(10.500,-9.200)"><g class="elf-bR">${BROW}</g></g>
 ${eye(-1, u)}${eye(1, u)}
 <g stroke="${INK}" stroke-linecap="round" stroke-linejoin="round"><g class="elf-m0"><path d="M-4.600,26.300Q0,30.200 4.600,26.300Q0,27.300 -4.600,26.300Z" fill="#b9776a" stroke="none"/><path d="M-6,25.800Q-3,24.500 0,25.500Q3,24.500 6,25.800" fill="none" stroke-width="1"/></g>
@@ -203,40 +207,42 @@ ${star(0, -14.5, 5, '#f6fbff', .8, .5)}<circle cx="0" cy="-14.500" r="1.300" fil
     return `<div class="rig-z elf-lk"><svg class="rig-s rig-rim" xmlns="${NS}" width="40" height="62.5" viewBox="-40 10 80 125"><g filter="url(#elff${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">${lock(-1)}${lock(1)}</g></svg></div>`;
   };
   // tears (death): they run slowly from the closed lids down her cheeks and stay on her face
+  const magic = () => `<div class="elf-mag"><i style="left:${CX - 10.75}px"></i><i style="left:${CX - .25}px"></i></div>`;
   const tears = () => `<div class="elf-tears">${[[-6.3, 0], [5.3, -2.6]].map(([x, dl]) => `<div class="elf-tear" style="left:${CX + x - 2.5}px;top:${HY + 2}px"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:9px;--dl:${dl - 2.9}s"></i></div>`).join('')}</div>`;
 
   // ---- her arms and what she holds (rig px). The elbow stays down in the car; the hand is near the shoulder. ----
   const arm = (u, ex, ey, hx, hy, w = 6) => {
     const dx = hx - ex, dy = hy - ey, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L, a = w / 2 + 1, b = w / 2 - .4;
     const at = (f, o) => `${n(ex + dx * f + nx * o)},${n(ey + dy * f + ny * o)}`;
-    return `<path d="M${at(0, a)}L${at(1, b)}L${at(1, -b)}L${at(0, -a)}Z" fill="#849688" stroke-width="1"/><path d="M${at(0, -a)}L${at(1, -b)}L${at(1, -b * .1)}L${at(0, -a * .1)}Z" fill="${HP(u)}" stroke="none" opacity=".8"/><path d="M${at(.3, a * .7)}L${at(.62, -a * .5)}" fill="none" stroke-width=".5" opacity=".6"/><path d="M${at(.82, b + .7)}L${at(.95, b + .6)}L${at(.95, -b - .6)}L${at(.82, -b - .7)}Z" fill="${SILVER}" stroke-width=".7"/>`;
+    return `<path d="M${at(0, a)}L${at(1, b)}L${at(1, -b)}L${at(0, -a)}Z" fill="#869787" stroke-width="1"/><path d="M${at(0, -a)}L${at(1, -b)}L${at(1, -b * .1)}L${at(0, -a * .1)}Z" fill="${HP(u)}" stroke="none" opacity=".8"/><path d="M${at(.3, a * .7)}L${at(.62, -a * .5)}" fill="none" stroke-width=".5" opacity=".6"/><path d="M${at(.82, b + .7)}L${at(.95, b + .6)}L${at(.95, -b - .6)}L${at(.82, -b - .7)}Z" fill="${SILVER}" stroke-width=".7"/>`;
   };
   const hand = (x, y, r = 3.5, rot = 0) => `<g transform="translate(${x},${y}) rotate(${rot})"><path d="M${-r},0C${-r},${n(-r * 1.25)} ${r},${n(-r * 1.25)} ${r},0C${r},${n(r * .95)} ${-r},${n(r * .95)} ${-r},0Z" fill="${SKIN}" stroke-width=".9"/><path d="M${n(-r * .45)},${n(-r * .85)}v${n(r * .8)}M${n(r * .05)},${n(-r * .92)}v${n(r * .85)}M${n(r * .5)},${n(-r * .85)}v${n(r * .8)}" fill="none" stroke-width=".45"/></g>`;
   const PR = (cls, u, x, y, w, body, extra = '') => `<div class="elf-p elf-${cls}">${S('rig-rim', x, y, w, RY - y + 10, G(u, body))}${extra}</div>`;
   const props = (u) => {
     const E = RY + 3;
-    // unrated: a mallorn leaf turned in her fingers
-    return PR('leaf', u, 22, HY - 4, 26, `${arm(u, 45, E, 34.5, HY + 22)}<path d="M34,${HY + 19}Q33,${HY + 15} 34.500,${HY + 12}" fill="none" stroke-width="1"/><g transform="translate(35.500,${HY + 5}) rotate(14) scale(.95)">${leaf('#c9a640', .9)}</g>${hand(34, HY + 21, 3.4)}`)
-      // poor: a wilted flower
-      + PR('wilt', u, 22, HY + 8, 30, `${arm(u, 45, E, 34.5, HY + 28)}${ink2(`M34,${HY + 26}C34,${HY + 19} 35,${HY + 14} 39,${HY + 13.5}C42,${HY + 13.500} 43,${HY + 16} 43,${HY + 18}`, .8, '#6f6a45')}<path d="M43,${HY + 17.5}C40.500,${HY + 19} 40,${HY + 22} 41.500,${HY + 24.5}L43,${HY + 22}L44.500,${HY + 25}C46,${HY + 22} 45.500,${HY + 19} 43,${HY + 17.5}Z" fill="#9a8a68" stroke-width=".8"/><path d="M35,${HY + 19}C37.500,${HY + 20} 38.500,${HY + 22.5} 37.500,${HY + 25}C35.500,${HY + 24} 34.500,${HY + 21.5} 35,${HY + 19}Z" fill="#8a6f3c" stroke-width=".7"/>${hand(34, HY + 27, 3.4)}`)
+    // The holding arm: only a short forearm shows. It comes out from under the cloak in front of her
+    // body and the hand is at her chest; what she holds stands beside her neck, never out at the side.
+    const AX = 15.5, AY = HY + 42, held = (body, y = AY) => `${arm(u, 22, E, AX + .6, y + 1.5, 6.6)}${body}${hand(AX, y, 3.5, -8)}`;
+    // poor: a wilted flower
+    return PR('wilt', u, 4, HY + 20, 34, held(`<g transform="translate(${AX - 34},15)">${ink2(`M34,${HY + 26}C34,${HY + 19} 35,${HY + 14} 39,${HY + 13.5}C42,${HY + 13.500} 43,${HY + 16} 43,${HY + 18}`, .8, '#6f6a45')}<path d="M43,${HY + 17.5}C40.500,${HY + 19} 40,${HY + 22} 41.500,${HY + 24.5}L43,${HY + 22}L44.500,${HY + 25}C46,${HY + 22} 45.500,${HY + 19} 43,${HY + 17.5}Z" fill="#9a8a68" stroke-width=".8"/><path d="M35,${HY + 19}C37.500,${HY + 20} 38.500,${HY + 22.5} 37.500,${HY + 25}C35.500,${HY + 24} 34.500,${HY + 21.5} 35,${HY + 19}Z" fill="#8a6f3c" stroke-width=".7"/></g>`))
       // good: a white flower of the woods
-      + PR('flower', u, 22, HY, 26, `${arm(u, 45, E, 34.5, HY + 27)}${ink2(`M34,${HY + 25}C33.500,${HY + 20} 34.500,${HY + 16} 34,${HY + 12}`, .8, '#4f7d58')}<path d="M34,${HY + 20}C37,${HY + 19} 38.500,${HY + 16.5} 38.500,${HY + 15}C36,${HY + 15.5} 34.500,${HY + 17.5} 34,${HY + 20}Z" fill="#5c8a62" stroke-width=".7"/>
-<g transform="translate(34,${HY + 9.5})">${[0, 60, 120, 180, 240, 300].map((a) => `<path transform="rotate(${a})" d="M0,0C2.200,-1.800 2.200,-4.800 0,-6.600C-2.200,-4.800 -2.200,-1.800 0,0Z" fill="#fbfaf2" stroke-width=".7"/>`).join('')}<circle r="1.500" fill="#e2b93f" stroke-width=".5"/></g>${hand(34, HY + 26, 3.4)}`)
+      + PR('flower', u, 4, HY + 14, 34, held(`<g transform="translate(${AX - 34},16)">${ink2(`M34,${HY + 25}C33.500,${HY + 20} 34.500,${HY + 16} 34,${HY + 12}`, .8, '#4f7d58')}<path d="M34,${HY + 20}C37,${HY + 19} 38.500,${HY + 16.5} 38.500,${HY + 15}C36,${HY + 15.5} 34.500,${HY + 17.5} 34,${HY + 20}Z" fill="#5c8a62" stroke-width=".7"/>
+<g transform="translate(34,${HY + 9.5})">${[0, 60, 120, 180, 240, 300].map((a) => `<path transform="rotate(${a})" d="M0,0C2.200,-1.800 2.200,-4.800 0,-6.600C-2.200,-4.800 -2.200,-1.800 0,0Z" fill="#fbfaf2" stroke-width=".7"/>`).join('')}<circle r="1.500" fill="#e2b93f" stroke-width=".5"/></g></g>`))
       // great: a small harp leaning at her shoulder, her fingers on the strings
       + PR('harp', u, 20, HY + 6, 36, `<path d="M${[31.5, 34, 36.5, 39, 41.5, 44].map((x) => `${x},${n(HY + 17.5 - (x - 30) * .12)}V${n(Math.min(RY + 6, HY + 18 + (x - 27.5) * 2.75))}`).join('M')}" fill="none" stroke="${INK}" stroke-width="1.100" opacity=".55"/><path d="M${[31.5, 34, 36.5, 39, 41.5, 44].map((x) => `${x},${n(HY + 17.5 - (x - 30) * .12)}V${n(Math.min(RY + 6, HY + 18 + (x - 27.5) * 2.75))}`).join('M')}" fill="none" stroke="#f1f4f2" stroke-width=".5"/>
 <path d="M25.500,${HY + 18.5}L30.500,${HY + 16}L49,${RY + 8}H43.500Z" fill="url(#elfw${u})" stroke-width="1"/><path d="M25.500,${HY + 18.5}L27.800,${HY + 17.3}L46,${RY + 8}H43.500Z" fill="${HP(u)}" stroke="none"/>
 ${ink2(`M27.500,${HY + 18}C31,${HY + 10} 39,${HY + 19} 47,${HY + 13.5}C49.500,${HY + 11.500} 48.500,${HY + 8.5} 46.500,${HY + 9.5}`, 2.2, '#d6cfb6')}${ink2(`M47.500,${HY + 14}C50.500,${HY + 30} 49.500,${HY + 46} 46.500,${RY + 8}`, 1.9, '#cfc8b0')}
 ${arm(u, 33, E, 37.5, HY + 41, 5.6)}${hand(37.5, HY + 39, 3.3, 12)}`)
       // superb: a star-glass, the light of Elbereth's stars caught in crystal
-      + PR('glass', u, 22, HY - 6, 26, `${arm(u, 45, E, 34.5, HY + 21)}<g transform="translate(34,${HY + 9})"><path d="M-1.800,4H1.800V9.500H-1.800Z" fill="${SILVER}" stroke-width=".7"/><circle cx="0" cy="0" r="5.200" fill="#eaf5fb" stroke-width=".9"/><path d="M-5.200,0A5.200,5.200 0 0 0 0,5.200A7,7 0 0 1 -5.200,0Z" fill="#9fc4dc" opacity=".6" stroke="none"/>${star(0, 0, 4.2, '#ffffff', .4, .5)}<path d="M-1.500,-6.300h3" fill="none" stroke-width="2.200"/><path d="M-1.500,-6.300h3" fill="none" stroke="${SILVER}" stroke-width="1"/></g>${hand(34, HY + 20, 3.4)}`,
-        `${Z('elf-gl', 34, HY + 9)}${Z('elf-glint', 36.5, HY + 6.5, SL('', 0, 0, 12, 12, '<path d="M6,0L7,5L12,6L7,7L6,12L5,7L0,6L5,5Z" fill="#fffef4"/>'))}`)
+      + PR('glass', u, 4, HY + 18, 34, held(`<g transform="translate(${AX},${HY + 30})"><path d="M-1.800,4H1.800V9.500H-1.800Z" fill="${SILVER}" stroke-width=".7"/><circle cx="0" cy="0" r="5.200" fill="#eaf5fb" stroke-width=".9"/><path d="M-5.200,0A5.200,5.200 0 0 0 0,5.200A7,7 0 0 1 -5.200,0Z" fill="#9fc4dc" opacity=".6" stroke="none"/>${star(0, 0, 4.2, '#ffffff', .4, .5)}<path d="M-1.500,-6.300h3" fill="none" stroke-width="2.200"/><path d="M-1.500,-6.300h3" fill="none" stroke="${SILVER}" stroke-width="1"/></g>`),
+        `${Z('elf-gl', AX, HY + 30)}${Z('elf-glint', AX + 2.5, HY + 27.5, SL('', 0, 0, 12, 12, '<path d="M6,0L7,5L12,6L7,7L6,12L5,7L0,6L5,5Z" fill="#fffef4"/>'))}`)
       // a player kill: her bow, strung
-      + PR('bow', u, -56, HY - 24, 26, `<path d="M-38.500,${HY - 19}L-39.500,${RY + 8}" fill="none" stroke="#e9eee8" stroke-width=".7"/>${ink2(`M-38.500,${HY - 20}C-50.500,${HY + 4} -50.500,${HY + 44} -39.500,${RY + 8}`, 2, '#8a6a42')}<path d="M-38.500,${HY - 20}l-1.600,3.400l2.600,.4Z" fill="${SILVER}" stroke-width=".7"/>
-${ink2(`M-47.200,${HY + 20}V${HY + 29}`, 2.6, '#cfd6d8')}${arm(u, -38, E, -46.6, HY + 27)}${hand(-47, HY + 25, 3.5, -8)}`)
+      + PR('bow', u, -52, HY - 24, 26, `<g transform="translate(6.5,0)"><path d="M-38.500,${HY - 19}L-39.500,${RY + 8}" fill="none" stroke="#e9eee8" stroke-width=".7"/>${ink2(`M-38.500,${HY - 20}C-50.500,${HY + 4} -50.500,${HY + 44} -39.500,${RY + 8}`, 2, '#8a6a42')}<path d="M-38.500,${HY - 20}l-1.600,3.400l2.600,.4Z" fill="${SILVER}" stroke-width=".7"/>
+${ink2(`M-47.200,${HY + 20}V${HY + 29}`, 2.6, '#cfd6d8')}${arm(u, -34, E, -46.6, HY + 27)}${hand(-47, HY + 25, 3.5, -8)}</g>`)
       // level up: a hand to her heart
-      + PR('heart', u, -44, HY + 30, 46, `${arm(u, -37, E + 1, -9, HY + 45, 7.4)}${hand(-5.5, HY + 43.5, 4.3, -64)}`)
+      + PR('heart', u, -44, HY + 30, 46, `${arm(u, -21, E, -6.5, HY + 47, 7)}${hand(-4, HY + 45, 4.2, -52)}`)
       // achievement: a silver cup raised a little
-      + PR('cup', u, 22, HY + 2, 26, `${arm(u, 45, E, 34.5, HY + 28)}<g transform="translate(34,${HY + 22})"><path d="M0,-3V2" fill="none" stroke-width="3"/><path d="M0,-3V2" fill="none" stroke="${SILVER}" stroke-width="1.500"/><path d="M-3.800,3.500Q0,.5 3.800,3.500Z" fill="${SILVER}" stroke-width=".7"/><path d="M-5.200,-13H5.200C5.200,-7 3.200,-3.500 0,-3.500C-3.200,-3.500 -5.200,-7 -5.200,-13Z" fill="url(#elfi${u})" stroke-width=".9"/><ellipse cx="0" cy="-13" rx="5.200" ry="1.400" fill="#7a2f3a" stroke-width=".7"/><path d="M-4.600,-9.500Q0,-7.500 4.600,-9.500" fill="none" stroke="${GOLD}" stroke-width=".8"/></g>${hand(34, HY + 23.5, 3.4)}`);
+      + PR('cup', u, 4, HY + 20, 34, held(`<g transform="translate(${AX},${HY + 40.5})"><path d="M0,-3V2" fill="none" stroke-width="3"/><path d="M0,-3V2" fill="none" stroke="${SILVER}" stroke-width="1.500"/><path d="M-3.800,3.500Q0,.5 3.800,3.500Z" fill="${SILVER}" stroke-width=".7"/><path d="M-5.200,-13H5.200C5.200,-7 3.200,-3.500 0,-3.500C-3.200,-3.500 -5.200,-7 -5.200,-13Z" fill="url(#elfi${u})" stroke-width=".9"/><ellipse cx="0" cy="-13" rx="5.200" ry="1.400" fill="#7a2f3a" stroke-width=".7"/><path d="M-4.600,-9.500Q0,-7.500 4.600,-9.500" fill="none" stroke="${GOLD}" stroke-width=".8"/></g>`));
   };
   // her hands at rest on the rail (in front of the car)
   const hands = (u) => {
@@ -455,7 +461,7 @@ ${rich ? `<path d="${shape(6.6)}" fill="none" stroke="#e6c65e" stroke-width=".6"
   const liven = (R) => {
     const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
     const nod = q('.elf-nod'), look = q('.elf-look'), lids = qa('.elf-bl'), pgs = qa('.elf-pg'), brows = [q('.elf-bL'), q('.elf-bR')];
-    const lamp = q('.elf-lampg'), lk = q('.elf-lk'), glass = q('.elf-glass'), cup = q('.elf-cup'), leafp = q('.elf-leaf');
+    const lamp = q('.elf-lampg'), lk = q('.elf-lk'), glass = q('.elf-glass'), cup = q('.elf-cup');
     let gaze = [0, 0], ga = [], la = null, hot = true;
     const bob = (el, to, ms, o = {}) => el && el.animate([{ transform: 'none' }, { transform: to, offset: o.at ?? .4 }, { transform: 'none' }], { duration: ms, easing: 'ease-in-out', composite: 'add', ...o });
     const closed = () => R.mood === 'death';
@@ -495,12 +501,12 @@ ${rich ? `<path d="${shape(6.6)}" fill="none" stroke="#e6c65e" stroke-width=".6"
       const d = 1 / paceOf(), T = (s) => ({ transform: s });
       const nd = (kf, ms, delay = 0, o = {}) => nod.animate(kf, { duration: ms * d, delay: delay * d, easing: 'ease-in-out', ...o });
       const lift = (el, px, ms, delay) => el && el.animate([T('none'), { ...T(`translateY(${-px}px)`), offset: .4 }, { ...T(`translateY(${-px * .8}px)`), offset: .7 }, T('none')], { duration: ms * d, delay: delay * d, easing: 'ease-in-out', composite: 'add' });
-      if (mood === 'calibrating') { lookAt(2.4, -.6); lift(leafp, 1.6, 1100, 300); nd([T('none'), T('rotate(1.2deg)'), T('none')], 900, 500); later(() => lookAt(0, 0), 1700 * d); }
-      if (mood === 'poor') { lookAt(2.4, .8, 400); nd([T('none'), { ...T('translateY(-.8px)'), offset: .3 }, T('translateY(1.2px)')], 1500, 350, { fill: 'forwards' }); later(() => lookAt(0, 1.2, 500), 1800 * d); }
+      if (mood === 'calibrating') { lookAt(-2.5, -.3, 320); nd([T('none'), { ...T('rotate(-1deg)'), offset: .3 }, { ...T('rotate(1deg)'), offset: .75 }, T('none')], 2400, 300); later(() => lookAt(2.5, -.2, 420), 1100 * d); later(() => lookAt(0, 0, 320), 2300 * d); }
+      if (mood === 'poor') { lookAt(1.4, 1.1, 400); nd([T('none'), { ...T('translateY(-.8px)'), offset: .3 }, T('translateY(1.2px)')], 1500, 350, { fill: 'forwards' }); later(() => lookAt(0, 1.2, 500), 1800 * d); }
       if (mood === 'meh') { lookAt(-2.2, .2, 400); nd([T('none'), { ...T('rotate(-.8deg)'), offset: .5 }, T('rotate(-.4deg)')], 1500, 500, { fill: 'forwards' }); later(() => lookAt(0, 0, 400), 1900 * d); }
-      if (mood === 'good') { lookAt(0, 0); nd([T('none'), { ...T('translateY(1.6px) rotate(.6deg)'), offset: .4 }, T('none')], 700, 450); later(() => lookAt(2.2, .6), 1300 * d); }
+      if (mood === 'good') { lookAt(0, 0); nd([T('none'), { ...T('translateY(1.6px) rotate(.6deg)'), offset: .4 }, T('none')], 700, 450); later(() => lookAt(1.4, 1), 1300 * d); }
       if (mood === 'great') { lookAt(2, 1); nd([T('none'), { ...T('rotate(1deg)'), offset: .35 }, { ...T('rotate(-.6deg)'), offset: .7 }, T('none')], 2200, 300); later(() => lookAt(0, 0), 1500 * d); }
-      if (mood === 'superb') { lookAt(2.4, -.8); lift(glass, 2.5, 1400, 200); nd([T('none'), { ...T('translateY(-1.2px)'), offset: .4 }, T('none')], 1300, 200); later(() => lookAt(0, 0), 1500 * d); }
+      if (mood === 'superb') { lookAt(1.4, .9); lift(glass, 2.5, 1400, 200); nd([T('none'), { ...T('translateY(-1.2px)'), offset: .4 }, T('none')], 1300, 200); later(() => lookAt(0, 0), 1500 * d); }
       if (mood === 'pvp') { lookAt(0, 0); nd([T('none'), { ...T('translateY(-1.2px)'), offset: .4 }, T('translateY(-.5px)')], 800, 250, { fill: 'forwards' }); }
       if (mood === 'levelup') { lookAt(0, 1, 300); nd([T('none'), T('translateY(.8px) rotate(-.8deg)')], 1300, 300, { fill: 'forwards' }); later(() => lookAt(0, 0, 400), 2000 * d); }
       if (mood === 'death') nd([T('none'), T('translateY(1px) rotate(-1deg)')], 1400, 500, { fill: 'forwards' });
@@ -543,7 +549,7 @@ ${grad('elg' + u, [[0, '#262a66'], [.38, '#5b4486'], [.68, '#c97a84'], [1, '#f2c
         ropes: { kind: 'rope', dark: '#2e302b', light: '#cfd4c8', w: 1.3 },
         burner,
         basket,
-        behind: (u) => `<div class="elf-lift"><div class="elf-br"><div class="elf-look"><div class="elf-nod">${figure(u)}${locks(u)}${tears()}</div></div></div></div>${props(u)}`,
+        behind: (u) => `<div class="elf-lift"><div class="elf-br"><div class="elf-look"><div class="elf-nod">${figure(u)}${locks(u)}${tears()}${magic()}</div></div></div></div>${props(u)}`,
         front: (u) => hands(u),
         sign: { w: SW, hx: HX, bx: 34, k: 14, c: 1.9, cord: { kind: 'rope', dark: '#2e302b', light: '#d9dcd2', w: 1.1 }, board, pips },
         life: liven,

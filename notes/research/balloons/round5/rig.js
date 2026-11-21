@@ -21,7 +21,12 @@
 //                x -40..40, y HG..FY+16.
 //   RY 248       the basket's rim (half-width RIM 52). Ropes land on the rim
 //                at x = +-R1 (51) and +-R2 (45).
-//   BY 277       the basket's bottom.   SY 289   the sign's top edge.
+//   BY 277       the lowest VISIBLE part of the car (the old basket bottom).
+//   SY 289       the sign's top edge.
+//   BD 322       the car's hidden bottom. The car is deeper than it looks:
+//                its walls run straight on down to BD, behind the sign, so
+//                the passenger plausibly fits and no floor is ever seen.
+//                The sign (a later layer, at least 49 px tall) covers it.
 //   MAXH 363     the whole rig with a three-line kill sign must fit in this.
 // The passenger must stay below y = FY + 20 in every pose and may never
 // cover x -16..16 above that line (the burner and the flame are there).
@@ -85,10 +90,12 @@
 //   behind(u)   html markup of the passenger and props BEHIND the basket rim.
 //   front(u)    html markup IN FRONT of the basket (hands on the rim, things
 //               hung on it).
-//   sign        { w, hx, bx, cord, k, c, below, board({ w, h, mood, kind, u }),
+//   sign        { w, hx, bx, by, cord, k, c, below, board({ w, h, mood, kind, u }),
 //                 pips(mood, notice) }
 //               w: the sign's width. hx / bx: half the distance between the
-//               two hanging points on the sign / on the basket's bottom.
+//               two hanging points on the sign / on the car. by: the y of
+//               the car's two hanging points (default BY + 2); they must be
+//               drawn fixings on the car's visible wall, y about BY - 2..BY + 3.
 //               k, c: spring stiffness and damping (lower k = heavier, later).
 //               board() returns svg markup for a board of exactly w x h (the
 //               text has been measured), drawn 0,0..w,h; the cords end at
@@ -144,7 +151,21 @@
 //      effects floating round the passenger; things held or done are fine.
 //   8. Game strings never touch your code: the rig fills the sign with
 //      textContent. Your board() and pips() return your own trusted svg.
-//   9. Check: node shot.mjs <id> <dir> night (and day) with no page errors,
+//   9. THE DEEP CAR. Draw the car's walls from the rim straight (or with
+//      the same gentle taper) down to K.BD, not to a floor at K.BY: no bottom
+//      edge, no underside, no feet. Continue the wall's own texture (weave,
+//      staves, planks, hatching) all the way down; it is hidden by the sign
+//      but shows for a moment at the sign's edges when the sign swings.
+//      Keep the wall at K.SY narrower than the sign by 12 px or more a side.
+//      End the VISIBLE part with something deliberate just above the sign
+//      (a lower band, hoop or rail at about y BY - 4..BY + 3) and fix the
+//      sign's two cords to it: lugs, eye-bolts or cleats drawn on the wall's
+//      front at (-bx, by) and (bx, by), with sign: { bx, by } to match (the
+//      dwarf: bx 44, by BY + 1). Nothing may dangle under the car any more:
+//      what hung there moves to the car's sides (hooks on the rim) or onto
+//      the wall above y K.SY - 4. A skin that still draws a floor at K.BY
+//      and passes no `by` renders exactly as before.
+//  10. Check: node shot.mjs <id> <dir> night (and day) with no page errors,
 //      look at the sheet, and watch the console for the rig's height warning.
 //
 // Rig.kit: INK, n, S(cls, x, y, w, h, body) an <svg> layer whose viewBox is
@@ -157,7 +178,7 @@
 
 const Rig = (() => {
   const NS = 'http://www.w3.org/2000/svg', INK = '#23170f', D = Math.PI / 180;
-  const K = Object.freeze({ W: 204, CX: 102, TOP: 8, HG: 112, MRX: 24, MRY: 5.5, ER: 80, FY: 136, RY: 248, RIM: 52, R1: 51, R2: 45, BY: 277, SY: 289, MAXH: 363 });
+  const K = Object.freeze({ W: 204, CX: 102, TOP: 8, HG: 112, MRX: 24, MRY: 5.5, ER: 80, FY: 136, RY: 248, RIM: 52, R1: 51, R2: 45, BY: 277, BD: 322, SY: 289, MAXH: 363 });
   const { W, CX, HG, MRX, MRY, FY, RY, BY, SY } = K;
   const n = (v) => +v.toFixed(1), n2 = (v) => +v.toFixed(2);
   const pp = (p) => `${n(p[0])},${n(p[1])}`;
@@ -352,7 +373,7 @@ const Rig = (() => {
     if (spec.css) Harness.css(id, spec.css);
     const MOODS = spec.moods || ['calibrating', 'poor', 'meh', 'good', 'great', 'superb', 'pvp', 'levelup', 'death', 'achievement'];
     const norm = (m) => (MOODS.includes(m) ? m : 'calibrating');
-    const sg = { w: 158, hx: 58, bx: 44, k: 13, c: 1.9, below: 4, cord: {}, ...spec.sign };
+    const sg = { w: 158, hx: 58, bx: 44, by: BY + 2, k: 13, c: 1.9, below: 4, cord: {}, ...spec.sign };
     const extra = spec.lines || [];
 
     function setEnv(R, mood, fade) {
@@ -468,13 +489,13 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
         }
         R.ropeP.setAttribute('d', d);
         // the sign: a heavy thing on two cords, following the basket late
-        const bx = -AR * s, SYe = SY - R.lift, LC = SYe - BY - 2, DM = LC * .65;
+        const bx = -AR * s, SYe = SY - R.lift, LC = Math.max(3, SYe - sg.by), DM = LC * .65;
         sv += ((bx + f.swing * 1.5 - f.lean * 1.3 - sx) * sg.k - sv * sg.c) * dt; sx += sv * dt;
         const dd = Math.max(-DM, Math.min(DM, sx - bx)), th = Math.asin(dd / LC), dy = -LC * (1 - Math.cos(th)) + AR * (c - 1), X = bx + dd;
         const rot = phi * .55 + dd * .5, cr = Math.cos(rot * D), sr = Math.sin(rot * D);
         R.sign.style.transform = `translate(${X.toFixed(1)}px,${dy.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
         const h1 = [CX + X - sg.hx * cr - 2 * sr, SYe + dy - sg.hx * sr - 2 * cr], h2 = [CX + X + sg.hx * cr - 2 * sr, SYe + dy + sg.hx * sr - 2 * cr];
-        R.hangP.setAttribute('d', `M${pp(pc(-sg.bx, BY + 2))}L${pp(h1)}M${pp(pc(sg.bx, BY + 2))}L${pp(h2)}`);
+        R.hangP.setAttribute('d', `M${pp(pc(-sg.bx, sg.by))}L${pp(h1)}M${pp(pc(sg.bx, sg.by))}L${pp(h2)}`);
         // the flame and its light: from burn alone
         const b = Math.max(0, Math.min(1, f.burn));
         R.fl.style.transform = `scale(${(.5 + .55 * b).toFixed(2)},${(.15 + .85 * b).toFixed(2)})`;

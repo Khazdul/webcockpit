@@ -52,21 +52,21 @@
   const SK = '#cfc6aa', GOLD = '#c9a85c', SILV = '#b4b8bd', CRIM = '#8a1f26', BLK = '#1b181e';
 
   // ---- moods: how the face, the head-dress and the hands are held ----
-  const DEF = { rise: 0, tilt: 0, lid: 2.2, low: 0, bly: 0, blr: 0, bry: 0, brr: 0, sm: 0, dn: 0, hood: 0, crown: 0, sy: 0, sg: .45, orb: 0, ring: 0, palm: 0, fs: 1, sword: 0, scroll: 0, fist: 0, eg: 0 };
+  const DEF = { rise: 0, tilt: 0, lid: 2.2, low: 0, bly: 0, blr: 0, bry: 0, brr: 0, sm: 0, dn: 0, gs: 0, lf: 0, lit: 0, hood: 0, crown: 0, sy: 0, sg: .45, orb: 0, ring: 0, palm: 0, fs: 1, sword: 0, scroll: 0, fist: 0, eg: 0 };
   const M = {
     calibrating: { orb: 1, bry: -3, brr: 6, lid: 1.8, sg: .3 },
     poor: { rise: -2, tilt: 1.5, lid: 3.9, dn: 1, bly: 1, bry: 1, blr: 6, brr: -6, sg: .08 },
     meh: { lid: 3.5, ring: 1, bry: -2, sg: .25 },
-    good: { sm: 1, palm: 1, fs: .8, sg: .5 },
-    great: { rise: 1, sm: 1, palm: 1, fs: 1.15, sg: .75, bly: -1.5, bry: -1.5 },
-    superb: { rise: 1, tilt: -1.5, sm: 1, palm: 1, fs: 1.5, sg: 1, crown: 1, bly: -2, bry: -3.4, brr: 5, lid: 1.5 },
+    good: { sm: 1, palm: 1, fs: .55, sg: .45 },
+    great: { rise: 1, gs: 1, palm: 1, fs: 1.3, lit: .5, sg: .75, bly: -1.8, bry: -2.4, lid: 2, low: .8 },
+    superb: { rise: 1, tilt: -3, lf: 1, palm: 1, fs: 2.15, lit: 1, sg: 1, crown: 1, bly: -3, bry: -3.6, blr: 4, brr: -4, lid: 2.4, low: 2 },
     pvp: { rise: 1, sword: 1, lid: 3.3, low: 1.2, bly: 1.6, bry: 1.6, blr: 11, brr: -11, sm: 1, sg: .85 },
     levelup: { rise: 2, tilt: -2, fist: 1, sy: 1, sg: 1, lid: 2.7, sm: 1, bly: -1.5, bry: -1.5, eg: .3 },
     death: { rise: -4, tilt: -5, hood: 1, lid: 6.3, dn: 1, sg: 0, bly: -1, bry: -1, blr: -9, brr: 9 },
     achievement: { rise: 1, scroll: 1, sm: 1, sg: .6, lid: 2.6 },
   };
   // where the thing he holds is, for his glances (pupil units)
-  const PROP = { calibrating: [2.2, 1.8], poor: [.3, -2], meh: [2.3, 1.6], good: [2.3, 1.4], great: [2.3, 1.2], superb: [2.3, 1], pvp: [2.2, -.6], levelup: [-2.4, -1.6], achievement: [2.2, 1.4] };
+  const PROP = { calibrating: [2.2, 1.8], poor: [.3, -2], meh: [2.3, 1.6], good: [2.3, 1.6], great: [2.3, .8], superb: [2.4, -.4], pvp: [2.2, -.6], levelup: [-2.4, -1.6], achievement: [2.2, 1.4] };
   const RANK = { poor: 1, meh: 2, good: 3, great: 4, superb: 5 };
   const vars = (o) => Object.keys(o).filter((k) => k in DEF).map((k) => `--${k}:${o[k]}`).join(';');
   const show = (...names) => names.map((nm) => `.num-${nm}{--x:var(--${nm})}`).join('');
@@ -94,8 +94,8 @@ ${Object.keys(M).map((m) => `.num-v[data-mood=${m}]{${vars(M[m])}}`).join('\n')}
 .num-bL,.num-bR,.num-lid,.num-low{transition:transform calc(.4s*var(--k)) ease-out}
 .num-lid{transform:translateY(calc(var(--lid)*1px));fill:#a39a86;stroke:${INK};stroke-width:1.1}
 .num-low{transform:translateY(calc(var(--low)*-1px));fill:#b3aa93;stroke:${INK};stroke-width:.9}
-.num-msm,.num-mfl,.num-mdn,.num-hood,.num-helm,.num-crown{transition:opacity calc(.3s*var(--k))}
-.num-msm{opacity:var(--sm)}.num-mdn{opacity:var(--dn)}.num-mfl{opacity:calc(1 - var(--sm) - var(--dn))}
+.num-msm,.num-mfl,.num-mdn,.num-mgs,.num-mlf,.num-lit2,.num-hood,.num-helm,.num-crown{transition:opacity calc(.3s*var(--k))}
+.num-msm{opacity:var(--sm)}.num-mdn{opacity:var(--dn)}.num-mfl{opacity:calc(1 - var(--sm) - var(--dn) - var(--gs) - var(--lf))}.num-mgs{opacity:var(--gs)}.num-mlf{opacity:var(--lf)}.num-lit2{opacity:calc(var(--lit)*(.45 + .55*var(--go)));mix-blend-mode:screen}
 .num-hood{opacity:var(--hood)}.num-helm{opacity:calc(1 - var(--hood))}.num-crown{opacity:var(--crown)}
 .num-eg{width:9px;height:7px;margin:-3.5px 0 0 -4.5px;border-radius:50%;opacity:var(--eg);mix-blend-mode:screen;background:radial-gradient(closest-side,rgba(var(--ec),.95),rgba(var(--ec),.5) 45%,rgba(var(--ec),0))}
 .num-p{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--x);transform:translateY(calc((1 - var(--x))*22px));transition:transform calc(.5s*var(--k)) cubic-bezier(.3,1.15,.5,1),opacity calc(.14s*var(--k))}
@@ -104,11 +104,11 @@ ${show('orb', 'ring', 'palm', 'sword', 'scroll', 'fist')}
 .num-stone{fill:var(--sc)}
 .num-sgl{width:30px;height:30px;margin:-15px 0 0 -15px;opacity:calc(var(--sg)*var(--go)*.8);transition:opacity .5s}
 .num-sgl::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(closest-side,rgba(var(--scg),.7),rgba(var(--scg),.2) 45%,rgba(var(--scg),0));animation:num-pu 2.6s ease-in-out infinite alternate}
-.num-pfs{transform:scale(var(--fs));transform-origin:0 0;transition:transform calc(.4s*var(--k))}
+.num-pfs{transform:scale(calc(.35 + var(--fs)*.55),var(--fs));transform-origin:0 0;transition:transform calc(.4s*var(--k))}
 .num-pfk{transform-origin:0 0;animation:num-fk .47s ease-in-out infinite alternate}
 .num-pfk svg{left:-7px;top:-17px}
 .num-pf1{fill:var(--nf1);stroke:rgba(20,70,44,.7);stroke-width:.7}.num-pf2{fill:var(--nf2)}
-.num-pgl{position:absolute;left:-13px;top:-19px;width:26px;height:26px;border-radius:50%;opacity:var(--go);background:radial-gradient(closest-side,rgba(var(--scg),.6),rgba(var(--scg),0))}
+.num-pgl{position:absolute;left:-17px;top:-22px;width:34px;height:30px;border-radius:50%;opacity:calc(var(--go)*(.35 + var(--fs)*.3));background:radial-gradient(closest-side,rgba(var(--scg),.7),rgba(var(--scg),.25) 50%,rgba(var(--scg),0))}
 .num-orbg{width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:radial-gradient(closest-side,rgba(190,255,215,.85),rgba(120,220,170,.3) 55%,rgba(120,220,170,0));animation:num-orb 3.4s ease-in-out infinite}
 .num-glint{width:10px;height:10px;margin:-5px 0 0 -5px;animation:num-gl 3.1s ease-in-out infinite}
 .num-glint svg{left:0;top:0}
@@ -182,7 +182,7 @@ ${show('orb', 'ring', 'palm', 'sword', 'scroll', 'fist')}
 <linearGradient id="nmg${u}" x1="0" x2="1"><stop offset="0" stop-color="#5c4a22"/><stop offset=".6" stop-color="#a08442"/><stop offset="1" stop-color="#d2b56e"/></linearGradient>
 <linearGradient id="nmr${u}" x1="0" x2="1"><stop offset="0" stop-color="#4f1016"/><stop offset="1" stop-color="#9a2a30"/></linearGradient>
 <linearGradient id="nmb${u}" x1="0" x2="1"><stop offset="0" stop-color="#121014"/><stop offset=".6" stop-color="#211e26"/><stop offset="1" stop-color="#37333f"/></linearGradient>
-<pattern id="nmm${u}" patternUnits="userSpaceOnUse" width="7" height="5"><path d="M0,2.500Q1.750,5.500 3.500,2.500Q5.250,-.5 7,2.500" fill="none" stroke="#0e0d10" stroke-width=".9" opacity=".8"/></pattern></defs>
+<radialGradient id="nml${u}" gradientUnits="userSpaceOnUse" cx="62" cy="34" r="74"><stop offset="0" stop-color="#b4ffc8" stop-opacity=".75"/><stop offset=".5" stop-color="#7fe6a0" stop-opacity=".3"/><stop offset="1" stop-color="#7fe6a0" stop-opacity="0"/></radialGradient><clipPath id="nmx${u}"><path d="M0,-70L38,-50L50,72L74,90L74,140L0,140Z"/></clipPath><pattern id="nmm${u}" patternUnits="userSpaceOnUse" width="7" height="5"><path d="M0,2.500Q1.750,5.500 3.500,2.500Q5.250,-.5 7,2.500" fill="none" stroke="#0e0d10" stroke-width=".9" opacity=".8"/></pattern></defs>
 <g filter="url(#nmf${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">
 <path d="M-27,64L-37,28L-20,44L-12,58ZM27,64L37,28L20,44L12,58Z" fill="url(#nmb${u})" stroke-width="2"/><path d="M-25,58L-33,36L-21,47ZM25,58L33,36L21,47Z" fill="url(#nmr${u})" stroke-width=".8"/>
 <g transform="scale(.88,1)"><path d="M-82,140L-79,86C-77,71 -61,63 -39,59L-13,53L13,53L39,59C61,63 77,71 79,86L82,140Z" fill="url(#nmb${u})" stroke-width="2.200"/>
@@ -217,6 +217,8 @@ ${show('orb', 'ring', 'palm', 'sword', 'scroll', 'fist')}
 <path d="M-5.500,23.500q2,1.600 4,.4M5.500,23.500q-2,1.600 -4,.4" fill="none" stroke-width="1"/>
 <g class="num-mfl"><path d="M-9,34.500Q-3,33.300 0,34.300Q3,33.300 9,34.300" fill="none" stroke-width="1.700"/><path d="M-5,37.500Q0,39 5,37.500" fill="none" stroke-width=".7" opacity=".7"/></g>
 <g class="num-msm"><path d="M-9,35.500Q-3,34.300 0,35Q5,34.500 9.500,32.500Q11.500,31.500 12.500,29.500" fill="none" stroke-width="1.700"/><path d="M-5,38.300Q0,39.500 5,37.500M13.500,27.500Q15.500,30 13.500,33.500" fill="none" stroke-width=".7" opacity=".75"/></g>
+<g class="num-mgs"><path d="M-12.500,31Q-10.500,35.500 -4,36.200Q0,36.800 4.500,36Q10.500,35 13,29.500" fill="none" stroke-width="1.900"/><path d="M-5,39.300Q0,40.800 5.500,39M-14.500,27.500Q-16.500,31 -14.800,34.500M15,26Q17.500,30 15.500,34.500" fill="none" stroke-width=".8" opacity=".8"/></g>
+<g class="num-mlf"><path d="M-12.500,30.500Q0,33.500 13,29.500Q12,41.500 .5,43Q-10.500,42 -12.500,30.500Z" fill="#2a1016" stroke-width="1.600"/><path d="M-10.800,31.800Q0,34.800 11.500,30.800L10.600,34.200Q0,38 -9.800,35.300Z" fill="#ece7d6" stroke-width=".7"/><path d="M-5.500,33.600v2.900M-1.800,34.200v3M2,34.200v3M5.800,33.600v2.900" fill="none" stroke-width=".5" opacity=".7"/><path d="M-6,41Q0,38.500 6.500,40.800" fill="none" stroke="#8a3a40" stroke-width="1.300"/><path d="M-15,26.500Q-17.500,31 -15.500,36M15.500,25.500Q18.500,30 16,36M-5,46.500Q0,48 5,46.500" fill="none" stroke-width=".8" opacity=".8"/></g>
 <g class="num-mdn"><path d="M-9.500,36.500Q-4,33.200 0,33.800Q4,33.200 9.500,36.500" fill="none" stroke-width="1.700"/><path d="M-4.500,37.800Q0,38.800 4.500,37.800M-11,37.500l-1.500,2.500M11,37.500l1.500,2.500" fill="none" stroke-width=".7" opacity=".7"/></g>
 </g>
 ${eye(-1, u)}${eye(1, u)}
@@ -233,6 +235,7 @@ ${eye(-1, u)}${eye(1, u)}
 <path d="M-30,-21.500v6M-25,-21v3M-21,-20.500v6.500M-16,-20v6M14,-20v6.500M18,-20.500l3,3v3.500M25,-21.500v6.500M30,-22v3" fill="none" stroke-width=".8" opacity=".8"/>
 <path d="M0,-23.500L5.500,-15.500L0,-8L-5.500,-15.500Z" fill="#d2b56e" stroke-width="1.200"/><path d="M0,-20.500L3.300,-15.500L0,-11L-3.300,-15.500Z" fill="#a3262c" stroke-width=".7"/><path d="M-1.500,-16.500L0,-19" fill="none" stroke="#fff" stroke-width=".9" opacity=".8"/>
 </g></g>
+<g class="num-lit2" clip-path="url(#nmx${u})"><path d="M-29,-26C-32,-10 -32,2 -30,10C-28,22 -22,34 -12,45Q0,53 12,45C22,34 28,22 30,10C32,2 32,-10 29,-26ZM-34,-16C-37,-42 -24,-55 -7,-60L0,-65L7,-60C24,-55 37,-42 34,-16ZM31,-18C42,-6 44,20 42,44C41,56 44,64 49,72L27,66ZM-72,140L-70,86C-68,71 -54,63 -34,59L-11,53L11,53L34,59C54,63 68,71 70,86L72,140Z" fill="url(#nml${u})"/></g>
 <g class="num-hood"><g filter="url(#nmf${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">
 <path d="M-23,-13Q0,-23 23,-13L31,16Q0,4 -31,16Z" fill="#0b090c" opacity=".5" stroke="none"/>
 <path d="M-54,86C-58,40 -52,-34 -5,-61Q0,-64 5,-61C52,-34 58,40 54,86L33,72C40,32 35,-2 23,-13Q0,-24 -23,-13C-35,-2 -40,32 -33,72Z" fill="url(#nmb${u})" stroke-width="2.300"/>
@@ -261,7 +264,7 @@ ${eye(-1, u)}${eye(1, u)}
       + PR('num-ring', u, 20, 204, `${sleeve(u, 36, E, 39, 236)}<g fill="${SK}" stroke-width=".8"><path d="M32.800,232C31,229 29.500,226 30.200,224.500C31.200,223.200 33,225 34.500,228Z"/><rect x="34" y="216.500" width="2.700" height="11" rx="1.300"/><rect x="36.800" y="214.500" width="2.700" height="13" rx="1.300"/><rect x="39.600" y="215" width="2.700" height="12.500" rx="1.300"/><rect x="42.400" y="217.500" width="2.600" height="10" rx="1.300"/><path d="M33.500,226.500H45.200V231.500Q39.300,235 33.500,231.500Z"/></g><path d="M33.500,226.500V231.500Q36,233.500 38,233.300L37.500,226.500Z" fill="#33242f" opacity=".25" stroke="none"/><path d="M36.700,222.500h2.900M36.700,224.800h2.900M34.100,223.500h2.500M39.700,223h2.500" fill="none" stroke-width=".4" opacity=".7"/>
 <rect x="39.300" y="220.200" width="3.300" height="2.300" rx=".6" fill="#d2b56e" stroke-width=".6"/><circle cx="41" cy="221.300" r="1.300" fill="#c2372f" stroke-width=".5"/>`, Z('num-glint', 41.6, 220.4, SL('', 0, 0, 10, 10, '<path d="M5,0L5.900,4.100L10,5L5.900,5.900L5,10L4.100,5.900L0,5L4.100,4.100Z" fill="#fff4f0"/>')))
       // a cold light sitting in his palm (good, great, superb): it grows with the rating
-      + PR('num-palm', u, 20, 204, `${sleeve(u, 36, E, X, 235)}${palmUp(X, 231)}`, `<div class="rig-z" style="left:${CX + X}px;top:229.5px"><div class="rig-z num-pfs"><div class="num-pgl"></div><div class="rig-z num-pfw"><div class="rig-z num-pfk">${SL('', -7, -17, 14, 18, '<path class="num-pf1" d="M0,0C-4.500,-.5 -5.500,-5 -3,-8.500C-2.500,-6.500 -1.500,-7 -1.500,-10.500C-.5,-13 0,-14.500 1,-16.500C1.500,-13 4,-11 3.800,-7.500C5,-4.500 4,-.5 0,0Z"/><path class="num-pf2" d="M0,-.6C-2.500,-1.200 -2.800,-4 -1,-6.500C0,-8 .3,-9.500 .8,-11C2,-8 2.600,-5.500 2.200,-3.500C1.800,-1.600 1,-.7 0,-.6Z"/>')}</div></div></div></div>`)
+      + PR('num-palm', u, 16, 204, `${sleeve(u, 34, E, 34, 235)}${palmUp(34, 231)}`, `<div class="rig-z" style="left:${CX + 34}px;top:229.5px"><div class="rig-z num-pfs"><div class="num-pgl"></div><div class="rig-z num-pfw"><div class="rig-z num-pfk">${SL('', -7, -17, 14, 18, '<path class="num-pf1" d="M0,0C-4.500,-.5 -5.500,-5 -3,-8.500C-2.500,-6.500 -1.500,-7 -1.500,-10.500C-.5,-13 0,-14.500 1,-16.500C1.500,-13 4,-11 3.800,-7.500C5,-4.500 4,-.5 0,0Z"/><path class="num-pf2" d="M0,-.6C-2.500,-1.200 -2.800,-4 -1,-6.500C0,-8 .3,-9.500 .8,-11C2,-8 2.600,-5.500 2.200,-3.500C1.800,-1.600 1,-.7 0,-.6Z"/>')}</div></div></div></div>`)
       // the black sword, held upright at his shoulder (a player kill)
       + `<div class="num-p num-sword"><div class="rig-z num-swr" style="left:${CX + 41}px;top:231px">${SL('rig-rim', -10, -62, 20, 74, G(u, `<path d="M-2.300,-5L-2.300,-48L0,-56L2.300,-48L2.300,-5Z" fill="#26262e" stroke-width="1"/><path d="M0,-55V-6" fill="none" stroke-width=".5" opacity=".8"/><path d="M1.500,-47V-7" fill="none" stroke="#c9ccd6" stroke-width=".8" opacity=".8"/><path d="M-1,-40l1.800,-2M-1,-33l1.800,-2M-1,-26l1.800,-2" fill="none" stroke="#c8281e" stroke-width=".8"/><path d="M-7.500,-6.500Q0,-3.500 7.500,-6.500L7,-3.500Q0,-.8 -7,-3.500Z" fill="${GOLD}" stroke-width=".9"/><path d="M-1.300,5V9" fill="none" stroke-width="3.600"/><circle cx="0" cy="10.300" r="2.300" fill="${GOLD}" stroke-width=".8"/>`))}</div>${S('rig-rim', 22, 216, 40, 40, G(u, `${sleeve(u, 36, E, 41, 238)}${fist(41, 232.5, 4.6)}`))}</div>`
       // a sealed scroll (an achievement)
@@ -556,8 +559,13 @@ ${ring(w / 2 - HX)}${ring(w / 2 + HX)}`);
       if (mood === 'poor') { lookAt(.3, -2, 400); later(() => lookAt(2.4, 1, 500), 1100 * d); nd([T('none'), { ...T('rotate(-1.2deg)'), offset: .25 }, { ...T('rotate(1.2deg)'), offset: .55 }, { ...T('rotate(-.8deg)'), offset: .8 }, T('none')], 1500, 900); }
       if (mood === 'meh') { lookAt(2.3, 1.6, 300); nd([T('none'), { ...T('translateY(-.8px)'), offset: .35 }, T('translateY(1.2px) rotate(.8deg)')], 1500, 500, { fill: 'forwards' }); }
       if (mood === 'good') { lookAt(2.3, 1.4); flare(d); nd([T('none'), { ...T('translateY(2px) rotate(.8deg)'), offset: .4 }, T('none')], 700, 500); later(() => lookAt(0, 0), 1300 * d); }
-      if (mood === 'great') { lookAt(2.3, 1.2); flare(d); nd([T('none'), T('translateY(-1.2px) rotate(-1.2deg)')], 900, 300, { fill: 'forwards' }); later(() => lookAt(0, 0), 1200 * d); }
-      if (mood === 'superb') { lookAt(0, 0); eyes(.85, 1900 * d, 350 * d); flare(d, 500); nd([T('none'), T('translateY(-1.5px) rotate(-1.5deg)')], 1000, 200, { fill: 'forwards' }); }
+      if (mood === 'great') { lookAt(2.3, .8); flare(d); nd([T('none'), T('translateY(-1.2px) rotate(-1.2deg)')], 900, 300, { fill: 'forwards' }); later(() => lookAt(0, 0), 1200 * d); }
+      if (mood === 'superb') {
+        lookAt(0, -.6); eyes(.85, 1900 * d, 350 * d); flare(d, 500);
+        // a dark laugh: held, the shoulders shake a little, twice
+        const shake = (delay) => nd([T('none'), T('translateY(-1.1px)'), T('translateY(.5px)'), T('translateY(-1px)'), T('translateY(.4px)'), T('translateY(-.8px)'), T('none')], 900, delay, { composite: 'add' });
+        shake(300); later(() => { if (R.mood === 'superb') shake(0); }, 2300 * d);
+      }
       if (mood === 'pvp') { lookAt(0, 0); eyes(.8, 1700 * d, 300 * d); once(swr, [T('none'), { ...T('translateY(-3px) rotate(-3deg)'), offset: .35 }, T('none')], { duration: 800 * d, delay: 250 * d, easing: 'ease-in-out' }); nd([T('none'), { ...T('translateY(1.2px)'), offset: .4 }, T('none')], 700, 250); }
       if (mood === 'levelup') { lookAt(.2, -1.2, 300); later(() => lookAt(0, 0, 400), 1800 * d); }
       if (mood === 'death') nd([T('none'), T('translateY(1.5px) rotate(-1.5deg)')], 1300, 500, { fill: 'forwards' });

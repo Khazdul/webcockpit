@@ -40,11 +40,13 @@
 //   achievement  plum with gold, and a great prize rosette from the Free Fair
 //
 // HIM. Curly brown mop, round face, cream shirt, mustard waistcoat with brass
-// buttons and a watch chain, a green neckcloth. By mood he holds a mushroom
-// (unrated), a mug of tea (meh), his long pipe (good, great, achievement), a
-// pie (great), a tankard and a lit taper beside a few rockets in the hamper
-// (superb, level up: one rocket goes up past the envelope's side on arrival),
-// a short sword (player kill), a pocket handkerchief (death).
+// buttons and a watch chain, a green neckcloth. By mood he holds nothing
+// (unrated: both hands on the rim), a mug of tea (meh), his long pipe (good,
+// great, achievement), a pie (great); on superb a tankard in one hand, a pie
+// in the other and the pipe with a real plume from its bowl; a lit taper
+// beside a few rockets in the hamper (level up: one rocket goes up past the
+// envelope's side on arrival); a short sword and a plain iron helm a size too
+// large (player kill); a pocket handkerchief (death).
 (() => {
   const { K, INK, kit } = Rig, { n, S, SL, Z, G, ink2, NS, pp } = kit, HP = kit.P, HQ = kit.Q;
   const { W, CX, HG, FY, RY, BY } = K;
@@ -53,15 +55,15 @@
   const BRASS = '#d9b24c', GRN = '#4f7a3c', YEL = '#e0b23c', RED = '#c23b2a', CRM = '#f3ead0', BLU = '#3f73b0', SKIN = '#dbb391';
 
   // ---- moods: how the face is held and what is in his hands ----
-  const DEF = { rise: 0, tilt: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 1.6, low: 0, px: 0, py: 0, es: 1, msm: 0, mgr: 0, mfl: 0, mfr: 0, mst: 0, hl: 1, hr: 1, pipe: 0, mush: 0, tea: 0, pie: 0, ale: 0, tap: 0, rk: 0, swd: 0, hank: 0, ros: 0, bfl: 0 };
+  const DEF = { rise: 0, tilt: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 1.6, low: 0, px: 0, py: 0, es: 1, msm: 0, mgr: 0, mfl: 0, mfr: 0, mst: 0, hl: 1, hr: 1, pipe: 0, plume: 0, helm: 0, tea: 0, pie: 0, pil: 0, ale: 0, tap: 0, rk: 0, swd: 0, hank: 0, ros: 0, bfl: 0 };
   const M = {
-    calibrating: { tilt: 2, bly: -4.5, blr: -7, bry: .5, lid: 1.8, mfl: 1, mush: 1, hr: 0 },
+    calibrating: { tilt: 2, bly: -4.5, blr: -7, bry: .5, lid: 1.8, mfl: 1 },
     poor: { rise: -2, tilt: -2, lid: 4, bly: -1, bry: -1, blr: -10, brr: 10, mfr: 1 },
     meh: { lid: 3.7, bly: 1.2, bry: 1.2, mfl: 1, tea: 1, hr: 0 },
     good: { lid: 2, low: 1.6, bly: -1, bry: -1, msm: 1, pipe: 1 },
     great: { rise: 1.5, lid: 1.8, low: 2, bly: -3, bry: -3, msm: 1, pipe: 1, pie: 1, hr: 0, bfl: 1 },
-    superb: { rise: 3, lid: 1, low: 2.6, bly: -5, bry: -5, blr: -5, brr: 5, es: 1.08, mgr: 1, ale: 1, tap: 1, rk: 1, hl: 0, hr: 0, bfl: 1 },
-    pvp: { rise: 1, lid: 3.8, low: 2, bly: 2.2, bry: 2.2, blr: 14, brr: -14, mst: 1, swd: 1, hl: 0 },
+    superb: { rise: 3, lid: 1, low: 2.6, bly: -5, bry: -5, blr: -5, brr: 5, es: 1.08, mgr: 1, ale: 1, pil: 1, pipe: 1, plume: 1, hl: 0, hr: 0, bfl: 1 },
+    pvp: { rise: 1, lid: 3.8, low: 2, bly: 2.2, bry: 2.2, blr: 14, brr: -14, mst: 1, swd: 1, helm: 1, hl: 0 },
     levelup: { rise: 2, lid: 1.6, low: 2, bly: -3.5, bry: -3.5, msm: 1, tap: 1, rk: 1, hl: 0, bfl: 1 },
     death: { rise: -2, tilt: -2, lid: 4.6, py: 1.4, blr: -12, brr: 12, bly: -1.5, bry: -1.5, mfr: 1, hank: 1, hl: 0 },
     achievement: { rise: 2.5, tilt: 1.5, lid: 3.8, low: 1.6, bly: -3.5, bry: -3.5, msm: 1, pipe: 1, ros: 1 },
@@ -69,7 +71,7 @@
   // what he only does once he has arrived
   const AT = { death: { rise: -4, tilt: -4, py: 2.2, lid: 5.4 } };
   // where the thing he holds is, for his glances (pupil units)
-  const PROP = { calibrating: [3, -.4], poor: [.4, -2.3], meh: [2.8, 1.8], good: [1.6, 2.2], great: [3, 1.6], superb: [-3, -1.6], pvp: [-2.8, -1], levelup: [-3, -1.6], achievement: [-1.6, 2.2] };
+  const PROP = { calibrating: [.4, -2.3], poor: [.4, -2.3], meh: [2.8, 1.8], good: [1.6, 2.2], great: [3, 1.6], superb: [-3, 1.6], pvp: [-2.8, -1], levelup: [-3, -1.6], achievement: [-1.6, 2.2] };
   const RANK = { poor: 1, meh: 2, good: 3, great: 4, superb: 5 };
   const vars = (o) => Object.keys(o).filter((k) => k in DEF).map((k) => `--${k}:${o[k]}`).join(';');
   const show = (...names) => names.map((nm) => `.hobbit-${nm}{--x:var(--${nm})}`).join('');
@@ -104,8 +106,12 @@ ${Object.keys(AT).map((m) => `.hobbit-v.rig-at[data-mood=${m}]{${vars(AT[m])}}`)
 .hobbit-wisp b{position:absolute;left:-5px;top:-3px;width:10px;height:6px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,176,80,.95),rgba(255,150,60,0));animation:hobbit-puff 3.4s ease-in-out infinite}
 .hobbit-wisp i{position:absolute;left:-2px;top:-7px;width:3.5px;height:5px;border-radius:50%;border-left:1.2px solid rgba(238,234,222,.8);opacity:0;animation:hobbit-wisp 3.4s ease-out infinite}
 .hobbit-wisp i+i{left:0;animation-delay:-1.7s}
+.hobbit-plume{opacity:var(--plume);transition:opacity calc(.4s*var(--k))}
+.hobbit-plume i{position:absolute;left:-5.5px;top:-6px;width:11px;height:10px;border-radius:50%;border:1.1px solid rgba(248,244,232,.85);border-bottom-color:rgba(248,244,232,.25);background:radial-gradient(closest-side,rgba(240,236,224,.7),rgba(240,236,224,.22));box-shadow:0 0 0 .6px rgba(58,46,38,.35);opacity:0;animation:hobbit-plume 3.5s linear infinite;animation-delay:calc(var(--i)*-.7s)}
+.rig-rm .hobbit-plume i{opacity:calc(.6 - var(--i)*.1);transform:translate(calc(var(--i)*1.6px),calc(var(--i)*-8px)) scale(calc(.55 + var(--i)*.28))}
+.hobbit-helm{opacity:var(--helm);transition:opacity calc(.25s*var(--k))}
 .hobbit-p{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--x);transform:translateY(calc((1 - var(--x))*30px));transition:transform calc(.5s*var(--k)) cubic-bezier(.3,1.25,.5,1),opacity calc(.14s*var(--k))}
-${show('mush', 'tea', 'pie', 'ale', 'tap', 'rk', 'swd', 'hank')}
+${show('tea', 'pie', 'pil', 'ale', 'tap', 'rk', 'swd', 'hank')}
 .hobbit-ty{transform-origin:${CX + 38}px ${RY}px}
 .hobbit-tf{transform-origin:0 0;animation:hobbit-fk .37s ease-in-out infinite alternate}
 .hobbit-rkt{transform:rotate(-14deg);will-change:transform,opacity}
@@ -126,6 +132,7 @@ ${show('mush', 'tea', 'pie', 'ale', 'tap', 'rk', 'swd', 'hank')}
 @keyframes hobbit-pu{from{opacity:.55}to{opacity:1}}
 @keyframes hobbit-puff{0%,100%{opacity:.3}50%{opacity:.95}}
 @keyframes hobbit-wisp{0%{transform:translate(0,2px) scale(.6);opacity:0}25%{opacity:.8}100%{transform:translate(1.5px,-6px) scale(1.25);opacity:0}}
+@keyframes hobbit-plume{0%{transform:translate(0,2px) scale(.35);opacity:0}12%{opacity:.95}45%{transform:translate(2px,-15px) scale(1);opacity:.75}100%{transform:translate(7px,-36px) scale(1.75);opacity:0}}
 @keyframes hobbit-fk{0%{transform:scale(1,1)}45%{transform:scale(.86,1.12) skewX(6deg)}100%{transform:scale(1.08,.9) skewX(-6deg)}}
 .hobbit-sign{filter:drop-shadow(0 2px 2.5px rgba(0,0,0,.42));--tx:#2a1b12;--dim:#6a5540;--fg:#2a1b12;--on:#c9972a;color:var(--tx)}
 .hobbit-sign[data-mood=poor]{--tx:#3d3128;--fg:#3d3128;--on:#8a7f6a}
@@ -219,6 +226,14 @@ ${body(u)}
 <path d="${CURL.map(([x, y]) => `M${x},${y}c2.500,-3.500 7,-2 5.500,2c-1,2.500 -4.500,2.500 -4.500,0`).join('')}" fill="none" stroke-width="1" opacity=".85"/>
 <path d="${CURL.map(([x, y]) => `M${x + 1},${y - 2.2}c2,-2 5,-1.500 5.500,.5`).join('')}" fill="none" stroke="#c9a47a" stroke-width="1.300"/>
 </g>
+<g class="hobbit-helm" filter="url(#hbf${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round"><g transform="rotate(-4)">
+<path d="M-35,-22C-38,-4 -33,16 -22,30M35,-22C38,-4 33,16 22,30" fill="none" stroke-width="4.200"/><path d="M-35,-22C-38,-4 -33,16 -22,30M35,-22C38,-4 33,16 22,30" fill="none" stroke="#7a5230" stroke-width="2.200"/>
+<path d="M-42,-29C-45,-52 -27,-64 0,-64C27,-64 45,-52 42,-29Z" fill="url(#hbi${u})" stroke-width="2.200"/>
+<path d="M-42,-29C-45,-52 -27,-64 -5,-64C-21,-56 -27,-44 -26,-29Z" fill="${hp(u)}" stroke="none"/><path d="M-42,-29C-45,-52 -27,-64 -17,-63C-31,-55 -36,-43 -35,-29Z" fill="${hq(u)}" stroke="none"/>
+<path d="M0,-64V-30" fill="none" stroke-width="3.600"/><path d="M0,-64V-30" fill="none" stroke="#8d949b" stroke-width="1.600"/>
+<path d="M14,-60C29,-56 38,-46 38,-35" fill="none" stroke="#fff" stroke-width="1.400" opacity=".5"/><path d="M24,-46l4,3M-18,-50l3,3l3,-2" fill="none" stroke-width=".9" opacity=".7"/>
+<path d="M-47,-35Q0,-27 47,-35L47,-26Q0,-17 -47,-26Z" fill="#59616a" stroke-width="2"/><path d="M-47,-35Q-30,-31.500 -18,-30.500L-18,-21Q-34,-23 -47,-26Z" fill="${hp(u)}" stroke="none"/>
+<g fill="#c9d0d4" stroke-width=".8">${[-38, -23, -8, 8, 23, 38].map((x) => `<circle cx="${x}" cy="${n(-30.5 + 4 * (1 - (x / 47) ** 2) * 2 - 4)}" r="1.900"/>`).join('')}</g></g></g>
 ${eye(-1, u)}${eye(1, u)}
 <g transform="translate(-14.5,-18.5)"><g class="hobbit-bL"><g transform="scale(-1,1)">${BROW}</g></g></g><g transform="translate(14.5,-18.5)"><g class="hobbit-bR">${BROW}</g></g>
 ${mouths}
@@ -227,7 +242,9 @@ ${mouths}
 <ellipse cx="35" cy="42" rx="8" ry="2.500" fill="#e8862e" stroke-width="1.400"/></g>
 </svg>`;
   // the pipe's ember and a small wisp at the bowl (their own layer: they never stop)
-  const wisp = () => Z('hobbit-wisp', 17.5, HCY + 20.5, '<b></b><i></i><i></i>');
+  const wisp = () => Z('hobbit-wisp', 17.5, HCY + 20.5, '<b></b><i></i><i></i>')
+    // superb: a proper plume from the bowl, rising between his ear and the tankard
+    + Z('hobbit-plume', 17.5, HCY + 19, [0, 1, 2, 3, 4].map((i) => `<i style="--i:${i}"></i>`).join(''));
   // tears (death): they run down his cheeks over a wet streak and stay on his face
   const tears = () => `<div class="rig-a hobbit-tears">${[[-10.2, 1, '5deg', 0], [5.2, 1, '-5deg', -2.4]].map(([x, y, a, dl]) => `<div class="hobbit-tear" style="left:${CX + x}px;top:${HCY + y}px;transform:rotate(${a})"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:9px;--dl:${dl - 2.8}s"></i></div>`).join('')}</div>`;
 
@@ -250,17 +267,18 @@ ${mouths}
   };
   // the rockets stand in the corner of the hamper, leaning out; the burst is where the first one ends
   const rockets = (u) => `<div class="hobbit-p hobbit-rk">${rocket(u, -45.5, 13, '#4f7a3c', YEL)}${rocket(u, -42, 7, BLU, CRM)}${rocket(u, -48, 0, RED, YEL)}${burstArt()}</div>`;
+  const pieArt = (u) => `${arm(u, 38, E, 40, 235)}${fist(40, 233, 4.6)}<g class="hobbit-pg2"><path d="M27,225Q39,229.500 51,225L48.500,230.500Q39,233 29.500,230.500Z" fill="#8d949b" stroke-width="1"/>
+<path d="M27,225C28,215 50,215 51,225Q39,228.500 27,225Z" fill="#d9a655" stroke-width="1"/><path d="M27,225C28,215 38,215.500 35,217.500C31,219.500 30,222.500 31,226Q29,225.600 27,225Z" fill="#7a4a1c" opacity=".3" stroke="none"/>
+<path d="M27,225q2,-2 4,.6q2,-2 4,.7q2,-1.800 4,.6q2,-2 4,-.4q2,-2.200 4,-.6q2,-2 4,-1" fill="none" stroke-width=".7"/><path d="M36,219.500l-1,3M39.500,218.800v3M43,219.500l1,3" fill="none" stroke-width=".9"/><path d="M42,217.500q4,.6 6,3.500" fill="none" stroke="#fff3c4" stroke-width=".9" opacity=".8"/></g>`;
   const props = (u) => {
-    // the mushroom he is not sure about (unrated)
-    return PR('hobbit-mush', u, 24, HCY - 2, 32, `${arm(u, 38, E, 39, 229)}<g transform="translate(39,224)"><g class="hobbit-mu"><path d="M-2,1L-2.500,-9H2.500L2,1Z" fill="#efe6d0" stroke-width=".9"/><path d="M-10,-9C-10,-19 10,-19 10,-9Q0,-6 -10,-9Z" fill="#a8452f" stroke-width="1"/><path d="M-10,-9C-10,-19 -1,-18.500 -3,-16C-6,-14 -7,-11 -6,-8.200Q-8,-8.500 -10,-9Z" fill="#000" opacity=".25" stroke="none"/><g fill="#f3ead0" stroke-width=".4"><circle cx="-3.500" cy="-13" r="1.400"/><circle cx="2.500" cy="-14.500" r="1.200"/><circle cx="5.500" cy="-11" r="1.100"/></g><path d="M-6,-8q6,1.500 12,0" fill="none" stroke-width=".5" opacity=".7"/></g></g>${fist(39, 227)}`)
-      // a mug of tea (meh)
-      + PR('hobbit-tea', u, 24, HCY + 8, 32, `${arm(u, 38, E, 39, 233)}<path d="M41,220C47.500,220 47.500,229 41,229" fill="none" stroke-width="3.200"/><path d="M41,220C47.500,220 47.500,229 41,229" fill="none" stroke="#8fa3ad" stroke-width="1.500"/>
+    // a mug of tea (meh)
+    return PR('hobbit-tea', u, 24, HCY + 8, 32, `${arm(u, 38, E, 39, 233)}<path d="M41,220C47.500,220 47.500,229 41,229" fill="none" stroke-width="3.200"/><path d="M41,220C47.500,220 47.500,229 41,229" fill="none" stroke="#8fa3ad" stroke-width="1.500"/>
 <path d="M29.500,217H41.500L40.500,231H30.500Z" fill="#8fa3ad" stroke-width="1"/><path d="M29.500,217H33L33.500,231H30.500Z" fill="${HP(u)}" stroke="none"/><path d="M30,221.500H41M30.300,224H40.800" fill="none" stroke="#e6e2d2" stroke-width=".9"/>
 <ellipse cx="35.500" cy="217" rx="6" ry="1.700" fill="#7a4a26" stroke-width=".9"/>${fist(40.5, 229.5, 4.2)}`)
       // a pie from the oven (great)
-      + PR('hobbit-pie', u, 22, HCY + 6, 36, `${arm(u, 38, E, 40, 235)}${fist(40, 233, 4.6)}<g class="hobbit-pg2"><path d="M27,225Q39,229.500 51,225L48.500,230.500Q39,233 29.500,230.500Z" fill="#8d949b" stroke-width="1"/>
-<path d="M27,225C28,215 50,215 51,225Q39,228.500 27,225Z" fill="#d9a655" stroke-width="1"/><path d="M27,225C28,215 38,215.500 35,217.500C31,219.500 30,222.500 31,226Q29,225.600 27,225Z" fill="#7a4a1c" opacity=".3" stroke="none"/>
-<path d="M27,225q2,-2 4,.6q2,-2 4,.7q2,-1.800 4,.6q2,-2 4,-.4q2,-2.200 4,-.6q2,-2 4,-1" fill="none" stroke-width=".7"/><path d="M36,219.500l-1,3M39.500,218.800v3M43,219.500l1,3" fill="none" stroke-width=".9"/><path d="M42,217.500q4,.6 6,3.500" fill="none" stroke="#fff3c4" stroke-width=".9" opacity=".8"/></g>`)
+      + PR('hobbit-pie', u, 22, HCY + 6, 36, pieArt(u))
+      // the same pie in his other hand (superb)
+      + PR('hobbit-pil', u, -58, HCY + 6, 36, `<g transform="scale(-1,1)">${pieArt(u)}</g>`)
       // a tankard of the Green Dragon's best (superb)
       + `<div class="hobbit-p hobbit-ale"><div class="rig-a hobbit-ty">${S('rig-rim', 24, HCY, 32, RY - HCY + 8, G(u, `${arm(u, 38, E, 40.5, 231)}
 <path d="M43,214C49.500,214 49.500,226 43,226" fill="none" stroke-width="3.400"/><path d="M43,214C49.500,214 49.500,226 43,226" fill="none" stroke="${BRASS}" stroke-width="1.700"/>
@@ -524,7 +542,7 @@ ${eyelet(w / 2 - HX)}${eyelet(w / 2 + HX)}`);
   const liven = (R) => {
     const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
     const nod = q('.hobbit-nod'), look = q('.hobbit-look'), lids = qa('.hobbit-bl'), pgs = qa('.hobbit-pg'), brows = [q('.hobbit-bL'), q('.hobbit-bR')];
-    const ty = q('.hobbit-ty'), mu = q('.hobbit-mu'), pie = q('.hobbit-pg2'), sw = q('.hobbit-sw'), rks = qa('.hobbit-rkt').reverse(), burst = q('.hobbit-burst');
+    const ty = q('.hobbit-ty'), pie = q('.hobbit-pg2'), sw = q('.hobbit-sw'), rks = qa('.hobbit-rkt').reverse(), burst = q('.hobbit-burst');
     const coal = q('.hobbit-coalg'), on = q('.hobbit-on');
     let gaze = [0, 0], ga = [], la = null, hot = true, shot = 0;
     const T = (s) => ({ transform: s });
@@ -583,15 +601,16 @@ ${eyelet(w / 2 - HX)}${eyelet(w / 2 + HX)}`);
       if (reduced) return;
       const d = 1 / paceOf();
       const nd = (kf, ms, delay = 0, o = {}) => nod.animate(kf, { duration: ms * d, delay: delay * d, easing: 'ease-in-out', ...o });
-      if (mood === 'calibrating') { lookAt(3, -.4); once(mu, [T('rotate(0)'), { ...T('rotate(-14deg)'), offset: .3 }, { ...T('rotate(12deg)'), offset: .65 }, T('rotate(0)')], { duration: 1100 * d, delay: 250 * d, easing: 'ease-in-out' }); nd([T('none'), T('rotate(2deg) translateY(.6px)'), T('none')], 800, 500); later(() => lookAt(0, 0), 1500 * d); }
+      if (mood === 'calibrating') { lookAt(.4, -2.4, 300); bob(brows[0], 'translateY(-2.4px)', 700 * d, { delay: 300 * d }); nd([T('none'), { ...T('rotate(-2.5deg) translateY(-.6px)'), offset: .4 }, { ...T('rotate(-2deg)'), offset: .75 }, T('none')], 1500, 300); later(() => lookAt(0, 0, 260), 1700 * d); }
       if (mood === 'poor') { lookAt(.4, -2.3, 400); nd([T('none'), { ...T('translateY(-1.2px)'), offset: .3 }, { ...T('translateY(2.6px)'), offset: .7 }, T('translateY(1.4px)')], 1400, 350, { fill: 'forwards' }); later(() => lookAt(0, 1.4, 500), 1700 * d); }
       if (mood === 'meh') { lookAt(2.8, 1.8, 300); nd([T('none'), { ...T('translateY(-1px) rotate(-.6deg)'), offset: .35 }, { ...T('translateY(1.8px) rotate(1deg)'), offset: .75 }, T('translateY(.9px) rotate(.6deg)')], 1500, 500, { fill: 'forwards' }); later(() => lookAt(0, 0, 300), 1600 * d); }
       if (mood === 'good') { lookAt(0, 2.2); nd([T('none'), { ...T('translateY(2.6px) rotate(1deg)'), offset: .35 }, { ...T('translateY(-.6px)'), offset: .7 }, T('none')], 520, 450); later(() => lookAt(0, 0), 1000 * d); }
       if (mood === 'great') { lookAt(3, 1.6); once(pie, [T('none'), { ...T('translateY(-3px)'), offset: .4 }, { ...T('translateY(-2.4px)'), offset: .7 }, T('none')], { duration: 900 * d, delay: 300 * d, easing: 'ease-in-out' }); nd([T('none'), { ...T('translateY(-1.6px) rotate(1.2deg)'), offset: .4 }, T('none')], 900, 300); later(() => lookAt(0, 0), 1100 * d); }
       if (mood === 'superb') {
-        lookAt(-3, 1); launch(450);
-        nd([T('none'), { ...T('translateY(-2px) rotate(-2deg)'), offset: .3 }, { ...T('translateY(-1.6px) rotate(-1.5deg)'), offset: .7 }, T('none')], 1400, 500);
-        later(() => { lookAt(0, 0); once(ty, [T('none'), { ...T('translateY(-5px) rotate(-6deg)'), offset: .4 }, { ...T('translateY(-4px) rotate(-5deg)'), offset: .7 }, T('none')], { duration: 900 * d, easing: 'ease-in-out' }); }, 2000 * d);
+        lookAt(-3, 1.6);
+        once(qa('.hobbit-pg2')[1], [T('none'), { ...T('translateY(-3px)'), offset: .4 }, { ...T('translateY(-2.4px)'), offset: .7 }, T('none')], { duration: 900 * d, delay: 250 * d, easing: 'ease-in-out' });
+        nd([T('none'), { ...T('translateY(-2px) rotate(-2deg)'), offset: .3 }, { ...T('translateY(-1.6px) rotate(-1.5deg)'), offset: .7 }, T('none')], 1300, 250);
+        later(() => { lookAt(0, 0); once(ty, [T('none'), { ...T('translateY(-5px) rotate(-6deg)'), offset: .4 }, { ...T('translateY(-4px) rotate(-5deg)'), offset: .7 }, T('none')], { duration: 900 * d, easing: 'ease-in-out' }); }, 1500 * d);
       }
       if (mood === 'pvp') { lookAt(0, 0); once(sw, [T('none'), { ...T('translateY(-3px) rotate(-3deg)'), offset: .35 }, { ...T('translateY(.6px)'), offset: .7 }, T('none')], { duration: 700 * d, delay: 250 * d, easing: 'ease-in-out' }); nd([T('none'), { ...T('translateY(-1.8px) rotate(-1deg)'), offset: .3 }, { ...T('translateY(.8px)'), offset: .6 }, T('none')], 650, 250); }
       if (mood === 'levelup') { lookAt(-3, 1); launch(450); nd([T('none'), { ...T('translateY(-1.6px) rotate(-1.5deg)'), offset: .4 }, T('none')], 1300, 500); later(() => lookAt(0, 0, 300), 2100 * d); }
@@ -627,7 +646,7 @@ ${eyelet(w / 2 - HX)}${eyelet(w / 2 + HX)}`);
       return Rig.create(ctx, {
         id: 'hobbit', css: CSS,
         defs: (u) => `${kit.filt('hbf' + u, { freq: .03, scale: 2.4, grain: .45 }).replace('1.5 0 0 0 -.7', '.9 0 0 0 -.5')}${kit.filt('hbl' + u).replace('1.5 0 0 0 -.7', '.45 0 0 0 -.25').replace('0 1.2 0 0 -.56', '0 .8 0 0 -.42')}${kit.hatch('hbp' + u, 38, 5, .6, .95)}${kit.hatch('hbq' + u, -52, 5.6, .5, .95)}
-${grad('hbs' + u, ['#c2937a', '#e0b896', '#f2d8b8'])}${grad('hbh' + u, ['#4a2f1c', '#74502f', '#96693f'])}${grad('hbv' + u, ['#b0832a', '#d6aa40', '#ecca6a'])}${grad('hbb' + u, ['#7c5a22', '#c9a04b', '#f3dc8e'])}${grad('hbw' + u, ['#7c5c34', '#a8854f', '#c9a66a'])}
+${grad('hbs' + u, ['#c2937a', '#e0b896', '#f2d8b8'])}${grad('hbh' + u, ['#4a2f1c', '#74502f', '#96693f'])}${grad('hbv' + u, ['#b0832a', '#d6aa40', '#ecca6a'])}${grad('hbb' + u, ['#7c5a22', '#c9a04b', '#f3dc8e'])}${grad('hbi' + u, ['#3a4046', '#69717a', '#a3abb2'])}${grad('hbw' + u, ['#7c5c34', '#a8854f', '#c9a66a'])}
 <pattern id="hbg${u}" patternUnits="userSpaceOnUse" width="6" height="6"><rect width="3" height="6" fill="#b5432f" opacity=".5"/><rect width="6" height="3" fill="#b5432f" opacity=".5"/></pattern>
 <pattern id="hbd${u}" patternUnits="userSpaceOnUse" width="5" height="5"><circle cx="1.500" cy="1.500" r=".8" fill="#f4ecd6" opacity=".6"/></pattern>
 <pattern id="hbt${u}" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><path d="M.6,0V4" stroke="#f4ecd6" stroke-width="1" opacity=".4"/></pattern>

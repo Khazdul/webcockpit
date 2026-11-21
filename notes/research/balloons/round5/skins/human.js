@@ -1,5 +1,5 @@
 // Round 5: "The Woman", built on the shared rig (rig.js). A rider of the
-// North: Bree-land wool on her back, the Mark in her braids and her horn. She
+// North: Bree-land wool on her back, the Mark in her braids and her spear. She
 // flies what a village and a hall could make between them: sewn cloth, hemp
 // rope, a wicker car, a fire-basket of iron, and an inn sign for the news.
 //
@@ -48,9 +48,11 @@
 // over a laced leather jerkin and a linen shirt. A spear stands in the car, a
 // round shield and a waterskin hang on it. What she holds, she holds from the
 // start: a hand shading her eyes (unrated), cheek on her fist (meh), a wooden
-// mug (great), the horn at her lips (superb), helm and drawn sword (player
-// kill), a fist on her heart (level up), her hood up (death), a garland
-// (achievement).
+// mug (great), a stemmed wine cup raised in a toast (superb), helm and drawn
+// sword (player kill), a garland of leaves and white flowers (level up and
+// achievement), her hood up (death). Her face climbs with the rating: a smile
+// (good), a broad smile with her cheeks and eyes in it (great), laughing
+// (superb); nothing is ever in front of her mouth.
 (() => {
   const { K, INK, kit } = Rig, { n, S, SL, Z, G, ink2, NS, pp } = kit, HP = kit.P, HQ = kit.Q;
   const { W, CX, HG, FY, RY, BY } = K;
@@ -59,23 +61,23 @@
   const SKIN = '#cfa27f', WOOL = '#4f6243', LINEN = '#d9cdb0', HIDE = '#6f4a2c';
 
   // ---- moods: how the face is held, and what is in her hands ----
-  const DEF = { rise: 0, tilt: 0, nod: 0, ny: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 1.9, low: 0, px: 0, py: 0, es: 1, m0: 1, m1: 0, m2: 0, m3: 0, hl: 1, hr: 1, helm: 0, hood: 0, shade: 0, chin: 0, mug: 0, horn: 0, sword: 0, heart: 0, garl: 0, pen: 0 };
+  const DEF = { rise: 0, tilt: 0, nod: 0, ny: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 1.9, low: 0, px: 0, py: 0, es: 1, m0: 1, m1: 0, m2: 0, m3: 0, m4: 0, ms: 1, ck: 0, hl: 1, hr: 1, helm: 0, hood: 0, shade: 0, chin: 0, mug: 0, cup: 0, sword: 0, garl: 0, pen: 0 };
   const M = {
     calibrating: { shade: 1, hr: 0, px: .5, lid: 1.9, low: .5, bly: .4, bry: .4 },
     poor: { m0: 0, m2: 1, bly: -2.4, blr: -9, bry: .6, brr: -7, lid: 2.5, nod: -3, tilt: -1 },
     meh: { chin: 1, hr: 0, lid: 3.1, nod: 6, ny: 1.5, bly: .5, bry: .5 },
     good: { m0: 0, m1: 1, low: .9, bly: -.8, bry: -.8 },
-    great: { m0: 0, m1: 1, low: 1.2, bly: -1.5, bry: -1.5, mug: 1, hr: 0, rise: 1 },
-    superb: { horn: 1, hr: 0, low: 1.9, bly: -2.4, bry: -2.6, blr: -5, brr: 5, lid: .8, es: 1.08, rise: 2, pen: 1 },
+    great: { m0: 0, m4: 1, ck: .7, low: 1.7, lid: 1.7, bly: -1.6, bry: -1.6, mug: 1, hr: 0, rise: 1 },
+    superb: { cup: 1, hr: 0, m0: 0, m3: 1, ms: 1.2, ck: 1, low: 2.5, lid: 2.3, bly: -2.4, bry: -2.6, blr: -5, brr: 5, rise: 2, nod: -2, pen: 1 },
     pvp: { helm: 1, sword: 1, hr: 0, lid: 2.5, low: 1, bly: 1, bry: 1, blr: 10, brr: -10, rise: 1 },
-    levelup: { heart: 1, hr: 0, pen: 1, m0: 0, m1: 1, lid: 1.4, low: .5, bly: -1, bry: -1, rise: 1.5 },
+    levelup: { garl: 1, hr: 0, pen: 1, m0: 0, m1: 1, lid: 1.4, low: .5, bly: -1, bry: -1, rise: 1.5 },
     death: { hood: 1, m0: 0, m2: 1, lid: 4.3, py: 1.3, blr: -12, brr: 12, bly: -1, bry: -1, rise: -2, ny: 2, nod: -3 },
-    achievement: { garl: 1, hr: 0, m0: 0, m3: 1, low: 1.5, bly: -1.8, bry: -1.8, rise: 1.5 },
+    achievement: { garl: 1, hr: 0, m0: 0, m3: 1, ck: .6, low: 1.5, bly: -1.8, bry: -1.8, rise: 1.5 },
   };
   // what she only does once she has arrived
   const AT = { death: { ny: 3.5, nod: -5, lid: 5 }, levelup: { rise: 2.5 } };
   // where the thing she holds is, for her glances (pupil units)
-  const PROP = { calibrating: [2.3, -.3], poor: [.5, -1.5], meh: [1.6, 1.2], good: [-2.2, -.6], great: [2.2, .9], superb: [2.2, -.5], pvp: [2.2, -.8], levelup: [-2, -1], achievement: [2.2, .8] };
+  const PROP = { calibrating: [2.3, -.3], poor: [.5, -1.5], meh: [1.6, 1.2], good: [-2.2, -.6], great: [2.2, .9], superb: [2.2, .6], pvp: [2.2, -.8], levelup: [2.2, .8], achievement: [2.2, .8] };
   const RANK = { poor: 1, meh: 2, good: 3, great: 4, superb: 5 };
   const vars = (o) => Object.keys(o).filter((k) => k in DEF).map((k) => `--${k}:${o[k]}`).join(';');
   const show = (...names) => names.map((nm) => `.human-${nm}{--x:var(--${nm})}`).join('');
@@ -106,13 +108,13 @@ ${Object.keys(AT).map((m) => `.human-v.rig-at[data-mood=${m}]{${vars(AT[m])}}`).
 .human-pm{transform:translate(calc(var(--px)*1px),calc(var(--py)*1px))}
 .human-lid{transform:translateY(calc(var(--lid)*1px));fill:#bf9473;stroke:${INK};stroke-width:1}
 .human-low{transform:translateY(calc(var(--low)*-1px));fill:#cda380;stroke:${INK};stroke-width:.7}
-.human-m0,.human-m1,.human-m2,.human-m3,.human-helm,.human-hood,.human-pen{transition:opacity calc(.3s*var(--k))}
-.human-m0{opacity:var(--m0)}.human-m1{opacity:var(--m1)}.human-m2{opacity:var(--m2)}.human-m3{opacity:var(--m3)}
+.human-m0,.human-m1,.human-m2,.human-m3,.human-m4,.human-ck,.human-helm,.human-hood,.human-pen{transition:opacity calc(.3s*var(--k))}
+.human-m0{opacity:var(--m0)}.human-m1{opacity:var(--m1)}.human-m2{opacity:var(--m2)}.human-m3{opacity:var(--m3)}.human-m4{opacity:var(--m4)}.human-ck{opacity:var(--ck)}.human-msc{transform:scale(var(--ms));transition:transform calc(.3s*var(--k))}
 .human-helm{opacity:var(--helm)}.human-hood{opacity:var(--hood)}.human-pen{opacity:var(--pen)}
 .human-hL{opacity:var(--hl)}.human-hR{opacity:var(--hr)}
 .human-hL,.human-hR{transition:opacity calc(.15s*var(--k))}
 .human-p{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--x);transform:translateY(calc((1 - var(--x))*30px));transition:transform calc(.5s*var(--k)) cubic-bezier(.3,1.25,.5,1),opacity calc(.14s*var(--k))}
-${show('shade', 'chin', 'mug', 'horn', 'sword', 'heart', 'garl')}
+${show('shade', 'chin', 'mug', 'cup', 'sword', 'garl')}
 .human-pw{position:absolute;left:0;top:0;width:${W}px;height:0;transform-origin:${CX + 36}px ${RY}px}
 .human-plait{left:${CX + 12.5}px;top:${HY + 14}px;will-change:transform}
 .human-skin{left:${CX + 31}px;top:${RY + 2}px;will-change:transform}
@@ -180,7 +182,9 @@ ${show('shade', 'chin', 'mug', 'horn', 'sword', 'heart', 'garl')}
 <g class="human-m0"><path d="M-6.2,20.8Q-3,19 0,20.200Q3,19 6.200,20.800Q3,22.500 0,21.900Q-3,22.500 -6.200,20.800Z" fill="#a4553f" stroke-width=".8"/><path d="M-4.500,23Q0,25.400 4.500,23M-6.800,20.300l-1.300,-.8M6.800,20.300l1.300,-.8" fill="none" stroke-width=".7" opacity=".75"/></g>
 <g class="human-m1"><path d="M-7.6,19.6Q-3.500,19 0,20Q3.500,19 7.600,19.600Q4,23.800 0,23.800Q-4,23.800 -7.600,19.600Z" fill="#a4553f" stroke-width=".8"/><path d="M-7.600,19.600Q0,22.800 7.600,19.600" fill="none" stroke-width=".9"/><path d="M-9,17.400q-1.500,1.900 -.2,3.600M9,17.400q1.500,1.900 .2,3.600" fill="none" stroke-width=".7"/></g>
 <g class="human-m2"><path d="M-5.8,22.4Q-3,20 0,20.800Q3,20 5.800,22.400Q3,22.700 0,22.300Q-3,22.700 -5.800,22.400Z" fill="#96503e" stroke-width=".8"/><path d="M-4,24.600Q0,23.500 4,24.600M-6.300,22.600l-1,1M6.300,22.600l1,1" fill="none" stroke-width=".65" opacity=".75"/></g>
-<g class="human-m3"><path d="M-8.2,19Q0,21.200 8.200,19Q5.500,27.400 0,27.400Q-5.500,27.400 -8.200,19Z" fill="#5a241c" stroke-width=".9"/><path d="M-6.800,19.800Q0,21.600 6.800,19.800L5.800,22.400Q0,23.800 -5.800,22.400Z" fill="#f1e7cf" stroke-width=".5"/><path d="M-4.800,26.400Q0,29 4.800,26.400" fill="none" stroke="#a4553f" stroke-width="1.6"/><path d="M-9.600,17q-1.500,1.900 -.2,3.600M9.600,17q1.500,1.900 .2,3.600" fill="none" stroke-width=".7"/></g>`;
+<g class="human-m3"><g transform="translate(0,21)"><g class="human-msc"><g transform="translate(0,-21)"><path d="M-8.2,19Q0,21.200 8.200,19Q5.500,27.400 0,27.400Q-5.500,27.400 -8.200,19Z" fill="#5a241c" stroke-width=".9"/><path d="M-6.800,19.800Q0,21.600 6.800,19.800L5.800,22.400Q0,23.800 -5.800,22.400Z" fill="#f1e7cf" stroke-width=".5"/><path d="M-4.800,26.400Q0,29 4.800,26.400" fill="none" stroke="#a4553f" stroke-width="1.6"/><path d="M-9.600,17q-1.500,1.900 -.2,3.600M9.600,17q1.500,1.900 .2,3.600" fill="none" stroke-width=".7"/></g></g></g></g>
+<g class="human-m4"><path d="M-8.6,19Q0,28 8.600,19Q0,22 -8.600,19Z" fill="#a4553f" stroke-width=".9"/><path d="M-7.400,19.500Q0,22.300 7.400,19.500Q4,23.600 0,23.600Q-4,23.600 -7.400,19.500Z" fill="#f1e7cf" stroke-width=".5"/><path d="M-9.800,16.800q-1.600,2 -.2,3.800M9.800,16.800q1.600,2 .2,3.800" fill="none" stroke-width=".7"/></g>
+<g class="human-ck"><ellipse cx="-12" cy="11" rx="6" ry="4" fill="#b4553d" opacity=".24" stroke="none"/><ellipse cx="12" cy="11" rx="6" ry="4" fill="#c2634a" opacity=".24" stroke="none"/><path d="M-16,7.200Q-11.500,4.200 -6.500,6.800M16,7.200Q11.500,4.200 6.500,6.800M-8.500,13Q-12,16.500 -11.500,20.500M8.500,13Q12,16.500 11.500,20.500" fill="none" stroke-width=".7" opacity=".8"/></g>`;
   // a rider's helm (player kill): iron cap in four plates, bronze brow band, nasal, cheek pieces, a white horsetail
   const helm = (u) => `<g class="human-helm">
 <path d="M1,-45C-5,-52 7,-55 13,-49C22,-42 28,-30 31,-12C25,-22 18,-34 8,-43Z" fill="#e9e2cf" stroke-width="1.2"/><path d="M8,-49C16,-42 22,-32 26,-22M5,-47C13,-41 18,-34 22,-27" fill="none" stroke-width=".55" opacity=".7"/>
@@ -286,21 +290,20 @@ ${arm(u, 31, HY + 13, 15, HY - 6.2, 5.8)}
 <path d="M31.500,${y(16)}H44.500L43.500,${y(32.5)}Q38,${y(34.5)} 32.500,${y(32.5)}Z" fill="#9a7444" stroke-width="1"/><path d="M31.500,${y(16)}H36L36.500,${y(33.4)}Q34,${y(33)} 32.500,${y(32.500)}Z" fill="${HP(u)}" stroke="none"/>
 <path d="M31.800,${y(21)}Q38,${y(23)} 44.200,${y(21)}L44,${y(24)}Q38,${y(26)} 32,${y(24)}Z" fill="#b99a55" stroke-width=".7"/><ellipse cx="38" cy="${y(16)}" rx="6.500" ry="1.800" fill="#3a2414" stroke-width=".9"/><path d="M34,${y(15.6)}Q38,${y(14.6)} 42,${y(15.6)}" fill="none" stroke="#e9dcc0" stroke-width="1"/>
 ${fist(38.5, HY + 30, 4.2)}`, 'human-mugw')
-      // the horn at her lips (superb): ox horn, bronze bound
-      + PR('horn', u, -2, HY - 14, 46, `${arm(u, 33, E, 20, HY + 22)}
-<path d="M2.200,${y(12)}C11,${y(14.5)} 21,${y(9.5)} 27.500,${y(-5.5)}L36,${y(-2.5)}C31,${y(16)} 15,${y(21.5)} 2.200,${y(14)}Z" fill="#e9dfc4" stroke-width="1"/>
-<path d="M2.200,${y(13.4)}C13,${y(20)} 29,${y(15)} 36,${y(-2.5)}L33.500,${y(-3.4)}C28,${y(11)} 15,${y(17.5)} 2.200,${y(13.400)}Z" fill="${HP(u)}" stroke="none"/><path d="M2.200,${y(12)}C5,${y(12.8)} 7,${y(13)} 9,${y(12.8)}L9.500,${y(16.6)}C7,${y(16)} 4,${y(15)} 2.200,${y(14)}Z" fill="#4a3826" stroke-width=".8"/>
-<path d="M13.500,${y(12.6)}L15.500,${y(19)}M24.500,${y(2.5)}L31.500,${y(6.5)}" fill="none" stroke-width="3.2"/><path d="M13.500,${y(12.6)}L15.500,${y(19)}M24.500,${y(2.5)}L31.500,${y(6.5)}" fill="none" stroke="#b99a55" stroke-width="1.7"/>
-<ellipse cx="31.800" cy="${y(-4)}" rx="4.600" ry="1.900" transform="rotate(19 31.8 ${y(-4)})" fill="#3a2a1a" stroke-width="1"/><path d="M27.500,${y(-5.5)}L36,${y(-2.5)}" fill="none" stroke="#b99a55" stroke-width="1.2"/>
-${fist(19.5, HY + 17.5, 4.2)}`, 'human-hornw')
+      // a stemmed wine cup raised in a toast by her shoulder (superb): a shallow silver bowl, a knop, a foot
+      + PR('cup', u, 24, HY + 4, 30, `${arm(u, 36, E, 38.5, HY + 38)}
+<path d="M34,${y(38)}Q38.500,${y(35.6)} 43,${y(38)}Q38.500,${y(40)} 34,${y(38)}Z" fill="#aab2b8" stroke-width=".9"/>
+<path d="M37.400,${y(22)}H39.600V${y(37)}H37.400Z" fill="#aab2b8" stroke-width=".9"/><ellipse cx="38.500" cy="${y(26)}" rx="2.300" ry="1.500" fill="#dfe5e6" stroke-width=".8"/>
+<path d="M31,${y(13)}H46C46,${y(19.5)} 43.500,${y(22.6)} 38.500,${y(22.6)}C33.500,${y(22.6)} 31,${y(19.5)} 31,${y(13)}Z" fill="#c9d0d4" stroke-width="1"/><path d="M31,${y(13)}H35C35,${y(18.5)} 35.500,${y(21.5)} 38.500,${y(22.600)}C33.500,${y(22.6)} 31,${y(19.5)} 31,${y(13)}Z" fill="${HP(u)}" stroke="none"/>
+<path d="M31.600,${y(16)}Q38.500,${y(18)} 45.400,${y(16)}" fill="none" stroke="#8a6a2e" stroke-width="1.100"/><path d="M42.500,${y(14.5)}Q43.300,${y(17.5)} 41.200,${y(20)}" fill="none" stroke="#fff" stroke-width=".9" opacity=".7"/>
+<ellipse cx="38.500" cy="${y(13)}" rx="7.500" ry="1.900" fill="#6a1a24" stroke-width=".9"/><path d="M33,${y(12.6)}Q38.500,${y(11.6)} 44,${y(12.6)}" fill="none" stroke="#c2637a" stroke-width=".7" opacity=".8"/>
+${fist(38.5, HY + 31, 4.2)}`, 'human-cupw')
       // helm on, sword drawn and held upright by the shoulder (player kill)
       + PR('sword', u, 28, HY - 30, 24, `${arm(u, 37, E, 40, HY + 44)}
 <path d="M38.200,${y(32)}L38.600,${y(-21)}L40.200,${y(-27)}L41.800,${y(-21)}L42.200,${y(32)}Z" fill="#c9d0d4" stroke-width="1"/><path d="M38.200,${y(32)}L38.600,${y(-21)}L40.200,${y(-27)}V${y(32)}Z" fill="#7d858b" opacity=".55" stroke="none"/><path d="M40.200,${y(-18)}V${y(30)}" fill="none" stroke-width=".5" opacity=".7"/>
 <path d="M33.500,${y(32)}H47V${y(35)}H33.500Z" fill="#b99a55" stroke-width=".9"/><path d="M38.800,${y(35)}H41.800V${y(44)}H38.800Z" fill="#4a2f1c" stroke-width=".8"/>
 ${fist(40.2, HY + 39.5, 4.3)}`, 'human-swordw')
-      // a fist on her heart (level up)
-      + PR('heart', u, 0, HY + 28, 40, `${arm(u, 30, E - 1, 11.5, HY + 40)}${fist(8.5, HY + 37.5, 4.5)}`)
-      // a garland of leaves and white flowers (achievement)
+      // a garland of leaves and white flowers (level up and achievement)
       + PR('garl', u, 24, HY + 4, 30, `${arm(u, 36, E, 38.5, HY + 36)}
 <circle cx="38.500" cy="${y(20)}" r="8" fill="none" stroke-width="5.4"/><circle cx="38.500" cy="${y(20)}" r="8" fill="none" stroke="#4f7a3c" stroke-width="3.800"/><circle cx="38.500" cy="${y(20)}" r="8" fill="none" stroke="#86a85a" stroke-width="1.600" stroke-dasharray="2.400 2.200"/>
 ${[0, 72, 144, 216, 288].map((a) => { const x = 38.5 + 8 * Math.sin(a * Math.PI / 180), yy = HY + 20 - 8 * Math.cos(a * Math.PI / 180); return `<circle cx="${n(x)}" cy="${n(yy)}" r="2.100" fill="#f6f1e2" stroke-width=".6"/><circle cx="${n(x)}" cy="${n(yy)}" r=".7" fill="#e3bd62" stroke="none"/>`; }).join('')}
@@ -550,7 +553,7 @@ ${lash(a)}${lash(b)}${lash(n(w / 2 - 22))}${lash(n(w / 2 + 22))}`);
     const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
     const nod = q('.human-nod'), look = q('.human-look'), lids = qa('.human-bl'), pgs = qa('.human-pg'), brows = [q('.human-bL'), q('.human-bR')];
     const coal = q('.human-coalg'), pl = q('.human-plait'), sk = q('.human-skin');
-    const pw = { great: q('.human-mugw'), superb: q('.human-hornw'), pvp: q('.human-swordw'), achievement: q('.human-garlw') };
+    const pw = { great: q('.human-mugw'), superb: q('.human-cupw'), pvp: q('.human-swordw'), achievement: q('.human-garlw') };
     let gaze = [0, 0], ga = [], la = null, hot = true;
     const bob = (el, to, ms, o = {}) => el && el.animate([{ transform: 'none' }, { transform: to, offset: o.at ?? .4 }, { transform: 'none' }], { duration: ms, easing: 'ease-in-out', composite: 'add', ...o });
     const blink = () => {
@@ -595,7 +598,7 @@ ${lash(a)}${lash(b)}${lash(n(w / 2 - 22))}${lash(n(w / 2 + 22))}`);
       if (mood === 'meh') { lookAt(-1.6, .2, 300); nd([T('none'), { ...T('translateY(-.6px)'), offset: .35 }, T('translateY(.8px) rotate(.8deg)')], 1500, 500, { fill: 'forwards' }); }
       if (mood === 'good') { lookAt(0, 1.7); nd([T('none'), { ...T('translateY(2px) rotate(1deg)'), offset: .35 }, { ...T('translateY(-.4px)'), offset: .7 }, T('none')], 520, 450); later(() => lookAt(0, 0), 1000 * d); }
       if (mood === 'great') { lookAt(0, 1.7); later(() => lookAt(0, 0), 600 * d); lift(pw.great); nd([T('none'), { ...T('translateY(-1px) rotate(-1.5deg)'), offset: .4 }, T('none')], 900, 300); }
-      if (mood === 'superb') { lookAt(0, 0); lift(pw.superb, 1300, 200); nd([T('none'), { ...T('translateY(-1.2px) rotate(-2.5deg)'), offset: .3 }, { ...T('translateY(-1px) rotate(-2deg)'), offset: .75 }, T('none')], 1500, 200); }
+      if (mood === 'superb') { lookAt(0, 0); lift(pw.superb, 1100, 250); nd([T('none'), { ...T('translateY(-1.4px) rotate(-2deg)'), offset: .25 }, { ...T('translateY(.4px) rotate(1deg)'), offset: .5 }, { ...T('translateY(-1px) rotate(-1.5deg)'), offset: .75 }, T('none')], 1400, 200); }
       if (mood === 'pvp') { lookAt(0, 0); pw.pvp && pw.pvp.animate([T('none'), { ...T('translateY(-2.5px) rotate(-2deg)'), offset: .35 }, { ...T('translateY(.6px)'), offset: .7 }, T('none')], { duration: 700 * d, delay: 250 * d, easing: 'ease-in-out' }); nd([T('none'), { ...T('translateY(1px) rotate(1deg)'), offset: .4 }, T('none')], 650, 250); }
       if (mood === 'levelup') { lookAt(0, .6, 300); nd([T('none'), { ...T('translateY(1.6px) rotate(1deg)'), offset: .45 }, T('translateY(.4px)')], 1300, 300, { fill: 'forwards' }); later(() => lookAt(0, 0, 300), 1900 * d); }
       if (mood === 'achievement') { lookAt(0, 0); lift(pw.achievement, 1000, 250); nd([T('none'), { ...T('translateY(-1.4px)'), offset: .4 }, T('translateY(-.4px)')], 900, 250, { fill: 'forwards' }); }

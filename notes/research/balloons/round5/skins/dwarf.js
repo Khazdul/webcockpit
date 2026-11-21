@@ -334,23 +334,24 @@ ${Z('dwarf-glint', -49, gy - 5, SL('', 0, 0, 14, 14, '<path d="M7,0L8.200,5.800L
     return { lampArt, axe, pipe, seal, anvil };
   })();
 
-  // ---- the ore bucket: oak staves, two iron hoops, an iron rim, eye-bolts underneath for the sign ----
+  // ---- the ore bucket: oak staves, two iron hoops, an iron rim, eye-bolts on the third hoop for the sign's chains ----
   const basket = (u) => {
-    const y1 = RY + 8, y2 = RY + 18.5; let st = '', rv = '';
-    for (const x of [-39, -26, -13, 0, 13, 26, 39]) st += `M${x},${RY + 3}L${n(x * .9)},${BY - 1}`;
+    // the bucket is deeper than it looks: the staves run on down to K.BD behind the sign (no floor is drawn)
+    const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), y1 = RY + 8, y2 = RY + 18.5, y3 = RY + 27.5; let st = '', rv = '';
+    for (const x of [-39, -26, -13, 0, 13, 26, 39]) st += `M${x},${RY + 3}L${n(x * .885)},${BD}`;
     for (const x of [-36, -18, 0, 18, 36]) rv += `<circle cx="${x}" cy="${n(y1 + 4.3 - (x / 36) ** 2 * 1.6)}" r="1.100"/><circle cx="${n(x * .95)}" cy="${n(y2 + 4.3 - (x / 36) ** 2 * 1.6)}" r="1.100"/>`;
-    return S('rig-rim', -60, RY - 6, 120, BY - RY + 14, `${G(u, `
-<path d="M-52,${RY + 1}L-46,${BY - 2}Q0,${BY + 2} 46,${BY - 2}L52,${RY + 1}Z" fill="url(#dww${u})" stroke-width="1.1"/>
-<path d="M-52,${RY + 1}L-46,${BY - 2}Q-34,${BY - .5} -24,${BY}L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BY - 2}Q-41,${BY - 1.3} -37,${BY - 1}L-40,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
-<path d="${st}" fill="none" stroke-width=".6" opacity=".75"/><path d="M-30,${RY + 15}v9M-5,${RY + 13}v7M19,${RY + 14}v9M32,${RY + 21}v5" fill="none" stroke="#d2b384" stroke-width=".8" opacity=".6"/>
-<path d="M-51,${y1}Q0,${y1 + 4} 51,${y1}L50.300,${y1 + 4.6}Q0,${y1 + 8.6} -50.300,${y1 + 4.6}Z" fill="url(#dwi${u})" stroke-width=".9"/>
-<path d="M-48.800,${y2}Q0,${y2 + 4} 48.800,${y2}L48,${y2 + 4.6}Q0,${y2 + 8.6} -48,${y2 + 4.6}Z" fill="url(#dwi${u})" stroke-width=".9"/>
+    const hoop = (y) => { const a = n(wx(y)), b = n(wx(y + 4.6)); return `<path d="M${-a},${y}Q0,${y + 4} ${a},${y}L${b},${y + 4.6}Q0,${y + 8.6} ${-b},${y + 4.6}Z" fill="url(#dwi${u})" stroke-width=".9"/>`; };
+    return S('rig-rim', -60, RY - 6, 120, BD - RY + 8, `${G(u, `
+<path d="M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z" fill="url(#dww${u})" stroke-width="1.1"/>
+<path d="M-52,${RY + 1}L-46,${BD}H-22L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-40,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
+<path d="${st}" fill="none" stroke-width=".6" opacity=".75"/><path d="M-30,${RY + 15}v9M-5,${RY + 13}v7M19,${RY + 14}v9M32,${RY + 21}v5M-18,${RY + 38}v9M9,${RY + 36}v8" fill="none" stroke="#d2b384" stroke-width=".8" opacity=".6"/>
+${hoop(y1)}${hoop(y2)}${hoop(y3)}${hoop(RY + 52)}
 <g fill="#b9c0c5" stroke-width=".45">${rv}</g>
 ${ink2(`M-42,${RY + 9}L-19,${RY + 26}`, 1.8, '#9a744a')}${ink2(`M-49,${RY + 17}Q-46,${RY + 8} -35,${RY + 5}`, 2, '#9aa2a8')}
 <g fill="none"><ellipse cx="29" cy="${RY + 17}" rx="6.500" ry="7.200" stroke-width="3.400"/><ellipse cx="29" cy="${RY + 17}" rx="6.500" ry="7.200" stroke="#bda26b" stroke-width="2"/><ellipse cx="29" cy="${RY + 17}" rx="3.200" ry="3.900" stroke-width="2.800"/><ellipse cx="29" cy="${RY + 17}" rx="3.200" ry="3.900" stroke="#a88d58" stroke-width="1.500"/></g>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="2.300" fill="url(#dwi${u})" stroke-width="1.1"/><path d="M-51,${RY - 1.5}H51" fill="none" stroke="#e3e9ec" stroke-width=".8" opacity=".55"/>
 <g fill="#30353a" stroke-width=".4"><circle cx="-45" cy="${RY + .8}" r="1.100"/><circle cx="-22" cy="${RY + .8}" r="1.100"/><circle cx="22" cy="${RY + .8}" r="1.100"/><circle cx="45" cy="${RY + .8}" r="1.100"/></g>
-<path d="M-49,${BY - 5}h10v3.200h-10ZM39,${BY - 5}h10v3.200h-10Z" fill="url(#dwi${u})" stroke-width=".8"/>`)}
+<path d="M-48,${BY - 2.5}h8v5h-8ZM40,${BY - 2.5}h8v5h-8Z" fill="#70787e" stroke-width=".8"/>`)}
 <g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/></g>`);
   };
 
@@ -639,7 +640,7 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
 <div class="dwarf-lift"><div class="dwarf-br"><div class="dwarf-look"><div class="dwarf-nod">${head(u)}${braids(u)}<div class="dwarf-pipew">${OLD.pipe(u)}<div class="rig-z dwarf-ring"><i></i><i></i></div></div>${hold(u)}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}<div class="dwarf-old">${OLD.seal(u)}<div class="rig-z dwarf-lan"><div class="dwarf-lgl"></div>${OLD.lampArt()}</div>${OLD.anvil(u)}</div>`,
-        sign: { w: SW, hx: HX, bx: 44, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
+        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
         life: liven,
       });
     },
