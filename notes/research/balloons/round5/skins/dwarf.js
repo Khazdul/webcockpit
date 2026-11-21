@@ -112,9 +112,9 @@ ${show('nug', 'tank', 'hrg', 'chin', 'axe', 'gem', 'hold')}
 .dwarf-tears{display:none}
 .dwarf-v[data-mood=death] .dwarf-tears{display:block}
 .dwarf-tear{position:absolute;width:5px;height:15px;overflow:hidden}
-.dwarf-tear::before{content:"";position:absolute;left:1.9px;top:0;width:1.2px;height:13px;border-radius:1px;background:linear-gradient(rgba(214,234,246,.75),rgba(214,234,246,.15))}
-.dwarf-tear i{position:absolute;left:1.1px;top:-3px;width:2.8px;height:3.8px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 35% 35%,#fff,#bfe0f4 55%,#7fb0d6);box-shadow:0 0 0 .5px rgba(24,34,54,.55);transform:translateY(var(--r));animation:dwarf-tear 2.6s cubic-bezier(.45,0,.75,.6) infinite;animation-delay:var(--dl)}
-@keyframes dwarf-tear{0%{transform:translateY(0) scale(.5);opacity:0}12%{transform:translateY(1.5px) scale(1);opacity:1}75%{opacity:1}100%{transform:translateY(16px) scale(.9);opacity:0}}
+.dwarf-tear::before{content:"";position:absolute;left:1.9px;top:0;width:1.2px;height:13px;border-radius:1px;background:linear-gradient(rgba(190,212,228,.38),rgba(190,212,228,.06))}
+.dwarf-tear i{position:absolute;left:1.1px;top:-3px;width:2.8px;height:3.8px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 35% 35%,rgba(236,244,250,.9),rgba(168,198,220,.75) 55%,rgba(110,150,186,.7));box-shadow:0 0 0 .5px rgba(24,34,54,.3);transform:translateY(var(--r));animation:dwarf-tear 5.6s cubic-bezier(.4,0,.7,.7) infinite;animation-delay:var(--dl)}
+@keyframes dwarf-tear{0%{transform:translateY(0) scale(.5);opacity:0}12%{transform:translateY(1.5px) scale(1);opacity:.62}75%{opacity:.62}100%{transform:translateY(16px) scale(.9);opacity:0}}
 .dwarf-glint{width:14px;height:14px;margin:-7px 0 0 -7px;animation:dwarf-gl 2.3s ease-in-out infinite}
 .dwarf-glint svg{left:0;top:0}
 .dwarf-axr{left:${102 - 52}px;top:${209 + 12}px;transform:rotate(-15deg)}
@@ -290,7 +290,7 @@ ${helmX(u)}<g class="dwarf-paw" fill="#b79479" stroke-width="1"><path d="M-24,-6
   // the helm held to his chest (level up, death): a bent forearm across the breastplate, the hand on the brim
   const hold = (u) => `<div class="dwarf-p dwarf-hold">${S('rig-rim', -44, HY + 30, 50, 26, G(u, `${fore(u, -37, RY - 1, -8, HY + 45, 8.5)}${fist(-6, HY + 43.5, 5.2)}`))}</div>`;
   // tears (death): two drops a cheek run from the lid down into the moustache, over a wet streak; they stay on his face
-  const tears = () => `<div class="rig-a dwarf-tears">${[[-12.6, 4, '-3deg', 0], [7.6, 4, '3deg', -1.1]].map(([x, y, a, dl]) => `<div class="dwarf-tear" style="left:${CX + x}px;top:${HY + y}px;transform:rotate(${a})"><i style="--r:5px;--dl:${dl}s"></i><i style="--r:11px;--dl:${dl - 1.3}s"></i></div>`).join('')}</div>`;
+  const tears = () => `<div class="rig-a dwarf-tears">${[[-12.6, 4, '-3deg', 0], [7.6, 4, '3deg', -2.4]].map(([x, y, a, dl]) => `<div class="dwarf-tear" style="left:${CX + x}px;top:${HY + y}px;transform:rotate(${a})"><i style="--r:5px;--dl:${dl}s"></i><i style="--r:11px;--dl:${dl - 2.8}s"></i></div>`).join('')}</div>`;
   const PR = (cls, u, x, y, body) => `<div class="dwarf-p ${cls}">${S('rig-rim', x, y, 44, RY - y + 8, G(u, body))}</div>`;
   const props = (u) => {
     const E = RY + 3, t = HY + 22, hg = RY - 27, gy = HY + 11;
@@ -593,7 +593,7 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
       if (mood === 'great') { lookAt(0, 2.4); later(() => lookAt(0, 0), 600 * d); once(ty, [T('translateY(-5px)'), { ...T('translateY(-14px) rotate(-8deg)'), offset: .4 }, { ...T('translateY(-13px) rotate(-6deg)'), offset: .7 }, T('translateY(-5px)')], { duration: 950 * d, delay: 300 * d, easing: 'cubic-bezier(.3,1.2,.5,1)' }); nd([T('none'), { ...T('translateY(-2px) rotate(-1.5deg)'), offset: .4 }, T('none')], 900, 300); }
       if (mood === 'superb') {
         lookAt(-3, .9);
-        once(gemw, [T('none'), { ...T('translateY(-7px) rotate(-3deg)'), offset: .3 }, { ...T('translateY(-5px) rotate(3deg)'), offset: .6 }, T('none')], { duration: 1200 * d, delay: 150 * d, easing: 'ease-in-out' });
+        once(gemw, [T('none'), { ...T('translateY(-3.5px) rotate(-1.5deg)'), offset: .3 }, { ...T('translateY(-2.5px) rotate(1.5deg)'), offset: .6 }, T('none')], { duration: 1200 * d, delay: 150 * d, easing: 'ease-in-out' });
         nd([T('none'), { ...T('translateY(-2.5px) rotate(-2.5deg)'), offset: .25 }, { ...T('translateY(-2px) rotate(-2deg)'), offset: .6 }, T('none')], 1250, 100);
         later(() => { lookAt(0, 0); once(ty, [T('translateY(-5px)'), { ...T('translateY(-14px) rotate(-8deg)'), offset: .4 }, T('translateY(-5px)')], { duration: 850 * d, delay: 150 * d, easing: 'ease-in-out' }); }, 1350 * d);
       }

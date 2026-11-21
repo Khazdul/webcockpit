@@ -139,6 +139,8 @@ with no stage of their own. Remove a line when it is done.
   all made: no bellows at the burner; a shorter arm with the gem on
   superb; level up and death with the helm off the whole time, held at
   the chest; on death he weeps, tears running the whole time.
+  Second pass: the gem arm moves half as much on superb; the tears are
+  paler, more see-through and run at half the speed.
 - **Next:** the owner's word on those four; then the other seven
   passengers, one subagent each, built on `rig.js`.
 - **Open:** four kills joined and achievement are 391 and 380 px tall
