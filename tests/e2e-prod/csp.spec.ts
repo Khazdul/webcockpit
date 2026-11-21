@@ -375,6 +375,11 @@ test('the game against a mocked MUME: login, the map, Lua, the windows of the me
   await expect.poll(() => page.evaluate(() => [...document.fonts].filter((f) => f.family.includes('WCB') && f.status === 'loaded').length)).toBe(9);
   await type('#weather balloon as dwarf achievement');
   await expect(page.locator('.wc-balloon .rig[data-mood="achievement"]')).toHaveCount(1);
+  // every passenger, each from its own chunk (the oldest balloons fade out beyond five)
+  for (const [id, css] of [['elf', 'elf'], ['human', 'human'], ['hobbit', 'hobbit'], ['troll', 'troll'], ['goblin', 'goblin'], ['orc', 'orc'], ['numenorean', 'num']]) {
+    await type(`#weather balloon as ${id} death`);
+    await expect(page.locator(`.wc-balloon .rig.${css}-v[data-mood="death"]`), id).toHaveCount(1);
+  }
 
   for (const mb of ['profile', 'scripts', 'panes']) {
     await page.locator(`.wc-mb[data-mb="${mb}"]`).click();
