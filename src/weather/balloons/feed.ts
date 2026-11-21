@@ -80,7 +80,9 @@ export function bestFace(kills: readonly KillNotice[]): Face {
  * The sign for the kills on it (not empty). Stage 75: written as the
  * approved round 5 mockup writes it (its harness.js samples): the XP in
  * full ("7,600 xp"), the last three names as the game gave them, " · "
- * between (the rig cuts a long line with an ellipsis).
+ * between (the rig cuts a long line with an ellipsis). The mockup's sample
+ * shows no sign of more than three; " · …" after them says there were
+ * more (stage 75 review).
  */
 export function signOf(kills: readonly KillNotice[]): SignContent {
   const n = kills.length;
@@ -93,7 +95,7 @@ export function signOf(kills: readonly KillNotice[]): SignContent {
     big: fmtXp(xp),
     unit: 'xp',
     label: FACE_LABEL[face],
-    more: n === 1 ? '' : names.join(' · '),
+    more: n === 1 ? '' : names.join(' · ') + (n > MORE_NAMES ? ' · …' : ''),
     mood: face,
     count: n,
   };

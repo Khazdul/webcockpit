@@ -65,7 +65,8 @@ describe('feed', () => {
   it('joined kills: the count, the summed XP, the best face and the last three names', () => {
     const s = signOf(SAMPLE_BURST);
     expect(s).toMatchObject({ title: '4 kills', big: '7,600', mood: 'great', label: 'Great', count: 4 });
-    expect(s.more).toBe('an orc scout · a goblin thief · an Uruk-hai tracker');
+    expect(s.more).toBe('an orc scout · a goblin thief · an Uruk-hai tracker · …');
+    expect(signOf(SAMPLE_BURST.slice(0, 3)).more).toBe('a goblin thief · an orc scout · a goblin thief');
     expect(bestFace([{ name: 'x', xp: 1, face: 'superb' }, { name: 'y', xp: 1, face: 'pvp' }])).toBe('pvp');
   });
 

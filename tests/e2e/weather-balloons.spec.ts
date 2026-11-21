@@ -68,7 +68,7 @@ test('Settings → Weather effects → Balloons loads them live; #weather balloo
   const front = page.locator('.wc-balloons-front .wc-balloon');
   await expect(front.locator('.rig-title')).toHaveText('4 kills', { timeout: 5_000 });
   await expect(front.locator('.rig-word')).toHaveText('Great');
-  await expect(front.locator('.rig-more')).toHaveText('an orc scout · a goblin thief · an Uruk-hai tracker');
+  await expect(front.locator('.rig-more')).toHaveText('an orc scout · a goblin thief · an Uruk-hai tracker · …');
 
   await page.locator('.wc-mb[data-mb="settings"]').click();
   await page.locator('.wc-ck-tab[data-tab="weather"]').click();
