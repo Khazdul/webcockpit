@@ -154,8 +154,8 @@ export interface FlightPlan {
 /** Readable time without joined kills, and its cap (stage 75: 3 s, the mockup's; the cap in proportion, 9 · 3 / 5.5 ≈ 5). */
 export const READ_S = 3;
 export const READ_MAX = 5;
-/** What a joined kill adds to the readable time. */
-export const READ_EXTEND = 1.2;
+/** What a joined kill adds to the readable time (stage 75: the mockup's 0.7 s, as 1.2 s was to the old 5.5 s). */
+export const READ_EXTEND = 0.7;
 /** Upward creep while readable, px/s. */
 export const CREEP = 2.5;
 /** The arrival's peak speed, px/s (a long way up is given more time). */

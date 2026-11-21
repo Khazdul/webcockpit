@@ -10,11 +10,17 @@ import { ACHIEVEMENT_MAX, FACE_LABEL, type KillNotice, SAMPLE_BURST, bestFace, n
 import {
   type FlightPlan,
   type LaneGeom,
+  BURN_BLAST_IN,
+  BURN_LEAD,
+  BURN_MIN,
+  BURN_STILL,
   READ_EXTEND,
   READ_MAX,
   READ_S,
   VMAX,
   V_ARRIVE,
+  burnStep,
+  burnTarget,
   canJoin,
   extendRead,
   flightAt,
@@ -26,6 +32,7 @@ import {
 } from '../../src/weather/balloons/flight';
 import { rasterSkinOf } from '../../src/weather/balloons/image-skin';
 import { RIG_SIZE } from '../../src/weather/balloons/skin';
+import { PASSENGER_IDS, fliesAs, passengerOf, raceWords } from '../../src/weather/balloons/passenger';
 
 const kill = (mobName: string, xpDelta: number, us = 1): RunEvent => ({ type: 'kill', us, logUs: us, mobName, xpDelta });
 
@@ -343,5 +350,122 @@ describe('raster skins', () => {
     expect([kin.passenger.levelup, kin.passenger.achievement, kin.passenger.death]).toEqual([url('superb'), url('great'), url('poor')]);
     const own = rasterSkinOf([...base, `${dir}passenger-superb.webp`, `${dir}passenger-levelup.webp`, `${dir}passenger-death.webp`, `${dir}passenger-achievement.webp`], 'goblin')!;
     expect([own.passenger.levelup, own.passenger.achievement, own.passenger.death]).toEqual([url('levelup'), url('achievement'), url('death')]);
+  });
+});
+
+/** The planned climb at t, px/s upward (the sway included, as the burner reads it). */
+const climbAt = (p: FlightPlan, t: number) => -(posAt(p, t + 0.02).y - posAt(p, t - 0.02).y) / 0.04;
+/** The burner as balloons.ts runs it: from 1 at the launch, stepped at 60 Hz. */
+function burnRun(p: FlightPlan, until: number): Array<{ t: number; b: number }> {
+  const out = [];
+  let b = 1;
+  for (let t = 0; t <= until; t += 1 / 60) {
+    b = burnStep(b, burnTarget(p, t), 1 / 60);
+    out.push({ t, b });
+  }
+  return out;
+}
+
+describe('the burner (stage 75: it leads the motion)', () => {
+  const plan = (seed: number) => planFlight(seed, WIDE, RIG_SIZE.w, RIG_SIZE.h);
+
+  it('on arrival: it reads the climb BURN_LEAD s ahead, so it falls before the balloon slows', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      for (let t = p.ta * 0.5; t < p.ta - BURN_LEAD - 0.05; t += 0.25) {
+        const want = Math.max(BURN_MIN, Math.min(1, climbAt(p, t + BURN_LEAD) / 90));
+        expect(burnTarget(p, t)).toBeCloseTo(want, 6);
+        // the climb is falling here: the burner is already lower than the climb it has would ask
+        if (climbAt(p, t) / 90 < 1 && climbAt(p, t) / 90 > BURN_MIN) expect(burnTarget(p, t)).toBeLessThan(climbAt(p, t) / 90);
+      }
+      // at rest it is the pilot flame, before the arrival is over
+      const run = burnRun(p, p.ta + 1);
+      const at = (t: number) => run.find((r) => r.t >= t)!.b;
+      expect(at(p.ta - 0.1)).toBeLessThan(0.3);
+      expect(at(p.ta + 0.5)).toBeLessThan(0.2);
+      // full while it climbs fast early on
+      expect(at(p.ta * 0.25)).toBeGreaterThan(0.8);
+    }
+  });
+
+  it('before the leave: it roars about a second ahead, while the balloon is still at rest', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      const leave = p.ta + p.read;
+      expect(burnTarget(p, leave - BURN_BLAST_IN - 0.2)).toBeLessThan(0.2);
+      expect(burnTarget(p, leave - BURN_BLAST_IN + 0.2)).toBe(1);
+      const run = burnRun(p, leave + 1);
+      const b = run.find((r) => r.t >= leave - 0.4)!.b;
+      expect(phaseAt(p, leave - 0.4)).toBe('read');
+      expect(b, `seed ${seed}`).toBeGreaterThan(0.85);
+    }
+  });
+
+  it('on the way up: long uneven pulls while it climbs; the pilot flame, never out, when it drifts level', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      const end = flightTotal(p);
+      for (let t = p.ta + p.read + 1; t < end - 1; t += 0.5) {
+        const w = burnTarget(p, t);
+        expect(w).toBeGreaterThanOrEqual(BURN_MIN);
+        expect(w).toBeLessThanOrEqual(1);
+        if (climbAt(p, t + BURN_LEAD) <= 0) expect(w).toBe(BURN_MIN);
+      }
+    }
+  });
+
+  it('reduced motion: the still rig\'s steady low flame', () => {
+    const p = planFlight(4, WIDE, RIG_SIZE.w, RIG_SIZE.h, { reduced: true });
+    expect([0, 1, 3].map((t) => burnTarget(p, t))).toEqual([BURN_STILL, BURN_STILL, BURN_STILL]);
+  });
+
+  it('burnStep: quick to light, slower to die', () => {
+    const up = burnStep(0.1, 1, 0.11), down = burnStep(1, 0.1, 0.11);
+    expect(up - 0.1).toBeGreaterThan(1 - down);
+  });
+});
+
+describe('the passenger by race (stage 75)', () => {
+  it('every row of the owner\'s table', () => {
+    const rows: Array<[string, string, string]> = [
+      ['Elf', 'Noldo', 'elf'],
+      ['Half-elf', '', 'elf'],
+      ['Dwarf', '', 'dwarf'],
+      ['Man', 'Dunadan', 'human'],
+      ['Beorning', '', 'human'],
+      ['Man', 'Beorning', 'human'],
+      ['Hobbit', '', 'hobbit'],
+      ['Troll', '', 'troll'],
+      ['Orc', 'Tarkhnarb', 'goblin'],
+      ['Orc', 'Zaugurz', 'orc'],
+      ['Zaugurz Orc', '', 'orc'],
+      ['Black Númenórean', '', 'numenorean'],
+      ['Man', 'Black Numenorean', 'numenorean'],
+      ['Numenorean', '', 'numenorean'],
+      ['', '', 'goblin'],
+    ];
+    for (const [race, sub, want] of rows) expect(passengerOf(race, sub), `${race} / ${sub}`).toBe(want);
+  });
+
+  it('odd casing, missing and empty fields, words not substrings', () => {
+    expect(passengerOf('DWARF')).toBe('dwarf');
+    expect(passengerOf('hALF-eLF', null)).toBe('elf');
+    expect(passengerOf(null, null)).toBe('goblin');
+    expect(passengerOf(undefined)).toBe('goblin');
+    expect(passengerOf('   ', '')).toBe('goblin');
+    expect(passengerOf('ORC', 'zAUGURZ')).toBe('orc');
+    // "Dunadan" alone holds no word "man"; "human" is a word of its own
+    expect(passengerOf('', 'Dunadan')).toBe('goblin');
+    expect(passengerOf('Human')).toBe('human');
+    expect(passengerOf('Woman')).toBe('goblin');
+    expect(passengerOf('Shaman')).toBe('goblin');
+    expect(passengerOf('Elfish')).toBe('goblin');
+    // the Black Númenórean before "man"
+    expect(passengerOf('Man', 'Black')).toBe('numenorean');
+    expect(raceWords('Black Númenórean')).toEqual(['black', 'numenorean']);
+  });
+
+  it('only the dwarf is ported: every passenger flies as the dwarf for now (temporary)', () => {
+    expect(PASSENGER_IDS.map(fliesAs)).toEqual(PASSENGER_IDS.map(() => 'dwarf'));
   });
 });
