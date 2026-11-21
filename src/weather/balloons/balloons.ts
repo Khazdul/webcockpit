@@ -41,7 +41,7 @@ import { BURN_STILL, type FlightPlan, type LaneGeom, burnStep, burnTarget, canJo
 import { addSignFonts, removeSignFonts } from './fonts';
 import { type PassengerId, loadPassenger } from './passenger';
 import { type Rig, type RigCtx, type SkyMode, createRig } from './rig';
-import { type BalloonSkin, RIG_SIZE, type SkinFactory } from './skin';
+import type { BalloonSkin, SkinFactory } from './skin';
 
 /** Balloons up at once; a new one beyond this fades the oldest out. */
 export const MAX_BALLOONS = 5;

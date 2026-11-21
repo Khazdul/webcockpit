@@ -12,9 +12,10 @@
 
 import type { Mood, SignContent } from './feed';
 import type { Phase } from './flight';
+import { K } from './rig';
 
-/** The rig's size at scale 1, px (rig.ts `K.W`, `K.MAXH`): what the flight plans with. */
-export const RIG_SIZE = { w: 204, h: 363 } as const;
+/** The rig's size at scale 1, px (rig.ts `K.W`, `K.MAXH`, so the two cannot drift): what the flight plans with. */
+export const RIG_SIZE: { readonly w: number; readonly h: number } = Object.freeze({ w: K.W, h: K.MAXH });
 
 /** Named moments a skin may play; reserved for later animated skins (a no-op is fine). */
 export type SkinAction = 'blink' | 'wave' | 'cheer';
