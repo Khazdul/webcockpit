@@ -1,15 +1,22 @@
-// The seam between a balloon's flight and its look (stage 69, ADR 0159).
-// The flight (flight.ts, balloons.ts) moves, scales and fades the skin's
-// element as a whole and hands it a pose each frame; the skin draws the
-// balloon, the passenger, its mood and the sign, and moves its own parts.
-// Neither the flight nor the kill feed knows what a skin looks like: a new
-// look is a new skin file, nothing else changes. Two exist: the SVG goblin
-// (goblin.ts, the default) and raster skins from image files
-// (image-skin.ts, used when public/balloons/goblin/ has its files). Both
-// hang the shared HTML sign (sign.ts).
+// The seam between a balloon's flight and its look (stage 69, ADR 0159;
+// stage 75, round 3). The flight (flight.ts, balloons.ts) moves, scales and
+// fades the skin's element as a whole and hands it a pose each frame; the
+// skin draws the balloon, the passenger, its mood and the sign, and moves
+// its own parts. Neither the flight nor the kill feed knows what a skin
+// looks like.
+//
+// Since stage 75 the look is the shared rig (rig.ts) with one passenger
+// (passengers/<id>.ts) chosen per balloon from the player's race
+// (passenger.ts); its size is the rig's, 204 × 363 (`RIG_SIZE`). The old
+// SVG goblin (goblin.ts) and the raster skin (image-skin.ts) still
+// implement this seam until they are removed (stage 75 part D); they are
+// no longer the default.
 
 import type { Mood, SignContent } from './feed';
 import type { Phase } from './flight';
+
+/** The rig's size at scale 1, px (rig.ts `K.W`, `K.MAXH`): what the flight plans with. */
+export const RIG_SIZE = { w: 204, h: 363 } as const;
 
 /** Named moments a skin may play; reserved for later animated skins (a no-op is fine). */
 export type SkinAction = 'blink' | 'wave' | 'cheer';
@@ -21,14 +28,16 @@ export interface SkinPose {
   phase: Phase;
   /** The rig's lean into its motion, degrees. */
   tilt: number;
-  /** The sign's swing under it, degrees. */
+  /** The swing of what hangs under it, degrees. */
   swing: number;
+  /** How hard the burner works, 0..1 (flight.ts `burnTarget`: it leads the motion). */
+  burn: number;
 }
 
 export interface BalloonSkin {
   /** The whole balloon: the flight sets its transform (translate, scale; origin top centre) and opacity. */
   readonly el: HTMLElement;
-  /** Its layout size at scale 1, px (fixed: the flight plans with it, nothing is measured). */
+  /** Its layout size at scale 1, px (fixed: the flight plans with it, nothing is measured per frame). */
   readonly size: { readonly w: number; readonly h: number };
   /** The passenger's mood. */
   setMood(mood: Mood): void;
@@ -36,9 +45,21 @@ export interface BalloonSkin {
   setSign(sign: SignContent, joined: boolean): void;
   /** Optional per-frame hook: transforms of the skin's own parts only. */
   frame?(pose: SkinPose): void;
+  /**
+   * Optional: the balloon is far away now (balloons.ts `REST_AFTER`): stop
+   * the passenger's life and freeze the parts; later frames only move the
+   * whole element. Called once.
+   */
+  rest?(): void;
   /** Optional named actions (see `SkinAction`). */
   act?(name: SkinAction): void;
   destroy(): void;
 }
 
-export type SkinFactory = (doc: Document) => BalloonSkin;
+/** What a skin is told when it is made (a skin may ignore it). */
+export interface SkinInit {
+  /** The first sign (the rig builds and fits it at once). */
+  sign: SignContent;
+}
+
+export type SkinFactory = (doc: Document, init: SkinInit) => BalloonSkin;

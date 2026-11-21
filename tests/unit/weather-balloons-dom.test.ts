@@ -5,7 +5,7 @@
 // balloon is up, and the skins (SVG goblin, raster layers).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_BALLOONS, startBalloons } from '../../src/weather/balloons/balloons';
-import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS } from '../../src/weather/balloons/feed';
+import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS, signFor } from '../../src/weather/balloons/feed';
 import type { LaneGeom } from '../../src/weather/balloons/flight';
 import { goblinSkin } from '../../src/weather/balloons/goblin';
 import { imageSkin, rasterSkinOf } from '../../src/weather/balloons/image-skin';
@@ -70,7 +70,7 @@ describe('balloons', () => {
     expect(front.children).toHaveLength(1);
     run(2);
     b.show(SAMPLE_KILLS.superb[0]!);
-    expect(b.list()).toEqual([{ phase: 'arrive', front: true, kind: 'kill', count: 2, face: 'superb' }]);
+    expect(b.list()).toEqual([{ phase: 'arrive', front: true, kind: 'kill', count: 2, face: 'superb', passenger: '', rest: false }]);
     const sign = front.querySelector('.wc-bsign')!;
     expect(sign.querySelector('.wc-bsign-who')!.textContent).toBe('2 kills');
     expect(sign.querySelector('.wc-bsign-rate')!.textContent).toBe('Superb');
@@ -174,7 +174,7 @@ describe('skins', () => {
   it('a raster skin: balloon, the mood\'s passenger, the basket front over it, the HTML sign below; moods swap in place', () => {
     const dir = '/public/balloons/goblin/';
     const r = rasterSkinOf([`${dir}balloon.webp`, `${dir}basket-front.webp`, `${dir}passenger-calibrating.webp`, `${dir}passenger-good.webp`, `${dir}passenger-good-blink.webp`], 'goblin')!;
-    const s = imageSkin(r)(document);
+    const s = imageSkin(r)(document, { sign: signFor([SAMPLE_KILLS.good[0]!]) });
     s.setMood('good');
     const imgs = () => [...s.el.querySelectorAll('img')].filter((i) => !i.hidden).map((i) => i.getAttribute('src'));
     expect(imgs()).toEqual(['/balloons/goblin/balloon.webp', '/balloons/goblin/passenger-good.webp', '/balloons/goblin/basket-front.webp']);
