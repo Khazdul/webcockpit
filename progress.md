@@ -128,14 +128,19 @@ with no stage of their own. Remove a line when it is done.
 - **Done:** no new mockups. The owner's verdict on round 4 and the plan
   are written down in `notes/research/balloons/round5-brief.md`. The
   concept is settled: a passenger in a balloon with a hung sign, and the
-  passenger is the race the player plays (elf girl, dwarf, human,
-  hobbit, troll, orc, Black Númenórean; from `Char.StatusVars`). The
+  passenger is the race the player plays (elf woman, dwarf, human
+  woman, hobbit, troll, goblin for the Tarkhnarb orc, orc for the
+  Zaugurz orc, Black Númenórean; from `Char.StatusVars`). All eight in
+  the dwarf's engraved style, a sign per people, the rig at most 10 %
+  taller. The
   envelope carries the rating, patched and saggy up to new and ornate,
   with ornament by people. Out: costumes, blowers, floating effects,
   the flame in front of the envelope.
-- **Next:** round 5, design only: a revised look for each of the seven
-  passengers, shared rig first. Building comes in the session after.
-- **Open:** five questions to the owner, listed in the brief.
+- **Next:** round 5, design only: a revised look for each of the eight
+  passengers, shared rig first (the dwarf). Building comes in the session after.
+- **Open:** the passenger for an unknown race (assumed: the goblin).
+  Six commits on main are not pushed.
+- **Commits:** `19c8602a`, `30b382d2`, `573b5285`.
 
 ### 2026-11-21 — Stage 69: balloon notices, look round 4 (mockups)
 
