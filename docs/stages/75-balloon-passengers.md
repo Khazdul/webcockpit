@@ -199,8 +199,8 @@ they are here so that nobody "discovers" them as regressions.
 - The woman's three ropes a side bunch under the rim; the troll's sheep
   skull hangs 1.5 px from a sign rope.
 - Level up and death signs end at about 343 px, not at the limit.
-- Three skins (`elf`, `human`, `hobbit`) carry their own softer copy of
-  the rig's filter; in the port that belongs in the rig as an option.
+- ~~Three skins (`elf`, `human`, `hobbit`) carry their own softer copy of
+  the rig's filter~~: done in the port (`kit.SOFT`, a rig option).
 - Motion was judged by the owner in the browser, by the agents only from
   stills and from `trace.mjs` numbers.
 
@@ -232,22 +232,31 @@ Feedback wanted: the dwarf in the real client (size, place, readable
 time, the flame's timing), the cost, and whether the other seven may be
 ported as they are.
 
-## Test guide (staging, all eight)
+## Test guide (staging, all eight, 2026-11-21)
 
-To be completed when the stage is built. Wanted from the owner:
+Branch `stage-75-balloon-passengers` on <https://staging.mumecockpit.com>
+(not merged, not released). A desktop, a wide window.
 
-1. Settings → Weather effects → Balloons on.
-2. `#weather balloon race`: does it say the race you play, and the
-   passenger you expect?
-3. `#weather balloon as <passenger>` for each of the eight, with `poor`,
-   `superb`, `burst`, `levelup`, `death`, `achievement`: the look against
-   the mockup; the flame before the motion; the sign readable.
+1. Settings → Weather effects: **Weather effects** and **Balloons** on.
+2. Log in. `#weather balloon race`: the race and subrace the client sees
+   and the passenger they give. Is it the passenger you expect?
+3. `#weather balloon as <id> <what>` for each of the eight ids `dwarf`,
+   `elf`, `human`, `hobbit`, `troll`, `goblin`, `orc`, `numenorean`,
+   with `poor`, `superb`, `burst`, `levelup`, `death`, `achievement`:
+   the look against the mockup; the flame lights before it moves and
+   roars just before it leaves; 3 s readable; the sign readable.
+   `burst` with more than three kills now ends its names with " · …".
 4. Play: real kills with each character you have (Tarkhnarb and Zaugurz
    orcs, a Black Númenórean, a Beorning above all: their race strings
-   are not known).
-5. Feedback wanted: the readable time (3 s), the size on your screen, the
-   cost (does anything stutter with several balloons up), and whether it
-   should be on by default.
+   are not known). A wrong passenger: send the `#weather balloon race`
+   line.
+5. Several up at once (`#weather balloon` five times): anything that
+   stutters? Known: Firefox without GPU compositing ~45 fps while one
+   arrives (the lean and the car's swing); Chromium 60.
+
+Feedback wanted: the readable time (3 s), the size on your screen, the
+cost, the Firefox point above (accept, or flatten the lean there only),
+and whether Balloons should be on by default.
 
 ## Owner feedback
 
