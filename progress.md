@@ -135,8 +135,12 @@ with no stage of their own. Remove a line when it is done.
   `skins/dwarf.js` is the dwarf on it: smaller head, armour, a forge-pot
   burner with bellows, envelopes from a patched scrap bag to cloth of
   gold with a crown.
-- **Next:** the owner's verdict on the dwarf and the rig; then the other
-  seven passengers, one subagent each, built on `rig.js`.
+- **Owner's verdict on the dwarf (same day):** good, with four changes,
+  all made: no bellows at the burner; a shorter arm with the gem on
+  superb; level up and death with the helm off the whole time, held at
+  the chest; on death he weeps, tears running the whole time.
+- **Next:** the owner's word on those four; then the other seven
+  passengers, one subagent each, built on `rig.js`.
 - **Open:** four kills joined and achievement are 391 and 380 px tall
   (limit 363); the visible flame is short (24 px between pot and mouth);
   the beard hides the breastplate; overcast and reduced motion not looked

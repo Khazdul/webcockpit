@@ -1,6 +1,6 @@
 // Round 5: "The Dwarf", built on the shared rig (rig.js). Dwarves do not fly.
 // This one was told to, so he made the craft himself and stands in it in his
-// mail, working the forge-pot's bellows with a treadle chain.
+// mail, under an iron forge-pot of coals.
 //
 // THE DWARVES' VOCABULARY (decided before drawing; rule 2 of the brief)
 //   Materials  stitched hides in gores, riveted iron bands, bronze, then gold;
@@ -49,7 +49,7 @@
   const thick = (s, f) => s.replace(/stroke-width="([\d.]+)"/g, (_, v) => `stroke-width="${+(v * f).toFixed(2)}"`);
 
   // ---- moods: how the face, the helm and the hands are held ----
-  const DEF = { rise: 0, tilt: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 2, low: 0, px: 0, py: 0, es: 1.08, er: 1, hx: 0, hy: 0, hr: 0, hs: 1, ml: 0, grin: 0, arm: 0, paw: 0, mask: 0, loupe: 0, hl: 1, hrt: 1, nug: 0, tank: 0, ty: 0, ovf: 0, hrg: 0, chin: 0, pipe: 0, axe: 0, gem: 0, seal: 0, rings: 0, lg: 1 };
+  const DEF = { rise: 0, tilt: 0, bly: 0, blr: 0, bry: 0, brr: 0, lid: 2, low: 0, px: 0, py: 0, es: 1.08, er: 1, hx: 0, hy: 0, hr: 0, hs: 1, ml: 0, grin: 0, arm: 0, paw: 0, hold: 0, mask: 0, loupe: 0, hl: 1, hrt: 1, nug: 0, tank: 0, ty: 0, ovf: 0, hrg: 0, chin: 0, pipe: 0, axe: 0, gem: 0, seal: 0, rings: 0, lg: 1 };
   const M = {
     calibrating: { bly: -5.5, blr: -10, bry: 1, lid: 1.6, loupe: 1, er: 1.18, nug: 1, hrt: 0 },
     poor: { rise: -4, tilt: 2, hy: 9, lid: 3.4, bly: 1.5, bry: 1.5, blr: 9, brr: -9, ml: -5, lg: .55 },
@@ -58,17 +58,17 @@
     great: { rise: 2, bly: -4, bry: -4, lid: .4, tank: 1, ty: 1, hrt: 0, lg: 1.5 },
     superb: { rise: 3, bly: -6, bry: -6.5, blr: -7, brr: 7, lid: -1, es: 1.2, grin: 1, ml: 6, tank: 1, ty: 1, ovf: 1, gem: 1, hl: 0, hrt: 0, lg: 1.6 },
     pvp: { rise: 2, lid: 4.3, low: 2.4, bly: 2, bry: 2, blr: 14, brr: -14, grin: 1, ml: 8, mask: 1, axe: 1, hl: 0, lg: .8 },
-    levelup: {},
-    death: { lg: .5 },
+    levelup: { hx: -27, hy: 118, hr: -8, hs: .72, hold: 1, hl: 0, bly: -2, bry: -2, lid: 1.6 },
+    death: { hx: -27, hy: 118, hr: -8, hs: .72, hold: 1, hl: 0, lg: .5 },
     achievement: { rise: 3, lid: 3.3, bly: -2, bry: -2, blr: 3, brr: -3, seal: 1, rings: 1 },
   };
   // what he only does once he has arrived
   const AT = {
-    levelup: { rise: 2, hx: -92, hy: -30, hr: -14, arm: 1, bly: -3, bry: -3, lid: 1, hl: 0 },
-    death: { rise: -3, tilt: -4, hx: -66, hy: 50, hr: -8, hs: .72, paw: 1, py: 2.5, lid: 4.5, blr: -10, brr: 10, bly: -1, bry: -1, hl: 0 },
+    levelup: { rise: 1, lid: 1.8 },
+    death: { rise: -3, tilt: -4, py: 2.5, lid: 4.5, blr: -10, brr: 10, bly: -1, bry: -1 },
   };
   // where the thing he holds is, for his glances (pupil units)
-  const PROP = { calibrating: [3, .2], poor: [.4, -2.2], meh: [2.6, 2], good: [1.4, 2.4], great: [3, 1], superb: [-3, -.6], pvp: [-2.6, -1.2], levelup: [-3, -2.2], achievement: [0, 2.4] };
+  const PROP = { calibrating: [3, .2], poor: [.4, -2.2], meh: [2.6, 2], good: [1.4, 2.4], great: [3, 1], superb: [-3, .9], pvp: [-2.6, -1.2], levelup: [-.8, 2.6], achievement: [0, 2.4] };
   const RANK = { poor: 1, meh: 2, good: 3, great: 4, superb: 5 };
   const vars = (o) => Object.keys(o).filter((k) => k in DEF).map((k) => `--${k}:${o[k]}`).join(';');
   const show = (...names) => names.map((nm) => `.dwarf-${nm}{--x:var(--${nm})}`).join('');
@@ -85,11 +85,9 @@ ${Object.keys(AT).map((m) => `.rig-at[data-mood=${m}]{${vars(AT[m])}}`).join('\n
 .dwarf-v[data-mood=poor] .rig-envb{animation:dwarf-heave 3.3s ease-in-out infinite alternate}
 .dwarf-slit{stroke:var(--coal)}.dwarf-coal{fill:var(--coal)}
 .dwarf-coalg{width:36px;height:16px;margin:-8px 0 0 -18px;border-radius:50%;opacity:.3;will-change:opacity;background:radial-gradient(closest-side,rgba(var(--rig-gl),.85),rgba(var(--rig-gl),0))}
-.dwarf-bel{transform-origin:0 0;will-change:transform}
 .dwarf-runeg{opacity:.9;animation:dwarf-pu 1.6s ease-in-out infinite alternate;filter:drop-shadow(0 0 2.5px #ffb84a) drop-shadow(0 0 6px rgba(255,170,60,.7))}
 .dwarf-old{position:absolute;left:0;top:0;width:204px;height:0;transform-origin:102px 209px;transform:translateY(${RY - 209}px) scale(${OS})}
-.dwarf-stomp,.dwarf-lift,.dwarf-br,.dwarf-look,.dwarf-nod{position:absolute;left:0;top:0;width:${W}px;height:0;transform-origin:${CX}px ${RY + 8}px}
-.dwarf-stomp{will-change:transform}
+.dwarf-lift,.dwarf-br,.dwarf-look,.dwarf-nod{position:absolute;left:0;top:0;width:${W}px;height:0;transform-origin:${CX}px ${RY + 8}px}
 .dwarf-lift{transform:translateY(calc(var(--rise)*-1px)) rotate(calc(var(--tilt)*1deg));transition:transform calc(.55s*var(--k)) cubic-bezier(.3,1.25,.5,1)}
 .dwarf-br{animation:dwarf-br 4.4s ease-in-out infinite alternate}
 .dwarf-head{left:${CX - 125 * HS}px;top:${HY - 100 * HS}px}
@@ -108,9 +106,15 @@ ${Object.keys(AT).map((m) => `.rig-at[data-mood=${m}]{${vars(AT[m])}}`).join('\n
 .dwarf-arm{opacity:var(--arm);transition:opacity .12s}
 .dwarf-paw{opacity:var(--paw);transition:opacity .2s calc(.3s*var(--k))}
 .dwarf-p{position:absolute;left:0;top:0;width:${W}px;height:0;opacity:var(--x);transform:translateY(calc((1 - var(--x))*30px));transition:transform calc(.5s*var(--k)) cubic-bezier(.3,1.25,.5,1),opacity calc(.14s*var(--k))}
-${show('nug', 'tank', 'hrg', 'chin', 'axe', 'gem')}
+${show('nug', 'tank', 'hrg', 'chin', 'axe', 'gem', 'hold')}
 .dwarf-ty{transform:translateY(calc(var(--ty)*-5px));transition:transform calc(.5s*var(--k)) cubic-bezier(.3,1.3,.5,1);transform-origin:${CX + 40}px ${RY}px}
 .dwarf-ovf{opacity:var(--ovf)}
+.dwarf-tears{display:none}
+.dwarf-v[data-mood=death] .dwarf-tears{display:block}
+.dwarf-tear{position:absolute;width:5px;height:15px;overflow:hidden}
+.dwarf-tear::before{content:"";position:absolute;left:1.9px;top:0;width:1.2px;height:13px;border-radius:1px;background:linear-gradient(rgba(214,234,246,.75),rgba(214,234,246,.15))}
+.dwarf-tear i{position:absolute;left:1.1px;top:-3px;width:2.8px;height:3.8px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 35% 35%,#fff,#bfe0f4 55%,#7fb0d6);box-shadow:0 0 0 .5px rgba(24,34,54,.55);transform:translateY(var(--r));animation:dwarf-tear 2.6s cubic-bezier(.45,0,.75,.6) infinite;animation-delay:var(--dl)}
+@keyframes dwarf-tear{0%{transform:translateY(0) scale(.5);opacity:0}12%{transform:translateY(1.5px) scale(1);opacity:1}75%{opacity:1}100%{transform:translateY(16px) scale(.9);opacity:0}}
 .dwarf-glint{width:14px;height:14px;margin:-7px 0 0 -7px;animation:dwarf-gl 2.3s ease-in-out infinite}
 .dwarf-glint svg{left:0;top:0}
 .dwarf-axr{left:${102 - 52}px;top:${209 + 12}px;transform:rotate(-15deg)}
@@ -283,9 +287,13 @@ ${helmX(u)}<g class="dwarf-paw" fill="#b79479" stroke-width="1"><path d="M-24,-6
     return `<path d="M${at(0, a)}L${at(1, b)}L${at(1, -b)}L${at(0, -a)}Z" fill="#737b81" stroke-width="1"/><path d="M${at(0, -a)}L${at(1, -b)}L${at(1, -b * .2)}L${at(0, -a * .2)}Z" fill="${HP(u)}" stroke="none"/><path d="M${at(.3, a * .9)}L${at(.3, -a * .9)}M${at(.52, a * .8)}L${at(.52, -a * .8)}" fill="none" stroke-width=".5" opacity=".7"/><path d="M${at(.78, b + 1.2)}L${at(.93, b + 1)}L${at(.93, -b - 1)}L${at(.78, -b - 1.2)}Z" fill="#b79a5e" stroke-width=".8"/>`;
   };
   const fist = (x, y, r = 5) => `<path d="M${x - r},${y}C${x - r},${n(y - r * 1.15)} ${x + r},${n(y - r * 1.15)} ${x + r},${y}C${x + r},${n(y + r * .9)} ${x - r},${n(y + r * .9)} ${x - r},${y}Z" fill="#b79479" stroke-width="1"/><path d="M${n(x - r * .5)},${n(y - r * .78)}v${n(r * .75)}M${x},${n(y - r * .86)}v${n(r * .8)}M${n(x + r * .5)},${n(y - r * .78)}v${n(r * .75)}" fill="none" stroke-width=".5"/>`;
+  // the helm held to his chest (level up, death): a bent forearm across the breastplate, the hand on the brim
+  const hold = (u) => `<div class="dwarf-p dwarf-hold">${S('rig-rim', -44, HY + 30, 50, 26, G(u, `${fore(u, -37, RY - 1, -8, HY + 45, 8.5)}${fist(-6, HY + 43.5, 5.2)}`))}</div>`;
+  // tears (death): two drops a cheek run from the lid down into the moustache, over a wet streak; they stay on his face
+  const tears = () => `<div class="rig-a dwarf-tears">${[[-12.6, 4, '-3deg', 0], [7.6, 4, '3deg', -1.1]].map(([x, y, a, dl]) => `<div class="dwarf-tear" style="left:${CX + x}px;top:${HY + y}px;transform:rotate(${a})"><i style="--r:5px;--dl:${dl}s"></i><i style="--r:11px;--dl:${dl - 1.3}s"></i></div>`).join('')}</div>`;
   const PR = (cls, u, x, y, body) => `<div class="dwarf-p ${cls}">${S('rig-rim', x, y, 44, RY - y + 8, G(u, body))}</div>`;
   const props = (u) => {
-    const E = RY + 3, t = HY + 22, hg = RY - 27, gy = HY - 12;
+    const E = RY + 3, t = HY + 22, hg = RY - 27, gy = HY + 11;
     // the nugget he assays (unrated)
     return PR('dwarf-nug', u, 18, HY - 12, `${fore(u, 38, E, 39, HY + 17)}${fist(39, HY + 13, 5)}<g transform="translate(39,${HY + 4})"><g class="dwarf-ng"><path d="M-5,3.500L-3.500,-3L1,-5.500L5.500,-2L4.500,3.500Z" fill="#d9b24c" stroke-width=".9"/><path d="M-3.500,-3L0,-.5L1,-5.500M0,-.5L4.500,3.500M0,-.5L-5,3.500" fill="none" stroke-width=".5"/><path d="M-2.500,-2.500L.5,-4" fill="none" stroke="#fff6d0" stroke-width="1"/></g></g>`)
       // the tankard (great, superb)
@@ -300,9 +308,9 @@ ${helmX(u)}<g class="dwarf-paw" fill="#b79479" stroke-width="1"><path d="M-24,-6
       // cheek on his fist (meh)
       + PR('dwarf-chin', u, -44, HY + 20, `${fore(u, -36, E, -18, HY + 36, 9)}${fist(-17, HY + 32, 5.6)}`)
       // the gem held up to the light (superb)
-      + `<div class="dwarf-p dwarf-gem"><div class="rig-a dwarf-gemw">${S('rig-rim', -56, HY - 24, 30, RY - HY + 32, G(u, `${fore(u, -37, E, -42, HY + 5)}
-<g transform="translate(-42,${gy})"><path d="M0,-8.500L6.500,-3.500L4.500,6H-4.500L-6.500,-3.500Z" fill="#e3f1f2" stroke-width="1"/><path d="M-6.500,-3.500H6.500M-3,-3.500L0,-8.500L3,-3.500L0,6L-3,-3.500M-4.500,6L-3,-3.500M4.500,6L3,-3.500" fill="none" stroke-width=".5"/><path d="M-6.500,-3.500L-3,-3.500L0,6H-4.500Z" fill="#7fb6c9" opacity=".5" stroke="none"/><path d="M-2,-6L-4,-4" fill="none" stroke="#fff" stroke-width="1.100"/></g>${fist(-42, HY + 1, 5)}`))}
-${Z('dwarf-glint', -46, gy - 5, SL('', 0, 0, 14, 14, '<path d="M7,0L8.200,5.800L14,7L8.200,8.200L7,14L5.800,8.200L0,7L5.800,5.800Z" fill="#fffbe8"/>'))}</div></div>`;
+      + `<div class="dwarf-p dwarf-gem"><div class="rig-a dwarf-gemw">${S('rig-rim', -56, HY - 24, 30, RY - HY + 32, G(u, `${fore(u, -38, E, -45, HY + 27)}
+<g transform="translate(-45,${gy})"><path d="M0,-8.500L6.500,-3.500L4.500,6H-4.500L-6.500,-3.500Z" fill="#e3f1f2" stroke-width="1"/><path d="M-6.500,-3.500H6.500M-3,-3.500L0,-8.500L3,-3.500L0,6L-3,-3.500M-4.500,6L-3,-3.500M4.500,6L3,-3.500" fill="none" stroke-width=".5"/><path d="M-6.500,-3.500L-3,-3.500L0,6H-4.500Z" fill="#7fb6c9" opacity=".5" stroke="none"/><path d="M-2,-6L-4,-4" fill="none" stroke="#fff" stroke-width="1.100"/></g>${fist(-45, HY + 23, 5)}`))}
+${Z('dwarf-glint', -49, gy - 5, SL('', 0, 0, 14, 14, '<path d="M7,0L8.200,5.800L14,7L8.200,8.200L7,14L5.800,8.200L0,7L5.800,5.800Z" fill="#fffbe8"/>'))}</div></div>`;
   };
 
   // ---- round 4 gear reused as drawn (old px about the old rim, 209; shown at OS inside a .dwarf-old box) ----
@@ -346,7 +354,7 @@ ${ink2(`M-42,${RY + 9}L-19,${RY + 26}`, 1.8, '#9a744a')}${ink2(`M-49,${RY + 17}Q
 <g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.600" stroke="#9aa2a8" stroke-width=".8"/></g>`);
   };
 
-  // ---- the burner: an iron forge-pot hung on chains under the mouth, blown by a bellows he treads from the bucket ----
+  // ---- the burner: an iron forge-pot of coals hung on chains under the mouth ----
   const burner = (u) => S('rig-rim', -24, HG, 48, FY - HG + 18, G(u, `
 ${ink2(`M-19,${HG + 4}L-12.500,${FY}M19,${HG + 4}L12.500,${FY}`, 1.2, '#8d949b', 'stroke-dasharray="2.200 1.500"')}
 <path d="M-14,${FY}H14Q13.500,${FY + 10} 0,${FY + 12.5}Q-13.500,${FY + 10} -14,${FY}Z" fill="#4a4f55" stroke-width="1.1"/>
@@ -355,9 +363,8 @@ ${ink2(`M-19,${HG + 4}L-12.500,${FY}M19,${HG + 4}L12.500,${FY}`, 1.2, '#8d949b',
 <ellipse class="dwarf-coal" cx="0" cy="${FY - .5}" rx="13" ry="2.100" stroke-width=".9"/>
 <path d="M-15.500,${FY + .2}Q0,${FY + 4.2} 15.500,${FY + .2}L15.500,${FY + 2.8}Q0,${FY + 6.8} -15.500,${FY + 2.8}Z" fill="#70787e" stroke-width=".9"/>
 <g fill="#c9d0d4" stroke-width=".4"><circle cx="-10" cy="${FY + 3.4}" r=".9"/><circle cx="0" cy="${FY + 4.8}" r=".9"/><circle cx="10" cy="${FY + 3.4}" r=".9"/></g>
-${ink2(`M13,${FY + 7}H19.500`, 2, '#70787e')}<circle cx="0" cy="${FY + 13.6}" r="1.500" fill="#70787e" stroke-width=".8"/>`))
-    + Z('dwarf-coalg', 0, FY - 1)
-    + Z('dwarf-belw', 19, FY + 7, `<div class="rig-z dwarf-bel">${SL('rig-rim', -2, -9, 26, 18, G(u, `<path d="M0,0L17,-6.500V6.500Z" fill="#8a5d38" stroke-width="1"/><path d="M0,0L17,-6.500V-2Z" fill="#000" opacity=".25" stroke="none"/><path d="M5.500,-2V2M9.500,-3.600V3.600M13.500,-5V5" fill="none" stroke-width=".5"/>${ink2('M-1,0L18,-7.200M-1,0L18,7.200h3.500', 1.3, '#a07a50')}<circle cx="21.300" cy="7.200" r="1.300" fill="#8d949b" stroke-width=".6"/>`))}</div>`);
+<circle cx="0" cy="${FY + 13.6}" r="1.500" fill="#70787e" stroke-width=".8"/>`))
+    + Z('dwarf-coalg', 0, FY - 1);
 
   // ---- the envelope: hides in seven gores; the helpers lay bands, rivets and angular ornament on the surface ----
   const KS = [-1, -.9, -.62, -.22, .22, .62, .9, 1];
@@ -526,13 +533,13 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
 
   let reduced = false, paceOf = () => 1;
 
-  // ---- the small life in him: blinks, glances, a brow, a finger; the treadle; one piece of business per mood ----
+  // ---- the small life in him: blinks, glances, a brow, a finger; one piece of business per mood ----
   const liven = (R) => {
     const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
     const nod = q('.dwarf-nod'), look = q('.dwarf-look'), lids = qa('.dwarf-bl'), pgs = qa('.dwarf-pg'), brows = [q('.dwarf-bL'), q('.dwarf-bR')], mos = qa('.dwarf-mo');
     const helm = q('.dwarf-helm'), ty = q('.dwarf-ty'), ng = q('.dwarf-ng'), axr = q('.dwarf-axr'), gemw = q('.dwarf-gemw');
-    const bel = q('.dwarf-bel'), coal = q('.dwarf-coalg'), stomp = q('.dwarf-stomp'), bd = q('.dwarf-bd'), lan = q('.dwarf-lan'), anv = q('.dwarf-anv');
-    let gaze = [0, 0], ga = [], la = null, bp = rnd() * 6, hot = true;
+    const coal = q('.dwarf-coalg'), bd = q('.dwarf-bd'), lan = q('.dwarf-lan'), anv = q('.dwarf-anv');
+    let gaze = [0, 0], ga = [], la = null, hot = true;
     const bob = (el, to, ms, o = {}) => el && el.animate([{ transform: 'none' }, { transform: to, offset: o.at ?? .4 }, { transform: 'none' }], { duration: ms, easing: 'ease-in-out', composite: 'add', ...o });
     const blink = () => {
       const slow = R.mood === 'meh' || R.mood === 'death';
@@ -585,19 +592,13 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
       if (mood === 'good') { lookAt(0, 2.4); nd([T('none'), { ...T('translateY(3.5px) rotate(1deg)'), offset: .35 }, { ...T('translateY(-.6px)'), offset: .7 }, T('none')], 480, 450); later(() => lookAt(0, 0), 1000 * d); }
       if (mood === 'great') { lookAt(0, 2.4); later(() => lookAt(0, 0), 600 * d); once(ty, [T('translateY(-5px)'), { ...T('translateY(-14px) rotate(-8deg)'), offset: .4 }, { ...T('translateY(-13px) rotate(-6deg)'), offset: .7 }, T('translateY(-5px)')], { duration: 950 * d, delay: 300 * d, easing: 'cubic-bezier(.3,1.2,.5,1)' }); nd([T('none'), { ...T('translateY(-2px) rotate(-1.5deg)'), offset: .4 }, T('none')], 900, 300); }
       if (mood === 'superb') {
-        lookAt(-3, -.8);
+        lookAt(-3, .9);
         once(gemw, [T('none'), { ...T('translateY(-7px) rotate(-3deg)'), offset: .3 }, { ...T('translateY(-5px) rotate(3deg)'), offset: .6 }, T('none')], { duration: 1200 * d, delay: 150 * d, easing: 'ease-in-out' });
         nd([T('none'), { ...T('translateY(-2.5px) rotate(-2.5deg)'), offset: .25 }, { ...T('translateY(-2px) rotate(-2deg)'), offset: .6 }, T('none')], 1250, 100);
         later(() => { lookAt(0, 0); once(ty, [T('translateY(-5px)'), { ...T('translateY(-14px) rotate(-8deg)'), offset: .4 }, T('translateY(-5px)')], { duration: 850 * d, delay: 150 * d, easing: 'ease-in-out' }); }, 1350 * d);
       }
       if (mood === 'pvp') { lookAt(0, 0); once(axr, [T('rotate(-15deg)'), { ...T('rotate(-22deg) translateY(-7px)'), offset: .35 }, { ...T('rotate(-12deg) translateY(2px)'), offset: .7 }, T('rotate(-15deg)')], { duration: 700 * d, delay: 250 * d, easing: 'ease-in-out' }); nd([T('none'), { ...T('translateY(-2.5px) rotate(-1deg)'), offset: .3 }, { ...T('translateY(1.2px)'), offset: .6 }, T('none')], 650, 250); }
-      if (mood === 'levelup') {
-        lookAt(-1.5, -2.2);
-        const a = 'translate(-92px,-30px) rotate(-14deg)';
-        once(helm, [T(a), { ...T('translate(-92px,-44px) rotate(-19deg)'), offset: .25 }, { ...T(a), offset: .5 }, { ...T('translate(-92px,-40px) rotate(-17deg)'), offset: .75 }, T(a)], { duration: 900 * d, delay: 620 * d, easing: 'ease-in-out' });
-        nd([T('none'), { ...T('translateY(-2px)'), offset: .4 }, T('none')], 800, 500);
-        later(() => lookAt(0, 0), 1700 * d);
-      }
+      if (mood === 'levelup') { lookAt(0, .8, 300); nd([T('none'), { ...T('translateY(2.5px) rotate(1.2deg)'), offset: .45 }, T('translateY(.8px)')], 1300, 300, { fill: 'forwards' }); later(() => lookAt(0, 0, 300), 1900 * d); }
       if (mood === 'death') nd([T('none'), T('translateY(2px) rotate(-2deg)')], 1100, 500, { fill: 'forwards' });
       if (mood === 'achievement') { lookAt(0, 0); nd([T('none'), { ...T('translateY(-2.5px) scale(1.02)'), offset: .4 }, T('translateY(-.6px)')], 900, 250, { fill: 'forwards' }); }
     };
@@ -607,15 +608,10 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
       changed(mood) { calm(); biz(mood); },
       struck() { lookAt(0, 2.5, 140); },
       leave() { if (R.mood !== 'death') lookAt(.4, -2.5, 260); },
-      // every frame: the bellows, the coals and his treading foot follow burn; his gear dangles
+      // every frame: the coals follow burn; his gear dangles
       frame(i) {
         const b = i.burn;
-        bp += i.dt * (1.6 + 13 * b);
-        const sn = Math.sin(bp), s = 1.05 - (.1 + .52 * b) * (.5 + .5 * sn);
-        R.bs = s;
-        bel.style.transform = `scaleY(${s.toFixed(3)})`;
         coal.style.opacity = (.2 + .8 * b).toFixed(2);
-        stomp.style.transform = `translateY(${(Math.max(0, sn) * b * 1.1).toFixed(2)}px)`;
         bd.style.transform = `rotate(${(i.hang * .8).toFixed(2)}deg)`;
         lan.style.transform = `rotate(${(i.hang * 1.3 + Math.sin(i.now * .0021) * 1.6).toFixed(2)}deg)`;
         anv.style.transform = `rotate(${(i.hang + Math.sin(i.now * .0017 + 2)).toFixed(2)}deg)`;
@@ -629,7 +625,7 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
   Harness.register({
     id: 'dwarf',
     name: 'The Dwarf',
-    blurb: 'Dwarves do not fly. This one was told to, so he built the thing himself and stands in it in mail and pauldrons: hides stitched in gores, chains for ropes, an ore bucket, and an iron forge-pot under the mouth that he blows with a bellows from a treadle. The envelope says how good the kill was, from a patched scrap bag to cloth of gold under a crown; the news hangs below on a forged plate.',
+    blurb: 'Dwarves do not fly. This one was told to, so he built the thing himself and stands in it in mail and pauldrons: hides stitched in gores, chains for ropes, an ore bucket, and an iron forge-pot of coals hung under the mouth. The envelope says how good the kill was, from a patched scrap bag to cloth of gold under a crown; the news hangs below on a forged plate.',
     create(ctx) {
       reduced = ctx.reduced; paceOf = ctx.pace;
       return Rig.create(ctx, {
@@ -638,11 +634,9 @@ ${rich ? `<rect x="8.500" y="8.500" width="${w - 17}" height="${h - 17}" fill="n
         envelope: (mood) => ENV[mood] || ENV.calibrating,
         ropes: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 2 },
         burner,
-        // the treadle chain: from the bellows' lower board down into the bucket
-        lines: [{ cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.3 }, a: (i, R) => i.pe(40.3, FY + 7 + 7.2 * (R.bs || 1)), b: (i) => i.pc(39, RY - 1) }],
         basket,
         behind: (u) => `<div class="dwarf-old">${OLD.axe(u)}</div>
-<div class="dwarf-stomp"><div class="dwarf-lift"><div class="dwarf-br"><div class="dwarf-look"><div class="dwarf-nod">${head(u)}${braids(u)}<div class="dwarf-pipew">${OLD.pipe(u)}<div class="rig-z dwarf-ring"><i></i><i></i></div></div></div></div></div></div></div>
+<div class="dwarf-lift"><div class="dwarf-br"><div class="dwarf-look"><div class="dwarf-nod">${head(u)}${braids(u)}<div class="dwarf-pipew">${OLD.pipe(u)}<div class="rig-z dwarf-ring"><i></i><i></i></div></div>${hold(u)}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}<div class="dwarf-old">${OLD.seal(u)}<div class="rig-z dwarf-lan"><div class="dwarf-lgl"></div>${OLD.lampArt()}</div>${OLD.anvil(u)}</div>`,
         sign: { w: SW, hx: HX, bx: 44, k: 12, c: 1.7, cord: { kind: 'chain', dark: '#17120e', light: '#8d949b', w: 1.9 }, board, pips },
