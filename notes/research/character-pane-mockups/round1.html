@@ -1,0 +1,943 @@
+<title>Character Pane Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: a long dark studio wall; each direction is a row of the same pane at L / M / S / XS,
+   with notes beside it. The panes use the game's own Lykta look (iron band, lamp-lit window, frosted cards). */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10;
+  --wall2: #11141a;
+  --ink: #e6e2d8;
+  --ink-dim: #a29d91;
+  --rule: #262a32;
+  --accent: #e9cf9f;
+
+  --pane-bg: #12161f;
+  --lamp: #e9cf9f;
+  --lamp-hot: #fbe7c2;
+  --iron: #2a2d32;
+  --iron-hi: #4a4e56;
+  --iron-lo: #15171a;
+  --frost: rgba(233, 207, 159, .11);
+  --frost2: rgba(233, 207, 159, .05);
+  --frost-edge: rgba(233, 207, 159, .24);
+  --text: #e2e0da;
+  --dim: #8f8c84;
+  --faint: #5c5a54;
+
+  --hp: #2fa84f;
+  --ma: #3d7eff;
+  --mv: #c08a3e;
+  --warn: #ff8c2a;
+  --crit: #ff4d4d;
+  --xp: #d2ad5c;
+  --tp: #62c3b2;
+  --up: #6fd38a;
+  --down: #ff7b6b;
+
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent);
+}
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); margin-bottom: 6px; }
+h3 { font-size: 15px; color: var(--ink); letter-spacing: .06em; }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code, .code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 64px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.dir { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start;
+  background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 24px; margin-top: 22px; }
+.dir .tag { font: 700 13px/1 var(--mono); color: var(--wall); background: var(--lamp); padding: 4px 7px; border-radius: 4px; }
+.dir header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.notes { display: flex; flex-direction: column; gap: 10px; font-size: 15px; color: var(--ink-dim); }
+.notes strong { color: var(--ink); font-weight: 600; }
+.notes ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.sizes { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.size { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.size > .lbl { font: 600 11px/1 var(--mono); color: var(--ink-dim); letter-spacing: .08em; }
+@media (max-width: 860px) { .dir { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===================== Lykta pane ===================== */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none; max-width: 100%;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px;
+  border-radius: 0 0 8px 8px; z-index: 3; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot);
+  text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 18px 8px 8px; overflow: hidden;
+  font: 12.5px/1.35 var(--mono); color: var(--text);
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.17), rgba(233,207,159,.05) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.win.tight { padding-top: 17px; padding-bottom: 5px; }
+.card { border-radius: 4px; background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.26), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+
+/* bars */
+.b { position: relative; height: 7px; border-radius: 3px; background: rgba(0,0,0,.55);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.14); }
+.b.thin { height: 4px; } .b.fat { height: 10px; } .b.hair { height: 3px; }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > i.old { background: color-mix(in srgb, var(--c) 45%, #000); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px;
+  background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); } .xpc { --c: var(--xp); } .tpc { --c: var(--tp); }
+.warn { --c: var(--warn); } .crit { --c: var(--crit); }
+.vr { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 7px; align-items: center; }
+.vr > .k { font: 700 10px/1 var(--mono); color: var(--dim); letter-spacing: .05em; }
+.vr > .v { font: 11.5px/1 var(--mono); color: var(--text); font-variant-numeric: tabular-nums; text-align: right; min-width: 54px; }
+.vr > .v small { color: var(--dim); }
+.vr > .v.word { color: var(--lamp); }
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.grow { flex: 1; min-width: 0; }
+.dim { color: var(--dim); } .faint { color: var(--faint); } .lampc { color: var(--lamp); }
+.num { font-variant-numeric: tabular-nums; }
+.name { font: 700 15px/1.1 var(--display); letter-spacing: .05em; color: var(--lamp-hot); text-shadow: 0 0 8px rgba(233,207,159,.35); }
+.lvl { font: 700 11px/1 var(--mono); color: var(--wall); background: var(--lamp); border-radius: 3px; padding: 3px 5px; }
+.lvl.ghost { background: rgba(0,0,0,.35); color: var(--lamp); box-shadow: inset 0 0 0 1px var(--frost-edge); }
+.sub { font: 11px/1.2 var(--mono); color: var(--dim); }
+.xpline { display: flex; justify-content: space-between; font: 10.5px/1 var(--mono); color: var(--dim); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.xpline b { color: var(--xp); font-weight: 600; } .xpline b.t { color: var(--tp); }
+
+/* toggles */
+.tgs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+.tg { font: 700 9.5px/1 var(--mono); letter-spacing: .08em; text-align: center; padding: 4px 0; border-radius: 3px;
+  background: rgba(0,0,0,.35); color: var(--faint); box-shadow: inset 0 0 0 1px var(--frost2); }
+.tg.on { color: #1b160d; background: linear-gradient(180deg, var(--lamp-hot), var(--lamp)); box-shadow: 0 0 6px rgba(233,207,159,.45); }
+
+/* gauges */
+.gg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.g .gl { font: 600 9px/1 var(--mono); letter-spacing: .1em; color: var(--dim); text-transform: uppercase; }
+.g .gv { font: 12px/1.3 var(--mono); color: var(--text); }
+.steps { display: flex; gap: 2px; margin-top: 2px; }
+.steps i { flex: 1; height: 3px; border-radius: 1px; background: rgba(255,255,255,.09); }
+.steps i.on { background: var(--lamp); box-shadow: 0 0 4px var(--lamp); }
+
+/* tabs */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--frost-edge); margin: 0 -2px 7px; padding: 0 2px; }
+.tab { all: unset; cursor: pointer; font: 700 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 5px 7px 4px;
+  color: var(--dim); border-radius: 3px 3px 0 0; }
+.tab:hover { color: var(--text); }
+.tab:focus-visible { outline: 1px solid var(--lamp); }
+.tab.on { color: var(--lamp-hot); background: var(--frost); box-shadow: inset 0 1px 0 var(--frost-edge); }
+.tp { display: none; } .tp.on { display: block; }
+.rail { display: flex; flex-direction: column; gap: 3px; padding-right: 6px; margin-right: 6px; border-right: 1px solid var(--frost-edge); }
+.rail .tab { padding: 5px; border-radius: 3px; display: grid; place-items: center; }
+.rail .tab svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dots { display: flex; gap: 5px; justify-content: center; margin-top: 7px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+.dots i.on { background: var(--lamp); box-shadow: 0 0 4px var(--lamp); }
+
+/* stats */
+.stats7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.st { text-align: center; padding: 4px 0 3px; }
+.st small { display: block; font: 700 8.5px/1 var(--mono); letter-spacing: .08em; color: var(--dim); }
+.st b { display: block; font: 700 14px/1.2 var(--mono); color: var(--text); }
+.st em { display: block; font: 9px/1 var(--mono); font-style: normal; color: var(--faint); }
+.st.up b { color: var(--up); text-shadow: 0 0 6px rgba(111,211,138,.4); }
+.st.up em { color: var(--up); }
+.combat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 4px; }
+.combat .st b { font-size: 13px; color: var(--lamp-hot); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; font: 11.5px/1.35 var(--mono); }
+.kv dt { color: var(--dim); } .kv dd { margin: 0; color: var(--text); min-width: 0; }
+.coins { display: inline-flex; gap: 6px; align-items: center; }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin-right: 2px; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); }
+.coin.g { background: #e5c158; } .coin.s { background: #c9ccd1; } .coin.c { background: #c07a46; }
+.aff { display: flex; flex-wrap: wrap; gap: 3px; }
+.aff span { font: 10.5px/1 var(--mono); padding: 3px 6px; border-radius: 3px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px var(--frost-edge); color: var(--text); }
+.aff span.b2 { box-shadow: inset 0 0 0 1px rgba(76,201,106,.6); }
+.hr { height: 1px; background: linear-gradient(90deg, rgba(233,207,159,.35), transparent 85%); margin: 7px 0; }
+.stale { color: var(--dim); font: 9.5px/1 var(--mono); text-align: right; margin-top: 6px; }
+
+/* portrait */
+.por { position: relative; flex: none; border-radius: 6px; overflow: hidden; background: radial-gradient(circle at 50% 35%, #3b3326, #15130f 75%);
+  box-shadow: 0 0 0 2px var(--iron), 0 0 0 3px #000, inset 0 0 14px rgba(0,0,0,.9); }
+.por.round { border-radius: 50%; }
+.por svg { width: 100%; height: 100%; display: block; }
+.por .cap { position: absolute; inset: auto 0 0 0; font: 700 7.5px/1 var(--mono); letter-spacing: .1em; text-align: center; padding: 2px 0;
+  color: var(--lamp); background: linear-gradient(transparent, rgba(0,0,0,.75)); }
+.por.hurt { box-shadow: 0 0 0 2px #5a2a22, 0 0 0 3px #000, inset 0 0 18px rgba(255,60,40,.55); }
+.por.sleep svg { filter: grayscale(.8) brightness(.55); }
+.por.sleep::after { content: "z z"; position: absolute; top: 4px; right: 6px; font: 700 10px var(--mono); color: #9fb4ff; }
+.por.incap svg { filter: grayscale(1) brightness(.4) sepia(.6) hue-rotate(-30deg); }
+
+/* rings */
+.rings { position: relative; flex: none; }
+.rings svg { display: block; }
+.rings .center { position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* vials */
+.vials { display: flex; gap: 8px; justify-content: center; align-items: flex-end; }
+.vial { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.vial .glass { position: relative; width: 26px; height: 112px; border-radius: 11px 11px 9px 9px; overflow: hidden;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,0) 40%, rgba(255,255,255,.05)), rgba(0,0,0,.5);
+  box-shadow: inset 0 0 0 1px var(--frost-edge), inset 0 2px 6px rgba(0,0,0,.8); }
+.vial .glass i { position: absolute; left: 0; right: 0; bottom: 0; height: var(--h);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c), #000 25%), color-mix(in srgb, var(--c), #fff 20%) 45%, var(--c));
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--c), #fff 50%); }
+.vial .glass u { position: absolute; left: 0; right: 0; bottom: var(--lo); height: calc(var(--hi) - var(--lo));
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--c) 70%, transparent) 0 2px, transparent 2px 5px); }
+.vial .glass .wim { position: absolute; left: -2px; right: -2px; bottom: var(--p); height: 2px; background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); }
+.vial .k { font: 700 9px/1 var(--mono); color: var(--dim); letter-spacing: .08em; }
+.vial .v { font: 10.5px/1 var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.vial.slim .glass { width: 10px; }
+
+/* TUI cells */
+pre.tui { margin: 0; font: 13px/17px var(--mono); color: var(--text); white-space: pre; }
+.tui .g { color: var(--hp); } .tui .bl { color: var(--ma); } .tui .o { color: var(--mv); } .tui .y { color: var(--xp); } .tui .t { color: var(--tp); }
+.tui .d { color: var(--faint); } .tui .m { color: var(--dim); } .tui .L { color: var(--lamp-hot); } .tui .inv { background: var(--lamp); color: #1b160d; }
+.tui .w { color: var(--lamp-hot); text-shadow: 0 0 4px var(--lamp); }
+
+/* HUD strip */
+.hud { display: flex; align-items: center; gap: 12px; }
+.hud .vb { display: grid; grid-template-columns: auto 90px auto; gap: 5px; align-items: center; font: 10.5px/1 var(--mono); }
+.pill { font: 700 9px/1 var(--mono); letter-spacing: .08em; padding: 3px 5px; border-radius: 3px; color: var(--faint); background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px var(--frost2); }
+.pill.on { color: #1b160d; background: var(--lamp); }
+.ico { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ===================== explanatory parts ===================== */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.box { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box p, .box li { color: var(--ink-dim); font-size: 15px; }
+.box ul, .box ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.box strong { color: var(--ink); }
+.scroll { overflow-x: auto; }
+pre.fmt { margin: 0; font: 12.5px/1.6 var(--mono); color: var(--ink); background: #07080b; border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; white-space: pre; }
+pre.fmt .h { color: var(--faint); } pre.fmt .s { color: var(--lamp); } pre.fmt .x { color: #7fb6ff; } pre.fmt .r { color: #ff8f80; text-decoration: line-through; }
+table.map { border-collapse: collapse; font: 12.5px/1.4 var(--mono); width: 100%; }
+table.map th, table.map td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.map th { font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+table.map td:first-child { color: var(--lamp); white-space: nowrap; }
+table.map td.src { color: var(--ink-dim); white-space: nowrap; }
+.yes { color: var(--up); } .no { color: var(--down); }
+
+.demo { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 700px) { .demo { grid-template-columns: minmax(0, 1fr); } }
+.ctl { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 12px; border-radius: 6px; color: var(--ink); background: #1b1f27; border: 1px solid #333944; }
+.btn:hover { border-color: var(--lamp); }
+.btn:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.btn.on { background: var(--lamp); color: #1b160d; border-color: var(--lamp); }
+.log { font: 12px/1.6 var(--mono); background: #07080b; border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; min-height: 196px; color: var(--ink-dim); }
+.log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log .cur { color: var(--lamp); }
+.log .verdict { color: var(--ink); }
+
+.ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.idea { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.idea h3 { font-size: 14px; }
+.idea p { font-size: 14.5px; color: var(--ink-dim); }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.qs { counter-reset: q; display: flex; flex-direction: column; gap: 12px; }
+.q p { font-size: 15px; color: var(--ink-dim); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: var(--ink-dim); margin-top: 8px; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="pg" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="#6b5a3e"/><stop offset="1" stop-color="#1a1611"/></radialGradient>
+    <linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c7a5a"/><stop offset="1" stop-color="#3b3122"/></linearGradient>
+    <symbol id="bust" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="url(#pg)"/>
+      <path d="M6 66 C8 48 19 42 32 42 C45 42 56 48 58 66 Z" fill="#2a231a"/>
+      <path d="M18 30 C18 14 46 14 46 30 C46 40 40 46 32 46 C24 46 18 40 18 30 Z" fill="url(#sk)"/>
+      <path d="M14 34 C12 14 22 6 32 6 C42 6 52 14 50 34 C47 24 42 18 32 18 C22 18 17 24 14 34 Z" fill="#1f1a13"/>
+      <path d="M25 40 l2 -4 M39 40 l-2 -4" stroke="#e8dcc0" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="26" cy="30" r="1.6" fill="#ffcf6a"/><circle cx="38" cy="30" r="1.6" fill="#ffcf6a"/>
+    </symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r=".8"/><circle cx="15" cy="15" r=".8"/><circle cx="15" cy="9" r=".8"/><circle cx="9" cy="15" r=".8"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/></symbol>
+    <symbol id="i-scroll" viewBox="0 0 24 24"><path d="M7 4h11a2 2 0 0 1 2 2v1h-4M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M7 4a2 2 0 0 1 2 2v12M12 10h4M12 14h4"/></symbol>
+    <symbol id="i-sword" viewBox="0 0 24 24"><path d="M14 4h6v6L9 21l-3-3L17 7M5 15l4 4M3 21l3-3"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 1</span>
+  <h1>Character pane</h1>
+  <p class="lede">Sju visuella riktningar för den viktigaste panen, var och en i fyra storlekar: L med flikar, M utan flikar, S på två rader och XS på en rad. All data är Rastas riktiga <code>info</code>-utskrift. Längre ner: hur HP kan visas när GMCP växlar mellan exakta värden och ord, hur den dolda <code>info</code>-hämtningen kan fungera, fler idéer och frågor till dig.</p>
+  <div class="legend">
+    <span><span class="b hp" style="width:60px"><i style="--w:70%"></i></span> exakt värde</span>
+    <span><span class="b hp" style="width:60px"><i style="--w:46%"></i><u style="--lo:46%;--hi:70%"></u></span> bara ordet "hurt": spannet 46–70 %</span>
+    <span><span class="b hp" style="width:60px"><i style="--w:70%"></i><span class="wim" style="--p:56%"></span></span> wimpy som streck på HP-baren</span>
+  </div>
+
+  <!-- ================= A ================= -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Riktningar</span><h2>Sju sätt att bygga panen</h2>
+      <p class="dim">Flikarna i L-storleken går att klicka på. Gemensamt för alla förslag: HP, mana och moves ligger alltid överst och göms aldrig bakom en flik. Flikarna byter bara den nedre delen.</p></div>
+
+    <article class="dir">
+      <div>
+        <header><span class="tag">A</span><h3>Lykta, vidareutvecklad</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">L · 300 × 330</span>
+            <div class="pane" style="width:300px"><div class="hood">CHARACTER</div>
+              <div class="win" data-tabs>
+                <div class="row" style="margin-bottom:6px"><span class="name">Rasta</span><span class="sub grow">Orc · GoblinTown</span><span class="lvl">L73</span></div>
+                <div class="stack">
+                  <div class="vr hp"><span class="k">HP</span><span class="b"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="v">187<small>/270</small></span></div>
+                  <div class="vr ma"><span class="k">MA</span><span class="b"><i style="--w:84%"></i></span><span class="v">93<small>/111</small></span></div>
+                  <div class="vr mv"><span class="k">MV</span><span class="b"><i style="--w:80%"></i></span><span class="v">98<small>/122</small></span></div>
+                </div>
+                <div style="margin-top:8px">
+                  <div class="b thin xpc"><i style="--w:38%;opacity:.55"></i><i style="--w:41%;left:38%;width:3%"></i></div>
+                  <div class="b hair tpc" style="margin-top:3px"><i style="--w:100%"></i></div>
+                  <div class="xpline"><span><b>210 591</b> xp to L74</span><span><b class="t">TP ✓</b></span></div>
+                </div>
+                <div class="tabs" style="margin-top:9px"><button class="tab on">Status</button><button class="tab">Stats</button><button class="tab">Affects</button><button class="tab">Info</button></div>
+                <div class="tp on">
+                  <div class="tgs" style="margin-bottom:8px"><span class="tg on">SNEAK</span><span class="tg">RIDE</span><span class="tg on">CLIMB</span><span class="tg">SWIM</span></div>
+                  <div class="gg">
+                    <div class="g"><div class="gl">Position</div><div class="gv">standing</div><div class="steps"><i></i><i></i><i></i><i class="on"></i></div></div>
+                    <div class="g"><div class="gl">Mood</div><div class="gv">aggressive</div><div class="steps"><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div></div>
+                    <div class="g"><div class="gl">Alertness</div><div class="gv">normal</div><div class="steps"><i class="on"></i><i></i><i></i><i></i><i></i></div></div>
+                    <div class="g"><div class="gl">Wimpy</div><div class="gv">150 <span class="dim">· 56 %</span></div><div class="steps"><i class="on" style="flex:none;width:56%"></i><i></i></div></div>
+                  </div>
+                </div>
+                <div class="tp">
+                  <div class="stats7">
+                    <div class="st card up"><small>STR</small><b>18</b><em>+2</em></div>
+                    <div class="st card"><small>INT</small><b>16</b><em>15</em></div>
+                    <div class="st card"><small>WIS</small><b>16</b><em>16</em></div>
+                    <div class="st card"><small>DEX</small><b>11</b><em>8</em></div>
+                    <div class="st card"><small>CON</small><b>12</b><em>10</em></div>
+                    <div class="st card"><small>WIL</small><b>16</b><em>16</em></div>
+                    <div class="st card"><small>PER</small><b>8</b><em>8</em></div>
+                  </div>
+                  <div class="combat">
+                    <div class="st card"><small>OB</small><b>137</b></div>
+                    <div class="st card"><small>DB</small><b>-1</b></div>
+                    <div class="st card"><small>PB</small><b>39</b></div>
+                    <div class="st card"><small>ABS</small><b>43</b></div>
+                  </div>
+                  <div class="stale">info 12 s sedan · spell speed normal</div>
+                </div>
+                <div class="tp">
+                  <div class="aff"><span class="b2">strength</span><span>shield</span><span>detect magic</span><span class="b2">comfortable</span></div>
+                  <div class="hr"></div>
+                  <dl class="kv"><dt>Carrying</dt><dd>93 lb · Heavy, but we will manage…</dd></dl>
+                  <div class="b thin mv" style="margin-top:5px"><i style="--w:72%"></i></div>
+                </div>
+                <div class="tp">
+                  <dl class="kv">
+                    <dt>Age</dt><dd>57 y 6 m 2 d</dd>
+                    <dt>Height</dt><dd>4′11″ · 8 st 5 lb</dd>
+                    <dt>Align</dt><dd>totally corrupted</dd>
+                    <dt>Citizen</dt><dd>GoblinTown</dd>
+                    <dt>Fame</dt><dd>known (4)</dd>
+                    <dt>Purse</dt><dd class="coins"><span><span class="coin g"></span>394</span><span><span class="coin s"></span>11</span><span><span class="coin c"></span>49</span></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">M · 240 × 150 (inga flikar)</span>
+            <div class="pane" style="width:240px"><div class="hood">CHARACTER</div>
+              <div class="win">
+                <div class="row" style="margin-bottom:6px"><span class="name" style="font-size:13px">Rasta</span><span class="grow"></span><span class="lvl">L73</span></div>
+                <div class="stack" style="gap:5px">
+                  <div class="vr hp"><span class="k">HP</span><span class="b"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="v">187</span></div>
+                  <div class="vr ma"><span class="k">MA</span><span class="b"><i style="--w:84%"></i></span><span class="v">93</span></div>
+                  <div class="vr mv"><span class="k">MV</span><span class="b"><i style="--w:80%"></i></span><span class="v">98</span></div>
+                </div>
+                <div class="b thin xpc" style="margin-top:7px"><i style="--w:41%"></i></div>
+                <div class="tgs" style="margin-top:7px"><span class="tg on">SN</span><span class="tg">RI</span><span class="tg on">CL</span><span class="tg">SW</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">S · 2 rader</span>
+            <div class="pane" style="width:240px"><div class="hood">CHARACTER</div>
+              <div class="win tight">
+                <div class="row"><span class="name" style="font-size:12px">Rasta</span><span class="lvl ghost">73</span><span class="grow"></span><span class="sub">stand · W150</span></div>
+                <div class="row" style="margin-top:4px;gap:4px">
+                  <span class="b hp grow"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="b ma grow"><i style="--w:84%"></i></span><span class="b mv grow"><i style="--w:80%"></i></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">XS · 1 rad</span>
+            <div class="pane" style="width:240px"><div class="hood">CHARACTER</div>
+              <div class="win tight">
+                <div class="row" style="gap:5px"><span class="lampc" style="font-weight:700">73</span>
+                  <span class="b hp grow"><i style="--w:69%"></i></span><span class="b ma grow"><i style="--w:84%"></i></span><span class="b mv grow"><i style="--w:80%"></i></span>
+                  <span class="sub">S·C</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>Närmast dagens pane.</strong> Namn och level överst, sedan vitals, XP/TP och flikar för resten.</p>
+        <ul>
+          <li><strong>Wimpy blir ett streck på HP-baren</strong>, så man ser direkt hur nära man är att fly. Gaugen ligger kvar i Status.</li>
+          <li>Stats visar nuvarande värde och, i liten text, grundvärdet. Är värdet höjt av en affect blir det grönt med <code>+2</code>.</li>
+          <li>Affects-fliken tar <code>%f</code> och visar vad strength och shield gör med siffrorna.</li>
+          <li>I S och XS blir toggles bokstäver eller försvinner helt.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= B ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">B</span><h3>Porträtt</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">L · 300 × 300</span>
+            <div class="pane" style="width:300px"><div class="hood">RASTA</div>
+              <div class="win" data-tabs>
+                <div class="row" style="align-items:stretch;gap:10px">
+                  <div class="por" style="width:72px;height:84px"><svg><use href="#bust"/></svg><span class="cap">ORC</span></div>
+                  <div class="grow stack" style="gap:5px;justify-content:center">
+                    <div class="row"><span class="name">Rasta</span><span class="grow"></span><span class="lvl">L73</span></div>
+                    <div class="vr hp"><span class="k">HP</span><span class="b"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="v">187</span></div>
+                    <div class="vr ma"><span class="k">MA</span><span class="b"><i style="--w:84%"></i></span><span class="v">93</span></div>
+                    <div class="vr mv"><span class="k">MV</span><span class="b"><i style="--w:80%"></i></span><span class="v">98</span></div>
+                  </div>
+                </div>
+                <div style="margin-top:8px"><div class="b thin xpc"><i style="--w:41%"></i></div><div class="xpline"><span><b>41 %</b> · 210 591 to go</span><span><b class="t">TP ✓</b></span></div></div>
+                <div class="tabs" style="margin-top:9px"><button class="tab on">Status</button><button class="tab">Stats</button><button class="tab">Info</button></div>
+                <div class="tp on">
+                  <div class="tgs" style="margin-bottom:7px"><span class="tg on">SNEAK</span><span class="tg">RIDE</span><span class="tg on">CLIMB</span><span class="tg">SWIM</span></div>
+                  <div class="row sub" style="justify-content:space-between"><span>standing</span><span>aggressive</span><span>normal</span><span class="lampc">W150</span></div>
+                </div>
+                <div class="tp">
+                  <div class="stats7"><div class="st card up"><small>STR</small><b>18</b></div><div class="st card"><small>INT</small><b>16</b></div><div class="st card"><small>WIS</small><b>16</b></div><div class="st card"><small>DEX</small><b>11</b></div><div class="st card"><small>CON</small><b>12</b></div><div class="st card"><small>WIL</small><b>16</b></div><div class="st card"><small>PER</small><b>8</b></div></div>
+                  <div class="combat"><div class="st card"><small>OB</small><b>137</b></div><div class="st card"><small>DB</small><b>-1</b></div><div class="st card"><small>PB</small><b>39</b></div><div class="st card"><small>ABS</small><b>43</b></div></div>
+                </div>
+                <div class="tp"><dl class="kv"><dt>Age</dt><dd>57 years</dd><dt>Height</dt><dd>4′11″</dd><dt>Align</dt><dd>totally corrupted</dd><dt>Fame</dt><dd>known (4)</dd><dt>Gold</dt><dd>394</dd></dl></div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">Porträttet reagerar</span>
+            <div class="row" style="gap:12px;align-items:flex-end">
+              <div class="stack" style="align-items:center;gap:4px"><div class="por" style="width:56px;height:64px"><svg><use href="#bust"/></svg></div><span class="sub">healthy</span></div>
+              <div class="stack" style="align-items:center;gap:4px"><div class="por hurt" style="width:56px;height:64px"><svg><use href="#bust"/></svg></div><span class="sub">bad</span></div>
+              <div class="stack" style="align-items:center;gap:4px"><div class="por sleep" style="width:56px;height:64px"><svg><use href="#bust"/></svg></div><span class="sub">sleeping</span></div>
+              <div class="stack" style="align-items:center;gap:4px"><div class="por incap" style="width:56px;height:64px"><svg><use href="#bust"/></svg></div><span class="sub">incap</span></div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">S · avatar</span>
+            <div class="pane" style="width:240px"><div class="hood">RASTA</div>
+              <div class="win tight">
+                <div class="row" style="gap:7px"><div class="por round" style="width:30px;height:30px"><svg><use href="#bust"/></svg></div>
+                  <div class="grow stack" style="gap:3px">
+                    <div class="row sub" style="gap:6px"><span class="lampc">L73</span><span>stand</span><span class="grow"></span><span>S C</span></div>
+                    <div class="row" style="gap:3px"><span class="b thin hp grow"><i style="--w:69%"></i></span><span class="b thin ma grow"><i style="--w:84%"></i></span><span class="b thin mv grow"><i style="--w:80%"></i></span></div>
+                  </div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>En bild per ras</strong> (de du genererar), med namnet i huven i stället för "CHARACTER".</p>
+        <ul>
+          <li>Bilden visar läget: röd vinjett när HP är bad eller sämre, nedtonad när du sover, sepia när du är incap. Den ändras långsamt, så den drar inte blicken från texten.</li>
+          <li>Rasen kommer från <code>Char.StatusVars</code>. Vill du ha subrace eller kön behöver vi fler bilder.</li>
+          <li>I S krymper bilden till en rund avatar. I XS tas den bort.</li>
+          <li>Bildformat som för ballongerna: WebP med fast storlek och en README som beskriver vad bilden ska innehålla.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= C ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">C</span><h3>Ringar runt porträttet</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">L · 300 × 260</span>
+            <div class="pane" style="width:300px"><div class="hood">CHARACTER</div>
+              <div class="win" data-tabs>
+                <div class="row" style="gap:12px">
+                  <div class="rings" style="width:118px;height:118px">
+                    <svg width="118" height="118" viewBox="0 0 118 118">
+                      <g transform="rotate(135 59 59)" fill="none" stroke-linecap="round">
+                        <circle cx="59" cy="59" r="54" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="6" stroke-dasharray="75 100"/>
+                        <circle cx="59" cy="59" r="54" pathLength="100" stroke="#2fa84f" stroke-width="6" stroke-dasharray="51.9 100"/>
+                        <circle cx="59" cy="59" r="46" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="5" stroke-dasharray="75 100"/>
+                        <circle cx="59" cy="59" r="46" pathLength="100" stroke="#3d7eff" stroke-width="5" stroke-dasharray="63 100"/>
+                        <circle cx="59" cy="59" r="39" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="4" stroke-dasharray="75 100"/>
+                        <circle cx="59" cy="59" r="39" pathLength="100" stroke="#c08a3e" stroke-width="4" stroke-dasharray="60 100"/>
+                        <circle cx="59" cy="59" r="54" pathLength="100" stroke="#fbe7c2" stroke-width="9" stroke-dasharray="0.6 100" stroke-dashoffset="-42"/>
+                      </g>
+                    </svg>
+                    <div class="center"><div class="por round" style="width:62px;height:62px"><svg><use href="#bust"/></svg></div></div>
+                    <span class="lvl" style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%)">73</span>
+                  </div>
+                  <div class="grow stack" style="gap:4px">
+                    <span class="name">Rasta</span>
+                    <div class="sub"><span style="color:var(--hp)">●</span> 187/270</div>
+                    <div class="sub"><span style="color:var(--ma)">●</span> 93/111</div>
+                    <div class="sub"><span style="color:var(--mv)">●</span> 98/122</div>
+                    <div class="sub lampc">wimpy 150</div>
+                  </div>
+                </div>
+                <div class="b thin xpc" style="margin-top:8px"><i style="--w:41%"></i></div>
+                <div class="xpline"><span><b>XP 41 %</b></span><span><b class="t">TP ✓</b></span></div>
+                <div class="dots"><i class="on"></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">S · bara ringar</span>
+            <div class="pane" style="width:150px"><div class="hood">RASTA</div>
+              <div class="win tight row" style="justify-content:center;gap:8px">
+                <svg width="44" height="44" viewBox="0 0 118 118"><g transform="rotate(135 59 59)" fill="none" stroke-linecap="round">
+                  <circle cx="59" cy="59" r="50" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="14" stroke-dasharray="75 100"/>
+                  <circle cx="59" cy="59" r="50" pathLength="100" stroke="#2fa84f" stroke-width="14" stroke-dasharray="51.9 100"/>
+                  <circle cx="59" cy="59" r="30" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="14" stroke-dasharray="75 100"/>
+                  <circle cx="59" cy="59" r="30" pathLength="100" stroke="#3d7eff" stroke-width="14" stroke-dasharray="63 100"/></g></svg>
+                <div class="stack" style="gap:1px"><span class="lampc" style="font-weight:700">L73</span><span class="sub">187 hp</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>HP, mana och moves som tre bågar</strong> runt bilden, ungefär som ringarna på en klocka.</p>
+        <ul>
+          <li>Tydligt på avstånd och snyggt i en kvadratisk pane. Exakta siffror står bredvid.</li>
+          <li>Wimpy blir ett ljust streck på HP-bågen.</li>
+          <li>Flikarna är prickar. Man byter med klick eller mushjul, så de tar ingen bredd.</li>
+          <li>Nackdel: en båge är svårare att läsa av exakt än en rak bar, och det går åt mer höjd.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= D ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">D</span><h3>Karaktärsblad med ikonlist</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">L · 340 × 260 · flik: Stats</span>
+            <div class="pane" style="width:340px"><div class="hood">CHARACTER</div>
+              <div class="win" style="display:flex" data-tabs data-rail>
+                <div class="rail">
+                  <button class="tab" title="Status"><svg><use href="#i-heart"/></svg></button>
+                  <button class="tab on" title="Stats"><svg><use href="#i-dice"/></svg></button>
+                  <button class="tab" title="Combat"><svg><use href="#i-sword"/></svg></button>
+                  <button class="tab" title="Affects"><svg><use href="#i-spark"/></svg></button>
+                  <button class="tab" title="Info"><svg><use href="#i-scroll"/></svg></button>
+                </div>
+                <div class="grow">
+                  <div class="row" style="margin-bottom:5px"><span class="name" style="font-size:13px">Rasta</span><span class="grow"></span><span class="lvl">L73</span></div>
+                  <div class="row" style="gap:3px;margin-bottom:8px"><span class="b thin hp grow"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="b thin ma grow"><i style="--w:84%"></i></span><span class="b thin mv grow"><i style="--w:80%"></i></span></div>
+                  <div class="tp"><div class="sub">Status-fliken som i A.</div></div>
+                  <div class="tp on">
+                    <div class="stack" style="gap:3px">
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">STR</span><span class="b thin xpc grow"><i style="--w:56%;opacity:.45"></i><i style="--w:72%;left:56%;width:16%"></i></span><span class="v num" style="width:42px;text-align:right;color:var(--up)">18 <small class="faint">14</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">INT</span><span class="b thin xpc grow"><i style="--w:60%;opacity:.45"></i><i style="--w:64%;left:60%;width:4%"></i></span><span class="v num" style="width:42px;text-align:right">16 <small class="faint">15</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">WIS</span><span class="b thin xpc grow"><i style="--w:64%;opacity:.45"></i></span><span class="v num" style="width:42px;text-align:right">16 <small class="faint">16</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">DEX</span><span class="b thin xpc grow"><i style="--w:32%;opacity:.45"></i><i style="--w:44%;left:32%;width:12%"></i></span><span class="v num" style="width:42px;text-align:right">11 <small class="faint">8</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">CON</span><span class="b thin xpc grow"><i style="--w:40%;opacity:.45"></i><i style="--w:48%;left:40%;width:8%"></i></span><span class="v num" style="width:42px;text-align:right">12 <small class="faint">10</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">WIL</span><span class="b thin xpc grow"><i style="--w:64%;opacity:.45"></i></span><span class="v num" style="width:42px;text-align:right">16 <small class="faint">16</small></span></div>
+                      <div class="row" style="gap:6px"><span class="sub" style="width:26px">PER</span><span class="b thin xpc grow"><i style="--w:32%;opacity:.45"></i></span><span class="v num" style="width:42px;text-align:right">8 <small class="faint">8</small></span></div>
+                    </div>
+                    <div class="stale">mörk del = grundvärde · ljus = höjt sedan dess</div>
+                  </div>
+                  <div class="tp"><div class="combat" style="grid-template-columns:1fr 1fr"><div class="st card"><small>OB</small><b>137</b></div><div class="st card"><small>DB</small><b>-1</b></div><div class="st card"><small>PB</small><b>39</b></div><div class="st card"><small>ABS</small><b>43</b>%</div></div></div>
+                  <div class="tp"><div class="aff"><span class="b2">strength</span><span>shield</span><span>detect magic</span><span class="b2">comfortable</span></div></div>
+                  <div class="tp"><dl class="kv"><dt>Age</dt><dd>57 y 6 m</dd><dt>Citizen</dt><dd>GoblinTown</dd></dl></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">L · flik: Combat</span>
+            <div class="pane" style="width:220px"><div class="hood">COMBAT</div>
+              <div class="win">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                  <div class="card" style="padding:6px 8px"><div class="sub">OFFENSE</div><div style="font:700 22px/1.1 var(--mono);color:var(--lamp-hot)">137</div></div>
+                  <div class="card" style="padding:6px 8px"><div class="sub">DODGE</div><div style="font:700 22px/1.1 var(--mono);color:var(--down)">-1</div></div>
+                  <div class="card" style="padding:6px 8px"><div class="sub">PARRY</div><div style="font:700 22px/1.1 var(--mono)">39</div></div>
+                  <div class="card" style="padding:6px 8px"><div class="sub">ABSORB</div><div style="font:700 22px/1.1 var(--mono)">43</div></div>
+                </div>
+                <div class="hr"></div>
+                <dl class="kv"><dt>Missile</dt><dd class="faint">saknas i info</dd><dt>Casting</dt><dd>normal</dd><dt>Load</dt><dd>Heavy…</dd></dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>Flikarna som en lodrät ikonlist</strong> till vänster. Det sparar höjd, och panen kan bli bred och låg.</p>
+        <ul>
+          <li>Stats visas som en stege: en bar per förmåga, med grundvärdet mörkt och höjningen ljust ovanpå. Man ser direkt att DEX har gått från 8 till 11.</li>
+          <li>Combat-fliken visar OB/DB/PB/ABS med stora siffror.</li>
+          <li><strong>Missile OB finns inte bland <code>info</code>-koderna.</strong> Se frågorna längst ner.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= E ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">E</span><h3>Flaskor, för en smal och hög pane</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">Smal · 150 × 250</span>
+            <div class="pane" style="width:150px"><div class="hood">RASTA</div>
+              <div class="win">
+                <div class="row" style="justify-content:center;margin-bottom:8px"><span class="lvl">L73</span></div>
+                <div class="vials">
+                  <div class="vial hp"><span class="v">187</span><div class="glass"><i style="--h:69%"></i><span class="wim" style="--p:56%"></span></div><span class="k">HP</span></div>
+                  <div class="vial ma"><span class="v">93</span><div class="glass"><i style="--h:84%"></i></div><span class="k">MA</span></div>
+                  <div class="vial mv"><span class="v">98</span><div class="glass"><i style="--h:80%"></i></div><span class="k">MV</span></div>
+                  <div class="vial slim xpc"><span class="v">&nbsp;</span><div class="glass"><i style="--h:41%"></i></div><span class="k">XP</span></div>
+                </div>
+                <div class="tgs" style="grid-template-columns:1fr 1fr;margin-top:9px"><span class="tg on">SNEAK</span><span class="tg">RIDE</span><span class="tg on">CLIMB</span><span class="tg">SWIM</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">Bara ordet "hurt"</span>
+            <div class="pane" style="width:150px"><div class="hood">RASTA</div>
+              <div class="win">
+                <div class="vials">
+                  <div class="vial hp"><span class="v" style="color:var(--lamp)">hurt</span><div class="glass"><i style="--h:46%"></i><u style="--lo:46%;--hi:70%"></u><span class="wim" style="--p:56%"></span></div><span class="k">HP</span></div>
+                  <div class="vial ma"><span class="v">93</span><div class="glass"><i style="--h:84%"></i></div><span class="k">MA</span></div>
+                  <div class="vial mv warn"><span class="v">tired</span><div class="glass"><i style="--h:30%"></i><u style="--lo:30%;--hi:49%"></u></div><span class="k">MV</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>Lodräta flaskor</strong> för en pane som ligger i en smal kolumn bredvid kartan.</p>
+        <ul>
+          <li>När bara ordet är känt (hurt) visas spannet som ett randigt band i vätskan. Wimpystrecket syns på glaset, så man ser när ett ord ligger nära wimpy.</li>
+          <li>Passar som ett läge av A eller B snarare än som en egen pane.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= F ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">F</span><h3>TUI-celler, närmast Cockpit</h3></header>
+        <div class="sizes">
+          <div class="size"><span class="lbl">L · 34 × 12 celler</span>
+            <div class="pane"><div class="hood">CHARACTER</div>
+              <div class="win">
+<pre class="tui"><span class="L">Rasta</span> <span class="m">orc</span>               <span class="inv"> L73 </span>
+<span class="m">HP</span> <span class="g">██████████████▊</span><span class="w">│</span><span class="d">░░░░░░</span> <span class="num">187/270</span>
+<span class="m">MA</span> <span class="bl">█████████████████▊</span><span class="d">░░░░</span>  <span class="num">93/111</span>
+<span class="m">MV</span> <span class="o">████████████████▏</span><span class="d">░░░░░</span>  <span class="num">98/122</span>
+<span class="y">▀▀▀▀▀▀▀▀▀▀▀▀▀</span><span class="d">▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀</span>
+<span class="t">▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀</span>
+<span class="inv"> SNEAK  </span> <span class="d">RIDE</span>   <span class="inv"> CLIMB  </span> <span class="d">SWIM</span>
+<span class="m">───────── </span><span class="L">STATUS</span><span class="m"> · stats · info ──</span>
+<span class="m">pos</span>  standing   <span class="m">mood</span> aggressive
+<span class="m">alrt</span> normal     <span class="m">wimp</span> <span class="w">150</span>
+<span class="m">STR</span> <span class="g">18</span> <span class="m">INT</span> 16 <span class="m">WIS</span> 16 <span class="m">DEX</span> 11
+<span class="m">CON</span> 12 <span class="m">WIL</span> 16 <span class="m">PER</span>  8 <span class="m">OB</span> <span class="L">137</span></pre>
+              </div>
+            </div>
+          </div>
+          <div class="size"><span class="lbl">XS · 1 rad</span>
+            <div class="pane"><div class="hood">CHAR</div>
+              <div class="win tight">
+<pre class="tui"><span class="L">73</span> <span class="g">▇▇▇▇▇</span><span class="d">▁▁</span> <span class="bl">▇▇▇▇▇▇</span><span class="d">▁</span> <span class="o">▇▇▇▇▇▆</span><span class="d">▁</span> <span class="inv">S</span><span class="inv">C</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>Cellrutnät och blocktecken</strong>, som dagens pane och Cockpit i tmux.</p>
+        <ul>
+          <li>Ser mest ut som en terminal, men skalar sämre och kan inte visa ett band lika tydligt.</li>
+          <li>Kan finnas som ett alternativ under kugghjulet ("Style: modern | cells"), ungefär som bars och circles i Timers.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ================= G ================= -->
+    <article class="dir">
+      <div>
+        <header><span class="tag">G</span><h3>HUD-remsa, för en bred och låg pane</h3></header>
+        <div class="sizes">
+          <div class="size" style="max-width:100%"><span class="lbl">1 rad · hela bredden · ca 760 px</span>
+            <div class="scroll" style="max-width:100%">
+              <div class="pane" style="width:760px"><div class="hood">RASTA · L73</div>
+                <div class="win tight">
+                  <div class="hud">
+                    <div class="por round" style="width:26px;height:26px"><svg><use href="#bust"/></svg></div>
+                    <div class="vb hp"><span class="dim">HP</span><span class="b"><i style="--w:69%"></i><span class="wim" style="--p:56%"></span></span><span class="num">187</span></div>
+                    <div class="vb ma"><span class="dim">MA</span><span class="b"><i style="--w:84%"></i></span><span class="num">93</span></div>
+                    <div class="vb mv"><span class="dim">MV</span><span class="b"><i style="--w:80%"></i></span><span class="num">98</span></div>
+                    <div class="vb xpc" style="grid-template-columns:auto 70px auto"><span class="dim">XP</span><span class="b thin"><i style="--w:41%"></i></span><span class="num" style="color:var(--xp)">41%</span></div>
+                    <span class="grow"></span>
+                    <span class="pill on">SN</span><span class="pill">RI</span><span class="pill on">CL</span><span class="pill">SW</span>
+                    <span class="sub">standing · aggr · W150</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><strong>Allt viktigt på en rad</strong>, för en remsa ovanför eller under spelfönstret.</p>
+        <ul>
+          <li>Det här är egentligen XS-läget när panen är bred. Mindre bredd tar bort saker från höger.</li>
+          <li>Inga flikar. Håller man musen över remsan kan en Stats- och Info-ruta visas under den.</li>
+        </ul>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================= Hybrid vitals ================= -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Data</span><h2>Två format för HP, och hur klienten väljer</h2>
+      <p class="dim"><code>Char.Vitals</code> skickar ibland <code>hp</code> (en siffra) och ibland bara <code>hp-string</code> (ett ord, oftast i strid). Group pane hanterar redan det här (ADR 0052). Den egna baren kan använda samma regel men visa mer.</p></div>
+    <div class="two">
+      <div class="box">
+        <h3>Förslag till regel</h3>
+        <ol>
+          <li>Klienten sparar senaste siffran och senaste ordet var för sig.</li>
+          <li><strong>När ett ord kommer</strong> och siffran ligger inom ordets spann, till exempel 187/270 = 69 % och "hurt" = 46–70 %, stämmer siffran fortfarande. Baren visar den exakt.</li>
+          <li><strong>Ligger siffran utanför spannet</strong> är den inaktuell. Baren visar då spannet randigt och ordet i stället för siffran. Den gamla siffran syns bara i tooltipen.</li>
+          <li><strong>När en ny siffra kommer</strong> blir baren exakt igen.</li>
+          <li>Mana och moves fungerar likadant, med sina egna ord (warm, tired …).</li>
+        </ol>
+        <p>Det klienten visar är alltså det mest exakta som fortfarande stämmer med det senaste spelet har sagt. Prova sekvensen till höger och välj hur bandet ska ritas.</p>
+      </div>
+      <div class="box">
+        <div class="demo">
+          <div class="stack" style="gap:10px">
+            <div class="pane" style="width:280px"><div class="hood">CHARACTER</div>
+              <div class="win">
+                <div class="stack">
+                  <div class="vr" id="d-hp" style="--c:var(--hp)"><span class="k">HP</span><span class="b fat"><i id="d-fill"></i><u id="d-band" style="display:none"></u><span class="wim" style="--p:56%"></span></span><span class="v" id="d-val">270<small>/270</small></span></div>
+                  <div class="vr ma"><span class="k">MA</span><span class="b"><i style="--w:84%"></i></span><span class="v">93<small>/111</small></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="ctl" role="group" aria-label="Hur bandet ritas">
+              <button class="btn on" data-mode="span" id="m-span">Spann</button>
+              <button class="btn" data-mode="mid" id="m-mid">Mittpunkt</button>
+              <button class="btn" data-mode="word" id="m-word">Bara ordet</button>
+            </div>
+            <div class="ctl"><button class="btn" id="d-step">Nästa paket ▸</button><button class="btn" id="d-play">Spela upp</button><button class="btn" id="d-reset">Börja om</button></div>
+          </div>
+          <div class="log" id="d-log" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= info poll ================= -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Data</span><h2>Dold info-hämtning</h2>
+      <p class="dim">Det mesta i Stats och Info finns inte i GMCP. Din idé fungerar: skicka ett <code>info</code>-kommando med egna markörer, läs av svaret och göm det. Så här kan det se ut.</p></div>
+    <div class="two">
+      <div class="box">
+        <h3>Kommandot</h3>
+        <div class="scroll"><pre class="fmt"><span class="h"># en rad, inga tusentalsavgränsare, | mellan fälten</span>
+info <span class="s">‹wc‹</span>%l|%x|%X|%t|%T|%O|%D|%k|%A|%m|%G|%B|%a|%N|%n|%h|%W|%C|%F|%q|%c|%r|%K|%P|%L|%v|%H|%s|%p<span class="s">›wc›</span>
+<span class="h"># affects har radbrytningar, så de hämtas i ett eget kommando</span>
+info <span class="s">‹wf‹</span>%f<span class="s">›wf›</span></pre></div>
+        <ul>
+          <li><strong>Markörerna</strong> visar var svaret börjar och slutar. Allt mellan dem tas bort ur spelfönstret och scrollbacken, även om det blir flera rader. Prompten som följer direkt efter tas också bort.</li>
+          <li><strong>Hämtas inte</strong>, eftersom GMCP redan skickar det: hp, mana, moves, mood, alertness och wimpy. Vi behåller dem som kontroll men visar dem inte.</li>
+          <li><strong>Ingen echo</strong>: kommandot syns inte i inputhistoriken eller i run-loggen. Skriver spelaren själv <code>info</code> visas svaret som vanligt, eftersom det saknar våra markörer.</li>
+          <li>Säkerhetsspärr: kommer slutmarkören inte inom 2 sekunder slutar vi gömma, så vi aldrig råkar äta upp riktig speltext.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>När hämtas det?</h3>
+        <ul>
+          <li>När du loggar in, efter första <code>Char.Vitals</code>.</li>
+          <li>När du går upp i level (XP passerar gränsen).</li>
+          <li>När en affect kommer eller försvinner. Timers känner redan igen texterna för strength, shield, bless med flera.</li>
+          <li>När du öppnar fliken Stats, Affects eller Info och datan är äldre än 30 s.</li>
+          <li>Annars var 5:e minut, men bara när du inte slåss och har skrivit något nyligen (inte när du är AFK).</li>
+          <li>Aldrig oftare än var 10:e sekund.</li>
+        </ul>
+        <p>Hur gammal datan är står i en liten rad längst ner i fliken, till exempel "info 12 s sedan". Det finns ett val i kugghjulet för att stänga av hämtningen helt.</p>
+      </div>
+    </div>
+    <div class="box" style="margin-top:22px">
+      <h3>Vad varje fält kommer ifrån</h3>
+      <div class="scroll">
+        <table class="map">
+          <thead><tr><th>Fält</th><th>Källa</th><th>Rastas värde</th><th>Visas i</th></tr></thead>
+          <tbody>
+            <tr><td>HP / mana / moves</td><td class="src">GMCP Char.Vitals</td><td>270/270 · 93/111 · 122/122</td><td>alltid överst</td></tr>
+            <tr><td>Name, level, XP, TP</td><td class="src">GMCP</td><td>Rasta · 73 · 210 591 kvar · TP klar</td><td>huvud</td></tr>
+            <tr><td>Sneak/ride/climb/swim, position, mood, alertness</td><td class="src">GMCP</td><td>S · – · C · – · standing · aggressive · normal</td><td>Status</td></tr>
+            <tr><td>Wimpy</td><td class="src">GMCP + text</td><td>150</td><td>Status, streck på HP</td></tr>
+            <tr><td>Str Int Wis Dex Con Wil Per</td><td class="src">info %S %i %w %d %o %I %p, %G, %B</td><td>18 16 16 11 12 16 8 (grund 14 15 16 8 10 16 8)</td><td>Stats</td></tr>
+            <tr><td>OB / DB / PB / Abs</td><td class="src">info %O %D %k %A</td><td>137 / −1 / 39 / 43</td><td>Stats</td></tr>
+            <tr><td>Missile OB</td><td class="src no">saknas</td><td>–</td><td>?</td></tr>
+            <tr><td>Spell speed</td><td class="src">info %m</td><td>normal</td><td>Stats</td></tr>
+            <tr><td>Carrying, encumbrance</td><td class="src">info %C %F</td><td>ninety-three pounds · Heavy, but we will manage…</td><td>Affects/Stats</td></tr>
+            <tr><td>Affects</td><td class="src">info %f</td><td>comfortable, strength, detect magic, shield</td><td>Affects</td></tr>
+            <tr><td>Age, height, weight</td><td class="src">info %a %N %n %h %W</td><td>57 y 6 m 2 d · four feet eleven · eight stone and five pounds</td><td>Info</td></tr>
+            <tr><td>Alignment</td><td class="src">info %q (bara text)</td><td>You are totally corrupted by the Evilness of Morgoth!</td><td>Info</td></tr>
+            <tr><td>Perception vision/hear/smell</td><td class="src">info %v %H %s</td><td>25 / 10 / 20</td><td>Info</td></tr>
+            <tr><td>Citizen, war fame</td><td class="src">info %c %K</td><td>GoblinTown · known (4)</td><td>Info</td></tr>
+            <tr><td>Money</td><td class="src">info %r (eller %g)</td><td>394 g · 11 s · 49 c</td><td>Info</td></tr>
+            <tr><td>Playtime, session</td><td class="src">info %P %L</td><td>1 663 h · 26 min</td><td>Info</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="dim" style="font-size:14px">Vad som är vad i din utskrift: <code>%S</code> = 18 är nuvarande styrka med strength-spellen, <code>%G</code> (unaffected) = 16 är styrkan utan affects, och <code>%B</code>/<code>%b</code> = 14 är grundvärdet. Längd och vikt kommer som text ("four feet eleven"), så vi måste tolka orden för att visa 4′11″.</p>
+    </div>
+  </section>
+
+  <!-- ================= ideas ================= -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Fler idéer</span><h2>Saker vi kan bygga in</h2></div>
+    <div class="ideas">
+      <div class="idea"><h3>Stridsläge</h3><p>När du börjar slåss byter panen till Status av sig själv och baren växer lite. När striden är slut går den tillbaka till fliken du hade.</p></div>
+      <div class="idea"><h3>Ändringar lyser till</h3><p>När strength landar lyser STR grönt i några sekunder med "+2". När den försvinner visas "−2" i rött. Samma sak när OB ändras efter att du bytt vapen.</p></div>
+      <div class="idea"><h3>Tooltip med historik</h3><p>Håll musen över HP: "187/270 · 69 % · fine för 3 s sedan · wimpy vid 150". Över XP: "XP/timme den här sessionen", som Statistics redan räknar ut.</p></div>
+      <div class="idea"><h3>Mount</h3><p>Rider du visas en liten fjärde bar för hästen med <code>mount-moves</code> (rested, slow …) och hästens namn från <code>ride</code>.</p></div>
+      <div class="idea"><h3>Hur tung packningen är</h3><p>%F ger en mening ("Heavy, but we will manage…"). Den kan bli en kort mätare i fem steg, och den blir röd när du blir långsammare.</p></div>
+      <div class="idea"><h3>Ljus, gömd och dimma</h3><p><code>light</code>, <code>hidden</code> och <code>fog</code> finns redan i GMCP. De kan bli små ikoner bredvid namnet: fackla, mantel och dimma.</p></div>
+      <div class="idea"><h3>Ålder och födelsedag</h3><p>Info-fliken kan visa "57 år · fyller 58 om 5 månader". Det kan man räkna ut från %N och %n.</p></div>
+      <div class="idea"><h3>Klick skickar kommando</h3><p>Ett klick på MOOD bläddrar till nästa mood (skickar <code>change mood brave</code>), på WIMPY öppnas ett litet fält. Det får du bestämma om du vill ha.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= questions ================= -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Vilken riktning, eller vilken blandning?</h3><p>Mitt förslag: <strong>A som grund</strong>, med porträttet från B som tillval, D:s ikonlist när panen är bred och låg, och G som XS-läge när panen är bred. E och F kan vara stilval i kugghjulet om du gillar dem.</p></div>
+      <div class="q"><h3>Ska vitals alltid synas överst?</h3><p>I alla förslag ligger HP/MA/MV ovanför flikarna. Alternativet är att lägga dem i Status-fliken och ha Stats och Info som helsidor, men då kan man inte se HP medan man läser stats.</p></div>
+      <div class="q"><h3>Porträtt: vilka bilder och hur många?</h3><p>En bild per ras (Human, Elf, Half-Elf, Dwarf, Hobbit, Beorning, Orc, Troll, Black Númenórean …)? Även subrace eller kön? Ska porträttet reagera på HP och position, eller vara en stilla bild?</p></div>
+      <div class="q"><h3>Hur ska "bara ordet" ritas?</h3><p>Spann (randigt band), mittpunkt (en bar vid mitten av spannet, med "~") eller bara ordet utan bar? Prova i demon ovan.</p></div>
+      <div class="q"><h3>Är det OK att hämta info i bakgrunden?</h3><p>Hur ofta (mitt förslag: vid händelser plus var 5:e minut), och ska det vara på från början? Vet du om MUME har något emot automatiska <code>info</code>-kommandon?</p></div>
+      <div class="q"><h3>Missile OB</h3><p>Det finns ingen kod för missile OB i <code>info</code>. Vet du något annat kommando som visar den, till exempel <code>score</code> eller <code>stat</code>, eller räcker det med OB/DB/PB/Abs?</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// Tabs: every [data-tabs] window switches its .tp panels with its .tab buttons (rail or row).
+document.querySelectorAll('[data-tabs]').forEach((win) => {
+  const tabs = [...win.querySelectorAll('.tab')];
+  const panels = [...win.querySelectorAll('.tp')];
+  tabs.forEach((t, i) => t.addEventListener('click', () => {
+    tabs.forEach((x) => x.classList.toggle('on', x === t));
+    panels.forEach((p, k) => p.classList.toggle('on', k === i));
+  }));
+});
+// Dot pager for direction C (no panels in the mockup, the dots just move).
+document.querySelectorAll('.dots').forEach((d) => {
+  const dots = [...d.children];
+  d.addEventListener('click', () => {
+    const k = dots.findIndex((x) => x.classList.contains('on'));
+    dots.forEach((x, i) => x.classList.toggle('on', i === (k + 1) % dots.length));
+  });
+});
+
+// Hybrid HP demo: the rule from ADR 0052 applied to the own bar.
+const BANDS = { healthy: [100, 100], fine: [71, 99], hurt: [46, 70], wounded: [26, 45], bad: [11, 25], awful: [1, 10], dying: [0, 0] };
+const MAX = 270;
+const SEQ = [
+  { hp: 270, note: 'inloggad' },
+  { word: 'fine', note: 'striden börjar' },
+  { hp: 201, note: 'prompt med siffra' },
+  { word: 'hurt', note: 'träff' },
+  { word: 'wounded', note: 'träff' },
+  { hp: 118, note: 'siffra igen' },
+  { word: 'wounded', note: 'samma ord' },
+  { word: 'bad', note: 'hård träff' },
+  { word: 'hurt', note: 'heal' },
+  { hp: 170, note: 'efter striden' },
+];
+let step = 0, num = null, word = null, mode = 'span', timer = null;
+const $ = (id) => document.getElementById(id);
+const pct = (n) => Math.round((n / MAX) * 100);
+function colour(p) { return p <= 25 ? 'var(--crit)' : p <= 45 ? 'var(--warn)' : 'var(--hp)'; }
+function draw(verdict) {
+  const fill = $('d-fill'), band = $('d-band'), val = $('d-val'), row = $('d-hp');
+  const exact = num !== null && (word === null || (pct(num) >= BANDS[word][0] && pct(num) <= BANDS[word][1]));
+  fill.classList.remove('old');
+  if (exact) {
+    const p = pct(num);
+    row.style.setProperty('--c', colour(p));
+    fill.style.setProperty('--w', p + '%'); band.style.display = 'none';
+    val.className = 'v'; val.innerHTML = num + '<small>/' + MAX + '</small>';
+  } else {
+    const [lo, hi] = BANDS[word];
+    row.style.setProperty('--c', colour(hi));
+    val.className = 'v word';
+    if (mode === 'span') {
+      fill.style.setProperty('--w', lo + '%'); band.style.display = '';
+      band.style.setProperty('--lo', lo + '%'); band.style.setProperty('--hi', hi + '%');
+      val.textContent = word;
+    } else if (mode === 'mid') {
+      const m = Math.round((lo + hi) / 2);
+      fill.style.setProperty('--w', m + '%'); band.style.display = 'none';
+      val.innerHTML = '~' + Math.round((m / 100) * MAX) + '<small> ' + word + '</small>';
+    } else {
+      fill.style.setProperty('--w', hi + '%'); fill.classList.add('old'); band.style.display = 'none';
+      val.textContent = word;
+    }
+  }
+  return exact;
+}
+function logLine(text, cls) {
+  const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls;
+  const log = $('d-log');
+  log.querySelectorAll('.cur').forEach((x) => x.classList.remove('cur'));
+  log.appendChild(d); while (log.children.length > 11) log.removeChild(log.firstChild);
+}
+function next() {
+  if (step >= SEQ.length) { stop(); return; }
+  const e = SEQ[step++];
+  let pkt;
+  if (e.hp !== undefined) { num = e.hp; word = null; pkt = `{"hp":${e.hp},"maxhp":${MAX}}`; }
+  else { word = e.word; pkt = `{"hp-string":"${e.word}"}`; }
+  const exact = draw();
+  logLine(`Char.Vitals ${pkt}  · ${e.note}`, 'cur');
+  logLine(exact ? `  → exakt: ${num}/${MAX} (${pct(num)} %)` : `  → ${num !== null ? num + ' stämmer inte med' : 'bara'} "${word}" (${BANDS[word][0]}–${BANDS[word][1]} %): visa ordet`, 'verdict');
+}
+function stop() { clearInterval(timer); timer = null; $('d-play').textContent = 'Spela upp'; }
+function reset() { stop(); step = 0; num = null; word = null; $('d-log').innerHTML = ''; next(); }
+$('d-step').addEventListener('click', () => { stop(); next(); });
+$('d-reset').addEventListener('click', reset);
+$('d-play').addEventListener('click', () => {
+  if (timer) { stop(); return; }
+  if (step >= SEQ.length) reset();
+  $('d-play').textContent = 'Paus';
+  timer = setInterval(next, 1300);
+});
+document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('[data-mode]').forEach((x) => x.classList.toggle('on', x === b));
+  if (num !== null || word !== null) draw();
+}));
+reset();
+</script>
