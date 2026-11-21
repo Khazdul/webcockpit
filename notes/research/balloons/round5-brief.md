@@ -23,12 +23,13 @@ the passenger of the race they play, chosen automatically.
 
 | The player's race | Passenger | State after round 4 |
 |---|---|---|
-| Elf, half-elf | An elf girl | No sketch |
+| Elf, half-elf | An elf woman | No sketch |
 | Dwarf | A dwarf | `round4/skins/4-dwarf.js`, to revise |
-| Man | A human | No sketch |
+| Man | A human woman | No sketch |
 | Hobbit | A hobbit | `round4/skins/5-hobbit.js`, to revise |
 | Troll | A troll | `round4/skins/7-troll.js`, to revise |
-| Orc (Tarkhnarb or Zaugurz) | An orc | `round4/skins/6-orc.js`, to revise |
+| Orc, Tarkhnarb | The goblin | `round4/skins/2-goblin-envelope.js`, to revise |
+| Orc, Zaugurz | The orc | `round4/skins/6-orc.js`, to revise |
 | Black Númenórean | An evil man of Tolkien's kind, who can do magic | No sketch |
 
 The race comes from GMCP at login: `Char.StatusVars` carries `race` and
@@ -37,9 +38,9 @@ exact strings for every race and subrace are not collected yet; the one
 recorded value is `"Man"`. Collect them before the build (the owner can
 tell, or MUME's help files can).
 
-The goblin has no race in this table. Whether it stays (as the passenger
-when the race is unknown, before login or in the demo) is an open
-question, see below.
+That makes eight passengers. Which one flies when the race is not known
+(before login, in the demo) is not decided; the goblin is the natural
+choice, as the original.
 
 ## The owner's verdict on round 4
 
@@ -104,8 +105,9 @@ artifact noted in `progress.md`).
    firework he has lit).
 5. **Proportions.** The head is not larger than the basket allows; the
    upper body shows. Longer ropes, envelope at most 20 % larger. The
-   whole rig must still fit: say what height it needs, since the product
-   rig is 330 px today.
+   whole rig is at most 10 % taller than the product's 330 px; the room
+   comes from drawing everything 10 to 20 % smaller. Check that the
+   sign's text is still readable at that scale.
 6. **The burner is a visible object** between basket and envelope, with
    the flame behind the envelope's mouth and in front of nothing else.
    The passenger stands clear of it.
@@ -115,23 +117,28 @@ artifact noted in `progress.md`).
 8. **Keep from round 4:** the sign hung on two ropes or chains from
    fixed points on the basket and redrawn each frame; the living face;
    3 seconds at the readable spot.
-9. **One drawing style for all seven**, so they read as one family.
+9. **One drawing style for all eight**, so they read as one family.
    The dwarf's tinted engraving is the candidate, since it is the one
    the owner praised (see the open questions).
 
-## Open questions for the owner
+## The owner's answers (2026-11-21)
 
-Asked at the end of the 2026-11-21 session; answers go here.
+1. **The goblin stays**, as the Tarkhnarb orc's passenger. The Zaugurz
+   orc gets the orc.
+2. **Style** (one drawing manner for all, or several): he asked what
+   was meant. Explained in the session; no answer yet. Proposed: the
+   dwarf's tinted engraving for all eight.
+3. **A sign per people**, matching its character. As craft he likes the
+   signs of round 4 skins 1, 2 and 5 best (the plank on two ropes from
+   a spreader bar, the banner laced to a pole, the hobbit's board on
+   cords), because they look the most real. That is a verdict on how
+   they are made and hung, not on which people they suit.
+4. **The human and the elf are always women.**
+5. **Height:** the rig may take at most 10 % more height than today
+   (330 px, so about 363 px). To gain room, the whole drawing may be
+   scaled down by 10 to 20 % instead.
 
-1. Does the goblin stay, as the passenger when the race is not known
-   (before login, in the demo), or does it go?
-2. One style for all (the dwarf's engraving), or may they differ?
-3. The sign: one kind for everybody, or a sign in each people's own
-   material (the dwarf's metal plate, the orc's nailed plank)?
-4. The human: a man, a woman, or either at random? And is the elf
-   always a girl?
-5. Whose passenger shows for a kill by somebody else in the group, if
-   that ever applies? (Today only the player's own events fly.)
+Still open: the style (2), and the passenger for an unknown race.
 
 ## How to work in round 5
 
@@ -139,7 +146,7 @@ Asked at the end of the 2026-11-21 session; answers go here.
   `round5/`. Raise the sheet cell height for the taller rig. Change
   `fly` so `burn` leads the motion.
 - Settle the shared parts first, in one skin, and show it to the owner
-  before drawing all seven: the rig proportions, the burner, the flame
+  before drawing all eight: the rig proportions, the burner, the flame
   timing, the sign. The dwarf is the natural first one.
 - Then one subagent per passenger, each given the shared rig as code to
   build on, not as a description to redo. In round 4 every agent drew
