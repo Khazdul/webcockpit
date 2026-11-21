@@ -469,3 +469,16 @@ describe('the passenger by race (stage 75)', () => {
     expect(PASSENGER_IDS.map(fliesAs)).toEqual(PASSENGER_IDS.map(() => 'dwarf'));
   });
 });
+
+describe('the sky behind the balloons (stage 75)', () => {
+  it('night after dark; overcast under clouds, rain or snow; dusk with the sun low; else day', async () => {
+    const { skyModeOf } = await import('../../src/weather/controller');
+    expect(skyModeOf({ clock: 'night', weather: ' ', sunU: -1 })).toBe('night');
+    expect(skyModeOf({ clock: 'day', weather: '~', sunU: 0.5 })).toBe('overcast');
+    expect(skyModeOf({ clock: 'day', weather: '*', sunU: 0.5 })).toBe('overcast');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: 0.05 })).toBe('dusk');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: 0.95 })).toBe('dusk');
+    expect(skyModeOf({ clock: 'day', weather: null, sunU: 0.5 })).toBe('day');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: -1 })).toBe('day');
+  });
+});

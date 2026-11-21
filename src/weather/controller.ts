@@ -22,6 +22,8 @@ import type { Categories, WeatherState } from './protocol';
 import { ALMANAC_MS, WeatherSignals, vitalsState } from './signals';
 import type { Settings } from '../settings';
 import type { Balloons } from './balloons/notices';
+import { passengerOf } from './balloons/passenger';
+import type { SkyMode } from './balloons/rig';
 import { gmcpKey } from '../core/types';
 
 export interface WeatherController {
@@ -42,6 +44,19 @@ export interface WeatherController {
 export function categoriesOf(s: Readonly<Settings>): Categories {
   const w = s.weather;
   return { sky: w.sky, daySky: w.daySky, precipitation: w.precipitation, lightning: w.lightning, fog: w.fog, darkness: w.darkness, body: w.body };
+}
+
+/**
+ * The sky behind the balloons (stage 75; the rig's data-sky: the glow's
+ * strength and the night's pen halo), from the weather state: night after
+ * dark; by day overcast under clouds, rain or snow; dusk in the day's
+ * first and last tenth (the sun low); else day.
+ */
+export function skyModeOf(s: Pick<WeatherState, 'clock' | 'weather' | 'sunU'>): SkyMode {
+  if (s.clock === 'night') return 'night';
+  if (s.weather === '~' || s.weather === "'" || s.weather === '"' || s.weather === '*') return 'overcast';
+  if (s.sunU >= 0 && (s.sunU < 0.1 || s.sunU > 0.9)) return 'dusk';
+  return 'day';
 }
 
 /** Settings are cloned on every change: compare the (small) sections by value. */
@@ -113,7 +128,19 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
       .then((m) => {
         balloonsLoading = null;
         if (!wantBalloons()) return null;
-        balloons ??= m.startNotices({ root: cockpit.el, geometry: () => w.geometry(), ...(d.runs ? { runs: d.runs } : {}) });
+        const status = game.char.statusVars;
+        const text = (k: string): string | null => {
+          const v = status.get(k);
+          return typeof v === 'string' ? v : null;
+        };
+        balloons ??= m.startNotices({
+          root: cockpit.el,
+          geometry: () => w.geometry(),
+          // read per balloon: a new login is picked up without a reload
+          passenger: () => passengerOf(text('race'), text('subrace')),
+          sky: () => skyModeOf(signals.state()),
+          ...(d.runs ? { runs: d.runs } : {}),
+        });
         return balloons;
       })
       .catch((err: unknown) => {
