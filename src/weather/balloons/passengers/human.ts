@@ -164,8 +164,8 @@ ${show('shade', 'chin', 'mug', 'cup', 'sword', 'garl')}
 
 // ---- defs shared by all her drawings (the figure's own pen, in its units) ----
 // the head's pen: the rig's wobble and grain, but a much fainter ink blotch (it read as dirt on a small face)
-const faceFilt = (id: string) => `<filter id="${id}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".036" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.7" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .2 0 0 0 0 .1 0 0 0 0 .05 .7 0 0 0 -.33" result="b"/><feTurbulence type="fractalNoise" baseFrequency=".5" numOctaves="2" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 .14 0 0 0 0 .08 0 0 0 0 .04 0 1.2 0 0 -.56" result="g"/><feMerge result="m"><feMergeNode in="b"/><feMergeNode in="g"/></feMerge><feComposite in="m" in2="d" operator="in" result="mc"/><feMerge><feMergeNode in="d"/><feMergeNode in="mc"/></feMerge></filter>`;
-const defs = (u: number) => `${kit.filt('huf' + u, { freq: .036, scale: 1.7, grain: .5 })}${faceFilt('hug' + u)}${kit.hatch('hup' + u, 38, 4.4, .6, .85)}${kit.hatch('huq' + u, -52, 5, .5, .85)}
+// (stage 75: the face's softer filter is the rig's, `kit.filt` with its ink options)
+const defs = (u: number) => `${kit.filt('huf' + u, { freq: .036, scale: 1.7, grain: .5 })}${kit.filt('hug' + u, { freq: .036, scale: 1.7, grain: .5, ink: [.2, .1, .05], blot: .7, bias: -.33 })}${kit.hatch('hup' + u, 38, 4.4, .6, .85)}${kit.hatch('huq' + u, -52, 5, .5, .85)}
 <clipPath id="huc${u}"><path d="${ALM}"/></clipPath>
 <linearGradient id="husk${u}" x1="0" x2="1"><stop offset="0" stop-color="#a87657"/><stop offset=".5" stop-color="#cfa27f"/><stop offset="1" stop-color="#e6c4a0"/></linearGradient>
 <linearGradient id="huh${u}" x1="0" x2="1"><stop offset="0" stop-color="#553819"/><stop offset=".55" stop-color="#8a6230"/><stop offset="1" stop-color="#b88d4c"/></linearGradient>

@@ -173,7 +173,7 @@ const eye = (s: number, u: number) => `<g transform="translate(${10.5 * s},0)"><
 <path d="M${-4.5 * s},-6.500Q${.5 * s},-8.400 ${6 * s},-6.200" fill="none" stroke="${INK}" stroke-width=".5" opacity=".45"/></g>`;
 const BROW = `<path d="M-7.500,1.600Q-1,-2.600 8,-.4" fill="none" stroke="#7a5f36" stroke-width="1.700" stroke-linecap="round"/><path d="M-7.500,1.600Q-1,-2.600 8,-.4" fill="none" stroke="${INK}" stroke-width=".5" stroke-linecap="round" opacity=".7"/>`;
 // the rig's pen and grain, with the ink blotches held back: they muddy pale skin and a pale board
-const soft = (id: string, o: { freq?: number; scale?: number; grain?: number; blot?: number; bias?: number; ga?: number; gb?: number } = {}) => `<filter id="${id}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="${o.freq ?? .06}" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${o.scale ?? 1.5}" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .16 0 0 0 0 .09 0 0 0 0 .04 ${o.blot ?? .8} 0 0 0 ${o.bias ?? -.46}" result="b"/><feTurbulence type="fractalNoise" baseFrequency="${o.grain ?? .8}" numOctaves="2" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 .14 0 0 0 0 .08 0 0 0 0 .04 0 ${o.ga ?? 1} 0 0 ${o.gb ?? -.5}" result="g"/><feMerge result="m"><feMergeNode in="b"/><feMergeNode in="g"/></feMerge><feComposite in="m" in2="d" operator="in" result="mc"/><feMerge><feMergeNode in="d"/><feMergeNode in="mc"/></feMerge></filter>`;
+// (stage 75: its softer filter is the rig's, `kit.filt` with `kit.SOFT`)
 const FG = (u: number, body: string) => `<g filter="url(#elff${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">${body}</g>`;
 const cloak = (s: number, u: number) => `<path d="M${-11 * s},57C${-30 * s},60 ${-47 * s},68 ${-51 * s},84L${-58 * s},135H${-21 * s}C${-19 * s},110 ${-12 * s},86 ${-2 * s},72L${-4 * s},64Z" fill="url(#elfk${u})" stroke-width="2"/>${s < 0 ? `<path d="M-11,57C-30,60 -47,68 -51,84L-58,135H-40C-40,110 -38,84 -26,66Z" fill="url(#elfp${u})" stroke="none"/>` : '<path d="M30,66C42,72 46,84 47,100" fill="none" stroke="#dfe8dc" stroke-width="1.600" opacity=".5"/>'}
 <path d="M${-40 * s},77C${-44 * s},96 ${-46 * s},116 ${-47 * s},135M${-29 * s},72C${-32 * s},96 ${-32 * s},116 ${-33 * s},135" fill="none" stroke-width="1" opacity=".6"/>
@@ -558,7 +558,7 @@ export const passenger: PassengerDef = {
     reduced = ctx.reduced; paceOf = ctx.pace;
     return {
       id: 'elf', css: CSS,
-      defs: (u) => `${soft('elff' + u, { freq: .032, scale: 2.3, grain: .5 })}${soft('elfb' + u, { blot: .7, bias: -.42, ga: .9, gb: -.48 })}${kit.hatch('elfp' + u, 38, 4.8, .55, .95)}${kit.hatch('elfq' + u, -52, 5.4, .45, .95)}
+      defs: (u) => `${kit.filt('elff' + u, { ...kit.SOFT, freq: .032, scale: 2.3, grain: .5 })}${kit.filt('elfb' + u, { ...kit.SOFT, blot: .7, bias: -.42, ga: .9, gb: -.48 })}${kit.hatch('elfp' + u, 38, 4.8, .55, .95)}${kit.hatch('elfq' + u, -52, 5.4, .45, .95)}
 ${grad('elfs' + u, [[0, '#cba88d'], [.5, '#ecd5ba'], [1, '#f7e9d4']])}${grad('elfh' + u, [[0, '#a68c54'], [.55, '#d8c48c'], [1, '#f0e3b6']])}
 ${grad('elfk' + u, [[0, '#4d5b52'], [.5, '#6f7f72'], [1, '#93a393']])}${grad('elfi' + u, [[0, '#7f8a90'], [.5, '#b9c3c8'], [1, '#eef2f2']])}
 ${grad('elfw' + u, [[0, '#9c9480'], [.55, '#cfc8b0'], [1, '#ece6d2']])}

@@ -57,13 +57,32 @@ const pp = (p: readonly number[]): string => `${n(p[0]!)},${n(p[1]!)}`;
 let uid = 0, serial = 0;
 
 // ---- the engraving kit ----
-interface FiltOpts {
+/**
+ * The engraving filter's settings. Beyond the pen wobble (`freq`, `scale`)
+ * and the paper grain (`grain`): the blotchy ink tone (its colour `ink`,
+ * its strength `blot` and offset `bias`) and the grain's alpha (`ga`,
+ * `gb`). Stage 75: the softer copies three passengers drew for themselves
+ * (elf, human, hobbit) are these options; `SOFT` is the elf's set.
+ */
+export interface FiltOpts {
   freq?: number;
   scale?: number;
   grain?: number;
+  ink?: readonly [number, number, number];
+  blot?: number;
+  bias?: number;
+  ga?: number;
+  gb?: number;
 }
+/** A number as the mockup writes it in the filter's matrices (".16", "-.7"). */
+const fm = (v: number): string => String(v).replace(/^(-?)0\./, '$1.');
 // The pen wobble (a displacement), a blotchy ink tone and paper grain, kept inside the drawing.
-const filt = (id: string, o: FiltOpts = {}): string => `<filter id="${id}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="${o.freq ?? .06}" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${o.scale ?? 1.5}" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .16 0 0 0 0 .09 0 0 0 0 .04 1.5 0 0 0 -.7" result="b"/><feTurbulence type="fractalNoise" baseFrequency="${o.grain ?? .8}" numOctaves="2" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 .14 0 0 0 0 .08 0 0 0 0 .04 0 1.2 0 0 -.56" result="g"/><feMerge result="m"><feMergeNode in="b"/><feMergeNode in="g"/></feMerge><feComposite in="m" in2="d" operator="in" result="mc"/><feMerge><feMergeNode in="d"/><feMergeNode in="mc"/></feMerge></filter>`;
+const filt = (id: string, o: FiltOpts = {}): string => {
+  const [r, g, b] = o.ink ?? [.16, .09, .04];
+  return `<filter id="${id}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="${o.freq ?? .06}" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${o.scale ?? 1.5}" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 ${fm(r)} 0 0 0 0 ${fm(g)} 0 0 0 0 ${fm(b)} ${fm(o.blot ?? 1.5)} 0 0 0 ${fm(o.bias ?? -.7)}" result="b"/><feTurbulence type="fractalNoise" baseFrequency="${o.grain ?? .8}" numOctaves="2" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 .14 0 0 0 0 .08 0 0 0 0 .04 0 ${fm(o.ga ?? 1.2)} 0 0 ${fm(o.gb ?? -.56)}" result="g"/><feMerge result="m"><feMergeNode in="b"/><feMergeNode in="g"/></feMerge><feComposite in="m" in2="d" operator="in" result="mc"/><feMerge><feMergeNode in="d"/><feMergeNode in="mc"/></feMerge></filter>`;
+};
+/** The softer ink (lighter blots, a fainter grain): the elf's, and a start for any other soft drawing. */
+export const SOFT: FiltOpts = Object.freeze({ blot: .8, bias: -.46, ga: 1, gb: -.5 });
 const hatch = (id: string, rot: number, gap: number, op: number, sw = .55): string => `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${gap}" height="${gap}" patternTransform="rotate(${rot})"><path d="M0,.5H${gap}" stroke="${INK}" stroke-width="${sw}" opacity="${op}"/></pattern>`;
 const defs = (u: number, extra = ''): string => `<svg class="rig-defs" xmlns="${NS}" width="0" height="0" aria-hidden="true"><defs>${filt('rgf' + u)}${hatch('rgp' + u, 38, 3, .6)}${hatch('rgq' + u, -52, 3.4, .5)}${extra}</defs></svg>`;
 const P = (u: number): string => `url(#rgp${u})`, Q = (u: number): string => `url(#rgq${u})`;
@@ -405,7 +424,7 @@ export interface PassengerDef {
   spec(ctx: RigCtx): RigSpec;
 }
 
-export const kit = { INK, NS, n, n2, pp, S, SL, Z, G, P, Q, filt, hatch, ink2, mix, dark, light, clock };
+export const kit = { INK, NS, n, n2, pp, S, SL, Z, G, P, Q, filt, SOFT, hatch, ink2, mix, dark, light, clock };
 
 // ---- styles: one <style> per id and document, removed with its last rig ----
 const styles = new WeakMap<Document, Map<string, { el: HTMLStyleElement; refs: number }>>();

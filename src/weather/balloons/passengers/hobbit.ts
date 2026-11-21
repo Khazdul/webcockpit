@@ -658,7 +658,7 @@ export const passenger: PassengerDef = {
     reduced = ctx.reduced; paceOf = ctx.pace;
     return {
       id: 'hobbit', css: CSS,
-      defs: (u) => `${kit.filt('hbf' + u, { freq: .03, scale: 2.4, grain: .45 }).replace('1.5 0 0 0 -.7', '.9 0 0 0 -.5')}${kit.filt('hbl' + u).replace('1.5 0 0 0 -.7', '.45 0 0 0 -.25').replace('0 1.2 0 0 -.56', '0 .8 0 0 -.42')}${kit.hatch('hbp' + u, 38, 5, .6, .95)}${kit.hatch('hbq' + u, -52, 5.6, .5, .95)}
+      defs: (u) => `${kit.filt('hbf' + u, { freq: .03, scale: 2.4, grain: .45, blot: .9, bias: -.5 })}${kit.filt('hbl' + u, { blot: .45, bias: -.25, ga: .8, gb: -.42 })}${kit.hatch('hbp' + u, 38, 5, .6, .95)}${kit.hatch('hbq' + u, -52, 5.6, .5, .95)}
 ${grad('hbs' + u, ['#c2937a', '#e0b896', '#f2d8b8'])}${grad('hbh' + u, ['#4a2f1c', '#74502f', '#96693f'])}${grad('hbv' + u, ['#b0832a', '#d6aa40', '#ecca6a'])}${grad('hbb' + u, ['#7c5a22', '#c9a04b', '#f3dc8e'])}${grad('hbi' + u, ['#3a4046', '#69717a', '#a3abb2'])}${grad('hbw' + u, ['#7c5c34', '#a8854f', '#c9a66a'])}
 <pattern id="hbg${u}" patternUnits="userSpaceOnUse" width="6" height="6"><rect width="3" height="6" fill="#b5432f" opacity=".5"/><rect width="6" height="3" fill="#b5432f" opacity=".5"/></pattern>
 <pattern id="hbd${u}" patternUnits="userSpaceOnUse" width="5" height="5"><circle cx="1.500" cy="1.500" r=".8" fill="#f4ecd6" opacity=".6"/></pattern>
