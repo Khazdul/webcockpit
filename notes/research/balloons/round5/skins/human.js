@@ -317,7 +317,7 @@ ${fist(38.5, HY + 29.5, 4.2)}`, 'human-garlw');
   // tears (death): two drops a cheek run slowly from the lid to the jaw, over a wet streak; they stay on her face
   const tears = () => `<div class="rig-a human-tears">${[[-8.5, 2.2, '4deg', 0], [3.5, 2.2, '-4deg', -2.5]].map(([x, yy, a, dl]) => `<div class="human-tear" style="left:${CX + x}px;top:${HY + yy}px;transform:rotate(${a})"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:8.5px;--dl:${dl - 2.9}s"></i></div>`).join('')}</div>`;
 
-  // ---- the car: honest wickerwork, a rope-bound rim, a round shield slung on it and a waterskin; a bound lower band carries the sign's two rope loops ----
+  // ---- the car: honest wickerwork, a rope-bound rim, a round shield slung on it and a waterskin; a plain bound lower band; the sign's two ropes are looped round wooden toggles pushed through the weave just under the rim ----
   const basket = (u) => {
     // the car is deeper than it looks: the wicker runs on down to K.BD behind the sign (no floor is drawn)
     const BD = K.BD, wv = `url(#huwv${u})`, body = `M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z`;
@@ -338,7 +338,7 @@ ${fist(38.5, HY + 29.5, 4.2)}`, 'human-garlw');
 ${ink2(`M${sh[0] - 5},${RY + 3}L${sh[0] - 2},${sh[1] - 9}M${sh[0] + 7},${RY + 3}L${sh[0] + 3},${sh[1] - 9}`, 1.2, '#6a4526')}
 <g transform="translate(${sh[0]},${sh[1]})"><circle r="12.800" fill="#8d949b" stroke-width="1.2"/><circle r="11.300" fill="#8c3b2a" stroke-width=".8"/>${arms}<path d="M-11.300,0A11.300,11.300 0 0 0 0,11.300A14,14 0 0 1 -11.300,0Z" fill="#000" opacity=".25" stroke="none"/><path d="M-9,-6.800A11.300,11.300 0 0 0 -6.800,9A16,16 0 0 1 -9,-6.800Z" fill="${HP(u)}" stroke="none"/>
 <circle r="3.600" fill="url(#huir${u})" stroke-width="1"/><circle cx=".9" cy="-1" r="1" fill="#e3e9ec" stroke="none" opacity=".8"/><g fill="#d6dde0" stroke-width=".4"><circle cx="0" cy="-12" r=".8"/><circle cx="8.500" cy="-8.500" r=".8"/><circle cx="12" cy="0" r=".8"/><circle cx="8.500" cy="8.500" r=".8"/><circle cx="0" cy="12" r=".8"/><circle cx="-8.500" cy="8.500" r=".8"/><circle cx="-12" cy="0" r=".8"/><circle cx="-8.500" cy="-8.500" r=".8"/></g></g>`)}
-<g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2.200"/><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="#c9b07c" stroke-width="1" stroke-dasharray="1.6 .8"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2.200"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="#c9b07c" stroke-width="1" stroke-dasharray="1.6 .8"/></g>`);
+${[-1, 1].map((sd) => { const x = n(sd * HX * K.SS), yy = RY + K.CY; return `<g filter="url(#rgf${u})" stroke="${INK}" stroke-linecap="round"><path d="M${x - 4.2},${yy - .6}H${x + 4.2}" fill="none" stroke-width="3.800"/><path d="M${x - 4.2},${yy - .6}H${x + 4.2}" fill="none" stroke="#b08a52" stroke-width="2.200"/><path d="M${x - 1.6},${yy - 2.4}V${yy + 1.6}M${x + 1.6},${yy - 2.4}V${yy + 1.600}" fill="none" stroke-width="2.200"/><path d="M${x - 1.6},${yy - 2.4}V${yy + 1.6}M${x + 1.6},${yy - 2.4}V${yy + 1.600}" fill="none" stroke="#c9b07c" stroke-width="1"/></g>`; }).join('')}`);
   };
   const waterskin = (u) => `<div class="rig-z human-skin"><svg class="rig-s rig-rim" xmlns="${NS}" width="18" height="26" viewBox="-9 0 18 26" style="left:-9px;top:0">${G(u, `${ink2('M0,0V7', 1, '#c9b07c')}<path d="M-1.600,6.500H1.600V9.500H-1.600Z" fill="#b99a55" stroke-width=".7"/><path d="M-1.800,9.500C-3,13 -7,15 -6.500,19.500C-6,23.500 -2.500,24.500 0,24.500C2.500,24.500 6,23.500 6.500,19.500C7,15 3,13 1.800,9.500Z" fill="#7a5232" stroke-width="1"/><path d="M-1.800,9.500C-3,13 -7,15 -6.500,19.500C-6,23.500 -2.500,24.500 -1.500,24.400C-4,21 -4,15 -1,9.500Z" fill="${HP(u)}" stroke="none"/><path d="M3,14.500Q4.800,17.500 4.200,20.500" fill="none" stroke="#d9b98a" stroke-width=".8" opacity=".6"/><path d="M-5,21Q0,23.500 5,21" fill="none" stroke="#e4d8bd" stroke-width=".7" stroke-dasharray="1.2 1.4"/>`)}</svg></div>`;
 
@@ -512,7 +512,7 @@ ${band(g, u, .54, .63, '#2f6a45')}${edge(g, .54, '#e9c865', 1.2)}${edge(g, .63, 
   };
 
   // ---- the sign: a painted inn board of three planks, lashed to a pole that hangs on two ropes ----
-  const SW = 158, HX = 62;
+  const SW = 158, HX = 56;   // the ropes are tied to the pole inboard of its ends, so they fall straight from the car's wall
   // [wood, wood in light, painted field, border]
   const PAINT = {
     calibrating: ['#8f8a7c', '#c9c4b4', '#3a3936', '#8f8a7c'], meh: ['#8a6a45', '#c9a878', '#35302a', '#a89468'],
@@ -521,9 +521,9 @@ ${band(g, u, .54, .63, '#2f6a45')}${edge(g, .54, '#e9c865', 1.2)}${edge(g, .63, 
     pvp: ['#3a302c', '#7a6a60', '#191415', '#b3312a'], levelup: ['#8a6238', '#e9c865', '#641a24', '#e9c865'],
     death: ['#38352f', '#6a655c', '#1b1c1e', '#5b5c5e'], achievement: ['#8a6238', '#e9c865', '#262a22', '#e3bd62'],
   };
-  const board = ({ w, h, mood, kind, u }) => {
+  const board = ({ w, h, hx = HX, mood, kind, u }) => {
     const [wood, hi, field, rim] = PAINT[mood] || PAINT.meh, poor = mood === 'poor', rich = mood === 'superb', gilt = rich || mood === 'levelup' || mood === 'achievement';
-    const a = w / 2 - HX, b = w / 2 + HX, ri = kind === 'achievement' ? 6.8 : 8, y1 = n(h / 3), y2 = n(h * 2 / 3);
+    const a = w / 2 - hx, b = w / 2 + hx, ri = kind === 'achievement' ? 6.8 : 8, y1 = n(h / 3), y2 = n(h * 2 / 3);
     const lash = (x) => `<path d="M${x - 2.6},-7.800L${x - 2.6},3.500M${x},-8L${x},4M${x + 2.6},-7.800L${x + 2.6},3.500" fill="none" stroke-width="2.800"/><path d="M${x - 2.6},-7.800L${x - 2.6},3.500M${x},-8L${x},4M${x + 2.6},-7.800L${x + 2.6},3.500" fill="none" stroke="#c9b07c" stroke-width="1.500" stroke-dasharray="2.200 .8"/><circle cx="${x}" cy="5" r="1.300" fill="#170f0a" stroke-width=".5"/>`;
     const knob = (x) => `<circle cx="${x}" cy="-4.300" r="3.500" fill="${gilt ? '#e3bd62' : wood}" stroke-width="1"/><circle cx="${n(x + .8)}" cy="-5.200" r="1" fill="#fff" opacity=".4" stroke="none"/>`;
     return G(u, `<rect x="-9" y="-6.800" width="${w + 18}" height="5" rx="2.500" fill="${wood}" stroke-width="1.1"/><path d="M-6,-5.400H${w + 6}" fill="none" stroke="${hi}" stroke-width=".8" opacity=".6"/>${knob(-9)}${knob(w + 9)}
@@ -638,7 +638,7 @@ ${lash(a)}${lash(b)}${lash(n(w / 2 - 22))}${lash(n(w / 2 + 22))}`);
         behind: (u) => `${spear(u)}
 <div class="human-lift"><div class="human-br">${body(u)}<div class="human-nw"><div class="human-look"><div class="human-nod">${head(u)}${tears()}</div></div></div>${plait(u)}${props(u)}</div></div>`,
         front: (u) => `${hands(u)}${waterskin(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12, c: 1.8, cord: { kind: 'rope', dark: '#2a1d12', light: '#c9b07c', w: 1.5 }, board, pips },
+        sign: { w: SW, hx: HX, k: 12, c: 1.8, cord: { kind: 'rope', dark: '#2a1d12', light: '#c9b07c', w: 1.5 }, board, pips },
         life: liven,
       });
     },

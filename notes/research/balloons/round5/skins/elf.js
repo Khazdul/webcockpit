@@ -260,8 +260,9 @@ ${ink2(`M-47.200,${HY + 20}V${HY + 29}`, 2.6, '#cfd6d8')}${arm(u, -34, E, -46.6,
     for (const y of [RY + 9, RY + 17, RY + 24, RY + 39, RY + 47, RY + 55, RY + 63, RY + 70]) { const a = n(wx(y) - .8); strakes += `M${-a},${y}Q0,${y + 5} ${a},${y}`; }
     const side = (x) => `C${n(x * 51 / 52)},${RY + 22} ${n(x * 47.5 / 52)},${RY + 48} ${n(x * 46 / 52)},${BD}`;
     const hull = `M-52,${RY + 1}${side(-52)}H46${side(52).replace(/^C(\S+) (\S+) (\S+)$/, (_, a, b, c) => `C${b} ${a} 52,${RY + 1}`)}Z`;
-    const by = BY + 1, bw = n(wx(BY) + 1.2);
-    const ring = (x) => `<path d="M${x - 3},${BY - 3.4}h6v3.400h-6Z" fill="${SILVER}" stroke="${INK}" stroke-width=".7"/><circle cx="${x}" cy="${by}" r="2.300" fill="none" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${by}" r="2.300" fill="none" stroke="${SILVER}" stroke-width=".8"/>`;
+    const bw = n(wx(BY) + 1.2), fx = n(HX * K.SS), fy = RY + K.CY;
+    // the sign's cords are tied to two silver rings on leaf-shaped plates just under the rail
+    const ring = (x) => `<path d="M${x},${fy - 4.6}C${x + 3.2},${fy - 2.6} ${x + 3.2},${fy + 1} ${x},${fy + 3.4}C${x - 3.2},${fy + 1} ${x - 3.2},${fy - 2.6} ${x},${fy - 4.6}Z" fill="${SILVER}" stroke="${INK}" stroke-width=".7"/><circle cx="${x}" cy="${fy}" r="2.100" fill="none" stroke="#17120e" stroke-width="1.900"/><circle cx="${x}" cy="${fy}" r="2.100" fill="none" stroke="#eef2f2" stroke-width=".8"/>`;
     return S('rig-rim', -76, RY - 30, 152, BD - RY + 38, `${G(u, `
 ${ink2(`M-51,${RY + 2}C-61,${RY + 1} -64,${RY - 8} -60,${RY - 14}C-57,${RY - 18.500} -58,${RY - 23} -62.500,${RY - 23}`, 3.2, '#e2dcc6')}
 <path d="M-64.500,${RY - 24.2}L-71,${RY - 21.3}L-64.500,${RY - 20.3}Z" fill="${GOLD}" stroke-width=".8"/><ellipse cx="-62.500" cy="${RY - 22.6}" rx="3.600" ry="2.800" fill="#ece6d2" stroke-width=".9"/><circle cx="-63.600" cy="${RY - 23.2}" r=".6" fill="${INK}" stroke="none"/>
@@ -275,7 +276,7 @@ ${ink2(`M51,${RY + 2}C60,${RY + 1} 63,${RY - 6} 60,${RY - 12}C58,${RY - 15.500} 
 ${[-28.7, -5.7, 17.3, 40.3].map((x) => `<g transform="translate(${x},${RY + 11}) rotate(-52) scale(.36)">${leaf('#f1f3ee', 1.4)}</g>`).join('')}${[-40.3, -17.3, 5.7, 28.7].map((x) => `<g transform="translate(${x},${RY + 18.5}) rotate(128) scale(.36)">${leaf('#f1f3ee', 1.4)}</g>`).join('')}
 <path d="M${-bw},${BY - 3.6}Q0,${BY + .2} ${bw},${BY - 3.6}L${bw - .3},${BY + .6}Q0,${BY + 4.4} ${-bw + .3},${BY + .6}Z" fill="url(#elfi${u})" stroke-width="1"/><path d="M${-bw},${BY - 3.6}Q-34,${BY - 1.6} -24,${BY - 1.2}L-24,${BY + 3}Q-36,${BY + 2.4} ${-bw + .3},${BY + .6}Z" fill="${HP(u)}" stroke="none"/><path d="M${-bw + 4},${BY - 2}Q0,${BY + 1.4} ${bw - 4},${BY - 2}" fill="none" stroke="#fff" stroke-width=".7" opacity=".55"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.200" rx="3" fill="url(#elfi${u})" stroke-width="1.1"/><path d="M-51,${RY - 1.3}H51" fill="none" stroke="#fff" stroke-width=".8" opacity=".6"/><rect x="-54" y="${RY - 3}" width="26" height="6.200" rx="3" fill="${HP(u)}" stroke="none"/>`)}
-<g>${ring(-40)}${ring(40)}</g>`);
+<g>${ring(-fx)}${ring(fx)}</g>`);
   };
 
   // ---- the burner: a silver lamp shaped like an open flower, hung on two slender stems under the mouth ----
@@ -430,8 +431,8 @@ ${band(g, u, .51, .62, '#2f6442')}${ink2(g.lat(.51), 1, '#f1f3ee')}${ink2(g.lat(
     }; } },
   };
 
-  // ---- the sign: a board of pale wood with rounded ends, an incised border with a leaf at each end, hung by two silver loops on grey cords ----
-  const SW = 164, HX = 60;
+  // ---- the sign: a board of pale wood with rounded ends, an incised border with a leaf at each end, hung by two silver loops on long grey cords from rings under the rail ----
+  const SW = 164, HX = 54;
   // [face, edge shade, incised line, accent]
   const WOOD = {
     calibrating: ['#d6d3c4', '#a9a696', '#7d7a6c', '#8a94a0'], meh: ['#d3cfbd', '#a6a290', '#7d7a6c', '#6f7b6c'],
@@ -440,7 +441,7 @@ ${band(g, u, .51, .62, '#2f6442')}${ink2(g.lat(.51), 1, '#f1f3ee')}${ink2(g.lat(
     pvp: ['#4a2630', '#2a141b', '#b3303a', '#d5dcde'], levelup: ['#ebe3da', '#b9aca6', '#9a7ab0', '#6b4a8a'],
     death: ['#4c4c56', '#2c2c34', '#7c7c8a', '#8a8a96'], achievement: ['#efe5bf', '#bfb184', '#5c8a62', '#3f7a4f'],
   };
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx = HX, mood, u }) => {
     const [face, edge, line, acc] = WOOD[mood] || WOOD.meh, poor = mood === 'poor', rich = mood === 'superb', darkb = mood === 'pvp' || mood === 'death';
     const shape = (i) => `M11,${i}H${w - 11}Q${w - i},${i} ${w - i},${h / 2}Q${w - i},${h - i} ${w - 11},${h - i}H11Q${i},${h - i} ${i},${h / 2}Q${i},${i} 11,${i}Z`;
     const loop = (x) => `${ink2(`M${x - 3.2},3.500C${x - 4.2},-3.500 ${x + 4.2},-3.500 ${x + 3.2},3.500`, 1.2, '#dfe5e6')}<circle cx="${x - 3.2}" cy="3.600" r="1" fill="${SILVER}" stroke-width=".4"/><circle cx="${x + 3.2}" cy="3.600" r="1" fill="${SILVER}" stroke-width=".4"/>`;
@@ -451,7 +452,7 @@ ${band(g, u, .51, .62, '#2f6442')}${ink2(g.lat(.51), 1, '#f1f3ee')}${ink2(g.lat(
 <path d="M22,${n(h * .3)}C${w * .3},${n(h * .22)} ${w * .55},${n(h * .36)} ${w - 24},${n(h * .26)}M18,${n(h * .7)}C${w * .35},${n(h * .78)} ${w * .6},${n(h * .64)} ${w - 20},${n(h * .74)}M${w * .3},${n(h * .5)}C${w * .45},${n(h * .46)} ${w * .6},${n(h * .54)} ${w * .76},${n(h * .5)}" fill="none" stroke="${edge}" stroke-width=".7" opacity=".4"/>
 <path d="${shape(4.2)}" fill="none" stroke="${line}" stroke-width="${rich ? 1.2 : .9}" opacity=".85"/>
 ${poor ? `<g stroke="none" fill="#6f7a5a"><ellipse cx="${w * .12}" cy="${h * .84}" rx="13" ry="5" opacity=".4"/><ellipse cx="${w * .9}" cy="${h * .2}" rx="10" ry="6" opacity=".35"/><ellipse cx="${w * .68}" cy="${h * .92}" rx="8" ry="3.500" opacity=".35"/></g><path d="M${w - 30},1L${w - 36},9L${w - 33},15L${w - 37},22" fill="none" stroke-width=".8"/><path d="M${w * .36},${h - 1}l3,-6l-2,-4" fill="none" stroke-width=".7"/>` : ''}
-${rich ? `<path d="${shape(6.6)}" fill="none" stroke="#e6c65e" stroke-width=".6" opacity=".9"/>` : ''}${poor ? '' : end(8.5, -90)}${end(w - 8.5, 90)}${loop(w / 2 - HX)}${loop(w / 2 + HX)}</g>`;
+${rich ? `<path d="${shape(6.6)}" fill="none" stroke="#e6c65e" stroke-width=".6" opacity=".9"/>` : ''}${poor ? '' : end(8.5, -90)}${end(w - 8.5, 90)}${loop(w / 2 - hx)}${loop(w / 2 + hx)}</g>`;
   };
   // the rating as five leaves; a player kill is two crossed strokes
   const pips = (mood) => {
@@ -557,7 +558,7 @@ ${grad('elg' + u, [[0, '#262a66'], [.38, '#5b4486'], [.68, '#c97a84'], [1, '#f2c
         basket,
         behind: (u) => `<div class="elf-lift"><div class="elf-br"><div class="elf-look"><div class="elf-nod">${figure(u)}${locks(u)}${tears()}${magic()}</div></div></div></div>${props(u)}`,
         front: (u) => hands(u),
-        sign: { w: SW, hx: HX, bx: 40, by: BY + 1, k: 14, c: 1.9, cord: { kind: 'rope', dark: '#2e302b', light: '#d9dcd2', w: 1.1 }, board, pips },
+        sign: { w: SW, hx: HX, k: 14, c: 1.9, cord: { kind: 'rope', dark: '#2e302b', light: '#d9dcd2', w: 1.1 }, board, pips },
         life: liven,
       });
     },

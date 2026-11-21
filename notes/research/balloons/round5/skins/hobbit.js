@@ -134,7 +134,7 @@ ${show('tea', 'pie', 'pil', 'ale', 'tap', 'rk', 'swd', 'hank')}
 @keyframes hobbit-wisp{0%{transform:translate(0,2px) scale(.6);opacity:0}25%{opacity:.8}100%{transform:translate(1.5px,-6px) scale(1.25);opacity:0}}
 @keyframes hobbit-plume{0%{transform:translate(0,2px) scale(.35);opacity:0}12%{opacity:.95}45%{transform:translate(2px,-15px) scale(1);opacity:.75}100%{transform:translate(7px,-36px) scale(1.75);opacity:0}}
 @keyframes hobbit-fk{0%{transform:scale(1,1)}45%{transform:scale(.86,1.12) skewX(6deg)}100%{transform:scale(1.08,.9) skewX(-6deg)}}
-.hobbit-sign{filter:drop-shadow(0 2px 2.5px rgba(0,0,0,.42));--tx:#2a1b12;--dim:#6a5540;--fg:#2a1b12;--on:#c9972a;color:var(--tx)}
+.hobbit-sign{filter:drop-shadow(0 2px 2.5px rgba(0,0,0,.42));--tx:#2a1b12;--dim:#4f3d2c;--fg:#2a1b12;--on:#c9972a;color:var(--tx)}
 .hobbit-sign[data-mood=poor]{--tx:#3d3128;--fg:#3d3128;--on:#8a7f6a}
 .hobbit-sign[data-mood=meh]{--on:#a8894a}
 .hobbit-sign[data-mood=good]{--fg:#35592a}
@@ -302,7 +302,7 @@ ${mouths}
 
   // ---- the hamper: a tall wicker basket with a braided rim, a leather strap, a gingham cloth over the edge.
   // It is deeper than it looks: the wicker runs on down to K.BD behind the sign (no floor is drawn), and a
-  // braided foot-band with two brass eyes for the sign's cords ends the part that shows.
+  // plain braided foot-band girds it lower down. The sign's cords are tied to two brass eyes just under the rim.
   const basket = (u) => {
     const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), wall = `M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z`;
     let st = '', br = '', fb = '';
@@ -310,7 +310,7 @@ ${mouths}
     for (let x = -51; x < 52; x += 4.2) br += `M${n(x)},${RY + 3}l2.600,-5.500`;
     for (let x = -47; x < 48; x += 4.4) fb += `M${n(x)},${BY + 2.6}l2.400,-6`;
     const a = n(wx(BY - 4) + .8), b = n(wx(BY + 3) + .8);
-    const eye = (x) => `<circle cx="${x}" cy="${BY + 1}" r="2.600" stroke="#17120e" stroke-width="2"/><circle cx="${x}" cy="${BY + 1}" r="2.600" stroke="#e3c268" stroke-width=".8"/>`;
+    const eye = (x) => `<circle cx="${n(x)}" cy="${CYE}" r="2.300" stroke="#17120e" stroke-width="2"/><circle cx="${n(x)}" cy="${CYE}" r="2.300" stroke="#e3c268" stroke-width=".8"/>`;
     return S('rig-rim', -62, RY - 6, 124, BD - RY + 8, `${G(u, `
 <path d="${wall}" fill="url(#hbw${u})" stroke-width="1.1"/><path d="${wall}" fill="url(#hbk${u})" stroke="none"/>
 <path d="M-52,${RY + 1}L-46,${BD}H-22L-28,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
@@ -321,12 +321,12 @@ ${mouths}
 <path d="M${-a},${BY - 4}H${a}L${b},${BY + 3}H${-b}Z" fill="#a8824c" stroke-width="1"/><path d="${fb}" fill="none" stroke-width=".7" opacity=".8"/><path d="M${-a + 3},${BY - 2.6}H${a - 3}" fill="none" stroke="#f0dcae" stroke-width=".8" opacity=".55"/><path d="M${-a},${BY - 4}H-30L-29.500,${BY + 3}H${-b}Z" fill="${HP(u)}" stroke="none"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="3.200" fill="#b8935a" stroke-width="1.1"/><path d="${br}" fill="none" stroke-width=".7" opacity=".8"/><path d="M-50,${RY - 1.6}H50" fill="none" stroke="#f0dcae" stroke-width=".8" opacity=".6"/>
 <rect x="12" y="${RY - 3.5}" width="34" height="7.500" rx="3" fill="#f3ead0" stroke-width="1"/><rect x="12" y="${RY - 3.5}" width="34" height="7.500" rx="3" fill="url(#hbg${u})" stroke="none"/>`)}
-<g fill="#170f0a">${eye(-44)}${eye(44)}</g>`);
+<g fill="#170f0a">${eye(-CXE)}${eye(CXE)}</g>`);
   };
   // a string of onions hung on the hamper's side (it dangles)
   const onions = (u) => {
     const on = (x, y, r, f) => `<path d="M${x},${n(y - r - 1.6)}q.8,1 .3,2" fill="none" stroke-width=".8"/><path d="M${x - r},${y}C${x - r},${n(y - r * 1.2)} ${x + r},${n(y - r * 1.2)} ${x + r},${y}C${x + r},${n(y + r * 1.1)} ${x - r},${n(y + r * 1.1)} ${x - r},${y}Z" fill="${f}" stroke-width=".9"/><path d="M${n(x - r * .4)},${n(y - r * .7)}Q${n(x - r * .8)},${y} ${n(x - r * .3)},${n(y + r * .7)}M${n(x + r * .2)},${n(y - r * .8)}Q${n(x + r * .7)},${y} ${n(x + r * .2)},${n(y + r * .8)}" fill="none" stroke-width=".45" opacity=".7"/>`;
-    return Z('hobbit-on', -53, RY + 1, SL('rig-rim', -9, -2, 18, 30, G(u, `${ink2('M0,0V17', 1, '#c9b07c', 'stroke-dasharray="2 1.200"')}${on(-2.5, 8, 3.6, '#c98a4a')}${on(2.6, 13.5, 3.8, '#b9743a')}${on(-2, 19.5, 4, '#d09a58')}`)));
+    return Z('hobbit-on', -56.5, RY + 1, SL('rig-rim', -11, -2, 18, 30, G(u, `${ink2('M1,0L-2.500,17', 1, '#c9b07c', 'stroke-dasharray="2 1.200"')}${on(-3, 8, 3.6, '#c98a4a')}${on(-.5, 13.5, 3.8, '#b9743a')}${on(-4.5, 19.5, 4, '#d09a58')}`)));
   };
 
   // ---- the burner: a brass kettle-stove hung on two little chains under the mouth; the fire comes out of its top ----
@@ -510,7 +510,7 @@ ${scal(g, .6, 13, 6, ['#c9a23c'])}${band(g, u, .53, .605, BRASS)}${posies(g, .56
   };
 
   // ---- the sign: a painted board with brass eyelets, tied up on two hemp cords ----
-  const SW = 158, HX = 58;
+  const SW = 158, HX = 58, CXE = HX * K.SS, CYE = RY + K.CY;   // CXE, CYE: where the rig fixes the cords to the car
   // face, painted border, second colour
   const BRD = {
     calibrating: ['#ebe4cf', '#8d8a7c', ''], poor: ['#cfc5ab', '#857e70', ''], meh: ['#e4d9bc', '#96804f', ''],
@@ -518,7 +518,7 @@ ${scal(g, .6, 13, 6, ['#c9a23c'])}${band(g, u, .53, .605, BRASS)}${posies(g, .56
     pvp: ['#e6dcc0', '#8a1f18', '#1b1513'], levelup: ['#f0e8cc', BLU, YEL], death: ['#2a2622', '#6a655c', ''], achievement: ['#f1e7c9', '#6b3a5c', BRASS],
   };
   const LG = (u, body) => `<g filter="url(#hbl${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">${body}</g>`;
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx: HX, mood, u }) => {
     const [face, edge, two] = BRD[mood] || BRD.meh, poor = mood === 'poor', dark = mood === 'death', rich = mood === 'superb';
     const fl = { good: ['#f8f3e4', YEL], great: ['#f8f3e4', YEL], superb: [RED, '#fff3c4'], levelup: [YEL, '#fff3c4'], achievement: [YEL, '#6b3a5c'] }[mood];
     const eyelet = (x) => `${ink2(`M${x},-2.500V4.500`, 1.3, '#c9b07c')}<circle cx="${x}" cy="5.200" r="2.700" fill="#170f0a" stroke-width="2.400"/><circle cx="${x}" cy="5.200" r="2.700" fill="none" stroke="#e3c268" stroke-width="1.100"/><path d="M${x - 2.4},-1.500q2.400,2.600 4.800,0" fill="none" stroke-width="2.200"/><path d="M${x - 2.4},-1.500q2.400,2.600 4.800,0" fill="none" stroke="#c9b07c" stroke-width="1"/>`;
@@ -664,7 +664,7 @@ ${grad('hbs' + u, ['#c2937a', '#e0b896', '#f2d8b8'])}${grad('hbh' + u, ['#4a2f1c
 <div class="hobbit-lift"><div class="hobbit-br"><div class="hobbit-look"><div class="hobbit-nod">${head(u)}${wisp()}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}${onions(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#2a1b10', light: '#c9b07c', w: 1.4 }, board, pips },
+        sign: { w: SW, hx: HX, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#2a1b10', light: '#c9b07c', w: 1.4 }, board, pips },
         life: liven,
       });
     },

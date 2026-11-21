@@ -265,20 +265,21 @@ ${Z('goblin-flw', 42, HY - 22, `<div class="rig-z goblin-pen">${SL('rig-rim', -2
     return S('rig-rim', -56, RY - 10, 112, 20, G(u, hand('goblin-hL', -20) + hand('goblin-hR', 27)));
   };
   const rat = (u) => Z('goblin-ratw', -41, RY - 3.2, `<div class="rig-z goblin-rat">${SL('rig-rim', -13, -13, 28, 28, G(u, `
-<path d="M-6.500,-1C-11,-.5 -11.500,6 -8.500,9C-7.500,10 -6.500,10.500 -5.500,12" fill="none" stroke-width="2.200"/><path d="M-6.500,-1C-11,-.5 -11.500,6 -8.500,9C-7.500,10 -6.500,10.500 -5.500,12" fill="none" stroke="#c49a8a" stroke-width="1"/>
+<path d="M-6.500,-1C-11,-.5 -12.500,3 -11.500,6.500C-11,8 -11.500,9 -12.500,10" fill="none" stroke-width="2.200"/><path d="M-6.500,-1C-11,-.5 -12.500,3 -11.500,6.500C-11,8 -11.500,9 -12.500,10" fill="none" stroke="#c49a8a" stroke-width="1"/>
 <path d="M-7.500,0C-9,-6.500 -4,-10 1,-9C5,-8.500 7.500,-6.500 9,-4L11.800,-2.300L9,-.6L7.500,0Z" fill="#6f6152" stroke-width=".9"/><path d="M-7.500,0C-9,-6.500 -4,-10 -1,-9.500C-4.500,-7 -5.500,-3.500 -4.500,0Z" fill="${HP(u)}" stroke="none"/>
 <circle cx="4" cy="-9" r="2.300" fill="#8a7566" stroke-width=".8"/><circle cx="4.300" cy="-8.800" r="1" fill="#c49a8a" stroke="none"/><circle cx="7.300" cy="-4.800" r=".9" fill="#0c0705" stroke="none"/><circle cx="11.900" cy="-2.300" r=".9" fill="#c49a8a" stroke-width=".4"/>
 <path d="M10,-2.500l4,-1.500M10,-1.800l4,.6" fill="none" stroke-width=".35"/><path d="M-2,0l-.5,1.500M2.500,0l.3,1.500M5.500,0l.5,1.500" fill="none" stroke="#c49a8a" stroke-width=".9"/>`))}</div>`);
   const dangle = (u) => {
     let cog = '';
     for (let i = 0; i < 8; i++) cog += `<rect x="-1.300" y="-6.800" width="2.600" height="3" transform="rotate(${i * 45})"/>`;
-    return Z('goblin-dng', 55, RY + 1, SL('rig-rim', -9, -1, 18, 30, `<path d="M0,0V11" fill="none" stroke="#17120e" stroke-width="1.800"/><path d="M0,0V11" fill="none" stroke="#9a8a66" stroke-width=".7"/>${G(u, `<g transform="translate(0,16.5)"><g fill="url(#gbi${u})" stroke-width=".8">${cog}</g><circle r="4.800" fill="url(#gbi${u})" stroke-width=".9"/><circle r="1.800" fill="#170f0a" stroke-width=".6"/><path d="M1.500,-3.800Q3.800,-2.500 3.900,.5" fill="none" stroke="#e3e9ec" stroke-width=".7" opacity=".7"/></g><path d="${tooth(-3, 21, 6.5, 1.8)}${tooth(3.2, 21.5, 5.5, 1.6)}" fill="#e9dfc2" stroke-width=".7"/>`)}`));
+    return Z('goblin-dng', 58, RY + 1, SL('rig-rim', -9, -1, 18, 30, `<path d="M-4,-1.500H0V11" fill="none" stroke="#17120e" stroke-width="1.800"/><path d="M-4,-1.500H0V11" fill="none" stroke="#9a8a66" stroke-width=".7"/>${G(u, `<g transform="translate(0,16.5)"><g fill="url(#gbi${u})" stroke-width=".8">${cog}</g><circle r="4.800" fill="url(#gbi${u})" stroke-width=".9"/><circle r="1.800" fill="#170f0a" stroke-width=".6"/><path d="M1.500,-3.800Q3.800,-2.500 3.900,.5" fill="none" stroke="#e3e9ec" stroke-width=".7" opacity=".7"/></g><path d="${tooth(-3, 21, 6.5, 1.8)}${tooth(3.2, 21.5, 5.5, 1.6)}" fill="#e9dfc2" stroke-width=".7"/>`)}`));
   };
 
   // ---- the stolen crate: uneven planks, battens, a plank nailed across a hole, a sacking patch, a pole lashed on for a rim.
-  // It is a tall crate: the planks run on down to K.BD behind the banner (no floor is drawn); the banner's cords hang from two bent nails in the lower batten ----
+  // It is a tall crate: the planks run on down to K.BD behind the banner (no floor is drawn); the banner's cords hang from two bent nails in the upper batten, just under the rim ----
   const basket = (u) => {
-    const BD = K.BD;
+    // FX, FYC: where the banner's two cords are tied, on bent nails in the upper batten just under the rim
+    const BD = K.BD, FX = HX * K.SS, FYC = RY + K.CY;
     const nail = (x, y, a = 0) => `<g transform="translate(${x},${y}) rotate(${a})"><circle r="1" fill="#b9c0c5" stroke-width=".45"/><path d="M.8,.4l2.200,1.200" fill="none" stroke="#b9c0c5" stroke-width=".7"/></g>`;
     let pl = '';
     [[-36, 1], [-19, -.6], [-2, .8], [15, -1], [32, .5]].forEach(([x, k]) => { pl += `M${x},${RY + 3}L${n(x * .9 + k)},${BD}`; });
@@ -288,7 +289,7 @@ ${Z('goblin-flw', 42, HY - 22, `<div class="rig-z goblin-pen">${SL('rig-rim', -2
 <path d="M-51,${RY + 1}L-46,${BD}H-23L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-51,${RY + 1}L-46,${BD}H-36L-40,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
 <path d="${pl}" fill="none" stroke-width=".7" opacity=".8"/><path d="M-28,${RY + 14}v8M-10,${RY + 6}v6M7,${RY + 15}v9M24,${RY + 8}v5M40,${RY + 16}v7M-27,${RY + 36}v9M-9,${RY + 44}v8M9,${RY + 35}v7M25,${RY + 47}v9M39,${RY + 38}v6M-40,${RY + 52}v8" fill="none" stroke="#c9a878" stroke-width=".7" opacity=".55"/>
 <path d="M-50,${RY + 7}L50,${RY + 6}L49.500,${RY + 10.5}L-49.500,${RY + 11.5}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-49.500,${BY - 4.5}L49.500,${BY - 3.5}L49,${BY + 2}L-49,${BY + 1.5}Z" fill="#5c4028" stroke-width=".9"/><path d="M-46,${BY - 2.8}L46,${BY - 1.9}" fill="none" stroke="#c9a878" stroke-width=".6" opacity=".45"/>
-<path d="M-48,${RY + 50}L48,${RY + 51}L47.700,${RY + 55.5}L-47.700,${RY + 55}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-30,${RY + 37}l22,4l-1,5l-22,-4Z" fill="#a98a5c" stroke-width=".9"/>${nail(-27, RY + 40, 20)}${nail(-11, RY + 43.5, 190)}
+<path d="M-47.500,${RY + 62}L47.500,${RY + 63}L47.200,${RY + 67.5}L-47.200,${RY + 67}Z" fill="#6a4c30" stroke-width=".9"/><path d="M-30,${RY + 37}l22,4l-1,5l-22,-4Z" fill="#a98a5c" stroke-width=".9"/>${nail(-27, RY + 40, 20)}${nail(-11, RY + 43.5, 190)}
 <path d="M-12,${RY + 13}l9,-1l1,8l-8,2Z" fill="#170f0a" stroke-width=".8"/>
 <path d="M-43,${RY + 22.5}L-3,${RY + 9}L-1,${RY + 14}L-41,${RY + 27.5}Z" fill="#a98a5c" stroke-width="1"/><path d="M-38,${RY + 23.5}L-8,${RY + 13.500}" fill="none" stroke-width=".5" opacity=".6"/>
 ${nail(-39, RY + 24, 30)}${nail(-34.5, RY + 22.6, -50)}${nail(-6, RY + 12.6, 10)}${nail(-10.5, RY + 14.5, 200)}
@@ -297,7 +298,7 @@ ${nail(-39, RY + 24, 30)}${nail(-34.5, RY + 22.6, -50)}${nail(-6, RY + 12.6, 10)
 <path d="M2,${RY + 15}Q7,${RY + 11} 12,${RY + 15}Q7,${RY + 18.5} 2,${RY + 15}Z" fill="#b3261c" stroke="none" opacity=".85"/><ellipse cx="7" cy="${RY + 15}" rx=".9" ry="2" fill="#170f0a" stroke="none"/>
 <rect x="-55" y="${RY - 3.2}" width="110" height="6.400" rx="3" fill="#7a5c3a" stroke-width="1.1"/><path d="M-55,${RY - 1}Q-55,${RY - 3.2} -52,${RY - 3.2}H-22V${RY + 3.2}H-52Q-55,${RY + 3.2} -55,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-50,${RY - 1.3}H50" fill="none" stroke="#d9c095" stroke-width=".8" opacity=".5"/>
 ${lash(-41)}${lash(-11)}${lash(13)}${lash(38)}`)}
-${ink2(`M-44,${BY - 2.5}v2.500q0,2.500 -2.500,2.500`, 1.2, '#9aa2a8')}${ink2(`M44,${BY - 2.5}v2.500q0,2.500 2.500,2.500`, 1.2, '#9aa2a8')}<g fill="#b9c0c5" stroke="#17120e" stroke-width=".5"><circle cx="-44" cy="${BY - 2.7}" r="1.300"/><circle cx="44" cy="${BY - 2.7}" r="1.300"/></g>`);
+${[-1, 1].map((sd) => `${ink2(`M${n(sd * FX)},${FYC - 3}v2.800q0,2.400 ${-2.4 * sd},2.400`, 1.2, '#9aa2a8')}<circle cx="${n(sd * FX)}" cy="${FYC - 3.2}" r="1.300" fill="#b9c0c5" stroke="#17120e" stroke-width=".5"/>`).join('')}`);
   };
 
   // ---- the burner: a dented cooking pot of coals hung on wires, a jagged grin cut in its side ----
@@ -459,13 +460,13 @@ ${band(g, u, .54, .58, '#e0bb55')}${band(g, u, .845, .885, '#e0bb55')}${ink2(g.l
   };
 
   // ---- the sign: a banner laced to a pole, the pole hung on two cords from hooks under the crate ----
-  const SW = 156, HX = 62;
+  const SW = 156, HX = 54;
   const CLOTH = {
     calibrating: ['#55544d', '#b9b9ac'], poor: ['#4a4334', '#8f7d57'], meh: ['#5c523d', '#b3a37c'], good: ['#73361a', '#e0a468'],
     great: ['#16403b', '#d8c26a'], superb: ['#8e1f16', '#f0cf6e'], pvp: ['#1c1818', '#b3261c'], levelup: ['#2b2512', '#e0b638'],
     death: ['#1c1b1a', '#5b5750'], achievement: ['#3f2556', '#e9c865'],
   };
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx = HX, mood, u }) => {
     const [cloth, hem] = CLOTH[mood] || CLOTH.meh, poor = mood === 'poor', rich = mood === 'superb';
     // the cloth: a little skew at the sides, a ragged lower edge
     const N = 13, top = 2.5; let d = `M1.500,${top}H${w - 1.5}L${w - .8},${h - 4}`, hd = '';
@@ -484,7 +485,7 @@ ${poor ? `<path d="M${w - 21},${h - 16}l13,-1.500l1,9l-13,2Z" fill="#8f7d57" str
 ${rich ? `<path d="M7,${top + 5.5}H${w - 7}" fill="none" stroke="${hem}" stroke-width=".8" opacity=".9"/>${[9, w - 9].map((x) => `<g transform="translate(${x},${h - 9.5})">${skull(2.8, '#f1e9d4', .6)}</g>`).join('')}` : ''}
 ${mood === 'pvp' ? `<path d="M7,${top + 5.5}H${w - 7}" fill="none" stroke="${hem}" stroke-width="1" opacity=".9"/>` : ''}
 <g fill="#170f0a" stroke="${hem}" stroke-width=".6">${eyes}</g>${pole}
-<path d="${lace}" fill="none" stroke="#17120e" stroke-width="1.900"/><path d="${lace}" fill="none" stroke="#c9b88c" stroke-width=".85"/>${wrap(w / 2 - HX)}${wrap(w / 2 + HX)}
+<path d="${lace}" fill="none" stroke="#17120e" stroke-width="1.900"/><path d="${lace}" fill="none" stroke="#c9b88c" stroke-width=".85"/>${wrap(w / 2 - hx)}${wrap(w / 2 + hx)}
 <g fill="url(#gbi${u})" stroke-width=".7"><circle cx="-8" cy="-1.100" r="2.300"/><circle cx="${w + 8}" cy="-1.100" r="2.300"/></g>`);
   };
   // the rating as five teeth on a row; a player kill is two red strokes
@@ -598,7 +599,7 @@ ${mood === 'pvp' ? `<path d="M7,${top + 5.5}H${w - 7}" fill="none" stroke="${hem
         behind: (u) => `${sack(u)}<div class="goblin-lift"><div class="goblin-br"><div class="goblin-look"><div class="goblin-nod">${head(u)}${crown(u)}${tears()}</div></div></div></div>
 ${props(u)}`,
         front: (u) => `${hands(u)}${rat(u)}${dangle(u)}`,
-        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 15, c: 1.9, cord: { kind: 'rope', dark: '#17120e', light: '#b9a57a', w: 1.3 }, board, pips },
+        sign: { w: SW, hx: HX, k: 15, c: 1.9, cord: { kind: 'rope', dark: '#17120e', light: '#b9a57a', w: 1.3 }, board, pips },
         life: liven,
       });
     },

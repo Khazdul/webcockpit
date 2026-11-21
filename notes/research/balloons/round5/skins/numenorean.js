@@ -283,13 +283,15 @@ ${sleeve(u, -35, RY + 4, -40.5, 232)}${fist(-41, 227, 4.600)}`))}${Z('num-sgl', 
   const tears = () => `<div class="rig-a num-tears">${[[-10.2, 3, '4deg', 0], [5.2, 3, '-4deg', -2.6]].map(([x, y, a, dl]) => `<div class="num-tear" style="left:${CX + x}px;top:${HY + y}px;transform:rotate(${a})"><i style="--r:4px;--dl:${dl}s"></i><i style="--r:9px;--dl:${dl - 2.9}s"></i></div>`).join('')}</div>`;
   const eyeglow = () => [-1, 1].map((s) => Z('num-eg', 13.5 * HS * s, HY)).join('');
 
-  // ---- the car: black lacquered woodwork like a small ship, two tiers of carved panels, gilt rail and band, serpent prows ----
+  // the sign's width and the point on its rod where the cords are tied (the rig shows the sign at K.SS)
+  const SW = 158, HX = 52;
+  // ---- the car: black lacquered woodwork like a small ship, two tiers of carved panels, gilt rail and band, serpent prows; two silver cleats under the rim carry the sign's cords ----
   const basket = (u) => {
     const neck = (s) => `M${52 * s},${RY + 5}C${59 * s},${RY + 1} ${62 * s},${RY - 7} ${59 * s},${RY - 13}C${57 * s},${RY - 17} ${52.5 * s},${RY - 16} ${53.5 * s},${RY - 12}`;
     const panel = (x0, x1) => `<path d="M${x0},${RY + 8}H${x1}L${n(x1 * .95)},${BY - 7}H${n(x0 * .95)}Z" fill="#110d0d" stroke-width=".8"/><path d="M${x0 + 1.5},${RY + 9.5}H${x1 - 1.5}" fill="none" stroke="#000" stroke-width="1.200" opacity=".5"/><path d="M${n(x0 * .95 + 1)},${BY - 8.3}H${n(x1 * .95 - 1)}" fill="none" stroke="${GOLD}" stroke-width=".6" opacity=".7"/>`;
     const wave = (x) => `M${x},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 6.5},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 13},${RY + 18}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x - 1},${RY + 19.500}h22`;
     // the car is deeper than it looks: a second tier of carved panels runs on down to K.BD behind the tablet (no floor is drawn)
-    const BD = K.BD, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), bw = n(wx(BY - 4)), bw2 = n(wx(BY + 3));
+    const BD = K.BD, FX = HX * K.SS, FYC = RY + K.CY, wx = (y) => 52 - 6 * (y - RY - 1) / (BD - RY - 1), bw = n(wx(BY - 4)), bw2 = n(wx(BY + 3));
     const panel2 = (x0, x1) => `<path d="M${n(x0 * .93)},${BY + 7}H${n(x1 * .93)}L${n(x1 * .885)},${BD - 4}H${n(x0 * .885)}Z" fill="#110d0d" stroke-width=".8"/><path d="M${n(x0 * .93 + 1.5)},${BY + 8.5}H${n(x1 * .93 - 1.5)}" fill="none" stroke="#000" stroke-width="1.200" opacity=".5"/>`;
     const wave2 = (x) => `M${x},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 6.5},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x + 13},${BY + 20}q3,-6 6.500,-3.500q1.800,1.700 -.6,2.800M${x - 1},${BY + 21.500}h21`;
     return S('rig-rim', -68, RY - 22, 136, BD - RY + 30, `${G(u, `
@@ -297,14 +299,14 @@ ${ink2(neck(-1), 3, '#2b2630')}${ink2(neck(1), 3, '#3a3542')}<path d="${neck(-1)
 <circle cx="-53.500" cy="${RY - 11.5}" r="1.800" fill="${GOLD}" stroke-width=".6"/><circle cx="53.500" cy="${RY - 11.5}" r="1.800" fill="${GOLD}" stroke-width=".6"/>
 <path d="M-52,${RY + 1}L-46,${BD}H46L52,${RY + 1}Z" fill="url(#nmw${u})" stroke-width="1.100"/>
 <path d="M-52,${RY + 1}L-46,${BD}H-22L-27,${RY + 1}Z" fill="${HP(u)}" stroke="none"/><path d="M-52,${RY + 1}L-46,${BD}H-35L-41,${RY + 1}Z" fill="${HQ(u)}" stroke="none"/>
-${panel(-43, -16)}${panel(-12, 12)}${panel(16, 43)}${panel2(-43, -16)}${panel2(-12, 12)}${panel2(16, 43)}
-<path d="${wave(-39)}${wave(19)}${wave2(-36)}${wave2(-9.5)}${wave2(17)}" fill="none" stroke="#8d8798" stroke-width=".8"/>
+${panel(-40, -16)}${panel(-12, 12)}${panel(16, 40)}${panel2(-40, -16)}${panel2(-12, 12)}${panel2(16, 40)}
+<path d="${wave(-37.5)}${wave(18)}${wave2(-36)}${wave2(-9.5)}${wave2(17)}" fill="none" stroke="#8d8798" stroke-width=".8"/>
 <g transform="translate(0,${RY + 15})">${sun(4.6, '#0d0b0d', '#c9ccd4', 12)}</g>
 <path d="M${-bw},${BY - 4}H${bw}L${bw2},${BY + 3}H${-bw2}Z" fill="url(#nmk${u})" stroke-width="1"/><path d="M${-bw + 1.5},${BY - 2.2}H${bw - 1.5}" fill="none" stroke="${GOLD}" stroke-width="1.100" stroke-dasharray="3 1.500"/><path d="M${-bw2 + 1.5},${BY + 1.5}H${bw2 - 1.5}" fill="none" stroke="#8d8798" stroke-width=".5" opacity=".7"/>
-<path d="M-48,${BY - 2.5}h8v6h-8ZM40,${BY - 2.5}h8v6h-8Z" fill="${SILV}" stroke-width=".8"/>
 <rect x="-54" y="${RY - 3}" width="108" height="6.500" rx="2.300" fill="url(#nmk${u})" stroke-width="1.100"/><path d="M-51,${RY - 1.3}H51" fill="none" stroke="${GOLD}" stroke-width=".9"/><path d="M-51,${RY + 1.6}H51" fill="none" stroke="#8d8798" stroke-width=".5" opacity=".7"/>
+<path d="M${n(-FX - 3.5)},${FYC - 3.2}h7v5h-7ZM${n(FX - 3.5)},${FYC - 3.2}h7v5h-7Z" fill="${SILV}" stroke-width=".8"/>
 <g fill="${GOLD}" stroke-width=".4"><circle cx="-34" cy="${RY + .4}" r="1.100"/><circle cx="-14" cy="${RY + .4}" r="1.100"/><circle cx="14" cy="${RY + .4}" r="1.100"/><circle cx="34" cy="${RY + .4}" r="1.100"/></g>`)}
-<g fill="none"><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2"/><circle cx="-44" cy="${BY + 1}" r="2.500" stroke="${SILV}" stroke-width=".8"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="#17120e" stroke-width="2"/><circle cx="44" cy="${BY + 1}" r="2.500" stroke="${SILV}" stroke-width=".8"/></g>`);
+${[-1, 1].map((d) => `<circle cx="${n(FX * d)}" cy="${FYC}" r="2.500" fill="none" stroke="#17120e" stroke-width="2"/><circle cx="${n(FX * d)}" cy="${FYC}" r="2.500" fill="none" stroke="${SILV}" stroke-width=".8"/>`).join('')}`);
   };
   // crimson tassels hang from the two prows and swing on their own
   const tassel = (s) => `<div class="rig-z num-tas" style="left:${CX + 58.5 * s}px;top:${RY - 12}px"><svg class="rig-s rig-rim" xmlns="${NS}" width="10" height="22" viewBox="-5 0 10 22" style="left:-5px;top:0"><g stroke="${INK}" stroke-linejoin="round"><path d="M0,0V9" fill="none" stroke-width="2"/><path d="M0,0V9" fill="none" stroke="${GOLD}" stroke-width=".9"/><circle cx="0" cy="9.500" r="1.800" fill="${GOLD}" stroke-width=".7"/><path d="M-1.500,11L-3,19.500L0,18.300L3,19.500L1.500,11Z" fill="#a3262c" stroke-width=".8"/><path d="M-.8,12.500L-1.200,18M.8,12.500L1.200,18" fill="none" stroke-width=".4" opacity=".7"/></g></svg></div>`;
@@ -473,7 +475,6 @@ ${band(g, u, .5, .59, '#1b171f')}${letters(g, .545, 17, '#e9c865', .62, 1.3)}${i
   };
 
   // ---- the sign: a black lacquered tablet laced to a rod with spear finials, hung on two crimson silk cords ----
-  const SW = 158, HX = 58;
   //            lacquer    face       trim       mounts
   const TAB = {
     calibrating: ['#1d1b20', '#2a2c34', '#8c9096', '#aeb2b8'], meh: ['#1d1a1c', '#2b2422', '#8a7460', '#a39a8c'],
@@ -482,7 +483,7 @@ ${band(g, u, .5, .59, '#1b171f')}${letters(g, .545, 17, '#e9c865', .62, 1.3)}${i
     pvp: ['#151214', '#33090b', '#c8281e', '#b4b8bd'], levelup: ['#15141c', '#18204a', '#e0bb55', '#f0d27a'],
     death: ['#121114', '#1c1b20', '#55535c', '#66646e'], achievement: ['#17141a', '#3a2c10', '#e0bb55', '#f0d27a'],
   };
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx, mood, u }) => {
     const [lac, face, trim, mt] = TAB[mood] || TAB.meh, poor = mood === 'poor', rich = mood === 'superb' || mood === 'levelup' || mood === 'achievement';
     const spear = (x, s) => `<path d="M${x},-1.500L${x + 6 * s},-3.500L${x + 12 * s},-.5L${x + 6 * s},2.500L${x},.5Z" fill="${mt}" stroke-width=".8"/>`;
     const ring = (x) => `<path d="M${x - 2.6},-3h5.200v5h-5.200Z" fill="${mt}" stroke-width=".8"/>`;
@@ -500,7 +501,7 @@ ${ink2(`M${poor ? 2 : -4},-.5H${w + 4}`, 2.4, '#2d2831')}<path d="M${poor ? 2 : 
 <path d="M${n(w * .62)},10.500l16,5M16,${h - 11}l10,-4M${w - 24},${h - 9}l9,-2.500" fill="none" stroke="#fff" stroke-width=".6" opacity=".12"/>
 ${poor ? `<g stroke="none" fill="#9a8a70"><path d="M${n(w * .08)},${n(h * .7)}l7,-3l5,4l-3,5l-8,1Z" opacity=".5"/><path d="M${n(w * .86)},${n(h * .22)}l6,-2l4,5l-5,4l-5,-3Z" opacity=".45"/><path d="M${n(w * .66)},${n(h * .86)}l8,-2l3,3l-9,2Z" opacity=".4"/></g><path d="M${w - 30},4L${w - 36},14L${w - 31},20L${w - 34},27" fill="none" stroke-width=".8"/>` : `${mount(1.5, 3.2, 1, 1)}${mount(w - 1.5, 3.2, -1, 1)}`}${mount(1.5, h - .8, 1, -1)}${mount(w - 1.5, h - .8, -1, -1)}
 <path d="${lace}" fill="none" stroke-width="2.200"/><path d="${lace}" fill="none" stroke="#b04a40" stroke-width="1"/>
-${ring(w / 2 - HX)}${ring(w / 2 + HX)}`);
+${ring(w / 2 - hx)}${ring(w / 2 + hx)}`);
   };
   // the rating as five small suns: lit discs for the steps reached, rings for the rest; a player kill is a red blade
   const pips = (mood) => {
@@ -611,7 +612,7 @@ ${ring(w / 2 - HX)}${ring(w / 2 + HX)}`);
         behind: (u) => `<div class="num-lift"><div class="num-br"><div class="num-look"><div class="num-nod">${head(u)}${eyeglow()}${tears()}</div></div></div></div>
 ${staff(u)}${props(u)}`,
         front: () => tassel(-1) + tassel(1),
-        sign: { w: SW, hx: HX, bx: 44, by: BY + 1, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#1a0d0c', light: '#b04a40', w: 1.5 }, board, pips },
+        sign: { w: SW, hx: HX, k: 12.5, c: 1.8, cord: { kind: 'rope', dark: '#1a0d0c', light: '#b04a40', w: 1.5 }, board, pips },
         life: liven,
       });
     },

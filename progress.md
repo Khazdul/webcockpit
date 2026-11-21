@@ -158,7 +158,12 @@ with no stage of their own. Remove a line when it is done.
   blaze and a smile to a laugh over good, great, superb. **The deep
   car:** every car runs down behind its sign to `K.BD` (322), no bottom
   shown, the sign's cords on a lower band (`rig.js` checklist point 9).
-- **Next:** the owner's verdict on the seven (artifact, or
+- **Third verdict:** the troll OK; the goblin flies for an unknown
+  race (decided). The signs rehung on all eight: shown at 85 %
+  (`K.SS`, CSS `zoom`: Firefox 126+; real sizes in the build), cords
+  about 45 px from just under the rim, straight down, `K.SY` 300,
+  `K.BD` 326, the sign's own swing about halved. Smallest text 10.2 px.
+- **Next:** the owner's verdict on the hung signs (artifact, or
   `round5/local.html`); then the build session (brief, "For the build
   session afterwards").
 - **Open:** on a tightened sign (four kills, achievement) the text sits

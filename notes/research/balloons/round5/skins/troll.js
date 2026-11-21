@@ -279,7 +279,7 @@ ${fore(u, 76, HY + 16, 75.5, HY - 15, 18.5, 13)}<path d="M67.800,${HY + 13}C70,$
   };
 
   // ---- the cage: rough logs lashed to corner posts. It is deeper than it looks: the logs run on down to K.BD
-  // behind the sign (no floor is drawn). A lower rail just above the sign carries the two rope loops for it. ----
+  // behind the sign (no floor is drawn). The sign's ropes are tied round the top log; the lower rail carries nothing. ----
   const basket = (u) => {
     const BD = K.BD;
     const log = (y, h, x0, x1, c) => `<path d="M${x0 + 3},${y}H${x1 - 3}Q${x1},${y} ${x1},${n(y + h / 2)}Q${x1},${y + h} ${x1 - 3},${y + h}H${x0 + 3}Q${x0},${y + h} ${x0},${n(y + h / 2)}Q${x0},${y} ${x0 + 3},${y}Z" fill="${c}" stroke-width="1"/><path d="M${x0 + 8},${n(y + h * .35)}h${n((x1 - x0) * .3)}M${n(x0 + (x1 - x0) * .5)},${n(y + h * .6)}h${n((x1 - x0) * .32)}M${x0 + 14},${n(y + h * .72)}h12" fill="none" stroke-width=".5" opacity=".7"/><path d="M${x0 + 5},${n(y + 1.6)}H${x1 - 8}" fill="none" stroke="#d2b384" stroke-width=".8" opacity=".45"/><ellipse cx="${n(x1 - 2.4)}" cy="${n(y + h / 2)}" rx="2" ry="${n(h / 2 - 1.2)}" fill="#c4a678" stroke-width=".6"/>`;
@@ -288,18 +288,19 @@ ${fore(u, 76, HY + 16, 75.5, HY - 15, 18.5, 13)}<path d="M67.800,${HY + 13}C70,$
     const lash = (x, y) => ink2(`M${x - 4.6},${y - 2.6}L${x + 4.6},${y + 2.6}M${x - 4.6},${y + 2.6}L${x + 4.6},${y - 2.600}M${x - 4.6},${y}H${x + 4.6}`, 1.3, ROPE);
     const EXT = [[-53, 55], [-55, 52], [-52, 54], [-54, 53], [-53, 55], [-55, 52], [-52, 54], [-54, 53], [-53, 54]], LH = (BD - RY - 3.5) / EXT.length;
     const logs = EXT.map(([a, b], i) => log(n(RY + 3.5 + i * LH), n(LH), a, b, i % 2 ? '#7a5a3a' : `url(#trw${u})`)).join('');
-    const loop = (x) => `<path d="M${x - 3.2},${BY - 3.5}h6.400v8h-6.400Z" fill="${ROPE}" stroke="#17120e" stroke-width=".9"/><path d="M${x - 3.2},${BY - 1}l6.400,-1.500M${x - 3.2},${BY + 1.5}l6.400,-1.500M${x - 3.2},${BY + 4}l6.400,-1.500" fill="none" stroke="#17120e" stroke-width=".6"/>`;
+    const LX = n(HX * K.SS), LY = RY + K.CY;   // the sign's two ropes are tied round the top log, just under the rim
+    const loop = (x) => `<path d="M${x - 3.2},${LY - 3.5}h6.400v8h-6.400Z" fill="${ROPE}" stroke="#17120e" stroke-width=".9"/><path d="M${x - 3.2},${LY - 1}l6.400,-1.500M${x - 3.2},${LY + 1.5}l6.400,-1.500M${x - 3.2},${LY + 4}l6.400,-1.500" fill="none" stroke="#17120e" stroke-width=".6"/>`;
     return S('rig-rim', -62, RY - 10, 124, BD - RY + 18, `${G(u, `
 ${logs}
 <path d="M-55,${RY + 3.5}H-26L-27,${BD}H-55Z" fill="${HP(u)}" stroke="none"/><path d="M-55,${RY + 3.5}H-41L-42,${BD}H-55Z" fill="${HQ(u)}" stroke="none"/>
-${post(-45)}${post(45)}
+${post(-39)}${post(39)}
 ${rail(RY + .3, '#9a7a50')}${rail(BY - .3, '#8f7048')}
-${lash(-45, RY + .3)}${lash(45, RY + .3)}${lash(-45, RY + 14.5)}${lash(45, RY + 14.5)}${lash(-45, BY - .3)}${lash(45, BY - .3)}${lash(-45, BY + 24)}${lash(45, BY + 24)}
+${lash(-39, RY + .3)}${lash(39, RY + .3)}${lash(-39, RY + 18)}${lash(39, RY + 18)}${lash(-39, BY - .3)}${lash(39, BY - .3)}${lash(-39, BY + 24)}${lash(39, BY + 24)}
 <g transform="translate(17,${RY + 15}) rotate(-12)">${shield(9.5, '#7d3a2c', '#d9d0b4')}</g>`)}
-${loop(-38)}${loop(38)}`);
+${loop(-LX)}${loop(LX)}`);
   };
   // two things tied to the ends of the rim log, which swing: a sheep's skull, and a traveller's boot by its laces
-  const danglers = (u) => Z('troll-dg troll-d1', -57, RY + 3, SL('rig-rim', -10, 0, 20, 30, G(u, `<path d="M0,0V11" fill="none" stroke-width="1.100"/><g transform="translate(0,15.500) scale(.86)"><path d="M-5,-5C-9,-5 -11,-1 -9.500,3C-8,1 -7,-1 -4.500,-1.500ZM5,-5C9,-5 11,-1 9.500,3C8,1 7,-1 4.500,-1.500Z" fill="${BONE2}" stroke-width=".8"/><path d="M-5.500,-4C-5.500,-8 5.500,-8 5.500,-4C6,0 4,3 3,5L2.200,11C1.500,13 -1.500,13 -2.200,11L-3,5C-4,3 -6,0 -5.500,-4Z" fill="${BONE}" stroke-width=".9"/><ellipse cx="-2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><ellipse cx="2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><path d="M-.9,7.500L0,5.500L.9,7.500L0,9.500Z" fill="${SOOT}" stroke="none"/></g>`)))
+  const danglers = (u) => Z('troll-dg troll-d1', -59.5, RY + 3, SL('rig-rim', -10, 0, 20, 30, G(u, `<path d="M0,0V11" fill="none" stroke-width="1.100"/><g transform="translate(0,15.500) scale(.86)"><path d="M-5,-5C-9,-5 -11,-1 -9.500,3C-8,1 -7,-1 -4.500,-1.500ZM5,-5C9,-5 11,-1 9.500,3C8,1 7,-1 4.500,-1.500Z" fill="${BONE2}" stroke-width=".8"/><path d="M-5.500,-4C-5.500,-8 5.500,-8 5.500,-4C6,0 4,3 3,5L2.200,11C1.500,13 -1.500,13 -2.200,11L-3,5C-4,3 -6,0 -5.500,-4Z" fill="${BONE}" stroke-width=".9"/><ellipse cx="-2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><ellipse cx="2.800" cy="-1" rx="1.700" ry="2" fill="${SOOT}" stroke="none"/><path d="M-.9,7.500L0,5.500L.9,7.500L0,9.500Z" fill="${SOOT}" stroke="none"/></g>`)))
     + Z('troll-dg troll-d2', 57, RY + 3, SL('rig-rim', -8, 0, 22, 30, G(u, `<path d="M-1,0L1,9M1,0L-1,9" fill="none" stroke-width=".9"/><path d="M-4,8.500H4L4.500,18C8,18.500 11,20 11.500,23V25.500H-4.500Z" fill="#6a4526" stroke-width="1"/><path d="M-4,8.500H-.5L-1,25.500H-4.500Z" fill="${DARK}" opacity=".3" stroke="none"/><path d="M-4.500,25.500H11.500V27.300H-4.500Z" fill="#2c2019" stroke-width=".7"/><path d="M-4,11.500H4.200M0,13.500l3,1M0,16l3,1" fill="none" stroke-width=".6"/><path d="M5,20.500l4,1.500" fill="none" stroke="#c9a877" stroke-width=".8" opacity=".7"/>`)));
 
   // ---- the burner: a stolen three-legged cooking pot of coals, hung by its ears on two chains ----
@@ -452,14 +453,14 @@ ${daub(g, .66, .7, OCHRE)}${dots(g, .745, 15, OCHRE, 1.8)}${daub(g, .86, .895, O
   };
 
   // ---- the sign: a dark hide laced with sinew into a frame of two long bones and two sticks, on thick ropes ----
-  const SW = 158, HX = 58;
+  const SW = 158, HX = 56;
   //            hide       its edge   daub (border paint, '' = none)
   const HIDE = {
     calibrating: ['#4f463c', '#7a6e5c', ''], poor: ['#48433a', '#6e6858', ''], meh: ['#3f382e', '#6e6450', ''],
     good: ['#3b2a1c', '#7a5a38', OCHRE], great: ['#2c1e16', '#6a4a30', CLAY], superb: ['#5e1d16', '#a8402a', CLAY],
     pvp: ['#191514', '#4a3a36', '#b53a26'], levelup: ['#22384f', '#4a6a8a', OCHRE], death: ['#2e2e2b', '#5a5a54', ''], achievement: ['#2f4424', '#5f7a44', OCHRE],
   };
-  const board = ({ w, h, mood, u }) => {
+  const board = ({ w, h, hx = HX, mood, u }) => {
     const [hide, edge, paint] = HIDE[mood] || HIDE.meh, poor = mood === 'poor', rich = mood === 'superb' || mood === 'great';
     const xs = Array.from({ length: 8 }, (_, i) => 13 + i * (w - 26) / 7), ys = [15, h / 2, h - 15];
     // the hide, pulled into points where it is laced
@@ -487,7 +488,7 @@ ${mood === 'superb' ? `<g transform="translate(14,${h / 2}) scale(.6) rotate(-14
 ${poor ? `<path d="M${w - 9},${h - 16}l-4,3l1,5M17,9l4,5l-2,3" fill="none" stroke-width=".7"/>` : ''}
 <path d="${lace}" fill="none" stroke-width="2"/><path d="${lace}" fill="none" stroke="#d8ccac" stroke-width=".9"/>
 ${bone(-3.5, 2.4, w + 3.5, 2.4, 3.6)}${bone(-3, h - 2.4, w + 3, h - 2.4, 3.4, BONE2)}
-${wrap(2.6, 2.4)}${wrap(w - 2.6, 2.4)}${wrap(2.6, h - 2.4)}${wrap(w - 2.6, h - 2.4)}${loop(w / 2 - HX)}${loop(w / 2 + HX)}
+${wrap(2.6, 2.4)}${wrap(w - 2.6, 2.4)}${wrap(2.6, h - 2.4)}${wrap(w - 2.6, h - 2.4)}${loop(w / 2 - hx)}${loop(w / 2 + hx)}
 ${rich ? `<g transform="translate(9,1) rotate(160)">${tusk(7.5, BONE, 2)}</g><g transform="translate(${w - 9},1) rotate(200) scale(-1,1)">${tusk(7.5, BONE, 2)}</g>` : ''}`);
   };
   // the rating as five tusks; a player kill is a red hand
@@ -603,7 +604,7 @@ ${rich ? `<g transform="translate(9,1) rotate(160)">${tusk(7.5, BONE, 2)}</g><g 
 <div class="troll-hd"><div class="troll-look"><div class="troll-nod">${head(u)}${face(u)}${tears()}</div></div></div>
 ${leg(u)}${gnawed(u)}${pick(u)}${scratch(u)}${cup(u)}</div></div>`,
         front: (u) => `${hands(u)}${danglers(u)}`,
-        sign: { w: SW, hx: HX, bx: 38, by: BY + 2, k: 11, c: 1.7, cord: { kind: 'rope', dark: '#17120e', light: ROPE, w: 2.2 }, board, pips },
+        sign: { w: SW, hx: HX, k: 11, c: 1.7, cord: { kind: 'rope', dark: '#17120e', light: ROPE, w: 2.2 }, board, pips },
         life: liven,
       });
     },
