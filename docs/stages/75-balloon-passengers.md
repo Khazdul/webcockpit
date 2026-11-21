@@ -261,4 +261,18 @@ cost, and whether Balloons should be on by default.
 
 ## Owner feedback
 
+### 2026-11-21, after testing all eight on staging
+
+Steps 1–5 of the guide look good (tried with a Tarkhnarb orc so far).
+Asked to look at Firefox without GPU compositing, then publish as a new
+version unless something needed his decision. Firefox fixed without a
+change of look (the layers fixed, 60 fps; ADR 0159 round 3); the IM Fell
+faces renamed for their Reserved Font Names. Balloons stay off by
+default (not asked to change).
+
+## Released
+
+Owner, 2026-11-21: publish once Firefox is looked at. Released as 0.22.0.
+
+
 (none yet)
