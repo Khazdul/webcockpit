@@ -1,0 +1,609 @@
+<title>Character Pane Round 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: a dark studio wall. A live bench at the top (character card over the Group pane, with switches),
+   then the three card variants, the sizes, the portraits and the detail studies. Panes use the game's Lykta look. */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2; --gild: #c9a45c; --gild-lo: #6e5832;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost: rgba(233,207,159,.11); --frost2: rgba(233,207,159,.05); --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --warn: #ff8c2a; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a; --down: #ff7b6b;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; }
+p { margin: 0; max-width: 70ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 60px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.box { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box p, .box li { color: var(--ink-dim); font-size: 15px; }
+.box ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+.box strong { color: var(--ink); }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 20px; }
+@media (max-width: 900px) { .two, .three { grid-template-columns: minmax(0,1fr); } }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1 var(--mono); color: var(--ink-dim); letter-spacing: .08em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--gild); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+
+/* bench controls */
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 11px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+
+/* ============ Lykta pane ============ */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 3; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.pane.off { padding: 0; background: none; box-shadow: none; }
+.pane.off > .hood { display: none; }
+.pane.off > .win { border: 0; border-radius: 4px; padding-top: 8px; background: #07090c; box-shadow: none; }
+.stackp { display: flex; flex-direction: column; gap: 6px; }
+.stackp .pane.off + .pane.off { margin-top: -6px; }
+
+/* ============ bars ============ */
+.b { position: relative; height: 7px; border-radius: 3px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); } .warn { --c: var(--warn); } .crit { --c: var(--crit); }
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; }
+.vit .top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+.vit .k { font: 700 9.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.vit .n { font: 700 13px/1 var(--mono); color: var(--text); }
+.vit .n small { font-weight: 400; color: var(--dim); font-size: 11px; }
+.vit .n.word { color: var(--lamp); font-weight: 600; }
+.vit .b { height: 11px; border-radius: 4px; }
+.vit3.md .b { height: 8px; } .vit3.md .n { font-size: 11.5px; }
+.vit3.thin .b { height: 6px; } .vit3.thin .top { display: none; }
+.vit3.fight .b { height: 15px; } .vit3.fight .n { font-size: 14px; }
+.vit3.inline .vit { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 6px; align-items: center; }
+.vit3.inline .top { display: contents; }
+.vit3.inline .b { height: 8px; grid-column: 2; grid-row: 1; }
+.vit3.inline .k { grid-column: 1; grid-row: 1; } .vit3.inline .n { grid-column: 3; grid-row: 1; font-size: 11px; white-space: nowrap; } .vit3.inline .n small { display: none; }
+
+/* ============ group mock ============ */
+.gp { display: flex; flex-direction: column; gap: 3px; }
+.gr { border-radius: 4px; padding: 2px 6px 6px; background: linear-gradient(180deg, rgba(233,207,159,.07), rgba(233,207,159,.025));
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.14), inset 0 0 0 1px rgba(233,207,159,.04), 0 1px 2px rgba(0,0,0,.45); }
+.pane.off .gr { background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); }
+.gr .t { display: flex; align-items: center; gap: 6px; height: 19px; min-width: 0; }
+.gr .nm { font: 700 13px/1 var(--mono); color: var(--text); }
+.gr .room { margin-left: auto; color: #8ea0b6; font-size: 12px; display: flex; gap: 4px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.gr.away .nm { color: #7e7c77; } .gr.away .b > i { filter: brightness(.62) saturate(.8); }
+.gr .bars { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.gr .b { height: 5px; }
+.ico { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ico.pl { color: #6f9ee0; }
+
+/* ============ card ============ */
+.cw { display: grid; grid-template-columns: auto minmax(0,1fr) auto; column-gap: 12px; align-items: stretch; }
+.cw.noport { grid-template-columns: minmax(0,1fr) auto; }
+.cw .mid { min-width: 0; display: flex; flex-direction: column; }
+.cw .foot { grid-column: 1 / -1; margin-top: 11px; }
+.cw.notabs { grid-template-columns: auto minmax(0,1fr); }
+.cw.notabs.noport { grid-template-columns: minmax(0,1fr); }
+
+.nm2 { font: 700 20px/1.05 var(--display); letter-spacing: .05em; color: var(--lamp-hot); text-shadow: 0 0 10px rgba(233,207,159,.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.typel { font: italic 600 14.5px/1.2 var(--flavor); color: #cbbf9f; margin-top: 2px; }
+.orn { display: flex; align-items: center; gap: 6px; margin: 7px 0 7px; color: var(--gild); }
+.orn::before, .orn::after { content: ""; height: 1px; flex: 1; background: linear-gradient(90deg, transparent, var(--gild-lo) 30%, var(--gild)); }
+.orn::after { background: linear-gradient(90deg, var(--gild), var(--gild-lo) 70%, transparent); }
+.orn svg { width: 22px; height: 8px; flex: none; }
+.orn.left::before { display: none; }
+.quietrule { height: 1px; background: rgba(233,207,159,.14); margin: 7px 0; }
+.hdr { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr .grow { flex: 1; min-width: 0; }
+.runes { font: 13px/1 serif; letter-spacing: .3em; color: rgba(201,164,92,.35); margin-top: 3px; }
+
+.icons { display: flex; align-items: center; gap: 9px; }
+.ti { width: 17px; height: 17px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); }
+.ti.posi.fight { stroke: var(--crit); filter: drop-shadow(0 0 3px rgba(255,77,77,.6)); }
+.isep { width: 1px; height: 14px; background: rgba(233,207,159,.22); }
+.postx { font: 12px/1 var(--mono); color: var(--text); }
+.disc { font: 11px/1.3 var(--mono); color: var(--dim); margin-top: 7px; }
+.disc .cl { border-bottom: 1px dotted rgba(233,207,159,.35); cursor: pointer; }
+.disc .cl:hover { color: var(--lamp); }
+
+/* level ring */
+.lr { position: relative; flex: none; display: grid; place-items: center; cursor: default; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+
+/* portrait */
+.por { position: relative; flex: none; overflow: hidden; border-radius: 4px; background: #15120d;
+  box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--iron-hi), 0 0 0 3px #000, inset 0 0 14px rgba(0,0,0,.85); }
+.por svg.art { width: 100%; height: 100%; display: block; }
+.por.gild { box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--gild-lo), 0 0 0 3px var(--gild), 0 0 0 4px #000, inset 0 0 14px rgba(0,0,0,.85); }
+.por.round { border-radius: 50%; }
+.por::after { content: ""; position: absolute; inset: 0; pointer-events: none; transition: background .6s, box-shadow .6s; }
+.por.hurt::after { box-shadow: inset 0 0 22px rgba(255,50,30,.6); }
+.por.crit::after { box-shadow: inset 0 0 26px rgba(255,30,20,.85); background: rgba(120,0,0,.15); }
+.por.sleep svg.art { filter: grayscale(.8) brightness(.55); }
+.por.incap svg.art { filter: grayscale(1) brightness(.4) sepia(.6) hue-rotate(-30deg); }
+.corner { position: absolute; width: 14px; height: 14px; z-index: 2; pointer-events: none; }
+.corner path { fill: none; stroke: var(--gild); stroke-width: 1.3; stroke-linecap: round; }
+.medal { position: relative; flex: none; padding-bottom: 10px; }
+.medal .lr { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); background: radial-gradient(circle, #1d1a14 60%, transparent 62%); border-radius: 50%; }
+
+/* vertical tabs */
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; }
+.pane.off .vt { margin-top: -8px; padding-top: 6px; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 0 auto;
+  font: 700 9px/1 var(--display); letter-spacing: .12em; padding: 6px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge), inset 0 1px 0 rgba(233,207,159,.06); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: #1b160d; background: linear-gradient(90deg, var(--lamp-hot), var(--gild)); box-shadow: -2px 0 8px rgba(233,207,159,.35); }
+.vt.quiet button.on { color: var(--lamp-hot); background: var(--frost); box-shadow: inset 2px 0 0 var(--lamp); }
+.vt.locked button:not(.on) { opacity: .35; }
+.tpn { display: none; } .tpn.on { display: flex; flex-direction: column; }
+
+/* stats tab */
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+.abx { text-align: center; padding: 3px 0 3px; border-radius: 5px 5px 9px 9px; background: linear-gradient(180deg, rgba(233,207,159,.09), rgba(233,207,159,.02)); box-shadow: inset 0 0 0 1px rgba(201,164,92,.28); }
+.abx small { display: block; font: 700 8px/1 var(--display); letter-spacing: .1em; color: var(--dim); }
+.abx b { display: block; font: 700 15px/1.15 var(--mono); }
+.abx em { display: block; font: 9px/1 var(--mono); font-style: normal; color: var(--faint); }
+.abx.up b, .abx.up em { color: var(--up); }
+.abx.flash { animation: flash 2.4s ease-out infinite; }
+@keyframes flash { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(201,164,92,.28); } 15% { box-shadow: inset 0 0 0 1px var(--up), 0 0 10px rgba(111,211,138,.6); } }
+.cmb { display: flex; justify-content: space-between; gap: 6px; margin-top: 7px; font: 11.5px/1 var(--mono); color: var(--dim); flex-wrap: wrap; }
+.cmb b { color: var(--lamp-hot); font-weight: 700; margin-left: 3px; }
+.enc { margin-top: 7px; }
+.enc .row { display: flex; justify-content: space-between; font: 10.5px/1 var(--mono); color: var(--dim); margin-bottom: 3px; }
+.enc .row i { font-style: italic; color: #cbbf9f; font-family: var(--flavor); font-size: 13px; }
+.steps5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+.steps5 span { height: 4px; border-radius: 1px; background: rgba(255,255,255,.08); }
+.steps5 span.on { background: var(--mv); } .steps5 span.on.h { background: var(--warn); }
+.aff { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 7px; }
+.aff span { font: 10.5px/1 var(--mono); padding: 3px 6px; border-radius: 3px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px var(--frost-edge); }
+.aff span b { color: var(--up); font-weight: 600; }
+
+/* bio tab */
+.kv { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr); gap: 4px 10px; font: 11.5px/1.3 var(--mono); }
+.kv dt { color: var(--dim); } .kv dd { margin: 0; min-width: 0; }
+.kv dd.wide { grid-column: span 3; }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin: 0 2px 0 5px; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); }
+.coin:first-child { margin-left: 0; }
+.coin.g { background: #e5c158; } .coin.s { background: #c9ccd1; } .coin.c { background: #c07a46; }
+.flav { font: italic 500 14px/1.2 var(--flavor); color: #cbbf9f; }
+
+/* tooltip */
+[data-tip] { position: relative; }
+#tip { position: fixed; z-index: 50; white-space: pre; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c;
+  border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; }
+
+/* gallery */
+.races { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 16px; }
+.races figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.races figcaption { font: 600 12px/1.2 var(--display); letter-spacing: .06em; color: var(--ink-dim); text-align: center; }
+.states { display: flex; flex-wrap: wrap; gap: 18px; }
+.rowx { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+.cap .pane { text-align: left; }
+.cap { display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-dim); text-align: center; max-width: 170px; }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--gild); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--gild); }
+.q p, .q li { font-size: 15px; color: var(--ink-dim); }
+.q ul { margin: 0; padding-left: 20px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<!-- portraits: crude placeholders, one per race; viewBox 0 0 60 75 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="bgL" cx="50%" cy="32%" r="75%"><stop offset="0" stop-color="#6d5b3c"/><stop offset="1" stop-color="#16130e"/></radialGradient>
+    <radialGradient id="bgD" cx="50%" cy="32%" r="75%"><stop offset="0" stop-color="#5a2f2a"/><stop offset="1" stop-color="#120b0b"/></radialGradient>
+    <symbol id="r-human" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#3c4a5e"/><rect x="26" y="45" width="8" height="12" fill="#b58c68"/>
+      <ellipse cx="30" cy="36" rx="11" ry="13" fill="#c9a27c"/><path d="M19 35C17 20 43 20 41 35C39 28 35 26 30 26S21 28 19 35Z" fill="#5a3b22"/>
+      <circle cx="26" cy="37" r="1.3" fill="#2a1d12"/><circle cx="34" cy="37" r="1.3" fill="#2a1d12"/><path d="M27 44h6" stroke="#8a5e44" stroke-width="1.2"/></symbol>
+    <symbol id="r-elf" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M17 30h26v30H17Z" fill="#d9c27a"/><path d="M5 78C7 61 18 56 30 56S53 61 55 78Z" fill="#3e5a44"/><rect x="26.5" y="45" width="7" height="12" fill="#cdb08e"/>
+      <path d="M20 36L12 27L21 41Z M40 36L48 27L39 41Z" fill="#e2c6a6"/><ellipse cx="30" cy="36" rx="10" ry="13.5" fill="#e2c6a6"/>
+      <path d="M20 34C19 20 41 20 40 34C37 27 34 25 30 25S23 27 20 34Z" fill="#e3cd86"/><path d="M20.5 30C26 28 34 28 39.5 30" stroke="#d8dde4" stroke-width="1.2" fill="none"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2b4a6a"/><circle cx="34" cy="37" r="1.2" fill="#2b4a6a"/></symbol>
+    <symbol id="r-halfelf" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M18 30h24v22H18Z" fill="#6b3524"/><path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#5a4630"/><rect x="26" y="45" width="8" height="12" fill="#c29e7a"/>
+      <path d="M20 37L15 31L21 41Z M40 37L45 31L39 41Z" fill="#d6b48e"/><ellipse cx="30" cy="36" rx="10.5" ry="13" fill="#d6b48e"/>
+      <path d="M19.5 35C18 20 42 20 40.5 35C38 27 34 25.5 30 25.5S22 27 19.5 35Z" fill="#7a3d27"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2a3b2a"/><circle cx="34" cy="37" r="1.2" fill="#2a3b2a"/></symbol>
+    <symbol id="r-dwarf" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M2 78C4 59 16 54 30 54S56 59 58 78Z" fill="#6a3b2a"/>
+      <ellipse cx="30" cy="40" rx="12.5" ry="12" fill="#c08f6a"/>
+      <path d="M17 42C17 63 26 71 30 73C34 71 43 63 43 42C39 50 21 50 17 42Z" fill="#8b5a2b"/><path d="M24 46C27 44 33 44 36 46" stroke="#6e4420" stroke-width="2" fill="none"/>
+      <path d="M16 37C16 21 44 21 44 37Z" fill="#8a9098"/><path d="M16 37h28" stroke="#5c6168" stroke-width="2"/><rect x="28.8" y="33" width="2.4" height="10" fill="#6e737a"/>
+      <circle cx="25" cy="40" r="1.3" fill="#1e140c"/><circle cx="35" cy="40" r="1.3" fill="#1e140c"/></symbol>
+    <symbol id="r-hobbit" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M10 78C12 64 20 59 30 59S48 64 50 78Z" fill="#4f6a35"/><path d="M24 60l6 8 6-8" fill="#c9b48a"/>
+      <path d="M19 41L16 36L20 44Z M41 41L44 36L40 44Z" fill="#e0b48c"/><circle cx="30" cy="42" r="12" fill="#e0b48c"/>
+      <g fill="#5a3a1e"><circle cx="21" cy="34" r="4"/><circle cx="26" cy="30" r="4.2"/><circle cx="32" cy="29.5" r="4.2"/><circle cx="38" cy="32" r="4"/><circle cx="40" cy="37" r="3"/><circle cx="19.5" cy="38" r="3"/></g>
+      <circle cx="24" cy="46" r="2.4" fill="#e89a86" opacity=".6"/><circle cx="36" cy="46" r="2.4" fill="#e89a86" opacity=".6"/>
+      <circle cx="26" cy="42" r="1.3" fill="#2a1d12"/><circle cx="34" cy="42" r="1.3" fill="#2a1d12"/><path d="M27 49q3 2 6 0" stroke="#8a5e44" stroke-width="1.2" fill="none"/></symbol>
+    <symbol id="r-beorning" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgL)"/>
+      <path d="M1 78C3 57 14 50 30 50S57 57 59 78Z" fill="#5b3d24"/>
+      <ellipse cx="30" cy="39" rx="12.5" ry="13.5" fill="#b98b62"/><path d="M19 44C20 55 26 57 30 57S40 55 41 44C37 49 23 49 19 44Z" fill="#3b2516"/>
+      <path d="M13 42C11 22 21 14 30 14S49 22 47 42C45 30 39 25 30 25S15 30 13 42Z" fill="#6e4a2c"/>
+      <circle cx="17" cy="18" r="5" fill="#6e4a2c"/><circle cx="43" cy="18" r="5" fill="#6e4a2c"/><circle cx="17" cy="18" r="2.2" fill="#3b2516"/><circle cx="43" cy="18" r="2.2" fill="#3b2516"/>
+      <circle cx="25.5" cy="39" r="1.3" fill="#1e140c"/><circle cx="34.5" cy="39" r="1.3" fill="#1e140c"/></symbol>
+    <symbol id="r-orc" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgD)"/>
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="r-troll" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgD)"/>
+      <path d="M-4 78C-2 54 12 48 30 48S62 54 64 78Z" fill="#5b5f5a"/>
+      <ellipse cx="30" cy="37" rx="17" ry="15.5" fill="#7f8a86"/><path d="M15 33C20 29 26 30 28 32M32 32C34 30 40 29 45 33" stroke="#4d5551" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="23" cy="35" r="1.2" fill="#ff9a3a"/><circle cx="37" cy="35" r="1.2" fill="#ff9a3a"/>
+      <ellipse cx="30" cy="41" rx="5" ry="4" fill="#6c7672"/><path d="M20 48q10 5 20 0" stroke="#3e4542" stroke-width="2" fill="none"/>
+      <path d="M23 48l1.5-3.5 1.5 3.5Z M34 48l1.5-3.5 1.5 3.5Z" fill="#d8d2bf"/></symbol>
+    <symbol id="r-bn" viewBox="0 0 60 75"><rect width="60" height="75" fill="url(#bgD)"/>
+      <path d="M2 78C4 56 14 46 30 46S56 56 58 78Z" fill="#141416"/>
+      <path d="M12 52C10 26 19 12 30 12S50 26 48 52C44 46 40 44 30 44S16 46 12 52Z" fill="#1c1c20"/>
+      <ellipse cx="30" cy="37" rx="9.5" ry="12" fill="#cfc2b2"/><path d="M20.5 33C23 24 37 24 39.5 33C36 29 24 29 20.5 33Z" fill="#141416"/>
+      <path d="M21 31.5C26 29.5 34 29.5 39 31.5" stroke="#b9bec6" stroke-width="1.3" fill="none"/><circle cx="30" cy="30.2" r="1.4" fill="#c22a2a"/>
+      <path d="M24.5 37.5h3M32.5 37.5h3" stroke="#2a2124" stroke-width="1.5" stroke-linecap="round"/><path d="M27.5 44.5h5" stroke="#7d6a62" stroke-width="1"/></symbol>
+
+    <symbol id="t-sneak" viewBox="0 0 24 24"><path d="M7.5 11c-1.6 0-2.6 1.8-2.6 4s1 3.6 2.6 3.6 2.3-1.6 2.3-3.8S9 11 7.5 11z M5.6 20.6h3.8 M16.5 3c-1.6 0-2.6 1.8-2.6 4s1 3.6 2.6 3.6 2.3-1.6 2.3-3.8S18 3 16.5 3z M14.6 12.6h3.8"/></symbol>
+    <symbol id="t-ride" viewBox="0 0 24 24"><path d="M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5"/></symbol>
+    <symbol id="t-climb" viewBox="0 0 24 24"><path d="M2.5 20.5l6.5-11 3.5 5 2.5-3.5 6.5 9.5z M9 9.5V3.5 M9 3.5h4.5l-1 1.5 1 1.5H9"/></symbol>
+    <symbol id="t-swim" viewBox="0 0 24 24"><path d="M2 15.5c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2 M2 20.5c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2 M12 4.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4"/></symbol>
+    <symbol id="p-standing" viewBox="0 0 24 24"><path d="M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6"/></symbol>
+    <symbol id="p-fighting" viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2"/></symbol>
+    <symbol id="i-player" viewBox="0 0 24 24"><path d="M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4"/></symbol>
+    <symbol id="i-resting" viewBox="0 0 24 24"><path d="M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 2</span>
+  <h1>Character pane som kort</h1>
+  <p class="lede">Runda 2 bygger på riktning B. Kortet har ett porträtt per ras, lite förgylld ornamentik, nivån som en liten ring, ikoner för sneak, ride, climb, swim och position, och flikar med stående text längs högerkanten. HP, mana och moves ligger längst ner och ligger i linje med Group pane under.</p>
+  <div class="changes">
+    <div><b>Porträtt per ras.</b> Nio grova bilder att byta ut mot dina riktiga.</div>
+    <div><b>Mindre som ett datablad.</b> Ett typrad som på ett kort, en förgylld linje, och bara det viktigaste i Status.</div>
+    <div><b>Nivå med XP och TP i en ring.</b> Den sitter bredvid namnet och är liten.</div>
+    <div><b>Ikoner</b> i stället för knappar. Mood och spell speed står som diskret text.</div>
+    <div><b>Flikar på högerkanten</b> med stående text: Status, Stats och Bio.</div>
+    <div><b>Vitals längst ner</b>, bredvid varandra, större än i Group och i samma kolumner.</div>
+  </div>
+
+  <!-- ============ bench ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Prova</span><h2>Kortet ovanför Group pane</h2>
+      <p>Välj variant, ram, bredd och läge. Flikarna på kortet går att klicka på. Håll musen över nivåringen, HP-baren eller en förmåga i Stats för att se tooltipen.</p></div>
+    <div class="bench">
+      <div class="ctlrow">
+        <div class="ctl">Variant <span class="seg" data-ctl="variant"><button data-v="gild" class="on">B1 Förgylld</button><button data-v="medal">B2 Medaljong</button><button data-v="quiet">B3 Stilla</button></span></div>
+        <div class="ctl">Ram <span class="seg" data-ctl="border"><button data-v="on" class="on">På</button><button data-v="off">Av</button></span></div>
+        <div class="ctl">Bredd <span class="seg" data-ctl="width"><button data-v="760" class="on">760</button><button data-v="560">560</button><button data-v="420">420</button></span></div>
+        <div class="ctl">Läge <span class="seg" data-ctl="mode"><button data-v="normal" class="on">Normal</button><button data-v="fight">Strid</button></span></div>
+      </div>
+      <div class="scroll"><div id="bench" class="stackp"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ variants ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Varianter</span><h2>Tre nivåer av ornamentik</h2>
+      <p>Samma innehåll och samma layout i alla tre. Det som skiljer dem åt är porträttets form, nivåringens plats och hur mycket guld det finns.</p></div>
+    <div class="scroll"><div class="rowx" id="variants" style="flex-wrap:nowrap;align-items:flex-start"></div></div>
+    <div class="three" style="margin-top:8px">
+      <div class="box"><h3>B1 Förgylld</h3><p>Ett rektangulärt porträtt med guldram och små hörnsnirklar, en förgylld linje med en ruta i mitten, och flikar som bokmärken i guld. Nivåringen sitter till höger om namnet. Det här är mest likt ett spelkort.</p></div>
+      <div class="box"><h3>B2 Medaljong</h3><p>Ett runt porträtt där nivåringen sitter som en sten nedtill på kanten. Namnet har en svag runrad under sig (din idé om något som passar temat). Linjen börjar vid porträttet och tonar ut åt höger.</p></div>
+      <div class="box"><h3>B3 Stilla</h3><p>Bara en tunn ram och ingen guld. Den aktiva fliken har ett ljust streck i stället för en fylld etikett. Det här är det renaste kortet. Bra att jämföra med när du tycker de andra blir för mycket.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ sizes ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Storlekar</span><h2>När panen krymper</h2>
+      <p>Ordningen saker försvinner i: först flikarna och Bio-innehållet, sedan porträttet (det blir en avatar), sedan typraden. Vitals och nivåringen tas aldrig bort.</p></div>
+    <div class="scroll"><div class="rowx" id="sizes"></div></div>
+  </section>
+
+  <!-- ============ level ring ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Detalj</span><h2>Nivåringen</h2>
+      <p>XP och TP sitter ihop med nivån och är små. Här är tre sätt att rita den. Rasta har 41 % XP in i level 73 (3 % av det den här sessionen) och TP klart.</p></div>
+    <div class="rowx" id="rings"></div>
+  </section>
+
+  <!-- ============ portraits ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Porträtt</span><h2>Nio raser, grovt ritade</h2>
+      <p>Det här är bara platshållare. De ska ersättas med dina högupplösta bilder (WebP i stående format 4:5, kontraktet skrivs som för ballongerna). Free peoples har en varm bakgrund och dark side en mörkröd. Vi väljer bild från <code>race</code> i <code>Char.StatusVars</code>.</p></div>
+    <div class="races" id="races"></div>
+    <div class="box" style="margin-top:20px">
+      <h3>Porträttet reagerar på läget</h3>
+      <div class="states" id="states"></div>
+      <p>Övergången tar ungefär en halv sekund, så den syns men inte blinkar. Vill du hellre ha en stilla bild går det att stänga av.</p>
+    </div>
+  </section>
+
+  <!-- ============ details ============ -->
+  <section>
+    <div class="sec-head"><span class="eyebrow">Innehåll</span><h2>Flikarna och dina idéer</h2></div>
+    <div class="two">
+      <div class="box">
+        <h3>Vad som ligger i vilken flik</h3>
+        <ul>
+          <li><strong>Status</strong> (standard): namn, typrad, nivåring, ikonerna och en diskret rad med mood, spell speed och wimpy. Alertness visas bara när den inte är normal.</li>
+          <li><strong>Stats</strong>: de sju förmågorna, OB, DB, PB och Abs, packningsmätaren och affects tillsammans med vad de ändrar ("strength <b style="color:var(--up)">+2 STR</b>"). Affects ligger här i stället för i en egen flik, eftersom det är de som förklarar siffrorna.</li>
+          <li><strong>Bio</strong>: ålder med födelsedag, längd och vikt, alignment, citizen, war fame, pengar och speltid.</li>
+        </ul>
+        <p>Tre flikar får plats i porträttets höjd med läsbar text. Fyra går också, men då behöver kortet bli högre eller texten mindre.</p>
+      </div>
+      <div class="box">
+        <h3>Stridsläge</h3>
+        <ul>
+          <li>När en <code>opponent</code> dyker upp i GMCP byter kortet till Status. De andra flikarna tonas ner men går fortfarande att klicka på.</li>
+          <li>Vitals blir högre (15 px i stället för 11). Positionsikonen blir korsade svärd i rött.</li>
+          <li>Porträttet får en röd kant när HP är hurt eller sämre, och mer rött vid bad eller sämre.</li>
+          <li>Två sekunder efter att striden är slut går kortet tillbaka till fliken du hade.</li>
+        </ul>
+        <p>Prova "Läge: Strid" i bänken högst upp.</p>
+      </div>
+      <div class="box">
+        <h3>Ändringar som lyser till: detaljer att bestämma</h3>
+        <ul>
+          <li><strong>Vad:</strong> förmågor, OB/DB/PB/Abs och packning. Inte vitals, de ändras hela tiden.</li>
+          <li><strong>Hur:</strong> rutan får en grön (upp) eller röd (ner) kant som tonar bort på 2–3 s. Den lilla siffran under (<code>+2</code>) ligger kvar så länge höjningen finns. Se STR i Stats-fliken.</li>
+          <li><strong>När:</strong> bara när en ny info-hämtning visar en ändring. Inte vid inloggning, för då finns inget att jämföra med.</li>
+          <li><strong>I en annan flik:</strong> en liten prick på fliken Stats tills du öppnar den.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Tooltips, packning, ålder och klick</h3>
+        <ul>
+          <li><strong>Tooltips</strong> bara på nivåringen (XP och TP kvar), HP (exakt eller ordets spann, och wimpy) och förmågorna (grundvärde och vilken affect som höjer dem). Inga andra.</li>
+          <li><strong>Packning:</strong> en mätare i fem steg från %F, med MUMEs egen mening bredvid. Den blir orange när du är tung.</li>
+          <li><strong>Ålder:</strong> "57 years · birthday in 5 months" i Bio.</li>
+          <li><strong>Klick:</strong> mood bläddrar till nästa mood, wimpy öppnar ett litet fält, positionsikonen ger stand, rest och sleep. Sneak och ride växlar med klick. Climb och swim gör det inte, för de är inte kommandon.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>B1, B2 eller B3?</h3><p>Eller en blandning, till exempel B1:s rektangulära porträtt med B3:s lugna flikar.</p></div>
+      <div class="q"><h3>Nivåringen: dubbelring, ring med prick eller båge?</h3><p>Och ska den sitta bredvid namnet eller på porträttet som i B2?</p></div>
+      <div class="q"><h3>Räcker tre flikar: Status, Stats och Bio?</h3><p>Ska affects ha en egen flik i stället för att ligga under Stats?</p></div>
+      <div class="q"><h3>Runraden i B2</h3><p>Är den för mycket? Den skriver namnet med runor (ungefär som Tolkiens Cirth). Den syns knappt och är bara utsmyckning.</p></div>
+      <div class="q"><h3>Vitals i Group-kolumnerna</h3><p>Kortets bars ligger nu exakt ovanför Groups tre kolumner, men de är tjockare och har siffror ovanför. Är det rätt nivå, eller ska de vara ännu större?</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const D = { name: 'Rasta', race: 'orc', raceName: 'Orc', citizen: 'GoblinTown', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], ma: [93, 111], mv: [98, 122], wimpy: 150, tog: { sneak: 1, ride: 0, climb: 1, swim: 0 },
+  mood: 'aggressive', alert: 'normal', speed: 'normal' };
+const RACES = [['human', 'Human'], ['elf', 'Elf'], ['halfelf', 'Half-Elf'], ['dwarf', 'Dwarf'], ['hobbit', 'Hobbit'], ['beorning', 'Beorning'], ['orc', 'Orc'], ['troll', 'Troll'], ['bn', 'Black Númenórean']];
+const RUNES = 'ᚱᚨᛋᛏᚨ';
+const st = { variant: 'gild', border: 'on', width: 760, mode: 'normal' };
+
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const use = (id, cls = 'ti') => `<svg class="${cls}" viewBox="0 0 24 24"><use href="#${id}"/></svg>`;
+const ORN = '<svg viewBox="0 0 22 8"><path d="M1 4h6M15 4h6" stroke="currentColor" stroke-width="1"/><path d="M11 .8L14.2 4 11 7.2 7.8 4Z" fill="currentColor"/><circle cx="11" cy="4" r="1" fill="#1b160d"/></svg>';
+const CORNER = (pos) => {
+  const t = { tl: '', tr: 'scale(-1,1)', bl: 'scale(1,-1)', br: 'scale(-1,-1)' }[pos];
+  const s = { tl: 'top:2px;left:2px', tr: 'top:2px;right:2px', bl: 'bottom:2px;left:2px', br: 'bottom:2px;right:2px' }[pos];
+  return `<svg class="corner" style="${s};transform:${t}" viewBox="0 0 14 14"><path d="M1 13V5Q1 1 5 1h8 M4 9Q4 4 9 4"/></svg>`;
+};
+
+function portrait(race, w, h, cls = '', corners = false) {
+  return `<div class="por ${cls}" style="width:${w}px;height:${h}px"><svg class="art" viewBox="0 0 60 75" preserveAspectRatio="xMidYMid slice"><use href="#r-${race}"/></svg>${corners ? ['tl', 'tr', 'bl', 'br'].map(CORNER).join('') : ''}</div>`;
+}
+
+// Level ring: kind 'double' (XP outer, TP inner), 'dot' (XP ring, TP as a small dot), 'arc' (XP as a lower arc).
+function ring(size, kind = 'double') {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `Level ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  let arcs;
+  if (kind === 'double') {
+    arcs = `<circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.55)" stroke-width="2.6"/>
+      <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--gild-lo)" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+      <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+      <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.4" stroke-dasharray="${D.tp * 100} 100" opacity=".85"/>`;
+  } else if (kind === 'dot') {
+    arcs = `<circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.55)" stroke-width="2.6"/>
+      <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="${D.xp * 100} 100"/>
+      <circle cx="${size - 3.5}" cy="${size - 3.5}" r="2.6" fill="var(--tp)" stroke="#000" stroke-width=".8" transform="rotate(90 ${c} ${c})"/>`;
+  } else {
+    const r = r1;
+    arcs = `<g transform="rotate(135 ${c} ${c})"><circle cx="${c}" cy="${c}" r="${r}" pathLength="100" stroke="rgba(0,0,0,.55)" stroke-width="2.6" stroke-dasharray="75 100"/>
+      <circle cx="${c}" cy="${c}" r="${r}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="${D.xp * 75} 100"/></g>
+      <circle cx="${c}" cy="${c}" r="${r2 + 1}" fill="none" stroke="var(--tp)" stroke-width=".8" opacity=".6"/>`;
+  }
+  return `<span class="lr" data-tip="${tip}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">${arcs}</svg><b>${D.level}</b></span>`;
+}
+
+function icons(fight) {
+  const t = ['sneak', 'ride', 'climb', 'swim'].map((k) => `<span data-tip="${k} ${D.tog[k] ? 'on' : 'off'}">${use('t-' + k, 'ti' + (D.tog[k] ? ' on' : ''))}</span>`).join('');
+  const p = fight ? `${use('p-fighting', 'ti posi fight')}<span class="postx" style="color:var(--crit)">fighting</span>` : `${use('p-standing', 'ti posi')}<span class="postx">standing</span>`;
+  return `<div class="icons">${t}<span class="isep"></span>${p}</div>`;
+}
+
+function vitals(cls, fight) {
+  const one = (k, label, a, colCls, extra = '') => {
+    const p = pct(a);
+    return `<div class="vit ${colCls}"><div class="top"><span class="k">${label}</span><span class="n">${a[0]}<small> / ${a[1]}</small></span></div><div class="b"><i style="--w:${p}%"></i>${extra}</div></div>`;
+  };
+  const wp = Math.round((D.wimpy / D.hp[1]) * 100);
+  let hp;
+  if (fight) {
+    hp = `<div class="vit warn" data-tip="HP: hurt (46–70 %)\nlast number 187 is stale\nwimpy at 150 (56 %)"><div class="top"><span class="k">HP</span><span class="n word">hurt</span></div><div class="b"><i style="--w:46%"></i><u style="--lo:46%;--hi:70%"></u><span class="wim" style="--p:${wp}%"></span></div></div>`;
+  } else {
+    hp = `<div class="vit hp" data-tip="HP 187 / 270 · 69 %\nwimpy at 150 (56 %)"><div class="top"><span class="k">HP</span><span class="n">187<small> / 270</small></span></div><div class="b"><i style="--w:${pct(D.hp)}%"></i><span class="wim" style="--p:${wp}%"></span></div></div>`;
+  }
+  return `<div class="vit3 ${cls}${fight ? ' fight' : ''}">${hp}${one('ma', 'MANA', D.ma, 'ma')}${one('mv', 'MOVES', fight ? [61, 122] : D.mv, 'mv')}</div>`;
+}
+
+function statusTab(v, fight, compact) {
+  const rule = v === 'quiet' ? '<div class="quietrule"></div>' : `<div class="orn${v === 'medal' ? ' left' : ''}">${ORN}</div>`;
+  const hdr = v === 'medal'
+    ? `<div class="nm2">${D.name}</div><div class="runes">${RUNES}</div>`
+    : `<div class="hdr"><div class="grow"><div class="nm2">${D.name}</div></div>${ring(compact ? 26 : 30)}</div>`;
+  return `${hdr}<div class="typel">${D.raceName} of ${D.citizen}</div>${rule}${icons(fight)}
+    <div class="disc"><span class="cl" title="Klick: nästa mood">${D.mood}</span> · casts ${D.speed} · wimpy <span class="cl" title="Klick: ändra wimpy">${D.wimpy}</span></div>`;
+}
+function statsTab() {
+  const ab = [['STR', 18, 14, '+2', 'strength'], ['INT', 16, 15], ['WIS', 16, 16], ['DEX', 11, 8], ['CON', 12, 10], ['WIL', 16, 16], ['PER', 8, 8]];
+  const cells = ab.map(([k, v, base, d, aff]) => `<div class="abx${d ? ' up flash' : ''}" data-tip="${k} ${v}${d ? ` (${d} from ${aff})` : ''}\nbase ${base}"><small>${k}</small><b>${v}</b><em>${d || base}</em></div>`).join('');
+  return `<div class="ab">${cells}</div>
+    <div class="cmb"><span>OB<b>137</b></span><span>DB<b>-1</b></span><span>PB<b>39</b></span><span>ABS<b>43</b></span></div>
+    <div class="enc"><div class="row"><span>93 lb</span><i>Heavy, but we will manage…</i></div><div class="steps5"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on h"></span><span></span></div></div>
+    <div class="aff"><span>strength <b>+2 STR</b></span><span>shield</span><span>detect magic</span><span>comfortable</span></div>`;
+}
+function bioTab() {
+  return `<dl class="kv">
+    <dt>Age</dt><dd>57 years</dd><dt>Birthday</dt><dd>in 5 months</dd>
+    <dt>Height</dt><dd>4′11″</dd><dt>Weight</dt><dd>8 st 5 lb</dd>
+    <dt>Citizen</dt><dd>GoblinTown</dd><dt>Fame</dt><dd>known (4)</dd>
+    <dt>Purse</dt><dd class="wide"><span class="coin g"></span>394<span class="coin s"></span>11<span class="coin c"></span>49</dd>
+    <dt>Played</dt><dd class="wide">1 663 h · this session 26 min</dd>
+  </dl><div class="flav" style="margin-top:6px">“Totally corrupted by the Evilness of Morgoth.”</div>`;
+}
+
+function portraitFor(v, size, fight) {
+  const state = fight ? 'hurt' : '';
+  if (size === 'S' || size === 'XS') return '';
+  const big = size === 'L';
+  if (v === 'medal') {
+    const s = big ? 104 : 64;
+    return `<div class="medal" style="align-self:start">${portrait(D.race, s, s, 'round gild ' + state)}${ring(big ? 32 : 24)}</div>`;
+  }
+  const w = big ? 96 : 58, h = big ? 120 : 72;
+  return `<div style="align-self:start">${portrait(D.race, w, h, (v === 'gild' ? 'gild ' : '') + state, v === 'gild' && big)}</div>`;
+}
+
+function card({ v = 'gild', border = 'on', width = 760, mode = 'normal', size = 'L', tab = 0 } = {}) {
+  const fight = mode === 'fight';
+  const showTabs = size === 'L' || size === 'M';
+  const port = portraitFor(v, size, fight);
+  const active = fight ? 0 : tab;
+  const names = ['Status', 'Stats', 'Bio'];
+  const tabsHtml = showTabs ? `<div class="vt${v === 'quiet' ? ' quiet' : ''}${fight ? ' locked' : ''}">${names.map((n, i) => `<button data-tab="${i}" class="${i === active ? 'on' : ''}">${n.toUpperCase()}</button>`).join('')}</div>` : '';
+  let mid;
+  if (size === 'XS') {
+    return pane(width, border, v, `<div class="vit3 inline${fight ? '' : ''}" style="padding:0 6px;grid-template-columns:auto repeat(3,minmax(0,1fr))">${ring(22)}${vitals('inline', fight).replace(/^<div class="vit3[^"]*">/, '').replace(/<\/div>$/, '')}</div>`, true);
+  }
+  if (size === 'S') {
+    mid = `<div class="hdr"><div class="nm2" style="font-size:15px">${D.name}</div>${ring(24)}<span class="grow"></span>${icons(fight)}</div>`;
+    return pane(width, border, v, `<div class="cw noport notabs"><div class="mid">${mid}</div><div class="foot" style="margin-top:8px">${vitals('md', fight)}</div></div>`, true);
+  }
+  const panels = [statusTab(v, fight, size === 'M'), statsTab(), bioTab()].map((h, i) => `<div class="tpn${i === active ? ' on' : ''}">${h}</div>`).join('');
+  const cls = `cw${port ? '' : ' noport'}${showTabs ? '' : ' notabs'}`;
+  return pane(width, border, v, `<div class="${cls}" data-card>${port}<div class="mid" style="min-height:${size === 'L' ? 120 : 76}px">${panels}</div>${tabsHtml}<div class="foot">${vitals(size === 'L' ? '' : 'md', fight)}</div></div>`);
+}
+function pane(width, border, v, inner, tight) {
+  return `<div class="pane${border === 'off' ? ' off' : ''}" style="width:${width}px;max-width:none"><div class="hood">CHARACTER</div><div class="win"${tight ? ' style="padding-top:19px"' : ''}>${inner}</div></div>`;
+}
+
+function group(width, border) {
+  const M = [
+    { n: 'Rasta', here: 1, b: [69, 84, 80], pos: 'p-standing' },
+    { n: 'Kakaroto', room: 'Hall of Murals', b: [100, 78, 100], pos: 'i-resting' },
+    { n: 'Rheinmetall', room: 'Sinister-looking Cave', b: [100, 0, 100], pos: 'p-standing' },
+    { n: 'Ázukh', room: 'The Cracked Chamber', b: [80, 86, 100], pos: 'i-resting' },
+  ];
+  const rows = M.map((m) => `<div class="gr${m.here ? '' : ' away'}"><div class="t">${use('i-player', 'ico pl')}<span class="nm">${m.n}</span>${m.room ? `<span class="room">${use('i-pin', 'ico')}${m.room}</span>` : '<span class="room"></span>'}${use(m.pos, 'ico')}</div>
+    <div class="bars"><span class="b hp"><i style="--w:${m.b[0]}%"></i></span><span class="b ma"><i style="--w:${m.b[1]}%"></i></span><span class="b mv"><i style="--w:${m.b[2]}%"></i></span></div></div>`).join('');
+  return `<div class="pane${border === 'off' ? ' off' : ''}" style="width:${width}px;max-width:none"><div class="hood">GROUP</div><div class="win"><div class="gp">${rows}</div></div></div>`;
+}
+
+function wireTabs(root) {
+  root.querySelectorAll('[data-card]').forEach((cw) => {
+    cw.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+      const i = +b.dataset.tab;
+      cw.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+      cw.querySelectorAll('.tpn').forEach((p, k) => p.classList.toggle('on', k === i));
+    }));
+  });
+}
+
+function renderBench() {
+  const el = document.getElementById('bench');
+  el.innerHTML = card({ v: st.variant, border: st.border, width: st.width, mode: st.mode }) + group(st.width, st.border);
+  wireTabs(el);
+}
+document.querySelectorAll('[data-ctl]').forEach((seg) => seg.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  const k = seg.dataset.ctl; st[k] = k === 'width' ? +b.dataset.v : b.dataset.v;
+  renderBench();
+}));
+
+function render() {
+  renderBench();
+  const vEl = document.getElementById('variants');
+  vEl.innerHTML = [['gild', 0], ['medal', 1], ['quiet', 2]].map(([v, t]) => `<div class="cap" style="max-width:none;align-items:flex-start"><span class="lbl">${{ gild: 'B1 · Stats', medal: 'B2 · Status', quiet: 'B3 · Bio' }[v]}</span>${card({ v, width: 470, tab: [1, 0, 2][t] })}</div>`).join('');
+  wireTabs(vEl);
+  const sEl = document.getElementById('sizes');
+  sEl.innerHTML = [['L', 470, 'L · porträtt, flikar'], ['M', 380, 'M · litet porträtt'], ['S', 380, 'S · två rader'], ['XS', 380, 'XS · en rad']].map(([size, w, l]) => `<div class="cap" style="max-width:none;align-items:flex-start"><span class="lbl">${l}</span>${card({ v: 'gild', width: w, size })}</div>`).join('');
+  wireTabs(sEl);
+  document.getElementById('rings').innerHTML = [['double', 'Dubbelring', 'XP ytterst (mörkt guld före sessionen, ljust under den), TP som tunn inre ring'], ['dot', 'Ring och prick', 'XP som ring, TP som en prick som är tänd när TP är klart'], ['arc', 'Båge', 'XP som en båge med öppning nedtill, TP som en svag cirkel innanför']]
+    .map(([k, h, p]) => `<div class="cap"><div style="display:flex;gap:16px;align-items:center">${ring(30, k)}${ring(44, k)}</div><b style="color:var(--ink);font-weight:600">${h}</b><span>${p}</span></div>`).join('');
+  document.getElementById('races').innerHTML = RACES.map(([id, n]) => `<figure>${portrait(id, 80, 100, 'gild')}<figcaption>${n}</figcaption></figure>`).join('');
+  document.getElementById('states').innerHTML = [['', 'healthy'], ['hurt', 'hurt / wounded'], ['crit', 'bad / awful'], ['sleep', 'sleeping'], ['incap', 'incap / dying']]
+    .map(([c, l]) => `<div class="cap">${portrait('orc', 64, 80, 'gild ' + c)}<span>${l}</span></div>`).join('');
+}
+render();
+// One tooltip for every [data-tip], placed under the element (panes clip their content).
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
