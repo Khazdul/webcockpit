@@ -178,6 +178,7 @@ test('round 2: the balloons are under every pane, docked and floating, in every 
 
 test('round 2: desktop only: the phone layout never loads the balloons, and #weather balloon says so', async ({ page }) => {
   const errors = watchErrors(page);
+  await page.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
   await page.goto('/?replay&phone=1');
   await expect(page.locator('.wc-app')).toBeVisible();
   expect(await page.evaluate(() => window.__wc!.app.cockpit.isPhoneGame)).toBe(true);
@@ -313,6 +314,7 @@ test('stage 75: reduced motion: the rig\'s still form at the readable spot', asy
 
 test('stage 75: Balloons off loads nothing of them: no rig, no passenger chunk, no sign face', async ({ page }) => {
   const errors = watchErrors(page);
+  await page.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
   await page.goto('/?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: false } }));
@@ -330,5 +332,98 @@ test('stage 75: Balloons off loads nothing of them: no rig, no passenger chunk, 
   await expect(layers(page)).toHaveCount(0);
   expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('WCB')))).toBe(false);
   expect(await page.evaluate(() => document.querySelectorAll('style[data-wc-rig]').length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+/** The rig's CSS id per passenger (the Númenórean's is short). */
+const CSS_ID: Record<string, string> = { dwarf: 'dwarf', elf: 'elf', human: 'human', hobbit: 'hobbit', troll: 'troll', goblin: 'goblin', orc: 'orc', numenorean: 'num' };
+const IDS = Object.keys(CSS_ID);
+/** The passenger modules the page has fetched (dev: the source modules; a build: the hashed chunks). */
+/** Vite's dev server loads hundreds of modules: room for all of them in the resource timeline (call before goto). */
+const roomForResources = (page: Page) => page.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
+const passengerChunks = (page: Page) =>
+  page.evaluate((ids) => {
+    const got = new Set<string>();
+    for (const r of performance.getEntriesByType('resource')) {
+      const m = /passengers\/(\w+)\.ts|\/assets\/(\w+)-[\w-]{8}\.js/.exec(r.name);
+      const id = m?.[1] ?? m?.[2];
+      if (id && ids.includes(id)) got.add(id);
+    }
+    return [...got].sort();
+  }, IDS);
+
+test('stage 75: all eight passengers fly, a kill and a moment each, each from its own chunk, without an error or a rig warning', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchErrors(page);
+  const warnings: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'warning' && m.text().startsWith('Rig:')) warnings.push(m.text());
+  });
+  const csp = await watchCsp(page);
+  await roomForResources(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  // Not logged in: the player's passenger is the goblin, fetched when the balloons start, nothing else.
+  await expect.poll(() => passengerChunks(page)).toEqual(['goblin']);
+  const want = new Set(['goblin']);
+  const moments = ['levelup', 'death', 'achievement'];
+  for (const [i, id] of IDS.entries()) {
+    const kill = (['poor', 'good', 'superb', 'pvp'] as const)[i % 4];
+    await type(page, `#weather balloon as ${id} ${kill}`);
+    await type(page, `#weather balloon as ${id} ${moments[i % 3]}`);
+    const rigs = page.locator(`.wc-balloon > .rig.${CSS_ID[id]}-v`);
+    await expect(rigs, id).toHaveCount(2);
+    await expect(page.locator(`.wc-balloon > .rig.${CSS_ID[id]}-v[data-kind="kill"] .rig-fig`), id).toHaveText(/xp$/);
+    await expect(page.locator(`.wc-balloon > .rig.${CSS_ID[id]}-v[data-kind="${moments[i % 3]}"]`), id).toHaveCount(1);
+    want.add(id);
+    expect(await passengerChunks(page), id).toEqual([...want].sort());
+    // every sign ends inside the rig's 363 px
+    for (const e of await rigs.locator('.rig-sign').all()) expect(await e.evaluate((s) => (s as HTMLElement).offsetTop + (s as HTMLElement).offsetHeight), id).toBeLessThanOrEqual(363);
+    // the next passenger on a clear sky: off and on (the chunks stay cached)
+    await page.evaluate(() => window.__wc!.settings.update({ weather: { balloons: false } }));
+    await expect(layers(page)).toHaveCount(0);
+    await page.evaluate(() => window.__wc!.settings.update({ weather: { balloons: true } }));
+    await expect(layers(page)).toHaveCount(2);
+  }
+  expect(errors).toEqual([]);
+  expect(warnings).toEqual([]);
+  expect(await csp()).toEqual([]);
+});
+
+test('stage 75: the race the game sends picks the passenger, per balloon', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors = watchErrors(page);
+  let server: { send(b: Buffer): void } | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  server!.send(gmcp('Char.Name {"name":"Balloonist","fullname":"Balloonist the Mock"}'));
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing · Balloonist/);
+  server!.send(gmcp('Char.Vitals {"hp":100,"maxhp":100,"xp":5770000,"tp":41500}'));
+  const rows5: Array<[string, string, string]> = [
+    ['Dwarf', '', 'dwarf'],
+    ['Elf', 'Noldo', 'elf'],
+    ['Man', 'Dunadan', 'human'],
+    ['Orc', 'Zaugurz', 'orc'],
+    ['Ent', '', 'goblin'],
+  ];
+  for (const [race, sub, id] of rows5) {
+    server!.send(gmcp(`Char.StatusVars {"race":"${race}","subrace":"${sub}"}`));
+    server!.send(gmcp(`Event.Achieved {"what":"Played as ${race}/${sub}."}`));
+    const sign = page.locator('.wc-balloon .rig-title').filter({ hasText: `Played as ${race}/${sub}.` });
+    await expect(sign, race).toHaveCount(1);
+    await expect(sign.locator(`xpath=ancestor::div[contains(@class,"rig ")][1]`), race).toHaveClass(new RegExp(`\\b${CSS_ID[id]}-v\\b`));
+  }
   expect(errors).toEqual([]);
 });
