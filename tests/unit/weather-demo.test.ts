@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
 import { TURN_FULL, TURN_S } from '../../src/weather/sunturn';
 import { DEMO_SCRIPTS, DEMO_STEPS, DEMO_TURN_SPEED, SUNRISE_STEPS, SUNSET_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
-import { BALLOONS_DESKTOP_ONLY, Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
+import { BALLOONS_DESKTOP_ONLY, Demo, type DemoController, demoOf, raceLine, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
 import { ALL_CATEGORIES, type Categories, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
@@ -175,6 +175,12 @@ describe('#weather arguments', () => {
     expect(parseWeatherCommand('balloon')).toEqual({ kind: 'balloon', what: null });
     for (const w of ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'levelup', 'death', 'achievement', 'burst'] as const) expect(parseWeatherCommand(`balloon ${w.toUpperCase()}`)).toEqual({ kind: 'balloon', what: w });
     for (const a of ['balloon wow', 'balloon great x2', 'demo balloon']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
+    // stage 75: another passenger, and which race the client sees
+    expect(parseWeatherCommand('balloon as dwarf')).toEqual({ kind: 'balloon', what: null, passenger: 'dwarf' });
+    expect(parseWeatherCommand('Balloon AS Troll superb')).toEqual({ kind: 'balloon', what: 'superb', passenger: 'troll' });
+    expect(parseWeatherCommand('balloon as numenorean burst')).toEqual({ kind: 'balloon', what: 'burst', passenger: 'numenorean' });
+    expect(parseWeatherCommand('balloon race')).toEqual({ kind: 'balloon-race' });
+    for (const a of ['balloon as', 'balloon as wizard', 'balloon as dwarf wow', 'balloon as dwarf good x', 'balloon race now', 'balloon good as dwarf']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
     for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2', 'demo sunrise sunset', 'demo sunrise sunrise', 'sunrise', 'demo snow rain', 'snow']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
@@ -527,5 +533,15 @@ describe('?weather with the cockpit built later (the start page)', () => {
     expect(started).toEqual([undefined, undefined]);
     expect(weatherFromUrl(new URLSearchParams('?replay'), () => started.push('x'), () => {})).toBe(false);
     expect(started).toHaveLength(2);
+  });
+});
+
+describe('#weather balloon race (stage 75)', () => {
+  const game = (vars: Record<string, unknown>) => ({ char: { statusVars: new Map(Object.entries(vars)) } }) as never;
+  it('says the race and subrace the client holds and the passenger they give', () => {
+    expect(raceLine(game({ race: 'Man', subrace: 'Dunadan' }))).toBe('Balloons: race "Man", subrace "Dunadan"; the passenger is the human.');
+    expect(raceLine(game({ race: 'Dwarf' }))).toBe('Balloons: race "Dwarf", subrace ""; the passenger is the dwarf.');
+    expect(raceLine(game({}))).toContain('no race yet');
+    expect(raceLine(undefined)).toContain('the passenger is the goblin');
   });
 });

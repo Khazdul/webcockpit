@@ -11,7 +11,7 @@
 //                   prompt), already rising, and slows gently to rest at
 //                   the readable spot in the lower part of the screen
 //                   (a cubic Hermite: its velocity at the end is the creep's)
-//   read    ~5.5 s  nearly at rest: gentle sway and bob and a slow creep
+//   read    ~3 s    nearly at rest: gentle sway and bob and a slow creep
 //                   upward (a constant velocity, so `extendRead` only
 //                   lengthens it); the sign swings lazily
 //   glide   3–4.5 s it eases into flight: the velocity turns and grows
@@ -148,14 +148,16 @@ export interface FlightPlan {
   shrinkT: number;
   /** When the leave starts its last fade (share of it; 1: none, it is out of sight by then). */
   fadeFrom: number;
+  /** When the burner's pre-leave blast began, if a joined kill then moved the leave back (it stays lit till the leave). */
+  blastFrom?: number;
   sway: { ax: number; fx: number; ay: number; fy: number; p1: number; p2: number };
 }
 
-/** Readable time without joined kills, and its cap. */
-export const READ_S = 5.5;
-export const READ_MAX = 9;
-/** What a joined kill adds to the readable time. */
-export const READ_EXTEND = 1.2;
+/** Readable time without joined kills, and its cap (stage 75: 3 s, the mockup's; the cap in proportion, 9 · 3 / 5.5 ≈ 5). */
+export const READ_S = 3;
+export const READ_MAX = 5;
+/** What a joined kill adds to the readable time (stage 75: the mockup's 0.7 s, as 1.2 s was to the old 5.5 s). */
+export const READ_EXTEND = 0.7;
 /** Upward creep while readable, px/s. */
 export const CREEP = 2.5;
 /** The arrival's peak speed, px/s (a long way up is given more time). */
@@ -354,7 +356,11 @@ export function planFlight(seed: number, g: LaneGeom, bw: number, bh: number, op
 }
 
 /** A kill joined the sign: the readable time grows, capped. */
-export function extendRead(p: FlightPlan): void {
+export function extendRead(p: FlightPlan, t?: number): void {
+  // A kill in the blast's second (joins are allowed until 0.4 s before the
+  // leave): the leave moves back, the blast that has begun stays lit.
+  const blast = p.ta + p.read - BURN_BLAST_IN;
+  if (t !== undefined && t > blast && !p.reduced) p.blastFrom = Math.min(p.blastFrom ?? blast, blast);
   p.read = Math.min(READ_MAX, p.read + READ_EXTEND);
 }
 
@@ -459,6 +465,71 @@ export function flightAt(p: FlightPlan, t: number): FlightFrame {
   // kick as the arrival settles, and swings lazily while readable.
   const dt = t - p.ta;
   const kick = dt > 0 ? 3 * Math.exp(-1.2 * dt) * Math.sin(3.6 * dt) : 0;
-  const swing = clamp(-(vx - vxBefore) * 0.05 + kick + 2.5 * Math.sin(t * 2.1 + p.sway.p2), -16, 16) - tilt * 0.6;
+  // (Stage 75: the swing is the whole car's now, hinged at the envelope's
+  // mouth, and the rig's sign lags it on a spring of its own: its lazy part
+  // is the mockup's 1.2° at 1.6 rad/s, not the old plank's 2.5° at 2.1.)
+  const swing = clamp(-(vx - vxBefore) * 0.05 + kick + 1.2 * Math.sin(t * 1.6 + p.sway.p2), -16, 16) - tilt * 0.6;
   return { phase, x: b.x + sw.x, y: b.y + sw.y, scale: b.s, opacity: b.o, tilt, swing, front: phase === 'arrive' || phase === 'read' };
+}
+
+// ------------------------------------------------------------------ burner
+
+// The burner leads the motion (stage 75, the round 5 mockup's rule 7,
+// notes/research/balloons/round5/harness.js `fly()`): how hard it works is
+// read from the climb the planned path will have BURN_LEAD s from now, not
+// from the climb it has. So the flame falls before the balloon comes to
+// rest at the readable spot, and it roars about a second before the
+// balloon leaves. The rig draws the flame from it alone (never from the
+// velocity). Per phase:
+//
+//   arrive  the climb ahead over BURN_ARRIVE px/s: full while it rises,
+//           falling ~650 ms before it stops
+//   read    the creep is nearly nothing: the pilot flame (BURN_MIN)
+//   (leave) a blast from BURN_BLAST_IN s before the leave to BURN_BLAST_OUT
+//           after it: it flares up in 0.18 s and dies back by 45 %
+//   glide,  the climb ahead over BURN_LEAVE px/s, in long uneven pulls
+//   drift   (0.78–1 at 2.1 rad/s): a balloon that still climbs keeps
+//           burning; one that drifts level or sinks shows the pilot flame
+//
+// `burnTarget` is that wanted level, pure; `burnStep` follows it, quick to
+// light and slower to die (balloons.ts keeps the level per balloon, from 1
+// at the launch, as the mockup does).
+
+/** How far ahead the burner reads the planned climb, s. */
+export const BURN_LEAD = 0.65;
+/** The climb that is a full burn: arriving, and once it leaves, px/s. */
+const BURN_ARRIVE = 90;
+const BURN_LEAVE = 34;
+/** The blast round the leave: from this long before it, to this long after, s. */
+export const BURN_BLAST_IN = 1;
+const BURN_BLAST_OUT = 0.9;
+/** The pilot flame: the burner never goes out. */
+export const BURN_MIN = 0.1;
+/** Reduced motion: the still rig's steady low flame (the mockup's). */
+export const BURN_STILL = 0.15;
+/** Following the wanted level: time constants up and down, s. */
+const BURN_UP = 0.11;
+const BURN_DOWN = 0.32;
+
+/** How hard the burner should work at `t` (0..1), from the planned path BURN_LEAD s ahead. */
+export function burnTarget(p: FlightPlan, t: number): number {
+  if (p.reduced) return BURN_STILL;
+  const ta = t + BURN_LEAD, h = 0.02;
+  const a = posAt(p, ta - h), b = posAt(p, ta + h);
+  const climb = -(b.y - a.y) / (2 * h);
+  const leaving = ta >= p.ta + p.read;
+  let w = clamp(climb / (leaving ? BURN_LEAVE : BURN_ARRIVE), 0, 1);
+  // the time since the leave began (negative before it)
+  const tl = t - (p.ta + p.read);
+  if (tl > -BURN_BLAST_IN && tl < BURN_BLAST_OUT) w = Math.max(w, tl < 0 ? Math.min(1, (tl + BURN_BLAST_IN) / 0.18) : 1 - 0.45 * (tl / BURN_BLAST_OUT));
+  // a blast that began before a joined kill moved the leave back: lit till the leave
+  if (p.blastFrom !== undefined && t >= p.blastFrom && tl < 0) w = Math.max(w, Math.min(1, (t - p.blastFrom) / 0.18));
+  // long, uneven pulls on the way up
+  if (leaving && tl >= BURN_BLAST_OUT) w *= 0.78 + 0.22 * Math.sin(tl * 2.1);
+  return Math.max(BURN_MIN, w);
+}
+
+/** The burner's level after `dt` s following `want` from `burn`: fast to light, slower to die. */
+export function burnStep(burn: number, want: number, dt: number): number {
+  return burn + (want - burn) * (1 - Math.exp(-dt / (want > burn ? BURN_UP : BURN_DOWN)));
 }

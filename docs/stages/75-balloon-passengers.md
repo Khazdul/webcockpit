@@ -6,7 +6,7 @@ design rounds later the look is approved: eight passengers on one shared
 rig, chosen by the race the player plays. This stage builds that look into
 the application.
 
-**Status: planned, nothing built.** The design was approved by the owner
+**Status: built (all eight passengers, the removals); review, the full e2e and staging next. The cost in Firefox's software compositor is fixed without a change of look (ADR 0159 round 3, "The layers are fixed").** The design was approved by the owner
 on 2026-11-21 ("Godkänt, bygg så").
 
 ## What is approved (the source to build from)
@@ -60,6 +60,14 @@ it, do not link it.
 5. **The rig as approved:** signs at 85 %, hung on long cords from just
    under the rim; the car runs down behind the sign; the flame leads the
    motion; 3 s at the readable spot; the whole rig at most 363 px tall.
+
+6. **The sign's text** (2026-11-21, approved): as the mockup writes it,
+   "1,900 xp", the joined names as the game gives them with " · " between.
+7. **A joined kill** adds 0.7 s readable (the mockup's; main session),
+   capped at 5 s.
+8. **Fonts:** keep the bundled IM Fell English files for now; its Reserved
+   Font Names are an open point before release (ADR 0159 round 3,
+   `public/fonts/README.md`).
 
 ## Plan
 
@@ -142,23 +150,38 @@ if it grows past an addendum).
 
 ## Tasks
 
-- [ ] Read ADR 0159 and `docs/stages/69-balloons.md`; read `rig.js`'s
+- [x] Read ADR 0159 and `docs/stages/69-balloons.md`; read `rig.js`'s
       header and `skins/dwarf.js`.
-- [ ] CSP check: what the product's policy allows of the mockup's
-      techniques; decide the porting form.
-- [ ] A: `SkinPose.burn`, the size, `READ_S`, the leading burner in
-      `flight.ts`; lane and pane rules with the larger rig.
-- [ ] B: `rig.ts`; the dwarf first as the proof (flight, sign, cost);
-      then the other seven, one subagent each.
-- [ ] B: lazy chunk per passenger; sizes measured.
-- [ ] B: the sign's 85 % decided (zoom or real sizes).
-- [ ] B: life stops and filters ease once a balloon is far away;
-      `#perf` in Chromium and Firefox.
-- [ ] C: `passenger.ts`, the race read per balloon, `#weather balloon
-      as …` and `#weather balloon race`.
-- [ ] D: the removals.
-- [ ] E: unit tests and e2e.
-- [ ] ADR 0159 addendum (or a new ADR).
+- [x] CSP check: what the product's policy allows of the mockup's
+      techniques; decide the porting form. (Inline `<style>`, `style=""`,
+      `data:` and `url(#id)` filters pass; Google Fonts do not: the faces are
+      bundled, `src/weather/balloons/fonts.ts`, `public/fonts/README.md`.)
+- [x] A: `SkinPose.burn`, the size, `READ_S`, the leading burner in
+      `flight.ts`; lane and pane rules with the larger rig (unit tested).
+- [x] B: `rig.ts`; the dwarf first as the proof (flight, sign, cost);
+      then the other seven, one subagent each. All eight ported and look-
+      checked; the softer filter of the elf, the human and the hobbit is a
+      rig option (`kit.filt` options, `kit.SOFT`).
+- [x] B: lazy chunk per passenger; sizes measured (rig 9.4 kB; the
+      passengers 16.0–19.8 kB gzip, ADR 0159 round 3).
+- [x] B: the sign's 85 % decided: `zoom` where `CSS.supports`, else
+      `transform: scale(.85)` with the measure scaled (`rig.ts` fit).
+- [x] B: life stops and filters ease once a balloon is far away;
+      `#perf` in Chromium and Firefox. `rest()` built and measured; Firefox
+      software WebRender dropped to ~45 fps while a dwarf arrived (rotated
+      parts in a moving element redrew the whole screen): fixed by making
+      the balloon layers `position: fixed` (a slice of their own), 60 fps
+      with one and five, no change of look (ADR 0159 round 3).
+- [x] C: `passenger.ts`, the race read per balloon, `#weather balloon
+      as …` and `#weather balloon race` (in the usage and the `#weather`
+      hint).
+- [x] D: the removals (goblin.ts/css, image-skin.ts, sign.ts/css,
+      public/balloons/, their tests; the Settings help by race).
+- [x] E: unit tests and e2e: unit suite; the balloon e2e (all eight
+      fly from their own chunks, the race picks the passenger, the dwarf's
+      kinds, reduced motion, nothing loads with Balloons off) in Firefox
+      and Chromium; the production CSP walk enforced with all eight.
+- [x] ADR 0159 addendum (or a new ADR): round 3.
 - [ ] Review (`/code-review`), fixes, full e2e alone on the machine.
 - [ ] F: staging, the test guide filled in, handed to the owner.
 
@@ -178,8 +201,8 @@ they are here so that nobody "discovers" them as regressions.
 - The woman's three ropes a side bunch under the rim; the troll's sheep
   skull hangs 1.5 px from a sign rope.
 - Level up and death signs end at about 343 px, not at the limit.
-- Three skins (`elf`, `human`, `hobbit`) carry their own softer copy of
-  the rig's filter; in the port that belongs in the rig as an option.
+- ~~Three skins (`elf`, `human`, `hobbit`) carry their own softer copy of
+  the rig's filter~~: done in the port (`kit.SOFT`, a rig option).
 - Motion was judged by the owner in the browser, by the agents only from
   stills and from `trace.mjs` numbers.
 
@@ -189,22 +212,52 @@ on level up, the hobbit's pipe plume on superb (he asked for it), the
 dwarf's smoke rings on good, the troll's small crown on superb, war paint
 on a player kill (troll, orc).
 
-## Test guide (staging)
+## Test guide, the dwarf (staging, 2026-11-21)
 
-To be completed when the stage is built. Wanted from the owner:
+Branch `stage-75-balloon-passengers` on <https://staging.mumecockpit.com>.
+Only the dwarf is built: every race flies the dwarf for now.
 
-1. Settings → Weather effects → Balloons on.
-2. `#weather balloon race`: does it say the race you play, and the
-   passenger you expect?
-3. `#weather balloon as <passenger>` for each of the eight, with `poor`,
-   `superb`, `burst`, `levelup`, `death`, `achievement`: the look against
-   the mockup; the flame before the motion; the sign readable.
+1. A desktop, a wide window. Settings → Weather effects: **Weather
+   effects** and **Balloons** on.
+2. `#weather balloon race`: the race and subrace the client holds and
+   the passenger they would give (the dwarf flies anyway on this branch).
+3. `#weather balloon as dwarf superb`, then `… poor`, `… burst`,
+   `… levelup`, `… death`, `… achievement`: the look against the mockup;
+   the flame lights before it moves and roars just before it leaves;
+   3 s at the readable spot; the sign readable.
+4. Five in a row (`#weather balloon as dwarf` five times): anything that
+   stutters? (Firefox without GPU compositing used to drop to about 45
+   fps while one arrived; fixed, 60 in headless measurements.)
+5. A real kill or two.
+
+Feedback wanted: the dwarf in the real client (size, place, readable
+time, the flame's timing), the cost, and whether the other seven may be
+ported as they are.
+
+## Test guide (staging, all eight, 2026-11-21)
+
+Branch `stage-75-balloon-passengers` on <https://staging.mumecockpit.com>
+(not merged, not released). A desktop, a wide window.
+
+1. Settings → Weather effects: **Weather effects** and **Balloons** on.
+2. Log in. `#weather balloon race`: the race and subrace the client sees
+   and the passenger they give. Is it the passenger you expect?
+3. `#weather balloon as <id> <what>` for each of the eight ids `dwarf`,
+   `elf`, `human`, `hobbit`, `troll`, `goblin`, `orc`, `numenorean`,
+   with `poor`, `superb`, `burst`, `levelup`, `death`, `achievement`:
+   the look against the mockup; the flame lights before it moves and
+   roars just before it leaves; 3 s readable; the sign readable.
+   `burst` with more than three kills now ends its names with " · …".
 4. Play: real kills with each character you have (Tarkhnarb and Zaugurz
    orcs, a Black Númenórean, a Beorning above all: their race strings
-   are not known).
-5. Feedback wanted: the readable time (3 s), the size on your screen, the
-   cost (does anything stutter with several balloons up), and whether it
-   should be on by default.
+   are not known). A wrong passenger: send the `#weather balloon race`
+   line.
+5. Several up at once (`#weather balloon` five times): anything that
+   stutters? (Firefox without GPU compositing: 60 fps with five now,
+   headless; it was 40–45.)
+
+Feedback wanted: the readable time (3 s), the size on your screen, the
+cost, and whether Balloons should be on by default.
 
 ## Owner feedback
 

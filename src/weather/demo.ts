@@ -19,7 +19,9 @@
 // - The end, `#weather stop`, and the effects being switched off all end it;
 //   the first two unpin everything, so the effects follow the game's values
 //   again with the normal transitions.
-// - `#weather balloon [face|levelup|death|achievement|burst]` (stage 69,
+// - `#weather balloon [as <passenger>] [face|levelup|death|achievement|burst]`
+//   and `#weather balloon race` (stage 75: another passenger, and which
+//   race the client sees and the passenger it gives) (stage 69,
 //   ADR 0159): a balloon notice for a made-up kill or moment, so the look
 //   and the flight can be tried without a fight; it needs the effects on
 //   and shows even with Balloons off. Desktop only: in the phone's layout
@@ -31,6 +33,8 @@
 
 import './demo.css';
 import { BURST_GAP_MS, type Face, type Notice, SAMPLE_BURST, type SampleWord, SAMPLE_KILLS, sampleNotice } from './balloons/feed';
+import { type PassengerId, passengerOf } from './balloons/passenger';
+import type { GameState } from '../gmcp/state';
 import { categoriesOf } from './controller';
 import { DEMO_SCRIPTS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
 import type { WeatherHookDeps } from './hook';
@@ -47,7 +51,7 @@ export interface DemoController {
   };
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
   /** The balloon notices, loaded even with Balloons off (controller.ts). */
-  balloons?(force: true): Promise<{ show(n: Notice): void } | null>;
+  balloons?(force: true): Promise<{ show(n: Notice, o?: { passenger?: PassengerId }): void } | null>;
 }
 
 export interface DemoHost {
@@ -62,7 +66,7 @@ const running = new WeakMap<object, Demo>();
 /** `#weather …` (hook.ts `command`). */
 export async function weatherCommand(
   hook: DemoHost,
-  d: Pick<WeatherHookDeps, 'settings' | 'cockpit' | 'now'>,
+  d: Pick<WeatherHookDeps, 'settings' | 'cockpit' | 'now'> & { game?: Pick<GameState, 'char'> },
   args: string,
   say: (text: string) => void,
 ): Promise<void> {
@@ -73,7 +77,11 @@ export async function weatherCommand(
     return;
   }
   if (cmd.kind === 'balloon') {
-    await balloonCommand(hook, d, cmd.what, say);
+    await balloonCommand(hook, d, cmd.what, say, cmd.passenger);
+    return;
+  }
+  if (cmd.kind === 'balloon-race') {
+    say(raceLine(d.game));
     return;
   }
   if (cmd.kind === 'stop') {
@@ -99,8 +107,20 @@ const RATED: readonly Face[] = ['poor', 'meh', 'good', 'great', 'superb'];
 /** Said by `#weather balloon` in the phone's layout. */
 export const BALLOONS_DESKTOP_ONLY = 'Balloons are desktop only for now; they do not fly in the phone or tablet layout.';
 
-/** `#weather balloon [face|levelup|death|achievement|burst]`: a made-up notice's balloon (or four kills in two seconds). */
-async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings' | 'cockpit'>, what: SampleWord | 'burst' | null, say: (text: string) => void): Promise<void> {
+/** `#weather balloon race`: what the client holds of the race (Char.StatusVars) and the passenger it gives. */
+export function raceLine(game: Pick<GameState, 'char'> | undefined): string {
+  const get = (k: string): string | null => {
+    const v = game?.char.statusVars.get(k);
+    return typeof v === 'string' && v.trim() ? v : null;
+  };
+  const race = get('race'), sub = get('subrace');
+  const id = passengerOf(race, sub);
+  const seen = race || sub ? `race "${race ?? ''}", subrace "${sub ?? ''}"` : 'no race yet (not logged in, or MUME has not sent Char.StatusVars)';
+  return `Balloons: ${seen}; the passenger is the ${id}.`;
+}
+
+/** `#weather balloon [as <passenger>] [face|levelup|death|achievement|burst]`: a made-up notice's balloon (or four kills in two seconds). */
+async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings' | 'cockpit'>, what: SampleWord | 'burst' | null, say: (text: string) => void, passenger?: PassengerId): Promise<void> {
   if (d.cockpit.isPhoneGame) {
     say(BALLOONS_DESKTOP_ONLY);
     return;
@@ -117,8 +137,9 @@ async function balloonCommand(hook: DemoHost, d: Pick<WeatherHookDeps, 'settings
     return;
   }
   if (!w.balloons) say('Balloons are off in Settings → Weather effects; this one flies anyway.');
-  if (what === 'burst') SAMPLE_BURST.forEach((k, i) => setTimeout(() => b.show(k), i * BURST_GAP_MS));
-  else b.show(what ? sampleNotice(what) : SAMPLE_KILLS[RATED[Math.floor(Math.random() * RATED.length)]!][0]!);
+  const o = passenger ? { passenger } : undefined;
+  if (what === 'burst') SAMPLE_BURST.forEach((k, i) => setTimeout(() => b.show(k, o), i * BURST_GAP_MS));
+  else b.show(what ? sampleNotice(what) : SAMPLE_KILLS[RATED[Math.floor(Math.random() * RATED.length)]!][0]!, o);
 }
 
 /** The running demo for `hook` (tests, dev). */

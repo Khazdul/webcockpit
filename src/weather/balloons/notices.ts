@@ -56,7 +56,8 @@ export function startNotices(d: NoticesDeps): Balloons {
     if (n) balloons.show(n);
   });
   return {
-    show: (k) => balloons.show(k),
+    show: (k, o) => balloons.show(k, o),
+    idle: () => balloons.idle(),
     list: () => balloons.list(),
     destroy() {
       gone = true;

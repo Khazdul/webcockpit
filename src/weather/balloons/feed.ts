@@ -13,7 +13,6 @@
 //   character's death and an achievement (GMCP Event.Achieved) each get a
 //   balloon of their own, never joined with kills or with each other.
 
-import { fmtK } from '../../chrome/frames/stats-layout';
 import type { RunEvent } from '../../runs/events';
 import { KillRater, RATING_LABEL, type KillRating } from '../../runs/kill-rating';
 
@@ -52,9 +51,9 @@ export interface SignContent {
   kind: NoticeKind;
   /** The kill's name ("An orc scout"), "3 kills", or an achievement's text ('' for none). */
   title: string;
-  /** The big line: "+2.6k", "Level 23!", "You died" ('' for none). */
+  /** The big line: "2,600", "Level 23!", "You died" ('' for none). */
   big: string;
-  /** Its unit, small after it ("XP"; '' for none). */
+  /** Its unit, small after it ("xp"; '' for none). */
   unit: string;
   /** The small word: a rating ('' while calibrating), "Achievement". */
   label: string;
@@ -68,7 +67,8 @@ export interface SignContent {
 export const MORE_NAMES = 3;
 
 const cap = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
-const bare = (s: string): string => s.replace(/^(an?|the) /i, '');
+/** A kill's XP on the sign, in full with thousands separators (the round 5 mockup's "12,400", stage 75). */
+export const fmtXp = (xp: number): string => Math.round(xp).toLocaleString('en-US');
 
 export function bestFace(kills: readonly KillNotice[]): Face {
   let best: Face = kills[0]?.face ?? 'calibrating';
@@ -76,19 +76,26 @@ export function bestFace(kills: readonly KillNotice[]): Face {
   return best;
 }
 
-/** The sign for the kills on it (not empty). */
+/**
+ * The sign for the kills on it (not empty). Stage 75: written as the
+ * approved round 5 mockup writes it (its harness.js samples): the XP in
+ * full ("7,600 xp"), the last three names as the game gave them, " · "
+ * between (the rig cuts a long line with an ellipsis). The mockup's sample
+ * shows no sign of more than three; " · …" after them says there were
+ * more (stage 75 review).
+ */
 export function signOf(kills: readonly KillNotice[]): SignContent {
   const n = kills.length;
   const face = bestFace(kills);
   const xp = kills.reduce((s, k) => s + Math.max(0, k.xp), 0);
-  const names = kills.slice(-MORE_NAMES).map((k) => bare(k.name));
+  const names = kills.slice(-MORE_NAMES).map((k) => k.name);
   return {
     kind: 'kill',
     title: n === 1 ? cap(kills[0]!.name) : `${n} kills`,
-    big: `+${fmtK(xp)}`,
-    unit: 'XP',
+    big: fmtXp(xp),
+    unit: 'xp',
     label: FACE_LABEL[face],
-    more: n === 1 ? '' : names.join(', ') + (n > MORE_NAMES ? ', …' : ''),
+    more: n === 1 ? '' : names.join(' · ') + (n > MORE_NAMES ? ' · …' : ''),
     mood: face,
     count: n,
   };

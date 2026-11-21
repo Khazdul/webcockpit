@@ -105,8 +105,8 @@ describe('#help resolution', () => {
     }
   });
 
-  it('has the trial line for #weather (stage 28)', () => {
-    expect(message('weather')).toBe('#weather: weather effects: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather demo snow / birds / rain one effect alone, #weather stop ends it.');
+  it('has the trial line for #weather (stage 28; the balloons, stage 75)', () => {
+    expect(message('weather')).toBe('#weather: weather effects: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather demo snow / birds / rain one effect alone, #weather stop ends it; #weather balloon [as <passenger>] [kind] flies a balloon notice, #weather balloon race says which race and passenger the client sees.');
   });
 
   it('points to #help for an unknown word', () => {

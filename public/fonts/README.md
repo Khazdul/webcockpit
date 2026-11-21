@@ -95,6 +95,44 @@ it (its panes show titles too). The subset covers Basic Latin and
 Latin-1, general punctuation (`…`) and a few symbols; anything else in a
 script pane's title falls back to Georgia or the browser's serif.
 
+## Balloon sign faces
+
+The balloon notices' signs (stage 75, ADR 0159 round 3) are set in the
+faces of the approved mockup (`notes/research/balloons/round5/rig.js`):
+Cinzel, Cormorant Garamond and IM Fell English. They are loaded only while
+the balloons run (`src/weather/balloons/fonts.ts`, with `FontFace`, under
+family names of their own, so nothing else in the app changes), never at
+the app's start and never with Balloons off. Not embedded in the exported
+replay. The two faces already here (`Cinzel-Bold-latin.woff2`,
+`CormorantGaramond-MediumItalic-latin.woff2`, `CormorantGaramond-Medium-latin.woff2`)
+are reused; these are added:
+
+| File | Family, version | Source | Licence (file here) |
+|---|---|---|---|
+| `Cinzel-Medium-latin.woff2` | Cinzel 2.000, Medium, Latin subset | `files/cinzel-latin-500-normal.woff2` from npm `@fontsource/cinzel@5.3.0` (Google Fonts' Latin subset, used as is; not an npm dependency) | SIL OFL 1.1, © 2020 The Cinzel Project Authors, no Reserved Font Name (`LICENSE-Cinzel.txt`) |
+| `CormorantGaramond-SemiBold-latin.woff2` | Cormorant Garamond (Google Fonts v21), SemiBold, Latin subset | `files/cormorant-garamond-latin-600-normal.woff2` from npm `@fontsource/cormorant-garamond@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantGaramond.txt`) |
+| `CormorantGaramond-SemiBoldItalic-latin.woff2` | Cormorant Garamond (Google Fonts v21), SemiBold Italic, Latin subset | `files/cormorant-garamond-latin-600-italic.woff2` from npm `@fontsource/cormorant-garamond@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantGaramond.txt`) |
+| `WCBEngraved-Roman-latin.woff2` | WCB Engraved Roman: IM Fell English (Google Fonts), Roman, Latin subset, renamed | `files/im-fell-english-latin-400-normal.woff2` from npm `@fontsource/im-fell-english@5.3.0`, with the `name` table renamed (every other table byte-identical; not an npm dependency) | SIL OFL 1.1, © 2007, 2010 Igino Marini (`LICENSE-WCBEngraved.txt`, `ofl/imfellenglish/OFL.txt` from github.com/google/fonts) |
+| `WCBEngraved-Italic-latin.woff2` | WCB Engraved Italic: IM Fell English (Google Fonts), Italic, Latin subset, renamed | `files/im-fell-english-latin-400-italic.woff2` from npm `@fontsource/im-fell-english@5.3.0`, with the `name` table renamed (every other table byte-identical; not an npm dependency) | SIL OFL 1.1, © 2007, 2010 Igino Marini (`LICENSE-WCBEngraved.txt`, `ofl/imfellenglish/OFL.txt` from github.com/google/fonts) |
+| `WCBEngravedSC-Regular-latin.woff2` | WCB Engraved SC: IM Fell English SC (Google Fonts), Latin subset, renamed | `files/im-fell-english-sc-latin-400-normal.woff2` from npm `@fontsource/im-fell-english-sc@5.3.0`, with the `name` table renamed (every other table byte-identical; not an npm dependency) | SIL OFL 1.1, © 2007, 2010 Igino Marini (`LICENSE-WCBEngraved.txt`, `ofl/imfellenglish/OFL.txt` from github.com/google/fonts) |
+
+**Renamed for the Reserved Font Names (stage 75, before release).**
+IM Fell English declares Reserved Font Names ("IM FELL English Roman",
+"IM FELL English Italic", "IM FELL English SC"; google/fonts
+`METADATA.pb`). A subset is a Modified Version under OFL 1.1, which may
+not carry a Reserved Font Name, so the three files are renamed "WCB
+Engraved" (roman, italic) and "WCB Engraved SC": only the `name` table's
+family, subfamily, unique, full and PostScript names changed (fontTools);
+the copyright notice (name ID 0) and the licence URL are kept, and every
+other table, glyphs and metrics included, is byte-identical to Google's
+subset, so the signs look and measure as approved. Cinzel has no Reserved
+Font Name; Cormorant Garamond's licence names none either.
+
+The files are Google Fonts' own Latin subsets (what the mockup loaded
+from Google), so the signs measure and look as approved. The IM Fell
+files are the largest (about 57 kB each); only the rating word, the
+unrated "?" and the death sign use them (as WCB Engraved).
+
 ## Conversion
 
 TTF / OTF → WOFF2 with fontTools 4.66.1 + brotli 1.2.0:

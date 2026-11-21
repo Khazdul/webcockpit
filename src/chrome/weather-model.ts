@@ -19,7 +19,7 @@ export const WEATHER_ROWS: ReadonlyArray<{ key: Category; label: string; help: s
 ];
 
 /** The balloon notices' row (stage 69, ADR 0159): not a worker category, after them. */
-export const BALLOONS_ROW = { label: 'Balloons', help: 'A goblin in a balloon shows each kill and its XP, a level up, a death and an achievement. Desktop only.' } as const;
+export const BALLOONS_ROW = { label: 'Balloons', help: 'A balloon shows each kill and its XP, a level up, a death and an achievement, flown by someone of the race you play. Desktop only.' } as const;
 
 export const DAY_SKY_HELP = 'The blue sky by day. Off: the page background; clouds, sun and night sky stay.';
 export const MASTER_HELP = 'Decoration only; text and keys are never slowed.';

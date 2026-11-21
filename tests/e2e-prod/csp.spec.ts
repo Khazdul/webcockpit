@@ -366,6 +366,20 @@ test('the game against a mocked MUME: login, the map, Lua, the windows of the me
   await type('#weather demo x40');
   await expect(page.locator('.wc-cockpit > .wc-wdemo')).toBeVisible();
   await type('#weather stop');
+  // The balloon notices (stage 75): the rig's and the passenger's inline styles, the
+  // style="" custom properties, url(#id) SVG filters and the sign faces (FontFace, font-src 'self').
+  await type('#weather balloon as dwarf superb');
+  const sign = page.locator('.wc-balloon .rig-sign');
+  await expect(sign.locator('.rig-title')).toHaveText('A cave troll');
+  await expect(sign.locator('.rig-fig')).toHaveText('12,400xp');
+  await expect.poll(() => page.evaluate(() => [...document.fonts].filter((f) => f.family.includes('WCB') && f.status === 'loaded').length)).toBe(9);
+  await type('#weather balloon as dwarf achievement');
+  await expect(page.locator('.wc-balloon .rig[data-mood="achievement"]')).toHaveCount(1);
+  // every passenger, each from its own chunk (the oldest balloons fade out beyond five)
+  for (const [id, css] of [['elf', 'elf'], ['human', 'human'], ['hobbit', 'hobbit'], ['troll', 'troll'], ['goblin', 'goblin'], ['orc', 'orc'], ['numenorean', 'num']]) {
+    await type(`#weather balloon as ${id} death`);
+    await expect(page.locator(`.wc-balloon .rig.${css}-v[data-mood="death"]`), id).toHaveCount(1);
+  }
 
   for (const mb of ['profile', 'scripts', 'panes']) {
     await page.locator(`.wc-mb[data-mb="${mb}"]`).click();

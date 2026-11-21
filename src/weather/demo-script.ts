@@ -15,6 +15,7 @@
 // edge, never placed by a jump. Times are seconds; about 3:00 in all.
 
 import type { SampleWord } from './balloons/feed';
+import { type PassengerId, isPassengerId } from './balloons/passenger';
 import type { WeatherEvent, WeatherState } from './protocol';
 import { TURN_FULL, TURN_S } from './sunturn';
 
@@ -271,7 +272,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'A kill and a level up',
-    look: 'goblins in balloons rise slowly from below with the kill and its XP, then the new level, rest low, then drift off into the sky (Balloons, desktop)',
+    look: 'balloons, flown by someone of your race, rise slowly from below with the kill and its XP, then the new level, rest low, then drift off into the sky (Balloons, desktop)',
     signal: 'a kill: … is dead! R.I.P. and the XP; Char.Vitals xp past a level',
     dur: 5,
     acts: [
@@ -519,8 +520,13 @@ export type WeatherCommand =
   | { kind: 'demo'; scene: DemoScene; pace: number }
   | { kind: 'stop' }
   | { kind: 'usage' }
-  /** `#weather balloon [face|levelup|death|achievement|burst]` (stage 69); null: a random rating. */
-  | { kind: 'balloon'; what: SampleWord | 'burst' | null };
+  /**
+   * `#weather balloon [as <passenger>] [face|levelup|death|achievement|burst]`
+   * (stage 69; `as`: stage 75); null: a random rating; no `passenger`: the player's.
+   */
+  | { kind: 'balloon'; what: SampleWord | 'burst' | null; passenger?: PassengerId }
+  /** `#weather balloon race`: the race and subrace the client holds and the passenger they give (stage 75). */
+  | { kind: 'balloon-race' };
 
 /** `#weather balloon …` words. */
 export const BALLOON_WORDS: ReadonlyArray<SampleWord | 'burst'> = ['poor', 'meh', 'good', 'great', 'superb', 'calibrating', 'pvp', 'levelup', 'death', 'achievement', 'burst'];
@@ -533,10 +539,20 @@ export const BALLOON_WORDS: ReadonlyArray<SampleWord | 'burst'> = ['poor', 'meh'
 export function parseWeatherCommand(args: string): WeatherCommand {
   const w = args.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (w.length === 1 && w[0] === 'stop') return { kind: 'stop' };
-  if (w[0] === 'balloon' && w.length <= 2) {
-    if (w.length === 1) return { kind: 'balloon', what: null };
-    const what = BALLOON_WORDS.find((b) => b === w[1]);
-    return what ? { kind: 'balloon', what } : { kind: 'usage' };
+  if (w[0] === 'balloon') {
+    if (w.length === 2 && w[1] === 'race') return { kind: 'balloon-race' };
+    let rest = w.slice(1);
+    let passenger: PassengerId | undefined;
+    if (rest[0] === 'as') {
+      const p = rest[1] ?? '';
+      if (!isPassengerId(p)) return { kind: 'usage' };
+      passenger = p;
+      rest = rest.slice(2);
+    }
+    if (rest.length > 1) return { kind: 'usage' };
+    const what = rest.length ? BALLOON_WORDS.find((b) => b === rest[0]) : null;
+    if (what === undefined) return { kind: 'usage' };
+    return passenger ? { kind: 'balloon', what, passenger } : { kind: 'balloon', what };
   }
   if (w[0] !== 'demo') return { kind: 'usage' };
   if (w.length === 2 && w[1] === 'stop') return { kind: 'stop' };
@@ -552,7 +568,7 @@ export function parseWeatherCommand(args: string): WeatherCommand {
 }
 
 export const WEATHER_USAGE =
-  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst] shows a balloon notice for a made-up kill, level up, death or achievement (desktop only).';
+  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it; #weather balloon [poor|meh|good|great|superb|calibrating|pvp|levelup|death|achievement|burst] shows a balloon notice for a made-up kill, level up, death or achievement (desktop only); #weather balloon as <passenger> [what] flies another passenger: dwarf, elf, human, hobbit, troll, goblin, orc or numenorean; #weather balloon race says which race the client sees and the passenger it gives.';
 
 /** "1:35". */
 export function clockText(ms: number): string {

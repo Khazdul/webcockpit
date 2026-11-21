@@ -2,7 +2,7 @@
 // their merge; round 2: level up, death, achievement), the sky lane, the
 // flight's phases as functions of time and a seed (round 2: a balloon's
 // motion: continuous velocity, a speed cap, the readable spot low, varied
-// shrinking), and the raster skin's file contract.
+// shrinking); stage 75: the leading burner, the passenger by race, the sky.
 import { describe, expect, it } from 'vitest';
 import type { RunEvent } from '../../src/runs/events';
 import { KillRater } from '../../src/runs/kill-rating';
@@ -10,10 +10,17 @@ import { ACHIEVEMENT_MAX, FACE_LABEL, type KillNotice, SAMPLE_BURST, bestFace, n
 import {
   type FlightPlan,
   type LaneGeom,
+  BURN_BLAST_IN,
+  BURN_LEAD,
+  BURN_MIN,
+  BURN_STILL,
   READ_EXTEND,
   READ_MAX,
+  READ_S,
   VMAX,
   V_ARRIVE,
+  burnStep,
+  burnTarget,
   canJoin,
   extendRead,
   flightAt,
@@ -23,7 +30,8 @@ import {
   posAt,
   skyLane,
 } from '../../src/weather/balloons/flight';
-import { rasterSkinOf } from '../../src/weather/balloons/image-skin';
+import { RIG_SIZE } from '../../src/weather/balloons/skin';
+import { PASSENGER_IDS, isPassengerId, loadPassenger, passengerOf, raceWords } from '../../src/weather/balloons/passenger';
 
 const kill = (mobName: string, xpDelta: number, us = 1): RunEvent => ({ type: 'kill', us, logUs: us, mobName, xpDelta });
 
@@ -49,15 +57,16 @@ describe('feed', () => {
   });
 
   it('one kill: its name capitalised, the XP, the rating word; none while calibrating', () => {
-    expect(signOf([{ name: 'an orc scout', xp: 1900, face: 'good' }])).toEqual({ kind: 'kill', title: 'An orc scout', big: '+1.9k', unit: 'XP', label: 'Good', more: '', mood: 'good', count: 1 });
+    expect(signOf([{ name: 'an orc scout', xp: 1900, face: 'good' }])).toEqual({ kind: 'kill', title: 'An orc scout', big: '1,900', unit: 'xp', label: 'Good', more: '', mood: 'good', count: 1 });
     expect(signOf([{ name: 'a mouse', xp: 140, face: 'calibrating' }]).label).toBe('');
     expect(FACE_LABEL.pvp).toBe('PvP');
   });
 
   it('joined kills: the count, the summed XP, the best face and the last three names', () => {
     const s = signOf(SAMPLE_BURST);
-    expect(s).toMatchObject({ title: '4 kills', big: '+7.6k', mood: 'great', label: 'Great', count: 4 });
-    expect(s.more).toBe('orc scout, goblin thief, Uruk-hai tracker, …');
+    expect(s).toMatchObject({ title: '4 kills', big: '7,600', mood: 'great', label: 'Great', count: 4 });
+    expect(s.more).toBe('an orc scout · a goblin thief · an Uruk-hai tracker · …');
+    expect(signOf(SAMPLE_BURST.slice(0, 3)).more).toBe('a goblin thief · an orc scout · a goblin thief');
     expect(bestFace([{ name: 'x', xp: 1, face: 'superb' }, { name: 'y', xp: 1, face: 'pvp' }])).toBe('pvp');
   });
 
@@ -88,7 +97,7 @@ const PHONE: LaneGeom = { W: 400, H: 800, out: { x: 0, y: 0, w: 400, h: 760 }, c
 
 describe('the sky lane', () => {
   it("a wide screen: the strip right of both the left band and the text's 80-odd columns", () => {
-    const l = skyLane(WIDE, 180);
+    const l = skyLane(WIDE, RIG_SIZE.w);
     expect(l.sky).toBe(true);
     expect(l.x0).toBeGreaterThanOrEqual(82 * 9);
     expect(l.x0).toBeGreaterThanOrEqual(1920 * 0.56 - 1);
@@ -96,18 +105,18 @@ describe('the sky lane', () => {
   });
 
   it('too little sky room: the whole width (the distant part then behind the text)', () => {
-    expect(skyLane(NARROW, 180)).toEqual({ x0: 8, x1: 692, sky: false });
-    expect(skyLane(PHONE, 180).sky).toBe(false);
+    expect(skyLane(NARROW, RIG_SIZE.w)).toEqual({ x0: 8, x1: 692, sky: false });
+    expect(skyLane(PHONE, RIG_SIZE.w).sky).toBe(false);
   });
 
   it('on a wide screen every flight keeps to the lane (only the right path leaves over the right edge)', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const p = planFlight(seed, WIDE, 180, 330);
+      const p = planFlight(seed, WIDE, RIG_SIZE.w, RIG_SIZE.h);
       const lane = p.lane;
       expect(lane.sky).toBe(true);
       for (let t = 0; t < flightTotal(p); t += 0.25) {
         const f = flightAt(p, t);
-        const half = (180 * f.scale) / 2;
+        const half = (RIG_SIZE.w * f.scale) / 2;
         // the sway may lean a few px past the bound
         expect(f.x - half, `seed ${seed} t ${t}`).toBeGreaterThanOrEqual(lane.x0 - 15);
         if (p.path !== 'right') expect(f.x + half, `seed ${seed} t ${t}`).toBeLessThanOrEqual(lane.x1 + 15);
@@ -133,7 +142,7 @@ const middle = (p: FlightPlan, t: number) => {
 };
 
 describe('flight', () => {
-  const plan = (seed: number, g = WIDE) => planFlight(seed, g, 180, 330);
+  const plan = (seed: number, g = WIDE) => planFlight(seed, g, RIG_SIZE.w, RIG_SIZE.h);
 
   it('the same seed, the same flight; another seed, another', () => {
     expect(plan(7)).toEqual(plan(7));
@@ -141,13 +150,13 @@ describe('flight', () => {
     expect(plan(7)).not.toEqual(plan(8));
   });
 
-  it('phases: a slow arrival, about 5.5 s readable, an ease into flight, then a drift of up to a minute', () => {
+  it('phases: a slow arrival, about 3 s readable, an ease into flight, then a drift of up to a minute', () => {
     for (let seed = 1; seed < 100; seed++) {
       const p = plan(seed);
       expect(p.ta).toBeGreaterThanOrEqual(5.5);
       expect(p.ta).toBeLessThanOrEqual(8);
-      expect(p.read).toBeGreaterThanOrEqual(5.5);
-      expect(p.read).toBeLessThanOrEqual(6.1);
+      expect(p.read).toBeGreaterThanOrEqual(READ_S);
+      expect(p.read).toBeLessThanOrEqual(READ_S + 0.6);
       expect(p.tg).toBeGreaterThanOrEqual(4);
       expect(p.tg + p.td).toBeLessThanOrEqual(60);
       expect(phaseAt(p, 0)).toBe('arrive');
@@ -185,7 +194,7 @@ describe('flight', () => {
         expect(p.read0.x + half, `seed ${seed}`).toBeLessThanOrEqual(g.out.x + g.out.w);
         expect(p.read0.x - half).toBeGreaterThanOrEqual(0);
         // a second balloon near it keeps clear, still over the game pane
-        const q = planFlight(seed, g, 180, 330, { avoidX: p.read0.x });
+        const q = planFlight(seed, g, RIG_SIZE.w, RIG_SIZE.h, { avoidX: p.read0.x });
         expect(q.read0.x + half, `second, seed ${seed}`).toBeLessThanOrEqual(g.out.x + g.out.w);
         expect(q.read0.x - half).toBeGreaterThanOrEqual(0);
         if (g !== NARROW) expect(Math.abs(q.read0.x - p.read0.x), `second, seed ${seed}`).toBeGreaterThan(150);
@@ -231,7 +240,7 @@ describe('flight', () => {
         // a smooth motion changes by acceleration · h (under 50 px/s² here): under 0.5 px/s per step; a jump would be several px/s
         expect(worst.dv, `seed ${seed} t ${worst.t.toFixed(3)} ${phaseAt(p, worst.t)}`).toBeLessThan(0.5);
         expect(worstMid.dv, `middle: seed ${seed} t ${worstMid.t.toFixed(3)} ${phaseAt(p, worstMid.t)}`).toBeLessThan(0.6);
-        expect(p.read).toBeGreaterThan(5.5 + 2 * READ_EXTEND - 0.01);
+        expect(p.read).toBeGreaterThan(Math.min(READ_MAX, READ_S + 2 * READ_EXTEND) - 0.01);
       }
     }
   });
@@ -295,12 +304,12 @@ describe('flight', () => {
 
   it('keeps clear of a balloon still near', () => {
     const a = plan(11);
-    const b = planFlight(11, WIDE, 180, 330, { avoidX: a.read0.x });
+    const b = planFlight(11, WIDE, RIG_SIZE.w, RIG_SIZE.h, { avoidX: a.read0.x });
     expect(Math.abs(b.read0.x - a.read0.x)).toBeGreaterThan(150);
   });
 
   it('prefers-reduced-motion: no flight, a fade in place', () => {
-    const p = planFlight(4, WIDE, 180, 330, { reduced: true });
+    const p = planFlight(4, WIDE, RIG_SIZE.w, RIG_SIZE.h, { reduced: true });
     const xs = [0.2, 2, 5, flightTotal(p) - 0.2].map((t) => flightAt(p, t));
     for (const f of xs) expect([f.x, f.y, f.scale, f.tilt, f.swing, f.front]).toEqual([p.read0.x, p.read0.y, p.scale, 0, 0, true]);
     expect(xs[0]!.opacity).toBeLessThan(1);
@@ -311,35 +320,164 @@ describe('flight', () => {
   it('a narrow screen: the readable spot right of the middle, inside the screen', () => {
     const p = plan(2, NARROW);
     expect(p.lane.sky).toBe(false);
-    expect(p.read0.x - (180 * p.scale) / 2).toBeGreaterThanOrEqual(8);
-    expect(p.read0.x + (180 * p.scale) / 2).toBeLessThanOrEqual(692);
-    expect(p.read0.y + 330 * p.scale).toBeLessThanOrEqual(NARROW.protect.fadeTop);
+    expect(p.read0.x - (RIG_SIZE.w * p.scale) / 2).toBeGreaterThanOrEqual(8);
+    expect(p.read0.x + (RIG_SIZE.w * p.scale) / 2).toBeLessThanOrEqual(692);
+    expect(p.read0.y + RIG_SIZE.h * p.scale).toBeLessThanOrEqual(NARROW.protect.fadeTop);
   });
 });
 
-describe('raster skins', () => {
-  const dir = '/public/balloons/goblin/';
-  const base = [`${dir}balloon.webp`, `${dir}basket-front.webp`, `${dir}passenger-calibrating.webp`];
-  it('needs balloon, basket-front and passenger-calibrating; a missing mood falls back to calibrating', () => {
-    expect(rasterSkinOf([], 'goblin')).toBeNull();
-    expect(rasterSkinOf([`${dir}balloon.webp`, `${dir}basket-front.webp`], 'goblin')).toBeNull();
-    const r = rasterSkinOf([...base, `${dir}passenger-great.webp`, `${dir}passenger-great-blink.webp`], 'goblin', '/x/')!;
-    expect(r.balloon).toBe('/x/balloons/goblin/balloon.webp');
-    expect(r.front).toBe('/x/balloons/goblin/basket-front.webp');
-    expect(r.passenger.great).toBe('/x/balloons/goblin/passenger-great.webp');
-    expect(r.passenger.poor).toBe('/x/balloons/goblin/passenger-calibrating.webp');
-    expect(r.blink).toEqual({ great: '/x/balloons/goblin/passenger-great-blink.webp' });
-    expect(r.wave).toBeNull();
-    expect(rasterSkinOf(base, 'other')).toBeNull();
+/** The planned climb at t, px/s upward (the sway included, as the burner reads it). */
+const climbAt = (p: FlightPlan, t: number) => -(posAt(p, t + 0.02).y - posAt(p, t - 0.02).y) / 0.04;
+/** The burner as balloons.ts runs it: from 1 at the launch, stepped at 60 Hz. */
+function burnRun(p: FlightPlan, until: number): Array<{ t: number; b: number }> {
+  const out = [];
+  let b = 1;
+  for (let t = 0; t <= until; t += 1 / 60) {
+    b = burnStep(b, burnTarget(p, t), 1 / 60);
+    out.push({ t, b });
+  }
+  return out;
+}
+
+describe('the burner (stage 75: it leads the motion)', () => {
+  const plan = (seed: number) => planFlight(seed, WIDE, RIG_SIZE.w, RIG_SIZE.h);
+
+  it('on arrival: it reads the climb BURN_LEAD s ahead, so it falls before the balloon slows', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      for (let t = p.ta * 0.5; t < p.ta - BURN_LEAD - 0.05; t += 0.25) {
+        const want = Math.max(BURN_MIN, Math.min(1, climbAt(p, t + BURN_LEAD) / 90));
+        expect(burnTarget(p, t)).toBeCloseTo(want, 6);
+        // the climb is falling here: the burner is already lower than the climb it has would ask
+        if (climbAt(p, t) / 90 < 1 && climbAt(p, t) / 90 > BURN_MIN) expect(burnTarget(p, t)).toBeLessThan(climbAt(p, t) / 90);
+      }
+      // at rest it is the pilot flame, before the arrival is over
+      const run = burnRun(p, p.ta + 1);
+      const at = (t: number) => run.find((r) => r.t >= t)!.b;
+      expect(at(p.ta - 0.1)).toBeLessThan(0.3);
+      expect(at(p.ta + 0.5)).toBeLessThan(0.2);
+      // full while it climbs fast early on
+      expect(at(p.ta * 0.25)).toBeGreaterThan(0.8);
+    }
   });
 
-  it('round 2: levelup → superb, achievement → great, death → poor, then calibrating', () => {
-    const url = (m: string) => `/balloons/goblin/passenger-${m}.webp`;
-    const none = rasterSkinOf(base, 'goblin')!;
-    for (const m of ['levelup', 'death', 'achievement'] as const) expect(none.passenger[m]).toBe(url('calibrating'));
-    const kin = rasterSkinOf([...base, `${dir}passenger-superb.webp`, `${dir}passenger-great.webp`, `${dir}passenger-poor.webp`], 'goblin')!;
-    expect([kin.passenger.levelup, kin.passenger.achievement, kin.passenger.death]).toEqual([url('superb'), url('great'), url('poor')]);
-    const own = rasterSkinOf([...base, `${dir}passenger-superb.webp`, `${dir}passenger-levelup.webp`, `${dir}passenger-death.webp`, `${dir}passenger-achievement.webp`], 'goblin')!;
-    expect([own.passenger.levelup, own.passenger.achievement, own.passenger.death]).toEqual([url('levelup'), url('achievement'), url('death')]);
+  it('before the leave: it roars about a second ahead, while the balloon is still at rest', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      const leave = p.ta + p.read;
+      expect(burnTarget(p, leave - BURN_BLAST_IN - 0.2)).toBeLessThan(0.2);
+      expect(burnTarget(p, leave - BURN_BLAST_IN + 0.2)).toBe(1);
+      const run = burnRun(p, leave + 1);
+      const b = run.find((r) => r.t >= leave - 0.4)!.b;
+      expect(phaseAt(p, leave - 0.4)).toBe('read');
+      expect(b, `seed ${seed}`).toBeGreaterThan(0.85);
+    }
+  });
+
+  it('on the way up: long uneven pulls while it climbs; the pilot flame, never out, when it drifts level', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const p = plan(seed);
+      const end = flightTotal(p);
+      for (let t = p.ta + p.read + 1; t < end - 1; t += 0.5) {
+        const w = burnTarget(p, t);
+        expect(w).toBeGreaterThanOrEqual(BURN_MIN);
+        expect(w).toBeLessThanOrEqual(1);
+        if (climbAt(p, t + BURN_LEAD) <= 0) expect(w).toBe(BURN_MIN);
+      }
+    }
+  });
+
+  it('a kill joining in the blast\'s second: the leave moves back, the blast stays lit (no roar, drop, roar)', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const p = plan(seed);
+      const tj = p.ta + p.read - 0.6; // tl ≈ -0.6: the blast has begun, joins are still allowed
+      expect(canJoin(p, tj)).toBe(true);
+      let b = 1, t = 0;
+      const dt = 1 / 60;
+      for (; t < tj; t += dt) b = burnStep(b, burnTarget(p, t), dt);
+      expect(b, `seed ${seed}`).toBeGreaterThan(0.85);
+      extendRead(p, tj);
+      const leave = p.ta + p.read;
+      let low = 1;
+      for (; t < leave; t += dt) {
+        b = burnStep(b, burnTarget(p, t), dt);
+        low = Math.min(low, b);
+      }
+      // never back to the pilot flame between the blast's start and the (later) leave
+      expect(low, `seed ${seed}`).toBeGreaterThan(0.85);
+      expect(burnTarget(p, leave - 0.05)).toBe(1);
+    }
+  });
+
+  it('reduced motion: the still rig\'s steady low flame', () => {
+    const p = planFlight(4, WIDE, RIG_SIZE.w, RIG_SIZE.h, { reduced: true });
+    expect([0, 1, 3].map((t) => burnTarget(p, t))).toEqual([BURN_STILL, BURN_STILL, BURN_STILL]);
+  });
+
+  it('burnStep: quick to light, slower to die', () => {
+    const up = burnStep(0.1, 1, 0.11), down = burnStep(1, 0.1, 0.11);
+    expect(up - 0.1).toBeGreaterThan(1 - down);
+  });
+});
+
+describe('the passenger by race (stage 75)', () => {
+  it('every row of the owner\'s table', () => {
+    const rows: Array<[string, string, string]> = [
+      ['Elf', 'Noldo', 'elf'],
+      ['Half-elf', '', 'elf'],
+      ['Dwarf', '', 'dwarf'],
+      ['Man', 'Dunadan', 'human'],
+      ['Beorning', '', 'human'],
+      ['Man', 'Beorning', 'human'],
+      ['Hobbit', '', 'hobbit'],
+      ['Troll', '', 'troll'],
+      ['Orc', 'Tarkhnarb', 'goblin'],
+      ['Orc', 'Zaugurz', 'orc'],
+      ['Zaugurz Orc', '', 'orc'],
+      ['Black Númenórean', '', 'numenorean'],
+      ['Man', 'Black Numenorean', 'numenorean'],
+      ['Numenorean', '', 'numenorean'],
+      ['', '', 'goblin'],
+    ];
+    for (const [race, sub, want] of rows) expect(passengerOf(race, sub), `${race} / ${sub}`).toBe(want);
+  });
+
+  it('odd casing, missing and empty fields, words not substrings', () => {
+    expect(passengerOf('DWARF')).toBe('dwarf');
+    expect(passengerOf('hALF-eLF', null)).toBe('elf');
+    expect(passengerOf(null, null)).toBe('goblin');
+    expect(passengerOf(undefined)).toBe('goblin');
+    expect(passengerOf('   ', '')).toBe('goblin');
+    expect(passengerOf('ORC', 'zAUGURZ')).toBe('orc');
+    // "Dunadan" alone holds no word "man"; "human" is a word of its own
+    expect(passengerOf('', 'Dunadan')).toBe('goblin');
+    expect(passengerOf('Human')).toBe('human');
+    expect(passengerOf('Woman')).toBe('goblin');
+    expect(passengerOf('Shaman')).toBe('goblin');
+    expect(passengerOf('Elfish')).toBe('goblin');
+    // the Black Númenórean before "man"
+    expect(passengerOf('Man', 'Black')).toBe('numenorean');
+    expect(raceWords('Black Númenórean')).toEqual(['black', 'numenorean']);
+  });
+
+  it('each of the eight is its own module, its spec under its own id', async () => {
+    for (const id of PASSENGER_IDS) {
+      expect(isPassengerId(id)).toBe(true);
+      expect((await loadPassenger(id)).passenger.id).toBe(id);
+    }
+    expect(isPassengerId('wizard')).toBe(false);
+  });
+});
+
+describe('the sky behind the balloons (stage 75)', () => {
+  it('night after dark; overcast under clouds, rain or snow; dusk with the sun low; else day', async () => {
+    const { skyModeOf } = await import('../../src/weather/controller');
+    expect(skyModeOf({ clock: 'night', weather: ' ', sunU: -1 })).toBe('night');
+    expect(skyModeOf({ clock: 'day', weather: '~', sunU: 0.5 })).toBe('overcast');
+    expect(skyModeOf({ clock: 'day', weather: '*', sunU: 0.5 })).toBe('overcast');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: 0.05 })).toBe('dusk');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: 0.95 })).toBe('dusk');
+    expect(skyModeOf({ clock: 'day', weather: null, sunU: 0.5 })).toBe('day');
+    expect(skyModeOf({ clock: 'day', weather: ' ', sunU: -1 })).toBe('day');
   });
 });

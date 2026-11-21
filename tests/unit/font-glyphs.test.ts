@@ -6,6 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { brotliDecompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { FONT_IDS, type FontId } from '../../src/settings/types';
+import { FACES as SIGN_FACES } from '../../src/weather/balloons/fonts';
 import {
   AGAVE_BOLD_RANGE,
   AGAVE_REGULAR_FACE,
@@ -165,7 +166,8 @@ const BUNDLED = FONT_IDS.filter((id) => !FONTS[id].local);
 describe('bundled fonts', () => {
   it('every font file referenced by the code exists, and every woff2 is referenced', () => {
     const present = readdirSync(DIR);
-    const used = new Set(allFontFaces().flatMap((f) => (f.file ? [f.file] : [])));
+    // the terminal and page faces, and the balloon signs' (stage 75, loaded only while the balloons run)
+    const used = new Set([...allFontFaces().flatMap((f) => (f.file ? [f.file] : [])), ...SIGN_FACES.map((f) => f.file)]);
     for (const f of used) expect(present).toContain(f);
     expect(present.filter((f) => f.endsWith('.woff2')).sort()).toEqual([...used].sort());
   });
