@@ -510,10 +510,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 16 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 16 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: slow blinks, glances, a brow, a finger; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.troll-nod'), look = q('.troll-look'), lids = qa('.troll-bl'), pgs = qa('.troll-pg'), brows = [q('.troll-bL'), q('.troll-bR')];
   const clw = q('.troll-clw'), legw = q('.troll-legw'), coal = q('.troll-coalg'), d1 = q('.troll-d1'), d2 = q('.troll-d2');
@@ -603,7 +605,7 @@ export const passenger: PassengerDef = {
   name: 'The Troll',
   // blurb: 'A stone-troll of the hills, far too big for his crate of lashed logs: hunched under a stolen cooking pot of coals, his shoulders over the rim. The bag is hide with the hair on, sewn with sinew, and it says how good the kill was: from mangy scraps full of holes to a white winter pelt hung with a horned skull, tusks and plundered shields. The news is daubed on a hide laced into a frame of bones.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'troll', css: CSS,
       defs: (u) => `<linearGradient id="trs${u}" x1="0" x2="1" y1="0" y2=".2"><stop offset="0" stop-color="#60665a"/><stop offset=".55" stop-color="#8f937e"/><stop offset="1" stop-color="#bdbda4"/></linearGradient><linearGradient id="trw${u}" x1="0" x2="1"><stop offset="0" stop-color="#4f3823"/><stop offset=".55" stop-color="#80603e"/><stop offset="1" stop-color="#a88558"/></linearGradient>`,

@@ -83,6 +83,8 @@ export interface BalloonInfo {
   passenger: string;
   /** Resting: far away, its parts frozen. */
   rest: boolean;
+  /** Made under prefers-reduced-motion (its flight and its look alike). */
+  reduced: boolean;
 }
 
 export interface ShowOpts {
@@ -150,7 +152,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
   let destroyed = false;
 
   // ---- the looks: a fixed skin (tests), or the rig with a passenger, each loaded once
-  const ctx: RigCtx = { doc, reduced: reduced(), skyMode: () => host.sky?.() ?? 'night', pace: () => 1 };
+  const ctx: RigCtx = { doc, reduced, skyMode: () => host.sky?.() ?? 'night', pace: () => 1 };
   const rigs = new Map<PassengerId, Promise<Rig>>();
   const made: Rig[] = [];
   /** The faces, asked for once (only when a rig is wanted). */
@@ -248,9 +250,11 @@ export function startBalloons(host: BalloonsHost): Balloons {
     const near = flights.filter((f) => f.phase === 'arrive' || f.phase === 'read' || f.phase === 'glide').map((f) => f.x);
     const notices = [k];
     const sign = signFor(notices);
-    const skin = make(doc, { sign });
+    // read once per balloon: its flight and its look agree, and a change of the setting reaches the next one
+    const rm = reduced();
+    const skin = make(doc, { sign, reduced: rm });
     skin.el.classList.add('wc-balloon');
-    const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: reduced(), avoidX: near });
+    const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: rm, avoidX: near });
     const f: Flight = { skin, plan, t: 0, fadeAt: null, notices, front: null, x: plan.start.x, phase: 'arrive', opacity: -1, burn: plan.reduced ? BURN_STILL : 1, passenger, resting: false };
     skin.setMood(sign.mood);
     skin.setSign(sign, false);
@@ -276,23 +280,41 @@ export function startBalloons(host: BalloonsHost): Balloons {
     return true;
   };
 
-  // Notices whose passenger is still loading wait here, in order.
+  /** Launches (or joins) a notice; a throw in it (the look, the plan) loses that notice only, said once on the console. */
+  const shown = (n: Notice, make: SkinFactory, id: string): void => {
+    try {
+      if (!join(n)) launch(n, make, id);
+    } catch (err: unknown) {
+      console.error(`balloons: a ${id || 'balloon'} notice could not be shown`, err);
+    }
+  };
+
+  /** `join`, a throw in it said once (true: done with the notice). */
+  const tryJoin = (n: Notice): boolean => {
+    try {
+      return join(n);
+    } catch (err: unknown) {
+      console.error('balloons: a kill could not join its sign', err);
+      return true;
+    }
+  };
+
+  // Notices whose passenger is still loading wait here, in order. The
+  // queue always resolves: a failed load or a failed launch loses its own
+  // notice only, never the next.
   let queue: Promise<void> = Promise.resolve();
   let waiting = 0;
   const show = (n: Notice, o?: ShowOpts): void => {
     if (destroyed) return;
     if (host.skin) {
-      if (!join(n)) launch(n, host.skin, '');
+      shown(n, host.skin, '');
       return;
     }
     const id = who(o);
-    if (waiting === 0) {
-      if (join(n)) return;
-      const rig = ready.get(id);
-      if (rig) {
-        launch(n, (_, init) => rig.make(init.sign), id);
-        return;
-      }
+    const rig = waiting === 0 ? ready.get(id) : undefined;
+    if (rig || (waiting === 0 && tryJoin(n))) {
+      if (rig) shown(n, (_, init) => rig.make(init.sign, init), id);
+      return;
     }
     waiting++;
     queue = queue
@@ -300,7 +322,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
       .then(
         (r) => {
           ready.set(id, r);
-          if (!destroyed && !join(n)) launch(n, (_, init) => r.make(init.sign), id);
+          if (!destroyed) shown(n, (_, init) => r.make(init.sign, init), id);
         },
         (err: unknown) => console.warn(`balloons: the ${id} passenger could not be loaded`, err),
       )
@@ -317,7 +339,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
     show,
     idle: () => queue,
     list() {
-      return flights.map((f) => ({ phase: f.phase, front: !!f.front, kind: kindOf(f.notices[0]!), count: f.notices.length, face: signFor(f.notices).mood, passenger: f.passenger, rest: f.resting }));
+      return flights.map((f) => ({ phase: f.phase, front: !!f.front, kind: kindOf(f.notices[0]!), count: f.notices.length, face: signFor(f.notices).mood, passenger: f.passenger, rest: f.resting, reduced: f.plan.reduced }));
     },
     destroy() {
       if (destroyed) return;

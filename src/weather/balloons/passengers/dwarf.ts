@@ -544,10 +544,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: blinks, glances, a brow, a finger; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.dwarf-nod'), look = q('.dwarf-look'), lids = qa('.dwarf-bl'), pgs = qa('.dwarf-pg'), brows = [q('.dwarf-bL'), q('.dwarf-bR')], mos = qa('.dwarf-mo');
   const helm = q('.dwarf-helm'), ty = q('.dwarf-ty'), ng = q('.dwarf-ng'), axr = q('.dwarf-axr'), gemw = q('.dwarf-gemw');
@@ -640,7 +642,7 @@ export const passenger: PassengerDef = {
   name: 'The Dwarf',
   // blurb: 'Dwarves do not fly. This one was told to, so he built the thing himself and stands in it in mail and pauldrons: hides stitched in gores, chains for ropes, an ore bucket, and an iron forge-pot of coals hung under the mouth. The envelope says how good the kill was, from a patched scrap bag to cloth of gold under a crown; the news hangs below on a forged plate.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'dwarf', css: CSS,
       defs: (u) => `<linearGradient id="dww${u}" x1="0" x2="1"><stop offset="0" stop-color="#4a3220"/><stop offset=".55" stop-color="#7d5c3d"/><stop offset="1" stop-color="#a58157"/></linearGradient><pattern id="dwm${u}" patternUnits="userSpaceOnUse" width="8" height="6"><path d="M0,3Q2,6.500 4,3Q6,-.5 8,3" fill="none" stroke="${INK}" stroke-width="1" opacity=".6"/></pattern>`,

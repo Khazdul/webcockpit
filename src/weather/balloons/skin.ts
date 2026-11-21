@@ -58,6 +58,8 @@ export interface BalloonSkin {
 export interface SkinInit {
   /** The first sign (the rig builds and fits it at once). */
   sign: SignContent;
+  /** prefers-reduced-motion for this balloon (its flight and its look agree). */
+  reduced?: boolean;
 }
 
 export type SkinFactory = (doc: Document, init: SkinInit) => BalloonSkin;

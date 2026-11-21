@@ -76,7 +76,7 @@ describe('balloons', () => {
     expect(front.children).toHaveLength(1);
     run(2);
     b.show(SAMPLE_KILLS.superb[0]!);
-    expect(b.list()).toEqual([{ phase: 'arrive', front: true, kind: 'kill', count: 2, face: 'superb', passenger: '', rest: false }]);
+    expect(b.list()).toEqual([{ phase: 'arrive', front: true, kind: 'kill', count: 2, face: 'superb', passenger: '', rest: false, reduced: false }]);
     const sign = front.querySelector('.rig-sign')!;
     expect(sign.querySelector('.rig-title')!.textContent).toBe('2 kills');
     expect(sign.querySelector('.rig-word')!.textContent).toBe('Superb');

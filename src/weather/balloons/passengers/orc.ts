@@ -480,10 +480,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 48}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 48} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: blinks, glances, a brow, an ear; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.orc-nod'), look = q('.orc-look'), lids = qa('.orc-bl'), pgs = qa('.orc-pg'), brows = [q('.orc-bL'), q('.orc-bR')], ears = qa('.orc-ear');
   const coal = q('.orc-coalg'), ratd = q('.orc-ratd'), dgl = q('.orc-dgl'), dgr = q('.orc-dgr');
@@ -567,7 +569,7 @@ export const passenger: PassengerDef = {
   name: 'The Orc',
   // blurb: 'A soldier of the Zaugurz, the orcs of the northern mountains: iron cap, black scale, a notched ear and a mouthful of small bad teeth. His craft is hide, iron and bone, under a cage of coals. The bag says how good the kill was: from a sagging lump of stapled scraps to a war-chief\'s red and black, crowned with spikes under a great horned skull. The news hangs below on tarred planks.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'orc', css: CSS,
       defs: (u) => `${kit.filt('orf' + u, { freq: .03, scale: 2.8, grain: .45 })}${kit.hatch('orp' + u, 38, 5, .6, 1)}${kit.hatch('orq' + u, -52, 5.6, .5, 1)}

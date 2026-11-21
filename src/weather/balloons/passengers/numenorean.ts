@@ -522,10 +522,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: slow blinks, cold glances, a brow; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.num-nod'), look = q('.num-look'), lids = qa('.num-bl'), pgs = qa('.num-pg'), brows = [q('.num-bL'), q('.num-bR')];
   const egs = qa('.num-eg'), pfw = q('.num-pfw'), swr = q('.num-swr'), stw = q('.num-staffw'), coal = q('.num-coalg'), tas = qa('.num-tas');
@@ -612,7 +614,7 @@ export const passenger: PassengerDef = {
   name: 'The Black Númenórean',
   // blurb: 'A King’s Man of Umbar, tall and cold, under the sail of a black ship: a censer of pale fire for a burner, a lacquered car with serpent prows, and his sorcery in his hands (a staff with a dim stone, a cold light in the palm, a dark orb). The sail says how good the kill was, from a moth-eaten wreck to black silk under a crown with banners; the news hangs below on a lacquered tablet.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'num', css: CSS,
       defs: (u) => `<linearGradient id="nmw${u}" x1="0" x2="1"><stop offset="0" stop-color="#16110f"/><stop offset=".55" stop-color="#2c2422"/><stop offset="1" stop-color="#4a3e3a"/></linearGradient><linearGradient id="nmk${u}" x1="0" x2="1"><stop offset="0" stop-color="#121014"/><stop offset=".6" stop-color="#26232b"/><stop offset="1" stop-color="#45414e"/></linearGradient>`,

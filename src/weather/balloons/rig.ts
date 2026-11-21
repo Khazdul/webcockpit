@@ -377,6 +377,8 @@ export interface RigBalloon {
   q(sel: string): Part;
   qa(sel: string): Part[];
   readonly sign: HTMLElement;
+  /** prefers-reduced-motion as it was when this balloon was made: its still form, no life. */
+  readonly reduced: boolean;
 }
 
 export interface RigLine {
@@ -409,8 +411,13 @@ export interface RigSpec {
 /** What a rig knows of its page (the mockup's `ctx`). */
 export interface RigCtx {
   doc: Document;
-  /** prefers-reduced-motion: the still form, no life, no transitions. */
-  reduced: boolean;
+  /**
+   * prefers-reduced-motion: the still form, no life, no transitions. Read
+   * once per balloon, when it is made (`make` may also be told), so a
+   * change of the setting mid-session reaches the next balloon and never
+   * splits one between its flight and its rig. (A plain boolean: fixed.)
+   */
+  reduced: boolean | (() => boolean);
   /** The backdrop, read when a balloon is made. */
   skyMode(): SkyMode;
   /** The mockup's time multiplier for the passenger's own timings: 1 in the product. */
@@ -496,7 +503,7 @@ interface RigFrame {
 
 export interface Rig {
   /** One balloon with its first sign, as a skin for the flight. */
-  make(sign: SignContent): BalloonSkin;
+  make(sign: SignContent, opts?: { reduced?: boolean }): BalloonSkin;
   /** Its styles and listeners (the balloons it made are destroyed by their flights). */
   destroy(): void;
 }
@@ -560,7 +567,7 @@ export function createRig(ctx: RigCtx, spec: RigSpec): Rig {
     R.eglow.style.clipPath = `path("${geo.outAbs}")`;
     R.root.style.setProperty('--rig-lip', art.lip || '#8d949b');
     if (!old) return;
-    if (fade && !ctx.reduced) {
+    if (fade && !R.reduced) {
       layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320 });
       old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, fill: 'forwards' }).onfinish = () => old.remove();
     } else old.remove();
@@ -614,7 +621,7 @@ export function createRig(ctx: RigCtx, spec: RigSpec): Rig {
     R.root.style.height = R.h + 'px';
   }
 
-  function build(nt: SignContent): RigState {
+  function build(nt: SignContent, reduced: boolean): RigState {
     const u = ++uid;
     const lines = [spec.ropes || {}, ...extra.map((l) => l.cord || {})].map((c, i) => cordG(`rgl${u}-${i}`, c)).join('');
     const root = svg(`<div class="rig ${id}-v">${defs(u, spec.defs ? spec.defs(u) : '')}
@@ -637,13 +644,13 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
       root, u, q, qa, sign, board, text, zoom, mood: norm(nt.mood), notice: nt, h: 0, lift: 0, fitKey: '', warned: NaN, geo: envelope(), envl: null,
       env: q('.rig-env'), envh: q('.rig-envh'), car: q('.rig-car'), eglow: q('.rig-eglow'), mglow: q('.rig-mglow'), halo: q('.rig-halo'), fl: q('.rig-fl'),
       ropeP: q<SVGPathElement>(`#rgl${u}-0`), extraP: extra.map((_, i) => q<SVGPathElement>(`#rgl${u}-${i + 1}`)), hangP: q<SVGPathElement>(`#rgl${u}-s`),
-      life: {}, kick: () => {},
+      life: {}, kick: () => {}, reduced,
     };
     R.mood = fill(R, nt);
     setEnv(R, R.mood, false);
     root.dataset.sky = ctx.skyMode();
     root.style.setProperty('--k', String(1 / ctx.pace()));
-    if (ctx.reduced) root.classList.add('rig-rm');
+    if (R.reduced) root.classList.add('rig-rm');
     fit(R);
     R.life = (spec.life && spec.life(R)) || {};
     return R;
@@ -695,16 +702,16 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
       if (f.phase !== ph) {
         ph = f.phase;
         if (ph === 'read') { R.root.classList.add('rig-at'); if (life.arrive) life.arrive(R.mood); }
-        if (ph === 'leave' && !ctx.reduced) { R.root.classList.add('rig-off'); if (life.leave) life.leave(); }
+        if (ph === 'leave' && !R.reduced) { R.root.classList.add('rig-off'); if (life.leave) life.leave(); }
       }
     };
   }
 
   return {
-    make(first) {
-      const R = build(first);
+    make(first, opts) {
+      const R = build(first, opts?.reduced ?? (typeof ctx.reduced === 'function' ? ctx.reduced() : ctx.reduced));
       const REST: RigFrame = { lean: 0, swing: 0, phase: 'read', burn: .15 };
-      const fr = animator(R, ctx.reduced);
+      const fr = animator(R, R.reduced);
       const refitMe = (): void => { if (R.root.isConnected) fit(R); };
       REFIT.add(refitMe);
       let stopped = false, frozen = false, shown = first;
@@ -718,7 +725,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
       const el = doc.createElement('div');
       el.style.width = W + 'px';
       el.append(R.root);
-      if (ctx.reduced) {
+      if (R.reduced) {
         // the still form (the mockup's still(): at rest, arrived)
         R.root.classList.add('rig-at', 'rig-still');
         fr(REST);
@@ -733,14 +740,14 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
           const was = R.mood;
           R.mood = fill(R, nn); fit(R);
           if (was !== R.mood) setEnv(R, R.mood, !frozen);
-          if (!joined || ctx.reduced || frozen) return;
+          if (!joined || R.reduced || frozen) return;
           // struck like a bell
           R.sign.animate([0, 1.3, -1.1, .8, -.6, .4, -.2, 0].map((x, i) => ({ transform: `translate(${x}px,${i === 1 ? .8 : 0}px) rotate(${x * .3}deg)` })), { duration: 430, easing: 'linear', composite: 'add' });
           if (R.life.struck) R.life.struck();
           if (was !== R.mood && R.root.classList.contains('rig-at') && R.life.changed) R.life.changed(R.mood, was);
         },
         frame(p: SkinPose) {
-          if (frozen || ctx.reduced) return;
+          if (frozen || R.reduced) return;
           fr({ lean: p.tilt, swing: p.swing, phase: rigPhase(p.phase), burn: p.burn });
         },
         rest() {

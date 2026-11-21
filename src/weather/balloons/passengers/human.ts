@@ -558,10 +558,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in her: blinks, glances, a brow; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.human-nod'), look = q('.human-look'), lids = qa('.human-bl'), pgs = qa('.human-pg'), brows = [q('.human-bL'), q('.human-bR')];
   const coal = q('.human-coalg'), pl = q('.human-plait'), sk = q('.human-skin');
@@ -639,7 +641,7 @@ export const passenger: PassengerDef = {
   name: 'The Woman',
   // blurb: 'A rider of the North in a moss wool cloak and a leather jerkin, her hair in braids, a spear beside her and a shield slung on the wicker. Men make their balloons of cloth: the envelope says how good the kill was, from patched sackcloth sewn with twine to a king’s banner with the white horse, gold braid and pennons. An iron fire-basket burns under the mouth, and the news hangs below on a painted inn board.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'human', css: CSS, defs,
       envelope: (mood) => ENV[mood] || ENV.calibrating,

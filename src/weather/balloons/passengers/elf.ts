@@ -473,10 +473,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in her: blinks, glances, a brow; one quiet piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.elf-nod'), look = q('.elf-look'), lids = qa('.elf-bl'), pgs = qa('.elf-pg'), brows = [q('.elf-bL'), q('.elf-bR')];
   const lamp = q('.elf-lampg'), lk = q('.elf-lk'), glass = q('.elf-glass'), cup = q('.elf-cup');
@@ -555,7 +557,7 @@ export const passenger: PassengerDef = {
   name: 'The Elf',
   // blurb: 'An elf woman of the woodland realm, grave and fair, in a grey-green cloak clasped with a leaf. Her craft is light: fine cloth in slender gores, grey elven rope, a swan-prowed car of pale wood, and a silver lamp shaped like a flower under the mouth. The envelope says how good the kill was, from faded cloth torn and mended to silver-white starlight with leaves of gold; the news hangs below on a board of pale wood.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'elf', css: CSS,
       defs: (u) => `${kit.filt('elff' + u, { ...kit.SOFT, freq: .032, scale: 2.3, grain: .5 })}${kit.filt('elfb' + u, { ...kit.SOFT, blot: .7, bias: -.42, ga: .9, gb: -.48 })}${kit.hatch('elfp' + u, 38, 4.8, .55, .95)}${kit.hatch('elfq' + u, -52, 5.4, .45, .95)}

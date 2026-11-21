@@ -549,10 +549,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 58}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 58} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: blinks, glances, a brow, a shift of weight; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.hobbit-nod'), look = q('.hobbit-look'), lids = qa('.hobbit-bl'), pgs = qa('.hobbit-pg'), brows = [q('.hobbit-bL'), q('.hobbit-bR')];
   const ty = q('.hobbit-ty'), pie = q('.hobbit-pg2'), sw = q('.hobbit-sw'), rks = qa('.hobbit-rkt').reverse(), burst = q('.hobbit-burst');
@@ -655,7 +657,7 @@ export const passenger: PassengerDef = {
   name: 'The Hobbit',
   // blurb: 'A respectable hobbit, airborne against his better judgement, in shirt-sleeves and his best waistcoat: cloth from the linen press, a wicker picnic hamper with onions on its side, and a brass kettle-stove hung under the mouth. The envelope says how good the kill was, from the old patched quilt to the Party pavilion in scarlet and cream with garlands and bunting; the news hangs below on a painted board tied up with cord.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'hobbit', css: CSS,
       defs: (u) => `${kit.filt('hbf' + u, { freq: .03, scale: 2.4, grain: .45, blot: .9, bias: -.5 })}${kit.filt('hbl' + u, { blot: .45, bias: -.25, ga: .8, gb: -.42 })}${kit.hatch('hbp' + u, 38, 5, .6, .95)}${kit.hatch('hbq' + u, -52, 5.6, .5, .95)}

@@ -507,10 +507,12 @@ const pips = (mood: Mood) => {
   return `<svg xmlns="${NS}" width="${mood === 'pvp' ? 18 : 55}" height="14" viewBox="0 0 ${mood === 'pvp' ? 18 : 55} 14">${s}</svg>`;
 };
 
-let reduced = false, paceOf = () => 1;
+let paceOf = () => 1;
 
 // ---- the small life in him: blinks, quick glances, an ear that twitches; one piece of business per mood ----
 const liven = (R: RigBalloon) => {
+  // reduced motion as it was when this balloon was made (stage 75 review: per balloon, not per module)
+  const reduced = R.reduced;
   const q = R.q, qa = R.qa, ck = kit.clock(), later = ck.later, rnd = Math.random;
   const nod = q('.goblin-nod'), look = q('.goblin-look'), lids = qa('.goblin-bl'), pgs = qa('.goblin-pg'), brows = [q('.goblin-bL'), q('.goblin-bR')], ears = [q('.goblin-eL'), q('.goblin-eR')];
   const coal = q('.goblin-coalg'), dng = q('.goblin-dng'), flw = q('.goblin-flw'), kup = q('.goblin-kup');
@@ -594,7 +596,7 @@ export const passenger: PassengerDef = {
   name: 'The Goblin',
   // blurb: 'The goblin of the original, as a tinted engraving: small, wiry, all ears and yellow eyes, in a stolen crate under a bag he stitched and daubed himself, over a dented pot of coals. The bag says how good the kill was, from a sack of rags held with bent nails to scarlet and bone with a great grinning face, skulls, stolen coins and a looted crown. The news is a banner laced to a pole.',
   spec(ctx: RigCtx): RigSpec {
-    reduced = ctx.reduced; paceOf = ctx.pace;
+    paceOf = ctx.pace;
     return {
       id: 'goblin', css: CSS,
       defs: (u) => `<linearGradient id="gbs${u}" x1="0" x2="1"><stop offset="0" stop-color="#5c7040"/><stop offset=".5" stop-color="#84985a"/><stop offset="1" stop-color="#aebb80"/></linearGradient>
