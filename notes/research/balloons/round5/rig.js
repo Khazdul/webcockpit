@@ -104,6 +104,49 @@
 //               hang (deg, for things that dangle in the car), d, dt, now,
 //               phase, pe, pc }. NO layout reads there.
 //
+// THE HEIGHT LIMIT. Every notice must end at or above y = MAXH (363). The
+// rig sees to it: after the text is filled it measures the sign, and if the
+// sign would end below MAXH it tightens the text in two steps (classes
+// rig-fit1, then rig-fit2 on the sign: smaller title and figure, tighter
+// leading; a long achievement text goes to 12 px and is clamped to four
+// lines with an ellipsis), and as a last resort hangs the sign up to 5 px
+// higher on shorter cords. The joined names (.rig-more) are
+// always one line with an ellipsis. A normal three-line kill is never
+// touched as long as the skin's sign is at most 73 px tall for it, so keep
+// the skin's vertical padding at about 8 px. If a sign still does not fit,
+// the rig says so with console.warn; fix the skin's sign css then.
+//
+// WRITING A NEW PASSENGER: THE CHECKLIST
+//   1. Do not edit rig.js or harness.js. Everything of yours goes in
+//      skins/<id>.js; if the rig cannot do something, report it instead.
+//   2. Decide the people's vocabulary first and write it as the header
+//      comment of your file: materials, colours, motifs, what "the best"
+//      means, the five-step envelope ladder and the five specials.
+//   3. Supply, through Rig.create(ctx, spec): id, css, defs, envelope(mood)
+//      for all ten moods, ropes, burner, basket, behind, front, sign
+//      { board, pips, ... } and life. Copy the shape of skins/dwarf.js.
+//   4. Layer order is fixed (see LAYERS): envelope, glows, flame, the
+//      mouth's front lip, your burner, ropes, [behind], basket, [front],
+//      sign cords, sign. The flame is the rig's: never draw your own and
+//      never put anything of the passenger's over x -16..16 above y FY + 20.
+//   5. The burner hangs from the envelope's mouth (it is in the envelope's
+//      frame, drawn by burner(u) about x 0, y HG..FY+16). It cannot stand on
+//      the basket. Draw its hangers yourself from about (-19, HG+4) and
+//      (19, HG+4). It must read as "the thing that makes the flame".
+//   6. Anything that moves every frame (a part that follows burn, a thing
+//      that dangles, a wrapper that nods) must be its OWN html layer: a
+//      kit.Z div with its svg inside, moved by style.transform / opacity in
+//      life.frame() or by a css animation. Never change attributes or
+//      styles INSIDE a filtered svg per frame (it is re-filtered each time);
+//      short one-off css transitions inside one are tolerable.
+//   7. Mood poses: css variables per [data-mood] on .<id>-v; poses that only
+//      apply after arrival under .rig-at[data-mood=...]. No costumes, no
+//      effects floating round the passenger; things held or done are fine.
+//   8. Game strings never touch your code: the rig fills the sign with
+//      textContent. Your board() and pips() return your own trusted svg.
+//   9. Check: node shot.mjs <id> <dir> night (and day) with no page errors,
+//      look at the sheet, and watch the console for the rig's height warning.
+//
 // Rig.kit: INK, n, S(cls, x, y, w, h, body) an <svg> layer whose viewBox is
 // that box of rig coordinates; SL(...) the same about a local origin (inside
 // a Z); Z(cls, x, y, inner) a zero-size <div> at a point (for parts that turn
@@ -263,7 +306,19 @@ const Rig = (() => {
 .rig-rate svg{display:block;overflow:visible}
 .rig-word{font:400 12.5px/1 "IM Fell English SC","IM Fell English",Georgia,serif;letter-spacing:.16em;margin-right:-.16em}
 .rig-q{font:italic 400 14px/1 "IM Fell English",Georgia,serif}
-.rig-more{font:italic 500 12px/1.1 "Cormorant Garamond",Georgia,serif;margin-top:2px;text-wrap:balance}
+.rig-more{font:italic 500 12px/1.1 "Cormorant Garamond",Georgia,serif;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rig-fit1 .rig-title{font-size:14px!important;line-height:1!important}
+.rig-fit1 .rig-fig{font-size:22px!important;line-height:.95!important}
+.rig-fit1 .rig-unit{font-size:13px!important}
+.rig-fit1 .rig-rate{margin-top:0!important;min-height:13px!important}
+.rig-fit1 .rig-more{margin-top:1px!important;line-height:1.05!important}
+.rig-fit1 .rig-tag{line-height:1.15!important}
+.rig-fit1[data-kind=achievement] .rig-title{font-size:12.5px!important;line-height:1.05!important;text-wrap:wrap}
+.rig-fit2 .rig-title{font-size:13.5px!important}
+.rig-fit2 .rig-fig{font-size:20px!important}
+.rig-fit2[data-kind=achievement] .rig-text{padding-left:8px!important;padding-right:8px!important}
+.rig-fit2 .rig-tag{line-height:1.1!important}
+.rig-fit2[data-kind=achievement] .rig-title{font-size:12px!important;line-height:1.04!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
 .rig-still{margin:0 auto}
 .rig-rm *,.rig-rm *::before,.rig-rm *::after{transition:none!important;animation:none!important}
 @keyframes rig-eb{from{transform:scale(1,1)}to{transform:scale(1.012,.99)}}
@@ -336,13 +391,21 @@ const Rig = (() => {
     }
     // the board is drawn to the measured text (never called from the frame callback)
     function fit(R) {
-      const h = Math.ceil(measure(R)), key = `${h}|${R.mood}|${R.notice.kind}`;
+      // the height limit: tighten the text in two steps until the sign ends at or above MAXH
+      R.sign.classList.remove('rig-fit1', 'rig-fit2');
+      let h = Math.ceil(measure(R));
+      for (const cls of ['rig-fit1', 'rig-fit2']) { if (SY + h < K.MAXH) break; R.sign.classList.add(cls); h = Math.ceil(measure(R)); }
+      // last resort: shorter cords, the sign hangs up to 5 px higher
+      R.lift = Math.max(0, Math.min(5, SY + h - K.MAXH + 1));
+      R.sign.style.top = SY - R.lift + 'px';
+      if (SY - R.lift + h >= K.MAXH && R.warned !== h) { R.warned = h; console.warn(`Rig: the ${id} sign for "${R.notice.kind}/${R.mood}" ends at y ${SY - R.lift + h}, below MAXH ${K.MAXH}. Reduce the sign's padding or type in the skin.`); }
+      const key = `${h}|${R.mood}|${R.notice.kind}`;
       if (key !== R.fitKey) {
         R.fitKey = key;
         const art = sg.board ? sg.board({ w: sg.w, h, mood: R.mood, kind: R.notice.kind, u: R.u }) : `<rect width="${sg.w}" height="${h}" fill="#2a2420" stroke="${INK}"/>`;
         R.board.replaceChildren(ctx.svg(`<svg class="rig-rim" xmlns="${NS}" width="${sg.w}" height="${h}" viewBox="0 0 ${sg.w} ${h}">${art}</svg>`));
       }
-      R.h = SY + h + sg.below;
+      R.h = SY - R.lift + h + sg.below;
       R.root.style.height = R.h + 'px';
     }
 
@@ -363,7 +426,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
       sign.style.width = sg.w + 'px'; sign.style.left = (W - sg.w) / 2 + 'px';
       sign.append(board, text); root.append(sign);
       const R = {
-        root, u, q, qa, sign, board, text, mood: norm(nt.mood), notice: nt, h: 0, fitKey: '', geo: null, envl: null,
+        root, u, q, qa, sign, board, text, mood: norm(nt.mood), notice: nt, h: 0, lift: 0, fitKey: '', geo: null, envl: null,
         env: q('.rig-env'), envh: q('.rig-envh'), car: q('.rig-car'), eglow: q('.rig-eglow'), mglow: q('.rig-mglow'), halo: q('.rig-halo'), fl: q('.rig-fl'),
         ropeP: q(`#rgl${u}-0`), extraP: extra.map((_, i) => q(`#rgl${u}-${i + 1}`)), hangP: q(`#rgl${u}-s`),
       };
@@ -383,7 +446,7 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
     // ---- every frame: the lean, the car swinging late, the ropes, the sign on its two cords, the flame ----
     function animator(R, quiet) {
       let last = 0, sx = 0, sv = 0, ph = quiet ? 'read' : '';
-      const go = GO[ctx.skyMode()] || .5, AR = BY - HG, LC = SY - BY - 2, DM = LC * .65, life = R.life;
+      const go = GO[ctx.skyMode()] || .5, AR = BY - HG, life = R.life;
       const att = R.geo.attach.map((p) => p.slice()), rim = [-K.R1, -K.R2, K.R2, K.R1];
       let ce = 1, se = 0, c = 1, s = 0;
       const pe = (x, y) => [CX + x * ce - (y - HG) * se, HG + x * se + (y - HG) * ce];
@@ -405,12 +468,12 @@ ${S('rig-lip', -MRX - 3, HG - 2, 2 * MRX + 6, MRY + 6, `<path d="${LIP}" fill="n
         }
         R.ropeP.setAttribute('d', d);
         // the sign: a heavy thing on two cords, following the basket late
-        const bx = -AR * s;
+        const bx = -AR * s, SYe = SY - R.lift, LC = SYe - BY - 2, DM = LC * .65;
         sv += ((bx + f.swing * 1.5 - f.lean * 1.3 - sx) * sg.k - sv * sg.c) * dt; sx += sv * dt;
         const dd = Math.max(-DM, Math.min(DM, sx - bx)), th = Math.asin(dd / LC), dy = -LC * (1 - Math.cos(th)) + AR * (c - 1), X = bx + dd;
         const rot = phi * .55 + dd * .5, cr = Math.cos(rot * D), sr = Math.sin(rot * D);
         R.sign.style.transform = `translate(${X.toFixed(1)}px,${dy.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
-        const h1 = [CX + X - sg.hx * cr - 2 * sr, SY + dy - sg.hx * sr - 2 * cr], h2 = [CX + X + sg.hx * cr - 2 * sr, SY + dy + sg.hx * sr - 2 * cr];
+        const h1 = [CX + X - sg.hx * cr - 2 * sr, SYe + dy - sg.hx * sr - 2 * cr], h2 = [CX + X + sg.hx * cr - 2 * sr, SYe + dy + sg.hx * sr - 2 * cr];
         R.hangP.setAttribute('d', `M${pp(pc(-sg.bx, BY + 2))}L${pp(h1)}M${pp(pc(sg.bx, BY + 2))}L${pp(h2)}`);
         // the flame and its light: from burn alone
         const b = Math.max(0, Math.min(1, f.burn));
