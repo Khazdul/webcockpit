@@ -384,8 +384,44 @@ is gone (below, "Removals").
     moving balloon, even a fixed 1°, brings it to 45: software WebRender
     redraws rotated content of a moving element every frame. The drift's
     changing scale is not the problem (60 after the leave).
-  - Not fixed: the lean and the car's swing are the approved look. The
-    owner plays with hardware WebRender (ADR 0135), where this case did
-    not show in stage 50's measurements; a headed run here gave no clean
-    number (the window ran at 29 fps with no balloon too). Open for the
-    main session (below).
+  - The cost scaled with the window, not the balloon (at 1280 × 720 the
+    same rotation ran at 60), so the rotated part made WebRender redraw
+    the whole screen's picture cache each frame, not just the balloon.
+    Fixed in "The layers are fixed", below; the lean and the swing stay.
+    (A headed run gave no clean number: the window ran at 29 fps with no
+    balloon too.)
+- **The layers are fixed** (same day). Tried on one dwarf, arrive + read
+  in headless Firefox (software WebRender), with the rotation kept:
+  `overflow: visible` on the car's clip 45.7, no clip paths 46.0, the
+  rotation on the moving wrapper instead of the parts 46.9,
+  `backface-visibility: hidden` 44.9, `image-rendering: pixelated` 45.1,
+  a filter on the parts 45.4, `isolation` 45.2, `transform-style:
+  preserve-3d` 44.8, `overflow: auto` on the layer 47.8, no `contain` on
+  it 45.0, no `will-change` 44.8; every SVG in the envelope and the car
+  hidden 46.4 (so not their content); `contain: paint` on the parts 56.3
+  (it clips them to their zero-height boxes: no use). **`position: fixed`
+  on the two layers: 60.** WebRender gives fixed content a picture cache
+  slice of its own, so a balloon's frame redraws only that slice. A
+  quantised rotation (writing it at a lower rate) was not tried: a fixed
+  1° costs as much as a changing one.
+  - The layers keep the cockpit's box: `balloons.ts` sets `left`, `top`,
+    `width` and `height` from the cockpit's `getBoundingClientRect()` at
+    the start and on a resize (`ResizeObserver` on the cockpit, and the
+    window's `resize`), through `pinBox`, which also corrects for a
+    containing block that is not the viewport (an ancestor with a
+    transform; unit tested). A fixed element escapes the cockpit's
+    `overflow: hidden`; the layer's own clips it to the same box. The
+    paint order is unchanged (`z-index: auto`; the layer was already a
+    stacking context by its `contain: strict`).
+  - Mean fps over arrive + read / the first 12 s of the leave / the
+    drift. Firefox (software WebRender): one dwarf 44.6 / 54.2 / 60 →
+    **60 / 60 / 60**; five mixed (elf, troll, hobbit, Númenórean, orc,
+    0.4 s apart) 40.0 / 56.2 / 60 → **60 / 60 / 60** (p95 17.3 ms).
+    Chromium (headless): 60 / 60 / 60 before and after, one and five.
+  - The look is the same for everyone. The product's reduced-motion
+    dwarf at its readable spot (seeded flight) is pixel-identical before
+    and after in Chromium and Firefox, at the same box; the rig look
+    check (`dwarf`, night) is unchanged (no pixel over 3 %). The balloons
+    e2e (under every pane in every phase, both browsers) passes. The
+    fallback the owner had accepted (flattening the lean where ADR 0135's
+    watch sees a slow compositor) is not needed and not built.

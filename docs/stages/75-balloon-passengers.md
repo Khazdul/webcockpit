@@ -6,7 +6,7 @@ design rounds later the look is approved: eight passengers on one shared
 rig, chosen by the race the player plays. This stage builds that look into
 the application.
 
-**Status: built (all eight passengers, the removals); review, the full e2e and staging next. Open: the cost in Firefox's software compositor (ADR 0159 round 3, "Life and cost").** The design was approved by the owner
+**Status: built (all eight passengers, the removals); review, the full e2e and staging next. The cost in Firefox's software compositor is fixed without a change of look (ADR 0159 round 3, "The layers are fixed").** The design was approved by the owner
 on 2026-11-21 ("Godkänt, bygg så").
 
 ## What is approved (the source to build from)
@@ -166,10 +166,12 @@ if it grows past an addendum).
       passengers 16.0–19.8 kB gzip, ADR 0159 round 3).
 - [x] B: the sign's 85 % decided: `zoom` where `CSS.supports`, else
       `transform: scale(.85)` with the measure scaled (`rig.ts` fit).
-- [~] B: life stops and filters ease once a balloon is far away;
+- [x] B: life stops and filters ease once a balloon is far away;
       `#perf` in Chromium and Firefox. `rest()` built and measured; Firefox
-      software WebRender drops to ~45 fps while a dwarf arrives (rotated
-      parts in a moving element, not the filters): open, see the ADR.
+      software WebRender dropped to ~45 fps while a dwarf arrived (rotated
+      parts in a moving element redrew the whole screen): fixed by making
+      the balloon layers `position: fixed` (a slice of their own), 60 fps
+      with one and five, no change of look (ADR 0159 round 3).
 - [x] C: `passenger.ts`, the race read per balloon, `#weather balloon
       as …` and `#weather balloon race` (in the usage and the `#weather`
       hint).
@@ -224,8 +226,8 @@ Only the dwarf is built: every race flies the dwarf for now.
    the flame lights before it moves and roars just before it leaves;
    3 s at the readable spot; the sign readable.
 4. Five in a row (`#weather balloon as dwarf` five times): anything that
-   stutters? Known: Firefox without GPU compositing drops to about 45 fps
-   while one arrives (the lean and the car's swing; Chromium holds 60).
+   stutters? (Firefox without GPU compositing used to drop to about 45
+   fps while one arrived; fixed, 60 in headless measurements.)
 5. A real kill or two.
 
 Feedback wanted: the dwarf in the real client (size, place, readable
@@ -251,12 +253,11 @@ Branch `stage-75-balloon-passengers` on <https://staging.mumecockpit.com>
    are not known). A wrong passenger: send the `#weather balloon race`
    line.
 5. Several up at once (`#weather balloon` five times): anything that
-   stutters? Known: Firefox without GPU compositing ~45 fps while one
-   arrives (the lean and the car's swing); Chromium 60.
+   stutters? (Firefox without GPU compositing: 60 fps with five now,
+   headless; it was 40–45.)
 
 Feedback wanted: the readable time (3 s), the size on your screen, the
-cost, the Firefox point above (accept, or flatten the lean there only),
-and whether Balloons should be on by default.
+cost, and whether Balloons should be on by default.
 
 ## Owner feedback
 
