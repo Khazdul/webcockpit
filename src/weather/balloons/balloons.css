@@ -6,10 +6,19 @@
  *   text and every pane;
  * - the front layer: right after the game pane, over the game text, under
  *   the input row, the docked panes (later siblings) and the floating
- *   panes (z-index 10 and up). Never over a pane (owner, round 2). */
+ *   panes (z-index 10 and up). Never over a pane (owner, round 2).
+ *
+ * Fixed, not absolute (stage 75, ADR 0159 round 3): Firefox's software
+ * WebRender gives fixed content a picture cache slice of its own, so a
+ * moving balloon with a rotated part no longer redraws the whole screen
+ * each frame (45 fps → 60). The box is the cockpit's, set from it by
+ * balloons.ts (`pinBox`); the paint order is the same (z-index auto). */
 .wc-balloons {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
   overflow: hidden;
   pointer-events: none;
   user-select: none;

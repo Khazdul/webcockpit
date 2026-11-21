@@ -4,7 +4,7 @@
 // (and the round-2 notices never joining), the cap, frames only while a
 // balloon is up, and the skins (SVG goblin, raster layers).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_BALLOONS, startBalloons } from '../../src/weather/balloons/balloons';
+import { MAX_BALLOONS, pinBox, startBalloons } from '../../src/weather/balloons/balloons';
 import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS, signFor } from '../../src/weather/balloons/feed';
 import type { LaneGeom } from '../../src/weather/balloons/flight';
 import { passenger as dwarf } from '../../src/weather/balloons/passengers/dwarf';
@@ -142,6 +142,31 @@ describe('balloons', () => {
     run(2);
     expect(b.list().length).toBeLessThanOrEqual(MAX_BALLOONS);
     b.destroy();
+  });
+
+  it('the layers are fixed on the cockpit\'s box (Firefox software WebRender, round 3): set at the start and again on a resize, also under a containing block that is not the viewport', () => {
+    const vp = { left: 0, top: 0, width: 0, height: 0 };
+    // the viewport as containing block: the layer lands where its left/top say
+    expect(pinBox({ left: 10, top: 40, width: 800, height: 600 }, vp, { left: 0, top: 0 })).toEqual({ left: 10, top: 40, width: 800, height: 600 });
+    // an ancestor with a transform at (100, 20) as containing block
+    expect(pinBox({ left: 100, top: 60, width: 800, height: 600 }, { left: 110, top: 60, width: 800, height: 600 }, { left: 10, top: 40 })).toEqual({ left: 0, top: 40, width: 800, height: 600 });
+    const root = cockpit();
+    let box = { left: 0, top: 32, width: 1920, height: 1048 };
+    const rect = (b: typeof box): DOMRect => ({ ...b, x: b.left, y: b.top, right: b.left + b.width, bottom: b.top + b.height, toJSON: () => b }) as DOMRect;
+    vi.spyOn(root, 'getBoundingClientRect').mockImplementation(() => rect(box));
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const s = this.style;
+      return rect({ left: parseFloat(s.left) || 0, top: parseFloat(s.top) || 0, width: parseFloat(s.width) || 0, height: parseFloat(s.height) || 0 });
+    });
+    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const boxes = (): string[] => [...root.querySelectorAll<HTMLElement>('.wc-balloons')].map((l) => [l.style.left, l.style.top, l.style.width, l.style.height].join(' '));
+    expect(boxes()).toEqual(['0px 32px 1920px 1048px', '0px 32px 1920px 1048px']);
+    box = { left: 0, top: 0, width: 1280, height: 720 };
+    window.dispatchEvent(new Event('resize'));
+    expect(boxes()).toEqual(['0px 0px 1280px 720px', '0px 0px 1280px 720px']);
+    b.destroy();
+    box = { left: 0, top: 0, width: 640, height: 480 };
+    window.dispatchEvent(new Event('resize'));
   });
 
   it('no frames while the page is hidden', () => {

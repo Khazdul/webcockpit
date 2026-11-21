@@ -54,6 +54,26 @@ export const HURRY_FADE = 1.5;
  */
 export const REST_AFTER = { min: 8, shrunk: 0.6, max: 20 } as const;
 
+/** A box in viewport px (a DOMRect's part the layers use). */
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Where a balloon layer goes to cover the cockpit (ADR 0159, round 3,
+ * "The layers are fixed"). The layers are `position: fixed`, so their
+ * box is set from the cockpit's: `root` is the cockpit's box, `at` where
+ * the layer is now and `cur` its `left`/`top`. The offset `at − cur` is the
+ * layer's containing block (the viewport, or an ancestor with a transform
+ * or containment), so the result lands on the cockpit in either case.
+ */
+export function pinBox(root: Box, at: Box, cur: { left: number; top: number }): Box {
+  return { left: root.left - (at.left - cur.left), top: root.top - (at.top - cur.top), width: root.width, height: root.height };
+}
+
 export interface BalloonsHost {
   /** The cockpit (the weather canvases' root). */
   root: HTMLElement;
@@ -145,6 +165,23 @@ export function startBalloons(host: BalloonsHost): Balloons {
   const game = root.querySelector(':scope > .wc-game');
   if (game) game.after(front);
   else sky.after(front);
+  // Both layers cover the cockpit, fixed (balloons.css): set from its box
+  // when it changes size or the window does (a layout read then, never per frame).
+  const pin = (): void => {
+    const r = root.getBoundingClientRect();
+    for (const l of [sky, front]) {
+      const cur = { left: parseFloat(l.style.left) || 0, top: parseFloat(l.style.top) || 0 };
+      const b = pinBox(r, l.getBoundingClientRect(), cur);
+      l.style.left = b.left + 'px';
+      l.style.top = b.top + 'px';
+      l.style.width = b.width + 'px';
+      l.style.height = b.height + 'px';
+    }
+  };
+  pin();
+  const ro = win.ResizeObserver ? new win.ResizeObserver(pin) : null;
+  ro?.observe(root);
+  win.addEventListener('resize', pin);
 
   const flights: Flight[] = [];
   let raf = 0;
@@ -346,6 +383,8 @@ export function startBalloons(host: BalloonsHost): Balloons {
       destroyed = true;
       if (raf) win.cancelAnimationFrame(raf);
       doc.removeEventListener('visibilitychange', onVis);
+      ro?.disconnect();
+      win.removeEventListener('resize', pin);
       for (const f of flights.splice(0)) f.skin.destroy();
       for (const r of made.splice(0)) r.destroy();
       if (fonts) removeSignFonts(doc);
