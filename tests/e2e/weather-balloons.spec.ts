@@ -3,7 +3,9 @@
 // one without a fight; a real kill and an achievement (a fake MUME) send
 // balloons up. Round 2: the balloons are under every pane, docked or
 // floating, in every phase; a level up, a death and an achievement have
-// balloons of their own; the phone's layout never loads them.
+// balloons of their own; the phone's layout never loads them. Stage 75:
+// the shared rig with a passenger (the dwarf, the proof), its sign set in
+// the bundled faces; nothing of it loads with Balloons off.
 import { type Page, expect, test } from '@playwright/test';
 
 const toggle = (page: Page, label: string) => page.locator(`.wc-sp-settings .wc-ck-tg[aria-label="${label}"]`);
@@ -55,17 +57,18 @@ test('Settings → Weather effects → Balloons loads them live; #weather balloo
   const b = balloon(page);
   await expect(b).toHaveCount(1);
   await expect(page.locator('.wc-balloons-front .wc-balloon')).toHaveCount(1);
-  await expect(b.locator('.wc-bsign-who')).toHaveText('An Uruk-hai tracker');
-  await expect(b.locator('.wc-bsign-xp')).toHaveText('+3.7kXP');
-  await expect(b.locator('.wc-bsign-rate')).toHaveText('Great');
-  // A slow rise (about 7 s), readable about 5.5 s, then it leaves into the sky layer, behind the text.
+  await expect(b.locator('.rig-title')).toHaveText('An Uruk-hai tracker');
+  await expect(b.locator('.rig-fig')).toHaveText('3,700xp');
+  await expect(b.locator('.rig-word')).toHaveText('Great');
+  // A slow rise (about 7 s), readable about 3 s, then it leaves into the sky layer, behind the text.
   await expect(page.locator('.wc-balloons-sky .wc-balloon')).toHaveCount(1, { timeout: 20_000 });
 
   // A burst: four kills on one sign.
   await type(page, '#weather balloon burst');
   const front = page.locator('.wc-balloons-front .wc-balloon');
-  await expect(front.locator('.wc-bsign-who')).toHaveText('4 kills', { timeout: 5_000 });
-  await expect(front.locator('.wc-bsign-rate')).toHaveText('Great');
+  await expect(front.locator('.rig-title')).toHaveText('4 kills', { timeout: 5_000 });
+  await expect(front.locator('.rig-word')).toHaveText('Great');
+  await expect(front.locator('.rig-more')).toHaveText('an orc scout · a goblin thief · an Uruk-hai tracker');
 
   await page.locator('.wc-mb[data-mb="settings"]').click();
   await page.locator('.wc-ck-tab[data-tab="weather"]').click();
@@ -84,22 +87,21 @@ test('round 2: a level up, a death and an achievement each rise on a balloon of 
   await type(page, '#weather balloon levelup');
   await type(page, '#weather balloon death');
   await type(page, '#weather balloon achievement');
-  const signs = page.locator('.wc-balloons-front .wc-bsign');
+  const signs = page.locator('.wc-balloons-front .rig-sign');
   await expect(signs.filter({ hasText: 'Level 23!' })).toHaveCount(1);
   await expect(signs.filter({ hasText: 'You died' })).toHaveCount(1);
   const ach = signs.filter({ hasText: 'Achievement' });
   await expect(ach).toHaveCount(1);
-  await expect(ach.locator('.wc-bsign-who')).toContainText('Old Forest');
-  await expect(page.locator('.wc-balloons-front .wc-bsign[data-face="levelup"]')).toHaveCount(1);
+  await expect(ach.locator('.rig-title')).toContainText('Old Forest');
+  await expect(page.locator('.wc-balloons-front .rig-sign[data-mood="levelup"]')).toHaveCount(1);
   // The burst's later kills still join the kill balloon only.
   await expect(signs.filter({ hasText: '4 kills' })).toHaveCount(1, { timeout: 5_000 });
   await expect(balloon(page)).toHaveCount(4);
-  // The achievement's text stays on its plank: four lines at most, inside the balloon's planned height.
-  const box = await ach.locator('.wc-bsign-who').evaluate((e) => ({ h: (e as HTMLElement).offsetHeight, lh: parseFloat(getComputedStyle(e).lineHeight) }));
-  expect(box.h).toBeLessThanOrEqual(box.lh * 4 + 1);
-  const el = ach.locator('xpath=ancestor::*[contains(@class,"wc-balloon")][1]');
-  const h = await el.evaluate((e) => (e as HTMLElement).offsetHeight);
-  expect(h).toBeLessThanOrEqual(335);
+  // Stage 75, the rig's height limit: no sign ends below 363 px (K.MAXH) of the rig.
+  for (const e of await signs.all()) {
+    const end = await e.evaluate((s) => (s as HTMLElement).offsetTop + (s as HTMLElement).offsetHeight);
+    expect(end).toBeLessThanOrEqual(363);
+  }
   expect(errors).toEqual([]);
 });
 
@@ -186,7 +188,7 @@ test('round 2: desktop only: the phone layout never loads the balloons, and #wea
   await expect(rows(page).filter({ hasText: 'Balloons are desktop only' })).toHaveCount(1);
   // Nothing of them, and their chunk never fetched.
   await expect(layers(page)).toHaveCount(0);
-  expect(await page.evaluate(() => performance.getEntriesByType('resource').some((r) => /balloons\/(notices|balloons|flight)/.test(r.name)))).toBe(false);
+  expect(await page.evaluate(() => performance.getEntriesByType('resource').some((r) => /balloons\/(notices|balloons|flight|rig|passengers)|IMFell|Cinzel-Medium|SemiBold/.test(r.name)))).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -216,12 +218,117 @@ test('a real kill sends a balloon up with its name and XP (calibrating: no ratin
   server!.send(gmcp('Char.Vitals {"xp":5772600}'));
   const b = balloon(page);
   await expect(b).toHaveCount(1);
-  await expect(b.locator('.wc-bsign-who')).toHaveText('An orc scout');
-  await expect(b.locator('.wc-bsign-xp')).toHaveText('+2.6kXP');
-  await expect(b.locator('.wc-bsign-rate')).toBeHidden();
+  await expect(b.locator('.rig-title')).toHaveText('An orc scout');
+  await expect(b.locator('.rig-fig')).toHaveText('2,600xp');
+  // calibrating: no rating word, the unrated "?"
+  await expect(b.locator('.rig-word')).toHaveCount(0);
+  await expect(b.locator('.rig-q')).toHaveText('?');
   server!.send(gmcp('Event.Achieved {"what":"You have slain your first orc scout."}'));
   await expect(b).toHaveCount(2);
-  await expect(b.nth(1).locator('.wc-bsign-who')).toHaveText('You have slain your first orc scout.');
-  await expect(b.nth(0).locator('.wc-bsign-who')).toHaveText('An orc scout');
+  await expect(b.nth(1).locator('.rig-title')).toHaveText('You have slain your first orc scout.');
+  await expect(b.nth(0).locator('.rig-title')).toHaveText('An orc scout');
+  // Stage 75: the race is read per balloon; `#weather balloon race` says what the client holds.
+  server!.send(gmcp('Char.StatusVars {"race":"Dwarf","subrace":""}'));
+  await page.locator('.wc-input-field').fill('#weather balloon race');
+  await page.keyboard.press('Enter');
+  await expect(rows(page).filter({ hasText: 'race "Dwarf", subrace ""; the passenger is the dwarf.' })).toHaveCount(1);
+  server!.send(gmcp('Char.StatusVars {"race":"Man","subrace":"Dunadan"}'));
+  await page.locator('.wc-input-field').fill('#weather balloon race');
+  await page.keyboard.press('Enter');
+  await expect(rows(page).filter({ hasText: 'the passenger is the human (it flies as the dwarf' })).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+/** CSP violations as the page reports them (the dev server sends no policy; the production walk enforces one). */
+async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __csp: string[] };
+    w.__csp = [];
+    document.addEventListener('securitypolicyviolation', (e) => w.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
+  });
+  return () => page.evaluate(() => (window as unknown as { __csp: string[] }).__csp);
+}
+
+test('stage 75: the dwarf flies every kind with the game\'s text, in the bundled faces, without an error', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors = watchErrors(page);
+  const csp = await watchCsp(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  const check = async (what: string, title: string, fig: string) => {
+    const r = page.locator(`.wc-balloon > .rig.dwarf-v[data-mood="${what}"]`);
+    await expect(r, what).toHaveCount(1);
+    if (title) await expect(r.locator('.rig-title')).toHaveText(title);
+    if (fig) await expect(r.locator('.rig-fig')).toHaveText(fig);
+  };
+  // a poor kill; a superb one once the first has left (a kill joins a readable kill's sign)
+  await type(page, '#weather balloon as dwarf poor');
+  await check('poor', 'A field mouse', '140xp');
+  await expect(page.locator('.wc-balloons-sky .rig[data-mood="poor"]')).toHaveCount(1, { timeout: 20_000 });
+  await type(page, '#weather balloon as dwarf superb');
+  await check('superb', 'A cave troll', '12,400xp');
+  // the moments, each on its own balloon
+  await type(page, '#weather balloon as dwarf levelup');
+  await type(page, '#weather balloon as dwarf death');
+  await type(page, '#weather balloon as dwarf achievement');
+  await check('levelup', '', 'Level 23!');
+  await check('death', '', 'You died');
+  await check('achievement', 'You have explored every room of the Old Forest, from the Withywindle to the Barrow-downs.', '');
+  await expect(page.locator('.wc-balloon > .rig.dwarf-v')).toHaveCount(5);
+  // four kills joined on one sign (a sixth balloon: the oldest fades out)
+  await type(page, '#weather balloon as dwarf burst');
+  await expect(page.locator('.rig-title').filter({ hasText: '4 kills' })).toHaveCount(1, { timeout: 8_000 });
+  // the sign faces are the bundled ones, loaded
+  const faces = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '').startsWith('WCB')).map((f) => `${f.family} ${f.weight} ${f.style} ${f.status}`));
+  expect(faces.length).toBe(9);
+  for (const f of faces) expect(f).toMatch(/loaded$/);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.rig-title')!).fontFamily)).toContain('WCB Cormorant');
+  expect(errors).toEqual([]);
+  expect(await csp()).toEqual([]);
+});
+
+test('stage 75: reduced motion: the rig\'s still form at the readable spot', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  await type(page, '#weather balloon good');
+  const r = page.locator('.wc-balloons-front .wc-balloon > .rig');
+  await expect(r).toHaveClass(/rig-rm/);
+  await expect(r).toHaveClass(/rig-at/);
+  await expect(r).toHaveClass(/rig-still/);
+  const at = () => r.evaluate((e) => (e.parentElement as HTMLElement).style.transform);
+  const t0 = await at();
+  await page.waitForTimeout(1000);
+  expect(await at()).toBe(t0);
+  // no running animation anywhere in it
+  expect(await r.evaluate((e) => e.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('stage 75: Balloons off loads nothing of them: no rig, no passenger chunk, no sign face', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: false } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await expect(layers(page)).toHaveCount(0);
+  const fetched = await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /balloons\/(notices|balloons|rig|passengers|fonts)|IMFell|Cinzel-Medium|CormorantGaramond-SemiBold/.test(n)));
+  expect(fetched).toEqual([]);
+  expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('WCB')))).toBe(false);
+  // switched on and off again: the faces leave the document with the balloons
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => [...document.fonts].filter((f) => f.family.includes('WCB')).length)).toBe(9);
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { balloons: false } }));
+  await expect(layers(page)).toHaveCount(0);
+  expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('WCB')))).toBe(false);
+  expect(await page.evaluate(() => document.querySelectorAll('style[data-wc-rig]').length)).toBe(0);
   expect(errors).toEqual([]);
 });
