@@ -250,12 +250,14 @@ is gone (below, "Removals").
   once the faces have loaded (at most 2.5 s; the rig fits it again when a
   face arrives later), so the height fit measures the real face. The new
   files are 237 kB (the three IM Fell files 175 kB of it), fetched once.
-  **Open point before release** (owner: keep the files for now): IM Fell
-  English declares Reserved Font Names ("IM FELL English Roman",
-  "… Italic", "… SC"; google/fonts `METADATA.pb`, © 2007/2010 Igino
-  Marini); the files are Google's subsets under those names, used
-  unmodified. Whether such a subset is a Modified Version under OFL §3 is
-  to be settled. Cinzel and Cormorant Garamond declare none.
+  **Reserved Font Names, settled before release:** IM Fell English
+  declares them ("IM FELL English Roman", "… Italic", "… SC"; © 2007/2010
+  Igino Marini). A subset is a Modified Version under OFL 1.1, which may
+  not keep such a name, so the three files are renamed "WCB Engraved"
+  (roman, italic) and "WCB Engraved SC" (`WCBEngraved-*-latin.woff2`):
+  only the `name` table changed, the copyright notice kept, every other
+  table byte-identical, so the look and the measurements are unchanged
+  (`public/fonts/README.md`). Cinzel and Cormorant Garamond declare none.
 - **The porting form.** `balloons/rig.ts` is `rig.js` as TypeScript:
   same geometry, markup, CSS values and timings; `passengers/dwarf.ts` is
   `skins/dwarf.js` likewise (a word diff shows only types), and so are
