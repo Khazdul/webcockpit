@@ -273,7 +273,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
     if (isKillNotice(n)) for (let i = flights.length - 1; i >= 0 && !top; i--) if (isKillNotice(flights[i]!.notices[0]!)) top = flights[i];
     if (!top || top.fadeAt !== null || !canJoin(top.plan, top.t)) return false;
     top.notices.push(n);
-    extendRead(top.plan);
+    extendRead(top.plan, top.t);
     const s = signFor(top.notices);
     top.skin.setMood(s.mood);
     top.skin.setSign(s, true);

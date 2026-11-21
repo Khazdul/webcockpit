@@ -148,6 +148,8 @@ export interface FlightPlan {
   shrinkT: number;
   /** When the leave starts its last fade (share of it; 1: none, it is out of sight by then). */
   fadeFrom: number;
+  /** When the burner's pre-leave blast began, if a joined kill then moved the leave back (it stays lit till the leave). */
+  blastFrom?: number;
   sway: { ax: number; fx: number; ay: number; fy: number; p1: number; p2: number };
 }
 
@@ -354,7 +356,11 @@ export function planFlight(seed: number, g: LaneGeom, bw: number, bh: number, op
 }
 
 /** A kill joined the sign: the readable time grows, capped. */
-export function extendRead(p: FlightPlan): void {
+export function extendRead(p: FlightPlan, t?: number): void {
+  // A kill in the blast's second (joins are allowed until 0.4 s before the
+  // leave): the leave moves back, the blast that has begun stays lit.
+  const blast = p.ta + p.read - BURN_BLAST_IN;
+  if (t !== undefined && t > blast && !p.reduced) p.blastFrom = Math.min(p.blastFrom ?? blast, blast);
   p.read = Math.min(READ_MAX, p.read + READ_EXTEND);
 }
 
@@ -516,6 +522,8 @@ export function burnTarget(p: FlightPlan, t: number): number {
   // the time since the leave began (negative before it)
   const tl = t - (p.ta + p.read);
   if (tl > -BURN_BLAST_IN && tl < BURN_BLAST_OUT) w = Math.max(w, tl < 0 ? Math.min(1, (tl + BURN_BLAST_IN) / 0.18) : 1 - 0.45 * (tl / BURN_BLAST_OUT));
+  // a blast that began before a joined kill moved the leave back: lit till the leave
+  if (p.blastFrom !== undefined && t >= p.blastFrom && tl < 0) w = Math.max(w, Math.min(1, (t - p.blastFrom) / 0.18));
   // long, uneven pulls on the way up
   if (leaving && tl >= BURN_BLAST_OUT) w *= 0.78 + 0.22 * Math.sin(tl * 2.1);
   return Math.max(BURN_MIN, w);

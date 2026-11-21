@@ -386,6 +386,28 @@ describe('the burner (stage 75: it leads the motion)', () => {
     }
   });
 
+  it('a kill joining in the blast\'s second: the leave moves back, the blast stays lit (no roar, drop, roar)', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const p = plan(seed);
+      const tj = p.ta + p.read - 0.6; // tl ≈ -0.6: the blast has begun, joins are still allowed
+      expect(canJoin(p, tj)).toBe(true);
+      let b = 1, t = 0;
+      const dt = 1 / 60;
+      for (; t < tj; t += dt) b = burnStep(b, burnTarget(p, t), dt);
+      expect(b, `seed ${seed}`).toBeGreaterThan(0.85);
+      extendRead(p, tj);
+      const leave = p.ta + p.read;
+      let low = 1;
+      for (; t < leave; t += dt) {
+        b = burnStep(b, burnTarget(p, t), dt);
+        low = Math.min(low, b);
+      }
+      // never back to the pilot flame between the blast's start and the (later) leave
+      expect(low, `seed ${seed}`).toBeGreaterThan(0.85);
+      expect(burnTarget(p, leave - 0.05)).toBe(1);
+    }
+  });
+
   it('reduced motion: the still rig\'s steady low flame', () => {
     const p = planFlight(4, WIDE, RIG_SIZE.w, RIG_SIZE.h, { reduced: true });
     expect([0, 1, 3].map((t) => burnTarget(p, t))).toEqual([BURN_STILL, BURN_STILL, BURN_STILL]);
