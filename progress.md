@@ -123,6 +123,26 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-21 — Stage 69: balloon notices, look round 5, the shared rig (mockup)
+
+- **Done:** design only. The round 5 stage (`notes/research/balloons/round5/`):
+  `fly` drives `burn` from the path 650 ms ahead, with a blast about 1 s
+  before the leave (`trace.mjs` prints the flight as numbers; Chromium
+  and Firefox: flame low about 1 s before the stop, roaring 0.8 s
+  before the leave, no long frames). `rig.js` is the shared rig as code
+  (`Rig.create(ctx, spec)`: envelope by condition, long ropes, burner
+  hung under the mouth, flame behind the front lip, sign on two chains).
+  `skins/dwarf.js` is the dwarf on it: smaller head, armour, a forge-pot
+  burner with bellows, envelopes from a patched scrap bag to cloth of
+  gold with a crown.
+- **Next:** the owner's verdict on the dwarf and the rig; then the other
+  seven passengers, one subagent each, built on `rig.js`.
+- **Open:** four kills joined and achievement are 391 and 380 px tall
+  (limit 363); the visible flame is short (24 px between pot and mouth);
+  the beard hides the breastplate; overcast and reduced motion not looked
+  at; the pipe's smoke rings on good are borderline against rule 4.
+- **Commits:** this one.
+
 ### 2026-11-21 — Stage 69: balloon notices, verdict on round 4 and the brief for round 5
 
 - **Done:** no new mockups. The owner's verdict on round 4 and the plan
