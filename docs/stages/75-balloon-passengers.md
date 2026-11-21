@@ -208,7 +208,29 @@ on level up, the hobbit's pipe plume on superb (he asked for it), the
 dwarf's smoke rings on good, the troll's small crown on superb, war paint
 on a player kill (troll, orc).
 
-## Test guide (staging)
+## Test guide, the dwarf (staging, 2026-11-21)
+
+Branch `stage-75-balloon-passengers` on <https://staging.mumecockpit.com>.
+Only the dwarf is built: every race flies the dwarf for now.
+
+1. A desktop, a wide window. Settings → Weather effects: **Weather
+   effects** and **Balloons** on.
+2. `#weather balloon race`: the race and subrace the client holds and
+   the passenger they would give (the dwarf flies anyway on this branch).
+3. `#weather balloon as dwarf superb`, then `… poor`, `… burst`,
+   `… levelup`, `… death`, `… achievement`: the look against the mockup;
+   the flame lights before it moves and roars just before it leaves;
+   3 s at the readable spot; the sign readable.
+4. Five in a row (`#weather balloon as dwarf` five times): anything that
+   stutters? Known: Firefox without GPU compositing drops to about 45 fps
+   while one arrives (the lean and the car's swing; Chromium holds 60).
+5. A real kill or two.
+
+Feedback wanted: the dwarf in the real client (size, place, readable
+time, the flame's timing), the cost, and whether the other seven may be
+ported as they are.
+
+## Test guide (staging, all eight)
 
 To be completed when the stage is built. Wanted from the owner:
 
