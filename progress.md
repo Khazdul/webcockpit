@@ -123,6 +123,32 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-21 — Stage 69: balloon notices, look round 4 (mockups)
+
+- **Done:** the owner's verdict on round 3: the original goblin in a
+  balloon is the best concept; he liked the warden dwarf's drawing and
+  its living eyes, not its scene or its slate; the round 2 balloon was
+  poorly animated; the rating steps must differ drastically (a party hat
+  on superb); the sign must look hung from the basket; half the readable
+  time. Seven balloon skins on a stage with a 3 s readable time
+  (`notes/research/balloons/round4/`, published artifact, `local.html`):
+  goblin as a tinted engraving with props; goblin whose envelope shows
+  the rating, with a banner that unrolls; goblin in a costume per
+  outcome, storybook look; the warden dwarf in a leather balloon; a
+  hobbit; an orc; a troll too big for the basket. Every sign hangs on
+  two ropes or chains redrawn each frame; faces blink and glance; the
+  flame follows the climb. A usage limit stopped all seven subagents
+  once; they were resumed. Nothing under `src/` changed.
+- **Next:** the owner picks; then the chosen skin is built against
+  `skin.ts` (a taller rig than today's 330 px plan, and the two-rope
+  sign instead of the shared plank: an ADR 0159 addendum), and the
+  readable time halved in `flight.ts`.
+- **Open:** motion was judged from still series, not watched; skins
+  are 60–80 KB of generated SVG each; envelopes are squat to fit 350 px;
+  three balloons at once overlap in the lane; reduced motion untested
+  in most.
+- **Commits:** this one.
+
 ### 2026-11-20 — Stage 69: balloon notices, look round 3 (mockups)
 
 - **Done:** the owner's verdict on round 2: the stars are best, none is
