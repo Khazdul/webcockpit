@@ -1,5 +1,6 @@
 // The info poll's answer (stage 77 part A "Live results"): the one real
-// sample, and every `%C` value of that run.
+// sample with a made-up wimpy at its end (`%y` came in part C), and every
+// `%C` value of that run.
 import { describe, expect, it } from 'vitest';
 import { ABILITIES } from '../../src/gmcp/age';
 import { INFO_FIELDS, INFO_SEPARATOR, type InfoKey, parseInfoAnswer, wordsToNumber } from '../../src/gmcp/info-answer';
@@ -10,7 +11,7 @@ const SAMPLE = [
   '74|81|13|85|70|16|16|16|11|12|16|8|Str:16 Int:16 Wis:16 Dex:11 Con:12 Wil:16',
   'Per:8|57|7|7|four feet eleven|eight stone and five pounds|ninety-seven pounds|Heavy, but we will',
   `manage...|You are totally corrupted by the Evilness of Morgoth!|GoblinTown|${G(380)} gold coins,`,
-  `${G(5)} silver pennies, and ${G(49)} copper pennies|warlord (19)|25|10|20`,
+  `${G(5)} silver pennies, and ${G(49)} copper pennies|warlord (19)|25|10|20|120`,
 ];
 const SPACED = SAMPLE.join(' ').split('|').join(INFO_SEPARATOR);
 
@@ -62,11 +63,12 @@ const RASTA = {
   vision: 25,
   hearing: 10,
   smell: 20,
+  wimpy: 120,
 };
 
 describe('INFO_FIELDS', () => {
   it("is the stage file's format, in its order", () => {
-    expect(INFO_FIELDS.map((f) => f.code).join('|')).toBe('%l|%O|%D|%k|%A|%S|%i|%w|%d|%o|%I|%p|%G|%a|%N|%n|%h|%W|%C|%F|%q|%c|%r|%K|%v|%H|%s');
+    expect(INFO_FIELDS.map((f) => f.code).join('|')).toBe('%l|%O|%D|%k|%A|%S|%i|%w|%d|%o|%I|%p|%G|%a|%N|%n|%h|%W|%C|%F|%q|%c|%r|%K|%v|%H|%s|%y');
     expect(new Set(INFO_FIELDS.map((f) => f.key)).size).toBe(INFO_FIELDS.length);
   });
 });
@@ -108,6 +110,7 @@ describe('parseInfoAnswer', () => {
       ['purse', 'purse'],
       ['warFame', 'warFame'],
       ['smell', 'smell'],
+      ['wimpy', 'wimpy'],
     ];
     for (const [key, field] of bad) {
       for (const value of ['?', '']) expect(answer({ [key]: value }), `${key} "${value}"`).toEqual({ ...RASTA, [field]: null });

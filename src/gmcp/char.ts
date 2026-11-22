@@ -7,7 +7,8 @@
 // - `Char.Vitals`: a flat object merged key by key. A key that is absent
 //   keeps its value; JSON `null` sets it to null ("off" for the toggles).
 //   `wimpy` is also set from the text lines `Wimpy set to: N` /
-//   `Wimpy removed.` (system rules, `setWimpy`). A mood that becomes
+//   `Wimpy removed.` (system rules) and from the info poll's `%y`
+//   (`setWimpy`). A mood that becomes
 //   berserk sets it to 0: MUME does that without a line (`help mood`), and
 //   it stays 0 when the mood changes again.
 // - Exact or band, per bar (stage 77 decision 11, ADR 0166 addendum part B;
@@ -211,7 +212,7 @@ export class CharModel {
     if (this.anchorTp === null) this.anchorTp = num(this.vitals.get('tp'));
   }
 
-  /** Wimpy from the text lines (`Wimpy removed.` is 0). */
+  /** Wimpy from the text lines (`Wimpy removed.` is 0) or the poll. */
   setWimpy(n: number | null): boolean {
     if (this.vitals.get('wimpy') === n) return false;
     this.vitals.set('wimpy', n);

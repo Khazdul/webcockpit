@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { type Line } from '../../src/core/types';
+import type { InfoAnswer } from '../../src/gmcp/info-answer';
 import { CLOCK_KEY, GameState, type GamePart } from '../../src/gmcp/state';
 import { ScriptEngine } from '../../src/script/engine';
 
@@ -38,6 +39,30 @@ describe('GameState', () => {
     expect(t.parts).toEqual(['char', 'group']);
     expect(t.game.char.name).toBe('Rasta');
     expect(t.game.group.list()).toHaveLength(1);
+  });
+
+  it('the info answer: kept with its time, sets a readable wimpy, reset with the character', () => {
+    const t = setup();
+    const answer = (wimpy: number | null) => ({ wimpy }) as InfoAnswer;
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    t.parts.length = 0;
+    t.game.applyInfo(answer(33));
+    expect(t.parts).toEqual(['char', 'info']);
+    expect(t.game.info.at).toBe(T);
+    expect(t.game.char.view().wimpy).toBe(33);
+    t.game.applyInfo(answer(null));
+    expect(t.game.char.view().wimpy).toBe(33);
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'rasta' } });
+    expect(t.game.info.answer).not.toBeNull();
+    t.parts.length = 0;
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Gibur' } });
+    expect(t.game.info.answer).toBeNull();
+    // ('timers': the hub takes up the other character.)
+    expect(t.parts).toEqual(['char', 'info', 'timers']);
+    t.game.applyInfo(answer(5));
+    t.bus.emit('conn.state', { state: 'connecting', prev: 'disconnected' });
+    expect(t.game.info.answer).toBeNull();
+    expect(t.game.info.at).toBeNull();
   });
 
   it('Char.Vitals fight fields reach the group', () => {

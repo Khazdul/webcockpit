@@ -6,6 +6,8 @@
 //   bus gmcp        → char.apply, group.apply (Char.Vitals fight fields too),
 //                     clock.syncSun (Event.Sun), clock.noteMoon (Event.Moon
 //                     against the moon model; diagnostics only)
+//   info poll       → `applyInfo`: `game.info` (info-model.ts) and the
+//                     wimpy; reset with the character and on another name
 //   system rules    → wimpy (`Wimpy set to: N`, `Wimpy removed.`) and the
 //                     clock lines (`… of the Third Age.`, `The current time
 //                     is …`), installed into the script engine's system
@@ -40,11 +42,13 @@ import { CharModel } from './char';
 import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
+import type { InfoAnswer } from './info-answer';
+import { InfoModel } from './info-model';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
 export { CLOCK_KEY };
 
-export type GamePart = 'char' | 'group' | 'clock' | 'timers';
+export type GamePart = 'char' | 'group' | 'clock' | 'timers' | 'info';
 
 /** What `installRules` needs from a rule store (src/script/engine RuleStore). */
 export interface SystemRules {
@@ -69,6 +73,8 @@ export class GameState {
   readonly char = new CharModel();
   readonly group = new GroupModel();
   readonly clock: ClockModel;
+  /** The info poll's last answer (Stats and Lore, stage 77). */
+  readonly info = new InfoModel();
   /** Timers trackers and their persistence (ADR 0017). */
   readonly timers: TimersHub;
   private readonly now: () => number;
@@ -133,7 +139,13 @@ export class GameState {
   /** One GMCP message (also usable without a bus); `p` is `pkg` in lower case. */
   onGmcp(pkg: string, data: unknown, p = pkg.toLowerCase()): void {
     if (p.startsWith('char.')) {
-      if (this.char.apply(pkg, data)) this.emit('char');
+      const name = p === 'char.name' ? this.char.name : null;
+      if (this.char.apply(pkg, data)) {
+        const other = name !== null && this.char.name?.toLowerCase() !== name.toLowerCase();
+        const infoGone = other && this.info.reset();
+        this.emit('char');
+        if (infoGone) this.emit('info');
+      }
       if (p === 'char.vitals' && this.group.apply(pkg, data)) this.emit('group');
     } else if (p.startsWith('group.') || p === 'room.info') {
       if (this.group.apply(pkg, data)) {
@@ -160,12 +172,21 @@ export class GameState {
   resetCharacter(): void {
     this.char.reset();
     this.group.reset();
+    const infoGone = this.info.reset();
     this.noteGroup();
     this.emit('char');
     this.emit('group');
+    if (infoGone) this.emit('info');
   }
 
-  /** Wimpy from a text line. */
+  /** The hidden poll's answer, received now. */
+  applyInfo(answer: InfoAnswer): void {
+    this.info.apply(answer, this.now());
+    if (answer.wimpy !== null) this.setWimpy(answer.wimpy);
+    this.emit('info');
+  }
+
+  /** Wimpy from a text line or the poll. */
   setWimpy(n: number | null): void {
     if (this.char.setWimpy(n)) this.emit('char');
   }

@@ -48,6 +48,7 @@ export const INFO_FIELDS = [
   { key: 'vision', code: '%v' },
   { key: 'hearing', code: '%H' },
   { key: 'smell', code: '%s' },
+  { key: 'wimpy', code: '%y' },
 ] as const;
 
 export type InfoKey = (typeof INFO_FIELDS)[number]['key'];
@@ -87,6 +88,8 @@ export interface InfoAnswer {
   vision: number | null;
   hearing: number | null;
   smell: number | null;
+  /** Hit points (GMCP has no wimpy). */
+  wimpy: number | null;
 }
 
 /**
@@ -128,6 +131,7 @@ export function parseInfoAnswer(lines: readonly string[]): InfoAnswer | null {
     vision: numberOf(f.vision),
     hearing: numberOf(f.hearing),
     smell: numberOf(f.smell),
+    wimpy: numberOf(f.wimpy),
   };
 }
 
