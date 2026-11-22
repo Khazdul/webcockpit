@@ -25,6 +25,8 @@ import {
 import { el, setAttr, setHidden, setProp, setText } from './dom';
 import { type IconName, SVG_NS, iconSvg, setIconSvg } from './icons';
 import { setTip } from './pane-tooltip';
+import { portraitImage } from './portrait';
+import { type PortraitId, figureSvg } from './portrait-figures';
 
 function svgEl<K extends keyof SVGElementTagNameMap>(doc: Document, tag: K, attrs: Record<string, string>): SVGElementTagNameMap[K] {
   const e = doc.createElementNS(SVG_NS, tag);
@@ -43,17 +45,39 @@ const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
 // ------------------------------------------------------------------ portrait
 
 /**
- * The one neutral figure (decision 22; the races are part E): head and
- * shoulders in the pane's colours, in the round frame's 60 × 75 box.
+ * The round frame's content (decision 22, part E): the race's SVG
+ * placeholder (portrait-figures.ts), or its raster file when there is one
+ * (portrait.ts). Built only when the portrait changes. An image replaces
+ * the placeholder once it has loaded; one that fails keeps it.
  */
-export function neutralFigure(doc: Document): SVGSVGElement {
-  const svg = svgEl(doc, 'svg', { class: 'wc-cc-fig', viewBox: '0 0 60 75', preserveAspectRatio: 'xMidYMin meet', 'aria-hidden': 'true' });
-  svg.append(
-    svgEl(doc, 'path', { class: 'wc-cc-fig-cloak', d: 'M3 80C5 61 16 55 23 53L30 59L37 53C44 55 55 61 57 80Z' }),
-    svgEl(doc, 'path', { class: 'wc-cc-fig-hood', d: 'M14 55C16 48 16 42 16 36C16 24 22 17 30 14C38 17 44 24 44 36C44 42 44 48 46 55L37 53L30 59L23 53Z' }),
-    svgEl(doc, 'path', { class: 'wc-cc-fig-face', d: 'M30 26C36 26 39.5 31 39.5 38C39.5 45 35.5 51 30 51S20.5 45 20.5 38C20.5 31 24 26 30 26Z' }),
-  );
-  return svg;
+function portraitEl(doc: Document, disc: HTMLElement) {
+  let shown: PortraitId | null = null;
+  const set = (id: PortraitId): void => {
+    if (id === shown) return;
+    shown = id;
+    const svg = figureSvg(doc, id);
+    disc.replaceChildren(svg);
+    const src = portraitImage(id);
+    if (src === null) return;
+    const img = el(doc, 'img', 'wc-cc-photo');
+    img.alt = '';
+    img.decoding = 'async';
+    img.draggable = false;
+    img.hidden = true;
+    img.addEventListener(
+      'load',
+      () => {
+        if (shown !== id) return;
+        img.hidden = false;
+        svg.remove();
+      },
+      { once: true },
+    );
+    img.src = src;
+    disc.append(img);
+  };
+  set('neutral');
+  return set;
 }
 
 // ---------------------------------------------------------------------- ring
@@ -110,7 +134,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
   const name = el(doc, 'span', 'wc-cc-name');
   const medal = el(doc, 'div', 'wc-cc-medal');
   const disc = el(doc, 'div', 'wc-cc-disc');
-  disc.append(neutralFigure(doc));
+  const setPortrait = portraitEl(doc, disc);
   const ring = ringEl(doc);
   medal.append(disc, ring.box);
   const row = el(doc, 'div', 'wc-cc-icons');
@@ -138,7 +162,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
       setTip(b, v.tip, v.name, `cc:${v.id}`);
     });
   };
-  return { box, setName, setRing: ring.set, setIcons };
+  return { box, setName, setPortrait, setRing: ring.set, setIcons };
 }
 
 // ------------------------------------------------------------------- Status

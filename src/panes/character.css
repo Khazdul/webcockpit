@@ -201,6 +201,16 @@
   height: 100%;
 }
 
+/* A raster portrait (public/portraits/README.md): the square file, of which the circle shows the inscribed disc. */
+.wc-cc-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
 .wc-cc-fig-cloak {
   fill: color-mix(in srgb, var(--lamp) 20%, #17181b);
 }
