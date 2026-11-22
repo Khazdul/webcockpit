@@ -79,7 +79,7 @@
 | 73 | The shared replay, round 2 | Done, released 0.20.1 | `docs/stages/73-shared-replay-round-2.md` |
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
-| 76 | The balloon film | Round 2 rendered, waiting for the owner | `docs/stages/76-balloon-film.md` |
+| 76 | The balloon film | Round 3 (final film) rendered, not published | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Part A done (ADR 0166); part B waits for the owner's go | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
@@ -132,6 +132,21 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-22 — Stage 76, the balloon film, round 3 (final)
+
+- **Done:** the owner approved round 2 with two changes: the title's third
+  line and a new help text for Balloons (a product change, ec5bc166).
+  Recorded again, rendered 2:57.4 with a 4K file; checked on the files
+  (4K: 60.0 new pictures a second, no repeat). The files and the YouTube
+  text are in the owner's Downloads.
+- **Next:** the owner watches and uploads. Before that a release: the film
+  shows the new help text, which is the only product change since
+  origin/main at this point. Not pushed.
+- **Open:** as in round 2 (presentation films' 25-picture cap, the rating
+  bug, first-load hitch); balloon positions round to 0.1 px
+  (`balloons.ts:227`, a rare still step, left).
+- **Commits:** 69a473fe, ec5bc166, ebf3d60c, f3bda497, d8325d98 and this one.
 
 ### 2026-11-22 — Stage 76, the balloon film, round 2
 
