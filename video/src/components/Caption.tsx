@@ -88,7 +88,7 @@ function Rule({ width }: { width: number }) {
  * centred on (`x`, `y`) in px (default the frame's centre), with a soft
  * dark wash behind it for the sky.
  */
-export function TitleCard({ from, dur, title, lines = [], x, y, size = 84 }: { from: number; dur: number; title: string; lines?: string[]; x?: number; y?: number; size?: number }) {
+export function TitleCard({ from, dur, title, lines = [], small, x, y, size = 84 }: { from: number; dur: number; title: string; lines?: string[]; small?: string; x?: number; y?: number; size?: number }) {
   const { opacity, lift } = useShow(from, dur);
   const { width, height } = useVideoConfig();
   const cx = x ?? width / 2;
@@ -113,6 +113,7 @@ export function TitleCard({ from, dur, title, lines = [], x, y, size = 84 }: { f
             {l}
           </div>
         ))}
+        {small ? <div style={{ fontFamily: TEXT_FONT, fontStyle: 'italic', fontWeight: 500, fontSize: size * 0.3, marginTop: size * 0.12, color: MIST, opacity: 0.8, textShadow: '0 1px 10px rgba(0,0,0,0.9)' }}>{small}</div> : null}
       </div>
     </AbsoluteFill>
   );

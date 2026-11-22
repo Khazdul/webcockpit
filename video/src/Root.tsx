@@ -2,6 +2,7 @@
 // recording's timeline (public/recordings/<scene>.json, `npm run record`).
 import { Composition } from 'remotion';
 import { beat } from './beats';
+import { BALLOONS_END_S, BALLOONS_TAKES, Balloons, type BalloonsProps } from './compositions/Balloons';
 import { DEVICES_PROTO_S, DEVICES_TAKES, DevicesProto, type DevicesProtoProps } from './compositions/DevicesProto';
 import { Film, type FilmProps, ending } from './compositions/Film';
 import { FILM2_TAKES, Film2, type Film2Props, film2Length } from './compositions/Film2';
@@ -50,6 +51,25 @@ export function Root() {
             },
           };
         }}
+      />
+      {/* The balloon film (video/manuscript-balloons.md, stage 76). */}
+      <Composition
+        id="Balloons"
+        component={Balloons}
+        width={WIDTH}
+        height={HEIGHT}
+        fps={FPS}
+        durationInFrames={Math.round(BALLOONS_END_S * FPS)}
+        defaultProps={{ title: null, gittan: null, rasta: null, parade: null } satisfies BalloonsProps}
+        calculateMetadata={async ({ props }) => ({
+          props: {
+            ...props,
+            title: await loadTimeline(BALLOONS_TAKES.title),
+            gittan: await loadTimeline(BALLOONS_TAKES.gittan),
+            rasta: await loadTimeline(BALLOONS_TAKES.rasta),
+            parade: await loadTimeline(BALLOONS_TAKES.parade),
+          },
+        })}
       />
       {/* Film 2's device prototype (stage 70): one session on desktop, tablet and phone. */}
       <Composition
