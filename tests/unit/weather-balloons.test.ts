@@ -442,6 +442,43 @@ describe('the passenger by race (stage 75)', () => {
     for (const [race, sub, want] of rows) expect(passengerOf(race, sub), `${race} / ${sub}`).toBe(want);
   });
 
+  it('every name in stage 77, the subrace holding the race', () => {
+    const rows: Array<[string, string, string]> = [
+      ['Orc', 'Tarkhnarb Orc', 'goblin'],
+      ['Orc', 'Morruhk Orc', 'goblin'],
+      ['Orc', 'Zaugurz Orc', 'orc'],
+      ['Elf', 'Silvan Elf', 'elf'],
+      ['Elf', 'Sindarin Elf', 'elf'],
+      ['Elf', 'Noldorin Elf', 'elf'],
+      ['Elf', 'Sinda Elf', 'elf'],
+      ['Elf', 'Noldo Elf', 'elf'],
+      ['Half-Elf', 'Half-Elf', 'elf'],
+      ['Half-elf', 'Half-elven', 'elf'],
+      ['Half-elven', '', 'elf'],
+      ['', 'Half-elven', 'elf'],
+      ['Dwarf', 'Broadbeam Dwarf', 'dwarf'],
+      ['Dwarf', 'Firebeard Dwarf', 'dwarf'],
+      ['Dwarf', 'Longbeard Dwarf', 'dwarf'],
+      ['Hobbit', 'Fallohide Hobbit', 'hobbit'],
+      ['Hobbit', 'Harfoot Hobbit', 'hobbit'],
+      ['Hobbit', 'Stoor Hobbit', 'hobbit'],
+      ['Troll', 'Hill Troll', 'troll'],
+      ['Troll', 'Cave Troll', 'troll'],
+      ['Troll', 'Mountain Troll', 'troll'],
+      ['Man', 'Black Númenórean', 'numenorean'],
+      ['Black Númenórean', 'Black Númenórean', 'numenorean'],
+      ['Man', 'Dúnadan Man', 'human'],
+      ['Man', 'Dúnedain', 'human'],
+      ['Man', 'Eriadorian Man', 'human'],
+      ['Man', 'Rohirrim', 'human'],
+      ['Man', 'Beorning Man', 'human'],
+      ['Bear', 'Beorning Bear', 'human'],
+      ['Bear', '', 'human'],
+      ['', 'Bear', 'human'],
+    ];
+    for (const [race, sub, want] of rows) expect(passengerOf(race, sub), `${race} / ${sub}`).toBe(want);
+  });
+
   it('odd casing, missing and empty fields, words not substrings', () => {
     expect(passengerOf('DWARF')).toBe('dwarf');
     expect(passengerOf('hALF-eLF', null)).toBe('elf');
