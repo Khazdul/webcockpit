@@ -274,6 +274,14 @@ export const PANES_GROUP: SettingsGroup = {
       get: (s) => s.phone.fightCard,
       set: (fightCard) => ({ phone: { fightCard } }),
     },
+    {
+      // Stage 77: the Character gear's switch (no gear on a phone).
+      kind: 'toggle',
+      id: 'fetch-info',
+      label: 'Fetch Stats and Lore from the game',
+      get: (s) => s.character.fetchInfo,
+      set: (fetchInfo) => ({ character: { fetchInfo } }),
+    },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
   caption: 'Swipe the strip to change pane',

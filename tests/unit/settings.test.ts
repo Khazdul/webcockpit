@@ -332,11 +332,11 @@ describe('migrateSettings', () => {
   });
 
   it("adds the Character gear's switch, on (stage 77; older stored data)", () => {
-    expect(migrateSettings({ version: 7 }).character).toEqual({ fetchInfo: true });
-    expect(migrateSettings({ character: { fetchInfo: 'no' } }).character).toEqual({ fetchInfo: true });
-    const off = migrateSettings({ character: { fetchInfo: false, gone: 1 } });
-    expect(off.character).toEqual({ fetchInfo: false });
-    expect(migrateSettings(JSON.parse(JSON.stringify(off))).character).toEqual({ fetchInfo: false });
+    expect(migrateSettings({ version: 7 }).character).toEqual({ fetchInfo: true, height: 'auto' });
+    expect(migrateSettings({ character: { fetchInfo: 'no', height: 'compact' } }).character).toEqual({ fetchInfo: true, height: 'auto' });
+    const off = migrateSettings({ character: { fetchInfo: false, height: 'medium', gone: 1 } });
+    expect(off.character).toEqual({ fetchInfo: false, height: 'medium' });
+    expect(migrateSettings(JSON.parse(JSON.stringify(off))).character).toEqual({ fetchInfo: false, height: 'medium' });
   });
 
   it('checks group and comm values; comm filters keep only disabled channels', () => {

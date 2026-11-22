@@ -44,6 +44,16 @@ describe('phone settings of round 53k: the fight card\'s switch', () => {
   });
 });
 
+describe('the Character poll switch (stage 77)', () => {
+  it('is a row of Panes and the setting the Character gear has', () => {
+    const row = PANES_GROUP.rows.find((r) => r.id === 'fetch-info')!;
+    expect(row.label).toBe('Fetch Stats and Lore from the game');
+    if (row.kind !== 'toggle') throw new Error('not a switch');
+    expect(row.get(defaultSettings())).toBe(true);
+    expect(row.set(false, defaultSettings())).toEqual({ character: { fetchInfo: false } });
+  });
+});
+
 describe('phone settings', () => {
   it('defaults: the lens shown, opening at its nearest zoom (0.6.1\'s middle), on a computer and on a phone', () => {
     expect(defaultPhoneSettings().lens).toMatchObject({ show: true, opensAt: 'z1' });

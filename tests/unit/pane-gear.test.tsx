@@ -359,6 +359,14 @@ describe('gear popup contents', () => {
     expect(t.s().group.fight).toBe(true);
   });
 
+  it('Character: the height lock', () => {
+    const t = mountWith(<CharacterSettings />);
+    expect(t.s().character.height).toBe('auto');
+    click(t.host.querySelector('[aria-label="Height"] [data-value="medium"]'));
+    expect(t.s().character.height).toBe('medium');
+    expect(t.s().character.fetchInfo).toBe(true);
+  });
+
   it('Character: Fetch Stats and Lore from the game', () => {
     const t = mountWith(<CharacterSettings />);
     expect(t.s().character.fetchInfo).toBe(true);

@@ -179,10 +179,15 @@ export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells'];
 export const COMM_LIST_WIDTH_MIN = 40;
 export const COMM_LIST_WIDTH_MAX = 400;
 
+/** The Character card's height mode: by the pane's size, or locked to one. */
+export type CharacterHeight = 'auto' | 'large' | 'medium';
+export const CHARACTER_HEIGHTS: readonly CharacterHeight[] = ['auto', 'large', 'medium'];
+
 /** The Character gear (stage 77, ADR 0166). */
 export interface CharacterSettings {
   /** The hidden `info` poll for Stats, Lore and the wimpy at login. Off: no hidden command at all. */
   fetchInfo: boolean;
+  height: CharacterHeight;
 }
 
 /** Options → Panes → Communication and the Comm gear (ADR 0134). */
@@ -751,7 +756,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    character: { fetchInfo: true },
+    character: { fetchInfo: true, height: 'auto' },
     comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), npcs: false, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },

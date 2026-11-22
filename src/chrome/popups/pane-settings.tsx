@@ -31,6 +31,7 @@ import { autoColor } from '../../panes/palette';
 import { paneShade } from '../../panes/shade';
 import {
   AWAY_MODE_CHOICES,
+  CHARACTER_HEIGHT_CHOICES,
   COMM_CHAT_WINDOW_CHOICES,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
@@ -232,6 +233,9 @@ export function CharacterSettings(): VNode {
   const s = useSettings();
   return (
     <div class="wc-sp-character">
+      <Row label="Height" help="Auto follows the pane's size">
+        <Segmented label="Height" value={s.character.height} options={CHARACTER_HEIGHT_CHOICES} onChange={(height) => setCharacter(settings, { height })} />
+      </Row>
       <Row label="Fetch Stats and Lore from the game" help="Also fetches your wimpy at login">
         <Toggle label="Fetch Stats and Lore from the game" on={s.character.fetchInfo} onChange={(fetchInfo) => setCharacter(settings, { fetchInfo })} />
       </Row>

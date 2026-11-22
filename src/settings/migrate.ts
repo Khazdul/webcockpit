@@ -45,6 +45,8 @@ import {
   COMM_LIST_WIDTH_MIN,
   type CommSettings,
   CURSOR_STYLES,
+  CHARACTER_HEIGHTS,
+  type CharacterHeight,
   type CharacterSettings,
   type ColorSetting,
   GROUP_AWAY_MODES,
@@ -342,7 +344,9 @@ export function migrateGroup(raw: unknown): GroupSettings {
 /** Character pane options from anything (stage 77; additive, so no version). */
 export function migrateCharacter(raw: unknown): CharacterSettings {
   const c = isObj(raw) ? raw : {};
-  return { fetchInfo: bool(c.fetchInfo, defaultSettings().character.fetchInfo) };
+  const d = defaultSettings().character;
+  const height = CHARACTER_HEIGHTS.includes(c.height as CharacterHeight) ? (c.height as CharacterHeight) : d.height;
+  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height };
 }
 
 /**
