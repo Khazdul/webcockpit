@@ -425,3 +425,11 @@ is gone (below, "Removals").
     e2e (under every pane in every phase, both browsers) passes. The
     fallback the owner had accepted (flattening the lean where ADR 0135's
     watch sees a slow compositor) is not needed and not built.
+
+## Addendum: the setting's help (2026-11-22, the owner's feedback on the film)
+
+The owner did not want the Balloons row to list what sends a balloon.
+`BALLOONS_ROW.help` (`src/chrome/weather-model.ts`) now reads "A companion
+in a hot-air balloon reacts to what happens in the game. Desktop only."
+and replaces the text quoted in round 3 ("A balloon shows each kill …").
+What sends a balloon, and who flies it, are unchanged.
