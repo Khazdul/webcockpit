@@ -56,11 +56,18 @@ crown inside the circle at Large (y ≥ 20 in the square).
 - Every visible part sits in a `pen(c, …)` group: the filter, the ink
   stroke `INK`, round joins and caps. Shading paths inside it use
   `stroke="none"`.
-- The filter (`penFilter`): Large `filt(id, { freq: .03, scale: 2.6, grain:
-  .5, ga: 1.05, gb: -.55 })` (the balloon's, a touch less grain on big
-  flats); Medium `{ freq: .03, scale: 1.6, grain: .5, ga: .7, gb: -.45 }`.
-  The blotchy ink shows as soft stains on light masses (the Longbeard's
-  white beard): that is the engraving, leave it.
+- Two filters, one wobble (`penFilter`, `WOBBLE`, `INKS` in parts.ts). Both
+  share the pen wobble (Large `freq .03, scale 2.6, grain .5`; Medium scale
+  1.6), so their outlines line up. They differ in ink and grain:
+  - **`f`, the ink pen** (`pen(c, …)`): blot 1.5, bias -.7, grain alpha
+    1.05/-.55 (Medium .7/-.45): the balloon's blotchy engraving. Use it for
+    metal, cloth, leather, dark hair and beards.
+  - **`fs`, the soft pen** (`pen(c, …, true)`): blot .55, bias -.42, grain
+    .5/-.4 (Medium .5/-.4, .4/-.36). Use it for **skin** (face, nose,
+    mouth, eyes) and **light masses** (white, grey or fair hair and beards,
+    pale cloth). The full ink on these reads as freckles and stains.
+  - The knob is `INKS` in parts.ts: change it there for every race, never
+    per drawing.
 - `c.fine(s)` keeps `s` at Large only. Put through it: ink strands,
   wrinkles, rivets, studs, stitching, the brow hairs, the lines under the
   eyes, small gems that turn to noise.
@@ -140,7 +147,8 @@ blue): that mark is what tells the figures apart in Medium.
 Kept: the people's headgear, armour and cloth, palette, eye drawing, the
 house mark, the frame and the light. Changed for a woman:
 
-- no beard or moustache (decision: Tolkien's dwarf women are said to look
+- no beard or moustache (decision, approved by the main session on
+  2026-11-23: Tolkien's dwarf women are said to look
   like the men, but at 100 px a beard reads only as a man; the house mark
   moves to the hair instead: length, colour, wildness);
 - a face a little narrower (jaw × .96–.98) and shorter, tapering to a
@@ -149,8 +157,14 @@ house mark, the frame and the light. Changed for a woman:
 - a smaller nose drawn without a closed outline (only the shadow-side line,
   the nostrils and a tone), fuller lips (`lips()`), blush 30 %;
 - slender brows (`thin`), lashes, eyes 6 % larger, fewer lines under them;
-- hair framing the temples (`temples` in `face()`), long hair behind the
-  shoulders, the two front braids;
+- hair framing the temples, long hair behind the shoulders, the two front
+  braids: the parts.ts helpers, all taking one `HairO` (`near` fill, `cols`
+  shadow/light/sheen, `len`, `jaw`, `wild` 0 smooth or 1 a mane of rounded
+  tongues, `braids` with links/scale/x/top/ring, or omitted for loose
+  hair). `longHair(c, o)` under the face, `temples(c, o)` over the face,
+  `frontBraids(c, o)` last, over the shoulders and the headgear's rim.
+  `braid(c, x, y, links, sc, cols, ring)` is the single braid (the men's
+  beard braids use it too). dwarves.ts `hairOf()` is the example;
 - the base woman's helm loses the nasal and shows a garnet on the band.
 
 A race that does have bearded women (none that I know) still follows the
@@ -195,8 +209,8 @@ survive Medium:
   sides or above y ≈ 45.
 - Two concentric arches (a hood rim over the hood) read as a double band:
   one fold line with a highlight is enough.
-- Light masses (white hair) show the filter's blotches strongly; that is
-  acceptable, but do not add a grey tone under them as well.
+- The full ink pen on skin and white hair reads as freckles and stains at
+  XL: draw those in the soft pen (`pen(c, …, true)`).
 - `px()`/`mir()`/`wx()` only handle absolute M L C Q S T Z paths (pairs):
   never pass them H, V, A or relative commands.
 - The stage page imports every `draw/*.ts` and expects a `portraits`

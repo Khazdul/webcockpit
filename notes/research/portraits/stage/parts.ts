@@ -33,12 +33,14 @@ export interface Ctx {
   fine(s: string): string;
   /** The pen filter's attribute: `filter="url(#…f)"`. */
   readonly F: string;
+  /** The soft pen's (`fs`): the same wobble, calmer ink and grain, for skin and light hair. */
+  readonly FS: string;
 }
 
 export const ctx = (o: DrawOpts): Ctx => {
   const med = o.size === 'medium';
   const id = (k: string): string => `${o.uid}${k}`;
-  return { o, med, fem: o.sex === 'female', id, url: (k) => `url(#${id(k)})`, fine: (s) => (med ? '' : s), F: `filter="url(#${id('f')})"` };
+  return { o, med, fem: o.sex === 'female', id, url: (k) => `url(#${id(k)})`, fine: (s) => (med ? '' : s), F: `filter="url(#${id('f')})"`, FS: `filter="url(#${id('fs')})"` };
 };
 
 /**
@@ -57,8 +59,23 @@ export const LINE = { large: 1.45, medium: 2.6 } as const;
 /** Multiplies every `stroke-width="…"` in `s` by `f` (the balloon dwarf's pass). */
 export const thick = (s: string, f: number): string => s.replace(/stroke-width="([\d.]+)"/g, (_, v: string) => `stroke-width="${n2(Number(v) * f)}"`);
 
-/** The pen filter: the balloon dwarf's settings at Large; a gentler wobble and a fainter grain at Medium. */
-export const penFilter = (c: Ctx): string => (c.med ? filt(c.id('f'), { freq: .03, scale: 1.6, grain: .5, ga: .7, gb: -.45 }) : filt(c.id('f'), { freq: .03, scale: 2.6, grain: .5, ga: 1.05, gb: -.55 }));
+/** The pen wobble at each size (shared by both filters, so their outlines line up). */
+const WOBBLE = { large: { freq: .03, scale: 2.6, grain: .5 }, medium: { freq: .03, scale: 1.6, grain: .5 } } as const;
+/**
+ * The ink and grain knobs. `ink` is the balloon dwarf's engraving (blotchy
+ * ink, full grain) for metal, cloth, dark hair, hatching. `soft` is for skin
+ * and light masses (white or fair hair, pale cloth): the same wobble, the
+ * blots and the grain much fainter, so faces do not read as freckled.
+ */
+export const INKS = {
+  large: { ink: { blot: 1.5, bias: -.7, ga: 1.05, gb: -.55 }, soft: { blot: .55, bias: -.42, ga: .5, gb: -.4 } },
+  medium: { ink: { blot: 1.5, bias: -.7, ga: .7, gb: -.45 }, soft: { blot: .5, bias: -.4, ga: .4, gb: -.36 } },
+} as const;
+/** Both filters: `f` (the ink pen) and `fs` (the soft pen). */
+export const penFilter = (c: Ctx): string => {
+  const w = WOBBLE[c.o.size], k = INKS[c.o.size];
+  return filt(c.id('f'), { ...w, ...k.ink }) + filt(c.id('fs'), { ...w, ...k.soft });
+};
 
 /** A hatch pattern; at Medium a flat tone of the same weight (lines at 40 px only shimmer). */
 export const shade = (c: Ctx, k: string, rot: number, gap: number, op: number): string =>
@@ -171,8 +188,69 @@ export const strands = (c: Ctx, d: string, l: string, hi: string, op = .9): stri
 export const mass = (d: string, fill: string, sw = 1.1, sh = '', c?: Ctx, deep = ''): string =>
   `<path d="${d}" fill="${fill}" stroke-width="${sw}"/>${sh && c ? `<path d="${sh}" fill="${c.url('p')}" stroke="none"/>` : ''}${deep && c ? `<path d="${deep}" fill="${c.url('q')}" stroke="none"/>` : ''}`;
 
-/** A pen group: the filter, the ink stroke and round joins. Everything a head draws goes in one or more. */
-export const pen = (c: Ctx, body: string): string => `<g ${c.F} stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">${body}</g>`;
+/**
+ * A pen group: the filter, the ink stroke and round joins. Everything a head
+ * draws goes in one or more. `soft`: the soft pen (`fs`): use it for the
+ * face, nose, mouth, eyes, and for white, grey or fair hair and beards.
+ */
+export const pen = (c: Ctx, body: string, soft = false): string => `<g ${soft ? c.FS : c.F} stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">${body}</g>`;
+
+/** Hair colours: shadow, light, the sheen of the light strands. */
+export type HairCols = readonly [string, string, string];
+
+/** A braid of `links` links hanging from (x,y) at scale `sc`: alternating links, a sheen tick each (Large), a metal `ring` and a tuft. */
+export const braid = (c: Ctx, x: number, y: number, links: number, sc: number, hair: HairCols, ring: string): string => {
+  const [h0, h1, hi] = hair;
+  let out = '';
+  for (let j = 0; j < links; j++) {
+    const yy = 3 + j * 5.5, m = j % 2 ? -1 : 1;
+    out += `<path d="M${-6.5 * m},${yy}C${-7.5 * m},${yy + 5} 0,${yy + 8.5} ${6.5 * m},${yy + 7}C${7.5 * m},${yy + 2} 0,${yy - 1.5} ${-6.5 * m},${yy}Z" fill="${j % 2 ? mix(h1, '#1a110b', .1) : h1}" stroke-width=".9"/>${c.fine(`<path d="M${-3 * m},${yy + 2}Q0,${yy + 3.5} ${3.5 * m},${yy + 5}" fill="none" stroke="${hi}" stroke-width=".8"/>`)}`;
+  }
+  const ry = 3 + links * 5.5;
+  return `<g transform="translate(${x},${y}) scale(${sc})"><path d="M-6,0L6,0L6,${ry}L-6,${ry}Z" fill="${h0}" stroke="none"/>${out}<rect x="-5.5" y="${n(ry - 1.5)}" width="11" height="5" rx="1" fill="${ring}" stroke-width=".8"/><path d="M-4.5,${n(ry + 3.5)}C-6,${n(ry + 8)} -2,${n(ry + 10)} 0,${n(ry + 10)}C2,${n(ry + 10)} 6,${n(ry + 8)} 4.5,${n(ry + 3.5)}Z" fill="${h1}" stroke-width=".8"/></g>`;
+};
+
+/** Long hair (the women's, or any long-haired figure). */
+export interface HairO {
+  /** The fill of the shadowed (viewer's left) side, usually the `h` gradient's url. */
+  near: string;
+  /** Shadow, light and sheen colours (the far side is the light, slightly darkened). */
+  cols: HairCols;
+  /** Where the hair ends (head units; 112 falls past the frame). */
+  len?: number;
+  /** The face width factor (the jaw). */
+  jaw?: number;
+  /** 0 smooth; 1 a flaring mane of rounded tongues (the Firebeard woman). */
+  wild?: number;
+  /** Two braids in front of the shoulders: their links, scale, x, top and ring. Omit for loose hair. */
+  braids?: { links: number; sc?: number; x?: number; top?: number; ring: string };
+}
+
+/** The back of long hair: parted under the headgear, behind the face, down behind the shoulders. Draw it under the face. */
+export const longHair = (c: Ctx, o: HairO): string => {
+  const j = o.jaw ?? 1, L = o.len ?? 112, [, h1, hi] = o.cols;
+  const F = wx(o.wild
+    ? `M-44,-30C-60,-34 -70,-26 -80,-30C-80,-18 -72,-10 -80,-4C-90,-2 -86,10 -82,16C-90,22 -86,34 -78,38C-86,46 -82,58 -76,62C-82,72 -78,84 -72,88C-74,98 -70,${L - 8} -68,${L}L-44,${L}C-48,80 -44,40 -44,10Z`
+    : `M-44,-30C-62,-26 -72,-6 -72,20C-74,50 -78,80 -76,${L}L-44,${L}C-48,80 -44,40 -44,10Z`, j);
+  return `<path d="${F}" fill="${o.near}" stroke-width="1.1"/><path d="${F}" fill="${c.url('p')}" stroke="none"/><path d="${mir(F)}" fill="${mix(h1, '#1a110b', .08)}" stroke-width="1.1"/>` +
+    strands(c, wx(`M-58,-14C-62,10 -62,50 -64,${L - 12}M-50,0C-54,30 -54,70 -56,${L - 4}M58,-14C62,10 62,50 64,${L - 12}M50,0C54,30 54,70 56,${L - 4}`, j), wx(`M-66,0C-68,30 -68,70 -70,${L - 8}M64,-6C68,20 68,60 68,${L - 12}`, j), hi);
+};
+
+/** The hair over the temples, from a centre parting under the headgear down beside the cheeks. Draw it over the face. */
+export const temples = (c: Ctx, o: HairO): string => {
+  const j = o.jaw ?? 1, [, h1, hi] = o.cols;
+  const T = wx('M-2,-23C-16,-20 -34,-15 -41,-5C-45,8 -45,22 -42,34L-52,34C-55,10 -53,-14 -45,-25Z', j);
+  return `<path d="${T}" fill="${o.near}" stroke-width="1"/><path d="${T}" fill="${c.url('p')}" stroke="none"/><path d="${mir(T)}" fill="${h1}" stroke-width="1"/>` +
+    strands(c, wx('M-10,-21C-24,-17 -36,-10 -42,2M-44,8C-46,18 -46,26 -45,32M10,-21C24,-17 36,-10 42,2', j), wx('M-14,-20C-28,-16 -38,-8 -43,4M14,-20C28,-16 38,-8 43,4M46,8C48,18 48,26 47,32', j), hi, .8);
+};
+
+/** The two front braids of `o.braids` (nothing for loose hair). Draw them last, over the shoulders and the headgear's rim. */
+export const frontBraids = (c: Ctx, o: HairO): string => {
+  const b = o.braids;
+  if (!b) return '';
+  const x = b.x ?? 54, top = b.top ?? -16, sc = b.sc ?? 1.35;
+  return braid(c, -x, top, b.links, sc, o.cols, b.ring) + braid(c, x, top, b.links, sc, o.cols, b.ring);
+};
 
 /**
  * The standalone SVG: the defs, then the body placed by `FRAME` (head units)
