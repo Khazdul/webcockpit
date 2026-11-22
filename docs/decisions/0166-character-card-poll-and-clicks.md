@@ -59,3 +59,52 @@ Race:
 - A prompt shared with other output stays.
 - The wrap below one word's width is unverified until part C's test on a
   phone.
+
+## Addendum (part B, 2026-11-22): the model
+
+A correction first: "ADR 0052 (exact or band)" in the heading above means
+Cockpit's ADR 0052 (`src/gmcp/bands.ts`), not this project's ADR 0052
+(pixel scrolling in panes).
+
+Exact or band:
+
+10. Each bar keeps whether its last update was a number. A numeric `hp`
+    is exact, also with `hp-string` beside it. Only `hp-string` is band.
+    A message with neither leaves it. A null number is not exact. The
+    merged values cannot tell this, so `CharModel` keeps it as state of
+    its own and counts a flip as a change.
+11. Excluded state folding (ADR 0019) keeps it: after the merged
+    `Char.Vitals` the block has one word-only record with the bars that
+    ended as band though a number is in the merged one. The fold's check
+    compares the state. Replays shared before this stay as folded: a bar
+    that ended a cut as band shows as exact there until its next update.
+12. Spell effort and `carrying` words that are not in the lists are kept
+    as sent, `carrying` without a step.
+
+Race and age:
+
+13. A factor needs a known kind. An Elf, and also a Man, of unknown or no
+    kind has none. A bare "Black" draws the Númenórean passenger but
+    gives no factor.
+14. The brackets are help's printed years, not a product. The age is
+    fractional (12 months of 30 days) for the modifiers and the track, as
+    help calls the change linear and gradual. The brackets are whole
+    years, so the age shown is the same either way. Below the 1st bracket
+    and from the 7th on nothing changes. Values are rounded only where
+    shown.
+15. The birthday counts a started month whole ("in 5 months" from 7
+    months 7 days), and is "today" at 0 and 0.
+
+The answer's reader (`src/gmcp/info-answer.ts`):
+
+16. The field list lives there only, and part C builds the format from
+    it. The text is split at `|` alone, so ` | ` and a bare `|` both read.
+17. A wrong field count is no answer. An unreadable or empty field is
+    null and the others are kept. `%G` is one field: all seven values or
+    none.
+18. Tolerated beyond the one sample: singular forms, a part left out of
+    the height, weight or money, "and" and commas in number words, a
+    break after a hyphen, thousands separators (commas), a sign on a
+    number. Their wording is inferred. Other shapes are unreadable and
+    never guessed, war fame without its number and a purse that names no
+    coin included.

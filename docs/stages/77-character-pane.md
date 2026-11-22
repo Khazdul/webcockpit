@@ -170,7 +170,7 @@ the page.
 | Value | Source |
 |---|---|
 | Name, level, XP, TP | GMCP `Char.Name`, `Char.Vitals`, `Char.StatusVars` (as today) |
-| HP/mana/moves, the band words | `Char.Vitals` `hp`/`hp-string`/`maxhp` and the like (the exact-or-band rule of ADR 0052) |
+| HP/mana/moves, the band words | `Char.Vitals` `hp`/`hp-string`/`maxhp` and the like (the exact-or-band rule of Cockpit's ADR 0052, `src/gmcp/bands.ts`) |
 | Mood, alertness, position, toggles | `Char.Vitals` |
 | Casts | `Char.Vitals` `spell-effort` (seen: `"normal"`, `"thorough"`) |
 | Weight step | `Char.Vitals` `carrying` (six words, part A) |
