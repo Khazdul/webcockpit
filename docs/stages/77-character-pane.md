@@ -704,6 +704,17 @@ Tested 2026-11-22: typecheck; 5890 unit; a production build (no image
 bundled; a test `orc.webp` was clipped and shown, then removed); the
 two Character e2e files (29 passed). The full e2e run is not done.
 
+After the owner's look (2026-11-22): **a portrait per subrace** (ADR 0166
+addendum 11). `subraceKind` (`src/gmcp/race.ts`) names 18 subraces within
+their race kind. `raceKind` is per race again, so the Zaugurz is a subrace
+of the orc and the balloons are unchanged. `portraitOf` is the subrace,
+else the race (the ten figures, now fallbacks), else neutral: 28 ids.
+There are 16 new crude figures. The Tarkhnarb shares the orc's figure, and
+the Zaugurz gained a snow-fur collar. Raster: `<subrace>.webp`, else
+`<race>.webp`, else the subrace's placeholder (README table). Tested:
+typecheck; 5893 unit; a production build; the two Character e2e files
+(29 passed).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -735,17 +746,24 @@ Parked:
 ### Part E, portraits (the test server, no MUME needed)
 
 Open `http://localhost:5173/?fixture=gmcp-demo.log&speed=0`. The demo's
-Dúnadan man has the **human** portrait. Add `&portrait=` with one of
-`human`, `elf`, `halfelf`, `dwarf`, `hobbit`, `beorning`, `orc`,
-`troll`, `numenorean` or `neutral` (race words work too:
-`&portrait=Cave%20Troll`) to see each of them.
+Dúnadan man has the **dunadan** portrait. Add `&portrait=` with one of
+the 28 ids (race words work too: `&portrait=Cave%20Troll`) to see each:
 
-1. Each of the nine in the Large card. Then the gear's Height → Medium.
+- Men: `human`, `dunadan`, `eriadorian`, `rohirrim`; `beorning`
+- Elves: `elf`, `noldo`, `sinda`, `silvan`; `halfelf`
+- Dwarves: `dwarf`, `longbeard`, `firebeard`, `broadbeam`
+- Hobbits: `hobbit`, `fallohide`, `harfoot`, `stoor`
+- Orcs: `orc`, `tarkhnarb` (the same figure), `morruhk`, `zaugurz`
+- Trolls: `troll`, `cavetroll`, `hilltroll`, `mountaintroll`
+- `numenorean`, `neutral`
+
+1. Each of them in the Large card. Then the gear's Height → Medium.
 2. The same with Paper (Appearance → background paper).
 3. A phone: `&phone=1` with a portrait, then the panes key.
 4. Live, if MUME is up: your own character's race gives its portrait.
 
-Wanted: are the placeholders fine until your images come? Does the
+Wanted: are the placeholders fine until your images come, and does each
+subrace read apart from its siblings? Does the
 framing in `public/portraits/README.md` suit what you will draw (head
 centre about (512, 480), about 300–340 px wide, shoulders cut by the
 circle, the ring over the bottom centre)?

@@ -1,26 +1,48 @@
 # Character portraits (raster)
 
 The Character pane's round portrait (stage 77 decision 22, ADR 0166
-addendum 10) draws a crude SVG placeholder per race unless that race's
+addenda 10 and 11) shows a portrait per subrace, and the race's portrait
+when the subrace is unknown. A crude SVG placeholder is drawn unless a
 file is here. Which files exist is read at build time, so add them and
 rebuild: a deploy is a rebuild. Code: `src/panes/portrait.ts` (which
-file), `src/panes/portrait-figures.ts` (the placeholders).
+file), `src/panes/portrait-figures.ts` (the placeholders), `src/gmcp/race.ts`
+(`raceKind`, `subraceKind`: which race and subrace).
 
 ## Files: `public/portraits/<id>.webp`
 
-| File | Shown for |
-| --- | --- |
-| `human.webp` | Men (Dúnadan and the other kinds of Man) |
-| `elf.webp` | Elves (Silvan, Sindarin, Noldorin) |
-| `halfelf.webp` | Half-elves |
-| `dwarf.webp` | Dwarves |
-| `hobbit.webp` | Hobbits |
-| `beorning.webp` | Beornings (Bear) |
-| `orc.webp` | Tarkhnarb orcs, and an orc of no known kind |
-| `zaugurz.webp` | Zaugurz orcs: rougher than a Tarkhnarb, blood on the cheeks |
-| `troll.webp` | Trolls |
-| `numenorean.webp` | Black Númenóreans |
-| `neutral.webp` | No race yet, or one the client does not know |
+The look notes are what the placeholders try to show: MUME's help text
+where it says something, else Tolkien.
+
+| File | Shown for | Look |
+| --- | --- | --- |
+| `human.webp` | A Man of no known kind; the fallback for the three below | an ordinary man |
+| `dunadan.webp` | Dúnadan (Dúnedain) | tall, dark hair, grey eyes, stern; a ranger's dark green hood and cloak, a silver star brooch |
+| `eriadorian.webp` | Eriadorian (Eriadoran: the villagers of Eriador, Bree) | ordinary, brown hair, ruddy, a short beard, a homespun brown tunic |
+| `rohirrim.webp` | Rohirrim | tall, long blond hair in braids, blue eyes, stern; a green-and-gold cloak |
+| `elf.webp` | An Elf of no known kind; the fallback for the three below | fair hair, pointed ears, green |
+| `noldo.webp` | Noldo (Noldor, Noldorin) | long dark hair, grey eyes, a silver circlet with a gem, deep blue |
+| `sinda.webp` | Sinda (Sindar, Sindarin: the Grey Elves) | silver-grey hair, pale, a grey cloak |
+| `silvan.webp` | Silvan (wood-elves) | brown or auburn hair, a green hood, a bow and its string across the chest |
+| `halfelf.webp` | Half-elves (no subraces: they look more like Men than Elves) | auburn hair, half-pointed ears |
+| `dwarf.webp` | A Dwarf of no known house; the fallback for the three below | a brown beard, a helmet |
+| `longbeard.webp` | Longbeard (Durin's folk) | a very long grey-white beard, a blue hood |
+| `firebeard.webp` | Firebeard | a red-orange braided beard, a helmet |
+| `broadbeam.webp` | Broadbeam | very broad, a black beard, heavy armoured shoulders |
+| `hobbit.webp` | A Hobbit of no known kind; the fallback for the three below | brown curls, a green coat |
+| `fallohide.webp` | Fallohide | taller and slimmer, fair hair, pale skin |
+| `harfoot.webp` | Harfoot | the smallest, browner skin, dark curls, no beard |
+| `stoor.webp` | Stoor | the heftiest, a round face, the only hobbits with sideburns or a beard |
+| `beorning.webp` | Beornings, and a Bear (their changed shape) | a bear-ear hood, a dark beard |
+| `orc.webp` | An orc of no known kind; the fallback for the three below | green hide, yellow eyes, tusks, a topknot |
+| `tarkhnarb.webp` | Tarkhnarb (Uruk-Tarkhnarb, Goblin-town); the placeholder is the orc's | as the orc |
+| `morruhk.webp` | Morruhk (Uruk-Morruhk, also written Morrukh) | ritual scarification, a "snuffler's" big snout-like nose, a warg-fur collar |
+| `zaugurz.webp` | Zaugurz (Uruk-Zaugurz, the snowy far north) | rougher than a Tarkhnarb, blood on the cheeks, a pale snow-fur collar |
+| `troll.webp` | A troll of no known kind; the fallback for the three below | grey-green stony hide |
+| `cavetroll.webp` | Cave Troll | covered in dark green scales |
+| `hilltroll.webp` | Hill Troll | hard scales, brownish grey, a great hammer's haft over the shoulder |
+| `mountaintroll.webp` | Mountain Troll | the tallest and wildest, wild hair, grey-blue stony hide |
+| `numenorean.webp` | Black Númenóreans (no subraces) | a black hood, a silver circlet with a red gem, pale |
+| `neutral.webp` | No race yet, or one the client does not know | a hooded figure with no face |
 
 Every file: **1024 × 1024, transparent WebP**.
 
@@ -51,8 +73,15 @@ largest size, so the files stay sharp on high-density screens.
 
 ## Fallback
 
-- A race whose file is missing shows its own SVG placeholder. It does not
-  fall back to `neutral.webp`, which is used only for the neutral case.
+The first one that exists is used:
+
+1. the subrace's file (`cavetroll.webp`);
+2. its race's file (`troll.webp`): a real image beats a placeholder;
+3. the subrace's own SVG placeholder (or the race's, when the subrace is
+   unknown).
+
+- Nothing falls back to `neutral.webp`, which is used only for the
+  neutral case.
 - A file that fails to load keeps the placeholder in place.
 - The replays have no portrait files: the exported HTML replay (no files
   beside it) and the shared replay's frame (its policy allows no image

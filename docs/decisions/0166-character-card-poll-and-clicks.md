@@ -299,3 +299,38 @@ The card:
 52. **Dev only:** `?portrait=<id or race words>` forces a portrait (the
     test guide's way to see all nine). It is read once, under
     `import.meta.env.DEV`.
+
+## Addendum 11 (2026-11-22): portraits per subrace
+
+The owner asked for a portrait of its own for every subrace: crude SVG
+placeholders now, and the owner's WebP images later.
+
+53. **Two levels, two classifiers.** `raceKind` again gives one kind per
+    race: numenorean, halfelf, elf, dwarf, hobbit, troll, beorning, orc,
+    human or none. The `zaugurz` kind of commit 785098c6 is gone, and the
+    Zaugurz is a subrace. An orc house word (`tarkh…`, `morru…`,
+    `zaug…`) also makes the race an orc when no "orc" is sent, so a lone
+    "Zaugurz" still counts as an orc. `subraceKind(race, subrace)`
+    (`src/gmcp/race.ts`) uses the same `raceWords` stems and is read only
+    within the race kind: dunadan, eriadorian and rohirrim (Man); noldo,
+    sinda and silvan (Elf); fallohide, harfoot and stoor (Hobbit);
+    longbeard, firebeard and broadbeam (Dwarf); tarkhnarb, morruhk and
+    zaugurz (Orc); cavetroll, hilltroll and mountaintroll (Troll). A word
+    without its race counts for nothing ("Cave" alone, or a "Noldorin"
+    dwarf). Half-elves, Beornings and Black Númenóreans have no
+    subraces. `passengerOf` reads `subraceKind` for the Zaugurz, and its
+    results and tests are unchanged.
+54. **Lookup.** `portraitOf` is the subrace's id, else the race's (the
+    ten figures of addendum 10, now the fallbacks), else `neutral`. There
+    are 28 ids: 9 races, 18 subraces and neutral. The Tarkhnarb shares
+    the generic orc's shape data. A unit test asserts that every other
+    pair of figures differs. The 16 new figures (and the Zaugurz's added
+    snow-fur collar) differ mainly by colour and silhouette: hair, beard,
+    hood and one feature each. They were checked on a contact sheet at
+    Large and Medium.
+55. **Raster.** For a subrace, `<subrace>.webp` is used, else its race's
+    `<race>.webp`, else the subrace's own SVG placeholder: a real image
+    beats a placeholder. `neutral.webp` is still the neutral figure's
+    only. The glob keys and the replays work as before.
+56. **Dev only:** `?portrait=` takes any of the 28 ids or race words
+    (`Cave Troll` gives cavetroll).
