@@ -10,8 +10,8 @@ stay.
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C done** (on main, tested
-live 2026-11-22). **Part D in progress** (the owner's go
-2026-11-22, branch `stage-77d`). The wimpy point is decided (open points). Each part stops for the owner's
+live 2026-11-22). **Part D built** (2026-11-22, branch
+`stage-77d`, waiting for the owner's look). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -232,7 +232,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
 - [x] C. The poll (tested live: "Live results, part C")
-- [ ] D. The card
+- [ ] D. The card (built; the owner's look left)
 - [ ] E. Portraits
 - [ ] F. Group
 - [ ] G. Tests
@@ -653,6 +653,26 @@ answered by point 34.
 Until part D, a release from main would send the login poll and show a
 switch that names tabs which do not exist yet.
 
+## Part D: what was built
+
+`src/panes/character-model.ts` (what is drawn), `character-layout.ts`
+(how big; both pure), `character-dom.ts`, `character.css`, `character.ts`
+(when). The gear has Height (Auto, Large, Medium), the phone's settings
+page the poll's switch, and `#infopoll` is gone. ADR 0166 addendum 7 has
+what was decided while building.
+
+- For E: `neutralFigure()` in `character-dom.ts`, in `.wc-cc-disc`
+  (60 × 75, clipped to the circle).
+- For F: nothing is exported. "Shown" is the Character shell's `visible`
+  (the phone's strip too), which Group cannot read today.
+
+Tested 2026-11-22: typecheck; 5879 unit; a production build; the
+screenshots beside round 9. Full e2e at 5 workers: 2066 passed, 52 skipped, 2 failed in Firefox (`group-pane:49`, `profile-place:444`); both files pass when run alone. Nothing is tried against MUME, on a
+real phone or in Safari.
+
+Known: at today's default height (9 rows) Stats and Lore scroll, with
+`↓ more`. They fit at the mockup's own heights. The owner decides.
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -681,9 +701,25 @@ Parked:
 
 ## Test guide (for the owner)
 
-*The stage's guide is written when it is built.*
+### Part D, the card (the test server, MUME up)
 
-### Part C, live (the test server, MUME up)
+1. Log in and reload once: Status, the ring, the icons and the bars are
+   right. Hover the ring and HP.
+2. STATS, then LORE: values within some seconds, no `info` in the game.
+3. Click Mood, Casts, Alertness and each icon: the command echoes, `⋯`,
+   then the new value. Mood never goes to berserk.
+4. In the line editor (a note you throw away) click Mood: nothing is
+   sent. Then `%q`, and the click works again.
+5. A fight from Stats: Status, red swords, bands as hatched spans. After
+   it Stats is back.
+6. Resize, float, Paper, and Height in the gear.
+7. A phone: the tabs and icons can be hit, and the switch is under
+   Panes in the settings.
+
+Wanted: is it round 9? And at 9 rows, is scrolling Stats and Lore fine,
+or should the default pane be taller?
+
+### Part C, live (done; `#infopoll` is gone since part D)
 
 `#infopoll` sends a poll if it may (else says why) and prints the last
 answer: type it again for the new one. At most one poll in 10 s.

@@ -220,3 +220,29 @@ The card:
     when they do not fit.
 39. Portraits are part E. Part D draws the round frame with one neutral
     figure.
+
+## Addendum 7 (2026-11-22): part D as built
+
+40. Auto is Large from 400 × 160 px of content, Medium from 210 × 106. A
+    lock scales down and may lose the portrait. The portrait also hides
+    in Medium with under 30 px for it. The left column is left out only
+    in floats of about 110 px and narrower (decision 7's exception).
+41. After a fight the tab from before it returns, also when another was
+    picked during the fight (decision 13).
+42. Point 35 reads the last prompt and not the last line: text arriving in
+    the editor does not reopen clicks. Without XML the prompt's text
+    decides. A prompt line with game text after it blocks until the next
+    prompt, the safe side. Remaining hole, as point 33's: a click in the
+    moment between a typed `write` and the editor's first prompt is taken
+    as the editor's text.
+43. A blocked click shows nothing. In a replay and before the first
+    vitals the fields are drawn unclickable. The position takes no click
+    in a fight. A press in the pane never takes the focus, so the card's
+    text cannot be selected.
+44. The card uses the player's font. Status goes to 2 × 2 before it loses
+    its words. Stats and Lore give a row's height to the data's age.
+    Alignment wraps. Band bars take the low and critical colours by the
+    band's middle, as Group. The bars have no transition (about three
+    times the style cost of each prompt in Firefox).
+45. Nothing to press lies under the pane's close cross or the phone's
+    resize grip: the tabs begin below the one and beside the other.
