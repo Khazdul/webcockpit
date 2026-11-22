@@ -138,10 +138,14 @@ with no stage of their own. Remove a line when it is done.
   application per environment.
 - Stage 68: whether Discord unfurls a staging link behind `noindex`;
   emote-at-you in private chats is a heuristic.
-- Intermittent unit test, cause not found (2026-11-22, seen once):
-  `cloud-space-runs.test.ts:429` found an upload of a run not sealed yet
-  (1, expected 0). Then 10 runs alone and 3 full suites passed. It could
-  be the test's timing or a real race in the run queue.
+- Bug, for later (the owner, 2026-11-22: "not now"): a run shared before
+  it has ended (runs can continue) gets into a strange state: what
+  followed the first share cannot be shared, the run is locked to that
+  first share. Seen by the owner in use; not investigated.
+  Maybe related, not verified: `cloud-space-runs.test.ts:429` once found
+  an upload of a run not sealed yet (1, expected 0), then passed 10 runs
+  alone and 3 full suites. The owner takes it as the same real bug. That
+  test is about the account's upload, not a share: check both paths.
 
 ## Session log
 
@@ -197,7 +201,8 @@ with no stage of their own. Remove a line when it is done.
   `runs-demo.gen.ts` drifted from its fixture.
 - **Merged again (17:00):** main (stage 76 rounds 3 and 4) into the
   branch, progress.md only conflicted. One intermittent unit failure
-  outside this stage, see Loose ends.
+  outside this stage, and the owner's bug on sharing a run that goes on
+  (for later): both under Loose ends.
 - **Commits:** 579d11cd…7f6291e7, 390d95df and this merge.
 
 ### 2026-11-22 — Stage 76, the balloon film, round 2
