@@ -248,10 +248,10 @@ test('a script pane made without a cross has no look buttons; the built-in panes
   await bar.hover();
   await expect(bar.locator('> .wc-pane-btn:visible')).toHaveCount(0);
   await expect(bar.locator('> .wc-pane-close:visible')).toHaveCount(0);
-  // Built-in panes all have them; Timers, Group and Comm the Gear too (ADR 0107).
-  for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn:not(.wc-pane-btn-gear)`)).toHaveCount(3);
-  for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn-gear`)).toHaveCount(1);
-  await expect(page.locator('.wc-pane-character > .wc-pane-btn')).toHaveCount(3);
+  // Built-in panes all have them; Timers, Group, Comm and Character the Gear too (ADR 0107, stage 77).
+  for (const id of ['timers', 'group', 'comm', 'character']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn:not(.wc-pane-btn-gear)`)).toHaveCount(3);
+  for (const id of ['timers', 'group', 'comm', 'character']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn-gear`)).toHaveCount(1);
+  await expect(page.locator('.wc-pane-ui > .wc-pane-btn')).toHaveCount(3);
 });
 
 test('a clear pane has no fill and no blur, weather off and on; a clear float hides only the game text under it', async ({ page }) => {

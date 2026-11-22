@@ -1,5 +1,5 @@
 // Stage 30c part 2 (ADR 0095 addendum, ADR 0107): the Gear on the Map,
-// Comm, Timers and Group panes opens the pane's settings popup beside the
+// Comm, Timers, Group and Character (stage 77) panes opens the pane's settings popup beside the
 // pane: live changes, one popup at a time with Settings and Panes, Esc,
 // closed when the pane is hidden, and placed inside the viewport beside a
 // right-docked, a left-docked and a floating pane. Uses the dev-only
@@ -92,8 +92,8 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   expect(gb.width).toBeCloseTo(2 * cw, 1);
   expect(gb.x + gb.width).toBeCloseTo(colour.x, 1);
   expect(gb.y).toBeCloseTo(colour.y, 1);
-  // Character and UI have none.
-  await expect(gear(page, 'character')).toHaveCount(0);
+  // Character has one (stage 77), UI none.
+  await expect(gear(page, 'character')).toHaveCount(1);
   await expect(gear(page, 'ui')).toHaveCount(0);
 
   await g.click();
