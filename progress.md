@@ -167,7 +167,11 @@ with no stage of their own. Remove a line when it is done.
   and Character each show (perhaps your own HP only in Character by
   default), and where the fight card belongs. No building before it.
 - **Open:** the full e2e has not been run since the subrace portraits.
-- **Commits:** this one.
+- **Also prepared:** a night pass for real portraits, before the
+  direction pass if the owner starts it first:
+  `notes/research/portraits/brief.md` (the balloon dwarf as the style,
+  both sexes, still images, one agent per race).
+- **Commits:** this one and the brief's.
 
 ### 2026-11-22 — Stage 77 part E, portraits
 
