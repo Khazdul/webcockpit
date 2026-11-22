@@ -173,3 +173,18 @@ When it is safe to send:
 31. The Gear on Character makes its title follow ADR 0123's hood rule: in
     a 33-cell lane it moves 7 px left of centre. At the new player's
     width it stays centred.
+
+## Addendum 5 (2026-11-22): the line editor
+
+32. Point 27's assumption was **wrong**: the live test sent a poll into
+    the line editor (`write test`, its `: ` prompt). The XML tag is not
+    enough. A game prompt must also end with `>`: MUME's prompts do
+    (`change prompt` switches fields and has no free text; every prompt
+    looked at in the owner's logs does). This is a list of what is
+    allowed, so an unknown input state (a question, a menu) gets no poll.
+    The editor's `==>` marker is not one either. A prompt that does not
+    end so, by the twiddlers say, costs a later poll and nothing else.
+    A partial is still held back by the tag alone, as it has no end yet.
+33. What remains of point 26's hole: an editor command that waits in
+    MUME's queue more than 2 s (behind a cast) while a game prompt is
+    shown. A poll sent then lands behind it.

@@ -231,7 +231,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] A. Live facts
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
-- [ ] C. The poll (built, live test run; open before D: the line editor,
+- [ ] C. The poll (built, live test run; open before D: the fixed line editor again,
       a run log with the poll on, `%y` with the wimpy removed)
 - [ ] D. The card
 - [ ] E. Portraits
@@ -618,7 +618,7 @@ From the owner's scrollback and report:
 |---|---|
 | 1. Login poll | works: the first data had wimpy 204, nothing in the scrollback |
 | 2. The values | equal to a typed `info`, a negative DB too; MUME takes the 160 characters |
-| 3. Line editor | **not tested**: `write` opened no editor, see below |
+| 3. Line editor | **failed** in the second try (`change editor line`): the poll was sent into the text at `: `. Fixed (ADR 0166 point 32), to test again |
 | 4. Pager | not sent ("the last output is not a game prompt") |
 | 5. `change wimpy 33%` | `Wimpy set to: 68`, hit points (10%: 21). A removed wimpy: not tested |
 | 6. Strength | str 12, unaffected 10, delta 2, as `info`'s `Str:12(10)` |
