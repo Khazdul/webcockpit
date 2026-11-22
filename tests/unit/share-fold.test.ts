@@ -75,7 +75,12 @@ function traffic(r: () => number, n: number, at0: number, step: number): LogItem
     else if (k < 0.58) out.push({ at, gmcp: 'Group.Set', json: Array.from({ length: Math.floor(r() * 4) }, member) });
     else {
       const v: Record<string, unknown> = {};
-      if (r() < 0.6) v.hp = Math.floor(r() * 300);
+      if (r() < 0.6) v.hp = r() < 0.9 ? Math.floor(r() * 300) : null;
+      if (r() < 0.5) v['hp-string'] = word();
+      if (r() < 0.2) v.mana = Math.floor(r() * 50);
+      if (r() < 0.3) v['mana-string'] = pick(['full', 'hot']);
+      if (r() < 0.2) v['mp-string'] = pick(['rested', 'tired']);
+      if (r() < 0.1) v.mp = Math.floor(r() * 120);
       if (r() < 0.5) v.xp = xp += Math.floor(r() * 2000) - 600;
       if (r() < 0.3) v.tp = 5000 + Math.floor(r() * 50);
       if (r() < 0.15) v.buffer = pick(['Bob', 'an orc', 'Éowyn', '', null]);
@@ -112,6 +117,7 @@ function modelsAfter(text: string): string {
   return JSON.stringify({
     vitals: [...char.vitals].sort(),
     anchors: [char.anchorXp, char.anchorTp],
+    exact: char.exact,
     view: char.view(),
     list: group.list(),
     unlabeled: group.unlabeled(),
@@ -206,6 +212,78 @@ describe('foldExcludedState', () => {
     const vitals = [...captureEntries(folded)].filter((e) => e.pkg === 'Char.Vitals').map((e) => e.body);
     expect(vitals).toEqual(['Char.Vitals {"xp":1000,"tp":50}', 'Char.Vitals {"xp":900}', 'Char.Vitals {"xp":1200,"tp":55,"hp":null}']);
     expect(modelsAfter(folded)).toBe(modelsAfter(plain));
+  });
+
+  it('keeps exact or band: a bar that ended as band gets its word alone after the merged record', () => {
+    const run = (first: Record<string, unknown>, last: Record<string, unknown>) => {
+      const text = makeLog(BASE_US, [
+        { at: 0, gmcp: 'Char.Name', json: { name: 'Rasta' } },
+        { at: 1, in: 'Hello.' },
+        { at: 5, gmcp: 'Char.Vitals', json: first },
+        { at: 6, gmcp: 'Char.Vitals', json: last },
+        { at: 20, in: 'Back.' },
+      ]);
+      const stats: FoldStats = { segments: 0, fallbacks: 0, paces: 0 };
+      const { plain, folded } = both(text, [[us(2), us(19)]], stats);
+      expect(modelsAfter(folded)).toBe(modelsAfter(plain));
+      expect(stats).toMatchObject({ segments: 1, fallbacks: 0 });
+      const char = new CharModel();
+      const bodies: string[] = [];
+      for (const e of captureEntries(folded)) {
+        if (e.pkg !== 'Char.Vitals') continue;
+        bodies.push(e.body.slice(12));
+        char.apply(e.pkg, JSON.parse(e.body.slice(12)));
+      }
+      return { bodies, exact: char.view().vitals };
+    };
+    // The trap: merged alone, this would replay as the exact 100.
+    let r = run({ hp: 100 }, { 'hp-string': 'fine' });
+    expect(r.exact.hp).toMatchObject({ exact: false, value: 100, word: 'fine' });
+    expect(r.bodies).toEqual(['{"hp":100,"hp-string":"fine"}', '{"hp-string":"fine"}']);
+    // The reverse needs nothing more.
+    r = run({ 'hp-string': 'fine' }, { hp: 100 });
+    expect(r.exact.hp.exact).toBe(true);
+    expect(r.bodies).toEqual(['{"hp-string":"fine","hp":100}']);
+    // Both in the last message: a number.
+    r = run({ 'hp-string': 'fine' }, { hp: 100, 'hp-string': 'fine' });
+    expect(r.exact.hp.exact).toBe(true);
+    expect(r.bodies).toHaveLength(1);
+    // A null number is not exact without help.
+    r = run({ hp: 100 }, { hp: null });
+    expect(r.exact.hp.exact).toBe(false);
+    expect(r.bodies).toEqual(['{"hp":null}']);
+    // Each bar for itself, the banded ones in one record.
+    r = run({ hp: 100, mana: 40, mp: 90 }, { 'hp-string': 'fine', mana: 39, 'mp-string': 'tired' });
+    expect([r.exact.hp.exact, r.exact.mana.exact, r.exact.mp.exact]).toEqual([false, true, false]);
+    expect(r.bodies[1]).toBe('{"hp-string":"fine","mp-string":"tired"}');
+  });
+
+  it('keeps exact or band for every short order of updates, from either state before the cut', () => {
+    const updates = [{ hp: 100 }, { hp: 90 }, { 'hp-string': 'fine' }, { 'hp-string': null }, { hp: null }, { hp: 100, 'hp-string': 'fine' }, { maxhp: 120 }];
+    const starts = [{}, { hp: 100, 'hp-string': 'fine' }, { 'hp-string': 'fine' }];
+    const stats: FoldStats = { segments: 0, fallbacks: 0, paces: 0 };
+    let n = 0;
+    for (const start of starts) {
+      for (const a of updates) {
+        for (const b of updates) {
+          for (const c of updates) {
+            const text = makeLog(BASE_US, [
+              { at: 0, gmcp: 'Char.Name', json: { name: 'Rasta' } },
+              { at: 0.5, gmcp: 'Char.Vitals', json: start },
+              { at: 1, in: 'Hello.' },
+              { at: 5, gmcp: 'Char.Vitals', json: a },
+              { at: 6, gmcp: 'Char.Vitals', json: b },
+              { at: 7, gmcp: 'Char.Vitals', json: c },
+              { at: 20, in: 'Back.' },
+            ]);
+            const { plain, folded } = both(text, [[us(2), us(19)]], stats);
+            expect(modelsAfter(folded), JSON.stringify([start, a, b, c])).toBe(modelsAfter(plain));
+            n++;
+          }
+        }
+      }
+    }
+    expect(stats).toMatchObject({ segments: n, fallbacks: 0 });
   });
 
   it('keeps barriers verbatim and in place, drops what nothing reads', () => {

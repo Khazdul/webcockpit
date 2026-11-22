@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CharModel, capitalise } from '../../src/gmcp/char';
+import { CARRYING_STEPS, CharModel, SPELL_EFFORT_STEPS, capitalise } from '../../src/gmcp/char';
+import { VITAL_KINDS } from '../../src/gmcp/bands';
 
 describe('CharModel', () => {
   it('starts empty', () => {
@@ -76,6 +77,49 @@ describe('CharModel', () => {
     expect(c.view().wimpy).toBe(0);
   });
 
+  it('spell effort: the menu steps, another word as sent', () => {
+    expect(SPELL_EFFORT_STEPS).toEqual(['quick', 'fast', 'normal', 'careful', 'thorough']);
+    const c = new CharModel();
+    expect(c.view().spellEffort).toBeNull();
+    for (const [sent, shown] of [['thorough', 'thorough'], ['Normal', 'normal'], ['Hasty', 'Hasty'], ['', null], [null, null]] as const) {
+      c.apply('Char.Vitals', { 'spell-effort': sent });
+      expect(c.view().spellEffort, String(sent)).toBe(shown);
+    }
+  });
+
+  it('carrying: the six live words and their step, another word without one', () => {
+    expect(CARRYING_STEPS).toEqual(['peanuts', 'uncomfortable', 'heavy', 'really heavy', 'painful', 'torture']);
+    const c = new CharModel();
+    expect(c.view().carrying).toBeNull();
+    CARRYING_STEPS.forEach((word, step) => {
+      c.apply('Char.Vitals', { carrying: word });
+      expect(c.view().carrying).toEqual({ word, step });
+    });
+    c.apply('Char.Vitals', { carrying: 'Really Heavy' });
+    expect(c.view().carrying).toEqual({ word: 'Really Heavy', step: 3 });
+    for (const word of ['light', 'Crushing', 'constructor']) {
+      c.apply('Char.Vitals', { carrying: word });
+      expect(c.view().carrying).toEqual({ word, step: null });
+    }
+    c.apply('Char.Vitals', { carrying: null });
+    expect(c.view().carrying).toBeNull();
+  });
+
+  it('race, subrace and the race line', () => {
+    const c = new CharModel();
+    expect(c.view()).toMatchObject({ race: null, subrace: null, raceLine: null });
+    c.apply('Char.StatusVars', { race: 'Orc', subrace: 'Tarkhnarb Orc' });
+    expect(c.view()).toMatchObject({ race: 'Orc', subrace: 'Tarkhnarb Orc', raceLine: 'Tarkhnarb orc' });
+    c.apply('Char.StatusVars', { subrace: null });
+    expect(c.view()).toMatchObject({ race: 'Orc', subrace: null, raceLine: 'Orc' });
+    c.apply('Char.Name', { name: 'Rasta' });
+    c.apply('Char.Name', { name: 'Gibur' });
+    expect(c.view()).toMatchObject({ race: null, raceLine: null });
+    c.apply('Char.StatusVars', { race: 'Troll', subrace: 'Cave Troll' });
+    c.reset();
+    expect(c.view().raceLine).toBeNull();
+  });
+
   it('reset clears everything; another character starts a new session', () => {
     const c = new CharModel();
     c.apply('Char.Name', { name: 'Rasta' });
@@ -93,5 +137,69 @@ describe('CharModel', () => {
     expect(c.vitals.size).toBe(0);
     c.apply('Char.Vitals', { xp: 7_000_000 });
     expect(c.anchorXp).toBe(7_000_000);
+  });
+});
+
+describe('CharModel: exact or band', () => {
+  for (const k of VITAL_KINDS) {
+    const word = `${k}-string`;
+    const bar = (c: CharModel) => c.view().vitals[k];
+
+    it(`${k}: the last update decides`, () => {
+      const c = new CharModel();
+      expect(bar(c)).toEqual({ value: null, max: null, word: null, exact: false });
+      c.apply('Char.Vitals', { [k]: 100, [`max${k}`]: 200 });
+      expect(bar(c)).toEqual({ value: 100, max: 200, word: null, exact: true });
+      c.apply('Char.Vitals', { [word]: 'Hurt' });
+      expect(bar(c)).toEqual({ value: 100, max: 200, word: 'hurt', exact: false });
+      c.apply('Char.Vitals', { mood: 'brave', [`max${k}`]: 210 }); // neither: it stays
+      expect(bar(c).exact).toBe(false);
+      c.apply('Char.Vitals', { [k]: 120, [word]: 'Fine' }); // both: a number
+      expect(bar(c)).toEqual({ value: 120, max: 210, word: 'fine', exact: true });
+      c.apply('Char.Vitals', { mood: 'wimpy' });
+      expect(bar(c).exact).toBe(true);
+      c.apply('Char.Vitals', { [k]: null });
+      expect(bar(c)).toMatchObject({ value: null, exact: false });
+      c.apply('Char.Vitals', { [k]: 0 }); // zero is a number
+      expect(bar(c).exact).toBe(true);
+      c.apply('Char.Vitals', { [k]: null, [word]: 'dying' });
+      expect(bar(c).exact).toBe(false);
+    });
+
+    it(`${k}: a flip is a change though the merged values are the same`, () => {
+      const c = new CharModel();
+      c.apply('Char.Vitals', { [k]: 100, [word]: 'fine' });
+      let v = c.version;
+      expect(c.apply('Char.Vitals', { [word]: 'fine' })).toBe(true); // the same word after a number
+      expect([bar(c).exact, c.version]).toEqual([false, v + 1]);
+      expect(c.apply('Char.Vitals', { [word]: 'fine' })).toBe(false);
+      v = c.version;
+      expect(c.apply('Char.Vitals', { [k]: 100 })).toBe(true); // the same number after a word
+      expect([bar(c).exact, c.version]).toEqual([true, v + 1]);
+      expect(c.apply('Char.Vitals', { [k]: 100 })).toBe(false);
+      v = c.version;
+      expect(c.apply('Char.Vitals', { [word]: 'hurt' })).toBe(true); // a flip and a value: one change
+      expect(c.version).toBe(v + 1);
+    });
+
+    it(`${k}: reset and another character clear it, the same one keeps it`, () => {
+      const c = new CharModel();
+      c.apply('Char.Name', { name: 'Rasta' });
+      c.apply('Char.Vitals', { [k]: 100 });
+      c.apply('Char.Name', { name: 'rasta' });
+      expect(bar(c).exact).toBe(true);
+      c.apply('Char.Name', { name: 'Gibur' });
+      expect(bar(c).exact).toBe(false);
+      c.apply('Char.Vitals', { [k]: 100 });
+      c.reset();
+      expect(bar(c).exact).toBe(false);
+    });
+  }
+
+  it('each bar has its own', () => {
+    const c = new CharModel();
+    c.apply('Char.Vitals', { hp: 1, mana: 2, mp: 3 });
+    c.apply('Char.Vitals', { 'mana-string': 'icy' });
+    expect(VITAL_KINDS.map((k) => c.view().vitals[k].exact)).toEqual([true, false, true]);
   });
 });

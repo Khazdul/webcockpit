@@ -33,6 +33,9 @@
 //   Char.Vitals {xp}       the lowest xp, when it is below both (the run
 //                          events' kill fold anchor is a running minimum)
 //   Char.Vitals {…}        every key seen, with its last value
+//   Char.Vitals {…-string} the word alone of each bar that ended as band
+//                          though its last number is in the record before
+//                          (CharModel's exact or band, ADR 0166)
 //   Group.*                the skeleton: every Set, Add and Remove, and each
 //                          Update that adds an entry (an id the map's table
 //                          does not know) or carries a type, cut to
@@ -50,11 +53,11 @@
 //   Event.Moved            those after it
 //   Comm.Channel.List      the last one the Comm pane takes
 //
-// The block is checked: CharModel, GroupModel (members, unlabeled NPCs,
-// fight identities) and GroupTable (entries, hue generator) fed the
-// segment and fed the block from the same state must end equal, and the
-// run events' xp (last and lowest) must agree. When they do not, the
-// segment's records are kept as they are.
+// The block is checked: CharModel (exact or band too), GroupModel
+// (members, unlabeled NPCs, fight identities) and GroupTable (entries, hue
+// generator) fed the segment and fed the block from the same state must
+// end equal, and the run events' xp (last and lowest) must agree. When
+// they do not, the segment's records are kept as they are.
 //
 // Pacing: the replay clock (src/player/clock.ts) fires timers at their
 // own times through steps of up to CATCH_UP_US, and catches up over a
@@ -73,6 +76,7 @@
 // a long range plays in are not drawn.
 
 import { RECORD, formatRecord, formatTs } from '../capture/format';
+import { VITAL_KINDS } from '../gmcp/bands';
 import { CharModel } from '../gmcp/char';
 import { parseChannelList } from '../gmcp/comm';
 import { GroupModel, STATUS_FLAGS, normLabel } from '../gmcp/group';
@@ -195,6 +199,7 @@ class Models {
       sorted(c.vitals),
       c.anchorXp,
       c.anchorTp,
+      c.exact,
       this.group.list(),
       this.group.unlabeled(),
       g.buffer,
@@ -475,6 +480,12 @@ function buildBlock(seg: readonly SegEntry[], models: Models, start: Models): st
     const low = Math.min(num(anchors.xp) ?? Infinity, lastXp ?? Infinity);
     if (minXp !== null && minXp < low) out.push(`${pkg} ${JSON.stringify({ xp: minXp })}`);
     out.push(`${pkg} ${JSON.stringify(merged)}`);
+    // The merged record reads as exact for every bar with a number in it.
+    const band: Obj = {};
+    for (const k of VITAL_KINDS) {
+      if (num(merged[k]) !== null && !models.char.exact[k]) band[`${k}-string`] = merged[`${k}-string`];
+    }
+    if (Object.keys(band).length > 0) out.push(`${pkg} ${JSON.stringify(band)}`);
   }
   // Group.*: the skeleton, then the final state.
   const group = seg.filter((s) => s.fold === 'group');

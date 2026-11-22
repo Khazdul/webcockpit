@@ -53,7 +53,7 @@ function busy(at: number, n: number, seed: number): LogItem[] {
         out.push({ at: t, gmcp: 'Group.Remove', json: id });
         break;
       case 7:
-        out.push({ at: t, gmcp: 'Char.Vitals', json: { tp: 5000 + i, mood: i % 2 ? 'brave' : 'wimpy', opponent: `L${id}`, 'opponent-hits': 'awful' } });
+        out.push({ at: t, gmcp: 'Char.Vitals', json: { tp: 5000 + i, 'hp-string': 'hurt', mood: i % 2 ? 'brave' : 'wimpy', opponent: `L${id}`, 'opponent-hits': 'awful' } });
         break;
       default:
         out.push({ at: t, gmcp: 'Comm.Channel.List', json: [{ name: 'tells' }, { name: `c${i}` }] });
