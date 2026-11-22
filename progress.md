@@ -169,9 +169,14 @@ with no stage of their own. Remove a line when it is done.
   both files pass alone.
 - **Next:** the owner looks (the stage file's Part E guide) and merges;
   then F on the owner's go.
+- **Then, on the owner's word:** a portrait per subrace (18, from MUME's
+  help: Dúnadan … Mountain Troll), the race's as the fallback; raster
+  `<subrace>.webp`, then `<race>.webp` (ADR 0166 addendum 11). Unit 5893;
+  the two Character e2e files pass; the full e2e not rerun after it.
 - **Open:** in Medium the level ring covers the lower face (part H); the
-  figures keep their fills on Paper.
-- **Commits:** e3277ffa, 3024a750, 4311f238 and this one.
+  figures keep their fills on Paper; the framing waits for the layout.
+- **Commits:** e3277ffa, 3024a750, 4311f238, 785098c6, 266f66d3,
+  e79b7bdf and this one.
 
 ### 2026-11-22 — Stage 77: Character first on a phone
 
