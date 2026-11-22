@@ -11,8 +11,11 @@ stay.
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C done** (on main, tested
 live 2026-11-22). **Part D done** (on main 2026-11-22, the
-owner looked; polish is a pass of its own, H below). **Part E built**
-(2026-11-22, branch `stage-77e`: waiting for the owner's look). The wimpy point is decided (open points). Each part stops for the owner's
+owner looked; polish is a pass of its own, H below). **Part E done**
+(on main, portraits per subrace, the owner: "kör vidare"). **Part F stopped**
+(2026-11-23, the owner): what Group and Character each show, and where
+the fight card belongs, is to be discussed in a pass of its own before
+anything more is built. Nothing of F was kept. The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -235,7 +238,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] C. The poll (tested live: "Live results, part C")
 - [x] D. The card (tried live, the phone too)
 - [x] E. Portraits (built; the owner's look pending)
-- [ ] F. Group
+- [ ] F. Group (stopped 2026-11-23: direction to be discussed first)
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
 - [ ] H. Polish of the card (the owner's list first)
@@ -836,3 +839,13 @@ answer: type it again for the new one. At most one poll in 10 s.
   först när man fäller ner panes + att character pane är på som default"
   (done, ADR 0166 point 47). "Vi kör vidare enligt planen och tar E
   härnäst i ett nytt pass."
+- 2026-11-22, part E: the figures are fine until the owner's images; the
+  framing may be tuned later with the layout. "Zaugurz orc behöver ha ett
+  unikt porträtt", then: a portrait for every subrace (done, ADR 0166
+  addendum 11). "kör vidare".
+- 2026-11-23, part F started and stopped by the owner: "Jag vill tänka
+  igenom mer noga vad som ska synas i group och vad som ska synas i
+  character. … Funderar om standard ska vara att man alltid bara ser sina
+  egna hps i character. En fråga är var battle card hör hemma." F's work
+  was thrown away uncommitted; a direction pass comes first (a new
+  session).
