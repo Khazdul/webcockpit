@@ -1,6 +1,7 @@
 # The balloon film — manuscript
 
-Draft 3 (2026-11-22): round 2 approved with two changes, the title's third
+Draft 4 (2026-11-22): the title's name is MUMECOCKPIT.
+Draft 3: round 2 approved with two changes, the title's third
 line and the setting's own description (the owner: "kör vi på detta").
 Draft 2: a new film after the owner's review of round 1
 (draft 1 is in git, cb4dd880). Much slower, one place, daylight, every
@@ -115,3 +116,33 @@ in the title's style: *Turn them on in Settings → Weather effects.* /
 
 "Real speed" and "not crowded" win over the times and the gaps above:
 lengthen a gap, and with it the film. Never speed a balloon up.
+
+## YouTube
+
+Proposed to the owner 2026-11-22, with the chapters of round 4's times.
+No `#weather` in it: YouTube makes a hashtag of it.
+
+```text
+TITLE
+MumeCockpit 0.22: Now with hot-air balloons
+
+DESCRIPTION
+MumeCockpit is a free MUD client for MUME (Multi-Users in Middle-earth). It runs in your browser, on desktop, tablet and phone.
+
+New in 0.22: hot-air balloons. Nobody asked. We did it anyway.
+
+A companion of your race rises in a balloon and reacts to what happens in the game. There are 8 companions with 10 balloons each, 80 in all. In this demo they are sent by command, so you can see more of them.
+
+To turn them on: Settings → Weather effects → Balloons (desktop only).
+
+0:00 Nobody asked
+0:13 Bree: turning on the balloons
+0:31 The many moods of a goblin
+1:20 The other races
+2:46 We did it anyway
+
+▶ Play: https://mumecockpit.com
+🌍 MUME: https://mume.org
+🎵 Music: 'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au
+License: https://creativecommons.org/licenses/by/4.0/
+```

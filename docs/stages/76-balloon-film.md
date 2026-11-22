@@ -1,12 +1,14 @@
 # Stage 76 — The balloon film
 
 Not a spec §5 row: the owner's request of 2026-11-21. A short film of its
-own (about 1:21) that only shows the balloon notices of 0.22 (stages 69
+own (2:57) that only shows the balloon notices of 0.22 (stages 69
 and 75). It does not replace the presentation films (stages 48 and 70).
 
-Status: **Round 3 rendered as the final film** (2026-11-22, manuscript
-draft 3), with the YouTube 4K file; waiting for the owner's last look and
-upload.
+Status: **Built; closed for the session of 2026-11-22.** The film is
+round 4 (`video/out/balloon-film-r4*`, copies in the owner's Downloads).
+Left to the owner: the upload. The Balloons help text it shows
+(`ec5bc166`) is committed and goes out with the next release; the owner
+does not want a release of its own for it.
 
 The manuscript and the owner's decisions are in
 `video/manuscript-balloons.md`, which the main session owns. The pipeline
@@ -44,6 +46,10 @@ is ADR 0133's (`video/README.md`).
       flocks pinned to round 2's), the music's new phrase end.
 - [x] Round 3: the three files (1080p HEVC and H.264, 4K for YouTube),
       each checked; contact sheet.
+- [x] Round 4: the title says MUMECOCKPIT (`3a0cf362`); rendered from
+      round 3's take, compared with its master.
+- [x] The YouTube title and description (end of the manuscript).
+- [ ] The next release carries `ec5bc166` (the Balloons help text).
 - [ ] The owner: the last look and the upload (the music credit in the
       description from the first moment).
 
@@ -262,16 +268,27 @@ a slow balloon, and missed the step at 1:59.433).
   2:03.133. No hold over 34 ms but in those slivers. Not changed: product
   code, and 0.12 px.
 
+## Round 4 (2026-11-22): the title's name
+
+The owner: the title shall say MUMECOCKPIT, not WEBCOCKPIT, without doing
+all of it again. One line in `Balloons.tsx` (3a0cf362), rendered from
+round 3's take as `out/balloon-film-r4*`; nothing recorded again. Against
+round 3's master: the title differs, the audio is identical, and after
+the title only 19 frames (18.87–19.95 s) differ, in the antialiasing of
+the drawn pointer at the Settings icon. Upload r4,
+not r3. The presentation films still say WebCockpit on their cards.
+
 ## Test guide
 
-Open `video/out/balloon-film-r3-youtube.mp4` (or
-`balloon-film-r3.mp4` on a 1080p screen) in a 60 fps player, full screen:
+Open `video/out/balloon-film-r4-youtube.mp4` (or
+`balloon-film-r4.mp4` on a 1080p screen) in a 60 fps player, full screen:
 
-1. **The title**: the third line at 0:07–0:08, long enough, then the game
+1. **The title**: MUMECOCKPIT 0.22; the third line at 0:07–0:08, long enough, then the game
    at about 0:13.
 2. **The setting** (0:19–0:26): the new description reads well.
 3. **The end**: the end card long enough, the music's last phrase.
-4. **The upload**: `balloon-film-r3-youtube.mp4`, with the credit in the
+4. **The upload**: `balloon-film-r4-youtube.mp4`, with the title and
+   description at the end of `video/manuscript-balloons.md`. The credit is in the
    description from the moment of upload (Content ID):
    `'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au`
    Afterwards look at YouTube's 2160p60 for smoothness.
@@ -312,12 +329,11 @@ sekunder. Sen börjar vi. Bygg sen om också kör vi på detta."
 
 `video/manuscript-balloons.md`, draft 3.
 
-## Round 4 (2026-11-22): the title's name
+### Round 3 (2026-11-22): the title's name
 
-The owner: the title shall say MUMECOCKPIT, not WEBCOCKPIT, without doing
-all of it again. One line in `Balloons.tsx` (3a0cf362), rendered from
-round 3's take as `out/balloon-film-r4*`; nothing recorded again. Against
-round 3's master: the title differs, the audio is identical, and after
-the title only 19 frames (18.87–19.95 s) differ, in the antialiasing of
-the drawn pointer at the Settings icon. Test: watch 0:00–0:13; upload r4,
-not r3. The presentation films still say WebCockpit on their cards.
+"Det står WEBCOCKPIT i början. Det ska stå MUMECOCKPIT. Kan vi åtgärda
+det utan att göra om allt?" → round 4.
+
+### The release (2026-11-22)
+
+"du behöver inte releasa än. commita så tar jag det vid nästa release."
