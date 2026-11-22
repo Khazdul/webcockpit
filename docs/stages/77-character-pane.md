@@ -7,7 +7,9 @@ look and the data. This stage builds it. It replaces the drawing rules of
 Inv §2.2. The data rules for XP/TP, the session anchors and the toggles
 stay.
 
-**Status: planned.** The owner approved writing the stage from round 9
+**Status: part A under way** (2026-11-22: desk findings written, the
+owner's live run and decisions awaited). Each part stops for the owner's
+go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
 ## What is approved (the source to build from)
@@ -274,14 +276,145 @@ raw answer. Write the findings into this file before parts C–D.
   the command and the value changes only after the fixture's GMCP; the
   poll's answer is hidden from the game pane; Group without you.
 
+## Part A: findings
+
+### Known before the live run (2026-11-22)
+
+Sources: MUME's help on mume.org, the owner's Cockpit run logs
+(`/home/ole/MUME/data/runs`, text only, no GMCP in them) and this
+repository's code.
+
+**Spell speed** (`help change_spellcasting`, `help cast`):
+
+- The command is `change spellcasting <speed>`. Without an argument it
+  shows a menu. The five speeds: quick, fast, normal, careful, thorough.
+- `help gmcp_char` gives `spell-effort` as `"quick"`, `"fast"`, etc.
+  `help effort` uses other forms (quickly, normally, …), so the GMCP
+  words for all five are to be seen live.
+
+**`carrying`:** `help gmcp_char` says only "string describing how heavy
+load you are carrying". Text lines seen in the logs: `Your load feels
+light.`, `Your burden is heavy.`, `Your burden is really heavy.`,
+`Your burden is sheer torture.` (not in the list above), `Your burden is
+no longer all that heavy.`
+
+**Race:** the help's example is `"race": "Troll", "subrace": "Cave
+Troll"`. The subrace can hold the race, so decision 18's `subrace race`
+would write "cave troll troll". The rule waits for the live strings.
+
+**`info`** (`help info_format` and the logs):
+
+- `%.` is a new line, `%%` a percent sign, `%,` toggles the separators,
+  `%(` and `%)` colour. `%m` is the spell speed.
+- Numbers come with ANSI colour in plain `info`.
+- `%K` answers a word and a number (`known (5)`).
+- `%b` is one field with seven labelled values (`Str:14 Int:15 Wis:16
+  Dex:8 Con:10 Wil:16 Per:8`). `%G` is probably shaped the same, so the
+  parser cannot expect one number per field.
+- An answer is followed by an empty line and then the prompt.
+- Other lines can come between the command and the answer (seen: an
+  arrival, a say), so the answer is not simply the next line.
+
+**The 250 ms queue:**
+
+- Commands sent together are answered one per pulse, about 250 ms apart
+  (the bursts inspected in the logs).
+- `info` is **not answered at once**: nearly all of the 29 logged
+  answers came on the same 250 ms grid as other commands, 40–285 ms
+  after sending when nothing was in the way.
+- Whether it **takes a slot** in the queue cannot be seen in the logs
+  (it was never sent in a burst). The live run measures it.
+
+**Conflicts with the plan, found in the code:**
+
+- The sentinel `‹wc›` is not Latin-1. Without UTF-8 it is sent as
+  `?wc?`. An ASCII sentinel is needed, with a nonce per poll so that
+  nobody can fake one in a say or tell.
+- A display gag does not keep the poll out of the run log: the recorder
+  takes `text.line` before the pipeline, and `cmd.sent` also with
+  `echo: false`. Part C needs its own mark on both.
+- There is no dimmed echo for client-sent commands. Comm's reply field
+  echoes like a typed command, and `echo: false` shows nothing.
+- `sendCommand` does not expand aliases. Clicks should use it, since the
+  Khazdul profile has aliases named `sleep`, `normal` and `quick`.
+- A poll every 5 minutes is a game command from an idle player and may
+  defeat MUME's idle timeout (unlike `Core.Ping`). The owner decides.
+
+### The live run (the owner)
+
+The run log (`#runlog`) has every GMCP message, every sent command and
+every line with colours and a microsecond time stamp. XML tags are not
+in it (the assembler takes them out before capture, as before a gag).
+Logs hold tells: never commit one.
+
+All lines below pass the script engine unchanged with an empty profile,
+the template and Khazdul. Wait for the answers between lines.
+
+1. A safe room, standing, not fighting, a caster:
+
+       info
+       info WC1[%l|%O|%D|%k|%A|%S|%i|%w|%d|%o|%I|%p|%G|%a|%N|%n|%h|%W|%C|%F|%q|%c|%r|%K|%v|%H|%s]WC1
+       info ‹wc‹%l|%F›wc›
+       info WC3[%B][%b][%G][%S %i %w %d %o %I %p]WC3
+       info WC4[%x|%,%x|%,%x|%g|%(%l%)|%m|%R|%Y|%y]WC4
+       info WC5[first%.second]WC5
+       info WC6[%q|%q|%q|%q|%q|%q|%q|%q|%q|%q|%q|%q]WC6
+
+2. The queue (the cast shows whether `info` waits for or breaks a spell):
+
+       look;look;look;look;look
+       info WC-A1;info WC-A2;info WC-A3;info WC-A4;info WC-A5
+       look;look;look;look;info WC-B
+       info WC-C1;info WC-C2;info WC-C3;info WC-C4;look
+       cast 'armour';info WC-D
+
+3. Asleep:
+
+       sle
+       info WC-E[%l|%F]
+       wake
+       stand
+
+4. The steps behind the three clickable fields, then back to the
+   player's own values:
+
+       change spellcasting
+       change spellcasting quick;change spellcasting fast;change spellcasting normal;change spellcasting careful;change spellcasting thorough
+       change alertness
+       change alertness careful;change alertness attentive;change alertness vigilant;change alertness paranoid;change alertness normal
+       change mood
+       change mood prudent;change mood normal;change mood brave;change mood aggressive;change mood wimpy
+
+5. The weight: from as light as is safe to as heavy as possible and
+   down again. At the start and after each change of step:
+
+       info WC-W[%C|%F]
+
+6. `#runlog`. Then for each other character: log in and send
+
+       info
+       info WC-R[%M|%c|%q|%h|%W|%r|%K]
+       #runlog
+
+### Live results
+
+*Awaiting the owner's run logs.*
+
 ## Open points
 
 - The `carrying` words and the number of steps (A).
-- The spell speeds and the `change spell` command (the mockup guesses
-  quick, fast, normal, careful, thorough).
+- Spell speed: command and steps are known (part A). The owner confirms
+  the click's cycle (suggestion: quick → fast → normal → careful →
+  thorough → quick). The GMCP words are seen in the live run.
 - `race`/`subrace` strings beyond Man/Dunadan, Elf/Noldo and Tarkhnarb orc.
 - Whether a click's command shows in the game pane like a typed one
-  (suggestion: yes, dimmed, like other client-sent commands).
+  (suggestion, revised in part A: yes, exactly like a typed one, as
+  Comm's reply does. A dimmed echo does not exist today).
+- Whether the poll goes on while the player is idle (suggestion: no poll
+  without a key or click from the player in the last 5 minutes).
+- Whether `info` takes a queue slot or disturbs a cast (A). If it does,
+  the poll's rules are decided again before part C.
+- The race line when the subrace holds the race ("Cave Troll").
 - Compact mode (parked).
 
 ## Test guide (for the owner)
