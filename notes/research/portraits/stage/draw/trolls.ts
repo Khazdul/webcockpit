@@ -44,8 +44,8 @@ interface Spec {
 const BONE = '#e2dabd', BONE2 = '#c9bf9d', LICHEN = '#b0a85c';
 
 // ---- the palette ----
-const STONE = ['#60665a', '#8f937e', '#bdbda4'] as const;
-const CAVE = ['#22301d', '#405636', '#6a7f4e'] as const;
+const STONE = ['#5c5650', '#8a837a', '#b6aea2'] as const;
+const CAVE = ['#132a16', '#2a5a2a', '#4a8442'] as const;
 const HILL = ['#664a2e', '#9c7a50', '#c6a472'] as const;
 const MOUNT = ['#4e5862', '#808c96', '#b2bcc2'] as const;
 
@@ -91,8 +91,8 @@ const face = (c: Ctx, s: Spec): string => {
   const cracks = c.fine(`<path d="${wx(`M-18,${top + 1}l3,9l-3,6M22,${top + 2}l-3,8l5,7l-2,5M-52,10l8,3l3,8M52,16l-7,5l-2,7M-38,44l3,-5M36,40l-4,5M-44,-40l6,5`, j)}" fill="none" stroke-width=".6" opacity=".7"/>`);
   const jaw = c.fem
     ? `<path d="${wx('M-36,38C-24,45 -10,47 0,47C12,47 26,44 36,38C26,46 12,50 0,50C-12,50 -26,46 -36,38Z', j)}" fill="#1e170f" opacity=".22" stroke="none"/>`
-    : `<path d="${wx('M-60,22Q0,34 61,21C62,32 54,44 36,46L0,47L-36,46C-54,44 -61,34 -60,22Z', j)}" fill="#1e170f" opacity=".14" stroke="none"/>`;
-  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.3"/>${scales}<path d="${sh}" fill="#1e170f" opacity=".16" stroke="none"/><path d="${mid}" fill="#1e170f" opacity=".1" stroke="none"/><path d="${mid}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
+    : `<path d="${wx('M-60,22Q0,34 61,21C62,32 54,44 36,46L0,47L-36,46C-54,44 -61,34 -60,22Z', j)}" fill="#1e170f" opacity=".14" stroke="none"/><path d="${wx('M-60,26Q-30,36 -10,38L-12,46L-36,46C-54,44 -61,36 -60,26Z', j)}" fill="${c.url('p')}" stroke="none"/>`;
+  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.2"/>${scales}<path d="${sh}" fill="#1e170f" opacity=".16" stroke="none"/><path d="${mid}" fill="#1e170f" opacity=".1" stroke="none"/><path d="${mid}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
     `<path d="${wx(`M-4,${top - 1}C14,${top - 1} 34,${top + 5} 46,${top + 16}C38,${top + 14} 20,${top + 10} 0,${top + 10}Z`, j)}" fill="#f4eed6" opacity=".2" stroke="none"/>` +
     `<path d="${wx(`M34,${top + 6}C48,${top + 14} 55,-40 55,-24L56,-4C58,6 60,14 61,22`, j)}" fill="none" stroke="#f6f0d8" stroke-width="1.3" opacity=".45"/>` +
     jaw + lichen + cracks +
@@ -171,21 +171,22 @@ const bust = (c: Ctx, s: Spec): string => {
   // the pelt: over the left shoulder and down across the chest, its edge ragged
   const PELT = 'M-132,160L-132,78C-130,48 -110,28 -80,24C-64,22 -52,30 -44,42' + ragged(-44, 42, 34, 160, 17) + 'Z';
   const [fd, fl] = fur(31 + s.tall, -128, 30, 26, 158, (x, y) => x < -10 + (y - 50) * .4 && x > -128, c.med ? 0 : 110);
-  const pelt = `<path d="${PELT}" fill="${s.pelt[0]}" stroke-width="1.2"/><path d="M-132,160L-132,78C-130,48 -110,28 -80,24C-100,40 -110,70 -104,160Z" fill="${c.url('p')}" stroke="none"/><path d="M-132,160L-132,78C-130,54 -122,40 -108,30C-120,50 -124,90 -120,160Z" fill="${c.url('q')}" stroke="none"/>` +
+  const pelt = `<path d="${PELT}" fill="${s.pelt[0]}" stroke-width="1.2"/><path d="M-132,160L-132,78C-130,48 -110,28 -80,24C-100,40 -110,70 -104,160Z" fill="${c.url('p')}" stroke="none"/><path d="M-132,160L-132,78C-130,54 -122,40 -108,30C-120,50 -124,90 -120,160Z" fill="${c.url('q')}" stroke="none"/><path d="M-132,160L-132,78C-130,54 -122,40 -108,30C-120,50 -124,90 -120,160Z" fill="${c.url('p')}" stroke="none"/><path d="M-20,140C-6,146 10,152 20,160L-30,160Z" fill="${c.url('q')}" stroke="none"/>` +
     (c.med
       ? `<path d="M-90,40C-70,60 -50,90 -30,130M-110,60C-96,80 -80,110 -70,150" fill="none" stroke="${s.pelt[1]}" stroke-width="1.4" opacity=".4"/>`
       : `<path d="${fd}" fill="none" stroke-width=".7" opacity=".8"/><path d="${fl}" fill="none" stroke="${s.pelt[1]}" stroke-width=".9" opacity=".85"/>`) +
     c.fine('<path d="M-86,26l-4,-4l-1,5M-70,24l-2,-4l-2,4M-104,34l-4,-3l0,5" fill="none" stroke-width=".8"/>');
   // the sinew lacing that holds it, from the pelt's edge to the right armpit
-  const lace = `<path d="M-20,50C10,58 50,66 96,92" fill="none" stroke-width="3.6"/><path d="M-20,50C10,58 50,66 96,92" fill="none" stroke="#b9a57a" stroke-width="2" stroke-dasharray="3 1.4"/>`;
+  const lace = `<path d="M-22,44C10,51 52,60 100,84L96,96C50,72 8,64 -22,58Z" fill="#5a3a24" stroke-width="1.1"/><path d="M-22,52C10,58 50,66 98,90L96,96C50,72 8,64 -22,58Z" fill="${c.url('p')}" stroke="none"/><path d="M-14,47C14,53 52,62 94,82" fill="none" stroke="#a07850" stroke-width="1" opacity=".7"/>` +
+    c.fine('<path d="M-18,51C12,57 52,65 97,88" fill="none" stroke="#d8c09a" stroke-width=".8" stroke-dasharray="2.4 2.2"/>');
   const plates = s.top === 'plates' ? platesBust(c, s) : '';
   const scales = s.top === 'scales' ? `<path d="${BODY}" fill="${c.url('z')}" stroke="none"/>` : '';
   // a necklace of teeth at the sides of the chest (the women's; under the ring at the middle)
   const neck = c.fem
     ? `<path d="M-48,44C-40,72 -16,84 0,84C16,84 40,72 48,44" fill="none" stroke-width="2.4"/><path d="M-48,44C-40,72 -16,84 0,84C16,84 40,72 48,44" fill="none" stroke="#b9a57a" stroke-width="1.2"/>` +
-      ([[-45, 56, 22], [-38, 68, 16], [38, 68, -16], [45, 56, -22]] as const).map(([x, y, a]) => `<g transform="translate(${x},${y}) rotate(${a})"><path d="M-2.6,0Q0,-1.2 2.6,0Q2.8,7 0,12Q-2.8,7 -2.6,0Z" fill="${BONE}" stroke-width=".8"/></g>`).join('')
+      ([[-47, 52, 26], [-40, 66, 18], [40, 66, -18], [47, 52, -26]] as const).map(([x, y, a]) => `<g transform="translate(${x},${y}) rotate(${a})"><path d="M-4,0Q0,-1.8 4,0Q4.4,10 0,17Q-4.4,10 -4,0Z" fill="${BONE}" stroke-width="1"/></g>`).join('')
     : '';
-  return `<path d="${BODY}" fill="${c.url('s')}" stroke-width="1.3"/>${scales}<path d="${SH}" fill="${c.url('p')}" stroke="none"/>` +
+  return `<path d="${BODY}" fill="${c.url('s')}" stroke-width="1.2"/>${scales}<path d="${SH}" fill="${c.url('p')}" stroke="none"/><path d="M48,42C56,32 66,26 80,28C72,40 60,50 44,56Z" fill="${c.url('p')}" stroke="none"/><path d="M132,100C124,120 118,140 116,160L132,160Z" fill="${c.url('p')}" stroke="none"/>` +
     `<path d="M70,30C96,30 120,44 128,70" fill="none" stroke="#f6f0d8" stroke-width="1.4" opacity=".45"/>` +
     c.fine('<path d="M88,50l6,4l-2,6M108,62l-5,5l3,5M74,40l3,4" fill="none" stroke-width=".6" opacity=".75"/>') +
     plates + pelt + lace + neck;
@@ -193,18 +194,20 @@ const bust = (c: Ctx, s: Spec): string => {
 
 // ---- the hill troll's hard scales: horny plates on the skull and the shoulders ----
 const plateRow = (c: Ctx, P: readonly (readonly [number, number, number, number])[], fill: string): string =>
-  P.map(([x, y, w, h]) => {
-    const d = `M${n(x - w)},${n(y + h * .4)}L${n(x - w * .7)},${n(y - h * .6)}L${n(x + w * .2)},${n(y - h)}L${n(x + w)},${n(y - h * .3)}L${n(x + w * .8)},${n(y + h * .7)}L${n(x - w * .1)},${n(y + h)}Z`;
-    return `<path d="${d}" fill="${fill}" stroke-width="1.1"/>${x < 0 ? `<path d="${d}" fill="${c.url('p')}" stroke="none"/>` : `<path d="M${n(x - w * .4)},${n(y - h * .75)}L${n(x + w * .2)},${n(y - h * .92)}L${n(x + w * .85)},${n(y - h * .3)}" fill="none" stroke="#fff6dc" stroke-width="1.1" opacity=".5"/>`}`;
+  P.map(([x, y, w, h], i) => {
+    // a rounded, lumpy scute: four bulges of uneven size, a little tilted
+    const q = [1 + (i % 3) * .08, 1 - (i % 2) * .12, 1 + ((i + 1) % 3) * .07, 1 - ((i + 2) % 2) * .1];
+    const d = `M${n(x - w * q[0]!)},${n(y)}C${n(x - w * q[0]!)},${n(y - h * .9)} ${n(x - w * .3)},${n(y - h * q[1]!)} ${n(x + w * .1)},${n(y - h * q[1]!)}C${n(x + w * .7)},${n(y - h * q[1]!)} ${n(x + w * q[2]!)},${n(y - h * .5)} ${n(x + w * q[2]!)},${n(y + h * .1)}C${n(x + w * q[2]!)},${n(y + h * .8)} ${n(x + w * .4)},${n(y + h * q[3]!)} ${n(x - w * .1)},${n(y + h * q[3]!)}C${n(x - w * .7)},${n(y + h * q[3]!)} ${n(x - w * q[0]!)},${n(y + h * .6)} ${n(x - w * q[0]!)},${n(y)}Z`;
+    const ridge = c.fine(`<path d="M${n(x - w * .5)},${n(y + h * .1)}Q${n(x)},${n(y - h * .3)} ${n(x + w * .5)},${n(y)}" fill="none" stroke-width=".6" opacity=".6"/>`);
+    return `<path d="${d}" fill="${fill}" stroke-width="1.1"/>${x < 0 ? `<path d="${d}" fill="${c.url('p')}" stroke="none"/>` : `<path d="M${n(x - w * .2)},${n(y - h * .75)}Q${n(x + w * .6)},${n(y - h * .8)} ${n(x + w * .8)},${n(y - h * .1)}" fill="none" stroke="#fff6dc" stroke-width="1.1" opacity=".5"/>`}${ridge}`;
   }).join('');
 const platesHead = (c: Ctx, s: Spec): string => {
   const t = s.tall, f = light(s.skin[1], .12);
-  return plateRow(c, [[-36, -46 - t * .5, 13, 10], [-12, -55 - t, 13, 10], [14, -55 - t, 13, 10], [38, -46 - t * .5, 13, 10], [-24, -34, 11, 7], [0, -40, 10, 7], [24, -34, 11, 7]], f) +
-    plateRow(c, [[-49, -2, 7, 10], [49, -2, 7, 10], [-50, 18, 7, 8], [51, 18, 7, 8]], dark(f, .04));
+  return plateRow(c, [[-30, -48 - t * .5, 22, 12], [8, -57 - t, 22, 10], [40, -44 - t * .5, 15, 11], [-6, -37, 17, 7], [26, -33, 11, 6]], f);
 };
 const platesBust = (c: Ctx, s: Spec): string => {
   const f = light(s.skin[1], .08);
-  return plateRow(c, [[70, 40, 15, 11], [96, 46, 15, 12], [118, 62, 13, 12], [82, 64, 14, 11], [108, 82, 14, 12], [-70, 38, 15, 11], [-96, 46, 15, 12]], f);
+  return plateRow(c, [[100, 52, 22, 14], [118, 84, 14, 16], [-72, 38, 18, 11]], f);
 };
 
 // ---- the cave troll's crest: a row of scales along the crown ----
@@ -238,10 +241,10 @@ const cap = (c: Ctx, s: Spec, wild: boolean): string => {
   if (wild) {
     const D = wx(`M-58,-20C-64,-48 -44,${top - 4} 0,${top - 4}C44,${top - 4} 64,-48 58,-20C48,-40 28,-48 0,-48C-28,-48 -48,-40 -58,-20Z`, j);
     // locks standing up off the dome, so its outline breaks like a thicket
-    const crown = ([[-48, -46, -58, 22], [-32, top + 6, -34, 20], [-10, top + 1, -12, 16], [12, top + 1, 14, 16], [34, top + 7, 36, 20], [50, -46, 60, 22]] as const)
-      .map(([x, y, a, L]) => lock(c, x * j, y, a, L, 20, x < 0 ? mix(s.hair[0], h1, .6) : h1, hi)).join('');
-    const fringe = ([[-38, -46, 206, 24], [-12, -52, 190, 22], [14, -52, 170, 24], [40, -46, 154, 22]] as const)
-      .map(([x, y, a, L]) => lock(c, x * j, y, a, L, 22, x < 0 ? mix(s.hair[0], h1, .55) : h1, hi)).join('');
+    const crown = ([[-44, -50, -56, 18], [-14, top + 2, -18, 10], [18, top + 2, 22, 10], [46, -50, 58, 18]] as const)
+      .map(([x, y, a, L]) => lock(c, x * j, y, a, L, 26, x < 0 ? mix(s.hair[0], h1, .6) : h1, hi, .6, .45)).join('');
+    const fringe = ([[-34, -48, 204, 22], [0, -52, 184, 20], [34, -48, 160, 22]] as const)
+      .map(([x, y, a, L]) => lock(c, x * j, y, a, L, 28, x < 0 ? mix(s.hair[0], h1, .55) : h1, hi, .6, .45)).join('');
     return `<path d="${D}" fill="${c.url('h')}" stroke-width="1.2"/><path d="${S}" fill="${c.url('p')}" stroke="none"/>` +
       strands(c, wx(`M-36,${top + 10}C-44,${top + 18} -50,-50 -52,-36M-14,${top + 1}C-22,${top + 10} -26,-56 -28,-48M14,${top + 1}C22,${top + 10} 26,-56 28,-48`, j),
         wx(`M2,${top - 2}C12,${top + 6} 20,-58 22,-50M30,${top + 8}C40,${top + 16} 48,-52 50,-38`, j), hi) + crown + fringe;
@@ -252,10 +255,10 @@ const cap = (c: Ctx, s: Spec, wild: boolean): string => {
     `<path d="${wx(`M10,${top - 1}C30,${top + 2} 48,-52 54,-30`, j)}" fill="none" stroke="${light(h1, .3)}" stroke-width="1.2" opacity=".4"/>`;
 };
 /** One lock of hair: a wavy tapering lock from its root at (x,y), pointing `a` degrees from up, `L` long, `w` wide. */
-const lock = (c: Ctx, x: number, y: number, a: number, L: number, w: number, fill: string, hi: string, wave = 1): string => {
+const lock = (c: Ctx, x: number, y: number, a: number, L: number, w: number, fill: string, hi: string, wave = 1, taper = .78): string => {
   const h = w / 2, K = 8, sw = L * .09 * wave;
   const mid = (t: number) => [sw * Math.sin(t * Math.PI * 1.6) + L * .12 * t * t, -L * t] as const;
-  const half = (t: number) => h * (1 - Math.pow(t, 1.8) * .78);
+  const half = (t: number) => h * (1 - Math.pow(t, 1.8) * taper);
   const left: string[] = [], right: string[] = [], c1: string[] = [], c2: string[] = [];
   for (let i = 0; i <= K; i++) {
     const t = i / K, [mx, my] = mid(t), hw = half(t);
@@ -265,20 +268,26 @@ const lock = (c: Ctx, x: number, y: number, a: number, L: number, w: number, fil
   const [tx, ty] = mid(1), tw = half(1);
   const d = `M${left.join('L')}Q${n(tx)},${n(ty - tw * 2.2)} ${right.join('L')}Z`;
   const dark = Math.sin(a * Math.PI / 180) < -.2;
-  return `<g transform="translate(${n(x)},${n(y)}) rotate(${n(a)})"><path d="${d}" fill="${fill}" stroke-width="1"/>${dark ? `<path d="M${left.join('L')}L${c1.slice().reverse().join('L')}Z" fill="${c.url('p')}" stroke="none"/>` : ''}` +
-    strands(c, `M${c1.join('L')}`, `M${c2.slice(0, -1).join('L')}`, hi, .7) + '</g>';
+  return `<g transform="translate(${n(x)},${n(y)}) rotate(${n(a)})"><path d="${d}" fill="${fill}" stroke-width="1"/>${dark ? `<path d="M${left.join('L')}L${c1.slice().reverse().join('L')}Z" fill="${taper < .6 ? '#1e170f' : c.url('p')}"${taper < .6 ? ' opacity=".18"' : ''} stroke="none"/>` : ''}` +
+    strands(c, `M${c1.join('L')}`, `M${c2.slice(0, -1).join('L')}`, hi, .7) +
+    '</g>';
 };
-/** The mountain troll's mane: locks flaring out all round the skull, longest at the sides, swept by the wind. */
+/** The mountain troll's mane: a few heavy matted locks flaring out round the skull, longest at the sides, kept inside the disc. */
 const mane = (c: Ctx, s: Spec): string => {
   const [h0, h1, hi] = s.hair, out: string[] = [];
-  const r = rnd(7);
+  const r = rnd(11);
+  const inside = (bx: number, by: number, a: number, L: number) => {
+    const rad = a * Math.PI / 180, tx = bx + Math.sin(rad) * L, ty = by - Math.cos(rad) * L;
+    return ty >= -80 && Math.hypot(tx, ty - 6.7) <= 104;
+  };
   for (let k = 0; k < 2; k++) {
-    for (let phi = -156; phi <= 156; phi += 24) {
-      const a = phi + (k ? 12 : 0) + (r() - .5) * 14, rad = a * Math.PI / 180, sa = Math.sin(rad);
-      const bx = sa * (k ? 50 : 56), by = -10 - Math.cos(rad) * (k ? 52 : 60);
-      const L = (k ? 24 : 32) + 30 * Math.abs(sa) + r() * 12, w = 26 + r() * 8;
-      const fill = a < 0 ? mix(h0, h1, k ? .5 : .3) : mix(h0, h1, k ? 1 : .8);
-      out.push(lock(c, bx, by, a + (a < 0 ? -10 : 10), Math.min(L, 6 + Math.abs(sa) * 90), w, fill, hi));
+    for (let phi = -150; phi <= 150; phi += 30) {
+      const a = phi + (k ? 15 : 0) + (r() - .5) * 10, rad = a * Math.PI / 180, sa = Math.sin(rad);
+      const bx = sa * (k ? 46 : 54), by = -8 - Math.cos(rad) * (k ? 50 : 58), aa = a + (a < 0 ? -12 : 12);
+      let L = (k ? 26 : 34) + 34 * Math.abs(sa) + r() * 10;
+      while (L > 12 && !inside(bx, by, aa, L)) L -= 2;
+      const w = 26 + r() * 8, fill = a < 0 ? mix(h0, h1, k ? .5 : .25) : mix(h0, h1, k ? .95 : .7);
+      out.push(lock(c, bx, by, aa, L, w, fill, hi, .6, .45));
     }
   }
   return out.join('');
@@ -286,25 +295,27 @@ const mane = (c: Ctx, s: Spec): string => {
 /** The mane's shag over the cheeks, beside the face (over the ears). */
 const shag = (c: Ctx, s: Spec): string => {
   const [h0, h1, hi] = s.hair, j = s.jaw;
-  return ([[-58, -26, 186, 46, 14], [-62, -6, 196, 46, 13], [58, -26, 174, 46, 14], [62, -6, 164, 46, 13]] as const)
-    .map(([x, y, a, L, w]) => lock(c, x * j, y, a, L, w, x < 0 ? mix(h0, h1, .5) : h1, hi)).join('');
+  return ([[-60, -24, 190, 50, 18], [60, -24, 170, 50, 18]] as const)
+    .map(([x, y, a, L, w]) => lock(c, x * j, y, a, L, w, x < 0 ? mix(h0, h1, .5) : h1, hi, .6, .45)).join('');
 };
 const braids = (c: Ctx, s: Spec): string => {
   const x = 64 * s.jaw, ring = s.top === 'plates' ? BONE : s.top === 'scales' ? BONE2 : BONE;
-  return braid(c, -x, -8, 11, 1.5, s.hair, ring) + braid(c, x, -8, 11, 1.5, s.hair, ring);
+  const beads = (bx: number) => [2, 5, 8].map((k) => { const y = -8 + (3 + k * 5.5) * 1.5 + 4; return `<ellipse cx="${n(bx)}" cy="${n(y)}" rx="9.5" ry="4.6" fill="${BONE}" stroke-width="1"/>${c.fine(`<path d="M${n(bx - 5)},${n(y - 1.5)}Q${n(bx)},${n(y - 3.5)} ${n(bx + 6)},${n(y - 1)}" fill="none" stroke="#fff" stroke-width=".8" opacity=".6"/>`)}`; }).join('');
+  return braid(c, -x, -8, 11, 1.5, s.hair, ring) + braid(c, x, -8, 11, 1.5, s.hair, ring) + beads(-x) + beads(x);
 };
 
 // ---- the hill troll's hammer: a stone maul lashed to a log, the haft over the shoulder ----
 const hammer = (c: Ctx): string => {
-  const HAFT = 'M48,160L70,-58L80,-57L60,161Z';
-  // the maul: a blunt, roughly square stone, lashed on with crossed thongs
-  const HEAD = 'M58,-58L88,-61L91,-29L60,-26Z';
-  return `<path d="${HAFT}" fill="${c.url('w')}" stroke-width="1.3"/><path d="M48,160L70,-58L73,-57.7L52,160.5Z" fill="${c.url('p')}" stroke="none"/>` +
-    c.fine('<path d="M66,40l2,-9M62,100l2,-9" fill="none" stroke-width=".6" opacity=".7"/>') +
-    `<path d="${HEAD}" fill="${c.url('g')}" stroke-width="1.5"/><path d="M58,-58L66,-58.8L67,-26.7L60,-26Z" fill="${c.url('p')}" stroke="none"/><path d="M66,-59L88,-61L90,-40" fill="none" stroke="#fff6dc" stroke-width="1.3" opacity=".45"/>` +
-    c.fine('<path d="M63,-50l4,3l-1,5M84,-36l-3,-4" fill="none" stroke-width=".6" opacity=".75"/>') +
-    `<path d="M60,-54L89,-31M60,-31L88,-56M73,-61L75,-26" fill="none" stroke-width="3.4"/><path d="M60,-54L89,-31M60,-31L88,-56M73,-61L75,-26" fill="none" stroke="#b9a57a" stroke-width="1.8" stroke-dasharray="2.6 1.2"/>` +
-    '<path d="M70,-26C66,-20 64,-14 66,-8M76,-26C78,-20 80,-16 78,-10" fill="none" stroke="#b9a57a" stroke-width="1.4"/>';
+  // a great stone block resting on the right shoulder, the haft through it running down across the chest, lashed with thongs
+  const A = 10;
+  const HEAD = 'M-17,-17C-10,-20 10,-20 17,-17L18,15C10,18 -10,18 -18,15Z';
+  const g = (b: string) => `<g transform="translate(88,14) rotate(${A})">${b}</g>`;
+  return g(`<path d="M-6,-26L6,-26L6,150L-6,150Z" fill="${c.url('w')}" stroke-width="1.3"/><path d="M-6,-26L-2,-26L-2,150L-6,150Z" fill="${c.url('p')}" stroke="none"/>` +
+    c.fine('<path d="M-1,40v9M2,80v9M-2,118v8" fill="none" stroke-width=".6" opacity=".7"/>') +
+    `<path d="${HEAD}" fill="${c.url('g')}" stroke-width="1.5"/><path d="M-20,-18C-16,-19.5 -12,-20.2 -8,-20.6L-8,18.6C-12,18.2 -16,17 -21,16Z" fill="${c.url('p')}" stroke="none"/><path d="M-20,-18C-18.5,-18.6 -17,-19 -15,-19.5L-15.5,17.6C-17.5,17 -19,16.6 -21,16Z" fill="${c.url('q')}" stroke="none"/>` +
+    `<path d="M-4,-20C6,-20.5 14,-20 20,-18L20.6,4" fill="none" stroke="#fff6dc" stroke-width="1.3" opacity=".45"/>${c.fine('<path d="M-14,-6l4,3l-1,5M12,-10l-3,4l3,4M10,10l4,-3" fill="none" stroke-width=".6" opacity=".75"/>')}` +
+    `<path d="M-6,-26L6,-26L6,-19L-6,-19Z" fill="${c.url('w')}" stroke-width="1.1"/>` +
+    `<path d="M-7,20L7,20M-7,24.5L7,24.5M-7,29L7,29M-7,-22L7,-22M-7,-26L7,-26M-5,-19L-5,17M5,-19L5,17" fill="none" stroke-width="3.2"/><path d="M-7,20L7,20M-7,24.5L7,24.5M-7,29L7,29M-7,-22L7,-22M-7,-26L7,-26M-5,-19L-5,17M5,-19L5,17" fill="none" stroke="#a07850" stroke-width="1.7"/>`);
 };
 
 // ---- the whole figure ----
@@ -315,8 +326,8 @@ const draw = (s: Spec): Draw => (o) => {
     (c.fem && s.top !== 'mane' ? pen(c, longHair(c, { near: c.url('h'), cols: hairCols, len: 120, jaw: 1.32 }), s.pale) : '');
   const top = s.top === 'scales' ? crest(c, s) : s.top === 'plates' ? platesHead(c, s) : s.top === 'bald' && !c.fem ? bristles(c, s) : '';
   const hairTop = s.top === 'mane' ? cap(c, s, true) : c.fem ? cap(c, s, false) : '';
-  const body = back + pen(c, bust(c, s)) + (s.hammer ? pen(c, hammer(c)) : '') +
-    pen(c, ears(c, s)) + pen(c, face(c, s), true) + pen(c, top) +
+  const body = back + pen(c, bust(c, s)) +
+    pen(c, ears(c, s)) + pen(c, face(c, s)) + pen(c, top) + (s.hammer ? pen(c, hammer(c)) : '') +
     (hairTop ? pen(c, hairTop, s.pale) : '') + (s.top === 'mane' ? pen(c, shag(c, s), s.pale) : '') +
     pen(c, nose(c, s) + mouth(c, s), true) +
     pen(c, tEye(c, -1, s) + tEye(c, 1, s) + brow(c, -1, s.brow) + brow(c, 1, s.brow), true) +
@@ -327,7 +338,7 @@ const draw = (s: Spec): Draw => (o) => {
 // ---- the four kinds, the men and the women ----
 const BASE: Spec = {
   skin: STONE, pelt: ['#6b4a2f', '#c9a877'], hair: ['#211c18', '#4a4038', '#9a9080'], top: 'bald', tall: 0, hammer: false, pale: false,
-  eye: { iris: '#a06a1e', lid: 2.6, size: .8, socket: '#1e170f' }, brow: { fill: '#5e6252', hi: '#c8c8b0', sc: 1.05, dy: -4, rot: 8 }, jaw: 1,
+  eye: { iris: '#a06a1e', lid: 2.6, size: .8, socket: '#1e170f' }, brow: { fill: '#55504a', hi: '#c8c0b0', sc: 1.05, dy: -4, rot: 8 }, jaw: 1,
 };
 const CAVETROLL: Spec = {
   ...BASE, skin: CAVE, pelt: ['#3a3028', '#8a7a62'], hair: ['#121a10', '#2c3626', '#7a8a6a'], top: 'scales',
@@ -338,7 +349,7 @@ const HILLTROLL: Spec = {
   eye: { ...BASE.eye, iris: '#8a4a16', lid: 3.2, low: 1 }, brow: { ...BASE.brow, fill: '#5a4632', hi: '#d8c09a', rot: 14 },
 };
 const MOUNTAINTROLL: Spec = {
-  ...BASE, skin: MOUNT, pelt: ['#4a3626', '#a88a66'], hair: ['#76726a', '#cfcac0', '#f8f5ee'], top: 'mane', tall: 8, pale: true,
+  ...BASE, skin: MOUNT, pelt: ['#4a3626', '#a88a66'], hair: ['#5e5a54', '#b4aea2', '#ece8de'], top: 'mane', tall: 8, pale: true,
   eye: { ...BASE.eye, iris: '#7a8ea0', lid: 1.4, low: 1.6 }, brow: { ...BASE.brow, fill: '#c8c4bc', hi: '#fbf8f0', sc: 1.25, rot: 18 },
 };
 /** The women: a rounder jaw, slender brows, lashes; the hair carries the kind's colour. */
