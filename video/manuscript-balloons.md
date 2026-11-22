@@ -1,6 +1,8 @@
 # The balloon film — manuscript
 
-Draft 2 (2026-11-22): a new film after the owner's review of round 1
+Draft 3 (2026-11-22): round 2 approved with two changes, the title's third
+line and the setting's own description (the owner: "kör vi på detta").
+Draft 2: a new film after the owner's review of round 1
 (draft 1 is in git, cb4dd880). Much slower, one place, daylight, every
 balloon sent by a typed command. A film of its own that only shows the
 balloon notices of 0.22 (stages 69 and 75, ADR 0159); it does not replace
@@ -24,6 +26,11 @@ the presentation films. Same pipeline (ADR 0133, `README.md`).
 - **Not crowded.** Never more than about 2.5–3 balloons on screen at
   once. The next comes when the one before has stopped and moved on a bit.
 - **The setting on camera.** Balloons is off; the pointer switches it on.
+  Its description no longer lists what sends a balloon (a product change,
+  `BALLOONS_ROW.help`): *A companion in a hot-air balloon reacts to what
+  happens in the game. Desktop only.*
+- **The title's joke is back** (dropped in draft 2): it comes 7–8 s in,
+  stays 3–4 s, then the film starts.
 - **The end.** Fade to black, then the end card in the title's style.
 - **Camera.** No zoom.
 - **Music.** *Into The Wilds* by Scott Buckley (2024, 4:07, CC BY 4.0),
@@ -46,11 +53,16 @@ her arrival at the fountain.
 
 ## Acts (times approximate; the balloons decide)
 
-### 0 · Title, on black (0:00–0:09)
+### 0 · Title, on black (0:00–0:13)
 
 1. *WebCockpit 0.22* fades in and stands alone for about 2 s.
 2. *Now with hot-air balloons.* fades in below it. Both stay to be read.
-3. Fade out. No third line, no balloon, no sky.
+3. At 7–8 s *(Nobody asked. We did it anyway.)* fades in below, smaller.
+   The two lines above do not move. It is fully readable for 3–4 s.
+4. Fade out of all three. No balloon, no sky.
+
+The acts after the title keep their lengths and move with it (about 4 s
+later than the times below); the music's end is found again.
 
 ### 1 · The fountain (0:09–0:25)
 
