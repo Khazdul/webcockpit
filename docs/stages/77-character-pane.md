@@ -9,8 +9,8 @@ stay.
 
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
-(on main, the owner looked). **Part C in progress** (the owner's go
-2026-11-22, branch `stage-77c`). The wimpy point is decided (open points). Each part stops for the owner's
+(on main, the owner looked). **Part C built** (branch `stage-77c`,
+tested against mocks; its live checks wait for the owner and MUME). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -230,8 +230,9 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] A. Live facts
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
-- [ ] C. The poll (also check: wrap on a phone, a non-zero ability delta,
-      that MUME takes the whole command: about 160 characters)
+- [ ] C. The poll (built and tested; open: the live test below, with
+      wrap on a phone, a non-zero ability delta, that MUME takes the whole
+      command: 160 characters)
 - [ ] D. The card
 - [ ] E. Portraits
 - [ ] F. Group
@@ -592,6 +593,27 @@ The mana regeneration is +2.2, not the plan's +2.1: the plan counted 57
 whole years, the card counts 57 years 7 months 7 days, as `help age`'s
 "linear and gradual". The unit test keeps the plan's case at exactly 57.
 
+## Part C: what was built
+
+`src/gmcp/info-filter.ts` (takes the answer out before the bus),
+`info-poll.ts` (when it is sent), `info-model.ts`, the Character gear's
+switch and, on the dev server only, `#infopoll`. Part D calls
+`ctx.openInfo()` when Stats or Lore shows and the returned function when
+it hides, reads `ctx.game.info` (part `'info'` of `game.subscribe`), and
+deletes `src/app/info-poll-command.ts` with its lines in `App.onCommand`.
+
+Tested 2026-11-22: typecheck; 5785 unit tests; a throwaway random test of
+the filter (200 000 streams, no game line lost or moved); full e2e at 5
+workers 2036 passed, 52 skipped, 3 failed. `menu-sub-morph.spec.ts:174`
+passed when run alone. `layout.spec.ts:71` (both browsers) was this part:
+the Gear moves the title (ADR 0166 point 31). The test now checks that
+rule, and it passes with the pane specs (82). **Nothing is tried against
+MUME.**
+
+Not solved, for the owner: the phone has no gear, so no switch there.
+Until part D, a release from main would send the login poll and show a
+switch that names tabs which do not exist yet.
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -620,7 +642,30 @@ Parked:
 
 ## Test guide (for the owner)
 
-*To be written when the stage is built.*
+*The stage's guide is written when it is built.*
+
+### Part C, live (the test server, MUME up)
+
+`#infopoll` sends a poll if it may (else says why) and prints the last
+answer: type it again for the new one. At most one poll in 10 s.
+
+1. Log in. Within some seconds the pane's WIMPY shows your value, and no
+   `info` or answer shows in the game.
+2. `#infopoll` twice: the values are right, failures 0.
+3. The line editor, in a note you will throw away: start it, type nothing,
+   wait 3 s, `#infopoll`. It must say not sent. Again after somebody's
+   text has arrived in it, if that happens. If it says sent: stop and
+   tell, part D must not be built on it.
+4. The pager (a long help): wait 3 s, `#infopoll`. It must say not sent.
+5. `change wimpy 33%`: what does MUME print, and does WIMPY show hit
+   points? Then remove the wimpy, `#infopoll` twice: what is `wimpy`?
+6. A strength spell on, `#infopoll` twice: str has the delta.
+7. A phone, upright: `#infopoll` twice. Failures 0, nothing of the answer
+   in the game.
+8. The gear's switch off, log in again: `#infopoll` says the setting is
+   off, WIMPY is empty until a wimpy line.
+9. `#runlog`: no `info WC` in the file. Hand it over (it is not
+   committed).
 
 ## Owner feedback
 

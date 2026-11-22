@@ -148,3 +148,28 @@ When it is safe to send:
 25. A poll never answered does not block for ever: after 2 minutes
     another may be sent. Its sentinel is still recognised and hidden if
     it comes later.
+
+## Addendum 4 (2026-11-22): part C as built
+
+26. Point 23 is stricter. Also 2 s of quiet after the last command sent:
+    MUME answers queued commands a pulse each, so the first one's prompt
+    does not say that a `write` behind it has been read. A command sent
+    while a frame is read counts as later than that whole frame. This
+    narrows the hole and does not close it (a command held longer than
+    2 s, behind a cast). The login poll thus goes some 2 s after the
+    width commands.
+27. A game prompt is an XML prompt that begins its line, has nothing after
+    it and is not the pager. Only such a line is hidden as the answer's
+    prompt. That the line editor's prompt is not one is **assumed until
+    the live check**.
+28. `Char.Vitals` is required before every poll. The idle rule covers the
+    login poll too, and entering the game counts as activity. An answer
+    to an earlier character's poll is hidden and not applied.
+29. An answer with both sentinels that cannot be read is a failure (put
+    back, counted). A poll never answered is none. At most 80 lines are
+    held and 8 unanswered sentinels known.
+30. `character.fetchInfo` is additive, with no settings version. An older
+    client that saves synced settings drops it, and it returns to on.
+31. The Gear on Character makes its title follow ADR 0123's hood rule: in
+    a 33-cell lane it moves 7 px left of centre. At the new player's
+    width it stays centred.
