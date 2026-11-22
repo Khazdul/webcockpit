@@ -81,7 +81,7 @@ npm run studio                       # Remotion Studio in the browser
 npm run render -- Film --out webcockpit-demo   # the whole film: out/webcockpit-demo-master.mov (ProRes 4444), then
                                      #   webcockpit-demo.mp4 (HEVC 10-bit), -youtube.mp4 (4K H.264, the upload), -h264.mp4
 npm run render -- Film --out webcockpit-demo --no-4k   # without the YouTube 4K variant
-npm run render -- Balloons --out balloon-film-r2 --no-4k   # the balloon film (manuscript-balloons.md)
+npm run render -- Balloons --out balloon-film-r3   # the balloon film (manuscript-balloons.md), with its YouTube 4K file
 npm run render -- Part1              # the same for part 1 alone
 node record/thumbnail.ts             # out/thumbnail/: the start page at 3840×2160, for the YouTube thumbnail
 npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)
