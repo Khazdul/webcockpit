@@ -98,6 +98,12 @@ export interface PaneContext {
    * Absent (the log player, the phone, tests): the pane stays empty.
    */
   readonly statsView?: StatsViewMount;
+  /**
+   * A Stats or Lore view is open (stage 77): the hidden poll keeps
+   * `game.info` fresh until the returned function is called. Absent: no
+   * poll (the log player, tests).
+   */
+  readonly openInfo?: () => () => void;
 }
 
 /** A sender that drops everything (tests, a cockpit without a session). */
@@ -185,5 +191,6 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.player ? { player: true } : {}),
     ...(p.focusGame ? { focusGame: p.focusGame } : {}),
     ...(p.statsView ? { statsView: p.statsView } : {}),
+    ...(p.openInfo ? { openInfo: p.openInfo } : {}),
   };
 }

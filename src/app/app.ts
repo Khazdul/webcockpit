@@ -1,11 +1,14 @@
 // Application shell (spec §2.1, §2.2): wires the layers together and owns
 // the built-in commands.
 //
-//   socket → Session (telnet, GMCP, keep-alive) → LineAssembler → bus
+//   socket → Session (telnet, GMCP, keep-alive) → LineAssembler → InfoPoll → bus
 //   bus → AppStatus, Recorder, ScriptEngine → text.display → OutputPane
 //   InputPane → ScriptEngine (aliases, # commands, client commands)
 //             → Session.sendCommand
 //   InputPane keydown → macro → ScriptEngine (synchronously, no await)
+//
+// InfoPoll (stage 77, ADR 0166) takes the hidden `info` poll's answer out
+// before the bus. A log player has none.
 //
 // Script engine (ADR 0015): the selected profile is loaded at start-up (so
 // an offline replay runs it too) and again whenever a live session starts.
@@ -67,8 +70,8 @@
 // matching page (`ui.openMenuAt`). Profile and Scripts toggle the shell's
 // windows (`ui.toggleWindow`, ADR 0103); Settings and `#settings` toggle
 // the shell's Settings popup (`ui.toggleSettings`, ADR 0107), which the
-// bar holds as its open popup while it is open. The Map, Comm, Timers and
-// Group panes' Gear toggles their gear popup (`ui.togglePaneSettings`, the
+// bar holds as its open popup while it is open. The Map, Comm, Timers,
+// Group and Character panes' Gear toggles their gear popup (`ui.togglePaneSettings`, the
 // cockpit's `onGear`).
 //
 // Esc in the input (stage 30 S2, ADR 0112): scrolled back → bottom (the
@@ -94,6 +97,7 @@ import { downloadRun } from '../capture/download';
 import { Recorder, type RecorderOptions, STATUS as CAPTURE_STATUS } from '../capture/recorder';
 import type { CommitOptions, CommitResult, ProfileStore } from '../profiles';
 import { type LoadResult, type Scheduler, ScriptEngine, type TypedChange } from '../script/engine';
+import { realScheduler } from '../script/engine/timers';
 import { Bus } from '../core/bus';
 import { type BusEvents, type Socketish, gmcpKey } from '../core/types';
 import type { FetchLike } from '../net/link-probe';
@@ -115,11 +119,13 @@ import { ClockStrip, STRIP_CELLS } from '../ui/clock-strip';
 import { MenuBar } from '../menubar/menubar';
 import type { BarClock } from '../menubar/bar-clock';
 import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
+import { InfoPoll } from '../gmcp/info-poll';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
 import { attachUiMessages, uiMsg, uiValue } from './ui-messages';
 import { messageRows } from './messages';
+import { INFO_POLL_COMMAND, infoPollReport } from './info-poll-command';
 import { KEY_ENTER, KEY_MACRO, PerfMonitor } from './perf-monitor';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
@@ -291,7 +297,7 @@ export interface AppUi {
   toggleSettings?(): void;
   /**
    * With the bar: toggles pane `id`'s gear popup (ADR 0107; the Map, Comm,
-   * Timers and Group panes' Gear). Absent: the panes have no Gear.
+   * Timers, Group and Character panes' Gear). Absent: the panes have no Gear.
    */
   togglePaneSettings?(id: PaneId): void;
   /**
@@ -322,6 +328,8 @@ export class App {
   readonly script: ScriptEngine;
   /** Character, group and clock state (src/gmcp/state.ts), shared with the panes. */
   readonly game: GameState;
+  /** The hidden info poll (stage 77, ADR 0166); none in a log player. */
+  readonly infoPoll: InfoPoll | null;
   /** The input line's day/night clock (in the menu bar where there is one). */
   readonly clockStrip!: ClockStrip | BarClock;
   /** The menu bar (ADR 0099), desktop and tablet; null elsewhere. */
@@ -361,6 +369,7 @@ export class App {
   private fileInput: HTMLInputElement | null = null;
   private viewJson = '';
   private readonly player: boolean;
+  private readonly now: () => number;
   /**
    * Player Apps: the current run's login line is not printed (an HTML
    * replay whose export excluded it, ADR 0019 "System lines"). Set by the
@@ -396,7 +405,22 @@ export class App {
     this.el.className = 'wc-app';
     opts.root.appendChild(this.el);
 
-    const now = opts.now ?? Date.now;
+    const now = (this.now = opts.now ?? Date.now);
+    // First on the bus: what it holds goes out before anyone sees a disconnect.
+    const poll = (this.infoPoll = player
+      ? null
+      : new InfoPoll({
+          bus,
+          now,
+          scheduler: opts.scheduler ?? realScheduler,
+          send: (text) => this.session.sendHidden(text),
+          live: () => !this.session.isReplay && this.session.state === 'playing',
+          passwordMode: () => this.session.passwordMode,
+          enabled: () => this.settings.get().character.fetchInfo,
+          fighting: () => this.game.group.fight().opponent !== null || this.game.char.view().position === 'fighting',
+          dataAt: () => this.game.info.at,
+          apply: (answer) => this.game.applyInfo(answer),
+        }));
     this.statusImpl = new AppStatus(bus);
     // Before the UI lines and the recorder: a kill folded when the run ends
     // is announced before `logged out`, and its `run_end` is derived from
@@ -422,7 +446,7 @@ export class App {
         ...(opts.scheduler ? { scheduler: opts.scheduler } : {}),
       },
     });
-    this.assembler = new LineAssembler(bus);
+    this.assembler = new LineAssembler(poll ? beforeBus(bus, poll) : bus);
     const perf = (this.perf = player ? null : new PerfMonitor({ win: doc.defaultView as (Window & typeof globalThis) | null }));
     this.session = new Session({
       bus,
@@ -431,6 +455,7 @@ export class App {
       ...(opts.linkFetch && !player ? { linkFetch: opts.linkFetch } : {}),
       ...(opts.clockUs ? { clockUs: opts.clockUs } : {}),
       onMssp: (vars) => this.game.mssp(vars),
+      ...(poll ? { onFrameEnd: () => poll.frameEnd() } : {}),
       ...(perf ? { onSend: (bytes: number, buffered: number) => perf.sent(bytes, buffered) } : {}),
     });
     // Before the panes and the script engine: models are current when
@@ -457,6 +482,23 @@ export class App {
     });
     this.announceView();
     this.unsubs.push(this.settings.subscribe(() => this.announceView()));
+    if (poll) {
+      this.unsubs.push(
+        this.settings.subscribe((next, prev) => {
+          if (next.character.fetchInfo !== prev.character.fetchInfo) poll.changed();
+        }),
+      );
+      const page = doc.defaultView;
+      if (page) {
+        // The poll's idle rule: the player's own presses, never a script's or a timer's command.
+        const press = (): void => poll.activity();
+        const how = { capture: true, passive: true } as const;
+        for (const type of ['keydown', 'pointerdown'] as const) {
+          page.addEventListener(type, press, how);
+          this.unsubs.push(() => page.removeEventListener(type, press, how));
+        }
+      }
+    }
     const cellSource = cells ?? new CellMetrics({ doc });
     if (!cells) this.unsubs.push(() => (cellSource as CellMetrics).dispose());
     const paneContext = createPaneContext({
@@ -475,6 +517,7 @@ export class App {
       ...(player ? {} : { mapMarks: this.mapMarks }),
       mapNotes: this.mapNotes,
       focusGame: () => this.input.focus(),
+      ...(poll ? { openInfo: () => poll.open() } : {}),
       // The Statistics pane's view (ADR 0109); `runs` exists by its first show.
       ...(!player && this.appUi?.mountStatsPane
         ? { statsView: (host: HTMLElement) => this.appUi!.mountStatsPane!(host, { runs: this.runs, status: this.status }) }
@@ -675,6 +718,8 @@ export class App {
     this.disposed = true;
     this.weather?.dispose();
     this.loadToken++;
+    // While the recorder still listens: what is held goes out.
+    this.infoPoll?.dispose();
     this.session.dispose();
     for (const u of this.unsubs.splice(0)) u();
     void this.writeBack?.flush();
@@ -1037,6 +1082,11 @@ export class App {
    * says how to connect).
    */
   onCommand(text: string): boolean {
+    // The dev server's hook for stage 77's live checks (part D deletes it). Typed only.
+    if (import.meta.env.DEV && this.infoPoll && text.trim() === INFO_POLL_COMMAND) {
+      for (const row of infoPollReport(this.infoPoll, this.game, this.now())) this.sys(row);
+      return true;
+    }
     this.userAction = true;
     this.userActionHandled = false;
     this.perf?.keyStart(KEY_ENTER);
@@ -1308,6 +1358,17 @@ export class App {
   ui(kind: 'system' | 'warn' | 'error', template: string): void {
     this.bus.emit('ui.message', uiMsg(kind, template));
   }
+}
+
+/** The assembler's way to the bus: its text through the poll's filter, the rest straight on. */
+function beforeBus(bus: Bus, poll: InfoPoll): Pick<Bus, 'emit'> {
+  return {
+    emit: (type, payload) => {
+      if (type === 'text.line') poll.line(payload as BusEvents['text.line']);
+      else if (type === 'text.partial') poll.partial(payload as BusEvents['text.partial']);
+      else bus.emit(type, payload);
+    },
+  };
 }
 
 /** A load warning without its `line N: ` (lines move as the text is edited). */
