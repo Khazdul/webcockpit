@@ -79,7 +79,7 @@
 | 73 | The shared replay, round 2 | Done, released 0.20.1 | `docs/stages/73-shared-replay-round-2.md` |
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
-| 76 | The balloon film | Round 1 rendered, waiting for the owner | `docs/stages/76-balloon-film.md` |
+| 76 | The balloon film | Round 2 rendered, waiting for the owner | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Part A done (ADR 0166); part B waits for the owner's go | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
@@ -132,6 +132,21 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-22 — Stage 76, the balloon film, round 2
+
+- **Done:** a new manuscript from the owner's review (one slow take at the
+  Bree fountain, typed commands, day); rendered 2:54. The stutter's causes
+  found and fixed in the recorder (ADR 0133 addendum): the encoder kept at
+  most 25 pictures a second, and the screencast dropped frames; this film
+  is frame-stepped. Checked on the mp4: 60.0 new pictures a second, one
+  33 ms hold at 1:59.4 (round 1: 23.4, 738 longer holds).
+- **Next:** the owner's review of round 2 (test guide in the stage file).
+- **Open:** both presentation films have the same 25-picture cap (checked
+  on their takes) until recorded again: the owner's call. The balloons'
+  rating bug after login (round 1) is still open. A passenger's first-load
+  hitch in the live client is unchecked.
+- **Commits:** 3637a0de, b1f3f57c, 55677fa4, 69c6a510, 5529da31 and this one.
 
 ### 2026-11-22 — Stage 77 part A closed
 
