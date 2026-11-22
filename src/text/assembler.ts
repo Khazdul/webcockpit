@@ -2,7 +2,8 @@
 //
 // Input comes from the telnet layer as arbitrarily chunked text plus GA
 // markers. Output goes to the bus as `text.line` (one per completed line or
-// prompt) and `text.partial` (the pending unterminated tail).
+// prompt) and `text.partial` (the pending unterminated tail). In the app
+// the info poll's filter (src/gmcp/info-filter.ts) is in between.
 //
 // One pass over each chunk. Plain characters are never copied one by one:
 // they are appended as `slice` ranges between special characters (LF, CR,
@@ -94,7 +95,7 @@ function isSpace(c: number): boolean {
 }
 
 export class LineAssembler implements LineAssemblerInput {
-  private readonly bus: Bus;
+  private readonly bus: Pick<Bus, 'emit'>;
 
   // --- current line -------------------------------------------------------
   private lineText = '';
@@ -132,7 +133,8 @@ export class LineAssembler implements LineAssemblerInput {
   private tagAttrs: Record<string, string> | undefined = undefined;
   private entity = '';
 
-  constructor(bus: Bus) {
+  /** `bus`: the bus, or what stands in front of it. */
+  constructor(bus: Pick<Bus, 'emit'>) {
     this.bus = bus;
   }
 
