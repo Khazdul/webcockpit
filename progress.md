@@ -79,7 +79,7 @@
 | 73 | The shared replay, round 2 | Done, released 0.20.1 | `docs/stages/73-shared-replay-round-2.md` |
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
-| 76 | The balloon film | Planned (manuscript draft 1, music chosen) | `docs/stages/76-balloon-film.md` |
+| 76 | The balloon film | Round 1 rendered, waiting for the owner | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Planned (look and data approved after nine mockup rounds) | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
@@ -132,6 +132,18 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-22 — Stage 76, the balloon film, round 1
+
+- **Done:** manuscript `video/manuscript-balloons.md` from two rounds of
+  owner questions; music in two rounds (*Into The Wilds*, Scott Buckley,
+  CC BY 4.0, Content ID: credit in the description); takes and the
+  `Balloons` composition; round 1 rendered (82 s).
+- **Next:** the owner's review of round 1 (test guide in the stage file).
+- **Open:** product bug: the balloons' rating misses the chain's earlier
+  runs after a login (`notices.ts` reads the chain at `run_start` before
+  the run is stored), so a session's first kills read *calibrating*.
+- **Commits:** d3eae8ed, cb4dd880, 36ff7019, 25f6c21a, b7d18ceb and this one.
 
 ### 2026-11-21 … 22 — Stage 77 planned (Character pane)
 
