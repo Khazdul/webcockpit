@@ -64,7 +64,7 @@ const GOLD = ['#7a5a20', '#c49a3c', '#ecd590'] as const;
 const SILVER = '#d6dbde';
 
 const defs = (c: Ctx, s: Spec): string =>
-  baseDefs(c) + lg(c, 's', s.skin) + lg(c, 'h', [s.hair[0], s.hair[1]]) + lg(c, 'k', s.cloak, .2) + lg(c, 't', [dark(s.tunic, .3), s.tunic]) +
+  baseDefs(c) + lg(c, 's', s.skin) + lg(c, 'h', [s.hair[0], s.hair[1]]) + lg(c, 'h2', [mix(s.hair[0], s.hair[1], .45), light(s.hair[1], .18)]) + lg(c, 'k', s.cloak, .2) + lg(c, 't', [dark(s.tunic, .3), s.tunic]) +
   lg(c, 'g', GOLD, .2) + lg(c, 'v', ['#9aa2a8', '#e4e8ea']);
 
 // ---- the bust: a cloak over the shoulders, the tunic between, the trim ----
@@ -213,27 +213,30 @@ const ear = (c: Ctx, s: Spec, side: number): string => {
 // the gaps; the lit (right) locks are lighter and carry the sheen strands.
 /** root x, y; tip x, y; full width; bend (+ bows to the lock's left as it runs root→tip). */
 type Lock = readonly [number, number, number, number, number, number];
-const lockPath = ([x0, y0, x1, y1, w, bend]: Lock, j: number): { d: string; mid: string } => {
-  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
-  const cx = (x0 + x1) / 2 + nx * bend * L, cy = (y0 + y1) / 2 + ny * bend * L, r = w * .12;
-  const X = (v: number): number => n(v * j);
-  const d = `M${X(x0 + nx * r)},${n(y0 + ny * r)}Q${X(cx + nx * w)},${n(cy + ny * w)} ${X(x1)},${n(y1)}Q${X(cx - nx * w)},${n(cy - ny * w)} ${X(x0 - nx * r)},${n(y0 - ny * r)}Z`;
-  const mid = `M${X(x0 + dx * .12 + nx * bend * L * .2)},${n(y0 + dy * .12 + ny * bend * L * .2)}Q${X(cx)},${n(cy)} ${X(x0 + dx * .86)},${n(y0 + dy * .86)}`;
-  return { d, mid };
+const lockPath = ([x0, y0, x1, y1, w, bend]: Lock, j: number, wave: number): { d: string; mids: string[]; lit: string } => {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, r = w * .12;
+  // a cubic centre line: bowed by `bend`, an S by `wave`, so no two locks run parallel
+  const o1 = 1.33 * bend * L + wave * L * .14, o2 = 1.33 * bend * L - wave * L * .14;
+  const X = (v: number): number => n(v * j), Y = (v: number): number => n(v);
+  const pt = (t: number, o: number, e: number): string => `${X(x0 + dx * t + nx * (o + e))},${Y(y0 + dy * t + ny * (o + e))}`;
+  const d = `M${pt(0, 0, r)}C${pt(1 / 3, o1, w * .7)} ${pt(2 / 3, o2, w * .62)} ${X(x1)},${Y(y1)}C${pt(2 / 3, o2, -w * .62)} ${pt(1 / 3, o1, -w * .7)} ${pt(0, 0, -r)}Z`;
+  // strands inside the lock, following it at different offsets, ending at different lengths
+  const strand = (e: number, t1: number): string => `M${pt(.06, 0, e * .3)}C${pt(1 / 3, o1, e)} ${pt(2 / 3, o2, e * .85)} ${pt(t1, o2 * (1 - t1) * 2.2, e * .25)}`;
+  const side = nx > 0 ? 1 : -1; // the strand nearer the light (+x)
+  return { d, mids: [strand(-w * .22 * side, .8), strand(w * .05, .9)], lit: strand(w * .3 * side, .84) };
 };
-/** A set of locks: each filled by side (shadow on the left), the outer left ones hatched, a strand on each. */
-const lockSet = (c: Ctx, s: Spec, set: readonly Lock[], j: number): string => {
-  const [h0, h1, hi] = s.hair;
+/** A set of locks: each rounded by the hair gradient (the lit side's lighter), the outer left ones hatched, strands in each and sheen on the lit side. */
+const lockSet = (c: Ctx, s: Spec, set: readonly Lock[], j: number, wave = .25): string => {
   let body = '', dk = '', lt = '';
   set.forEach((k, i) => {
-    const { d, mid } = lockPath(k, j), x = (k[0] + k[2]) / 2;
-    const t = Math.max(0, Math.min(1, (x + 40) / 80));
-    const fill = mix(mix(h0, h1, .3 + .65 * t), '#1a110b', i % 3 === 1 ? .1 : 0);
-    body += `<path d="${d}" fill="${fill}" stroke-width="${c.med ? .8 : .95}"/>` + (x < -30 ? `<path d="${d}" fill="${c.url('p')}" stroke="none"/>` : '');
-    dk += mid;
-    if (x > -24) lt += mid;
+    const wv = (i % 2 ? 1 : -1) * wave * (1 + (i % 3) * .3);
+    const { d, mids, lit } = lockPath(k, j, wv), x = (k[0] + k[2]) / 2;
+    const fill = x > 12 ? c.url('h2') : c.url('h');
+    body += `<path d="${d}" fill="${fill}" stroke-width="${c.med ? .8 : .95}"/>` + (x < -30 ? `<path d="${d}" fill="${c.url('p')}" stroke="none"/>` : i % 3 === 1 ? `<path d="${d}" fill="#1a110b" opacity=".12" stroke="none"/>` : '');
+    dk += mids.join('');
+    if (x > -30) lt += lit;
   });
-  return body + strands(c, dk, lt, hi, .75) + (s.softHair && c.med ? `<path d="${dk}" fill="none" stroke-width=".5" opacity=".3"/>` : '');
+  return body + strands(c, dk, lt, s.hair[2], .8) + (s.softHair && c.med ? `<path d="${dk}" fill="none" stroke-width=".5" opacity=".3"/>` : '');
 };
 
 /** The crown's locks: a fan from a side parting a little right of centre, tips on an uneven hairline and behind the ears. */
@@ -259,11 +262,11 @@ const backHair = (c: Ctx, s: Spec): string => {
   const side = (m: number): Lock[] => ([
     [-30, -66, -58 * w, L * .7, 15, .1], [-40, -52, -66 * w, L, 16, .08], [-46, -34, -54 * w, L - 14, 13, .03], [-44, -14, -48, L * .85, 11, .02],
   ] as Lock[]).map(([a, b, x, y, ww, bd]) => [a * m, b, x * m, y, ww, bd * m] as Lock);
-  return lockSet(c, s, [...side(1), ...side(-1)], j);
+  return lockSet(c, s, [...side(1), ...side(-1)], j, .5);
 };
 /** The women's locks in front of the shoulders: three a side, tapering to points at different lengths, crossing a little. */
-const FRONT: readonly Lock[] = [[-46, 4, -62, 150, 10, .03], [-42, 10, -48, 128, 9, -.04], [-48, 14, -68, 108, 8, .05], [46, 4, 58, 146, 9, -.03], [42, 10, 50, 120, 9, .04], [48, 14, 66, 102, 8, -.05]];
-const locks = (c: Ctx, s: Spec): string => lockSet(c, s, FRONT, s.jaw);
+const FRONT: readonly Lock[] = [[-48, 14, -70, 110, 11, .05], [-46, 4, -60, 150, 14, .03], [-42, 10, -46, 126, 12, -.05], [48, 14, 68, 104, 10, -.05], [46, 4, 58, 146, 13, -.03], [42, 10, 48, 120, 11, .05]];
+const locks = (c: Ctx, s: Spec): string => lockSet(c, s, FRONT, s.jaw, .55);
 
 // ---- headgear ----
 /** The base elf's: a thin silver fillet with the star of Elbereth (the balloon elf's). */
@@ -306,12 +309,12 @@ const draw = (s: Spec): Draw => (o) => {
   const j = s.jaw * (s.man ? 1.04 : 1);
   const eo: EyeO = { lidFill: dark(s.skin[1], .1), lowFill: s.skin[1], ...s.eye, lash: c.fem, size: c.fem ? 1.06 : 1 };
   const under = s.man ? '.2' : '.12';
-  const tilted = (side: number): string => `<g transform="rotate(${-side * s.tilt} ${21 * side} 0)">${eye(c, side, eo).replace('opacity=".8"/>', `opacity="${under}"/>`)}</g>`;
+  const tilted = (side: number): string => `<g transform="rotate(${-side * s.tilt} ${21 * side} 0)">${eye(c, side, eo).replace('opacity=".8"/>', `opacity="${under}"/>`).replace('stroke-width="2" stroke-linecap="round"/>', 'stroke-width="1.55" stroke-linecap="round"/>')}</g>`;
   const head = s.head === 'fillet' ? pen(c, fillet(c, j), true) : s.head === 'circlet' ? pen(c, circlet(c, j)) : s.head === 'hood' ? pen(c, hood(c, s)) : '';
   const body =
     (s.bow ? pen(c, bowStave(c)) : '') +
     (s.head === 'hood' ? '' : pen(c, backHair(c, s), soft)) +
-    pen(c, ear(c, s, -1) + ear(c, s, 1), true) +
+    (s.man ? '' : pen(c, ear(c, s, -1) + ear(c, s, 1), true)) +
     pen(c, neck(c, s), true) + pen(c, bust(c, s), paleCloth) +
     pen(c, face(c, s), true) +
     (s.beard && !c.fem ? pen(c, beard(c, s), soft) : '') +
@@ -319,37 +322,37 @@ const draw = (s: Spec): Draw => (o) => {
     pen(c, cap(c, s), soft) +
     (s.head === 'hood' ? head : '') +
     (s.locks ? pen(c, locks(c, s), soft) : '') +
-    (s.head === 'hood' ? pen(c, ear(c, s, -1) + ear(c, s, 1), true) : head);
+    (s.head === 'hood' || s.man ? pen(c, ear(c, s, -1) + ear(c, s, 1), true) : '') + (s.head === 'hood' ? '' : head);
   return svg(c, defs(c, s), body);
 };
 
 // ---- the elf, the three kindreds, the half-elf; the men and the women ----
 const BASE: Spec = {
   skin: ['#9c7e6a', '#d4b49a', '#eed8c0'], hair: ['#9a7a3a', '#dcc078', '#fbf0c8'],
-  brow: { thin: true, sc: 1.2, rot: 8, fill: '#8a6a32', hi: '#f0dca0', dy: .5 }, eye: { iris: '#4f7088', lid: 2.4 },
+  brow: { thin: true, sc: 1.2, rot: 8, fill: '#8a6a32', hi: '#f0dca0', dy: .5 }, eye: { iris: '#4f7088', lid: 1.3 },
   head: 'fillet', cloak: ['#3c473c', '#5f6d5a', '#8f9c86'], tunic: '#cfd4c6', trim: SILVER, brooch: 'leaf',
   ear: 1, man: false, beard: false, locks: false, len: 96, bow: false, softHair: true, paleCloth: false, jaw: .98, wide: 1.06, tilt: 5,
 };
 const NOLDO: Spec = {
   ...BASE, skin: ['#94786a', '#ccae98', '#ead2bc'], hair: ['#0e0f14', '#30323c', '#8a90a4'], softHair: false,
-  brow: { ...BASE.brow, fill: '#1c1c22', hi: '#6a7080', rot: 7 }, eye: { iris: '#8c9ca8', lid: 2 },
+  brow: { ...BASE.brow, fill: '#1c1c22', hi: '#6a7080', rot: 7 }, eye: { iris: '#7c8e9c', lid: 1.2 },
   head: 'circlet', cloak: ['#111a38', '#22356c', '#4a66a6'], tunic: '#2a3460', trim: '#d8b45a', brooch: 'star',
 };
 const SINDA: Spec = {
   ...BASE, skin: ['#a2928c', '#dccbbe', '#f6ece2'], hair: ['#868d94', '#e8ecee', '#ffffff'],
-  brow: { ...BASE.brow, fill: '#c4c8cc', hi: '#ffffff' }, eye: { iris: '#5c6f80', lid: 3 },
+  brow: { ...BASE.brow, fill: '#c4c8cc', hi: '#ffffff' }, eye: { iris: '#5c6f80', lid: 1.6 },
   head: 'none', cloak: ['#454c54', '#737c86', '#a4acb4'], tunic: '#c8ccd0', trim: SILVER, brooch: 'clasps', len: 110,
 };
 const SILVAN: Spec = {
   ...BASE, skin: ['#90705a', '#c8a084', '#e6c6a6'], hair: ['#5a2010', '#a84a22', '#f0a060'], softHair: false,
-  brow: { ...BASE.brow, fill: '#7a3018', hi: '#e8904c' }, eye: { iris: '#5e6a30', lid: 2.2 },
+  brow: { ...BASE.brow, fill: '#7a3018', hi: '#e8904c' }, eye: { iris: '#5e6a30', lid: 1.3 },
   head: 'hood', cloak: ['#1c3a1e', '#356236', '#6a985a'], tunic: '#6a4628', trim: '#a07a40', brooch: 'none', bow: true,
 };
 const HALF: Spec = {
-  ...BASE, skin: ['#8e6c56', '#c09a80', '#e0c0a2'], hair: ['#2e1c12', '#5e3c26', '#b89a7c'], softHair: false,
-  brow: { thin: true, fill: '#3a2618', hi: '#9a7a5c', sc: 1.26, rot: 4, dy: .5 }, eye: { iris: '#4a5862', lid: 2.6 },
+  ...BASE, skin: ['#8e6c56', '#c09a80', '#e0c0a2'], hair: ['#3a140a', '#8a3e1e', '#e0965e'], softHair: false,
+  brow: { thin: true, fill: '#4a1e10', hi: '#c07040', sc: 1.26, rot: 4, dy: .5 }, eye: { iris: '#4a5862', lid: 1.5 },
   head: 'none', cloak: ['#3a1a1a', '#66302a', '#985040'], tunic: '#5a4430', trim: '#c4a868', brooch: 'leaf',
-  ear: .3, man: true, beard: true, len: 66, jaw: 1.02, wide: 1.08, tilt: 0,
+  ear: .62, man: true, beard: true, len: 66, jaw: 1.02, wide: 1.08, tilt: 0,
 };
 /** The women: the same kindred, a narrower face, slender brows, the long locks in front. */
 const fem = (s: Spec, brow: BrowO = {}): Spec => ({ ...s, brow: { ...s.brow, thin: true, sc: 1.08, rot: 3, dy: -1.5, ...brow }, jaw: s.man ? .94 : .9, locks: true, len: Math.max(s.len, 112), beard: false, wide: s.wide * .9 });
@@ -358,7 +361,7 @@ const FEM: Readonly<Record<string, Spec>> = {
   noldo: fem(NOLDO),
   sinda: fem(SINDA),
   silvan: fem(SILVAN),
-  halfelf: fem(HALF, { fill: '#4a3020' }),
+  halfelf: fem(HALF, { fill: '#5a2614', hi: '#6e3420', sc: 1.02 }),
 };
 
 const pair = (id: string, m: Spec): Draw => { const dm = draw(m), df = draw(FEM[id]!); return (o) => (o.sex === 'female' ? df(o) : dm(o)); };
