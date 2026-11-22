@@ -38,9 +38,10 @@ function useShow(from: number, dur: number): { opacity: number; lift: number } {
 
 /**
  * One short sentence (or a few short lines) low on the left, on a solid
- * dark scrim; `center` puts the same box centred low (the end card).
+ * dark scrim; `center` puts the same box centred low (the end card), `top`
+ * high on the left (where the game's input line must stay free).
  */
-export function LowerThird({ from, dur, text, center = false }: { from: number; dur: number; text: string | string[]; center?: boolean }) {
+export function LowerThird({ from, dur, text, center = false, top }: { from: number; dur: number; text: string | string[]; center?: boolean; /** Placed this far from the top instead (px). */ top?: number }) {
   const { opacity, lift } = useShow(from, dur);
   const { width, height } = useVideoConfig();
   return (
@@ -49,7 +50,7 @@ export function LowerThird({ from, dur, text, center = false }: { from: number; 
         style={{
           position: 'absolute',
           ...(center ? { left: '50%', translate: '-50% 0', textAlign: 'center' as const } : { left: width * SAFE }),
-          bottom: height * SAFE + 18,
+          ...(top === undefined ? { bottom: height * SAFE + 18 } : { top }),
           opacity,
           transform: `translateY(${lift}px)`,
           padding: '16px 30px 18px',
@@ -72,7 +73,7 @@ export function LowerThird({ from, dur, text, center = false }: { from: number; 
 }
 
 /** The brass rule with a lozenge in its middle. */
-function Rule({ width }: { width: number }) {
+export function Rule({ width }: { width: number }) {
   const line = { flex: 1, height: 1.5 } as const;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, width, margin: '18px auto 14px' }}>
@@ -88,7 +89,7 @@ function Rule({ width }: { width: number }) {
  * centred on (`x`, `y`) in px (default the frame's centre), with a soft
  * dark wash behind it for the sky.
  */
-export function TitleCard({ from, dur, title, lines = [], small, x, y, size = 84 }: { from: number; dur: number; title: string; lines?: string[]; small?: string; x?: number; y?: number; size?: number }) {
+export function TitleCard({ from, dur, title, lines = [], x, y, size = 84 }: { from: number; dur: number; title: string; lines?: string[]; x?: number; y?: number; size?: number }) {
   const { opacity, lift } = useShow(from, dur);
   const { width, height } = useVideoConfig();
   const cx = x ?? width / 2;
@@ -113,7 +114,6 @@ export function TitleCard({ from, dur, title, lines = [], small, x, y, size = 84
             {l}
           </div>
         ))}
-        {small ? <div style={{ fontFamily: TEXT_FONT, fontStyle: 'italic', fontWeight: 500, fontSize: size * 0.3, marginTop: size * 0.12, color: MIST, opacity: 0.8, textShadow: '0 1px 10px rgba(0,0,0,0.9)' }}>{small}</div> : null}
       </div>
     </AbsoluteFill>
   );

@@ -90,8 +90,8 @@ function filmBackup(): Buffer {
   return gzipSync(Buffer.from(out.join('\n'), 'utf8'));
 }
 
-/** Opens the start page and prepares the film's state (see the top). Stays on the start page. */
-export async function prepareFilm(page: Page): Promise<void> {
+/** MUME's clock stays the film's (before the page's first navigation). */
+export async function keepFilmClock(page: Page): Promise<void> {
   // MUME's clock stays the film's: the client syncs `wc.clock` from the game (the captured welcome's
   // MSSP at Enter MUME, the run's GMCP later), which moved the start page's sky in one jump mid-
   // transition and turned take B's start page to the run's evening. Only the film's own writes
@@ -103,6 +103,11 @@ export async function prepareFilm(page: Page): Promise<void> {
       set.call(this, k, v);
     };
   });
+}
+
+/** Opens the start page and prepares the film's state (see the top). Stays on the start page. */
+export async function prepareFilm(page: Page): Promise<void> {
+  await keepFilmClock(page);
   await page.route(`**${BACKUP_URL}`, (r) => r.fulfill({ body: filmBackup(), contentType: 'application/gzip' }));
   await page.goto('/');
   await startMenu(page);

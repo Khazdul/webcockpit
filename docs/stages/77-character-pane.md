@@ -8,9 +8,8 @@ Inv §2.2. The data rules for XP/TP, the session anchors and the toggles
 stay.
 
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
-races parked, the open points decided, ADR 0166). **Part B built on
-`stage-77b`**, not merged: e2e and the owner's look remain. Part C waits
-for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
+races parked, the open points decided, ADR 0166). **Part B done**
+(built on `stage-77b`, tested). Part C waits for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -228,7 +227,7 @@ comment naming `help age`. The change between brackets is linear.
 Each part ends with a stop: the owner looks and says go before the next.
 
 - [x] A. Live facts
-- [ ] B. The model, built on `stage-77b`, e2e and merge left (also: the fixtures' invented `light`, `passengerOf`'s
+- [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
 - [ ] C. The poll (also check: wrap on a phone, a non-zero ability delta,
       that MUME takes the whole command: about 160 characters)
@@ -548,6 +547,13 @@ from the one confirmed case, so nothing matches a whole string:
   When the owner happens to play another race, its `#runlog` is enough.
 
 ## Part B: what was built
+
+Tested 2026-11-22: typecheck; 5689 unit tests; full e2e at 5 workers 2026
+passed, 52 skipped, 3 failed in Firefox (`import.spec.ts:148`,
+`menu-sub-morph.spec.ts:73` and `:207`), all pass when run alone.
+
+For the owner to look at: the table below (is any value wrong for
+Rasta?), and that today's Character pane looks and updates as before.
 
 `CharModel.view()` has the card's values; `src/gmcp/race.ts` (race line,
 age factor), `src/gmcp/age.ts` (ages, modifiers, birthday) and

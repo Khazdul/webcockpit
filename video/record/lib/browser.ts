@@ -46,6 +46,8 @@ export const MODES: Record<string, CaptureMode> = {
   'intel-1.5-png': { headed: false, dpr: 1.5, channel: 'chromium', args: INTEL, format: 'png' },
   // 1600×900 CSS at 1.2 is 1920×1080: the film's own size, no scaling after.
   'intel-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: INTEL, format: 'png' },
+  // The balloon film (lib/balloon-state.ts): 1918 px over 1600 CSS, frame-stepped.
+  'intel-1918-png': { headed: false, dpr: 1918 / 1600, channel: 'chromium', args: INTEL, format: 'png' },
   // A tablet (820×1180 CSS) at its own size: no more pixels than the film can show of it.
   'intel-1-png': { headed: false, dpr: 1, channel: 'chromium', args: INTEL, format: 'png' },
   'nvidia-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: NVIDIA, format: 'png' },

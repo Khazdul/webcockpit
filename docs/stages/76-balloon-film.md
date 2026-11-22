@@ -4,7 +4,8 @@ Not a spec §5 row: the owner's request of 2026-11-21. A short film of its
 own (about 1:21) that only shows the balloon notices of 0.22 (stages 69
 and 75). It does not replace the presentation films (stages 48 and 70).
 
-Status: **Round 1 rendered** (2026-11-22), waiting for the owner.
+Status: **Round 2 rendered** (2026-11-22, manuscript draft 2), waiting
+for the owner.
 
 The manuscript and the owner's decisions are in
 `video/manuscript-balloons.md`, which the main session owns. The pipeline
@@ -30,6 +31,12 @@ is ADR 0133's (`video/README.md`).
 - [x] Composition `Balloons` (title card with a rising balloon, captions,
       end card with the music credit, picture and music fade).
 - [x] Round 1 render and contact sheet for the owner.
+- [x] Round 2 (draft 2): one take at the fountain (`balloons-fountain`),
+      the typed commands, the setting on camera, the two black cards;
+      round 1's scenes, feeds and helpers removed (in git at b7d18ceb).
+- [x] The stutter's causes found and fixed (frame-stepped capture, the
+      encoder's timebase; ADR 0133 addendum).
+- [x] Round 2 render, contact sheet, motion measured on the encodes.
 
 ## Round 1 (2026-11-22)
 
@@ -107,19 +114,98 @@ session show *calibrating*. The Statistics pane reloads and is right. The
 film works around it the way a player could: Balloons switched off and on
 in the take's setup, after the run is stored.
 
+## Round 2 (2026-11-22, manuscript draft 2)
+
+`npm run record -- balloons-fountain` (12 min), then
+`npm run render -- Balloons --out balloon-film-r2 --no-4k` →
+`video/out/balloon-film-r2.mp4` (HEVC 10-bit) and
+`balloon-film-r2-h264.mp4`; contact sheet
+`video/out/balloon-film-r2-sheet.png`. 2:54.2: the title 0:00–0:09.0, the
+game 0:09.4–2:42.4 (Balloons switched on at 0:20.6), the end card from
+2:43.0, the music faded 2:42.8–2:53.8 into a phrase's end.
+
+| # | `#weather balloon as …` | Enter | Gap | At rest | Out of view |
+|---|---|---|---|---|---|
+| 1 | goblin calibrating | 0:27.4 | | 0:34.7 | 0:47.0 |
+| 2 | goblin superb | 0:41.4 | 14.0 | 0:48.8 | 1:00.9 |
+| 3 | goblin achievement | 0:53.1 | 11.7 | 1:00.5 | 1:12.7 |
+| 4 | goblin death | 1:05.0 | 11.9 | 1:12.3 | 1:24.3 |
+| 5 | dwarf great | 1:16.7 | 11.8 | 1:24.1 | 1:36.4 |
+| 6 | hobbit levelup | 1:27.7 | 11.0 | 1:35.2 | 1:47.3 |
+| 7 | troll poor | 1:38.6 | 10.8 | 1:45.9 | 1:58.0 |
+| 8 | human achievement | 1:49.4 | 10.8 | 1:56.8 | 2:09.0 |
+| 9 | orc meh | 2:00.4 | 11.0 | 2:07.7 | 2:19.8 |
+| 10 | numenorean death | 2:11.2 | 10.8 | 2:18.6 | 2:30.7 |
+| 11 | elf pvp | 2:22.1 | 10.9 | 2:29.6 | 2:42.1 |
+
+Counted in the DOM on every frame: **at most 2** balloons in view (2 for
+80.0 s, 1 for 54.6 s, none for 18.4 s), at most 3 flights alive, so the
+client's early fade (5) is never reached; no sign took a second kill; the
+commands printed nothing. The captions stand 0:42.9–0:58.9 and 1:29.2–1:45.2.
+The map's first pixel is 22 px (one row) from the top and from the right
+edge, its dark iron 25 and 25.
+
+### The stutter
+
+Causes (ADR 0133, addendum of 2026-11-22): the recorder's CFR step kept at
+most 25 pictures a second (ffmpeg's 1/25 s image timebase); the screencast
+dropped frames to the sky canvas's 30 or 12 fps; its arrival timestamps
+jittered. The page held 60 fps. Fixed: the encoder's timebase for all
+screencast takes, and this take is frame-stepped (1/60 s of the page's
+time per frame). Measured with `record/motion.ts` on the encoded films,
+in the balloons' lane (HEVC and H.264 the same):
+
+| | Round 1, 3–82 s | Round 1, parade only | Round 2, 27.75–160 s |
+|---|---|---|---|
+| New pictures a second | 25.3 | 24.2 | **60.0** |
+| Repeated steps | 2738 of 4733 | 1108 of 1859 | **0 of 7934** |
+| Longest hold | 683 ms (lane partly empty) | 133 ms | **17 ms** |
+| Holds over 33 ms | 738 | 306 | **0** |
+| Worst 5 s: pictures a second | 19.2 | 19.4 | **60.0** |
+| Worst 5 s: holds over 33 ms | 42 | 53 | **0** |
+
+Per moving balloon in round 2: 0 repeats in 11,721 steps, every interval
+17 ms. Speed: the first balloon against a real-time run of the same seed
+differs by one frame's travel at most (2.2 px) from 1 to 17 s.
+
+Left: the sky's cloud tufts step under 1 px at 3 fps, as in the client
+(`FPS_STILL`). The take cannot show a hitch of the page's own (a
+passenger's first load); that is for a live check.
+
+### Deviations from the manuscript, and why
+
+- **2:54 instead of about 2:30**, and the gaps 10.8–11.9 s instead of
+  8–10: a balloon takes about 7.4 s to come to rest and 3 s to be read,
+  and the next waits until it has moved on ("When the rules collide").
+- **At most 2 on screen**, under the limit of about 3: what that spacing
+  gives with flights that leave fairly soon.
+- **The commands show in the input line only.** The client does not echo
+  `#` commands into the game's text, and none is staged: a command is
+  typed, stands 0.55 s before Enter, and stays selected in the line until
+  the next is typed (about 6–8 s).
+- **`dr water` is on camera**: the window is filled up to her arrival and
+  `whe`, so the first act has a typed game command. The pony's label is
+  left out, as in the films.
+- **The flights' seeds are chosen** (only the top and right paths, clear
+  of each other's signs); the birds are five crossings sent through the
+  dev hook besides the sky's own.
+- **The page is 1918 px wide** at x 2 of the frame: floats sit on whole
+  cells, and only so is the map exactly one row from both edges. The two
+  columns are black on the sky's black left band.
+
 ## Test guide
 
-Open `video/out/balloon-film-h264.mp4` (or `balloon-film.mp4` in a player
-with HEVC 10-bit). Look at:
+Open `video/out/balloon-film-r2.mp4` in a 60 fps player (or
+`balloon-film-r2-h264.mp4`), full screen. Look at:
 
-1. The title: does the rising balloon and "(Because: Why not?)" work?
-2. Gittan: is each sign readable long enough (troll, the joined mastiffs,
-   the chest)?
-3. Rasta: does the dusk show at all in the caves? Is the level 74 balloon
-   beside the Dwarf's clear?
-4. The parade: is the uneven pace (kills about 10 s apart) acceptable, or
-   should the kills move (a different order) or the parade lose one?
-5. The end card and the fade with the music.
+1. **Motion**: do the balloons, the birds and the pointer move smoothly?
+2. **Pace**: is about 11 s between balloons right, and is one or two on
+   screen too sparse?
+3. **The commands**: is it clear that they are typed, down in the input
+   line? (They do not appear in the game's text.)
+4. **The setting**: is it clear what is switched on (0:15–0:23)?
+5. **The room's life and the sky**: enough, or too much?
+6. **The captions and the two cards**: time to read, and the music's end.
 
 ## Owner feedback
 

@@ -855,3 +855,69 @@ draft, round 2"), on 0.21.0 (stage 74) with the fog fix (4e626c52).
 - **Length.** The content came out about 30 s longer; holds were trimmed
   in take B and the device act, so the film is still 19,780 frames with
   the card at 316.5 s.
+
+## Addendum (2026-11-22): frame-stepped capture (the balloon film, round 2)
+
+The owner saw round 1 of the balloon film stutter. Three causes, the
+first by far the largest; the page itself was not one (its animation
+frames held 16.7 ms at p95 with 0–3 balloons up):
+
+- **The CFR conversion kept at most 25 pictures a second.** `encode.ts`
+  feeds the screencast's images to ffmpeg's concat demuxer, and an image's
+  timebase there defaults to 1/25 s, so every frame's time was rounded to
+  40 ms before the resampling to 60 fps: a 33/50 ms cadence whatever was
+  captured. Reproduced with 120 images 1/60 s apart: 50 survived. Every
+  round 1 piece changed 20.6–24.9 times a second against 31–60 captured.
+  **Every screencast take before this date has it, the two published
+  films' too** (film2-a at 115 s: 45.0 captured, 24.2 in the take). Fixed
+  with `option framerate 90000` per image in the list (120 of 120; a bree
+  take: 30.6 captured, 28.5 distinct in the take). The older films gain
+  from it only if their takes are recorded again.
+- **The screencast's sampler follows the content with the most changed
+  pixels.** The
+  day sky's canvas repaints the whole window at 30 fps (12 and 3 fps when
+  it is calmer). The capturer locks to that cadence and drops the balloons'
+  60 fps frames. Measured on one page (PNG 1920 wide, 6 s each, Iris Xe):
+  the page's own animation frames stayed at 16.7 ms (p95) in every case;
+  the capture gave 40.4, 30.6, 58.1 and 49.3 fps with 0, 1, 2 and 3
+  balloons. The same with an invisible full-screen canvas changing every
+  frame (so the majority's cadence is 60): 60.1, 59.9, 59.9 and 59.6 fps.
+  It is not PNG: a 960 px wide capture, JPEG q80 and a callback that threw
+  the frames away changed nothing of the kind. (That is an inference from
+  these measurements, not from Chromium's source. The PNG addendum above
+  read such rates as the encoder's ceiling.)
+- **Its timestamps are arrival times** (`metadata.timestamp`), with some
+  ms of jitter. The resampling to 60 fps turns it into pairs of a doubled
+  and a dropped frame, so even a take at 59 fps judders.
+
+Decided: a scene may be **frame-stepped** (`Scene.stepped`,
+`record/lib/frame-clock.ts`):
+
+- An init script, put first in the map's and the weather's workers too
+  (their scripts are routed), owns `performance.now`, `Date`, the timers
+  and `requestAnimationFrame`. Setup runs in real time. Then time stands
+  still and moves by 1/60 s per frame: timers at their own due times, the
+  animation frame with the frame's time, every CSS and Web animation moved
+  on by the same step, the workers' canvases committed, then
+  `Page.captureScreenshot` (PNG, `optimizeForSpeed`). About 80 ms a frame:
+  a 2.5 min take records in some 12–15 min and does not depend on the
+  machine's load.
+- The speed is the page's own. A balloon's positions at 0.5–14 s after
+  launch matched a real-time run of the same seed within one frame's
+  travel (under 2 px).
+- The scene drives the clock (`until`, `schedule`); `Pointer` takes the
+  clock and moves once per frame.
+- What such a take cannot show is the page's own slowness (a chunk's
+  first load, a long frame): judge performance live, not on these films.
+- The sky's own rates remain: the cloud tufts drift 2–3 px/s drawn at
+  3 fps (`FPS_STILL`), as in the client.
+
+Rejected: the invisible pacer canvas alone (it lifts the mean to about 60
+but still drops a frame every second or few under load and keeps the
+timestamps' jitter), JPEG frames (the sampler is the same).
+
+The balloon take is 1918 px wide at x 2 of the 1920 px frame
+(`record/lib/balloon-state.ts`): a floating pane sits on whole 12 × 22 px
+cells, and only that width puts the map exactly one row's height from both
+the top and the right edge. The two columns are black on the sky's black
+left band.

@@ -9,17 +9,20 @@
 // one answers there, logs in through a mocked MUME WebSocket (nothing
 // reaches the real server), runs the scene's setup off camera, then films
 // its run with the DevTools screencast in real time and encodes the frames
-// to constant 60 fps.
-import { mkdirSync, writeFileSync } from 'node:fs';
+// to constant 60 fps. A `stepped` scene is taken frame by frame on a clock
+// of its own instead (lib/frame-clock.ts).
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Page } from '@playwright/test';
 import { devServer } from '../../scripts/lib/dev-server.ts';
 import { DEFAULT_MODE, MODES, VIEWPORT, inputEvents, launch, newPage } from './lib/browser.ts';
 import { FPS, encode, imageSize } from './lib/encode.ts';
-import type { Scene } from './lib/scene.ts';
+import { FrameClock } from './lib/frame-clock.ts';
+import type { Scene, SceneState } from './lib/scene.ts';
 import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
-import { balloonsGittan, balloonsParade, balloonsRasta, balloonsTitle } from './scenes/balloons.ts';
+import { balloonsFountain } from './scenes/balloons.ts';
 import { bree } from './scenes/bree.ts';
 import { devicesDesktop, devicesPhone, devicesTablet } from './scenes/devices.ts';
 import { film2A } from './scenes/film2-a.ts';
@@ -38,10 +41,7 @@ const SCENES: Record<string, Scene> = {
   'devices-phone': devicesPhone,
   'film2-a': film2A,
   'film2-b': film2B,
-  'balloons-title': balloonsTitle,
-  'balloons-gittan': balloonsGittan,
-  'balloons-rasta': balloonsRasta,
-  'balloons-parade': balloonsParade,
+  'balloons-fountain': balloonsFountain,
 };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));
@@ -70,8 +70,10 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
   const browser = await launch(mode);
   try {
     const { page } = await newPage(browser, mode, BASE, scene.page);
+    const clock = scene.stepped ? await FrameClock.install(page) : null;
     const state = await scene.setup(page);
     const marks = new Marks(mode.dpr);
+    if (clock) return await recordStepped(sceneName, modeName, page, clock, marks, state, keep);
     const vp = scene.canvas ?? scene.page?.viewport ?? VIEWPORT;
     const canvas = scene.canvas ? { width: Math.ceil((scene.canvas.width * mode.dpr) / 2) * 2, height: Math.ceil((scene.canvas.height * mode.dpr) / 2) * 2 } : undefined;
     const cast = new Screencast(page, { width: Math.round(vp.width * mode.dpr), height: Math.round(vp.height * mode.dpr), format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
@@ -132,6 +134,54 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
     await browser.close();
     console.log(`  ${sceneName} (${modeName}) took ${((Date.now() - t) / 1000).toFixed(1)} s`);
   }
+}
+
+/** A stepped scene: one frame per 1/60 s of the page's time, taken one by one. */
+async function recordStepped(sceneName: string, modeName: string, page: Page, clock: FrameClock, marks: Marks, state: SceneState, keep: boolean): Promise<CaptureStats> {
+  if (!keep) throw new Error('--measure is for screencast scenes');
+  const scene = SCENES[sceneName]!;
+  const { workers, x } = scene.stepped!;
+  const { dpr } = MODES[modeName]!;
+  mkdirSync(OUT, { recursive: true });
+  await clock.freeze(workers);
+  const width = 1920;
+  const height = 1080;
+  await clock.record({ file: join(OUT, `${sceneName}.mp4`), width, height, x });
+  const load = (): number => Number(readFileSync('/proc/loadavg', 'utf8').split(' ')[0]);
+  const loads = [load()];
+  const timer = setInterval(() => loads.push(load()), 15_000);
+  const began = Date.now();
+  try {
+    await scene.run({ page, marks, clock }, state);
+  } catch (err) {
+    console.error(`  markers so far: ${marks.relative(clock.t0 / 1000, 1e9).map((m) => `${m.kind}@${m.t.toFixed(1)}`).join(' ')}`);
+    throw err;
+  } finally {
+    clearInterval(timer);
+    await clock.finish();
+  }
+  const seconds = clock.recorded / FPS;
+  const sorted = [...loads].sort((a, b) => a - b);
+  console.log(`  ${modeName}, stepped: ${clock.recorded} frames (${seconds.toFixed(2)} s), ${((Date.now() - began) / clock.recorded).toFixed(0)} ms a frame`);
+  console.log(`  machine load (1 min): ${sorted[0]} min, ${sorted[sorted.length >> 1]} median, ${sorted.at(-1)} max`);
+  const t0 = clock.t0 / 1000;
+  const stats: CaptureStats = { frames: clock.recorded, seconds, meanFps: FPS, minFps1s: FPS, gapsOver50ms: 0, maxGapMs: 1000 / FPS };
+  const timeline: TimelineFile = {
+    scene: sceneName,
+    recordedAt: new Date().toISOString(),
+    mode: `${modeName} (stepped)`,
+    width,
+    height,
+    dpr,
+    fps: FPS,
+    frames: clock.recorded,
+    durationS: seconds,
+    capture: { ...stats, active: stats, perSecond: [], load: loads },
+    markers: marks.relative(t0, seconds),
+    input: relativeInput(await inputEvents(page), t0, seconds, dpr).map((e) => (e.x === undefined ? e : { ...e, x: e.x + x })),
+  };
+  writeFileSync(join(OUT, `${sceneName}.json`), `${JSON.stringify(timeline, null, 1)}\n`);
+  return stats;
 }
 
 const server = await devServer(PORT);

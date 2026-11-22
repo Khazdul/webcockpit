@@ -1,125 +1,123 @@
-// The balloon film's game material (video/manuscript-balloons.md,
-// "Sources"): run ids and seconds only. The logs stay in the gitignored
-// video/private/: Gittan's runs in the film backup (film-runs.jsonl.gz),
-// Rasta's run in the balloon backup (balloon-runs.jsonl.gz, made from the
-// owner's replay export by record/balloon-runs.ts).
+// The balloon film's game (video/manuscript-balloons.md, draft 2): one take
+// with Gittan at the fountain in Bree. Run seconds and staged lines only;
+// the run's text stays in the gitignored video/private/.
 //
-// Each take (record/scenes/balloons.ts) plays its run as a list of legs in
-// the run's order: `fast` legs off the film (the text as fast as the page
-// takes it, each kill's fold kept whole), `real` legs at the game's own
-// pace (what the film shows: a kill's balloon flies at its real time after
-// the kill), and `quick` legs at a few times the game's pace (the walk
-// between two moments the film cuts over; the earlier balloons drift on in
-// the sky). `pieces` are the stretches the film shows, in run seconds.
-import { fileURLToPath } from 'node:url';
+// Times are take seconds from the fade-in's first frame.
+//
+// - The window is filled off camera with the run's own text up to her
+//   arrival at the fountain; `dr water` is the first thing on camera.
+// - The life in the room is staged in the forms of the owner's runs (2026-10
+//   and 11): an arrival or a leave is plain text, with Room.Chars.Add or
+//   Remove; a narrate is yellow (33) and a say cyan (36), each with
+//   Comm.Channel.Text in plain text. Every block is the runs' own: an empty
+//   line, the line, an empty line, the GMCP, the prompt. NPCs are the ones
+//   seen in Bree in that run, with their own room lines; players are invented.
+// - Every balloon is the client's own sample, sent by the typed command.
+import { type Step, gmcpBytes, lineBytes } from '../../scripts/lib/mume-feed.ts';
+import type { Excerpt } from '../record/lib/run-feed.ts';
+import { BREE_RUN, noPonyLabel } from './film.ts';
 
-/** Rasta's run, from the replay export (private). */
-export const BALLOON_BACKUP = fileURLToPath(new URL('../private/balloon-runs.jsonl.gz', import.meta.url));
+/** The run up to the fountain (the sign of the Prancing Pony, 15.7 s) and her `whe` there: off camera. */
+export const PREFEED: Excerpt = {
+  run: BREE_RUN,
+  from: -0.01,
+  to: 16.6,
+  rewrite: noPonyLabel,
+  // the pony's label and its "Ok." (film 1, owner round 1: no label in the films)
+  drop: [[12.05, 12.3]],
+};
 
-/** Gittan's evening of 2026-10-11 (film backup): Gloomy Valley, the Ancient Broken Road. Race Hobbit / Fallohide. */
-export const GITTAN_RUN = 'Gittan/2026-10-11T20-56-42';
-/**
- * The run before it in the same session (film backup): its ten mob kills are
- * the kill rating's history (src/runs/kill-rating.ts: the median of the
- * chain's last 30 mob kills, "calibrating" under 5), as they were for
- * Gittan that evening.
- */
-export const GITTAN_PREV = 'Gittan/2026-10-11T19-48-42';
-/** Rasta's PvP night of 2026-11-21 (the export's second run; seconds from the export's start). Race Orc / Tarkhnarb Orc. */
-export const RASTA_RUN = 'Rasta/2026-11-21T22-00-49';
+/** On camera: `dr water` at `at`, and MUME's answer from the run. */
+export const DRINK = { cmd: 'dr water', at: 3.2, answer: { run: BREE_RUN, from: 17.0, to: 17.3 } satisfies Excerpt, after: 0.28 } as const;
 
-export type LegKind = 'fast' | 'real' | 'quick';
+/** The run's prompt at the fountain. */
+const PROMPT = '*# Mana:Burning>';
 
-export interface Leg {
-  kind: LegKind;
-  /** Run seconds. */
-  from: number;
-  to: number;
-  /** `quick` legs: the speed (default 4). */
-  speed?: number;
-  /** Balloons switch off for a `fast` leg and on again after it (its kills still count for the rating). */
-  noBalloons?: boolean;
-  /** A name for the take's markers. */
-  name?: string;
-}
+const block = (line: string, gmcp: string): Step & { out: Buffer } => ({
+  out: Buffer.concat([lineBytes(''), lineBytes(line), lineBytes(''), gmcpBytes(gmcp), lineBytes(PROMPT)]),
+});
 
-/** A stretch the film shows, run seconds (inside one `real` leg). */
-export interface Piece {
+interface Being {
+  id: number;
+  /** As arrivals and leaves name it. */
+  who: string;
   name: string;
-  from: number;
-  to: number;
+  desc: string;
+  type: 'npc' | 'player';
+}
+// (ids above any in the run)
+const SPARROW: Being = { id: 21, who: 'A sparrow', name: 'sparrow', desc: 'A sparrow is flapping around on the ground.', type: 'npc' };
+const OLD_MAN: Being = { id: 22, who: 'An old man', name: 'old man', desc: 'An old man is walking around, cleaning up.', type: 'npc' };
+const GUARD: Being = { id: 23, who: 'An elite Bree guard', name: 'elite Bree guard', desc: 'An elite Bree guard stands here stoutly.', type: 'npc' };
+const NOB: Being = { id: 24, who: 'Nob', name: 'Nob', desc: 'Nob the Hobbit wanders around here, looking for work to do.', type: 'npc' };
+const EILWEN: Being = { id: 25, who: 'Eilwen', name: 'Eilwen', desc: 'Eilwen the Half-Elf is standing here.', type: 'player' };
+
+const arrives = (b: Being, from: string): Step & { out: Buffer } =>
+  block(
+    `${b.who} has arrived from the ${from}.`,
+    `Room.Chars.Add ${JSON.stringify({ desc: b.desc, flags: [], id: b.id, labels: [], name: b.name, position: 'standing', type: b.type })}`,
+  );
+const leaves = (b: Being, to: string): Step & { out: Buffer } => block(`${b.who} leaves ${to}.`, `Room.Chars.Remove ${b.id}`);
+const talk = (channel: 'tales' | 'says', talker: string, words: string): Step & { out: Buffer } => {
+  const text = `${talker} ${channel === 'tales' ? 'narrates' : 'says'} '${words}'`;
+  return block(`\x1b[${channel === 'tales' ? '33' : '36'}m${text}\x1b[0m`, `Comm.Channel.Text ${JSON.stringify({ channel, talker, 'talker-type': 'player', text })}`);
+};
+
+/** The room's life: a block every 8–15 s, none while a command is being typed. */
+export const AMBIENT: { at: number; step: Step & { out: Buffer } }[] = [
+  { at: 9.0, step: arrives(SPARROW, 'north') },
+  { at: 21.5, step: talk('tales', 'Eilwen', 'fine day on the East Road, not a cloud to speak of') },
+  { at: 34.5, step: arrives(OLD_MAN, 'south') },
+  { at: 46.5, step: arrives(GUARD, 'east') },
+  { at: 58.5, step: leaves(SPARROW, 'west') },
+  { at: 70.5, step: talk('tales', 'Hamlin', 'anyone riding to Rivendell in the morning?') },
+  { at: 81.5, step: leaves(GUARD, 'south') },
+  { at: 92.0, step: arrives(EILWEN, 'west') },
+  { at: 103.0, step: talk('says', 'Eilwen', 'good day to you, Gittan') },
+  { at: 114.0, step: talk('tales', 'Hamlin', 'mushroom pie at the Pony today') },
+  { at: 125.0, step: leaves(EILWEN, 'north') },
+  { at: 136.0, step: leaves(OLD_MAN, 'east') },
+  { at: 146.0, step: arrives(NOB, 'north') },
+];
+
+/** Bird crossings besides the sky's own (`__weather.emit('birds')`, the dev hook). */
+export const BIRDS = [4, 36, 71, 106, 133] as const;
+
+export interface Show {
+  passenger: string;
+  what: string;
+  /** Enter. */
+  at: number;
+  /** The flight's seed (src/weather/balloons/flight.ts `planFlight`). */
+  seed: number;
 }
 
-export interface BalloonTake {
-  run: string;
-  legs: Leg[];
-  pieces: Piece[];
-}
-
 /**
- * Gittan, by day. Kills (death line, fold 0.5 s later): the olog-hai troll
- * 384.5 in Gloomy Valley (forest, outdoors); the prison guard 1402.7 and
- * the two mastiffs 1408.0 and 1410.5 in the Decrepit Hut (one sign: each
- * comes while the guard's balloon is still arriving); the achievement
- * (Event.Achieved, "You unlocked an ornate elven chest!") 1647.2 in the
- * Chieftain's Throneroom.
+ * The eleven commands. The times and the seeds were chosen together with
+ * flight.ts's own planner on this layout: each Enter comes after the balloon
+ * before has rested and begun to move on (1.3 s into its glide, 0.4 s in act
+ * 3), every flight leaves by the top or over the right edge, none crosses
+ * another's sign, and no more than two are in view. The scene checks all of
+ * it on the take (record/scenes/balloons.ts). Change a time and the seeds
+ * after it need choosing again: a flight's spot depends on the ones near it.
  */
-export const GITTAN: BalloonTake = {
-  run: GITTAN_RUN,
-  legs: [
-    { kind: 'fast', from: 352, to: 381 },
-    { kind: 'real', from: 381, to: 392.5, name: 'troll' },
-    { kind: 'fast', from: 392.5, to: 1399.5, noBalloons: true },
-    { kind: 'real', from: 1399.5, to: 1414, name: 'guard' },
-    { kind: 'fast', from: 1414, to: 1644, noBalloons: true },
-    { kind: 'real', from: 1644, to: 1656, name: 'chest' },
-  ],
-  pieces: [
-    { name: 'troll', from: 383.9, to: 390.2 },
-    // from the first mastiff: the guard's balloon is coming up; both mastiffs join it
-    { name: 'guard', from: 1407.5, to: 1412.9 },
-    { name: 'chest', from: 1646.6, to: 1652.8 },
-  ],
-};
+export const SHOWS: readonly Show[] = [
+  // the goblin
+  { passenger: 'goblin', what: 'calibrating', at: 18, seed: 1533947694 },
+  { passenger: 'goblin', what: 'superb', at: 32, seed: 580280128 },
+  { passenger: 'goblin', what: 'achievement', at: 43.7, seed: 1170134385 },
+  { passenger: 'goblin', what: 'death', at: 55.55, seed: 3319484456 },
+  // the other races (kills alternate with the other moments)
+  { passenger: 'dwarf', what: 'great', at: 4039 / 60, seed: 194149811 },
+  { passenger: 'hobbit', what: 'levelup', at: 4700 / 60, seed: 1363386883 },
+  { passenger: 'troll', what: 'poor', at: 5350 / 60, seed: 3705487742 },
+  { passenger: 'human', what: 'achievement', at: 100, seed: 684926478 },
+  { passenger: 'orc', what: 'meh', at: 6658 / 60, seed: 2689497549 },
+  { passenger: 'numenorean', what: 'death', at: 7306 / 60, seed: 1237505738 },
+  { passenger: 'elf', what: 'pvp', at: 132.7, seed: 3811537858 },
+];
 
-/**
- * Rasta, at dusk, in the caves off the Old East Road. PvP kills (death
- * line): Morgrim 2382.5 and Grekko 2386.0 (one sign), Voïx 2423.0, a Dwarf
- * and "You gain a level!" (74) 2448.0 (two balloons side by side),
- * Thehippo 2475.8 and Domon 2480.3 (one sign). The walks between are
- * played quick: each kill still comes after the last balloon has left its
- * readable spot, so none joins a sign it did not join in the game.
- */
-export const RASTA: BalloonTake = {
-  run: RASTA_RUN,
-  legs: [
-    { kind: 'fast', from: 2350, to: 2379.5 },
-    { kind: 'real', from: 2379.5, to: 2391, name: 'morgrim' },
-    { kind: 'quick', from: 2391, to: 2421, speed: 5 },
-    { kind: 'real', from: 2421, to: 2430, name: 'voix' },
-    { kind: 'quick', from: 2430, to: 2446, speed: 3 },
-    { kind: 'real', from: 2446, to: 2455, name: 'dwarf' },
-    { kind: 'quick', from: 2455, to: 2474, speed: 3 },
-    { kind: 'real', from: 2474, to: 2484, name: 'thehippo' },
-  ],
-  pieces: [
-    { name: 'morgrim', from: 2382.0, to: 2388.6 },
-    { name: 'voix', from: 2422.6, to: 2428.7 },
-    { name: 'dwarf', from: 2447.6, to: 2453.7 },
-    { name: 'thehippo', from: 2475.4, to: 2482.5 },
-  ],
-};
+export const commandOf = (s: Show): string => `#weather balloon as ${s.passenger} ${s.what}`;
 
-/**
- * The parade, at night: Gittan at the Gates of Ingrove (a field, a clear
- * sky), the run's first seconds there (stat, arm, shield, a meal), then
- * quiet while the parade flies. The film shows it from the leg's start.
- */
-export const PARADE: BalloonTake = {
-  run: GITTAN_RUN,
-  legs: [
-    { kind: 'fast', from: -1, to: 6.2 },
-    { kind: 'real', from: 6.2, to: 13.0, name: 'gates' },
-  ],
-  pieces: [],
-};
+/** The take's length: the last balloon drifts on 6 s, then the 3 s fade out. */
+export const TAKE_S = 153;

@@ -21,11 +21,13 @@ npm run record -- take-b                     # the film's take B (1:33–3:10)
 npm run record -- part1                      # part 1 alone (public/recordings/part1.*)
 npm run record -- part1 --mode intel-2       # another capture mode (record/lib/browser.ts)
 npm run record -- devices-desktop            # film 2's device takes: also devices-tablet, devices-phone
+npm run record -- balloons-fountain          # the balloon film's one take (frame-stepped: 12–15 min)
 npm run record -- bree --measure             # every mode: an fps table, no files kept
 node record/gpu-probe.ts                     # which flags give WebGL2 on which GPU
 node record/capture-login.ts                 # MUME's real welcome screen → private/ (once)
 node record/feed-info.ts [name] [-v]         # what the film's excerpts come to
 node record/frames.ts <mp4> <png> <t…>       # a contact sheet, to check a take by eye
+node record/motion.ts <mp4> --ref <master.mov> --from <s> --to <s>   # repeated frames and their holds
 ```
 
 The film is written in `manuscript.md` (the director's script and its beat
@@ -51,6 +53,14 @@ JPEG frames band dark gradients (ADR 0133 addendum; `node record/banding.ts`
 shows each stage).
 It prints the capture rate it got; ADR 0133 has the measured table.
 
+A scene with `stepped` is not filmed in real time: the page's clock stands
+still between frames and moves 1/60 s per frame (`record/lib/frame-clock.ts`,
+ADR 0133 addendum of 2026-11-22), so every film frame is a new picture at
+the page's real pace, whatever the machine's load. Use it wherever small
+things move smoothly over the day sky: the screencast follows the sky's
+frame rate and drops theirs. Such a scene waits with `clock.until` and
+`clock.sleep`, never with `waitForFunction` or a real sleep.
+
 Each recording comes with `<scene>.json`: size, fps, length, the capture
 stats, the scene's **markers** (`{ t, kind, label, box? }`, seconds from the
 first frame, boxes in video pixels) and the **input** log (every key, pointer
@@ -71,6 +81,7 @@ npm run studio                       # Remotion Studio in the browser
 npm run render -- Film --out webcockpit-demo   # the whole film: out/webcockpit-demo-master.mov (ProRes 4444), then
                                      #   webcockpit-demo.mp4 (HEVC 10-bit), -youtube.mp4 (4K H.264, the upload), -h264.mp4
 npm run render -- Film --out webcockpit-demo --no-4k   # without the YouTube 4K variant
+npm run render -- Balloons --out balloon-film-r2 --no-4k   # the balloon film (manuscript-balloons.md)
 npm run render -- Part1              # the same for part 1 alone
 node record/thumbnail.ts             # out/thumbnail/: the start page at 3840×2160, for the YouTube thumbnail
 npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)

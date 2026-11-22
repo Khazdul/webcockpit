@@ -17,6 +17,16 @@ import type { Frame } from './screencast.ts';
 
 export const FPS = 60;
 
+/**
+ * Each image's own timebase in the concat list. ffmpeg's image demuxer
+ * defaults to 25 fps and the concatenated stream takes that 1/25 s
+ * timebase: every frame's time is rounded to 40 ms, so at most 25 different
+ * pictures a second reached the 60 fps recording, in a 33/50 ms cadence,
+ * whatever was captured (found 2026-11-22, ADR 0133 addendum; every
+ * screencast take before that has it).
+ */
+const TIMEBASE = 'option framerate 90000';
+
 export interface EncodeResult {
   /** Frames in the output. */
   frames: number;
@@ -55,10 +65,10 @@ export async function encode(frames: readonly Frame[], to: number, out: string, 
   const lines = ['ffconcat version 1.0'];
   for (let i = 0; i < frames.length; i++) {
     const end = i + 1 < frames.length ? frames[i + 1]!.ts : Math.max(to, frames[i]!.ts + 1 / FPS);
-    lines.push(`file '${frames[i]!.file}'`, `duration ${Math.max(end - frames[i]!.ts, 0.0001).toFixed(6)}`);
+    lines.push(`file '${frames[i]!.file}'`, TIMEBASE, `duration ${Math.max(end - frames[i]!.ts, 0.0001).toFixed(6)}`);
   }
   // The demuxer drops the last entry's duration unless the file is listed once more.
-  lines.push(`file '${frames.at(-1)!.file}'`);
+  lines.push(`file '${frames.at(-1)!.file}'`, TIMEBASE);
   const list = join(dir, 'frames.ffconcat');
   writeFileSync(list, `${lines.join('\n')}\n`);
   const seconds = Math.max(to, frames.at(-1)!.ts) - frames[0]!.ts;
