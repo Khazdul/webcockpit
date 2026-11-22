@@ -104,9 +104,10 @@ test('the card from the GMCP demo; a replay sends nothing', async ({ page }) => 
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(card(page).locator('.wc-cc-name')).toHaveText('Rasta');
   await expect(card(page).locator('.wc-cc-level')).toHaveText('26');
-  // Part E: the demo's Dúnadan man has the Dúnadan portrait (no raster file today).
-  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'dunadan');
-  await expect(card(page).locator('.wc-cc-disc img')).toHaveCount(0);
+  // Part E and the portrait pass: the demo's Dúnadan man has the Dúnadan portrait, drawn (no raster file today).
+  await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-portrait', 'dunadan');
+  await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-sex', 'male');
+  await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-art', 'drawn');
   await expect(card(page).locator('[data-click="climb"]')).toHaveAttribute('data-on', '');
   await expect(card(page).locator('.wc-cc-vital[data-kind="mp"] .wc-cc-vn')).toHaveText('131');
   await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggres\.|agg\.)$/);
@@ -121,6 +122,30 @@ test('the card from the GMCP demo; a replay sends nothing', async ({ page }) => 
   await expect(card(page).locator('.wc-cc-quiet')).toHaveText('A replay has no Stats and Lore.');
   expect(await page.evaluate(() => (window as unknown as { sentCmds: string[] }).sentCmds)).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('the portrait: drawn once into an image at the disc\'s pixels, kept over prompts, a new one for a new race', async ({ page }) => {
+  const game = await play(page, { cols: 70, rows: 13 });
+  const disc = card(page).locator('.wc-cc-disc');
+  await expect(disc).toHaveAttribute('data-portrait', 'tarkhnarb');
+  game.play(gmcp('Char.StatusVars', { race: 'Dwarf', subrace: 'Longbeard Dwarf' }), PROMPT);
+  await expect(disc).toHaveAttribute('data-portrait', 'longbeard');
+  await expect(disc).toHaveAttribute('data-art', 'drawn');
+  const img = disc.locator('img.wc-cc-photo');
+  await expect(img).toHaveCount(1);
+  const shot = await img.evaluate((i: HTMLImageElement) => ({ src: i.src.slice(0, 22), w: i.naturalWidth, css: i.getBoundingClientRect().width, dpr: devicePixelRatio }));
+  expect(shot.src).toBe('data:image/png;base64,');
+  // Baked at the disc's device pixels or a little more (a bucket), never less.
+  expect(shot.w).toBeGreaterThanOrEqual(Math.floor(shot.css * shot.dpr));
+  expect(shot.w).toBeLessThanOrEqual(Math.ceil(shot.css * shot.dpr * 1.3) + 8);
+  // Prompts and vitals repaint the card: the same image element stays, nothing is rebaked.
+  await img.evaluate((i) => ((i as HTMLImageElement & { mark?: number }).mark = 1));
+  for (let k = 0; k < 5; k++) game.play(gmcp('Char.Vitals', { ...VITALS, hp: 180 - k }), PROMPT);
+  await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('176');
+  expect(await disc.locator('img').evaluate((i) => (i as HTMLImageElement & { mark?: number }).mark)).toBe(1);
+  // No neutral silhouette left behind, no animation on the portrait.
+  await expect(disc.locator('.wc-cc-fig')).toHaveCount(0);
+  expect(await img.evaluate((i) => getComputedStyle(i).transitionDuration + '|' + getComputedStyle(i).animationName)).toBe('0s|none');
 });
 
 test('a click sends as typed; the value changes only on GMCP', async ({ page }) => {
@@ -187,7 +212,7 @@ test('Stats and Lore from the poll; the tabs keep the focus in the input', async
   await tab(page, 'lore').click();
   const field = (key: string) => card(page).locator(`.wc-cc-lore [data-key="${key}"] .wc-cc-bv`);
   await expect(field('race')).toHaveText('Tarkhnarb orc');
-  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'tarkhnarb');
+  await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-portrait', 'tarkhnarb');
   await expect(field('alignment')).toHaveText('totally corrupted by the Evilness of Morgoth');
   await expect(field('citizen')).toHaveText('GoblinTown');
   await expect(field('height')).toHaveText('4′11″');
