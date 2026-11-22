@@ -17,9 +17,9 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { WebSocketRoute } from '@playwright/test';
 import { type DevWindow, type Step, play, sleep } from '../../../scripts/lib/mume-feed.ts';
-import { AMBIENT, BIRDS, DRINK, PREFEED, SHOWS, TAKE_S, commandOf } from '../../feeds/balloons.ts';
+import { AMBIENT, DRINK, FLOCKS, PREFEED, SHOWS, TAKE_S, commandOf } from '../../feeds/balloons.ts';
 import { FILM_BACKUP } from '../../feeds/film.ts';
-import { BALLOON_MODE, BALLOON_PAGE, PAGE_PX, type Seen, balloonList, balloonsSeen, enterFountain, queueFlightSeed, seedsLeft } from '../lib/balloon-state.ts';
+import { BALLOON_MODE, BALLOON_PAGE, PAGE_PX, type Seen, balloonList, balloonsSeen, enterFountain, queueFlightSeed, seedsLeft, skyScript } from '../lib/balloon-state.ts';
 import { Pointer, seeded } from '../lib/mouse.ts';
 import { excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
@@ -39,7 +39,7 @@ const READ_BEFORE_ENTER_S = 0.55;
 export const balloonsFountain: Scene = {
   mode: BALLOON_MODE,
   page: BALLOON_PAGE,
-  stepped: { workers: 2, x: PAGE_PX.x },
+  stepped: { workers: 2, x: PAGE_PX.x, workerScript: skyScript(FLOCKS, seeded(SEED + 1)) },
 
   async setup(page) {
     const runs = loadBackup(FILM_BACKUP);
@@ -80,7 +80,7 @@ export const balloonsFountain: Scene = {
         mark('ambient', a.step.out.toString('utf8').replace(/\x1b\[[0-9;]*m/g, '').split('\r\n')[1]!);
         await send(a.step.out);
       });
-    for (const at of BIRDS)
+    for (const { at } of FLOCKS)
       clock.schedule(T(at), async () => {
         mark('birds', 'a crossing');
         await page.evaluate(() => (window as unknown as DevWindow).__weather!.emit('birds'));

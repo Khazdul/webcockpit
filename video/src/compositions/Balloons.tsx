@@ -1,8 +1,9 @@
-// The balloon film (video/manuscript-balloons.md draft 2, stage 76), about
-// 2:54 at 1920×1080, 60 fps: one take at the fountain in Bree (take
+// The balloon film (video/manuscript-balloons.md draft 3, stage 76), about
+// 2:57 at 1920×1080, 60 fps: one take at the fountain in Bree (take
 // balloons-fountain) between two cards on black.
 //
-//   0      the title: the name alone, then the line under it; out
+//   0      the title: the name alone, the line under it, the joke below
+//          (its space kept from the start: nothing moves); out together
 //   1-3    the take, faded in and out; the pointer drawn from its input
 //          log; two captions high on the left, outside the balloons' lane
 //          and away from the input line, where the commands are typed
@@ -11,7 +12,8 @@
 // The balloons fly at their real speed: the take is frame-stepped (one new
 // picture per film frame, record/lib/frame-clock.ts) and never retimed.
 // "Into The Wilds" from its start, faded out over 11 s into a phrase's end
-// (the dip at 173.8 s, about 5 dB under what surrounds it).
+// (177.0 s: the harmony turns there, on the music's 4 s grid, and the next
+// phrase's downbeat strikes at 177.04).
 import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from 'remotion';
 import pkg from '../../../package.json';
 import { LowerThird, Rule } from '../components/Caption';
@@ -28,17 +30,19 @@ export const BALLOONS_TAKE = 'balloons-fountain';
 /** The version as the film names it: major and minor. */
 const VERSION = pkg.version.split('.').slice(0, 2).join('.');
 
-const TITLE = { nameIn: [0.4, 1.8], lineIn: [3.8, 5.0], out: [7.6, 9.0] } as const;
+const TITLE = { nameIn: [0.4, 1.8], lineIn: [3.8, 5.0], jokeIn: [7.2, 7.9], out: [11.4, 12.7] } as const;
+const JOKE = '(Nobody asked. We did it anyway.)';
 /** The take's first frame (a breath of black after the title). */
-const GAME_AT_S = 9.4;
+const GAME_AT_S = 13.1;
 const GAME_IN_S = 1.8;
 const GAME_OUT_S = 3.0;
-/** The music's phrase end (a dip in its loudness). */
-const PHRASE_END_S = 173.8;
+/** The music's phrase end (just before the next one's downbeat). */
+const PHRASE_END_S = 177.0;
 /** The long fade into it. */
 const MUSIC_FADE_S = 11;
-export const BALLOONS_END_S = 174.2;
-const END_CARD = { afterGame: 0.6, inS: 1.5, outS: 2.4 } as const;
+export const BALLOONS_END_S = 177.4;
+/** Fully readable 7.0 s (round 2: 6.9 s). */
+const END_CARD = { afterGame: 0.6, inS: 1.3, outS: 2.0 } as const;
 
 const CREDIT = "'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au";
 const CAPTION_KINDS = ['Balloons rise for kills, level ups and achievements.', 'And when you die.'];
@@ -64,6 +68,7 @@ function Title() {
         <Rule width={460} />
         <div style={{ fontFamily: TEXT_FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 48, color: MIST }}>Now with hot-air balloons.</div>
       </div>
+      <div style={{ fontFamily: TEXT_FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 36, lineHeight: 1.3, marginTop: 26, color: MIST, opacity: interpolate(s, TITLE.jokeIn, [0, 1], soft) }}>{JOKE}</div>
     </AbsoluteFill>
   );
 }

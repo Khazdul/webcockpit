@@ -70,7 +70,7 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
   const browser = await launch(mode);
   try {
     const { page } = await newPage(browser, mode, BASE, scene.page);
-    const clock = scene.stepped ? await FrameClock.install(page) : null;
+    const clock = scene.stepped ? await FrameClock.install(page, scene.stepped?.workerScript) : null;
     const state = await scene.setup(page);
     const marks = new Marks(mode.dpr);
     if (clock) return await recordStepped(sceneName, modeName, page, clock, marks, state, keep);
