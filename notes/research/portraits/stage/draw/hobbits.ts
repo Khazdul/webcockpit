@@ -1,7 +1,7 @@
 // The hobbits' portraits (stage 77's portrait pass, notes/research/portraits/
 // style.md, built on the dwarves' parts). The base hobbit is the balloon
 // hobbit's head (src/weather/balloons/passengers/hobbit.ts: the curly mop
-// and its fringe, the leaf ears, the round face, the button nose, the
+// and its fringe, the leaf ears (smaller, a soft tip), the round face, the button nose, the
 // cream shirt, the mustard waistcoat with brass buttons and the green
 // neckcloth) re-drawn in the portrait head units. The three breeds are that
 // same figure with one mark pushed hard, and their size told by proportion
@@ -83,11 +83,23 @@ const curlyMass = (left: readonly Pt[], j: number, close: string, k = .55): stri
   const L = left.map(([x, y]) => [x * j, y] as const), R = [...L].reverse().map(([x, y]) => [-x, y] as const);
   return `${bumpy(L, k)}L${n(R[0]![0])},${n(R[0]![1])}${bumpy(R, k, false)}${close}`;
 };
-/** Curls: an ink spiral each (Large) and a light tick of sheen on its upper right. */
+/**
+ * Curl clumps: rounded locks, each a gradient mass (dark left, lit right)
+ * with its shadow side hatched and strands curving inside it, as the
+ * dwarves' beards are made. No outline: the ink is on the outer silhouette
+ * only. Drawn top to bottom, so the lower locks overlap the upper.
+ */
 const curls = (c: Ctx, at: readonly (readonly [number, number, number])[], hi: string, op = .9): string => {
-  const ink = at.map(([x, y, r]) => `M${n(x - r)},${n(y + r * .3)}C${n(x - r)},${n(y - r * 1.25)} ${n(x + r * 1.2)},${n(y - r * 1.25)} ${n(x + r)},${n(y + r * .2)}C${n(x + r * .8)},${n(y + r * 1.1)} ${n(x - r * .3)},${n(y + r * 1.1)} ${n(x - r * .1)},${n(y + r * .1)}`).join('');
-  const lit = at.map(([x, y, r]) => `M${n(x - r * .3)},${n(y - r * .95)}Q${n(x + r * .75)},${n(y - r * 1.05)} ${n(x + r * .95)},${n(y)}`).join('');
-  return strands(c, ink, lit, hi, op);
+  const sorted = [...at].sort((a, b) => a[1] - b[1]);
+  let out = '', ink = '', lit = '';
+  for (const [x, y, r] of sorted) {
+    const P = (a: number, b: number): string => `${n(x + a * r)},${n(y + b * r)}`;
+    out += `<path d="M${P(1, 0)}C${P(1, -1.1)} ${P(-.9, -1.2)} ${P(-1, 0)}C${P(-1.05, .55)} ${P(-.6, .95)} ${P(-.1, 1)}C${P(.5, 1)} ${P(1, .6)} ${P(1, 0)}Z" fill="${c.url('h')}" stroke="none"/>` +
+      `<path d="M${P(-1, 0)}C${P(-1.05, .55)} ${P(-.6, .95)} ${P(-.1, 1)}C${P(-.6, .6)} ${P(-.72, .1)} ${P(-.45, -.85)}C${P(-.8, -.62)} ${P(-1, -.3)} ${P(-1, 0)}Z" fill="${c.url('p')}" stroke="none"/>`;
+    ink += `M${P(-.7, .6)}C${P(-.9, -.4)} ${P(.2, -.95)} ${P(.75, -.3)}M${P(-.3, .85)}C${P(-.42, .1)} ${P(.2, -.32)} ${P(.62, .25)}`;
+    lit += `M${P(-.35, .35)}C${P(-.38, -.42)} ${P(.32, -.72)} ${P(.78, -.12)}`;
+  }
+  return out + strands(c, ink, lit, hi, op);
 };
 
 // ---- the palette ----
@@ -204,7 +216,7 @@ const backHair = (c: Ctx, s: Spec): string => {
     ? wx('M-42,72C-60,70 -74,56 -76,36C-78,10 -72,-30 -50,-56C-38,-66 -20,-72 -4,-73C-30,-58 -44,-30 -46,0C-48,30 -46,56 -42,72Z', j)
     : wx('M-50,16C-62,10 -70,-8 -68,-26C-64,-46 -46,-64 -20,-71C-36,-56 -44,-40 -46,-24C-48,-10 -48,4 -50,16Z', j);
   const deep = c.fem ? wx('M-42,72C-60,70 -74,56 -76,36C-78,10 -74,-14 -68,-28C-70,0 -68,40 -42,72Z', j) : '';
-  return mass(H, c.url('h'), 1.2, sh, c, deep) + (c.fem ? curls(c, CURL_F.map(([x, y]) => [x * j, y, 4.6] as const), s.hair[2]) : '');
+  return mass(H, c.url('h'), 1.2, sh, c, deep) + (c.fem ? curls(c, CURL_F.map(([x, y]) => [x * j, y, 8] as const), s.hair[2]) : '');
 };
 
 /** The balloon's fringe: curls tumbling over the forehead, above the brows. */
@@ -216,17 +228,17 @@ const fringe = (c: Ctx, s: Spec): string => {
   // the fringe has no outline at its top (it melts into the mop): only its scalloped lower edge is inked
   const bot = wx(B('M34,-12C30,-18 27,-25 21,-23C17,-29 9,-28 6,-23C1,-29 -7,-28 -10,-23C-16,-28 -24,-25 -26,-19C-30,-18 -32,-15 -34,-12'), j);
   return (c.fem ? '' : `<path d="${side}" fill="${c.url('p')}" stroke="none"/>`) + `<path d="${F}" fill="${c.url('h')}" stroke="none"/><path d="${sh}" fill="${c.url('p')}" stroke="none"/><path d="${bot}" fill="none" stroke-width="1.1"/>` +
-    curls(c, CURL.map(([x, y]) => [x * j, y, 4.4] as const), s.hair[2]);
+    curls(c, CURL.filter(([x, y]) => y < -12 || Math.abs(x) < 44).map(([x, y]) => [x * j, y, 7.4] as const), s.hair[2]);
 };
 
 /** The balloon's leaf ears, pointed up and out (the hobbit's mark in every size). */
 const ears = (c: Ctx, s: Spec): string => {
-  const j = s.jaw, E = wx(B('M-33,-8C-38,-13 -44,-19 -49,-25C-50,-14 -47,-3 -42,3C-39,6 -35,5 -33,1Z'), j);
-  const inner = wx(B('M-37,-9C-40,-12 -43,-15 -45.5,-18.5C-45.5,-12 -44,-7 -41,-3'), j);
+  const j = s.jaw, E = wx('M-44,-6C-48,-12 -52,-16 -56,-19C-58,-10 -57,2 -53,10C-50,16 -46,17 -43,13Z', j);
+  const inner = wx('M-47,-5C-50,-8 -52,-10 -54,-12.5C-54.5,-6 -53,0 -50,5', j);
   const [s0, s1] = s.skin;
   return `<path d="${E}" fill="${mix(s0, s1, .55)}" stroke-width="1.2"/><path d="${E}" fill="${c.url('p')}" stroke="none"/><path d="${inner}" fill="none" stroke-width=".9"/>` +
     `<path d="${mir(E)}" fill="${mix(s1, s.skin[2], .4)}" stroke-width="1.2"/><path d="${mir(inner)}" fill="none" stroke-width=".9"/>` +
-    `<ellipse cx="${n(-56 * j)}" cy="-4" rx="4" ry="7" fill="#c2553e" opacity=".22" stroke="none"/><ellipse cx="${n(56 * j)}" cy="-4" rx="4" ry="7" fill="#c2553e" opacity=".22" stroke="none"/>`;
+    `<ellipse cx="${n(-51 * j)}" cy="1" rx="3" ry="5" fill="#c2553e" opacity=".22" stroke="none"/><ellipse cx="${n(51 * j)}" cy="1" rx="3" ry="5" fill="#c2553e" opacity=".22" stroke="none"/>`;
 };
 
 // ---- the face (the balloon's round face, shortened) ----
@@ -270,7 +282,7 @@ const chops = (c: Ctx, s: Spec): string => {
   const j = s.jaw, hi = s.hair[2];
   const C = wx(bumpy([[-44, -16], [-54, -4], [-60, 10], [-62, 26], [-58, 40], [-50, 52], [-38, 60]], .5) + 'L-30,46C-36,36 -40,22 -40,8C-40,-2 -40,-10 -38,-16Z', j);
   const Bd = wx('M-38,42C-26,46 -12,47 0,47C12,47 26,46 38,42' + bumpy([[38, 42], [36, 56], [26, 66], [10, 72], [-10, 72], [-26, 66], [-36, 56], [-38, 42]], .5, false) + 'Z', j);
-  const at = ([[-52, 0, 4.4], [-56, 16, 4.6], [-55, 32, 4.6], [-48, 46, 4.4], [-36, 54, 4], [-22, 60, 4], [-8, 64, 4], [8, 64, 4], [22, 60, 4], [36, 54, 4], [48, 46, 4.4], [55, 32, 4.6], [56, 16, 4.6], [52, 0, 4.4]] as const).map(([x, y, r]) => [x * j, y, r] as const);
+  const at = ([[-52, 0, 7], [-56, 16, 7.4], [-55, 32, 7.4], [-48, 46, 7], [-36, 56, 7], [-20, 62, 7], [0, 64, 7], [20, 62, 7], [36, 56, 7], [48, 46, 7], [55, 32, 7.4], [56, 16, 7.4], [52, 0, 7]] as const).map(([x, y, r]) => [x * j, y, r] as const);
   return mass(Bd, c.url('h'), 1.2, wx('M-38,42C-26,46 -12,47 -4,47C-14,56 -16,64 -12,72C-24,68 -34,58 -38,42Z', j), c) +
     mass(C, c.url('h'), 1.2, C, c) + `<path d="${mir(C)}" fill="${mix(s.hair[0], s.hair[1], .8)}" stroke-width="1.2"/>` +
     curls(c, at, hi);
@@ -313,15 +325,18 @@ const deco = (c: Ctx, s: Spec): string => {
     `<path d="${wx('M10,-74C34,-70 52,-52 56,-28', j)}" fill="none" stroke="#f0a080" stroke-width="1.3" opacity=".5"/>` + knot;
 };
 
+/** The hobbits are young and cheerful: the eye's lines under it (parts.ts eye(), opacity .8) drawn at .28. */
+const young = (e: string): string => e.replace(/(stroke-width="\.6" stroke-linecap="round" opacity=")\.8"/g, '$1.28"');
+
 // ---- the whole figure ----
 const draw = (s: Spec): Draw => (o) => {
   const c = ctx(o), fem = c.fem;
   const k = s.head, headT = k === 1 ? '' : ` transform="translate(0,${n(-30 * (1 - k))}) scale(${k})"`;
   const kerchief = fem && s.deco === 'kerchief';
-  const head = pen(c, neck(c, s), true) + pen(c, backHair(c, s), s.fair) + (kerchief ? '' : pen(c, ears(c, s), true)) + pen(c, face(c, s), true) +
-    (s.chops && !fem ? pen(c, chops(c, s), s.fair) : '') + pen(c, fringe(c, s), s.fair) +
+  const head = pen(c, neck(c, s), true) + pen(c, backHair(c, s), s.fair) + (kerchief || s.chops ? '' : pen(c, ears(c, s), true)) + pen(c, face(c, s), true) +
+    (s.chops && !fem ? pen(c, chops(c, s), s.fair) : '') + (s.chops && !kerchief ? pen(c, ears(c, s), true) : '') + pen(c, fringe(c, s), s.fair) +
     pen(c, nose(c, s) + (fem ? lips(c) : smile(c)), true) +
-    pen(c, eyes(c, { lidFill: dark(s.skin[1], .1), lowFill: s.skin[1], ...s.eye, lash: fem, size: fem ? 1.06 : 1 }, s.brow), true) +
+    pen(c, young(eyes(c, { lidFill: dark(s.skin[1], .1), lowFill: s.skin[1], ...s.eye, lash: fem, size: fem ? 1.06 : 1 }, s.brow)), true) +
     (fem ? pen(c, deco(c, s)) : '') + (kerchief ? pen(c, ears(c, s), true) : '');
   const body = `<g transform="translate(0,${s.drop})">${pen(c, bust(c, s))}</g><g${headT}>${head}</g>`;
   return svg(c, defs(c, s), body);
