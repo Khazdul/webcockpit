@@ -4,7 +4,7 @@
 // the pane builds a figure only when the portrait changes.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const art = vi.hoisted(() => vi.fn(async () => null as string | null));
+const art = vi.hoisted(() => vi.fn(async (_doc: Document, _id: string, _sex: string, _size: string, _px: number) => null as string | null));
 vi.mock('../../src/panes/portraits', async (orig) => ({ ...(await orig<typeof import('../../src/panes/portraits')>()), portraitArt: art }));
 import { SUBRACE_RACE, raceKind, subraceKind } from '../../src/gmcp/race';
 import { PORTRAIT_IDS, isPortraitId, portraitImage, portraitOf, portraitRace, rasterIds, rasterName } from '../../src/panes/portrait';
