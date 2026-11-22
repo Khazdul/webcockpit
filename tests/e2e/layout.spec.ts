@@ -151,9 +151,20 @@ test('default layout (wide case, ADR 0102): game left, the input row under it as
   // The same inset on all four sides (owner feedback 15): equal gaps beside and above; 1 px clear of the text.
   for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
   expect(geo.inset[0]! + lw).toBeLessThanOrEqual(cw - 1 + 0.01);
-  // The hood: centred on the frame, from its top edge, hanging below the band, clear of the first text row.
+  // The hood: from the frame's top edge, hanging below the band, clear of the first text row. Character's
+  // long title makes room for its hover set (stage 77: it has a Gear): moved left just enough, ending
+  // where the set's twelve cells begin (ADR 0123 "Hood position and hover buttons"). UI, without a Gear
+  // and with a short title, stays centred on the frame.
   const [x0, x1, y0, y1, pr] = geo.plate as [number, number, number, number, number];
-  expect(Math.abs(x0 - (geo.fw - x1))).toBeLessThan(0.05);
+  const setFrom = (33 - 12) * cw - geo.inset[0]!;
+  expect(x1).toBeLessThanOrEqual(setFrom + 0.05);
+  expect(x1).toBeGreaterThan(setFrom - 1.05);
+  expect(x0).toBeLessThan(geo.fw - x1);
+  const ui = await page.locator('.wc-pane-ui').evaluate((el) => {
+    const v = (k: string): number => parseFloat((el as HTMLElement).style.getPropertyValue(k));
+    return { x0: v('--plate-x0'), x1: v('--plate-x1'), fw: el.querySelector('.wc-pane-frame')!.getBoundingClientRect().width };
+  });
+  expect(Math.abs(ui.x0 - (ui.fw - ui.x1))).toBeLessThan(0.05);
   expect(x1 - x0).toBeGreaterThan(9 * geo.titlePx * 0.5);
   expect(y0).toBe(0);
   expect(y1).toBeGreaterThan(lw + pr);
