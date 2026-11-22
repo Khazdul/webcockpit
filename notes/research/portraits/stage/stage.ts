@@ -47,11 +47,19 @@ const cols = q.get('medium') ? COLS.filter((c) => c.disc < 70) : COLS;
 const DARK_BORDER = '#5c4a30';
 const PAPER_BORDER = '#9c8458';
 
-async function drawings(): Promise<Map<PortraitId, PortraitSet[PortraitId]>> {
+/** The drawings of the groups shown: only their own files, each on its own (a broken file does not stop the others). */
+async function drawings(errors: string[]): Promise<Map<PortraitId, PortraitSet[PortraitId]>> {
   const all = new Map<PortraitId, PortraitSet[PortraitId]>();
-  for (const load of Object.values(MODULES)) {
-    const m = await load();
-    for (const [id, d] of Object.entries(m.portraits)) all.set(id as PortraitId, d);
+  const groups = Object.keys(GROUPS).filter((k) => GROUPS[k]!.some((id) => ids.includes(id)));
+  for (const k of groups) {
+    const load = MODULES[`./draw/${k}.ts`];
+    if (!load) continue;
+    try {
+      const m = await load();
+      for (const [id, d] of Object.entries(m.portraits)) all.set(id as PortraitId, d);
+    } catch (e) {
+      errors.push(`draw/${k}.ts: ${String(e)}`);
+    }
   }
   return all;
 }
@@ -88,7 +96,7 @@ function medal(disc: number, ring: number, light: boolean, content: Element): HT
 async function main(): Promise<void> {
   const out = document.getElementById('out')!;
   const errors: string[] = [];
-  const all = await drawings();
+  const all = await drawings(errors);
   const dpr = window.devicePixelRatio || 1;
   const table = h('table', 'sheet');
   const head = h('tr');
