@@ -203,3 +203,30 @@ describe('CharModel: exact or band', () => {
     expect(VITAL_KINDS.map((k) => c.view().vitals[k].exact)).toEqual([true, false, true]);
   });
 });
+
+describe('wimpy and berserk (help mood)', () => {
+  it('becoming berserk sets it to 0, and leaving does not bring it back', () => {
+    const c = new CharModel();
+    c.apply('Char.Vitals', { mood: 'wimpy' });
+    c.setWimpy(269);
+    c.apply('Char.Vitals', { mood: 'berserk' });
+    expect(c.view().wimpy).toBe(0);
+    c.apply('Char.Vitals', { mood: 'brave' });
+    expect(c.view().wimpy).toBe(0);
+  });
+
+  it('a line while berserk holds', () => {
+    const c = new CharModel();
+    c.apply('Char.Vitals', { mood: 'Berserk' });
+    c.setWimpy(40);
+    c.apply('Char.Vitals', { mood: 'berserk', hp: 120 });
+    expect(c.view().wimpy).toBe(40);
+  });
+
+  it('another mood leaves it alone', () => {
+    const c = new CharModel();
+    c.setWimpy(269);
+    c.apply('Char.Vitals', { mood: 'aggressive' });
+    expect(c.view().wimpy).toBe(269);
+  });
+});

@@ -7,7 +7,9 @@
 // - `Char.Vitals`: a flat object merged key by key. A key that is absent
 //   keeps its value; JSON `null` sets it to null ("off" for the toggles).
 //   `wimpy` is also set from the text lines `Wimpy set to: N` /
-//   `Wimpy removed.` (system rules, `setWimpy`).
+//   `Wimpy removed.` (system rules, `setWimpy`). A mood that becomes
+//   berserk sets it to 0: MUME does that without a line (`help mood`), and
+//   it stays 0 when the mood changes again.
 // - Exact or band, per bar (stage 77 decision 11, ADR 0166 addendum part B;
 //   bands.ts): `exact` is "this bar's last update was a number". A message
 //   with a numeric `hp` is exact, also with `hp-string` beside it; with
@@ -146,7 +148,9 @@ export class CharModel {
         return changed;
       }
       case 'char.vitals': {
+        const wasBerserk = this.berserk();
         const changed = this.merge(this.vitals, data);
+        if (!wasBerserk && this.berserk()) this.setWimpy(0);
         const flipped = this.noteExact(data);
         if (flipped && !changed) this.version++;
         this.anchor();
@@ -180,6 +184,10 @@ export class CharModel {
     }
     if (changed) this.version++;
     return changed;
+  }
+
+  private berserk(): boolean {
+    return lower(this.vitals.get('mood')) === 'berserk';
   }
 
   /** Exact or band from one message; true when a bar flipped. */

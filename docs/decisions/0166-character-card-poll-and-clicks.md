@@ -108,3 +108,14 @@ The answer's reader (`src/gmcp/info-answer.ts`):
     number. Their wording is inferred. Other shapes are unreadable and
     never guessed, war fame without its number and a purse that names no
     coin included.
+
+## Addendum 2 (2026-11-22): wimpy
+
+19. Wimpy is not in GMCP. The poll gets `%y` and is sent once at login
+    also with no tab open (the owner). Part C adds the field and the
+    trigger.
+20. Between polls it follows the two text lines. A mood that becomes
+    berserk sets it to 0 in `CharModel`, since MUME does so without a
+    line (`help mood`, not seen live). In a shared run a berserk inside
+    an excluded range can make the fold keep that segment's records: its
+    check sees the difference, and nothing replays wrong.

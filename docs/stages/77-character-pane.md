@@ -10,7 +10,7 @@ stay.
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B built on
 `stage-77b`**, not merged: e2e and the owner's look remain. Part C waits
-for the owner's go and the wimpy decision (open points). Each part stops for the owner's
+for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -175,7 +175,7 @@ the page.
 | Mood, alertness, position, toggles | `Char.Vitals` |
 | Casts | `Char.Vitals` `spell-effort` (seen: `"normal"`, `"thorough"`) |
 | Weight step | `Char.Vitals` `carrying` (six words, part A) |
-| Wimpy | **not in GMCP** (found in part B). Today only the lines `Wimpy set to: N` and `Wimpy removed.`, so unknown after a login (open point) |
+| Wimpy | **not in GMCP** (found in part B): `%y` of the poll (once at login, then with it), the lines `Wimpy set to: N` and `Wimpy removed.`, and 0 on berserk |
 | Race, subrace | `Char.StatusVars` |
 | Everything in Stats and Lore | the hidden `info` poll |
 
@@ -201,7 +201,9 @@ comment naming `help age`. The change between brackets is linear.
 
 ### The hidden info poll
 
-- **Only Stats and Lore send commands.** Status never does.
+- **Only Stats and Lore send commands**, with one exception (owner, after
+  part B): one poll at login, for the wimpy (`%y`, a field of every poll).
+  Status never does.
 - **One command with sentinels**, so the answer can be found and hidden:
   `info ‹wc‹%l|%O|%D|%k|%A|%S|%i|%w|%d|%o|%I|%p|%G|%a|%N|%n|%h|%W|%C|%F|%q|%c|%r|%K|%v|%H|%s›wc›`
   (the final field list follows the tabs). Everything from the start
@@ -579,15 +581,19 @@ whole years, the card counts 57 years 7 months 7 days, as `help age`'s
 
 ## Open points
 
-For the owner, before part C:
+Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
+so `%y` joins the poll and the poll is sent once at login, also with no
+tab open (the exception to "Only Stats and Lore send commands"). After
+that the value follows:
 
-- **Wimpy is not in GMCP**, so decision 12's arrow is missing after every
-  login until the wimpy is set. `info %y` gives it (269 in the live run)
-  and `stat` prints it. Suggestion: add `%y` to the poll and send the poll
-  once at login, also when no tab is open. That is an exception to "Only
-  Stats and Lore send commands", so it is the owner's to decide. Without
-  it: `%y` in the poll only, and the arrow comes when Stats or Lore is
-  first opened.
+- `Wimpy set to: N` and `Wimpy removed.` (the client's rules since
+  before). In the Cockpit logs: 54 such lines, and no case where `stat`
+  or `info` showed a change that had no such line.
+- A mood that becomes berserk sets it to 0 (`help mood`; not seen live).
+- Each poll after that.
+
+To check live in part C: what `change wimpy 33%` prints. The rule reads
+the line's number as hit points.
 
 Decided by the owner 2026-11-22, all five as suggested, and written into
 decisions 9, 18 and 19 and the poll's rules: the Casts cycle, the click's
