@@ -104,8 +104,8 @@ test('the card from the GMCP demo; a replay sends nothing', async ({ page }) => 
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(card(page).locator('.wc-cc-name')).toHaveText('Rasta');
   await expect(card(page).locator('.wc-cc-level')).toHaveText('26');
-  // Part E: the demo's Dúnadan man has the human portrait (no raster file today).
-  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'human');
+  // Part E: the demo's Dúnadan man has the Dúnadan portrait (no raster file today).
+  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'dunadan');
   await expect(card(page).locator('.wc-cc-disc img')).toHaveCount(0);
   await expect(card(page).locator('[data-click="climb"]')).toHaveAttribute('data-on', '');
   await expect(card(page).locator('.wc-cc-vital[data-kind="mp"] .wc-cc-vn')).toHaveText('131');
@@ -187,7 +187,7 @@ test('Stats and Lore from the poll; the tabs keep the focus in the input', async
   await tab(page, 'lore').click();
   const field = (key: string) => card(page).locator(`.wc-cc-lore [data-key="${key}"] .wc-cc-bv`);
   await expect(field('race')).toHaveText('Tarkhnarb orc');
-  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'orc');
+  await expect(card(page).locator('.wc-cc-disc .wc-cc-fig')).toHaveAttribute('data-portrait', 'tarkhnarb');
   await expect(field('alignment')).toHaveText('totally corrupted by the Evilness of Morgoth');
   await expect(field('citizen')).toHaveText('GoblinTown');
   await expect(field('height')).toHaveText('4′11″');

@@ -13,11 +13,11 @@
 //   elf          elf and halfelf
 //   dwarf, hobbit, troll   as named
 //   human        beorning (a Bear is drawn as a human) and human
-//   orc          zaugurz
-//   goblin       orc (Tarkhnarb)
+//   orc          an orc whose subrace is the Zaugurz (`subraceKind`)
+//   goblin       any other orc (Tarkhnarb, Morruhk)
 //   goblin       anything else, and nothing at all (before login, the demo)
 
-import { raceKind, raceWords } from '../../gmcp/race';
+import { raceKind, raceWords, subraceKind } from '../../gmcp/race';
 
 /** The eight passengers (notes/research/balloons/round5/skins/<id>.js). */
 export const PASSENGER_IDS = ['dwarf', 'elf', 'human', 'hobbit', 'troll', 'goblin', 'orc', 'numenorean'] as const;
@@ -44,10 +44,8 @@ export function passengerOf(race: string | null | undefined, subrace?: string | 
     case 'beorning':
     case 'human':
       return 'human';
-    case 'zaugurz':
-      return 'orc';
     case 'orc':
-      return 'goblin';
+      return subraceKind(race, subrace) === 'zaugurz' ? 'orc' : 'goblin';
     case null:
       return 'goblin';
   }

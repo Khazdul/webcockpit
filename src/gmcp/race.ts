@@ -40,13 +40,34 @@
 //   troll       troll(s)
 //   beorning    bear(s) and a word "beorn…" (Beorning), with or without a
 //               subrace
-//   zaugurz     a word "zaug…" (Zaugurz), with or without orc(s)
-//   orc         any other orc(s) (Tarkhnarb)
+//   orc         orc(s), or a word naming an orc's kind ("tarkh…",
+//               "morru…", "zaug…") with or without orc(s): the house
+//               names are only orcs' (Zaugurz alone was the orc since
+//               the balloons)
 //   human       man, men, human
 //   none        anything else, and nothing at all
 //
+// The subrace's kind (`subraceKind`: which portrait, stage 77 part E,
+// ADR 0166 addendum 11) is read only within the race's kind, so a word
+// counts only beside its race ("Cave" without troll is nothing, a lone
+// "Dunadan" has no race and so no subrace):
+//
+//   human     dunadan ("dunad…", "duned…"), eriadorian ("eriador…"),
+//             rohirrim ("rohir…")
+//   elf       noldo ("noldo…": Noldo, Noldor, Noldorin), sinda ("sinda…"),
+//             silvan ("silvan…")
+//   hobbit    fallohide ("fallohide…"), harfoot ("harfoot…", "harfeet"),
+//             stoor ("stoor…")
+//   dwarf     longbeard, firebeard, broadbeam (and their plurals)
+//   orc       tarkhnarb ("tarkh…"), morruhk ("morru…", also "morrukh"),
+//             zaugurz ("zaug…")
+//   troll     cavetroll, hilltroll, mountaintroll (the word cave, hill or
+//             mountain)
+//   none      anything else: halfelf, beorning and numenorean have no
+//             subraces of their own.
+//
 // Words, not substrings: "Dunadan" is no "man", and "human" is matched as
-// a word of its own. The prefixes ("numenor", "beorn", "zaug") are the only
+// a word of its own. The stems above, "numenor" and "beorn" are the only
 // partial matches.
 
 /** The age factors of `help age`. */
@@ -64,7 +85,7 @@ export function raceWords(s: string | null | undefined): string[] {
 }
 
 /** What `raceKind` tells apart (see the file header). */
-export type RaceKind = 'numenorean' | 'halfelf' | 'elf' | 'dwarf' | 'hobbit' | 'troll' | 'beorning' | 'zaugurz' | 'orc' | 'human';
+export type RaceKind = 'numenorean' | 'halfelf' | 'elf' | 'dwarf' | 'hobbit' | 'troll' | 'beorning' | 'orc' | 'human';
 
 /** The race's kind (see the file header), or null for anything else and nothing at all. */
 export function raceKind(race: string | null | undefined, subrace?: string | null): RaceKind | null {
@@ -79,9 +100,84 @@ export function raceKind(race: string | null | undefined, subrace?: string | nul
   if (is('hobbit', 'hobbits')) return 'hobbit';
   if (is('troll', 'trolls')) return 'troll';
   if (is('bear', 'bears') || starts('beorn')) return 'beorning';
-  if (starts('zaug')) return 'zaugurz';
-  if (is('orc', 'orcs')) return 'orc';
+  if (is('orc', 'orcs') || starts('tarkh') || starts('morru') || starts('zaug')) return 'orc';
   if (is('man', 'men', 'human')) return 'human';
+  return null;
+}
+
+/** What `subraceKind` tells apart (see the file header). */
+export type SubraceKind =
+  | 'dunadan'
+  | 'eriadorian'
+  | 'rohirrim'
+  | 'noldo'
+  | 'sinda'
+  | 'silvan'
+  | 'fallohide'
+  | 'harfoot'
+  | 'stoor'
+  | 'longbeard'
+  | 'firebeard'
+  | 'broadbeam'
+  | 'tarkhnarb'
+  | 'morruhk'
+  | 'zaugurz'
+  | 'cavetroll'
+  | 'hilltroll'
+  | 'mountaintroll';
+
+/** Each subrace's race kind, also the order of the portraits. */
+export const SUBRACE_RACE: Readonly<Record<SubraceKind, RaceKind>> = {
+  dunadan: 'human',
+  eriadorian: 'human',
+  rohirrim: 'human',
+  noldo: 'elf',
+  sinda: 'elf',
+  silvan: 'elf',
+  fallohide: 'hobbit',
+  harfoot: 'hobbit',
+  stoor: 'hobbit',
+  longbeard: 'dwarf',
+  firebeard: 'dwarf',
+  broadbeam: 'dwarf',
+  tarkhnarb: 'orc',
+  morruhk: 'orc',
+  zaugurz: 'orc',
+  cavetroll: 'troll',
+  hilltroll: 'troll',
+  mountaintroll: 'troll',
+};
+
+/** The stems that name each subrace, tried within its race kind in this order. */
+const SUBRACE_STEMS: Readonly<Record<SubraceKind, readonly string[]>> = {
+  dunadan: ['dunad', 'duned'],
+  eriadorian: ['eriador'],
+  rohirrim: ['rohir'],
+  noldo: ['noldo'],
+  sinda: ['sinda'],
+  silvan: ['silvan'],
+  fallohide: ['fallohide'],
+  harfoot: ['harfoot', 'harfeet'],
+  stoor: ['stoor'],
+  longbeard: ['longbeard'],
+  firebeard: ['firebeard'],
+  broadbeam: ['broadbeam'],
+  tarkhnarb: ['tarkh'],
+  morruhk: ['morru'],
+  zaugurz: ['zaug'],
+  cavetroll: ['cave'],
+  hilltroll: ['hill'],
+  mountaintroll: ['mountain'],
+};
+
+/** The subrace's kind (see the file header), or null: unknown, or a race with none. */
+export function subraceKind(race: string | null | undefined, subrace?: string | null): SubraceKind | null {
+  const kind = raceKind(race, subrace);
+  if (kind === null) return null;
+  const w = [...raceWords(race), ...raceWords(subrace)];
+  for (const [sub, stems] of Object.entries(SUBRACE_STEMS) as Array<[SubraceKind, readonly string[]]>) {
+    if (SUBRACE_RACE[sub] === kind && w.some((x) => stems.some((p) => x.startsWith(p)))) return sub;
+  }
   return null;
 }
 
