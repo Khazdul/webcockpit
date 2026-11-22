@@ -151,7 +151,9 @@ export class CharacterPane extends PaneShell {
     const s: Readonly<Settings> = this.ctx.settings.get();
     const { ramp } = paneShade(s, 'character');
     const view = this.ctx.game.char.view();
-    const key = JSON.stringify([view, ramp, this.cols, this.rows]);
+    // Only what the board draws: the view also has values for the card (stage 77).
+    const { name, level, xp, tp, toggles, mood, alertness, position, wimpy, maxhp } = view;
+    const key = JSON.stringify([name, level, xp, tp, toggles, mood, alertness, position, wimpy, maxhp, ramp, this.cols, this.rows]);
     if (key === this.shownKey) return;
     this.shownKey = key;
     this.list.update(this.ctx.doc, characterLines(view, ramp, this.cols, this.rows));
