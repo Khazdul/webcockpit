@@ -311,3 +311,13 @@ sekunder. Sen börjar vi. Bygg sen om också kör vi på detta."
 - Then build it: this is the film.
 
 `video/manuscript-balloons.md`, draft 3.
+
+## Round 4 (2026-11-22): the title's name
+
+The owner: the title shall say MUMECOCKPIT, not WEBCOCKPIT, without doing
+all of it again. One line in `Balloons.tsx` (3a0cf362), rendered from
+round 3's take as `out/balloon-film-r4*`; nothing recorded again. Against
+round 3's master: the title differs, the audio is identical, and after
+the title only 19 frames (18.87–19.95 s) differ, in the antialiasing of
+the drawn pointer at the Settings icon. Test: watch 0:00–0:13; upload r4,
+not r3. The presentation films still say WebCockpit on their cards.

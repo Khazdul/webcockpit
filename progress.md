@@ -79,7 +79,7 @@
 | 73 | The shared replay, round 2 | Done, released 0.20.1 | `docs/stages/73-shared-replay-round-2.md` |
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
-| 76 | The balloon film | Round 3 (final film) rendered, not published | `docs/stages/76-balloon-film.md` |
+| 76 | The balloon film | Round 4 (final, title fix) rendered, not published | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Part A done (ADR 0166); part B waits for the owner's go | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
@@ -132,6 +132,17 @@ with no stage of their own. Remove a line when it is done.
   emote-at-you in private chats is a heuristic.
 
 ## Session log
+
+### 2026-11-22 — Stage 76, the balloon film, round 4 (title fix)
+
+- **Done:** the title says MUMECOCKPIT (the owner's fix). Rendered from
+  round 3's take and compared with its master frame by frame. r4 files
+  and the YouTube text (new name, chapters) are in the owner's Downloads.
+- **Next:** the owner's OK for a 0.22.1 release (the Balloons help text in
+  the film), then the owner uploads r4.
+- **Open:** the presentation films say WebCockpit too; otherwise as in
+  round 3.
+- **Commits:** 3a0cf362 and this one.
 
 ### 2026-11-22 — Stage 76, the balloon film, round 3 (final)
 
