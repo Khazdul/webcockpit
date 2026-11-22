@@ -545,7 +545,6 @@ export class CardDom {
     const root = this.root;
     setProp(root, '--cc-ink', ramp.vtext!);
     setProp(root, '--cc-label', ramp.label!);
-    setProp(root, '--cc-mid', ramp.mid!);
     setProp(root, '--cc-track', ramp.track!);
     setProp(root, '--cc-low', signals.low);
     setProp(root, '--cc-critical', signals.critical);

@@ -27,7 +27,7 @@ import './character.css';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import type { CharView } from '../gmcp/char';
 import type { InfoAnswer } from '../gmcp/info-answer';
-import { type CardBox, type CardLayout, cardLayout } from './character-layout';
+import { type CardBox, type CardLayout, cardLayout, crossDepth } from './character-layout';
 import {
   type CardEnv,
   type CardTab,
@@ -90,6 +90,7 @@ export class CharacterPane extends PaneShell {
   private closed = false;
   /** Where the phone shows the pane (the cockpit's attributes, set before it places it). */
   private phone: CardBox['phone'];
+  private framed = false;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'character');
@@ -141,8 +142,10 @@ export class CharacterPane extends PaneShell {
     super.place(p, cell);
     if (!this.visible) this.stopTimer();
     const phone = this.el.hasAttribute('data-phone-side') ? 'side' : this.el.hasAttribute('data-phone-strip') ? 'strip' : undefined;
-    if (phone !== this.phone) {
+    const framed = p?.framed ?? false;
+    if (phone !== this.phone || framed !== this.framed) {
       this.phone = phone;
+      this.framed = framed;
       this.markDirty();
     }
     this.syncInfo();
@@ -234,12 +237,12 @@ export class CharacterPane extends PaneShell {
     const { ramp, light } = paneShade(s, 'character');
 
     const box = this.box(name, vitalDigits(v.vitals), s.character.height);
-    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}`)) {
+    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}`)) {
       this.layout = cardLayout(box);
       card.setLayout(this.layout);
     }
     const layout = this.layout!;
-    if (this.changed('theme', `${ramp.vtext}${ramp.label}${ramp.mid}${ramp.track}${light}${box.adv}`)) {
+    if (this.changed('theme', `${ramp.vtext}${ramp.label}${ramp.track}${light}${box.adv}`)) {
       const sig = signalColors(light);
       card.setTheme(ramp, light, box.adv, { low: sig.vitalLow, critical: sig.vitalCritical });
     }
@@ -276,7 +279,7 @@ export class CharacterPane extends PaneShell {
     // A plain source (tests) says no font size.
     const px = cell.px ?? cell.h * 0.85;
     if (this.nameEm.name !== name) this.nameEm = { name, em: Math.ceil((titleWidth(doc, name, 100) / 100 + 0.15) * 100) / 100 };
-    return { w: this.cols * cell.w, h: this.rows * cell.h, px, adv: cell.w / px, lock, nameEm: this.nameEm.em, digits, phone: this.phone };
+    return { w: this.cols * cell.w, h: this.rows * cell.h, px, adv: cell.w / px, lock, nameEm: this.nameEm.em, digits, phone: this.phone, cross: crossDepth({ phone: this.phone !== undefined, framed: this.framed, rowH: cell.h }) };
   }
 
   private renderVitals(v: CharView, layout: CardLayout, colors: Record<VitalKind, string>, light: boolean): void {

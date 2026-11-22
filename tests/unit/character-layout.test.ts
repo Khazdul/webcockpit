@@ -1,7 +1,7 @@
 // The Character card's sizes (stage 77 part D, ADR 0166 point 38): the
 // modes, and that nothing overlaps or leaves the box at any size.
 import { describe, expect, it } from 'vitest';
-import { type CardBox, type CardLayout, LARGE_MIN, MEDIUM_MIN, PHONE_GRIP, type Rect, cardLayout, cardMode } from '../../src/panes/character-layout';
+import { type CardBox, type CardLayout, LARGE_MIN, MEDIUM_MIN, PHONE_GRIP, type Rect, cardLayout, cardMode, crossDepth } from '../../src/panes/character-layout';
 
 const box = (over: Partial<CardBox> = {}): CardBox => ({ w: 480, h: 171, px: 16.61, adv: 0.602, lock: 'auto', nameEm: 3.6, digits: 3, ...over });
 
@@ -65,6 +65,7 @@ function problems(b: CardBox, l: CardLayout): string[] {
     for (let j = i + 1; j < parts.length; j++) if (overlap(parts[i]![1], parts[j]![1])) out.push(`${parts[i]![0]} on ${parts[j]![0]}`);
   }
   const { left, status, foot } = l;
+  if (b.cross && l.tabs.h >= 6 && l.tabs.y < b.cross) out.push('a tab is under the cross');
   if (left.form === 'column') {
     const icons = 5 * (left.icon + 2) + 5 * left.iconGap + 1;
     if (icons > left.w + 0.01) out.push('the icons are wider than the column');
@@ -93,9 +94,12 @@ describe('no overlap and nothing outside', () => {
           for (const w of widths) {
             for (const h of heights) {
               for (const [nameEm, digits] of [[3.6, 3], [26, 4]] as const) {
-                const b = box({ w, h, px, adv, lock, phone, nameEm, digits });
-                const p = problems(b, cardLayout(b));
-                if (p.length) bad.push(`${w}x${h} at ${px} ${phone ?? ''}: ${p.join(', ')}`);
+                for (const framed of phone ? [false] : [true, false]) {
+                  const cross = crossDepth({ phone: phone !== undefined, framed, rowH: px * 1.14 });
+                  const b = box({ w, h, px, adv, lock, phone, nameEm, digits, cross });
+                  const p = problems(b, cardLayout(b));
+                  if (p.length) bad.push(`${w}x${h} at ${px} ${phone ?? ''} ${framed}: ${p.join(', ')}`);
+                }
               }
             }
           }

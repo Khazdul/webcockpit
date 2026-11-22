@@ -20,6 +20,11 @@
 //   nothing (a float of a few cells).
 // - Status: four in a row; two rows where that would cost the words. The
 //   values' room is counted in the font's advance, so nothing is measured.
+// - Nothing to press stands under the pane's close cross (`crossDepth`):
+//   the tabs begin below it, and in a low pane with no border the tab's
+//   area does too, as the cross's row is the content's first. With no
+//   height left for three tabs they stand in a row, and at the last beside
+//   the bars, which then end before them.
 // - On a phone the tabs are wide enough for a finger, and in the landscape
 //   column they stand clear of the resize band's grip.
 // - The vitals' columns are Group's: 0.4 cell of padding, 0.7 of gap.
@@ -34,6 +39,30 @@ import type { VitalForm } from './character-model';
 /** The least content box of Large and of Medium, px. */
 export const LARGE_MIN = { w: 400, h: 160 } as const;
 export const MEDIUM_MIN = { w: 210, h: 106 } as const;
+
+/**
+ * How far a framed pane's cross reaches into the content: its box ends with
+ * the title row, its glyph's line box a few px below (layout.css; at most
+ * 6.9 measured, Firefox, 6–32 px fonts).
+ */
+const FRAMED_CROSS = 8;
+/** How far a borderless pane's cross reaches below its row (measured: 1). */
+const BORDERLESS_CROSS = 2;
+
+/**
+ * How far into the content the pane's close cross can be pressed, px: a
+ * phone has none, a framed pane's is in the title row, a borderless one's
+ * over the top row.
+ */
+export function crossDepth(where: { phone: boolean; framed: boolean; rowH: number }): number {
+  if (where.phone) return 0;
+  return where.framed ? FRAMED_CROSS : where.rowH + BORDERLESS_CROSS;
+}
+
+/** Below this three tabs do not stand under each other. */
+const TABS_STACK_MIN = 18;
+/** Below this the tabs go down beside the bars. */
+const TABS_MIN = 9;
 
 /** The least width of a tab for a finger. */
 const TOUCH_TAB = 26;
@@ -67,6 +96,8 @@ export interface CardBox {
   digits: number;
   /** Where the phone shows the pane: its strip, or the landscape column. */
   phone?: 'strip' | 'side' | undefined;
+  /** `crossDepth`: what the close cross takes of the top right. Default 0. */
+  cross?: number;
 }
 
 export interface Rect {
@@ -94,7 +125,8 @@ export interface CardLayout {
     iconGap: number;
   };
   main: Rect;
-  tabs: Rect & { form: 'vertical' | 'stacked' | 'marks'; px: number };
+  /** `marks`: no words, under each other. `row`: no words, side by side. */
+  tabs: Rect & { form: 'vertical' | 'stacked' | 'marks' | 'row'; px: number };
   status: {
     cols: 4 | 2 | 1;
     form: StatusForm;
@@ -175,15 +207,24 @@ export function cardLayout(b: CardBox): CardLayout {
   const cellW = b.px * adv;
   const pad = Math.min(cellW * 0.4, w * 0.03);
 
-  const foot = footLayout(b, k, cellW, pad);
+  let foot = footLayout(b, k, cellW, pad);
   const top = h >= 90 ? Math.round(3 * k) : 0;
   const body = Math.max(0, Math.floor(foot.y - Math.min(5 * k, h * 0.04) - top));
 
-  const tabs = tabsLayout(w, body, top, k, b.phone);
+  const cross = b.cross ?? 0;
+  const bottom = top + body;
+  const tabsY = Math.min(Math.max(top, cross), h);
+  // No room for them over the bars: down beside them.
+  const beside = cross > 0 && bottom - tabsY < TABS_MIN;
+  const tabs = tabsLayout(w, Math.max(0, (beside ? h : bottom) - tabsY), tabsY, k, b.phone);
   const gap = Math.round(Math.min(12 * k, w * 0.03));
+  if (beside) foot = footLayout({ ...b, w: Math.max(0, tabs.x - Math.max(gap, 2)) }, k, cellW, pad);
   const left = leftLayout(b, mode, k, { x: pad, y: top, h: body, room: tabs.x - pad - 2 * gap });
   const mainX = Math.round(left.form === 'none' ? pad : left.x + left.w + gap);
-  const main: Rect = { x: mainX, y: top, w: Math.max(0, Math.floor(tabs.x - gap - mainX)), h: body };
+  // Low and with no border, what the area holds would be under the cross's row.
+  const underCross = cross > FRAMED_CROSS && body < 2.6 * cross && bottom - cross >= 9;
+  const mainY = underCross ? Math.max(top, cross) : top;
+  const main: Rect = { x: mainX, y: mainY, w: Math.max(0, Math.floor(tabs.x - gap - mainX)), h: bottom - mainY };
 
   return { mode, scale: k, left, main, tabs, status: statusLayout(b, mode, k, main), info: infoLayout(b, k, main), foot };
 }
@@ -242,6 +283,10 @@ function tabsLayout(w: number, body: number, top: number, k: number, phone: Card
       wide = Math.ceil(px * TAB_EM + 8);
     }
   }
+  if (form === 'marks' && body < TABS_STACK_MIN) {
+    form = 'row';
+    wide = Math.round(Math.min(3 * Math.max(10, 11 * k), w * 0.33));
+  }
   if (phone) wide = Math.max(wide, Math.min(TOUCH_TAB, Math.round(w * 0.14)));
   const clear = phone === 'side' ? Math.min(PHONE_GRIP, w * 0.08) : 0;
   return { form, px, x: w - clear - wide, y: top, w: wide, h: body };
@@ -273,7 +318,7 @@ function leftLayout(b: CardBox, mode: CardMode, k: number, at: { x: number; y: n
     const ringWanted = (mode === 'large' ? 32 : 26) * k;
     // The halo round the disc, the ring that hangs below it.
     const high = body - nameH - (icon + 4) - 2 * space - 5 * k;
-    const wide = Math.min(most - 8 * k, mode === 'large' ? Math.min(Math.max(104 * k, b.w * 0.17), Math.max(b.w * 0.24, 84 * k)) : Math.min(64 * k, b.h * 0.36));
+    const wide = Math.min(most - 8 * k, mode === 'large' ? Math.min(Math.max(100 * k, b.w * 0.17), Math.max(b.w * 0.24, 84 * k)) : Math.min(64 * k, b.h * 0.36));
     const disc = Math.floor(Math.min(wide, high - ringWanted * 0.375, high / 1.1));
     if (disc >= 30) {
       const ring = Math.round(Math.min(ringWanted, Math.max(20, disc * 0.45)));
@@ -367,25 +412,26 @@ function infoLayout(b: CardBox, k: number, main: Rect): CardLayout['info'] {
   const shield = down(Math.max(Math.min(52 * k, w / shieldCols - 2, Math.max(34 * k, h * 0.28)), 8));
   const each = 25 * k;
   const abilityCols = [7, 4, 3, 2].find((n) => (w - (n - 1) * gap) / n >= each) ?? 1;
-  const side = w >= 338 * k;
+  const side = w >= 320 * k;
   const ageW = side ? (w - gap) * 0.565 : w;
   const sensesW = side ? w - gap - ageW : w;
-  const dense = h < 190 * k;
+  // Dense below what the tab needs at its full measure: side by side, or stacked.
+  const dense = h < (side ? 226 : 310) * k;
   const agePx = down(Math.max(8, 9 * k));
   // A narrow area gets smaller words before they break inside.
   const valuePx = Math.max(8.5, Math.min(b.px * 0.93, (dense ? 12.8 : 14.5) * k, pxFor(w - 12 * k, 10, b.adv)));
   // As the mockup's auto-fill.
-  const loreEach = (w < 300 * k ? 96 : w < 400 * k ? 108 : 118) * k;
+  const loreEach = (w < 300 * k ? 96 : w < 400 * k ? 103 : 118) * k;
   return {
     ageChars: h >= 46 ? Math.floor(w / glyphW(agePx, b.adv)) : 0,
     agePx,
     dense,
     side,
-    narrowAge: ageW < 188 * k,
+    narrowAge: ageW < 180 * k,
     shieldCols,
     shield,
     abilityCols,
-    senseCols: sensesW >= 142 * k ? 2 : 1,
+    senseCols: sensesW >= 134 * k ? 2 : 1,
     loreCols: clamp(Math.floor((w + gap) / (loreEach + gap)), 1, 6),
     valuePx: down(valuePx),
   };

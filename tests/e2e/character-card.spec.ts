@@ -324,3 +324,38 @@ for (const [font, size] of [
     expect(bad).toEqual([]);
   });
 }
+
+// The pane's cross lies over the top right on hover: a framed one's glyph
+// reaches a few px into the content (Firefox), a borderless one's row is
+// the content's top row.
+for (const border of [true, false]) {
+  test(`no tab is under the pane's cross (border ${border ? 'on' : 'off'})`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await play(page);
+    for (const [font, size] of [
+      ['dejavu', 15],
+      ['hack', 17],
+      ['dejavu', 9],
+    ] as const) {
+      await page.evaluate(({ font, size, border }) => window.__wc!.settings.update({ appearance: { font, size }, panes: { character: { border } } }), { font, size, border });
+      await page.evaluate(() => document.fonts.ready);
+      for (const [cols, rows] of [[18, 3], [31, 3], [31, 9], [48, 9], [80, 4]] as const) {
+        await place(page, cols, rows);
+        for (const id of ['stats', 'lore', 'status'] as const) {
+          const b = (await tab(page, id).boundingBox())!;
+          for (const dy of [1.5, b.height / 2]) {
+            const x = b.x + b.width / 2;
+            const y = b.y + Math.min(dy, b.height - 1);
+            // Two steps onto it, so that the hover set is out when it is pressed.
+            await page.mouse.move(x - 3, y + 2);
+            await page.mouse.move(x, y);
+            await page.mouse.click(x, y);
+            const at = `${font}${size} ${cols}x${rows} ${id} +${dy}`;
+            expect(await page.evaluate(() => window.__wc!.settings.get().panes.character.on), `closed at ${at}`).toBe(true);
+            await expect(tab(page, id), at).toHaveAttribute('aria-selected', 'true');
+          }
+        }
+      }
+    }
+  });
+}

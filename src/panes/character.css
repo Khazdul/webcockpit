@@ -22,7 +22,8 @@
   --hot: color-mix(in srgb, var(--lamp) 70%, #fff);
   --text: color-mix(in srgb, var(--cc-ink, #b8b8b8) 45%, #fff);
   --dim: var(--cc-label, #999);
-  --off: color-mix(in srgb, var(--cc-mid, #6b6b6b) 85%, transparent);
+  /* The label's shade, dimmed: a tinted pane's mid would read as lit. */
+  --off: color-mix(in srgb, var(--cc-label, #999) 52%, transparent);
   --up: #6fd38a;
   --down: #ff8a7a;
   --danger: #ff5a50;
@@ -647,7 +648,7 @@
   position: relative;
   color: var(--hot);
   /* By the digits: four fit inside the shield as three do. */
-  font-size: min(calc(var(--shield) * 0.31), calc(var(--shield) * 0.68 / (var(--n, 3) * var(--adv, 0.6))));
+  font-size: min(calc(var(--shield) * 0.31), calc(var(--shield) * 0.62 / (var(--n, 3) * var(--adv, 0.6))));
   font-weight: bold;
   line-height: 1.15;
 }
@@ -775,7 +776,7 @@
 
 .wc-cc-mods {
   display: grid;
-  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, auto);
   align-items: baseline;
   gap: 2px calc(6px * var(--k));
 }
@@ -806,6 +807,11 @@
   grid-template-columns: repeat(var(--sense-cols, 2), minmax(0, 1fr));
   align-content: stretch;
   gap: calc(5px * var(--k));
+}
+
+/* CARRYING, in half the narrow column. */
+.wc-cc-senses .wc-cc-k {
+  letter-spacing: 0.05em;
 }
 
 /* ---------------------------------------------------------------- Lore */
@@ -919,8 +925,12 @@
 }
 
 /* Too little for words: three marks, named for a screen reader. */
-.wc-cc-tabs[data-form="marks"] .wc-cc-tab-t {
+.wc-cc-tabs:is([data-form="marks"], [data-form="row"]) .wc-cc-tab-t {
   display: none;
+}
+
+.wc-cc-tabs[data-form="row"] {
+  flex-direction: row;
 }
 
 .wc-cc-tab[aria-selected="true"] {
