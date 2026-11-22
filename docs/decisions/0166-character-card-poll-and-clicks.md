@@ -119,3 +119,32 @@ The answer's reader (`src/gmcp/info-answer.ts`):
     line (`help mood`, not seen live). In a shared run a berserk inside
     an excluded range can make the fold keep that segment's records: its
     check sees the difference, and nothing replays wrong.
+
+## Addendum 3 (2026-11-22): part C's design
+
+The point 5 mark is replaced by something stronger:
+
+21. The answer is taken out between the line assembler and the bus, so no
+    listener sees it: not the display, the recorder, the user's actions,
+    the scripts or the map. The command is written with a send of the
+    session that emits no `cmd.sent`. There is then no flag for each
+    listener to honour.
+22. When hiding ends without an end sentinel (2 s, a prompt, a line limit,
+    a disconnect) the held lines are put back in order. Hiding can thus
+    delay game text and cannot lose it. Two such failures on one
+    connection stop the polling until the next connection.
+
+When it is safe to send:
+
+23. A command sent into MUME's pager or line editor is read by them, so a
+    poll could end up in a note the player writes. The poll is sent only
+    when the last thing MUME printed is a game prompt (XML `prompt`) and
+    the player has sent nothing since it. Otherwise it waits for such a
+    prompt. The login poll follows the same rule, after `Char.Vitals`.
+    Without XML there is no such mark, so no poll.
+24. Never in a replay, the log player or a watched run, in password mode,
+    while fighting, or with the setting off. Off means no hidden command
+    at all, the login poll included.
+25. A poll never answered does not block for ever: after 2 minutes
+    another may be sent. Its sentinel is still recognised and hidden if
+    it comes later.

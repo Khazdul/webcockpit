@@ -9,7 +9,8 @@ stay.
 
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
-(built on `stage-77b`, tested). Part C waits for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
+(on main, the owner looked). **Part C in progress** (the owner's go
+2026-11-22, branch `stage-77c`). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -265,6 +266,12 @@ raw answer. Write the findings into this file before parts C–D.
   (display pipeline gag, with the 2 s limit) and fills an `InfoModel`.
 - Triggered by the tabs as above. Off switch in the gear ("Fetch Stats and
   Lore from the game"), on by default.
+- ADR 0166 addendum 3 has the build's decisions. The tabs come with D, so
+  C gives them the trigger to call, and a dev server only `#infopoll`
+  for the live checks (D removes it).
+- Live checks beside the three above: that the login poll is sent at a
+  real login's first prompt, that a pager and the line editor get no poll,
+  and what `%y` is with the wimpy removed.
 
 ### D. The card
 
@@ -617,4 +624,6 @@ Parked:
 
 ## Owner feedback
 
-*None yet.*
+- 2026-11-22, part B, the demo fixture on the test server: "Provade och
+  den ser ut som tidigare. Kör på" (B approved, C's go). MUME was down,
+  so berserk's wimpy 0 is not seen live.
