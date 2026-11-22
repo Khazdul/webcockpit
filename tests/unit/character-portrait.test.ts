@@ -2,10 +2,14 @@
 // The Character card's portraits (stage 77 part E, ADR 0166 addenda 10
 // and 11): the subrace → race → portrait lookup, the figures, the raster file rule, and that
 // the pane builds a figure only when the portrait changes.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const art = vi.hoisted(() => vi.fn(async () => null as string | null));
+vi.mock('../../src/panes/portraits', async (orig) => ({ ...(await orig<typeof import('../../src/panes/portraits')>()), portraitArt: art }));
 import { SUBRACE_RACE, raceKind, subraceKind } from '../../src/gmcp/race';
-import { PORTRAIT_IDS, isPortraitId, portraitImage, portraitOf, portraitRace, rasterIds } from '../../src/panes/portrait';
+import { PORTRAIT_IDS, isPortraitId, portraitImage, portraitOf, portraitRace, rasterIds, rasterName } from '../../src/panes/portrait';
 import { figureSvg } from '../../src/panes/portrait-figures';
+import { bucketPx } from '../../src/panes/portraits';
 import { Bus } from '../../src/core/bus';
 import { GameState } from '../../src/gmcp/state';
 import { CharacterPane } from '../../src/panes/character';
@@ -134,32 +138,38 @@ describe('the figures', () => {
 });
 
 describe('raster files', () => {
-  it('only the ids the build found, under the base', () => {
-    const have = rasterIds(['/public/portraits/orc.webp', '/public/portraits/neutral.webp', '/public/portraits/goblin.webp', '/public/portraits/README.md']);
-    expect([...have].sort()).toEqual(['neutral', 'orc']);
-    expect(portraitImage('orc', have, '/')).toBe('/portraits/orc.webp');
-    expect(portraitImage('orc', have, '/app/')).toBe('/app/portraits/orc.webp');
-    // A race with no file keeps its placeholder: no fallback to neutral.webp.
-    expect(portraitImage('troll', have)).toBeNull();
-    expect(portraitImage('cavetroll', have)).toBeNull();
+  it('only the names the build found, by sex, under the base', () => {
+    const have = rasterIds(['/public/portraits/orc-male.webp', '/public/portraits/orc.webp', '/public/portraits/neutral.webp', '/public/portraits/goblin-male.webp', '/public/portraits/README.md']);
+    expect([...have].sort()).toEqual(['neutral', 'orc-male']);
+    expect(rasterName('orc', 'female')).toBe('orc-female');
+    expect(rasterName('neutral', 'female')).toBe('neutral');
+    expect(portraitImage('orc', 'male', have, '/')).toBe('/portraits/orc-male.webp');
+    expect(portraitImage('orc', 'male', have, '/app/')).toBe('/app/portraits/orc-male.webp');
+    // Never the other sex's file: both are drawn.
+    expect(portraitImage('orc', 'female', have, '/')).toBeNull();
+    expect(portraitImage('neutral', 'female', have, '/')).toBe('/portraits/neutral.webp');
+    // A race with no file keeps its drawing: no fallback to neutral.webp.
+    expect(portraitImage('troll', 'male', have)).toBeNull();
+    expect(portraitImage('cavetroll', 'male', have)).toBeNull();
     expect(isPortraitId('goblin')).toBe(false);
   });
 
-  it('a subrace: its own file, else its race\'s, else its own placeholder', () => {
+  it("a subrace: its own file, else its race's of the same sex, else its own drawing", () => {
     expect(portraitRace('cavetroll')).toBe('troll');
     expect(portraitRace('zaugurz')).toBe('orc');
     expect(portraitRace('troll')).toBeNull();
     expect(portraitRace('neutral')).toBeNull();
-    const have = rasterIds(['/public/portraits/orc.webp', '/public/portraits/zaugurz.webp', '/public/portraits/neutral.webp']);
-    expect(portraitImage('zaugurz', have, '/')).toBe('/portraits/zaugurz.webp');
-    expect(portraitImage('tarkhnarb', have, '/')).toBe('/portraits/orc.webp');
-    expect(portraitImage('morruhk', have, '/')).toBe('/portraits/orc.webp');
-    expect(portraitImage('dunadan', have, '/')).toBeNull();
-    expect(portraitImage('halfelf', have, '/')).toBeNull();
+    const have = rasterIds(['/public/portraits/orc-male.webp', '/public/portraits/zaugurz-female.webp', '/public/portraits/neutral.webp']);
+    expect(portraitImage('zaugurz', 'female', have, '/')).toBe('/portraits/zaugurz-female.webp');
+    expect(portraitImage('zaugurz', 'male', have, '/')).toBe('/portraits/orc-male.webp');
+    expect(portraitImage('tarkhnarb', 'male', have, '/')).toBe('/portraits/orc-male.webp');
+    expect(portraitImage('morruhk', 'female', have, '/')).toBeNull();
+    expect(portraitImage('dunadan', 'male', have, '/')).toBeNull();
+    expect(portraitImage('halfelf', 'male', have, '/')).toBeNull();
   });
 
   it('none are in the repository today: nothing is requested', () => {
-    for (const id of PORTRAIT_IDS) expect(portraitImage(id)).toBeNull();
+    for (const id of PORTRAIT_IDS) for (const sex of ['male', 'female'] as const) expect(portraitImage(id, sex)).toBeNull();
   });
 });
 
@@ -191,23 +201,29 @@ describe('in the pane', () => {
       bus.emit('gmcp', { pkg, data });
       while (frames.length) frames.shift()!();
     };
-    const fig = (): SVGElement => pane.content.querySelector<SVGElement>('.wc-cc-disc .wc-cc-fig')!;
+    const disc = (): HTMLElement => pane.content.querySelector<HTMLElement>('.wc-cc-disc')!;
+    const asked = (): string[] => art.mock.calls.map((c) => `${c[1]}|${c[2]}|${c[3]}`);
     gmcp('Char.Vitals', { hp: 10, maxhp: 20 });
-    expect(fig().dataset.portrait).toBe('neutral');
+    expect(disc().dataset.portrait).toBe('neutral');
+    // Until an image is ready, the neutral silhouette in the pane's colours.
+    expect(disc().querySelector('.wc-cc-fig')).not.toBeNull();
     gmcp('Char.StatusVars', { race: 'Orc', subrace: 'Tarkhnarb Orc' });
-    const orc = fig();
-    expect(orc.dataset.portrait).toBe('tarkhnarb');
+    expect(disc().dataset.portrait).toBe('tarkhnarb');
+    expect(disc().dataset.sex).toBe('male');
+    const n = art.mock.calls.length;
+    expect(asked().at(-1)).toBe('tarkhnarb|male|large');
+    // The same portrait from other words, and a repaint: no new bake.
     gmcp('Char.StatusVars', { subrace: 'Uruk-Tarkhnarb' });
-    expect(fig()).toBe(orc);
     gmcp('Char.Vitals', { hp: 12 });
-    expect(fig()).toBe(orc);
+    expect(art.mock.calls.length).toBe(n);
     gmcp('Char.StatusVars', { subrace: 'Orc' });
-    expect(fig().dataset.portrait).toBe('orc');
+    expect(disc().dataset.portrait).toBe('orc');
     gmcp('Char.StatusVars', { subrace: 'Zaugurz Orc' });
-    expect(fig().dataset.portrait).toBe('zaugurz');
+    expect(disc().dataset.portrait).toBe('zaugurz');
     gmcp('Char.StatusVars', { race: 'Troll', subrace: 'Cave Troll' });
-    expect(fig().dataset.portrait).toBe('cavetroll');
-    expect(pane.content.querySelectorAll('.wc-cc-disc > *')).toHaveLength(1);
-    expect(pane.content.querySelector('.wc-cc-disc img')).toBeNull();
+    expect(disc().dataset.portrait).toBe('cavetroll');
+    expect(asked().slice(-3)).toEqual(['orc|male|large', 'zaugurz|male|large', 'cavetroll|male|large']);
+    // The bake is asked at the disc's device pixels, rounded up to a bucket.
+    for (const c of art.mock.calls) expect(c[4]).toBe(bucketPx(c[4]));
   });
 });

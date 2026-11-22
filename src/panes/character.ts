@@ -53,7 +53,7 @@ import { groupVitals } from './group-model';
 import { signalColors } from './palette';
 import { type PaneCell, type PanePlacement, PaneShell } from './pane';
 import { type PaneTooltip, installPaneTooltip } from './pane-tooltip';
-import { portraitOf } from './portrait';
+import { PORTRAIT_SEX, portraitOf } from './portrait';
 import { paneShade } from './shade';
 import { onTitleFont, titleWidth } from './title-font';
 
@@ -251,7 +251,7 @@ export class CharacterPane extends PaneShell {
     const fighting = this.tabs.fighting;
     if (this.changed('fight', String(fighting))) card.setFight(fighting);
     if (this.changed('name', name)) card.left.setName(name);
-    if (this.changed('portrait', `${v.race}|${v.subrace}`)) card.left.setPortrait(portraitOf(v.race, v.subrace));
+    if (this.changed('portrait', `${v.race}|${v.subrace}`)) card.left.setPortrait(portraitOf(v.race, v.subrace), PORTRAIT_SEX);
     if (this.changed('ring', `${v.level}|${v.xp?.baseline}|${v.xp?.progress}|${v.toNext}|${v.tp?.progress}`)) card.left.setRing(ringView(v));
 
     const env: CardEnv = { clicks: this.clicks, fighting, pending: this.pending };

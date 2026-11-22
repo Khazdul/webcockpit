@@ -26,7 +26,9 @@ import { el, setAttr, setHidden, setProp, setText } from './dom';
 import { type IconName, SVG_NS, iconSvg, setIconSvg } from './icons';
 import { setTip } from './pane-tooltip';
 import { portraitImage } from './portrait';
-import { type PortraitId, figureSvg } from './portrait-figures';
+import { figureSvg } from './portrait-figures';
+import { bucketPx, portraitArt, sizeFor } from './portraits';
+import type { PortraitId, Sex } from './portraits/types';
 
 function svgEl<K extends keyof SVGElementTagNameMap>(doc: Document, tag: K, attrs: Record<string, string>): SVGElementTagNameMap[K] {
   const e = doc.createElementNS(SVG_NS, tag);
@@ -45,39 +47,99 @@ const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
 // ------------------------------------------------------------------ portrait
 
 /**
- * The round frame's content (decision 22, part E): the race's SVG
- * placeholder (portrait-figures.ts), or its raster file when there is one
- * (portrait.ts). Built only when the portrait changes. An image replaces
- * the placeholder once it has loaded; one that fails keeps it.
+ * The round frame's content (decision 22, part E; the portrait pass, ADR
+ * 0166 addendum 12): the portrait's drawing baked into an image once
+ * (portraits/index.ts), or its raster file when there is one (portrait.ts).
+ * Until the first image is ready the neutral silhouette in the pane's
+ * colours stands in (a chunk is loading); after that a new portrait
+ * replaces the old one only once it has loaded, so nothing flashes. A
+ * raster file that fails falls back to the drawing. It rebakes only when
+ * the portrait, the drawing size or a larger pixel bucket is wanted, never
+ * per render. Still images only.
  */
 function portraitEl(doc: Document, disc: HTMLElement) {
-  let shown: PortraitId | null = null;
-  const set = (id: PortraitId): void => {
-    if (id === shown) return;
-    shown = id;
-    const svg = figureSvg(doc, id);
-    disc.replaceChildren(svg);
-    const src = portraitImage(id);
-    if (src === null) return;
-    const img = el(doc, 'img', 'wc-cc-photo');
-    img.alt = '';
-    img.decoding = 'async';
-    img.draggable = false;
-    img.hidden = true;
-    img.addEventListener(
+  const wait = figureSvg(doc, 'neutral');
+  disc.append(wait);
+  let img: HTMLImageElement | null = null;
+  let id: PortraitId = 'neutral';
+  let sex: Sex = 'male';
+  let css = 0;
+  const failed = new Set<string>();
+  /** What the image shows (or is loading): the key and the pixel bucket. */
+  let shown = '';
+  let shownPx = 0;
+  let asked = '';
+  let ticket = 0;
+  const put = (src: string, key: string, px: number, art: 'drawn' | 'raster', t: number): void => {
+    const next = el(doc, 'img', 'wc-cc-photo');
+    next.alt = '';
+    next.decoding = 'async';
+    next.draggable = false;
+    next.addEventListener(
       'load',
       () => {
-        if (shown !== id) return;
-        img.hidden = false;
-        svg.remove();
+        if (t !== ticket) return;
+        if (img) img.replaceWith(next);
+        else wait.replaceWith(next);
+        img = next;
+        shown = key;
+        shownPx = px;
+        setAttr(disc, 'data-art', art);
       },
       { once: true },
     );
-    img.src = src;
-    disc.append(img);
+    next.addEventListener(
+      'error',
+      () => {
+        if (t !== ticket || art !== 'raster') return;
+        failed.add(src);
+        asked = '';
+        refresh();
+      },
+      { once: true },
+    );
+    next.src = src;
   };
-  set('neutral');
-  return set;
+  const refresh = (): void => {
+    if (css <= 0) return;
+    const size = sizeFor(css);
+    const raster = portraitImage(id, sex);
+    const useRaster = raster !== null && !failed.has(raster);
+    const key = `${id}|${sex}|${useRaster ? raster : size}`;
+    const px = useRaster ? 0 : bucketPx(css * (doc.defaultView?.devicePixelRatio || 1));
+    if (key === shown && px <= shownPx) return;
+    const want = `${key}|${px}`;
+    if (want === asked) return;
+    asked = want;
+    const t = ++ticket;
+    if (useRaster) {
+      put(raster, key, px, 'raster', t);
+      return;
+    }
+    void portraitArt(doc, id, sex, size, px).then(
+      (src) => {
+        if (src !== null && t === ticket) put(src, key, px, 'drawn', t);
+      },
+      () => {},
+    );
+  };
+  /** The portrait and the sex to show. */
+  const set = (next: PortraitId, s: Sex = 'male'): void => {
+    if (next === id && s === sex && shown !== '') return;
+    id = next;
+    sex = s;
+    setAttr(disc, 'data-portrait', id);
+    setAttr(disc, 'data-sex', id === 'neutral' ? null : sex);
+    refresh();
+  };
+  /** The frame's size in CSS px (0: no frame, nothing is baked). */
+  const size = (px: number): void => {
+    if (px === css) return;
+    css = px;
+    refresh();
+  };
+  setAttr(disc, 'data-portrait', id);
+  return { set, size };
 }
 
 // ---------------------------------------------------------------------- ring
@@ -134,7 +196,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
   const name = el(doc, 'span', 'wc-cc-name');
   const medal = el(doc, 'div', 'wc-cc-medal');
   const disc = el(doc, 'div', 'wc-cc-disc');
-  const setPortrait = portraitEl(doc, disc);
+  const portrait = portraitEl(doc, disc);
   const ring = ringEl(doc);
   medal.append(disc, ring.box);
   const row = el(doc, 'div', 'wc-cc-icons');
@@ -162,7 +224,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
       setTip(b, v.tip, v.name, `cc:${v.id}`);
     });
   };
-  return { box, setName, setPortrait, setRing: ring.set, setIcons };
+  return { box, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons };
 }
 
 // ------------------------------------------------------------------- Status
@@ -522,6 +584,7 @@ export class CardDom {
     setHidden(this.tabs, l.tabs.h < 6);
     setAttr(root, 'data-mode', l.mode);
     setAttr(root, 'data-portrait', l.left.disc > 0 ? '' : null);
+    this.left.setDisc(l.left.disc);
     setAttr(this.left.box, 'data-form', l.left.form);
     setAttr(this.tabs, 'data-form', l.tabs.form);
     setAttr(this.status.box, 'data-form', l.status.form);
