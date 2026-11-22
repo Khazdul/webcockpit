@@ -13,8 +13,8 @@
 //   elf          elf and halfelf
 //   dwarf, hobbit, troll   as named
 //   human        beorning (a Bear is drawn as a human) and human
-//   orc          orc with a word "zaug…" (Zaugurz) in either field
-//   goblin       any other orc (Tarkhnarb)
+//   orc          zaugurz
+//   goblin       orc (Tarkhnarb)
 //   goblin       anything else, and nothing at all (before login, the demo)
 
 import { raceKind, raceWords } from '../../gmcp/race';
@@ -44,8 +44,10 @@ export function passengerOf(race: string | null | undefined, subrace?: string | 
     case 'beorning':
     case 'human':
       return 'human';
+    case 'zaugurz':
+      return 'orc';
     case 'orc':
-      return [...raceWords(race), ...raceWords(subrace)].some((x) => x.startsWith('zaug')) ? 'orc' : 'goblin';
+      return 'goblin';
     case null:
       return 'goblin';
   }

@@ -40,12 +40,13 @@
 //   troll       troll(s)
 //   beorning    bear(s) and a word "beorn…" (Beorning), with or without a
 //               subrace
-//   orc         orc(s): Tarkhnarb and Zaugurz alike
+//   zaugurz     a word "zaug…" (Zaugurz), with or without orc(s)
+//   orc         any other orc(s) (Tarkhnarb)
 //   human       man, men, human
 //   none        anything else, and nothing at all
 //
 // Words, not substrings: "Dunadan" is no "man", and "human" is matched as
-// a word of its own. The prefixes ("numenor", "beorn") are the only
+// a word of its own. The prefixes ("numenor", "beorn", "zaug") are the only
 // partial matches.
 
 /** The age factors of `help age`. */
@@ -63,7 +64,7 @@ export function raceWords(s: string | null | undefined): string[] {
 }
 
 /** What `raceKind` tells apart (see the file header). */
-export type RaceKind = 'numenorean' | 'halfelf' | 'elf' | 'dwarf' | 'hobbit' | 'troll' | 'beorning' | 'orc' | 'human';
+export type RaceKind = 'numenorean' | 'halfelf' | 'elf' | 'dwarf' | 'hobbit' | 'troll' | 'beorning' | 'zaugurz' | 'orc' | 'human';
 
 /** The race's kind (see the file header), or null for anything else and nothing at all. */
 export function raceKind(race: string | null | undefined, subrace?: string | null): RaceKind | null {
@@ -78,6 +79,7 @@ export function raceKind(race: string | null | undefined, subrace?: string | nul
   if (is('hobbit', 'hobbits')) return 'hobbit';
   if (is('troll', 'trolls')) return 'troll';
   if (is('bear', 'bears') || starts('beorn')) return 'beorning';
+  if (starts('zaug')) return 'zaugurz';
   if (is('orc', 'orcs')) return 'orc';
   if (is('man', 'men', 'human')) return 'human';
   return null;

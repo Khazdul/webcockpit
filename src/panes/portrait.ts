@@ -2,7 +2,8 @@
 // ADR 0166 addendum 10). Pure but for the build-time file list.
 //
 // - The race picks it: `raceKind` (src/gmcp/race.ts, the balloon
-//   passengers' matching), one portrait per race; anything else, and
+//   passengers' matching), one portrait per race, and the Zaugurz
+//   apart from the Tarkhnarb (the owner); anything else, and
 //   nothing at all, is the neutral figure.
 // - A raster file `public/portraits/<id>.webp` (public/portraits/README.md)
 //   replaces the SVG placeholder when it exists. Which files exist is
@@ -14,15 +15,15 @@
 //   0019, and the share frame, whose CSP has `img-src data: blob:`) has
 //   no files beside it and draws the placeholders only.
 // - Dev server only: `?portrait=<id or race words>` shows that portrait
-//   whatever the race (to look at all nine; the stage's test guide).
+//   whatever the race (to look at all ten; the stage's test guide).
 
 import { type RaceKind, raceKind } from '../gmcp/race';
 import type { PortraitId } from './portrait-figures';
 
 export type { PortraitId };
 
-/** The nine races' portraits, in the mockup's order, and the neutral figure. */
-export const PORTRAIT_IDS: readonly PortraitId[] = ['human', 'elf', 'halfelf', 'dwarf', 'hobbit', 'beorning', 'orc', 'troll', 'numenorean', 'neutral'];
+/** The races' portraits, in the mockup's order with the Zaugurz after the orc, and the neutral figure. */
+export const PORTRAIT_IDS: readonly PortraitId[] = ['human', 'elf', 'halfelf', 'dwarf', 'hobbit', 'beorning', 'orc', 'zaugurz', 'troll', 'numenorean', 'neutral'];
 
 export const isPortraitId = (s: string): s is PortraitId => (PORTRAIT_IDS as readonly string[]).includes(s);
 

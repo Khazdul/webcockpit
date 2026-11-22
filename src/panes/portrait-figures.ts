@@ -1,5 +1,5 @@
 // The Character card's placeholder portraits (stage 77 part E, decision
-// 22, ADR 0166 addendum 10): the nine crude figures of round 9's mockup
+// 22, ADR 0166 addendum 10): the nine crude figures of round 9's mockup and a tenth, the Zaugurz
 // (notes/research/character-pane-mockups/round9.html, its `r-…` symbols)
 // as data, with their own fills and a transparent background, and the
 // neutral figure in the pane's colours (character.css `.wc-cc-fig-*`).
@@ -22,7 +22,7 @@ const NEUTRAL: readonly Shape[] = [
   ['path', { class: 'wc-cc-fig-face', d: 'M30 26C36 26 39.5 31 39.5 38C39.5 45 35.5 51 30 51S20.5 45 20.5 38C20.5 31 24 26 30 26Z' }],
 ];
 
-/** The mockup's nine (`r-bn` is the Black Númenórean), its fills kept. */
+/** The mockup's nine (`r-bn` is the Black Númenórean), its fills kept, and the Zaugurz. */
 const RACES: Readonly<Record<RaceKind, readonly Shape[]>> = {
   human: [
     ['path', { d: 'M4 78C6 61 17 55 30 55S54 61 56 78Z', fill: '#3c4a5e' }],
@@ -106,6 +106,25 @@ const RACES: Readonly<Record<RaceKind, readonly Shape[]>> = {
     ['path', { d: 'M24 48h12', stroke: '#3a3f26', 'stroke-width': '1.4' }],
     ['path', { d: 'M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z', fill: '#141210' }],
     ['path', { d: 'M30 23V16', stroke: '#141210', 'stroke-width': '3', 'stroke-linecap': 'round' }],
+  ],
+  // Not in the mockup (the owner, after part E): a Zaugurz is rougher than
+  // a Tarkhnarb: darker hide, a torn ear, a scar, longer tusks, a spiked
+  // pauldron and blood on the cheeks.
+  zaugurz: [
+    ['path', { d: 'M2 78C4 60 16 54 30 54S56 60 58 78Z', fill: '#241d19' }],
+    ['path', { d: 'M8 62l6-9 3 8M52 62l-6-9-3 8', fill: '#5d5650' }],
+    ['path', { d: 'M8 66l8-6 6 8M52 66l-8-6-6 8', stroke: '#4a3f37', 'stroke-width': '2.4', fill: 'none' }],
+    ['path', { d: 'M18 38L10 32L13 36L11 37L19 43Z M42 38L50 33L41 43Z', fill: '#5f6a40' }],
+    ['ellipse', { cx: '30', cy: '39', rx: '12.5', ry: '12.5', fill: '#5f6a40' }],
+    ['path', { d: 'M19 34C22 31 27 33 29 35.5M31 35.5C33 33 38 31 41 34', stroke: '#2b2f1b', 'stroke-width': '3', fill: 'none', 'stroke-linecap': 'round' }],
+    ['circle', { cx: '25', cy: '38', r: '1.6', fill: '#ff8a2a' }],
+    ['circle', { cx: '35', cy: '38', r: '1.6', fill: '#ff8a2a' }],
+    ['path', { d: 'M33 31L38 45', stroke: '#3c2a22', 'stroke-width': '1.2', 'stroke-linecap': 'round' }],
+    ['path', { d: 'M19.5 41C20.5 40 22.5 40.5 23 42C22.5 44.5 21 46 20 45.5C19 44.5 19 42.5 19.5 41Z M37.5 42C38.5 40.5 40.5 40.5 41 41.5C41.5 43.5 40.5 45 39 45.5C38 45 37 43.5 37.5 42Z', fill: '#9e1b16', opacity: '0.85' }],
+    ['path', { d: 'M21 46l-0.4 2.5M39.5 46l0.3 2', stroke: '#9e1b16', 'stroke-width': '0.9', 'stroke-linecap': 'round', opacity: '0.8' }],
+    ['path', { d: 'M24 48.5l1.6-5.5 1.6 5.5Z M32.8 48.5l1.6-5.5 1.6 5.5Z', fill: '#e2d6b4' }],
+    ['path', { d: 'M24 48.5h12', stroke: '#2b2f1b', 'stroke-width': '1.6' }],
+    ['path', { d: 'M24 28C25 21 35 21 36 28C33 25 27 25 24 28Z', fill: '#141210' }],
   ],
   troll: [
     ['path', { d: 'M-4 78C-2 54 12 48 30 48S62 54 64 78Z', fill: '#5b5f5a' }],

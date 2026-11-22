@@ -16,7 +16,9 @@ describe('portraitOf', () => {
   it('the known pairs and the inferred ones', () => {
     const rows: Array<[string | null, string | null, string]> = [
       ['Orc', 'Tarkhnarb Orc', 'orc'],
-      ['Orc', 'Zaugurz', 'orc'],
+      ['Orc', 'Zaugurz', 'zaugurz'],
+      ['Orc', 'Zaugurz Orc', 'zaugurz'],
+      ['Zaugurz Orc', '', 'zaugurz'],
       ['Orc', null, 'orc'],
       ['Hobbit', 'Fallohide', 'hobbit'],
       ['Hobbit', 'Fallohide Hobbit', 'hobbit'],
@@ -57,7 +59,7 @@ describe('portraitOf', () => {
 
 describe('the figures', () => {
   it('one per id, in the 60 × 75 box, with no markup but shapes', () => {
-    expect(PORTRAIT_IDS).toHaveLength(10);
+    expect(PORTRAIT_IDS).toHaveLength(11);
     for (const id of PORTRAIT_IDS) {
       const svg = figureSvg(document, id);
       expect(svg.getAttribute('viewBox')).toBe('0 0 60 75');
@@ -124,10 +126,12 @@ describe('in the pane', () => {
     gmcp('Char.StatusVars', { race: 'Orc', subrace: 'Tarkhnarb Orc' });
     const orc = fig();
     expect(orc.dataset.portrait).toBe('orc');
-    gmcp('Char.StatusVars', { subrace: 'Zaugurz' });
+    gmcp('Char.StatusVars', { subrace: 'Orc' });
     expect(fig()).toBe(orc);
     gmcp('Char.Vitals', { hp: 12 });
     expect(fig()).toBe(orc);
+    gmcp('Char.StatusVars', { subrace: 'Zaugurz Orc' });
+    expect(fig().dataset.portrait).toBe('zaugurz');
     gmcp('Char.StatusVars', { race: 'Troll', subrace: 'Cave Troll' });
     expect(fig().dataset.portrait).toBe('troll');
     expect(pane.content.querySelectorAll('.wc-cc-disc > *')).toHaveLength(1);

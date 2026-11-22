@@ -16,7 +16,8 @@ file), `src/panes/portrait-figures.ts` (the placeholders).
 | `dwarf.webp` | Dwarves |
 | `hobbit.webp` | Hobbits |
 | `beorning.webp` | Beornings (Bear) |
-| `orc.webp` | Orcs (Tarkhnarb and Zaugurz alike) |
+| `orc.webp` | Tarkhnarb orcs, and an orc of no known kind |
+| `zaugurz.webp` | Zaugurz orcs: rougher than a Tarkhnarb, blood on the cheeks |
 | `troll.webp` | Trolls |
 | `numenorean.webp` | Black Númenóreans |
 | `neutral.webp` | No race yet, or one the client does not know |
