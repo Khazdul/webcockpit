@@ -10,7 +10,8 @@ stay.
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C done** (on main, tested
-live 2026-11-22). Part D waits for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
+live 2026-11-22). **Part D in progress** (the owner's go
+2026-11-22, branch `stage-77d`). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -273,6 +274,9 @@ raw answer. Write the findings into this file before parts C–D.
   and what `%y` is with the wimpy removed.
 
 ### D. The card
+
+- ADR 0166 addendum 6 has the build's decisions. `#infopoll` goes. The
+  phone's settings page gets the poll's switch.
 
 - `src/panes/character.ts` becomes DOM like Group/Timers (ADR 0122): left
   column, the three tabs, vitals, the fight mode, the two height modes and
@@ -643,9 +647,9 @@ From the owner's scrollback and report:
 - DB follows the position (-31 resting, 19 standing), so Stats can be
   stale by up to the poll's interval.
 
-For the owner before or in D: a switch on the phone's settings page (no
-gear there), and whether the moved title is fine (ADR 0166 point 31).
-To weigh in D, when the poll repeats: ADR 0166 point 33.
+Decided by the owner: a switch also on the phone's settings page (built
+in D), and the moved title is fine (ADR 0166 point 31). Point 33 is
+answered by point 34.
 Until part D, a release from main would send the login poll and show a
 switch that names tabs which do not exist yet.
 
@@ -711,3 +715,5 @@ answer: type it again for the new one. At most one poll in 10 s.
   rededitorn fungerar riktigt", perhaps not important until remote
   editing is picked up (answered above: it is, for `change editor
   line`).
+- 2026-11-22, after C: "Okej på allt. Kör på" (the phone switch, the
+  moved title, D's go).

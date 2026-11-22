@@ -188,3 +188,35 @@ When it is safe to send:
 33. What remains of point 26's hole: an editor command that waits in
     MUME's queue more than 2 s (behind a cast) while a game prompt is
     shown. A poll sent then lands behind it.
+
+## Addendum 6 (2026-11-22): part D's design
+
+The owner: a switch for the poll also on the phone's settings page, and
+the moved title (point 31) is fine.
+
+What part C's live test means for the card:
+
+34. The repeated poll (every 5 minutes) waits for 10 s of quiet after the
+    last command, not 2 s. It is in no hurry, and this covers a command
+    held behind a cast (point 33). Opening a tab and the login poll keep
+    the 2 s: there the player waits for the value.
+35. A click on the card sends nothing while MUME reads input of its own:
+    the last thing printed is a prompt and not a game prompt (the line
+    editor, the pager, a question), or in password mode. The line editor
+    would take `change mood brave` as text. Otherwise a click needs no
+    gate: it is the player's command and may queue.
+36. A click sends nothing in a replay, the log player, a watched run or
+    out of the game. A pending element takes no second click.
+37. No click where the next value is not known: an unknown word, a
+    berserk mood, a position other than standing, resting, sitting and
+    sleeping.
+
+The card:
+
+38. The height mode is chosen from the content box in pixels, not from
+    the tab, so a tab change moves nothing in the left column or the
+    vitals. The default layout and the pane's heights are not changed.
+    Status never scrolls; Stats and Lore scroll inside the right area
+    when they do not fit.
+39. Portraits are part E. Part D draws the round frame with one neutral
+    figure.
