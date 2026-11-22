@@ -1,0 +1,643 @@
+<title>Character Pane Round 8</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: a dark studio wall. One live bench (the card over Group) with every switch of this round,
+   then the three tabs side by side, the short pane, the wimpy mark explained and the questions. Panes use Lykta. */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --warn: #ff8c2a; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a; --down: #ff8a7a;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; }
+p { margin: 0; max-width: 70ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 56px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.box { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box p, .box li { color: var(--ink-dim); font-size: 15px; }
+.box ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+.box strong { color: var(--ink); }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0,1fr); } }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1 var(--mono); color: var(--ink-dim); letter-spacing: .08em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+
+/* Lykta pane */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 3; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.pane.off { padding: 0; background: none; box-shadow: none; }
+.pane.off > .hood { display: none; }
+.pane.off > .win { border: 0; border-radius: 4px; padding-top: 8px; background: #07090c; box-shadow: none; }
+.stackp { display: flex; flex-direction: column; gap: 6px; }
+
+/* bars (Rör) */
+.b { position: relative; height: 11px; border-radius: 4px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 4px 4px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); z-index: 2; }
+.b > .wim.lab::after { content: "W"; position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%); font: 700 8px/1 var(--mono); color: var(--lamp); }
+.b > .wim.tick { top: auto; bottom: -5px; height: 4px; width: 0; margin-left: -4px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid var(--lamp-hot); background: none; box-shadow: none; }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); }
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; }
+.vit .top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 3px; font-variant-numeric: tabular-nums; min-height: 13px; }
+.vit .k { font: 700 9.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.vit .n { font: 700 13px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.vit .n small { font-weight: 400; color: var(--dim); font-size: 11px; }
+.vit3.fight .b { height: 15px; }
+.vit3.md .b { height: 9px; } .vit3.md .n { font-size: 11.5px; }
+
+/* group mock */
+.gp { display: flex; flex-direction: column; gap: 3px; }
+.gr { border-radius: 4px; padding: 2px 6px 6px; background: linear-gradient(180deg, rgba(233,207,159,.07), rgba(233,207,159,.025));
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.14), inset 0 0 0 1px rgba(233,207,159,.04), 0 1px 2px rgba(0,0,0,.45); }
+.pane.off .gr { background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); }
+.gr .t { display: flex; align-items: center; gap: 6px; height: 19px; min-width: 0; }
+.gr .nm { font: 700 13px/1 var(--mono); color: var(--text); }
+.gr .room { margin-left: auto; color: #8ea0b6; font-size: 12px; display: flex; gap: 4px; align-items: center; white-space: nowrap; overflow: hidden; min-width: 0; }
+.gr.away .nm { color: #7e7c77; } .gr.away .b > i { filter: brightness(.62) saturate(.8); }
+.gr .bars { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.gr .b { height: 5px; border-radius: 3px; }
+.ico { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ico.pl { color: #6f9ee0; }
+
+/* card: left column (portrait, ring, icons) always there; right area per tab; tabs on the edge */
+.cw { display: grid; grid-template-columns: auto minmax(0,1fr) auto; column-gap: 14px; align-items: start; }
+.cw .foot { grid-column: 1 / -1; margin-top: 12px; }
+.lc { display: flex; flex-direction: column; align-items: center; gap: 6px; width: var(--lcw, 100px); }
+.medal { position: relative; width: var(--pd, 96px); height: calc(var(--pd, 96px) + 12px); }
+.disc2 { position: absolute; left: 0; top: 0; width: var(--pd, 96px); height: var(--pd, 96px); border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #3a3122, #14110c 72%);
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(233,207,159,.25), inset 0 0 16px rgba(0,0,0,.9); }
+.disc2.dark { background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%); }
+.disc2 svg { position: absolute; left: 6%; top: 8%; width: 88%; height: 100%; }
+.medal .lr { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); }
+.lc.short .medal { display: none; }
+.lc.short { padding-top: 2px; }
+.mic { display: flex; gap: 4px; justify-content: center; }
+.ti { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); } .ti.posi.fight { stroke: var(--crit); }
+.mic .sep { width: 1px; background: rgba(233,207,159,.2); margin: 1px 1px; }
+
+.lr { position: relative; flex: none; display: grid; place-items: center; background: radial-gradient(circle, #15130f 60%, transparent 63%); border-radius: 50%; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+
+.nm2 { font: 700 20px/1.05 var(--display); letter-spacing: .05em; color: var(--lamp-hot); text-shadow: 0 0 10px rgba(233,207,159,.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.typel { font: italic 600 14.5px/1.2 var(--flavor); color: #cbbf9f; }
+.namerow { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; margin-bottom: 9px; }
+.ra { min-width: 0; display: flex; flex-direction: column; }
+
+/* fields: small label, the value is what is read */
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--fmin, 118px), 1fr)); gap: 5px; }
+.f { padding: 5px 8px 6px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.f.wide { grid-column: 1 / -1; }
+.f small { display: flex; align-items: center; gap: 5px; font: 700 8.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-bottom: 4px; }
+.f b { display: flex; align-items: center; gap: 6px; font: 600 14px/1.15 var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f b.lamp { color: var(--lamp-hot); }
+.f b em { font: 400 11px/1 var(--mono); color: var(--dim); font-style: normal; }
+.f .ti { width: 14px; height: 14px; stroke: var(--lamp); }
+.f.cl { cursor: pointer; } .f.cl:hover { box-shadow: inset 0 0 0 1px rgba(233,207,159,.3); }
+.pie { width: 13px; height: 13px; flex: none; }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 2px 0 4px; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); }
+.coin:first-child { margin-left: 0; }
+.coin.g { background: #e5c158; } .coin.s { background: #c9ccd1; } .coin.c { background: #c07a46; }
+
+/* stats tab */
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; margin-bottom: 6px; }
+.abx { text-align: center; padding: 4px 0 4px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); }
+.abx small { display: block; font: 700 8px/1 var(--display); letter-spacing: .1em; color: var(--dim); }
+.abx b { display: block; font: 700 15px/1.25 var(--mono); }
+.abx em { display: block; font: 9px/1 var(--mono); font-style: normal; color: var(--faint); }
+.abx.up b, .abx.up em { color: var(--up); } .abx.dn b, .abx.dn em { color: var(--down); }
+.srow { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); gap: 5px; }
+.cmb { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
+.cmb .f { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 7px; padding: 5px 8px; }
+.cmb .f .ti { width: 16px; height: 16px; grid-row: 1 / 3; }
+.cmb .f small { margin: 0; } .cmb .f b { color: var(--lamp-hot); font-size: 14px; }
+.agec { padding: 6px 9px 7px; }
+.agec .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.agec .top b { font: 600 14px/1 var(--mono); color: var(--text); }
+.agec .top b em { font: italic 600 14px/1 var(--flavor); color: var(--lamp-hot); margin-left: 6px; }
+.agec .top span { font: 10.5px/1 var(--mono); color: var(--dim); }
+.aget { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin: 6px 0 6px; position: relative; }
+.aget span { height: 4px; border-radius: 1px; background: rgba(255,255,255,.08); }
+.aget span.past { background: color-mix(in srgb, var(--lamp) 55%, transparent); }
+.aget .now { position: absolute; top: -3px; width: 2px; height: 10px; background: var(--lamp-hot); box-shadow: 0 0 4px var(--lamp); border-radius: 1px; }
+.mods { display: grid; grid-template-columns: auto repeat(3, minmax(0,1fr)); gap: 2px 8px; font: 11px/1.25 var(--mono); }
+.mods span { color: var(--dim); font: 700 8px/1.6 var(--display); letter-spacing: .1em; }
+.mods b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.mods b.p { color: var(--up); } .mods b.n { color: var(--down); }
+.mods i { font-style: normal; color: var(--dim); white-space: nowrap; }
+.narrow .srow { grid-template-columns: minmax(0,1fr); }
+
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; align-self: stretch; }
+.pane.off .vt { margin-top: -8px; padding-top: 6px; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 0 auto; font: 700 9px/1 var(--display); letter-spacing: .12em; padding: 6px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: var(--lamp-hot); background: rgba(233,207,159,.11); box-shadow: inset 2px 0 0 var(--lamp); }
+.vt.locked button:not(.on) { opacity: .35; }
+.tpn { display: none; } .tpn.on { display: block; }
+
+.rowx { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.cap { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+.cap p { font-size: 14px; max-width: 48ch; }
+.wimdemo { display: flex; flex-wrap: wrap; gap: 26px; }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.q p { font-size: 15px; color: var(--ink-dim); }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opts span { font: 12.5px/1 var(--mono); color: var(--ink); padding: 5px 8px; border-radius: 4px; background: #161a21; border: 1px solid #333944; }
+.q .opts span.rec { border-color: var(--lamp); color: var(--lamp-hot); }
+#tip { position: fixed; z-index: 50; white-space: pre; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="r-human" viewBox="0 0 60 75">
+      <path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#3c4a5e"/><rect x="26" y="45" width="8" height="12" fill="#b58c68"/>
+      <ellipse cx="30" cy="36" rx="11" ry="13" fill="#c9a27c"/><path d="M19 35C17 20 43 20 41 35C39 28 35 26 30 26S21 28 19 35Z" fill="#5a3b22"/>
+      <circle cx="26" cy="37" r="1.3" fill="#2a1d12"/><circle cx="34" cy="37" r="1.3" fill="#2a1d12"/><path d="M27 44h6" stroke="#8a5e44" stroke-width="1.2"/></symbol>
+<symbol id="r-elf" viewBox="0 0 60 75">
+      <path d="M17 30h26v30H17Z" fill="#d9c27a"/><path d="M5 78C7 61 18 56 30 56S53 61 55 78Z" fill="#3e5a44"/><rect x="26.5" y="45" width="7" height="12" fill="#cdb08e"/>
+      <path d="M20 36L12 27L21 41Z M40 36L48 27L39 41Z" fill="#e2c6a6"/><ellipse cx="30" cy="36" rx="10" ry="13.5" fill="#e2c6a6"/>
+      <path d="M20 34C19 20 41 20 40 34C37 27 34 25 30 25S23 27 20 34Z" fill="#e3cd86"/><path d="M20.5 30C26 28 34 28 39.5 30" stroke="#d8dde4" stroke-width="1.2" fill="none"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2b4a6a"/><circle cx="34" cy="37" r="1.2" fill="#2b4a6a"/></symbol>
+<symbol id="r-halfelf" viewBox="0 0 60 75">
+      <path d="M18 30h24v22H18Z" fill="#6b3524"/><path d="M4 78C6 61 17 55 30 55S54 61 56 78Z" fill="#5a4630"/><rect x="26" y="45" width="8" height="12" fill="#c29e7a"/>
+      <path d="M20 37L15 31L21 41Z M40 37L45 31L39 41Z" fill="#d6b48e"/><ellipse cx="30" cy="36" rx="10.5" ry="13" fill="#d6b48e"/>
+      <path d="M19.5 35C18 20 42 20 40.5 35C38 27 34 25.5 30 25.5S22 27 19.5 35Z" fill="#7a3d27"/>
+      <circle cx="26" cy="37" r="1.2" fill="#2a3b2a"/><circle cx="34" cy="37" r="1.2" fill="#2a3b2a"/></symbol>
+<symbol id="r-dwarf" viewBox="0 0 60 75">
+      <path d="M2 78C4 59 16 54 30 54S56 59 58 78Z" fill="#6a3b2a"/>
+      <ellipse cx="30" cy="40" rx="12.5" ry="12" fill="#c08f6a"/>
+      <path d="M17 42C17 63 26 71 30 73C34 71 43 63 43 42C39 50 21 50 17 42Z" fill="#8b5a2b"/><path d="M24 46C27 44 33 44 36 46" stroke="#6e4420" stroke-width="2" fill="none"/>
+      <path d="M16 37C16 21 44 21 44 37Z" fill="#8a9098"/><path d="M16 37h28" stroke="#5c6168" stroke-width="2"/><rect x="28.8" y="33" width="2.4" height="10" fill="#6e737a"/>
+      <circle cx="25" cy="40" r="1.3" fill="#1e140c"/><circle cx="35" cy="40" r="1.3" fill="#1e140c"/></symbol>
+<symbol id="r-hobbit" viewBox="0 0 60 75">
+      <path d="M10 78C12 64 20 59 30 59S48 64 50 78Z" fill="#4f6a35"/><path d="M24 60l6 8 6-8" fill="#c9b48a"/>
+      <path d="M19 41L16 36L20 44Z M41 41L44 36L40 44Z" fill="#e0b48c"/><circle cx="30" cy="42" r="12" fill="#e0b48c"/>
+      <g fill="#5a3a1e"><circle cx="21" cy="34" r="4"/><circle cx="26" cy="30" r="4.2"/><circle cx="32" cy="29.5" r="4.2"/><circle cx="38" cy="32" r="4"/><circle cx="40" cy="37" r="3"/><circle cx="19.5" cy="38" r="3"/></g>
+      <circle cx="24" cy="46" r="2.4" fill="#e89a86" opacity=".6"/><circle cx="36" cy="46" r="2.4" fill="#e89a86" opacity=".6"/>
+      <circle cx="26" cy="42" r="1.3" fill="#2a1d12"/><circle cx="34" cy="42" r="1.3" fill="#2a1d12"/><path d="M27 49q3 2 6 0" stroke="#8a5e44" stroke-width="1.2" fill="none"/></symbol>
+<symbol id="r-beorning" viewBox="0 0 60 75">
+      <path d="M1 78C3 57 14 50 30 50S57 57 59 78Z" fill="#5b3d24"/>
+      <ellipse cx="30" cy="39" rx="12.5" ry="13.5" fill="#b98b62"/><path d="M19 44C20 55 26 57 30 57S40 55 41 44C37 49 23 49 19 44Z" fill="#3b2516"/>
+      <path d="M13 42C11 22 21 14 30 14S49 22 47 42C45 30 39 25 30 25S15 30 13 42Z" fill="#6e4a2c"/>
+      <circle cx="17" cy="18" r="5" fill="#6e4a2c"/><circle cx="43" cy="18" r="5" fill="#6e4a2c"/><circle cx="17" cy="18" r="2.2" fill="#3b2516"/><circle cx="43" cy="18" r="2.2" fill="#3b2516"/>
+      <circle cx="25.5" cy="39" r="1.3" fill="#1e140c"/><circle cx="34.5" cy="39" r="1.3" fill="#1e140c"/></symbol>
+<symbol id="r-orc" viewBox="0 0 60 75">
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="r-troll" viewBox="0 0 60 75">
+      <path d="M-4 78C-2 54 12 48 30 48S62 54 64 78Z" fill="#5b5f5a"/>
+      <ellipse cx="30" cy="37" rx="17" ry="15.5" fill="#7f8a86"/><path d="M15 33C20 29 26 30 28 32M32 32C34 30 40 29 45 33" stroke="#4d5551" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="23" cy="35" r="1.2" fill="#ff9a3a"/><circle cx="37" cy="35" r="1.2" fill="#ff9a3a"/>
+      <ellipse cx="30" cy="41" rx="5" ry="4" fill="#6c7672"/><path d="M20 48q10 5 20 0" stroke="#3e4542" stroke-width="2" fill="none"/>
+      <path d="M23 48l1.5-3.5 1.5 3.5Z M34 48l1.5-3.5 1.5 3.5Z" fill="#d8d2bf"/></symbol>
+<symbol id="r-bn" viewBox="0 0 60 75">
+      <path d="M2 78C4 56 14 46 30 46S56 56 58 78Z" fill="#141416"/>
+      <path d="M12 52C10 26 19 12 30 12S50 26 48 52C44 46 40 44 30 44S16 46 12 52Z" fill="#1c1c20"/>
+      <ellipse cx="30" cy="37" rx="9.5" ry="12" fill="#cfc2b2"/><path d="M20.5 33C23 24 37 24 39.5 33C36 29 24 29 20.5 33Z" fill="#141416"/>
+      <path d="M21 31.5C26 29.5 34 29.5 39 31.5" stroke="#b9bec6" stroke-width="1.3" fill="none"/><circle cx="30" cy="30.2" r="1.4" fill="#c22a2a"/>
+      <path d="M24.5 37.5h3M32.5 37.5h3" stroke="#2a2124" stroke-width="1.5" stroke-linecap="round"/><path d="M27.5 44.5h5" stroke="#7d6a62" stroke-width="1"/></symbol>
+<symbol id="i-player" viewBox="0 0 24 24"><path d="M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4"/></symbol>
+<symbol id="i-resting" viewBox="0 0 24 24"><path d="M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16"/></symbol>
+</defs></svg>
+
+
+<style>
+.lc { gap: 5px; align-items: stretch; }
+.who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.who .wn { font: 700 14px/1.1 var(--display); letter-spacing: .05em; color: var(--lamp-hot); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who .wr { font: italic 600 13px/1.1 var(--flavor); color: #cbbf9f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc .medal { align-self: center; }
+.mic { justify-content: flex-start; gap: 3px; }
+.mic span { cursor: pointer; border-radius: 3px; padding: 1px; }
+.mic span:hover { background: rgba(233,207,159,.12); }
+.f.cl, .chip.cl { cursor: pointer; }
+.f b.cut { display: block; }
+.cmb4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 5px; margin-top: 5px; }
+.cmb4 .f { display: flex; align-items: center; gap: 7px; padding: 5px 8px; }
+.cmb4 .f .ti { width: 16px; height: 16px; }
+.cmb4 .f small { margin: 0; } .cmb4 .f b { color: var(--lamp-hot); }
+.cmb4 .f > div { display: flex; flex-direction: column; gap: 2px; }
+.tbl { display: grid; grid-template-columns: auto repeat(3, minmax(0,1fr)); gap: 3px 10px; font: 12px/1.3 var(--mono); margin-top: 6px; align-items: baseline; }
+.tbl .h { font: 700 8px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.tbl b { font-weight: 600; font-variant-numeric: tabular-nums; } .tbl b.p { color: var(--up); } .tbl b.n { color: var(--down); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px/1.3 var(--mono); }
+.chip { display: inline-flex; gap: 5px; align-items: baseline; white-space: nowrap; }
+.chip small { font: 700 8px/1 var(--display); letter-spacing: .1em; color: var(--dim); }
+.chip b { font-weight: 600; } .chip b.lamp { color: var(--lamp-hot); }
+.chip .ti { width: 13px; height: 13px; stroke: var(--lamp); align-self: center; }
+.chip.cl:hover b { color: var(--lamp-hot); }
+.lc.compact { width: auto !important; }
+.cw.compact { column-gap: 10px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); font: 13px/1 var(--mono); color: #1b160d; background: var(--lamp); padding: 9px 14px; border-radius: 6px; z-index: 60; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+.rulesgrid { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 6px 16px; font: 13px/1.4 var(--mono); }
+.rulesgrid span { color: var(--ink-dim); } .rulesgrid b { color: var(--ink); font-weight: 400; }
+.cw { align-items: stretch; }
+.lc { justify-content: space-between; }
+.ra { display: flex; flex-direction: column; gap: 5px; }
+.ra .tpn.on { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.ra .fields { flex: 1; grid-auto-rows: 1fr; }
+.f { display: flex; flex-direction: column; justify-content: center; }
+.f.pending b { opacity: .45; }
+.f.pending small::after, .chip.pending small::after { content: " ⋯"; color: var(--lamp); }
+.mic span.pending { opacity: .4; }
+/* name variants */
+.who.c { align-items: center; text-align: center; } .who.r { align-items: flex-end; text-align: right; }
+.plate { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; padding: 2px 10px 3px; border-radius: 4px; white-space: nowrap;
+  background: linear-gradient(180deg, #2f3238, #1c1e22); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.6); }
+.plate .wn { font: 700 12px/1.1 var(--display); letter-spacing: .06em; color: var(--lamp-hot); } .plate .wr { font: italic 600 11.5px/1 var(--flavor); color: #cbbf9f; }
+.arc { position: absolute; left: -10px; top: -12px; z-index: 2; pointer-events: none; overflow: visible; }
+.arc text { font-family: var(--display); font-weight: 700; letter-spacing: .1em; fill: var(--lamp-hot); }
+.arc text.r { font-family: var(--flavor); font-style: italic; font-weight: 600; letter-spacing: .04em; fill: #cbbf9f; }
+.medal.ring-tl .lr { left: 0; top: 0; bottom: auto; transform: none; }
+/* combat formats */
+.cline { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-top: 1px solid rgba(233,207,159,.18); border-bottom: 1px solid rgba(233,207,159,.18); padding: 6px 0; }
+.cline > div { display: flex; align-items: center; justify-content: center; gap: 7px; border-left: 1px solid rgba(233,207,159,.12); }
+.cline > div:first-child { border-left: 0; }
+.cline .ti { width: 18px; height: 18px; stroke: var(--lamp); }
+.cline b { font: 700 17px/1 var(--mono); color: var(--lamp-hot); } .cline small { font: 700 8.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.cbadge { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; }
+.cbadge > div { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 64px; padding: 2px 0 12px; }
+.cbadge > div > small { position: absolute !important; bottom: 0; }
+.cbadge svg.bg { position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: 52px; height: 52px; stroke: rgba(233,207,159,.22); fill: rgba(0,0,0,.25); stroke-width: 1; }
+.cbadge b { position: relative; font: 700 16px/1.1 var(--mono); color: var(--lamp-hot); } .cbadge small { position: relative; font: 700 8px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+.cbadge .ti { position: relative; width: 13px; height: 13px; stroke: var(--lamp); }
+/* vitals variants */
+.vin .b { height: 18px; border-radius: 5px; } .vin .top { display: none; }
+.b > .lab { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; font: 700 11px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.b > .lab small { font-weight: 400; opacity: .75; } .b > .lab .k2 { font: 700 9px/1 var(--display); letter-spacing: .12em; opacity: .85; }
+.b > .lab.ctr { justify-content: center; gap: 6px; }
+.vside .vit { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 6px; align-items: center; } .vside .top { display: contents; } .vside .k { grid-column: 1; grid-row: 1; } .vside .n { grid-column: 3; grid-row: 1; } .vside .b { grid-column: 2; grid-row: 1; }
+.vbig .n { font-size: 18px; } .vbig .b { height: 7px; } .vbig .top { min-height: 18px; }
+.pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; padding: 10px; border-radius: 6px; background: #151922; box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--iron-hi), 0 12px 30px rgba(0,0,0,.7); }
+.pop .tpn { display: flex !important; flex-direction: column; gap: 5px; }
+.benchwrap { position: relative; }
+.f.bare { background: none; box-shadow: none; padding: 2px 4px; justify-content: center; align-items: center; text-align: center; }
+.f.bare small { justify-content: center; } .f.bare b { font-size: 17px; justify-content: center; }
+.f.bare b.clip { display: block; overflow: hidden; text-overflow: clip; white-space: nowrap; max-width: 100%; }
+.f.bare + .f.bare { border-left: 1px solid rgba(233,207,159,.12); }
+.f.bare.cl:hover b { color: var(--lamp-hot); }
+.ra .fields:has(.bare) { gap: 0; }
+</style>
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 8</span>
+  <h1>Status utan rutor</h1>
+  <p class="lede">Mood, Casts och Alertness står utan rutor, centrerade, med en tunn avdelare emellan. Får ett värde inte plats förkortas det: aggressive, aggres., agg. (prova bredd 560 och 420). Vikten har ikonen Vikt och procent 0, 20, 40, 60, 80 och 100 för de sex stegen.</p>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Prova</span><h2>Kortet ovanför Group pane</h2>
+      <p>Byt höjdläge och flik. Klicka på Mood, Casts, ikonerna eller positionen så ser du vilket kommando som skulle skickas, och kortet visar resultatet som om MUME hade svarat.</p></div>
+    <div class="bench">
+      <div class="ctlrow">
+        <div class="ctl">Höjd <span class="seg" data-ctl="h"><button data-v="large" class="on">Stor</button><button data-v="medium">Mellan</button><button data-v="compact">Kompakt (parkerad)</button></span></div>
+        <div class="ctl">Flik <span class="seg" data-ctl="tab"><button data-v="0" class="on">Status</button><button data-v="1">Stats</button><button data-v="2">Lore</button></span></div>
+        <div class="ctl">Läge <span class="seg" data-ctl="mode"><button data-v="normal" class="on">Normal</button><button data-v="fight">Strid</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Bredd <span class="seg" data-ctl="width"><button data-v="760" class="on">760</button><button data-v="560">560</button><button data-v="420">420</button></span></div>
+        <div class="ctl">Ram <span class="seg" data-ctl="border"><button data-v="on" class="on">På</button><button data-v="off">Av</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Viktikon <span class="seg" data-ctl="wico"><button data-v="0" class="on">Vikt</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Viktsteg <span class="seg" data-ctl="wstep"><button data-v="0">Peanuts</button><button data-v="1">A tad</button><button data-v="2" class="on">Heavy</button><button data-v="3">Really heavy</button><button data-v="4">Forget the pain</button><button data-v="5">Sheer torture</button></span></div>
+      </div>
+      <div class="scroll"><div id="bench" class="stackp"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Höjdlägen</span><h2>Stor, mellan och kompakt</h2>
+      <p>Höjden väljs av sig själv utifrån panens storlek, eller låses i kugghjulet. Alla tre visar samma Status-data. Bara formen ändras.</p></div>
+    <div class="scroll"><div class="rowx" id="heights" style="flex-wrap:nowrap"></div></div>
+    <div class="two" style="margin-top:8px">
+      <div class="box"><h3>Vad som ändras</h3><ul>
+        <li><strong>Stor</strong> (ca 190 px): stort porträtt, fälten som kort, OB/DB/PB/ABS som kort under.</li>
+        <li><strong>Mellan</strong> (ca 130 px): litet porträtt, fälten som kort men tätare.</li>
+        <li><strong>Kompakt</strong> är parkerad tills resten är klart (ditt beslut).</li>
+      </ul></div>
+      <div class="box"><h3>Stats och Lore i kompakt: rutan fälls ut ovanpå</h3><p>Panen ändrar aldrig sin egen storlek. I kompakt läge fälls Stats och Lore ut som en ruta <strong>ovanpå</strong> Group, ungefär som en meny. Ingen annan pane flyttas eller krymper, och layouten som sparas är densamma oavsett vilken flik du har. Rutan stängs när du klickar på Status, trycker Esc eller klickar utanför. Prova i bänken med Kompakt och fliken Stats.</p>
+<p>Om panen i stället skulle växa och trycka ner sina grannar måste dockan komma ihåg grannarnas höjder och lägga tillbaka dem. Det är mer kod och ger fler sätt att få en trasig layout. Därför föreslår jag rutan ovanpå.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Flikarna</span><h2>Stats och Lore i stort läge</h2></div>
+    <div class="scroll"><div class="rowx" id="tabs3" style="flex-wrap:nowrap"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Klick</span><h2>Vad varje klick skickar</h2></div>
+    <div class="box"><div class="rulesgrid" id="rules"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Vikten kommer troligen via GMCP</h3><p><code>Char.Vitals</code> har ett fält <code>carrying</code>. I Cockpits loggar finns värdet <code>"light"</code>. Dina rader ("Your load feels light.", "Your burden is heavy." …) är troligen samma steg i text. Då behöver Status inte skicka något kommando för vikten. Jag kollar i en live-session vilka ord <code>carrying</code> kan få och om stegen är lika många som meningarna i <code>info %F</code>.</p></div>
+      <div class="q"><h3>OB, DB, PB och ABS kommer inte via GMCP</h3><p>De finns bara i <code>info</code> (%O %D %k %A). Eftersom de står i Status behöver Status data som inte kommer via GMCP. Alternativ:</p><div class="opts"><span class="rec">Hämtas vid inloggning, var 5:e minut och efter wield/wear/remove</span><span>Flytta dem till Stats</span><span>Visa senaste kända värde och hämta bara när Stats eller Lore öppnas</span></div></div>
+      <div class="q"><h3>Race och subrace</h3><p><code>race</code> är folket (Orc, Elf, Man …) och <code>subrace</code> är linjen inom folket (för alver Noldo, Sinda eller Silvan, för människor till exempel Dúnadan). Åldern beror på subrace (Sinda åldras långsammare än Silvan). Jag skriver "subrace race", till exempel "Tarkhnarb orc", och bara race när subrace saknas. De exakta värdena ser vi när vi loggar <code>Char.StatusVars</code> live.</p></div>
+    </div>
+  </section>
+</main>
+<script>
+const D = { name: 'Rasta', race: 'orc', raceName: 'Orc', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], ma: [93, 111], mv: [98, 122], wimpy: 150, tog: { sneak: 1, ride: 0, climb: 1, swim: 0 },
+  mood: 'aggressive', speed: 'normal', alert: 'normal', pos: 'standing' };
+const MOODS = ['wimpy', 'prudent', 'normal', 'brave', 'aggressive'];
+const SPEEDS = ['quick', 'fast', 'normal', 'careful', 'thorough'];
+const ALERTS = ['normal', 'careful', 'attentive', 'vigilant', 'paranoid'];
+const pending = new Set();
+const AGE = { years: 57, brackets: [36, 48, 64, 80, 100, 130, 180] };
+const AGE_TBL = { Mana: [-5,-3,0,3,7,15,10], Hit: [14,16,12,10,8,4,-6], Move: [10,10,5,0,-5,-12,-15], rMana: [0,1,3,6,8,10,6], rHit: [3,2,1,0,-1,-2,-5], rMove: [3,3,2,1,-3,-6,-9],
+  STR: [0,1,1,0,-1,-1,-2], INT: [1,1,1,0,0,0,-1], WIS: [-1,0,0,1,1,2,2], DEX: [1,1,0,0,-1,-2,-3], CON: [0,1,1,0,0,-1,-2], WIL: [1,1,1,1,1,0,0], PER: [1,1,0,0,-1,-2,-3] };
+function ageAt(y) { const b = AGE.brackets; let i = 0; while (i < 6 && y >= b[i + 1]) i++; const f = i === 6 ? 0 : Math.max(0, (y - b[i]) / (b[i + 1] - b[i]));
+  return { i, f, mod: (k) => AGE_TBL[k][i] + (AGE_TBL[k][Math.min(i + 1, 6)] - AGE_TBL[k][i]) * f }; }
+const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+const I = {
+  sneak: 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4',
+  ride: 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2',
+  climb: 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10',
+  swim: 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  ob: 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5',
+  db: 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7',
+  pb: 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5',
+  abs: 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6',
+  mood: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M8 15c2.5-2 5.5-2 8 0 M8 9l2.5 1.5 M16 9l-2.5 1.5',
+  cast: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  alert: 'M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5',
+  wimpy: 'M5 12h11 M12 8l4 4-4 4 M20 4v16',
+  load: 'M6 8h12l2 12H4z M9 8V6a3 3 0 0 1 6 0v2',
+};
+const st = { tab: 0, h: 'large', mode: 'normal', width: 760, border: 'on', name: 'center', combat: 'badge', vit: 'in', wico: 0, wval: 'pct', wstep: 2 };
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const svg = (k, cls = 'ti') => `<svg class="${cls}" viewBox="0 0 24 24"><path d="${I[k]}"/></svg>`;
+const sgn = (v, d = 0) => { const r = Number(v.toFixed(d)); return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(d); };
+
+// What a click sends, and what the card shows after MUME's answer.
+function clickPlan(k) {
+  if (k === 'mood') { const n = MOODS[(MOODS.indexOf(D.mood) + 1) % MOODS.length]; return [`change mood ${n}`, () => { D.mood = n; }, { mood: n }]; }
+  if (k === 'speed') { const n = SPEEDS[(SPEEDS.indexOf(D.speed) + 1) % SPEEDS.length]; return [`change spell ${n}`, () => { D.speed = n; }]; }
+  if (k === 'alert') { const n = ALERTS[(ALERTS.indexOf(D.alert) + 1) % ALERTS.length]; return [`change alertness ${n}`, () => { D.alert = n; }, { alertness: n }]; }
+  if (k === 'sneak') return ['sneak', () => { D.tog.sneak ^= 1; }, { sneak: D.tog.sneak ? null : 's' }];
+  if (k === 'ride') return [D.tog.ride ? 'lead' : 'ride', () => { D.tog.ride ^= 1; }, { ride: D.tog.ride ? null : 'a horse' }];
+  if (k === 'climb') return ['climb', () => { D.tog.climb ^= 1; }, { climb: D.tog.climb ? null : 'c' }];
+  if (k === 'swim') return ['swim', () => { D.tog.swim ^= 1; }, { swim: !D.tog.swim }];
+  if (k === 'pos') { const m = { standing: ['rest', 'resting'], resting: ['stand', 'standing'], sitting: ['stand', 'standing'], sleeping: ['wake', 'resting'] }[D.pos] || ['stand', 'standing']; return [m[0], () => { D.pos = m[1]; }, { position: m[1] }]; }
+  return null;
+}
+const tipFor = (k) => { const p = clickPlan(k); return p ? `Click: ${p[0]}` : ''; };
+
+function ring(size) {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `Level ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  return `<span class="lr" data-tip="${tip}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">
+    <circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.7)" stroke-width="2.6"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="#6e5832" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.3" stroke-dasharray="${D.tp * 100} 100" opacity=".85"/></svg><b>${D.level}</b></span>`;
+}
+function icons(o) {
+  const tog = ['sneak', 'ride', 'climb', 'swim'].map((k) => `<span class="${pending.has(k) ? 'pending' : ''}" data-click="${k}" data-tip="${k} ${D.tog[k] ? 'on' : 'off'}\n${tipFor(k)}">${svg(k, 'ti' + (D.tog[k] ? ' on' : ''))}</span>`).join('');
+  const pk = o.mode === 'fight' ? 'fighting' : D.pos;
+  const pos = `<span data-click="pos" data-tip="${pk}${o.mode === 'fight' ? '' : '\n' + tipFor('pos')}">${svg(pk, 'ti posi' + (o.mode === 'fight' ? ' fight' : ''))}</span>`;
+  return `<div class="mic">${tog}<span class="sep" style="padding:0;cursor:default"></span>${pos}</div>`;
+}
+function leftCol(o) {
+  if (o.h === 'compact') return `<div class="lc compact" style="flex-direction:row;align-items:center;gap:8px">${ring(30)}<div style="display:flex;flex-direction:column;gap:4px"><div class="who"><span class="wn">${D.name}</span></div>${icons(o)}</div></div>`;
+  const pd = o.h === 'medium' ? 62 : (o.width < 500 ? 84 : 100);
+  const nv = o.name;
+  const who = (cls) => `<div class="who ${cls}"><span class="wn" style="font-size:15px">${D.name}</span></div>`;
+  let arc = '', plate = '';
+  if (nv === 'arc') { const r = pd / 2 + 6, c = pd / 2 + 10;
+    arc = `<svg class="arc" width="${pd + 20}" height="${pd + 20}" viewBox="0 0 ${pd + 20} ${pd + 20}"><defs><path id="ap${pd}" d="M ${c - r} ${c} A ${r} ${r} 0 0 1 ${c + r} ${c}"/></defs>
+      <text font-size="${pd > 80 ? 12 : 10}" text-anchor="middle"><textPath href="#ap${pd}" startOffset="50%">${D.name.toUpperCase()}</textPath></text></svg>`; }
+  if (nv === 'plate') plate = `<div class="plate"><span class="wn">${D.name}</span><span class="wr">${D.raceName}</span></div>`;
+  const medal = `<div class="medal${nv === 'plate' ? ' ring-tl' : ''}" style="--pd:${pd}px;${nv === 'plate' ? `height:${pd + 8}px` : ''}"><div class="disc2 dark"><svg viewBox="0 0 60 75" preserveAspectRatio="xMidYMin meet"><use href="#r-${D.race}"/></svg></div>${arc}${plate}${ring(pd > 70 ? 32 : 26)}</div>`;
+  const top = nv === 'center' ? who('c') : nv === 'right' ? who('r') : nv === 'left' ? who('') : nv === 'arc' ? '<div style="height:8px"></div>' : '';
+  const below = nv === 'arc' ? `<div class="who c"><span class="wr">${D.raceName}</span></div>` : '';
+  return `<div class="lc" style="--lcw:${Math.max(pd + 14, 108)}px">${top}${medal}${below}${icons(o)}</div>`;
+}
+function vitals(o) {
+  const fight = o.mode === 'fight';
+  const wp = Math.round((D.wimpy / D.hp[1]) * 100);
+  const v = o.vit;
+  const one = (label, cls, a, span, extra = '', tip = '') => {
+    const p = a ? pct(a) : span[0];
+    const num = a ? `${a[0]}<small> / ${a[1]}</small>` : '';
+    const lab = v === 'in' ? `<span class="lab"><span class="k2">${label}</span><span>${num}</span></span>` : v === 'ctr' ? `<span class="lab ctr">${a ? `<span>${a[0]}<small> / ${a[1]}</small></span>` : `<span class="k2">${label}</span>`}</span>` : '';
+    return `<div class="vit ${cls}"${tip ? ` data-tip="${tip}"` : ''}><div class="top"><span class="k">${label}</span><span class="n">${num}</span></div>
+      <div class="b"><i style="--w:${p}%"></i>${span && !a ? `<u style="--lo:${span[0]}%;--hi:${span[1]}%"></u>` : ''}${extra}${lab}</div></div>`;
+  };
+  const hpTip = (fight ? 'HP: only the band is known (46–70 %)' : 'HP 187 / 270 · 69 %') + '\nwimpy 150: you flee below the arrow';
+  const sz = (o.h === 'compact' || o.width < 500) && v === 'tube' ? ' md' : '';
+  const vc = { tube: '', in: ' vin', ctr: ' vin', side: ' vside', big: ' vbig' }[v];
+  return `<div class="vit3${fight ? ' fight' : ''}${sz}${vc}">${one('HP', 'hp', fight ? null : D.hp, fight ? [46, 70] : null, `<span class="wim tick" style="--p:${wp}%"></span>`, hpTip)}${one('MANA', 'ma', D.ma)}${one('MOVES', 'mv', fight ? null : D.mv, fight ? [30, 49] : null)}</div>`;
+}
+function pie(step, of = 5) {
+  const col = step >= of ? 'var(--crit)' : step >= of - 1 ? 'var(--warn)' : 'var(--dim)';
+  return `<svg class="pie" viewBox="0 0 14 14" style="transform:rotate(-90deg)"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="2"/><circle cx="7" cy="7" r="5.5" fill="none" stroke="${col}" stroke-width="2" pathLength="100" stroke-dasharray="${(step / of) * 100} 100"/></svg>`;
+}
+const LOAD = 'Heavy, but we will manage…';
+// MUME's encumbrance sentences, light to heavy (owner, 2026-11-22). The two highest are red, the third highest orange.
+const WSTEPS = ['Peanuts.', 'A tad uncomfortable, but no problem.', 'Heavy, but we will manage...', 'That is really heavy!', 'You are trying to forget the pain...', 'Every single move is sheer torture...'];
+const WLBS = [11, 17, 97, 155, 207, 263];
+const WICONS = [
+  ['Vikt', 'M8.5 8a3.5 3.5 0 1 1 7 0 M5.5 8h13l2 12h-17z M10 14h4'],
+  ['Säck', 'M9 3h6l-1.5 3 M10.5 6c-4 2-6 5.5-6 9 0 3.5 3 6 7.5 6s7.5-2.5 7.5-6c0-3.5-2-7-6-9z M9.5 14.5h5'],
+  ['Våg', 'M12 3v18 M8 21h8 M4 7h16 M7 7l-3 7a3 3 0 0 0 6 0z M17 7l-3 7a3 3 0 0 0 6 0z'],
+  ['Städ', 'M3 7h13c0 2 2 3 5 3v2h-5v3l2 3H8l2-3v-3H7C5 12 3 10 3 7z'],
+];
+function wcol(i) { return i >= 4 ? 'var(--crit)' : i === 3 ? 'var(--warn)' : ''; }
+const COMBAT = [['ob', 'OB', '137', 'Offensive bonus'], ['db', 'DB', '−1', 'Dodge bonus'], ['pb', 'PB', '39', 'Parry bonus'], ['abs', 'ABS', '43', 'Absorption']];
+function combatBlock(o) {
+  if (o.combat === 'line') return `<div class="cline">${COMBAT.map(([ic, l, v, t]) => `<div data-tip="${t}">${svg(ic)}<b>${v}</b><small>${l}</small></div>`).join('')}</div>`;
+  if (o.combat === 'badge') {
+    const i = +o.wstep, c = wcol(i), pctv = Math.round((i / (WSTEPS.length - 1)) * 100);
+    const val = o.wval === 'pct' ? `${pctv}%` : o.wval === 'lbs' ? `${WLBS[i]}<small style="font-size:9px"> lb</small>` : `${i + 1}<small style="font-size:9px">/6</small>`;
+    const wt = `<div data-tip="“${WSTEPS[i]}”\nstep ${i + 1} of ${WSTEPS.length} = ${pctv} %"><svg class="bg" viewBox="0 0 24 24" style="${c ? `stroke:${c};` : ''}"><circle cx="12" cy="12" r="10"/></svg><svg class="ti" viewBox="0 0 24 24" style="${c ? `stroke:${c}` : ''}"><path d="${WICONS[+o.wico][1]}"/></svg><b style="${c ? `color:${c}` : ''}">${val}</b><small>WEIGHT</small></div>`;
+    return `<div class="cbadge" style="grid-template-columns:repeat(5,minmax(0,1fr))">${COMBAT.map(([ic, l, v, t]) => `<div data-tip="${t}"><svg class="bg" viewBox="0 0 24 24"><path d="M12 2l8 3.5v6c0 5.5-3.5 9-8 10.5-4.5-1.5-8-5-8-10.5v-6z"/></svg>${svg(ic)}<b>${v}</b><small>${l}</small></div>`).join('')}${wt}</div>`;
+  }
+  return `<div class="cmb4">${COMBAT.map(([ic, l, v, t]) => `<div class="f" data-tip="${t}" style="flex-direction:row;justify-content:flex-start">${svg(ic)}<div><small>${l}</small><b>${v}</b></div></div>`).join('')}</div>`;
+}
+const SHORT = { aggressive: ['aggressive', 'aggres.', 'agg.'], attentive: ['attentive', 'attent.', 'att.'], paranoid: ['paranoid', 'paran.', 'par.'], vigilant: ['vigilant', 'vigil.', 'vig.'], thorough: ['thorough', 'thor.', 'th.'] };
+const fit = (v, w) => { const s = SHORT[v]; if (!s) return v; return w >= 600 ? s[0] : w >= 480 ? s[1] : s[2]; };
+function statusTab(o) {
+  const F = [['mood', 'Mood', fit(D.mood, o.width), 'mood'], ['cast', 'Casts', fit(D.speed, o.width), 'speed'], ['alert', 'Alertness', fit(D.alert, o.width), 'alert']];
+  const pc = (k) => pending.has(k) ? ' pending' : '';
+  if (o.h === 'compact') {
+    const c1 = F.map(([ic, l, v, k]) => `<span class="chip cl${pc(k)}" data-click="${k}" data-tip="${tipFor(k)}"><small>${l.toUpperCase()}</small><b>${v}</b></span>`).join('')
+      + `<span class="chip" data-tip="93 lb · ${LOAD}\nstep 4 of 5"><small>LOAD</small>${pie(4)}<b style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${LOAD}</b></span>`;
+    const c2 = COMBAT.map(([ic, l, v, t]) => `<span class="chip" data-tip="${t}">${svg(ic)}<b class="lamp">${v}</b><small>${l}</small></span>`).join('');
+    return `<div class="chips">${c1}</div><div class="chips" style="margin-top:4px">${c2}</div>`;
+  }
+  const fields = F.map(([ic, l, v, k]) => `<div class="f bare cl${pc(k)}" data-click="${k}" data-tip="${v}\n${tipFor(k)}"><small>${svg(ic)}${l}</small><b class="clip">${v}</b></div>`).join('');
+  return `<div class="fields" style="grid-template-columns:repeat(3,minmax(0,1fr))">${fields}</div>${combatBlock(o)}`;
+}
+function statsTab(o) {
+  const a = ageAt(AGE.years);
+  // Current from info %S %i %w %d %o %I %p, unaffected from %G; the difference is what affects add.
+  const ab = [['STR', 18, 16, '%S'], ['INT', 16, 16, '%i'], ['WIS', 16, 16, '%w'], ['DEX', 11, 11, '%d'], ['CON', 12, 12, '%o'], ['WIL', 16, 16, '%I'], ['PER', 8, 8, '%p']];
+  const cells = ab.map(([k, v, g, code]) => { const d = v - g; return `<div class="abx${d > 0 ? ' up' : d < 0 ? ' dn' : ''}" data-tip="${k} ${v}  (info ${code})\nunaffected ${g}  (info %G)${d ? `\n${d > 0 ? '+' : ''}${d} from affects` : ''}"><small>${k}</small><b>${v}</b><em>${d ? (d > 0 ? '+' : '−') + Math.abs(d) : '&nbsp;'}</em></div>`; }).join('');
+  const m = (k, d = 0) => { const v = a.mod(k); return `<b class="${v > 0.05 ? 'p' : v < -0.05 ? 'n' : ''}">${sgn(v, d)}</b>`; };
+  const pos = (a.i + a.f) / 7 * 100;
+  const segs = ORD.map((_, k) => `<span class="${k <= a.i ? 'past' : ''}"></span>`).join('');
+  const age = `<div class="f agec"><div class="top"><small style="margin:0">Age</small><span>${ORD[a.i + 1]} at ${AGE.brackets[a.i + 1]}</span></div>
+    <div class="top" style="margin-top:3px"><b>${AGE.years}<em>${ORD[a.i]} age</em></b></div>
+    <div class="aget">${segs}<span class="now" style="left:${pos}%"></span></div>
+    <div class="tbl"><span class="h">MODIFIERS</span><span class="h">HP</span><span class="h">MANA</span><span class="h">MOVES</span>
+      <span class="h">POINTS</span>${m('Hit')}${m('Mana')}${m('Move')}
+      <span class="h">REGEN</span>${m('rHit', 1)}${m('rMana', 1)}${m('rMove', 1)}</div></div>`;
+  const other = `<div class="fields" style="--fmin:90px;grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="f"><small>Vision</small><b>25</b></div><div class="f"><small>Hearing</small><b>10</b></div>
+    <div class="f"><small>Smell</small><b>20</b></div><div class="f"><small>Carrying</small><b>93 lb</b></div></div>`;
+  return `<div class="ab">${cells}</div><div class="srow">${age}${other}</div>`;
+}
+function loreTab(o) {
+  const f = (l, v, cls = '', tip = '') => `<div class="f ${cls}"${tip ? ` data-tip="${tip}"` : ''}><small>${l}</small><b>${v}</b></div>`;
+  return `<div class="fields" style="--fmin:${o.width < 500 ? 104 : 118}px">
+    ${f('Race', 'Tarkhnarb orc', '', 'race + subrace from Char.StatusVars\n(example value)')}
+    ${f('Alignment', 'totally corrupted by the Evilness of Morgoth', 'wide')}
+    ${f('Citizen', 'GoblinTown')}${f('War fame', 'known<em style="margin-left:5px">4</em>')}
+    ${f('Purse', '<span class="coin g"></span>394<span class="coin s"></span>11<span class="coin c"></span>49')}
+    ${f('Height', '4′11″')}${f('Weight', '8 st 5 lb')}${f('Birthday', 'in 5 months', '', '57 years 6 months 2 days')}</div>`;
+}
+function card(o) {
+  o = Object.assign({}, st, o);
+  const fight = o.mode === 'fight';
+  const active = fight ? 0 : +o.tab;
+  const tabs = `<div class="vt${fight ? ' locked' : ''}">${['Status', 'Stats', 'Lore'].map((n, i) => `<button data-tab="${i}" class="${i === active ? 'on' : ''}">${n.toUpperCase()}</button>`).join('')}</div>`;
+  const pop = o.h === 'compact' && active !== 0;
+  const panels = [statusTab(o), statsTab(o), loreTab(o)].map((h, i) => `<div class="tpn${(pop ? i === 0 : i === active) ? ' on' : ''}">${h}</div>`).join('');
+  const popHtml = pop ? `<div class="pop">${[statsTab(o), loreTab(o)][active - 1].replace(/^/, '<div class="tpn on">') + '</div>'}</div>` : '';
+  return `<div class="pane${o.border === 'off' ? ' off' : ''}${o.width < 500 ? ' narrow' : ''}" style="width:${o.width}px;max-width:none"><div class="hood">CHARACTER</div><div class="win">
+    <div class="cw${o.h === 'compact' ? ' compact' : ''}" data-card>${leftCol(o)}<div class="ra">${panels}</div>${tabs}<div class="foot"${o.h === 'compact' ? ' style="margin-top:8px"' : ''}>${vitals(o)}</div></div></div>${popHtml}</div>`;
+}
+function group(width, border) {
+  const M = [
+    { n: 'Kakaroto', room: 'Hall of Murals', b: [100, 78, 100], pos: 'resting' },
+    { n: 'Mrruhk', here: 1, b: [100, 100, 72], pos: 'standing' },
+    { n: 'Rheinmetall', room: 'Sinister-looking Cave', b: [100, 0, 100], pos: 'standing' },
+    { n: 'Ázukh', room: 'The Cracked Chamber', b: [80, 86, 100], pos: 'resting' },
+  ];
+  const rows = M.map((m) => `<div class="gr${m.here ? '' : ' away'}"><div class="t"><svg class="ico pl" viewBox="0 0 24 24"><use href="#i-player"/></svg><span class="nm">${m.n}</span><span class="room">${m.room ? `<svg class="ico" viewBox="0 0 24 24"><use href="#i-pin"/></svg>${m.room}` : ''}</span>${svg(m.pos, 'ico')}</div>
+    <div class="bars"><span class="b hp"><i style="--w:${m.b[0]}%"></i></span><span class="b ma"><i style="--w:${m.b[1]}%"></i></span><span class="b mv"><i style="--w:${m.b[2]}%"></i></span></div></div>`).join('');
+  return `<div class="pane${border === 'off' ? ' off' : ''}" style="width:${width}px;max-width:none"><div class="hood">GROUP</div><div class="win"><div class="gp">${rows}</div></div></div>`;
+}
+function wire(root, onTab) {
+  root.querySelectorAll('[data-card]').forEach((cw) => cw.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+    const i = +b.dataset.tab;
+    cw.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+    cw.querySelectorAll('.tpn').forEach((p, k) => p.classList.toggle('on', k === i));
+    if (onTab) onTab(i);
+  })));
+}
+function syncSeg(k) { document.querySelectorAll(`[data-ctl="${k}"] button`).forEach((x) => x.classList.toggle('on', x.dataset.v === String(st[k]))); }
+function renderAll() {
+  const el = document.getElementById('bench');
+  el.innerHTML = card({}) + group(st.width, st.border);
+  wire(el, (i) => { st.tab = i; syncSeg('tab'); if (st.h === 'compact') renderAll(); });
+  const h = document.getElementById('heights');
+  h.innerHTML = [['large', 'Stor'], ['medium', 'Mellan']].map(([v, l]) => `<div class="cap"><span class="lbl">${l}</span>${card({ h: v, width: 560, tab: 0, mode: 'normal', border: 'on' })}</div>`).join('');
+  wire(h);
+  const t = document.getElementById('tabs3');
+  t.innerHTML = [[1, 'Stats'], [2, 'Lore']].map(([i, l]) => `<div class="cap"><span class="lbl">${l}</span>${card({ h: 'large', width: 640, tab: i, mode: 'normal', border: 'on' })}</div>`).join('');
+  wire(t);
+  document.getElementById('rules').innerHTML = [
+    ['Mood', 'stegar wimpy → prudent → normal → brave → aggressive → wimpy (aldrig berserk): <code>change mood &lt;nästa&gt;</code>'],
+    ['Casts', 'stegar genom spell speeds: <code>change spell &lt;nästa&gt;</code> (stegen behöver bekräftas)'],
+    ['Alertness', 'stegar normal → careful → attentive → vigilant → paranoid → normal: <code>change alertness &lt;nästa&gt;</code>'],
+    ['Sneak', 'växlar: <code>sneak</code>'], ['Ride', 'rider du: <code>lead</code> · annars: <code>ride</code>'],
+    ['Climb', 'växlar: <code>climb</code>'], ['Swim', 'växlar: <code>swim</code>'],
+    ['Position', 'standing → <code>rest</code> · resting/sitting → <code>stand</code> · sleeping → <code>wake</code>'],
+  ].map(([a, b]) => `<span>${a}</span><b>${b}</b>`).join('');
+}
+document.querySelectorAll('[data-ctl]').forEach((seg) => seg.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = seg.dataset.ctl; st[k] = k === 'width' ? +b.dataset.v : b.dataset.v; syncSeg(k); renderAll();
+}));
+let toastT;
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-click]'); if (!c) return;
+  const p = clickPlan(c.dataset.click); if (!p) return;
+  const key = c.dataset.click; pending.add(key); renderAll();
+  setTimeout(() => { p[1](); pending.delete(key); renderAll(); toastMsg(`GMCP Char.Vitals ${JSON.stringify(p[2] || {})}`); }, 700);
+  toastMsg('skickar: ' + p[0] + '  · väntar på GMCP');
+});
+function toastMsg(m) {
+  let t = document.querySelector('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = m; clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2200);
+}
+renderAll();
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
