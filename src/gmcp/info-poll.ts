@@ -1,5 +1,5 @@
 // The hidden info poll: when it is sent (stage 77 part C, ADR 0166 points
-// 3, 6, 19, 22–25). Pure TS: the clock, the timers, the send and the state
+// 3, 6, 19, 22–25, 34, 35). Pure TS: the clock, the timers, the send and the state
 // are injected. What hides the answer is info-filter.ts.
 //
 // Why a poll is sent:
@@ -20,7 +20,8 @@
 // - no command was sent in the last 2 s. MUME answers queued commands one
 //   pulse at a time, so the first one's prompt does not say that the last
 //   one (`write`, say) has been read, and a prompt can have been on its way
-//   when the command went.
+//   when the command went. The 5 min repeat waits for 10 s of quiet, as a
+//   command can be held behind a cast.
 //
 // A command sent into the pager or the line editor is read by them: when in
 // doubt, no poll.
@@ -46,6 +47,8 @@ export const IDLE_MS = 5 * 60_000;
 export const UNANSWERED_MS = 2 * 60_000;
 /** After the last command sent. */
 export const SETTLE_MS = 2000;
+/** The same for the repeated poll, which is in no hurry. */
+export const REPEAT_SETTLE_MS = 10_000;
 /** Failures that stop the polls for the connection. */
 export const MAX_FAILURES = 2;
 
@@ -183,6 +186,11 @@ export class InfoPoll {
     return this.failureCount;
   }
 
+  /** MUME reads input of its own (point 35): a command not typed would be taken as its text. */
+  readsInput(): boolean {
+    return this.o.passwordMode() || this.filter.readsInput();
+  }
+
   /** Why the gate is closed, or null when it is open. */
   gate(): string | null {
     const last = this.filter.last;
@@ -264,13 +272,14 @@ export class InfoPoll {
     if (!this.o.live() || !this.o.enabled()) return null;
     const sent = this.sentPollAt;
     let at = now;
-    if (!this.loginDue && !this.openDue) {
+    const repeat = !this.loginDue && !this.openDue;
+    if (repeat) {
       const data = this.o.dataAt();
       const base = data === null ? sent : sent === null ? data : Math.max(data, sent);
       if (base !== null) at = base + EVERY_MS;
     }
     if (sent !== null) at = Math.max(at, sent + (this.outstanding === null ? MIN_GAP_MS : UNANSWERED_MS));
-    return Math.max(at, this.commandAt + SETTLE_MS);
+    return Math.max(at, this.commandAt + (repeat ? REPEAT_SETTLE_MS : SETTLE_MS));
   }
 
   /** What time does not decide. */

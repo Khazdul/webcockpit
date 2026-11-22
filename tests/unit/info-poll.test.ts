@@ -2,7 +2,7 @@
 // 19, 22–25): a real session, line layer and game state, a fake clock.
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
+import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
 import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -35,7 +35,7 @@ function setup(o: { enabled?: boolean } = {}) {
     live: () => !session.isReplay && session.state === 'playing',
     passwordMode: () => session.passwordMode,
     enabled: () => enabled,
-    fighting: () => game.group.fight().opponent !== null || game.char.view().position === 'fighting',
+    fighting: () => game.fighting(),
     dataAt: () => game.info.at,
     apply: (a) => game.applyInfo(a),
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
@@ -310,6 +310,61 @@ describe('InfoPoll: the gate', () => {
   });
 });
 
+describe('InfoPoll: MUME reads input of its own (point 35)', () => {
+  const EDITOR = `Write your message for the Mages' board\r\nType %e on an empty line to save and exit, %q to abandon and %h for help.\r\n==&gt;\r\n<prompt>: </prompt>${GA}`;
+
+  it('the editor as seen live: from its prompt, through text that arrives, to the game prompt', () => {
+    const t = setup();
+    t.ready();
+    expect(t.poll.readsInput()).toBe(false);
+    t.frame(EDITOR);
+    expect(t.poll.readsInput()).toBe(true);
+    t.frame("A hobbit tells you 'hello'\r\n");
+    expect(t.poll.readsInput()).toBe(true);
+    t.frame(`Cancelled.\r\n\r\n${PROMPT}`);
+    expect(t.poll.readsInput()).toBe(false);
+  });
+
+  for (const [name, text] of [
+    ['marked from its ==>', `<prompt>==&gt;\r\n: </prompt>${GA}`],
+    ['cut after its ==>', `<prompt>==&gt;\r\n`],
+    ['the pager', `<prompt>*** Return: continue, b: back, r: redisplay, q: quit, &gt;: bottom (39%) *** </prompt>${GA}`],
+    ['a question', `<prompt>Are you sure? [y/n] </prompt>${GA}`],
+    ['a question untagged', `Are you sure? [y/n] ${GA}`],
+  ] as const) {
+    it(`${name}`, () => {
+      const t = setup();
+      t.ready();
+      t.frame(text);
+      expect(t.poll.readsInput()).toBe(true);
+    });
+  }
+
+  it('password mode', () => {
+    const t = setup();
+    t.ready();
+    t.frame([255, 251, 1]);
+    expect(t.poll.readsInput()).toBe(true);
+  });
+
+  it('not a game prompt without XML, text after a prompt, or a command waiting', () => {
+    const t = setup();
+    t.ready();
+    t.frame(`oO&gt;${GA}`, 'A troll arrives.\r\n');
+    expect(t.poll.readsInput()).toBe(false);
+    t.session.sendCommand('look');
+    expect(t.poll.readsInput()).toBe(false);
+  });
+
+  it('forgotten with the connection', () => {
+    const t = setup();
+    t.ready();
+    t.frame(EDITOR);
+    t.session.disconnect();
+    expect(t.poll.readsInput()).toBe(false);
+  });
+});
+
 describe('InfoPoll: an open view', () => {
   it('on open when older than 30 s, not when fresh', () => {
     const t = setup();
@@ -338,6 +393,44 @@ describe('InfoPoll: an open view', () => {
     release();
     t.active(3 * EVERY_MS);
     expect(t.polls()).toHaveLength(3);
+  });
+
+  it('the repeat waits for 10 s of quiet after the last command, opening a tab 2 s (point 34)', () => {
+    const t = setup();
+    t.ready();
+    const release = t.poll.open();
+    t.active(EVERY_MS - 1000);
+    t.session.sendCommand('look');
+    t.frame(`A room.\r\n${PROMPT}`);
+    t.wait(REPEAT_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    release();
+    t.active(60_000);
+    t.session.sendCommand('look');
+    t.frame(`A room.\r\n${PROMPT}`);
+    t.poll.open();
+    t.wait(SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(2);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(3);
+  });
+
+  it('the repeat counts from the newest command, also one sent after it fell due', () => {
+    const t = setup();
+    t.ready();
+    t.poll.open();
+    t.active(EVERY_MS - 1000);
+    t.session.sendCommand('look');
+    t.wait(8000);
+    t.session.sendCommand('look');
+    t.frame(`A room.\r\n${PROMPT}`);
+    t.wait(REPEAT_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
   });
 
   it('two views are one poll, and a release counts once', () => {
@@ -453,7 +546,7 @@ describe('InfoPoll: an open view', () => {
     t.wait(0);
     expect(t.polls()).toHaveLength(1);
     t.frame(`A road.\r\n\r\n${PROMPT}`);
-    t.wait(SETTLE_MS);
+    t.wait(REPEAT_SETTLE_MS);
     expect(t.polls()).toHaveLength(2);
   });
 });

@@ -60,7 +60,10 @@ function isPromptTagged(l: Line): boolean {
  * (`change prompt` only switches fields), so nothing else is one.
  */
 export function isGamePrompt(l: Line): boolean {
-  if (!isPromptTagged(l)) return false;
+  return isPromptTagged(l) && endsAsGamePrompt(l);
+}
+
+function endsAsGamePrompt(l: Line): boolean {
   const text = l.text.trim();
   return text.endsWith('>') && text !== EDITOR_MARK && !PAGER.test(text);
 }
@@ -78,6 +81,8 @@ export interface InfoFilterOptions {
 export class InfoFilter {
   /** The last completed line as MUME sent it, hidden or not. */
   last: Line | null = null;
+  /** The last prompt, or the editor's marker over its prompt. */
+  private asked: Line | null = null;
   /** Text has begun after `last`. */
   partialOpen = false;
 
@@ -113,6 +118,7 @@ export class InfoFilter {
 
   line(l: Line): void {
     this.last = l;
+    if (l.prompt || isPromptTagged(l) || l.text.trim() === EDITOR_MARK) this.asked = l;
     this.partialOpen = false;
     if (!this.watching) return this.o.line(l);
     this.takeLine(l);
@@ -123,6 +129,16 @@ export class InfoFilter {
     this.partialOpen = l.text !== '';
     if (!this.watching) return this.o.partial(l);
     this.takePartial(l);
+  }
+
+  /**
+   * MUME reads input of its own (the line editor, the pager, a question):
+   * the last prompt is not a game prompt. Text after that prompt (a tell
+   * arriving in the editor) does not end it. Without XML the prompt's text
+   * alone decides.
+   */
+  readsInput(): boolean {
+    return this.asked !== null && !endsAsGamePrompt(this.asked);
   }
 
   /** The socket frame is read to its end. */
@@ -136,7 +152,7 @@ export class InfoFilter {
     const lines = hold ? hold.lines : this.before ? [this.before] : [];
     const partial = this.keptPartial;
     if (hold) this.o.scheduler.clear(hold.timer);
-    this.hold = this.before = this.after = this.keptPartial = this.last = null;
+    this.hold = this.before = this.after = this.keptPartial = this.last = this.asked = null;
     this.known = [];
     this.partialOpen = this.watching = false;
     for (const l of lines) this.show(l);

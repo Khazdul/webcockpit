@@ -136,24 +136,4 @@ describe('the info poll in the App', () => {
     t.login();
     expect(t.sent()).not.toContain('info WC');
   });
-
-  it('#infopoll (dev): asks, says why not, prints the model; not sent to the game', () => {
-    const t = setup();
-    t.login();
-    t.type('#infopoll');
-    expect(t.heard.join('\n')).toContain('infopoll: not sent: the last poll was less than 10 s ago.');
-    expect(t.heard.join('\n')).toContain('no data');
-    t.frame(answerPulse(pollNonce(t.sent())!));
-    t.sched.advance(12_000);
-    t.heard.length = 0;
-    t.type('#infopoll');
-    const out = t.heard.join('\n');
-    expect(out).toContain('infopoll: sent.');
-    expect(out).toContain('gate: open · failures: 0 · wimpy shown: 120');
-    expect(out).toContain('data 12 s old');
-    expect(out).toContain('str: current 16, unaffected 16, delta 0');
-    expect(out).toContain('wimpy: 120');
-    expect(t.sent()).not.toContain('#infopoll');
-    expect(t.sent().split('info WC')).toHaveLength(3);
-  });
 });

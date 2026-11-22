@@ -104,6 +104,12 @@ export interface PaneContext {
    * poll (the log player, tests).
    */
   readonly openInfo?: () => () => void;
+  /**
+   * A pane may send a command the player clicked: in the game, and MUME
+   * reads no input of its own (ADR 0166 points 35, 36). Absent: no pane
+   * does (the log player, tests).
+   */
+  readonly canCommand?: () => boolean;
 }
 
 /** A sender that drops everything (tests, a cockpit without a session). */
@@ -192,5 +198,6 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.focusGame ? { focusGame: p.focusGame } : {}),
     ...(p.statsView ? { statsView: p.statsView } : {}),
     ...(p.openInfo ? { openInfo: p.openInfo } : {}),
+    ...(p.canCommand ? { canCommand: p.canCommand } : {}),
   };
 }

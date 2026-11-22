@@ -136,6 +136,13 @@ export class GameState {
     this.onGmcp(m.pkg, m.data, gmcpKey(m));
   }
 
+  /** In a fight: an opponent, or the position says so. */
+  fighting(): boolean {
+    if (this.group.fight().opponent !== null) return true;
+    const position = this.char.vitals.get('position');
+    return typeof position === 'string' && position.toLowerCase() === 'fighting';
+  }
+
   /** One GMCP message (also usable without a bus); `p` is `pkg` in lower case. */
   onGmcp(pkg: string, data: unknown, p = pkg.toLowerCase()): void {
     if (p.startsWith('char.')) {

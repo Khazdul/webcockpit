@@ -125,7 +125,6 @@ import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
 import { attachUiMessages, uiMsg, uiValue } from './ui-messages';
 import { messageRows } from './messages';
-import { INFO_POLL_COMMAND, infoPollReport } from './info-poll-command';
 import { KEY_ENTER, KEY_MACRO, PerfMonitor } from './perf-monitor';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
@@ -417,7 +416,7 @@ export class App {
           live: () => !this.session.isReplay && this.session.state === 'playing',
           passwordMode: () => this.session.passwordMode,
           enabled: () => this.settings.get().character.fetchInfo,
-          fighting: () => this.game.group.fight().opponent !== null || this.game.char.view().position === 'fighting',
+          fighting: () => this.game.fighting(),
           dataAt: () => this.game.info.at,
           apply: (answer) => this.game.applyInfo(answer),
         }));
@@ -517,7 +516,12 @@ export class App {
       ...(player ? {} : { mapMarks: this.mapMarks }),
       mapNotes: this.mapNotes,
       focusGame: () => this.input.focus(),
-      ...(poll ? { openInfo: () => poll.open() } : {}),
+      ...(poll
+        ? {
+            openInfo: () => poll.open(),
+            canCommand: () => !this.session.isReplay && this.session.state === 'playing' && !poll.readsInput(),
+          }
+        : {}),
       // The Statistics pane's view (ADR 0109); `runs` exists by its first show.
       ...(!player && this.appUi?.mountStatsPane
         ? { statsView: (host: HTMLElement) => this.appUi!.mountStatsPane!(host, { runs: this.runs, status: this.status }) }
@@ -1082,11 +1086,6 @@ export class App {
    * says how to connect).
    */
   onCommand(text: string): boolean {
-    // The dev server's hook for stage 77's live checks (part D deletes it). Typed only.
-    if (import.meta.env.DEV && this.infoPoll && text.trim() === INFO_POLL_COMMAND) {
-      for (const row of infoPollReport(this.infoPoll, this.game, this.now())) this.sys(row);
-      return true;
-    }
     this.userAction = true;
     this.userActionHandled = false;
     this.perf?.keyStart(KEY_ENTER);
