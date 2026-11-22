@@ -11,7 +11,8 @@ stay.
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C done** (on main, tested
 live 2026-11-22). **Part D done** (on main 2026-11-22, the
-owner looked; polish is a pass of its own, H below). The wimpy point is decided (open points). Each part stops for the owner's
+owner looked; polish is a pass of its own, H below). **Part E built**
+(2026-11-22, branch `stage-77e`: waiting for the owner's look). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -233,7 +234,7 @@ Each part ends with a stop: the owner looks and says go before the next.
       bare Bear and "Half-elven")
 - [x] C. The poll (tested live: "Live results, part C")
 - [x] D. The card (tried live, the phone too)
-- [ ] E. Portraits
+- [x] E. Portraits (built; the owner's look pending)
 - [ ] F. Group
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
@@ -689,6 +690,20 @@ Known: at today's default height (9 rows) Stats and Lore scroll, with
 `↓ more`. They fit at the mockup's own heights. The owner chose the
 scroll.
 
+## Part E: what was built
+
+`raceKind` (`src/gmcp/race.ts`) is the one classifier, used by
+`passengerOf` (unchanged results) and by `portraitOf`
+(`src/panes/portrait.ts`). The nine figures and the neutral one are in
+`src/panes/portrait-figures.ts`. `public/portraits/README.md` holds the
+image contract. ADR 0166 addendum 10 records the decisions. There are no
+raster files yet, so nothing is requested, and the replay runtime never
+requests one. Dev only: `?portrait=<id or race words>`.
+
+Tested 2026-11-22: typecheck; 5890 unit; a production build (no image
+bundled; a test `orc.webp` was clipped and shown, then removed); the
+two Character e2e files (29 passed). The full e2e run is not done.
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -716,6 +731,25 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part E, portraits (the test server, no MUME needed)
+
+Open `http://localhost:5173/?fixture=gmcp-demo.log&speed=0`. The demo's
+Dúnadan man has the **human** portrait. Add `&portrait=` with one of
+`human`, `elf`, `halfelf`, `dwarf`, `hobbit`, `beorning`, `orc`,
+`troll`, `numenorean` or `neutral` (race words work too:
+`&portrait=Cave%20Troll`) to see each of them.
+
+1. Each of the nine in the Large card. Then the gear's Height → Medium.
+2. The same with Paper (Appearance → background paper).
+3. A phone: `&phone=1` with a portrait, then the panes key.
+4. Live, if MUME is up: your own character's race gives its portrait.
+
+Wanted: are the placeholders fine until your images come? Does the
+framing in `public/portraits/README.md` suit what you will draw (head
+centre about (512, 480), about 300–340 px wide, shoulders cut by the
+circle, the ring over the bottom centre)?
+
 
 ### Part D, the card (the test server, MUME up)
 

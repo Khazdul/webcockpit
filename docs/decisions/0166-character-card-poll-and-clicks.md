@@ -265,3 +265,37 @@ The card:
     undone. A tablet with no mark keeps the desktop cockpit's settings as
     ADR 0140 says; a marked one follows. The strip still opens on the page
     it last had, until the app is loaded again.
+
+## Addendum 10 (2026-11-22): part E, portraits
+
+48. **One classifier.** `raceKind(race, subrace)` in `src/gmcp/race.ts`
+    (words and stems over both fields, as before) gives numenorean,
+    halfelf, elf, dwarf, hobbit, troll, beorning, orc, human or none.
+    `passengerOf` now maps that kind to a passenger. Its results and
+    tests are unchanged: half-elves fly the elf, Beornings the human,
+    and only an orc with a "zaug…" word is the orc.
+49. **Portraits.** `portraitOf` is the kind, or `neutral` for none. Orcs
+    share one portrait (Tarkhnarb and Zaugurz). The mockup's nine figures
+    are data in `src/panes/portrait-figures.ts`. They keep their own
+    fills and have a transparent background. The neutral figure moved
+    there and keeps the pane's colours. All are built with
+    createElementNS in the neutral figure's 60 × 75 box and placement
+    (`.wc-cc-fig`: top 5 %, where round 9 had 8 %). The figure is built
+    only when the race text changes and the id with it, never per
+    render. The figures are bundled with the card, about 7 kB raw.
+50. **Raster.** `public/portraits/<id>.webp` (the README holds the
+    contract: 1024 × 1024, transparent, the inscribed circle shown, head
+    centre about (512, 480)). `import.meta.glob` over the webp keys only
+    tells the build which files exist. The built app holds only an
+    object of keys, and the images are copied as public files and never
+    bundled (checked with a test file). An `<img>` (async decoding, empty
+    alt, not draggable) is added hidden. It replaces the SVG when it has
+    loaded, so a failed load keeps the placeholder. A race without its
+    file keeps its own placeholder and never shows `neutral.webp`.
+51. **Replays.** The replay runtime (`__WC_REPLAY__`, the same flag
+    `map.ts` reads) has an empty file set, so the exported HTML file and
+    the share frame (`img-src data: blob:`) draw placeholders only and
+    request nothing. The glob is dead code there.
+52. **Dev only:** `?portrait=<id or race words>` forces a portrait (the
+    test guide's way to see all nine). It is read once, under
+    `import.meta.env.DEV`.
