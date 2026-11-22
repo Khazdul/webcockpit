@@ -7,8 +7,8 @@ look and the data. This stage builds it. It replaces the drawing rules of
 Inv §2.2. The data rules for XP/TP, the session anchors and the toggles
 stay.
 
-**Status: part A under way** (2026-11-22: desk findings written, the
-owner's live run and decisions awaited). Each part stops for the owner's
+**Status: part A measured** (2026-11-22: the live run with Rasta is
+written in, the other races are parked, the owner's decisions awaited). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -61,8 +61,8 @@ the page.
    dividers between them, a small label with an icon, and a large value.
    A value that does not fit is shortened (`aggressive` → `aggres.` →
    `agg.`).
-9. **Weight** is the GMCP word `Char.Vitals.carrying` (seen in Cockpit
-   logs: `"light"`). It has six steps, as MUME's encumbrance sentences
+9. **Weight** is the GMCP word `Char.Vitals.carrying` (the six words:
+   part A, "Live results"). It has six steps, as MUME's encumbrance sentences
    (below). The two highest are red and the third highest orange. The full
    sentence is in the tooltip. The number of pounds is never shown: the
    step is relative to the character's stats.
@@ -125,7 +125,7 @@ the page.
     | Element | Click sends |
     |---|---|
     | Mood | the next mood: `change mood <next>` in the order wimpy → prudent → normal → brave → aggressive → wimpy. **Never berserk.** |
-    | Casts | the next spell speed: `change spell <next>` (steps and command to be confirmed, see open points) |
+    | Casts | the next spell speed: `change spellcasting <next>` (quick, fast, normal, careful, thorough; the cycle: see open points) |
     | Alertness | the next step, all of them: `change alertness <next>` (normal → careful → attentive → vigilant → paranoid → normal) |
     | Sneak, climb, swim | `sneak`, `climb`, `swim` (each toggles) |
     | Ride | `lead` when riding, otherwise `ride` |
@@ -164,8 +164,8 @@ the page.
 | Name, level, XP, TP | GMCP `Char.Name`, `Char.Vitals`, `Char.StatusVars` (as today) |
 | HP/mana/moves, the band words | `Char.Vitals` `hp`/`hp-string`/`maxhp` and the like (the exact-or-band rule of ADR 0052) |
 | Mood, alertness, position, toggles | `Char.Vitals` |
-| Casts | `Char.Vitals` `spell-effort` (seen: `"normal"`) |
-| Weight step | `Char.Vitals` `carrying` (seen: `"light"`) |
+| Casts | `Char.Vitals` `spell-effort` (seen: `"normal"`, `"thorough"`) |
+| Weight step | `Char.Vitals` `carrying` (six words, part A) |
 | Wimpy | `Char.Vitals` and the text lines (as today) |
 | Race, subrace | `Char.StatusVars` |
 | Everything in Stats and Lore | the hidden `info` poll |
@@ -177,12 +177,9 @@ Light to heavy: `Peanuts.` · `A tad uncomfortable, but no problem.` ·
 `You are trying to forget the pain...` ·
 `Every single move is sheer torture...`
 
-The words that `carrying` sends for each step are not known yet (see open
-points). Lines the game prints when the step changes (owner): `Your load
-feels light.`, `Your burden is heavy.`, `Your burden is really heavy.`,
-`Your burden is no longer all that heavy.`, `Your burden is painful to
-carry.` They are not needed while `carrying` covers the step. Keep them on
-record in case it does not.
+The word `carrying` sends for each step, and the line the game prints
+when the step changes, are in part A, "Live results". `carrying` covers
+every step, so the lines are not needed.
 
 ### Age (`help age`, from the owner)
 
@@ -209,9 +206,10 @@ comment naming `help age`. The change between brackets is linear.
   every 5 minutes while one of them is open. Never more often than every
   10 s. Not while fighting. The age of the data shows in a small line in
   the tab ("info 12 s ago").
-- **To verify live before building the gag:** that `info` bypasses MUME's
-  250 ms command queue (the owner's understanding), how the answer wraps
-  across lines, and whether the thousand separators need `%,`.
+- **Verified live (part A, "Live results"), and it changes the above:**
+  the 2 s limit counts from the start sentinel, the sentinel is ASCII with
+  a nonce, the fields are separated by ` | `, and the prompt and blank
+  lines are hidden by the rules written there.
 
 ## Plan
 
@@ -280,6 +278,8 @@ raw answer. Write the findings into this file before parts C–D.
 
 ### Known before the live run (2026-11-22)
 
+Where "Live results" below says otherwise, the live result holds.
+
 Sources: MUME's help on mume.org, the owner's Cockpit run logs
 (`/home/ole/MUME/data/runs`, text only, no GMCP in them) and this
 repository's code.
@@ -342,6 +342,9 @@ would write "cave troll troll". The rule waits for the live strings.
 
 ### The live run (the owner)
 
+Done with Rasta 2026-11-22, steps 1–6. The other characters of step 6 are
+parked (the owner: a large job, to be completed when needed).
+
 The run log (`#runlog`) has every GMCP message, every sent command and
 every line with colours and a microsecond time stamp. XML tags are not
 in it (the assembler takes them out before capture, as before a gag).
@@ -398,24 +401,150 @@ the template and Khazdul. Wait for the answers between lines.
 
 ### Live results
 
-*Awaiting the owner's run logs.*
+Rasta, a Tarkhnarb orc, level 74, 0.22.0's run log of 2026-11-22 11:58
+(98 columns). Not committed.
+
+**GMCP**
+
+    Char.StatusVars {"fullname":"Rasta Fari","level":74,"name":"Rasta","next-level-tp":205300,"next-level-xp":85000000,"race":"Orc","subclass":"Champion","subrace":"Tarkhnarb Orc"}
+
+`carrying`, all six steps, each seen with `info %C|%F` beside it:
+
+| `carrying` | `info %F` | Line on the change | Pounds (Rasta) |
+|---|---|---|---|
+| `peanuts` | Peanuts. | Your load feels light. | 9 |
+| `uncomfortable` | A tad uncomfortable, but no problem. | Your burden is slightly uncomfortable. | 17–63 |
+| `heavy` | Heavy, but we will manage... | Your burden is heavy. | 71–140 |
+| `really heavy` | That is really heavy! | Your burden is really heavy. | 148–198 |
+| `painful` | You are trying to forget the pain... | Your burden is painful to carry. | 206–221 |
+| `torture` | Every single move is sheer torture... | Your burden is sheer torture. | 229–260 |
+
+- There is no `light`. The mockup and three fixtures (`gmcp-demo`,
+  `runs-demo`, the weather test) made it up. Part B corrects the fixtures.
+- A step can be jumped (peanuts → heavy in one `get`).
+- `spell-effort`: `normal` and `thorough` seen; `quick` and `fast` are in
+  the help; `careful` only in the menu. All equal the menu's words, so the
+  menu's five are used and an unknown word is shown as sent.
+- The menus of `change spellcasting`, `change alertness` and `change mood`
+  have exactly the steps of decision 19.
+- **GMCP sends the state once per pulse, and only if it changed.** Five
+  changes in one pulse gave only the last value, and five ending on the
+  start value gave no message. A click on a value already set therefore
+  ends by the 3 s limit.
+- `wake` gives `sitting`; a second click (`stand`) is needed to stand.
+
+**The queue**
+
+| Sent at once | Answered |
+|---|---|
+| five `look` | five pulses, 250 ms apart |
+| five `info` | all in one pulse |
+| four `look`, then `info` | `info` on the fifth pulse, after the looks |
+| four `info`, then `look` | all five in one pulse |
+| `info`, `buy`, `info` (35 times) | the first `info` and `buy` in one pulse, the last `info` a pulse later |
+| `cast 'armour'`, then `info` | the spell completes, `info` a pulse after it |
+| `info` while asleep | answered as usual |
+
+- **`info` keeps its place in the queue but takes no slot.** It does not
+  jump past anything, and it does not delay the command after it. The
+  poll costs the player nothing.
+- `change spellcasting/alertness/mood` take no slot either.
+- It did not break the cast. It waited for it (1.9 s after sending). So a
+  2 s limit from sending is wrong: wait for the start sentinel as long as
+  it takes (one poll outstanding at a time), hide nothing meanwhile, and
+  count the 2 s from the start sentinel.
+- Not measured: `info` in a fight (the poll does not run there).
+
+**The raw answer**
+
+    WC1[74|81|13|85|70|16|16|16|11|12|16|8|Str:16 Int:16 Wis:16 Dex:11 Con:12 Wil:16
+    Per:8|57|7|7|four feet eleven|eight stone and five pounds|ninety-seven pounds|Heavy, but we will
+    manage...|You are totally corrupted by the Evilness of Morgoth!|GoblinTown|␛[32m380␛[0m gold coins,
+    ␛[32m5␛[0m silver pennies, and ␛[32m49␛[0m copper pennies|warlord (19)|25|10|20]WC1
+
+- **It wraps at the window's width** (97 of 98 columns) although
+  `change width all 500` was accepted. The break replaces a space and the
+  colour codes do not count. So the fields are separated by ` | `, the
+  lines joined with a space, split at `|` and trimmed. A width narrower
+  than one word is untested (part C, on a phone).
+- The whole answer comes in one frame, with nothing interleaved. Other
+  lines can stand before or after it in the same frame.
+- An empty line follows it. When the answer was queued, an empty line
+  also comes before it. **One prompt closes the whole pulse**, not each
+  answer: five infos gave one prompt, and after `info` + `look` the
+  prompt is the look's. Hide the prompt only when the answer was all the
+  pulse showed.
+- A partial line can be drawn before it completes, so the gag covers
+  `text.partial` too.
+- `‹wc›` came back intact, as UTF-8 was agreed. ASCII is still used, for
+  a connection without it.
+- Only `%r` is coloured (strip it). `%(…%)` adds colour, `%.` breaks the
+  line, `%,` toggles separators and they are off by default, so `%,` is
+  not needed.
+
+**The fields' shapes**
+
+| Field | Value | For the parser |
+|---|---|---|
+| `%O %D %k %A` | `81 13 85 70` | bare numbers, no `%` |
+| `%S %i %w %d %o %I %p` | `16 16 16 11 12 16 8` | bare numbers |
+| `%G` | `Str:16 Int:16 Wis:16 Dex:11 Con:12 Wil:16 Per:8` | one field, seven labelled values |
+| `%b`, `%B` | `Str:14 Int:15 Wis:16 Dex:8 Con:10 Wil:16 Per:8` | not what the deltas use |
+| `%a %N %n` | `57 7 7` | years, months, days |
+| `%h`, `%W` | `four feet eleven`, `eight stone and five pounds` | number words |
+| `%C` | `ninety-seven pounds`, `one hundred two pounds` | number words to `97 lb`; 35 samples in the run |
+| `%c` | `GoblinTown` | shown as sent; how several are separated is unknown |
+| `%K` | `warlord (19)` | word and war points |
+| `%q`, `%r` | as in the sample | |
+| `%v %H %s` | `25 10 20` | bare numbers |
+
+No affect on an ability was active, so every delta was 0. The first run
+with a strength spell checks decision 15 (part C).
+
+**Races without logging in every character**
+
+MUME writes a player's race in game text in the same form as `subrace`
+(`You are a male Tarkhnarb Orc.` = `"Tarkhnarb Orc"`). The owner's
+Cockpit logs show other players as Silvan Elf, Sindarin Elf, Noldorin
+Elf, Half-Elf, Broadbeam Dwarf, Fallohide Hobbit, Hill Troll and Black
+Númenórean. The help adds the names Dúnadan, Eriadorian, Rohirrim,
+Beorning, Firebeard, Longbeard, Harfoot, Stoor, Cave Troll, Mountain
+Troll, Morruhk and Zaugurz. That these are the GMCP strings is inferred
+from the one confirmed case, so nothing matches a whole string:
+
+- **Match on words and stems** over both fields. Note the adjective
+  forms: the age factor must take Noldo and Noldorin, Sinda and Sindarin,
+  Dúnadan and Dúnedain.
+- **An unknown string** gets the neutral portrait, its own text as the
+  race, and no age track or modifiers (never a guessed factor).
+- `passengerOf` was run on 26 likely pairs: 24 right. A `Bear` with no
+  subrace and the spelling `Half-elven` (war lists) fall to the goblin.
+  Part B fixes both, which also fixes the balloons.
+- **Completion needs no test:** every run log already has `StatusVars`.
+  When the owner happens to play another race, its `#runlog` is enough.
 
 ## Open points
 
-- The `carrying` words and the number of steps (A).
-- Spell speed: command and steps are known (part A). The owner confirms
-  the click's cycle (suggestion: quick → fast → normal → careful →
-  thorough → quick). The GMCP words are seen in the live run.
-- `race`/`subrace` strings beyond Man/Dunadan, Elf/Noldo and Tarkhnarb orc.
-- Whether a click's command shows in the game pane like a typed one
-  (suggestion, revised in part A: yes, exactly like a typed one, as
-  Comm's reply does. A dimmed echo does not exist today).
-- Whether the poll goes on while the player is idle (suggestion: no poll
-  without a key or click from the player in the last 5 minutes).
-- Whether `info` takes a queue slot or disturbs a cast (A). If it does,
-  the poll's rules are decided again before part C.
-- The race line when the subrace holds the race ("Cave Troll").
-- Compact mode (parked).
+For the owner, before part B:
+
+1. The Casts cycle (suggestion: quick → fast → normal → careful →
+   thorough → quick).
+2. Whether a click's command shows in the game pane (suggestion: yes,
+   exactly like a typed one, as Comm's reply does; a dimmed echo does not
+   exist today).
+3. Whether the poll goes on while the player is idle (suggestion: no poll
+   without a key or click from the player in the last 5 minutes).
+4. The race line (suggestion: a subrace that names the race stands alone
+   with the race's word in lower case, "Tarkhnarb orc"; so does Black
+   Númenórean; otherwise decision 18's `subrace race`, "Dúnadan man").
+5. The lightest step reads `peanuts`, not the mockup's "light"
+   (suggestion: show the GMCP word, as decision 9 says).
+
+Parked:
+
+- `race`/`subrace` of the other races (completed from run logs as they
+  come; the rules above work without them).
+- Compact mode.
 
 ## Test guide (for the owner)
 
