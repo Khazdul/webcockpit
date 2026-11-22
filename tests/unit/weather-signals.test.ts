@@ -96,7 +96,7 @@ describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
   // object, `light` one of "*" | "!" | ")" | "o" (MUME docs, Cockpit
   // docs/gmcp.md), `fog` null, `weather` " " outdoors.
   const login = {
-    hp: 172, maxhp: 172, mana: 40, maxmana: 40, mp: 131, maxmp: 131, xp: 5770000, tp: 41500, carrying: 'light',
+    hp: 172, maxhp: 172, mana: 40, maxmana: 40, mp: 131, maxmp: 131, xp: 5770000, tp: 41500, carrying: 'peanuts',
     ride: null, ridden: null, climb: null, sneak: null, hidden: false, swim: false,
     light: '*', fog: null, weather: ' ', alertness: 'normal', mood: 'brave', 'spell-effort': 'normal', position: 'standing',
     'mount-moves': null, wimpy: 30, opponent: null, buffer: null, 'opponent-hits': null, 'buffer-hits': null,

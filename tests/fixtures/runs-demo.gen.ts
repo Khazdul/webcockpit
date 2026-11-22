@@ -145,7 +145,7 @@ const vitals = (ch: Char) => ({
   maxmp: ch.mp,
   xp: ch.xp,
   tp: ch.tp,
-  carrying: 'light',
+  carrying: 'peanuts',
   ride: null,
   climb: null,
   sneak: null,

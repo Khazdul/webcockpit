@@ -91,7 +91,7 @@ const vitals = {
   maxmp: 131,
   xp: 5770000,
   tp: 41500,
-  carrying: 'light',
+  carrying: 'peanuts',
   ride: null,
   ridden: null,
   climb: null,
