@@ -20,7 +20,7 @@
 // The women keep the people's headgear (the hood, the pelt), cloth, palette
 // and eyes; no beard; the dwarf women's face, nose and lips; long hair. The
 // bare-headed ones get the people's own headgear: the base woman the balloon
-// woman's braid crown, the Eriadorian a russet kerchief, the Rohirrim
+// woman's braid crown, the Eriadorian a plain linen headband, the Rohirrim
 // woman (a shieldmaiden, not a rider in a helm) a gold circlet over loose
 // golden hair and the two front braids, so the gold reads in Medium.
 
@@ -29,7 +29,7 @@ import { dark, light } from '../../../../../src/art/engrave';
 import { type BrowO, type Ctx, type EyeO, type HairO, INK, baseDefs, ctx, frontBraids, longHair, mix, temples, eyes, lg, mass, mir, n, pen, strands, svg, wx } from '../parts';
 
 type Head = 'bare' | 'hood' | 'mop' | 'helm' | 'bear';
-type Beard = 'short' | 'ranger' | 'none' | 'rohan' | 'shaggy';
+type Beard = 'short' | 'ranger' | 'stubble' | 'rohan' | 'shaggy';
 type Bust = 'cloak' | 'ranger' | 'homespun' | 'rohan' | 'fur';
 
 /** One Man: everything a kind or a sex changes. */
@@ -60,7 +60,7 @@ const LINEN = '#e4d8bd';
 const defs = (c: Ctx, s: Spec): string =>
   baseDefs(c) + lg(c, 's', s.skin) + lg(c, 'h', [s.hair[0], s.hair[1]]) + lg(c, 'k', s.cloth, .15) + lg(c, 'l', LEATHER) +
   lg(c, 'g', ['#6a4e1e', '#b08a3a', '#e6c878'], .25) + lg(c, 'v', ['#aeb6bc', '#eef1f2']) + lg(c, 'w', ['#b8ad98', '#f2ecde']) +
-  lg(c, 'z', s.head === 'bear' ? ['#3e2616', '#7a5232', '#a87a4e'] : ['#2a1a10', '#5a3a24', '#7e5838']);
+  lg(c, 'z', s.head === 'bear' ? ['#6a3418', '#a8642e', '#d49a58'] : ['#2a1a10', '#5a3a24', '#7e5838']);
 
 // ---- the bust ----
 const BODY = 'M-120,150L-118,108C-112,88 -94,76 -64,70L-24,62L24,62L64,70C94,76 112,88 118,108L120,150Z';
@@ -73,10 +73,10 @@ const brooch = (c: Ctx, s: Spec): string => {
     // the star of the Dúnedain: eight silver rays round a white stone, drawn large
     let d = '';
     for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4 - Math.PI / 2, b = a + Math.PI / 8, r = i % 2 ? 9 : 14;
-      d += `${i ? 'L' : 'M'}${n(x + r * Math.cos(a))},${n(y + r * Math.sin(a))}L${n(x + 4.6 * Math.cos(b))},${n(y + 4.6 * Math.sin(b))}`;
+      const a = (i * Math.PI) / 4 - Math.PI / 2, b = a + Math.PI / 8, r = i % 2 ? 12 : 19;
+      d += `${i ? 'L' : 'M'}${n(x + r * Math.cos(a))},${n(y + r * Math.sin(a))}L${n(x + 5.6 * Math.cos(b))},${n(y + 5.6 * Math.sin(b))}`;
     }
-    return `<path d="${d}Z" fill="${c.url('v')}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="3.6" fill="#f4f7f8" stroke-width=".8"/>${c.fine(`<path d="M${x + 2},${y - 10}L${x + 3},${y - 4}" fill="none" stroke="#fff" stroke-width=".8"/>`)}`;
+    return `<path d="${d}Z" fill="#f2f5f6" stroke-width="1.1"/><path d="${d}Z" fill="${c.url('v')}" opacity=".45" stroke="none"/><circle cx="${x}" cy="${y}" r="4.4" fill="#ffffff" stroke-width=".8"/>${c.fine(`<path d="M${x + 2},${y - 10}L${x + 3},${y - 4}" fill="none" stroke="#fff" stroke-width=".8"/>`)}`;
   }
   if (s.bust === 'rohan') {
     // a gold horse's head on a round gold boss
@@ -114,8 +114,8 @@ const bust = (c: Ctx, s: Spec): string => {
     const pts = ([[-118, 90], [-106, 74], [-92, 64], [-76, 58], [-60, 54], [-44, 54], [44, 54], [60, 54], [76, 58], [92, 64], [106, 74], [118, 90]] as const).map(([x, y]) => [n(x * w), y] as const);
     return `<path d="${B}" fill="${c.url('l')}" stroke-width="1.2"/>` +
       mass(M, c.url('z'), 1.2, wx('M-128,150L-126,96C-120,70 -96,56 -60,52L-40,53C-70,66 -82,104 -80,150Z', w), c, wx('M-128,150L-126,96C-120,74 -104,60 -84,56C-100,74 -106,110 -104,150Z', w)) +
-      tufts(pts, '#6a4a30') +
-      strands(c, wx('M-110,100C-104,116 -102,132 -104,150M-90,90C-84,108 -84,130 -86,150M-70,84C-64,104 -64,126 -66,150M110,100C104,116 102,132 104,150M90,90C84,108 84,130 86,150M70,84C64,104 64,126 66,150', w), wx('M-80,94C-76,112 -74,130 -76,148M100,96C96,112 94,130 96,148M80,88C76,108 76,128 78,148M60,80C58,100 58,122 60,146', w), '#b08a64');
+      tufts(pts, '#b0703a') +
+      strands(c, wx('M-110,100C-104,116 -102,132 -104,150M-90,90C-84,108 -84,130 -86,150M-70,84C-64,104 -64,126 -66,150M110,100C104,116 102,132 104,150M90,90C84,108 84,130 86,150M70,84C64,104 64,126 66,150', w), wx('M-80,94C-76,112 -74,130 -76,148M100,96C96,112 94,130 96,148M80,88C76,108 76,128 78,148M60,80C58,100 58,122 60,146', w), '#f0c890');
   }
   if (s.bust === 'homespun') {
     // a russet wool tunic, an ochre scarf wound at the neck, a patch and stitches
@@ -164,9 +164,11 @@ const flowHair = (c: Ctx, s: Spec): string => {
 
 // ---- the face ----
 const FACE_M = 'M-44,-34C-47,-8 -46,16 -41,30C-35,41 -20,47.5 0,48C20,47.5 35,41 41,30C46,16 47,-8 44,-34Z';
+/** The Eriadorian's: a longer, squarer jaw (a grown Man, not a hobbit). */
+const FACE_L = 'M-44,-34C-47,-8 -46,18 -42,34C-38,46 -22,54 0,54.5C22,54 38,46 42,34C46,18 47,-8 44,-34Z';
 const FACE_F = 'M-42,-30C-46,-4 -44,16 -37,29C-29,40 -15,46.5 0,47C15,46.5 29,40 37,29C44,16 46,-4 42,-30Z';
 const face = (c: Ctx, s: Spec): string => {
-  const j = s.jaw, F = wx(c.fem ? FACE_F : FACE_M, j);
+  const j = s.jaw, F = wx(c.fem ? FACE_F : s.beard === 'stubble' ? FACE_L : FACE_M, j);
   const sh = c.fem ? wx('M-42,-30C-46,-4 -44,16 -37,29C-31,38 -23,43 -15,46C-29,30 -33,0 -32,-30Z', j) : wx('M-44,-34C-47,-8 -46,16 -41,30C-36,38 -28,44 -18,46C-32,28 -36,0 -34,-34Z', j);
   const edge = c.fem ? wx('M-42,-30C-46,-4 -44,16 -37,29C-41,14 -42,-4 -39,-30Z', j) : wx('M-44,-34C-47,-8 -46,16 -41,30C-44,14 -44,-6 -41,-34Z', j);
   const neck = `<path d="M-17,36L-20,68L20,68L17,36Z" fill="${dark(s.skin[1], .2)}" stroke-width="1"/><path d="M-17,36L-20,68L-6,68L-4,46Z" fill="${c.url('p')}" stroke="none"/>` +
@@ -237,6 +239,12 @@ const beard = (c: Ctx, s: Spec): string => {
     return mass(B, H, 1.1, wx('M-42,12C-46,34 -38,54 -22,66C-12,72 -6,72 -2,72C-24,58 -30,40 -28,30C-36,28 -40,22 -42,12Z', j), c) +
       strands(c, wx('M-34,30C-34,44 -28,56 -18,64M-20,40C-18,52 -14,62 -8,68M20,40C18,52 14,62 8,68M34,30C34,44 28,56 18,64', j), wx('M-28,38C-26,50 -22,58 -14,64M28,38C26,50 22,58 14,64M2,48C2,56 2,62 0,68', j), hi);
   }
+  if (s.beard === 'stubble') {
+    // the Eriadorian's: a few days' sandy stubble over the long jaw and the upper lip, the mouth bare
+    const B = wx('M-44,2C-46,26 -43,42 -38,50C-26,58 -12,60 0,60C12,60 26,58 38,50C43,42 46,26 44,2C40,18 30,25 17,26C12,30 6,30 0,29C-6,30 -12,30 -17,26C-30,25 -40,18 -44,2Z', j);
+    const dots = c.fine(`<path d="${wx('M-36,30l1,2M-30,38l1,2M-24,44l1,2M-16,48l1,2M-6,50l1,2M6,50l1,2M16,48l1,2M24,44l1,2M30,38l1,2M36,30l1,2M-28,30l1,2M-20,36l1,2M20,36l1,2M28,30l1,2M-10,27l1,1.6M10,27l1,1.6M-40,20l1,2M40,20l1,2', j)}" fill="none" stroke="${s.hair[0]}" stroke-width=".7" opacity=".7"/>`);
+    return `<path d="${B}" fill="${mix(s.hair[0], s.hair[1], .5)}" opacity=".5" stroke="none"/><path d="${wx('M-44,2C-46,26 -43,42 -38,50C-26,58 -12,60 0,60C-14,52 -24,40 -28,26C-36,22 -42,14 -44,2Z', j)}" fill="${c.url('p')}" stroke="none"/><path d="${wx('M-42,34C-38,46 -22,56 0,60C22,56 38,46 42,34', j)}" fill="none" stroke-width=".9" opacity=".8"/>` + dots;
+  }
   // the base and the ranger: short and trimmed along the jaw, the ranger's darker and tighter
   const k = s.beard === 'ranger' ? .9 : 1;
   const B = wx(`M-45,4C-47,28 -40,${46 + 12 * k} -26,${54 + 8 * k}C-14,${60 + 6 * k} 14,${60 + 6 * k} 26,${54 + 8 * k}C40,${46 + 12 * k} 47,28 45,4C42,20 32,30 18,33C13,41 7,45 0,45C-7,45 -13,41 -18,33C-32,30 -42,20 -45,4Z`, j);
@@ -270,10 +278,10 @@ const hoodBack = (c: Ctx, s: Spec): string => {
     `<path d="M42,-78C66,-60 78,-30 80,4" fill="none" stroke="${light(s.cloth[2], .35)}" stroke-width="1.4" opacity=".5"/>`;
 };
 const hoodFront = (c: Ctx, s: Spec): string => {
-  const fold = 'M-58,50C-64,-12 -46,-64 0,-66C46,-64 64,-12 58,50L50,46C54,-6 38,-52 0,-54C-38,-52 -54,-6 -50,46Z';
+  const fold = 'M-58,50C-64,-12 -46,-62 0,-64C46,-62 64,-12 58,50L50,46C54,-8 38,-44 0,-45C-38,-44 -54,-8 -50,46Z';
   // the shadow the hood casts on the brow and the eyes (the ranger's keen eyes look out of it)
-  return `<path d="M-48,-14C-46,-40 -28,-52 0,-53C28,-52 46,-40 48,-14C40,-26 24,-30 0,-30C-24,-30 -40,-26 -48,-14Z" fill="${s.hair[0]}" stroke-width=".9"/>` +
-    strands(c, 'M-40,-20C-32,-36 -16,-44 0,-46M10,-46C24,-42 36,-32 42,-20M-20,-38C-28,-30 -34,-22 -38,-14', 'M14,-44C28,-38 38,-28 44,-18M-6,-46C-16,-42 -26,-34 -32,-26', s.hair[2], .6) +
+  return `<path d="M-48,-12C-46,-36 -28,-46 0,-47C28,-46 46,-36 48,-12C45,-18 41,-20 38,-17C36,-24 30,-27 26,-23C22,-30 15,-32 10,-27C6,-33 -2,-34 -6,-29C-12,-33 -19,-31 -22,-25C-27,-29 -33,-27 -35,-20C-40,-22 -45,-19 -48,-12Z" fill="${c.url('h')}" stroke-width=".9"/>` +
+    strands(c, 'M-40,-18C-34,-32 -18,-40 -4,-42M10,-42C22,-38 32,-30 38,-20M-20,-36C-24,-32 -27,-28 -28,-24', 'M14,-42C26,-36 34,-28 40,-18M2,-42C8,-38 12,-33 14,-28', s.hair[2], .6) +
     `<path d="M-50,-6Q0,-40 50,-6L50,6Q0,-24 -50,6Z" fill="#1a1410" opacity="${c.med ? .18 : .26}" stroke="none"/>` +
     mass(fold, c.url('k'), 1.3, 'M-58,50C-64,-12 -46,-64 0,-66L0,-54C-38,-52 -54,-6 -50,46Z', c) +
     `<path d="M6,-62C40,-58 58,-16 55,36" fill="none" stroke="${light(s.cloth[2], .4)}" stroke-width="1.6" opacity=".55"/>`;
@@ -302,15 +310,15 @@ const pelt = (c: Ctx): string => {
   const P = 'M-74,88C-88,30 -84,-30 -60,-62C-48,-80 -26,-90 0,-90C26,-90 48,-80 60,-62C84,-30 88,30 74,88Z';
   const ear = (d: number): string => `<circle cx="${d * 46}" cy="-80" r="15" fill="${d < 0 ? '#3e2818' : '#5e4028'}" stroke-width="1.2"/><circle cx="${d * 46}" cy="-79" r="8" fill="#2a1a10" stroke-width=".8"/>`;
   return ear(-1) + ear(1) + mass(P, c.url('z'), 1.3, 'M-74,88C-88,30 -84,-30 -60,-62C-48,-80 -26,-90 0,-90C-40,-76 -58,-30 -54,88Z', c, 'M-74,88C-88,30 -84,-30 -62,-60C-74,-24 -76,30 -64,88Z') +
-    strands(c, 'M-66,-30C-72,0 -72,40 -68,80M-58,-50C-66,-20 -66,20 -62,60M66,-30C72,0 72,40 68,80M58,-50C66,-20 66,20 62,60', 'M62,-40C70,-10 72,30 70,70M54,-56C62,-30 64,0 62,30', '#b08a64');
+    strands(c, 'M-66,-30C-72,0 -72,40 -68,80M-58,-50C-66,-20 -66,20 -62,60M66,-30C72,0 72,40 68,80M58,-50C66,-20 66,20 62,60', 'M62,-40C70,-10 72,30 70,70M54,-56C62,-30 64,0 62,30', '#f0c890');
 };
 const peltFront = (c: Ctx): string =>
   // the bear's brow: a fur ridge across the forehead, the muzzle with its black nose over the centre
   mass('M-54,-16C-58,-50 -34,-70 0,-70C34,-70 58,-50 54,-16C46,-28 26,-34 0,-34C-26,-34 -46,-28 -54,-16Z', c.url('z'), 1.3, 'M-54,-16C-58,-50 -34,-70 0,-70C-26,-60 -34,-44 -32,-30C-42,-28 -48,-24 -54,-16Z', c) +
-  mass('M-16,-64C-18,-50 -14,-38 0,-34C14,-38 18,-50 16,-64C10,-68 -10,-68 -16,-64Z', '#b89470', 1.1, 'M-16,-64C-18,-50 -14,-38 0,-34C-6,-44 -8,-56 -6,-67C-10,-67 -14,-66 -16,-64Z', c) +
+  mass('M-16,-64C-18,-50 -14,-38 0,-34C14,-38 18,-50 16,-64C10,-68 -10,-68 -16,-64Z', '#ecd2a4', 1.1, 'M-16,-64C-18,-50 -14,-38 0,-34C-6,-44 -8,-56 -6,-67C-10,-67 -14,-66 -16,-64Z', c) +
   `<ellipse cx="0" cy="-40" rx="7" ry="4.6" fill="#120c08" stroke-width=".9"/><circle cx="2" cy="-41.5" r="1.2" fill="#8a8f96" stroke="none"/>` +
   [-1, 1].map((d) => `<path d="M${d * 26},-52q${d * 4},-3 ${d * 8},0q${-d * 4},2.5 ${-d * 8},0Z" fill="#0c0806" stroke-width=".6"/>`).join('') +
-  strands(c, 'M-46,-34C-40,-50 -26,-60 -18,-62M46,-34C40,-50 26,-60 18,-62', 'M30,-60C40,-54 48,-44 50,-30M22,-64C30,-62 36,-58 40,-52', '#b08a64');
+  strands(c, 'M-46,-34C-40,-50 -26,-60 -18,-62M46,-34C40,-50 26,-60 18,-62', 'M30,-60C40,-54 48,-44 50,-30M22,-64C30,-62 36,-58 40,-52', '#f0c890');
 
 // ---- the women's headgear over their hair ----
 /** The braid crown (the balloon woman's): plaited over the top of the head from temple to temple. */
@@ -329,15 +337,13 @@ const femCap = (c: Ctx, s: Spec): string => {
     `<path d="M0,-65C-1,-50 0,-36 0,-27" fill="none" stroke="${s.hair[0]}" stroke-width="1.4"/>` +
     strands(c, 'M-2,-64C-12,-56 -22,-42 -26,-28M2,-64C12,-56 22,-42 26,-28M-8,-64C-26,-54 -38,-36 -42,-16M8,-64C26,-54 38,-36 42,-16M-4,-62C-16,-50 -30,-36 -36,-22M4,-62C16,-50 30,-36 36,-22M-14,-60C-32,-48 -44,-30 -46,-10M14,-60C32,-48 44,-30 46,-10', 'M6,-62C18,-54 30,-42 34,-28M12,-62C28,-52 40,-36 44,-16M-6,-60C-14,-52 -20,-42 -22,-32', s.hair[2]);
 };
-/** The Eriadorian woman's russet kerchief, knotted at the nape, spotted with cream. */
-const kerchief = (c: Ctx, s: Spec): string => {
-  const K = 'M-52,-4C-58,-40 -40,-76 0,-78C40,-76 58,-40 52,-4C46,-20 30,-31 0,-33C-30,-31 -46,-20 -52,-4Z';
-  return `<path d="M-50,-8C-62,-2 -70,8 -72,20C-64,14 -58,12 -52,12C-60,22 -62,32 -58,42C-52,30 -48,20 -46,8Z" fill="${s.cloth[0]}" stroke-width="1.1"/>` +
-    mass(K, c.url('k'), 1.3, 'M-52,-4C-58,-40 -40,-76 0,-78C-28,-66 -38,-44 -34,-28C-44,-22 -48,-14 -52,-4Z', c) +
-    `<path d="M-46,-12C-36,-28 -18,-32 0,-33C18,-32 36,-28 46,-12" fill="none" stroke="${s.cloth[0]}" stroke-width="2"/>` +
-    `<g fill="#efe2c2" stroke="none" opacity=".85">${[[-24, -60], [0, -66], [24, -60], [-38, -40], [-12, -48], [12, -48], [38, -40], [-24, -40], [24, -40], [0, -40]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${c.med ? 2.6 : 2}"/>`).join('')}</g>` +
-    `<path d="M10,-74C34,-68 50,-46 50,-18" fill="none" stroke="${light(s.cloth[2], .4)}" stroke-width="1.4" opacity=".5"/>`;
-};
+/** The Eriadorian woman's plain undyed linen headband, knotted at the side, the ends hanging. */
+const headband = (c: Ctx): string =>
+  `<path d="M-44,8C-52,14 -56,24 -54,34C-50,26 -47,20 -42,16ZM-46,4C-56,6 -62,14 -62,22C-56,16 -51,14 -46,12Z" fill="#cfc2a4" stroke-width=".9"/>` +
+  mass('M-49,-6C-48,-34 -30,-50 0,-52C30,-50 48,-34 49,-6L45,-2C43,-26 26,-40 0,-42C-26,-40 -43,-26 -45,-2Z', c.url('w'), 1.1, 'M-49,-6C-48,-34 -30,-50 -10,-51.5C-30,-42 -40,-28 -45,-2Z', c) +
+  `<ellipse cx="-47" cy="4" rx="5" ry="6" fill="#ddd2b6" stroke-width=".9"/>` + c.fine('<path d="M-40,-24C-30,-38 -14,-44 0,-45M10,-46C26,-44 38,-34 44,-20" fill="none" stroke-width=".5" opacity=".45"/>') +
+  `<path d="M8,-49C28,-46 42,-34 46,-14" fill="none" stroke="#fffaf0" stroke-width="1.2" opacity=".6"/>`;
+
 /** The Rohirrim woman's gold circlet with a green stone. */
 const circlet = (c: Ctx): string =>
   `<path d="M-44,-20Q0,-34 44,-20L45,-14Q0,-28 -45,-14Z" fill="${c.url('g')}" stroke-width="1"/><path d="M-5,-28L0,-35L5,-28L0,-21Z" fill="#3e7a44" stroke-width=".9"/>${c.fine('<path d="M-1.5,-29.5L1,-31" fill="none" stroke="#cfe8c4" stroke-width=".9"/>')}`;
@@ -358,7 +364,7 @@ const draw = (s: Spec): Draw => (o) => {
   const back = s.head === 'hood' ? pen(c, hoodBack(c, s)) : s.head === 'bear' ? pen(c, pelt(c)) : '';
   const hair = pen(c, sideHair(c, s), fair);
   const skin = pen(c, face(c, s), true);
-  const chin = fem ? '' : s.beard === 'none' ? pen(c, mouthM(c), true)
+  const chin = fem ? '' : s.beard === 'stubble' ? pen(c, beard(c, s) + mouthM(c), true)
     : pen(c, beard(c, s), fair) + pen(c, underlip, true) + pen(c, s.beard === 'rohan' ? moustache(c, s, .78, 14) : s.beard === 'shaggy' ? moustache(c, s, .86, 6) : moustache(c, s, .62, s.beard === 'ranger' ? 4 : 0), fair);
   const mid = pen(c, nose(c, s) + (fem ? lips(c) : ''), true) +
     pen(c, calm(c, s, eyes(c, { lidFill: dark(s.skin[1], .1), lowFill: s.skin[1], ...s.eye, lash: fem, age: fem ? 0 : s.age, size: fem ? 1.06 : 1 }, s.brow)), true);
@@ -366,7 +372,7 @@ const draw = (s: Spec): Draw => (o) => {
   if (s.head === 'hood') top = pen(c, hoodFront(c, s));
   else if (s.head === 'bear') top = pen(c, (fem ? temples(c, hairOf(c, s)) : '') + peltFront(c));
   else if (s.head === 'helm') top = fem ? pen(c, temples(c, hairOf(c, s)) + femCap(c, s), true) + pen(c, circlet(c)) : pen(c, temples(c, hairOf(c, s)), true) + pen(c, helm(c)) + pen(c, horsetail(c), true);
-  else if (s.head === 'mop') top = fem ? pen(c, temples(c, hairOf(c, s))) + pen(c, kerchief(c, s)) : pen(c, mop(c, s));
+  else if (s.head === 'mop') top = fem ? pen(c, temples(c, hairOf(c, s)) + femCap(c, s)) + pen(c, headband(c), true) : pen(c, mop(c, s));
   else top = fem ? pen(c, temples(c, hairOf(c, s)) + femCap(c, s) + crown(c, s)) : pen(c, hairCap(c, s));
   const fore = (s.bust === 'homespun' ? pen(c, scarf(c)) : '') + (fem || s.head === 'helm' ? pen(c, frontBraids(c, hairOf(c, s)), fair) : '') + pen(c, brooch(c, s));
   return svg(c, defs(c, s), back + pen(c, bust(c, s)) + hair + skin + chin + mid + top + fore);
@@ -384,33 +390,33 @@ const hairOf = (c: Ctx, s: Spec): HairO => {
 
 // ---- the five, the men and the women ----
 const BASE: Spec = {
-  skin: ['#a87657', '#cfa27f', '#e6c4a0'], hair: ['#3e2a1c', '#74502f', '#d4b98e'], brow: { fill: '#4a3222', hi: '#b09070', sc: .98 }, eye: { iris: '#4a3420', lid: 2.2 },
+  skin: ['#a87657', '#cfa27f', '#e6c4a0'], hair: ['#3e2a1c', '#74502f', '#d4b98e'], brow: { fill: '#4a3222', hi: '#b09070', sc: .92 }, eye: { iris: '#4a3420', lid: 2.2 },
   head: 'bare', beard: 'short', bust: 'cloak', jaw: 1, wide: 1, cloth: ['#2c3a29', '#4f6243', '#6d805a'], age: 0, blush: .16,
 };
 const DUNADAN: Spec = {
-  ...BASE, skin: ['#8c6650', '#b88e70', '#d8b494'], hair: ['#121010', '#2e2a28', '#8a8f96'], brow: { fill: '#1e1a18', hi: '#6a6e74', sc: 1.1, rot: 6, dy: 1 }, eye: { iris: '#8a98a2', lid: 2.6, low: 1 },
-  head: 'hood', beard: 'ranger', bust: 'ranger', jaw: .97, cloth: ['#141d14', '#26362a', '#3e5442'], age: 1, blush: .1,
+  ...BASE, skin: ['#8c6650', '#b88e70', '#d8b494'], hair: ['#121010', '#2e2a28', '#8a8f96'], brow: { fill: '#1e1a18', hi: '#6a6e74', sc: 1, rot: 6, dy: 1 }, eye: { iris: '#8a98a2', lid: 2.6, low: 1 },
+  head: 'hood', beard: 'ranger', bust: 'ranger', jaw: .97, cloth: ['#22382a', '#3c5e40', '#5e8060'], age: 1, blush: .1,
 };
 const ERIADORIAN: Spec = {
-  ...BASE, skin: ['#a8654e', '#d29a7c', '#eec2a2'], hair: ['#6a4426', '#a8763e', '#ead0a0'], brow: { fill: '#7a5430', hi: '#d8b888', sc: 1.02, rot: -4 }, eye: { iris: '#5a4524', lid: 1.6 },
-  head: 'mop', beard: 'none', bust: 'homespun', jaw: 1.06, cloth: ['#5a2a1a', '#8a4428', '#a85e3a'], blush: .42,
+  ...BASE, skin: ['#a8654e', '#d29a7c', '#eec2a2'], hair: ['#6a4426', '#a8763e', '#ead0a0'], brow: { fill: '#7a5430', hi: '#d8b888', sc: .94, rot: -2 }, eye: { iris: '#5a4524', lid: 1.6 },
+  head: 'mop', beard: 'stubble', bust: 'homespun', jaw: 1, cloth: ['#5a2a1a', '#8a4428', '#a85e3a'], blush: .3,
 };
 const ROHIRRIM: Spec = {
-  ...BASE, skin: ['#a8806a', '#d6b096', '#f0d4b8'], hair: ['#9a7428', '#e2bf62', '#fff2c0'], brow: { fill: '#c29a48', hi: '#fff0c0', sc: 1.08, rot: 8, dy: 1 }, eye: { iris: '#3f6a8c', lid: 2.4 },
+  ...BASE, skin: ['#a8806a', '#d6b096', '#f0d4b8'], hair: ['#9a7428', '#e2bf62', '#fff2c0'], brow: { fill: '#c29a48', hi: '#fff0c0', sc: .98, rot: 8, dy: 1 }, eye: { iris: '#3f6a8c', lid: 2.4 },
   head: 'helm', beard: 'rohan', bust: 'rohan', cloth: ['#1e3a22', '#2f5a32', '#4a7a48'], blush: .18,
 };
 const BEORNING: Spec = {
-  ...BASE, skin: ['#8e6248', '#bd8c6a', '#dcb08c'], hair: ['#1e140e', '#4a3222', '#a08470'], brow: { fill: '#2a1c14', hi: '#8a6a50', sc: 1.36, rot: 14, dy: 2 }, eye: { iris: '#5a3410', lid: 3, low: 1.6 },
-  head: 'bear', beard: 'shaggy', bust: 'fur', jaw: 1.1, wide: 1.3, cloth: ['#2a1a10', '#5a3a24', '#7e5838'], blush: .2,
+  ...BASE, skin: ['#a47458', '#d0a07e', '#ecc6a2'], hair: ['#2a1a10', '#5a3a24', '#b8987c'], brow: { fill: '#2a1c14', hi: '#8a6a50', sc: 1.16, rot: 14, dy: 2 }, eye: { iris: '#5a3410', lid: 3, low: 1.6 },
+  head: 'bear', beard: 'shaggy', bust: 'fur', jaw: 1.1, wide: 1.3, cloth: ['#6a3418', '#a8642e', '#d49a58'], blush: .2,
 };
 /** The women: the same people, slender brows, younger, no beard. */
-const fem = (s: Spec, hair: Spec['hair'], brow: BrowO, eye: EyeO = {}): Spec => ({ ...s, hair, brow: { ...s.brow, thin: true, sc: 1.08, rot: 0, ...brow }, eye: { ...s.eye, ...eye }, age: 0, jaw: s.jaw > 1 ? s.jaw * .94 : .98, wide: s.wide > 1 ? s.wide * .9 : .94, blush: Math.max(.3, s.blush) });
+const fem = (s: Spec, hair: Spec['hair'], brow: BrowO, eye: EyeO = {}): Spec => ({ ...s, hair, brow: { ...s.brow, sc: .9, rot: 0, dy: -1, ...brow, thin: true, hi: mix(brow.fill ?? s.brow.fill ?? '#5d3e22', s.skin[2], .35) }, eye: { ...s.eye, ...eye }, age: 0, jaw: s.jaw > 1 ? s.jaw * .94 : .98, wide: s.wide > 1 ? s.wide * .9 : .94, blush: Math.max(.3, s.blush) });
 const FEM: Readonly<Record<string, Spec>> = {
   human: fem(BASE, ['#3e2414', '#7a4a2a', '#d8b08a'], { fill: '#5d3e22', hi: '#c8a478' }, { iris: '#5c7f8c' }),
   dunadan: fem(DUNADAN, DUNADAN.hair, { fill: '#1e1a18', rot: 4 }, { low: .6, lid: 2.4 }),
   eriadorian: fem(ERIADORIAN, ['#5e2e18', '#9a5230', '#e8a878'], { fill: '#6a3a20' }, { lid: 1.8 }),
   rohirrim: fem(ROHIRRIM, ROHIRRIM.hair, { fill: '#c29a48', rot: 2 }),
-  beorning: fem(BEORNING, ['#24180f', '#563a26', '#b0907a'], { fill: '#2a1c14', thin: false, sc: 1.12, rot: 10 }, { lid: 2.6, low: 1.2 }),
+  beorning: fem(BEORNING, ['#24180f', '#563a26', '#b0907a'], { fill: '#2a1c14', sc: .96, rot: 6, dy: 0 }, { lid: 2.6, low: 1.2 }),
 };
 
 const pair = (id: string, m: Spec): Draw => { const dm = draw(m), df = draw(FEM[id]!); return (o) => (o.sex === 'female' ? df(o) : dm(o)); };
