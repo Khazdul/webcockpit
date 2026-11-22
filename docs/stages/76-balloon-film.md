@@ -123,4 +123,19 @@ with HEVC 10-bit). Look at:
 
 ## Owner feedback
 
-(none yet)
+### Round 1 (2026-11-22): a new manuscript
+
+- Much slower; the film may be longer. The title on black, without
+  "(Because: Why not?)".
+- No montage of runs: Gittan stays at the fountain in Bree, the window full
+  of text, some life in the room (mobs, a simulated narrate in real
+  colours). Day, a bird now and then, small clouds.
+- The map with border and glass, one row from the top and right edges.
+- The setting shown and switched on; then the balloons, sent by typed
+  `#weather balloon` commands at real speed: four goblins (calibrating,
+  superb, achievement, death), then one of each other race. At most about
+  three on screen.
+- A caption on what triggers them, one on how many there are. Fade to
+  black, then the end card.
+
+The whole of it: `video/manuscript-balloons.md`, draft 2.

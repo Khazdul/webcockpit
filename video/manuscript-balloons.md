@@ -1,120 +1,103 @@
 # The balloon film — manuscript
 
-Draft 1 (2026-11-21). A short film of its own (about 1:15) that only shows
-the balloon notices of 0.22 (stages 69 and 75, ADR 0159). It does not
-replace the presentation films (`manuscript.md`, `manuscript-2.md`). Same
-pipeline (ADR 0133, `README.md`): Playwright takes against the mocked MUME
-WebSocket, cut in Remotion.
+Draft 2 (2026-11-22): a new film after the owner's review of round 1
+(draft 1 is in git, cb4dd880). Much slower, one place, daylight, every
+balloon sent by a typed command. A film of its own that only shows the
+balloon notices of 0.22 (stages 69 and 75, ADR 0159); it does not replace
+the presentation films. Same pipeline (ADR 0133, `README.md`).
 
-## The owner's decisions (2026-11-21)
+## The owner's decisions (2026-11-22)
 
-- **Material.** Gittan (hobbit passenger), then Rasta (goblin passenger),
-  then a parade of a selection of the other passengers.
-- **Length.** About 1:15, with more tempo than the earlier films.
-- **Names.** Real names stay, the PvP victims on Rasta's signs included.
-- **Captions.** A few short ones, plus a title card and an end card.
-- **Light.** Day (Gittan) → dusk (Rasta) → night (the parade).
-- **Camera.** No zoom: the whole window throughout.
-- **Panes.** Only the map, floating in the upper right, not large.
-- **The parade.** One at a time, not too dense (about 3 s apart), not all
-  eight: varied races and varied balloons (moods). A caption says it is a
-  selection and how many unique balloons there are in all.
-- **The opening.** A short, slightly comic title card: "WebCockpit, now
-  with balloons" or similar.
-- **Music** (2026-11-22, after two rounds of candidates in
-  `~/Downloads/ballong-musik/`): *Into The Wilds* by Scott Buckley (2024,
-  4:07, CC BY 4.0), `public/music/into-the-wilds.mp3` with its licence
-  note beside it. Its first section ends at about 1:21 (the level drops
-  at 82 s): the film runs to that break, about 1:21, and fades with it.
-  Credit, in the YouTube description from the moment of upload (the track
-  is in Content ID, claims come without it) and on the end card:
+- **Slow.** The film may be longer. Every balloon flies at the real speed:
+  nothing sped up, no time compression while a balloon is up.
+- **One place.** Gittan at the fountain in Bree for the whole film. It is
+  there for the look of the whole: text and balloons in one window.
+- **The screen is full of text from the first frame of the game.**
+- **Life in the room.** Things may happen meanwhile: mobs walk in and out,
+  a simulated narrate. Staged lines have the game's real form and colours.
+- **Light.** A clear day. A bird now and then, and the day sky's small
+  cloud tufts (no cloud cover).
+- **The map.** The only pane: floating, with its border and the glass
+  background, one text row from the top edge and one row from the right.
+- **The commands show.** Gittan types `#weather balloon as …` for each
+  balloon.
+- **Not crowded.** Never more than about 2.5–3 balloons on screen at
+  once. The next comes when the one before has stopped and moved on a bit.
+- **The setting on camera.** Balloons is off; the pointer switches it on.
+- **The end.** Fade to black, then the end card in the title's style.
+- **Camera.** No zoom.
+- **Music.** *Into The Wilds* by Scott Buckley (2024, 4:07, CC BY 4.0),
+  `public/music/into-the-wilds.mp3`. Faded at a phrase's end under the end
+  card. Credit, in the YouTube description from the moment of upload (the
+  track is in Content ID) and small on the end card:
   `'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au`
 
-## Facts the captions rest on
+## The place
 
-- 8 passengers (dwarf, elf, human, hobbit, troll, goblin, orc, Black
-  Númenórean), chosen by the race the player plays (stage 75).
-- 10 balloons per passenger (`feed.ts MOODS`: poor, meh, calibrating, good,
-  great, superb, PvP, level up, death, achievement), each its own envelope
-  and passenger pose: **80 unique balloons**.
-- Kills within the readable spot join one sign (count, summed XP, the best
-  face; +0.7 s each, capped).
-- Off by default: Settings → Weather effects → Balloons. Desktop only.
+Run `Gittan/2026-11-08T12-07-39` (`private/film-runs.jsonl.gz`), the
+`pony` excerpt of `feeds/film.ts` (the presentation film's act 1): out of
+the inn to *Sign of the Prancing Pony Inn* at about 23 s, the fountain,
+`dr water`. A city room outdoors. She does not leave it. (The mercenary is
+hired later, at the End of Mason Road; he is not needed here.)
 
-## Sources
+Before the first frame the run's earlier text is fed, with more of the
+run's Bree text before it if needed, until the window is full, ending with
+her arrival at the fountain.
 
-- **Gittan:** `Gittan/2026-10-11T20-56-42` (runs backup
-  `~/Downloads/webcockpit-runs-2026-11-17.jsonl.gz`; to be copied into
-  `private/film-runs.jsonl.gz` or a second private backup). Gloomy Valley
-  (forest): the olog-hai troll at 388 s. The Ancient Broken Road: a prison
-  guard (1406 s), two mastiffs 2 s apart (1412, 1414: a joined sign without
-  any staging), smugglers, goblin warriors; the achievement *"You unlocked
-  an ornate elven chest!"* at 1651 s in the Chieftain's Throneroom.
-- **Rasta:** the export `~/Downloads/mume-Rasta-2026-11-21T21-47-52(1).html`
-  (run 2 in its payload). The Old East Road caves: Morgrim (2382 s), Grekko
-  (2386), Voïx (2423), a Dwarf and **level 74** (2448), Thehippo (2476),
-  Domon (2480).
-- **The parade:** staged with `#weather balloon as <passenger> <what>`,
-  typed off camera (or sent from the scene directly).
+## Acts (times approximate; the balloons decide)
 
-## Acts (about 1:15; times as cut, by picture)
+### 0 · Title, on black (0:00–0:09)
 
-### 0 · Title (0:00–0:05)
+1. *WebCockpit 0.22* fades in and stands alone for about 2 s.
+2. *Now with hot-air balloons.* fades in below it. Both stay to be read.
+3. Fade out. No third line, no balloon, no sky.
 
-A card in the start page's type on its night sky. A balloon rises through
-it. Text (owner, 2026-11-21): *WebCockpit 0.22* / *Now with hot-air
-balloons.* / small: *(Because: Why not?)*
+### 1 · The fountain (0:09–0:25)
 
-### 1 · Gittan, by day (0:05–0:32)
+1. Fade in to the game: full of text, day, the map.
+2. About 6 s in: the pointer opens Settings → Weather effects, rests by
+   Balloons long enough to see where it is, switches it on, rests, closes.
 
-1. Gloomy Valley in daylight, the map floating upper right. The group
-   kills the olog-hai troll; the hobbit's balloon comes up with its sign
-   and drifts away into the sky. Caption: *Every kill sends up a balloon.*
-2. Cut to the Ancient Broken Road: the prison guard, then the two mastiffs
-   on one sign. Caption: *Kills close together share a sign.*
-3. The Throneroom: unlock, open, the chest. The achievement balloon.
-   Caption: *Level ups and achievements get one of their own.*
+### 2 · The goblin (0:25–1:10)
 
-### 2 · Rasta, at dusk (0:32–0:52)
+Gittan types each command at a readable pace.
 
-1. Cut to Rasta in the caves off the Old East Road. Caption: *The
-   passenger follows the race you play.* The goblin.
-2. The PvP kills in real order (time compressed): the player-kill
-   balloons; the level 74 balloon beside the Dwarf's.
-
-### 3 · The parade, at night (0:52–1:10)
-
-Outdoors under the night sky. About six passengers, about 3 s apart, each
-on a different balloon. Proposal:
-
-| # | Passenger | Balloon |
+| # | `#weather balloon as …` | The next one after |
 |---|---|---|
-| 1 | dwarf | superb |
-| 2 | elf | achievement |
-| 3 | troll | poor |
-| 4 | human | level up |
-| 5 | orc | PvP |
-| 6 | Black Númenórean | death |
+| 1 | `goblin calibrating` | about 14 s (the first takes its time) |
+| 2 | `goblin superb` | 8–10 s |
+| 3 | `goblin achievement` | 8–10 s |
+| 4 | `goblin death` | 8–10 s |
 
-Caption: *A selection: 8 passengers, 10 balloons each. 80 in all.*
+Caption, with the second balloon: *Balloons rise for kills, level ups and
+achievements. And when you die.*
 
-### 4 · End card (1:10–1:15)
+### 3 · The other races (1:10–2:15)
 
-*Turn them on in Settings → Weather effects.* /
-*WebCockpit 0.22 · mumecockpit.com · Free and open source*. A small
-music credit line. The picture fades with the music's section end.
+One of each of the other seven, somewhat quicker, as far as "not crowded"
+allows. Kills alternate with the other moments, so that no two kills join
+one sign.
 
-## Light underground (owner, 2026-11-21)
+| # | `#weather balloon as …` |
+|---|---|
+| 5 | `dwarf great` |
+| 6 | `hobbit levelup` |
+| 7 | `troll poor` |
+| 8 | `human achievement` |
+| 9 | `orc meh` |
+| 10 | `numenorean death` |
+| 11 | `elf pvp` (the sample's victim is an orc) |
 
-Both runs' balloon moments are mostly underground (building, cavern),
-where the sky shows only its tint. Decided: open outdoors in daylight
-(the troll in Gloomy Valley), then let the caves be dark: the contrast
-tells it. The parade is outdoors under the night sky. Room environments
-are not staged.
+Caption, from about the second of them: *The passenger follows your race.
+8 passengers, 10 balloons each: 80 in all.*
 
-## Open
+### 4 · The end, on black (about 2:15–2:30)
 
-- The acts' times stretch in proportion from 1:15 to about 1:21 on the
-  first cut.
-- Whether Rasta's dusk shows at all in the caves (to be judged on the
-  first take).
+The last balloon is read and drifts on a bit. Fade to black. The end card
+in the title's style: *Turn them on in Settings → Weather effects.* /
+*mumecockpit.com* / small: the music credit. It fades with the music.
+
+## When the rules collide
+
+"Real speed" and "not crowded" win over the times and the gaps above:
+lengthen a gap, and with it the film. Never speed a balloon up.
