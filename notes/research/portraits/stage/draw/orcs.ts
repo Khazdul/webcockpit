@@ -55,8 +55,8 @@ const defs = (c: Ctx, s: Spec): string =>
   baseDefs(c) + lg(c, 's', s.skin) + lg(c, 'h', [s.hair[0], s.hair[1]]) + lg(c, 'k', IRON, .25) + lg(c, 'l', s.cloth) + lg(c, 'w', s.fur) +
   `<radialGradient id="${c.id('y')}" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#f2e48a"/><stop offset=".6" stop-color="#dcc452"/><stop offset="1" stop-color="#a88a2c"/></radialGradient><clipPath id="${c.id('gc')}"><circle r="12"/></clipPath>` +
   (c.med
-    ? `<pattern id="${c.id('sc')}" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#8a9197" opacity=".12"/></pattern>`
-    : `<pattern id="${c.id('sc')}" patternUnits="userSpaceOnUse" width="9" height="7"><path d="M0,0Q4.5,8 9,0M-4.5,3.5Q0,11.5 4.5,3.5M4.5,3.5Q9,11.5 13.5,3.5" fill="none" stroke="#8a9197" stroke-width=".8" opacity=".5"/></pattern>`);
+    ? `<pattern id="${c.id('sc')}" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#8a9197" opacity=".12"/></pattern><pattern id="${c.id('wv')}" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="${INK}" opacity=".08"/></pattern>`
+    : `<pattern id="${c.id('wv')}" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(8)"><path d="M0,1H5M1.5,0V5M0,3.5H5M4,0V5" fill="none" stroke="${INK}" stroke-width=".5" opacity=".32"/></pattern><pattern id="${c.id('sc')}" patternUnits="userSpaceOnUse" width="9" height="7"><path d="M0,0Q4.5,8 9,0M-4.5,3.5Q0,11.5 4.5,3.5M4.5,3.5Q9,11.5 13.5,3.5" fill="none" stroke="#8a9197" stroke-width=".8" opacity=".5"/></pattern>`);
 
 // ---- fur: tufted edges ----
 /** A tufted run through `pts`: each step hooks out to the left of the direction of travel (outward on a clockwise outline). */
@@ -123,8 +123,10 @@ const bust = (c: Ctx, s: Spec): string => {
   const scale = `<path d="M-60,150L-58,84Q0,66 58,84L60,150Z" fill="#2a2b2e" stroke-width="1.2"/><path d="M-60,150L-58,84Q0,66 58,84L60,150Z" fill="${c.url('sc')}" stroke="none"/><path d="M-60,150L-58,84Q-30,74 -20,72C-34,92 -38,120 -36,150Z" fill="${c.url('p')}" stroke="none"/>`;
   const strap = `<path d="M40,72L56,80L-30,150L-54,150Z" fill="#3a2a1c" stroke-width="1.1"/>${c.fine('<g fill="#9aa0a4" stroke-width=".5"><circle cx="40" cy="84" r="1.9"/><circle cx="20" cy="101" r="1.9"/><circle cx="0" cy="118" r="1.9"/><circle cx="-20" cy="135" r="1.9"/></g>')}`;
   if (s.house === 'tark') {
-    // stolen sacking with fat crooked stitches, a strap with a looted ring, a ragged fur collar
-    out += `<path d="M1,80V150" fill="none" stroke-width=".9"/>${c.fine('<path d="M-4,90l10,5M-4,102l10,5M-4,114l10,5M-4,126l10,5" fill="none" stroke="#d6c59a" stroke-width="1.3"/>')}` +
+    // stolen sacking with fat crooked stitches, a sewn-on patch, a strap with a looted ring, a ragged fur collar
+    out += `<path d="${B}" fill="${c.url('wv')}" stroke="none"/><path d="${wx('M-124,150L-122,100C-116,80 -104,70 -90,64C-100,84 -104,116 -102,150Z', w)}" fill="${c.url('q')}" stroke="none"/>` +
+      `<path d="M58,104L88,98L92,128L62,134Z" fill="#6a5a3c" stroke-width="1"/><path d="M58,104L88,98L92,128L62,134Z" fill="${c.url('wv')}" stroke="none"/>${c.fine('<path d="M61,108l3,-2M66,107l2,-3M72,106l2,-3M78,104l2,-3M84,103l2,-3M90,110l-3,1M90,118l-3,1M64,132l2,-3M72,131l2,-3M80,130l2,-3" fill="none" stroke="#d6c59a" stroke-width=".9"/>')}` +
+      `<path d="M1,80V150" fill="none" stroke-width=".9"/>${c.fine('<path d="M-4,90l10,5M-4,102l10,5M-4,114l10,5M-4,126l10,5" fill="none" stroke="#d6c59a" stroke-width="1.3"/>')}` +
       `<path d="M30,66L44,72L-26,150L-44,150Z" fill="#2e2216" stroke-width="1.1"/><rect x="-4" y="104" width="13" height="12" rx="2" transform="rotate(-46 2.5 110)" fill="none" stroke="#b9a25e" stroke-width="2"/>` +
       neck(c, s);
     const top = along(-62, 62, 13, (x) => 56 + 9 * (x / 62) ** 2);
@@ -178,11 +180,20 @@ const sideHair = (c: Ctx, s: Spec): string => {
   return `<path d="${L}" fill="${c.url('h')}" stroke-width="1.1"/><path d="${L}" fill="${c.url('p')}" stroke="none"/><path d="${mir(L)}" fill="${dark(s.hair[1], .08)}" stroke-width="1.1"/>` +
     strands(c, wx('M-56,-18C-60,6 -60,30 -66,56M-50,-10C-54,14 -54,36 -60,58M56,-18C60,6 60,30 66,56M50,-10C54,14 54,36 60,58', j), wx('M-60,-8C-62,16 -63,36 -68,54M60,-12C63,10 63,34 68,54M54,0C57,20 57,40 62,56', j), s.hair[2]);
 };
-/** The Tarkhnarb woman's lank hair over the bald crown, parted. */
+/** The Tarkhnarb woman's hair, as the goblin's: short, thin and wild, a ragged tuft round the head behind the ears. */
+const tarkBack = (c: Ctx, s: Spec): string => {
+  const pts = ([[-44, -40], [-52, -62], [-38, -84], [-14, -94], [10, -94], [34, -86], [52, -64], [48, -40], [58, -20], [62, 0], [56, 18], [40, 24], [-40, 24], [-56, 18], [-62, 0], [-58, -20], [-44, -40]] as [number, number][]).map(([x, y]) => [n(x * s.jaw), y] as [number, number]);
+  const H = `M${pts[0]![0]},${pts[0]![1]}` + tuft(pts, 7) + 'Z';
+  return `<path d="${H}" fill="${dark(s.hair[1], .05)}" stroke-width="1.1"/><path d="${wx('M-44,-40C-52,-62 -38,-84 -14,-94C-30,-76 -40,-50 -46,0C-50,10 -54,16 -56,18C-62,0 -62,-20 -44,-40Z', s.jaw)}" fill="${c.url('p')}" stroke="none"/>` +
+    strands(c, wx('M-50,-30C-56,-14 -58,2 -56,14M-40,-70C-50,-56 -54,-40 -54,-26M50,-30C56,-14 58,2 56,14M40,-70C50,-56 54,-40 54,-26', s.jaw), wx('M-56,-20C-60,-6 -60,6 -58,14M54,-24C58,-8 60,4 58,14M30,-84C42,-74 48,-60 50,-46', s.jaw), s.hair[2], .7);
+};
+/** Over the bald crown: thin hair with a ragged fringe of tufts. */
 const crownHair = (c: Ctx, s: Spec): string => {
-  const H = wx('M-47,-22C-52,-62 -30,-82 0,-82C30,-82 52,-62 47,-22C42,-38 28,-46 14,-44C7,-42 2,-38 0,-35C-2,-38 -7,-42 -14,-44C-28,-46 -42,-38 -47,-22Z', s.jaw);
-  return `<path d="${H}" fill="${c.url('h')}" stroke-width="1.1"/><path d="${wx('M-47,-22C-52,-62 -30,-82 -4,-82C-24,-72 -34,-54 -32,-40C-40,-36 -44,-30 -47,-22Z', s.jaw)}" fill="${c.url('p')}" stroke="none"/>` +
-    strands(c, wx('M-2,-80C-14,-74 -28,-60 -38,-38M-4,-72C-12,-64 -20,-54 -24,-44M2,-80C14,-74 28,-60 38,-38M4,-72C12,-64 20,-54 24,-44', s.jaw), wx('M-6,-78C-20,-70 -32,-54 -42,-32M8,-78C22,-70 34,-54 42,-32M6,-66C14,-58 20,-50 22,-44', s.jaw), s.hair[2], .8);
+  const fr = along(47, -47, 9, (x) => -40 + 14 * (x / 47) ** 2);
+  const H = wx(`M-47,-26C-52,-62 -30,-84 0,-84C30,-84 52,-62 47,-26` + tuft(fr, 5) + 'Z', s.jaw);
+  return `<path d="${H}" fill="${c.url('h')}" stroke-width="1.1"/><path d="${wx('M-47,-26C-52,-62 -30,-84 -4,-84C-24,-72 -32,-56 -30,-38C-38,-34 -44,-30 -47,-26Z', s.jaw)}" fill="${c.url('p')}" stroke="none"/>` +
+    strands(c, wx('M-2,-82C-12,-74 -24,-60 -30,-44M-4,-72C-10,-64 -14,-54 -16,-44M4,-82C14,-74 26,-60 32,-44M6,-72C12,-64 16,-54 18,-42', s.jaw), wx('M-6,-80C-18,-70 -28,-56 -36,-40M8,-80C20,-70 30,-56 38,-38M2,-70C4,-60 4,-50 2,-42', s.jaw), s.hair[2], .8) +
+    `<path d="M-6,-83C-8,-92 -14,-96 -20,-96M4,-84C6,-93 11,-98 17,-99M14,-82C19,-86 24,-87 29,-85" fill="none" stroke-width="${c.med ? .8 : 1}"/>`;
 };
 
 // ---- ears ----
@@ -192,7 +203,7 @@ const ear = (c: Ctx, s: Spec, sg: number): string => {
     // the goblin's vast bat ear, out to the rim
     const E = 'M-5,-12C12,-23 33,-29 52,-25C45,-12 28,6 -3,12Z';
     return `<g transform="translate(${n(34 * s.jaw * sg)},-4) scale(${1.32 * sg},1.32)"><path d="${E}" fill="${c.url('s')}" stroke-width="1.3"/><path d="M1,-9C14,-17 30,-21 43,-20C36,-11 23,0 2,6Z" fill="${dark(s.skin[0], .2)}" stroke-width=".8"/>
-${sg < 0 ? `<path d="M1,-9C14,-17 30,-21 43,-20C30,-15 16,-9 4,-2Z" fill="${c.url('p')}" stroke="none"/>` : `<path d="M14,-20C26,-24 38,-26 48,-24" fill="none" stroke="${light(s.skin[2], .4)}" stroke-width="1" opacity=".6"/>`}${c.fine('<path d="M8,-5C17,-10 26,-13 35,-15M9,1C16,-2 22,-6 28,-10" fill="none" stroke-width=".6" opacity=".7"/>')}
+<path d="M1,-9C14,-17 30,-21 43,-20C30,-15 16,-9 4,-2Z" fill="${c.url('p')}" stroke="none"/><path d="M-3,12C10,8 22,0 30,-6C22,4 10,10 -3,12Z" fill="${c.url('q')}" stroke="none"/>${sg < 0 ? `<path d="${E}" fill="#4a4626" opacity=".3" stroke="none"/><path d="${E}" fill="${c.url('p')}" stroke="none"/>` : `<path d="M14,-20C26,-24 38,-26 48,-24" fill="none" stroke="${light(s.skin[2], .4)}" stroke-width="1" opacity=".6"/>`}${c.fine('<path d="M8,-5C17,-10 26,-13 35,-15M9,1C16,-2 22,-6 28,-10" fill="none" stroke-width=".6" opacity=".7"/>')}
 ${sg > 0 ? '<path d="M30,-8.5L34,-4L37,-10.5" fill="#170f0a" stroke-width=".9"/>' : `<circle cx="24" cy="3.5" r="3.6" fill="none" stroke-width="2.2"/><circle cx="24" cy="3.5" r="3.6" fill="none" stroke="#b9a25e" stroke-width="1"/>`}</g>`;
   }
   const j = s.jaw, torn = (s.house === 'morr') === (sg < 0);
@@ -229,7 +240,7 @@ const face = (c: Ctx, s: Spec): string => {
     ? (c.fem ? '' : c.fine('<path d="M-17,-48C-6,-51 8,-51 18,-48M-11,-55C-4,-57 6,-57 12,-55" fill="none" stroke-width=".6" opacity=".6"/><path d="M-26,-62C-22,-56 -24,-50 -20,-44" fill="none" stroke="#5d6a38" stroke-width=".8" opacity=".7"/>') + `<circle cx="-28" cy="-38" r="1.8" fill="${s.skin[0]}" stroke-width=".7"/><circle cx="32" cy="16" r="1.5" fill="${s.skin[0]}" stroke-width=".6"/>`)
     : s.house === 'orc' && !c.fem ? `<circle cx="-34" cy="22" r="2" fill="${s.skin[0]}" stroke-width=".7"/><circle cx="36" cy="-2" r="1.5" fill="${s.skin[0]}" stroke-width=".6"/>` : '';
   const tmp = c.fem && s.house !== 'tark' ? temples(c, hairOf(c, s)) : '';
-  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.15"/>${domeSh}<path d="${sh}" fill="#3a2a18" opacity=".22" stroke="none"/><path d="${sh}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
+  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.15"/>${domeSh}<path d="${sh}" fill="${s.house === 'tark' ? '#4a4626' : '#3a2a18'}" opacity="${s.house === 'tark' ? .36 : .22}" stroke="none"/>${s.house === 'tark' ? `<path d="${wx('M-43,-28C-48,-8 -47,14 -39,28C-31,40 -16,46.5 0,47C-14,40 -22,24 -24,4C-25,-10 -24,-20 -22,-28Z', j)}" fill="#4a4626" opacity=".16" stroke="none"/><path d="${wx('M-20,30C-12,38 -4,42 6,42C2,46 -6,46 -14,42Z', j)}" fill="${c.url('p')}" stroke="none"/><path d="M-12,-6C-16,4 -16,14 -10,24" fill="none" stroke-width=".6" opacity=".5"/>` : ''}<path d="${sh}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
     `<ellipse cx="-30" cy="17" rx="10" ry="7" fill="#7a3a2c" opacity="${blush}" stroke="none"/><ellipse cx="31" cy="15" rx="9" ry="6" fill="${light(s.skin[2], .4)}" opacity=".3" stroke="none"/>` +
     ridge + lines + extra + (c.fem ? `<path d="${wx('M-30,38C-20,45 -8,47 0,47C10,47 22,44 30,38C22,46 10,50 0,50C-10,50 -22,46 -30,38Z', j)}" fill="#2a1a10" opacity=".25" stroke="none"/>` : '') +
     marks(c, s) + tmp;
@@ -238,16 +249,15 @@ const face = (c: Ctx, s: Spec): string => {
 /** The house marks on the face: the Morruhk's ritual scars, the Zaugurz's blood and scar. */
 const marks = (c: Ctx, s: Spec): string => {
   if (s.house === 'morr') {
-    // three slanted rows of raised pale cuts on each cheek, a chevron at each temple
-    const row = (sg: number): string => {
-      let d = '';
-      for (let k = 0; k < 3; k++) d += `M${n(sg * 46)},${4 + k * 8}C${n(sg * 40)},${5 + k * 8} ${n(sg * 34)},${8 + k * 8} ${n(sg * 27)},${12 + k * 8}`;
-      d += `M${n(sg * 46)},-20L${n(sg * 40)},-14L${n(sg * 46)},-8`;
-      return d;
+    // raised ritual cuts away from the snout: two chevrons on each outer cheek, a row of beads above each brow, slashes at the temples
+    const side = (sg: number): string => {
+      const X = (x: number): number => n(sg * x);
+      return `M${X(47)},2L${X(37)},8L${X(47)},14M${X(46)},18L${X(37)},23L${X(45)},28M${X(48)},-24L${X(42)},-14M${X(44)},-26L${X(38)},-16`;
     };
-    const d = row(-1) + row(1);
-    const dots = c.fine([-1, 1].map((sg) => [0, 1, 2, 3].map((k) => `<circle cx="${n(sg * (22 + k * 4))}" cy="${n(34 - k * 1.5)}" r="1.1"/>`).join('')).join(''));
-    return `<path d="${d}" fill="none" stroke="#3a2418" stroke-width="2.6" opacity=".55" transform="translate(.6,1)"/><path d="${d}" fill="none" stroke="#d8c2a0" stroke-width="${c.med ? 1.3 : 1.6}"/>${c.fine(`<path d="${d}" fill="none" stroke="#fff4dc" stroke-width=".5" opacity=".6" transform="translate(.4,-.5)"/>`)}<g fill="#d8c2a0" stroke-width=".4">${dots}</g>`;
+    const d = side(-1) + side(1);
+    const beads = [-1, 1].map((sg) => [0, 1, 2, 3].map((k) => `<circle cx="${n(sg * (14 + k * 6))}" cy="${n(-21.5 + k * .8)}" r="${c.med ? 1.6 : 1.3}"/>`).join('')).join('');
+    const raised = light(s.skin[2], .25);
+    return `<path d="${d}" fill="none" stroke="#2a180e" stroke-width="${c.med ? 2.2 : 2.8}" opacity=".7" transform="translate(.5,.9)"/><path d="${d}" fill="none" stroke="${raised}" stroke-width="${c.med ? 1.3 : 1.6}"/>${c.fine(`<path d="${d}" fill="none" stroke="#fff0d8" stroke-width=".45" opacity=".55" transform="translate(.4,-.5)"/>`)}<g fill="${raised}" stroke="#2a180e" stroke-width=".5">${beads}</g>`;
   }
   if (s.house === 'zaug') {
     // the rake in blood across both cheeks, with drips; a stitched scar over the nose
@@ -274,7 +284,7 @@ const nose = (c: Ctx, s: Spec): string => {
     const k = c.fem ? .84 : 1;
     return `<g transform="translate(0,${c.fem ? 2 : 0}) scale(${k})"><path d="M-8,-8C-10,2 -20,6 -24,14L24,14C20,6 10,2 8,-8Z" fill="${mid}" stroke-width="1.1"/><path d="M-8,-8C-10,2 -20,6 -24,14L-10,14C-8,6 -6,0 -3,-6Z" fill="${c.url('p')}" stroke="none"/>
 <path d="M-7,0Q0,-3 7,0M-9,4Q0,1 9,4M-12,8Q0,5 12,8" fill="none" stroke-width=".8" opacity=".8"/>
-<ellipse cx="0" cy="20" rx="24" ry="11" fill="${mix(sk1, '#c08a74', .35)}" stroke-width="1.2"/><path d="M-24,20C-24,26 -14,31 -2,31C-12,28 -18,24 -18,14C-22,15 -24,17 -24,20Z" fill="${c.url('p')}" stroke="none"/>
+<ellipse cx="0" cy="20" rx="24" ry="11" fill="${mix(sk1, '#d09a8e', .6)}" stroke-width="1.2"/><path d="M-24,20C-24,26 -14,31 -2,31C-12,28 -18,24 -18,14C-22,15 -24,17 -24,20Z" fill="${c.url('p')}" stroke="none"/>
 <ellipse cx="-9" cy="21" rx="5" ry="4.2" fill="#170d0b" stroke-width=".8" transform="rotate(14 -9 21)"/><ellipse cx="9" cy="21" rx="5" ry="4.2" fill="#170d0b" stroke-width=".8" transform="rotate(-14 9 21)"/>
 <ellipse cx="11" cy="14" rx="8" ry="2.6" fill="#f3dcc0" opacity=".4" stroke="none"/>${c.fine('<path d="M0,12v6M-22,24q-3,2 -2,6M22,24q3,2 2,6" fill="none" stroke-width=".6" opacity=".7"/>')}</g>`;
   }
@@ -413,16 +423,24 @@ const hairOf = (c: Ctx, s: Spec): HairO => ({
   braids: s.house === 'tark' ? undefined : { links: 12, sc: 1.3, x: 54 * s.jaw, top: s.house === 'morr' ? -10 : -16, ring: s.ring },
 });
 
+/** The women's ornament above the level ring: two broad rings high on each braid (copper for the base, bone for the Morruhk and Zaugurz). */
+const braidRings = (c: Ctx, s: Spec): string => {
+  const b = hairOf(c, s).braids;
+  if (!b) return '';
+  const X = b.x ?? 54, metal = s.house === 'orc' ? ['#8e5532', '#d8a070'] : [mix(BONE, '#8a7a5a', .4), BONE];
+  return [-1, 1].map((sg) => [6, 20].map((y) => `<rect x="${n(sg * X - 8.5)}" y="${y}" width="17" height="6.5" rx="1.6" fill="${metal[0]}" stroke-width="1"/><path d="M${n(sg * X - 6)},${y + 1.8}H${n(sg * X + 6)}" fill="none" stroke="${metal[1]}" stroke-width="1.3" opacity=".85"/>`).join('')).join('');
+};
+
 const draw = (s: Spec): Draw => (o) => {
   const c = ctx(o);
   const back = s.house === 'morr' ? pen(c, wargBack(c, s), false) : '';
-  const hair = c.fem ? longHair(c, hairOf(c, s)) : s.house === 'orc' || s.house === 'zaug' ? sideHair(c, s) : '';
+  const hair = c.fem ? (s.house === 'tark' ? tarkBack(c, s) : longHair(c, hairOf(c, s))) : s.house === 'orc' || s.house === 'zaug' ? sideHair(c, s) : '';
   const ears = pen(c, ear(c, s, -1) + ear(c, s, 1), true);
   const head = s.house === 'morr' ? pen(c, wargFace(c, s)) : s.house === 'tark' ? (c.fem ? pen(c, crownHair(c, s)) : pen(c, wisps(c))) : pen(c, cap(c, s)) + (s.house === 'zaug' ? pen(c, furRoll(c), true) : '') + pen(c, capFront(c, s));
   const body = back + pen(c, hair) + pen(c, bust(c, s), false) + (s.house === 'zaug' ? pen(c, snowMantle(c, s), true) : '') +
     (c.fem ? '' : ears) + pen(c, face(c, s), true) + (c.fem ? ears : '') +
     pen(c, mouth(c, s), true) + pen(c, nose(c, s), true) + pen(c, eyesOf(c, s), true) + head +
-    (c.fem ? pen(c, frontBraids(c, hairOf(c, s))) : '');
+    (c.fem ? pen(c, frontBraids(c, hairOf(c, s)) + braidRings(c, s)) : '');
   return svg(c, defs(c, s), body);
 };
 
@@ -436,7 +454,7 @@ const TARK: Spec = {
   eye: { lid: 3.4, low: 1.4, look: [.6, 0] }, brow: { fill: '#2c2a1c', hi: '#8a8a5c', rot: 18, dy: -8, sc: 1.02 }, jaw: .9, wide: .84, ring: '#b9a25e',
 };
 const MORR: Spec = {
-  ...BASE, house: 'morr', skin: ['#4e3a2e', '#7a5c48', '#a07e66'], hair: ['#1c1612', '#3e3028', '#8a7e70'], cloth: ['#2a1e16', '#46342a', '#62503e'], fur: ['#463a30', '#7e6e5c'], white: '#c8b884',
+  ...BASE, house: 'morr', skin: ['#4e3a2e', '#7a5c48', '#a07e66'], hair: ['#1c1612', '#3e3028', '#8a7e70'], cloth: ['#2a1e16', '#46342a', '#62503e'], fur: ['#3e4042', '#86888a'], white: '#c8b884',
   eye: { iris: '#a8601a', lid: 3, low: 1.6 }, brow: { fill: '#241c16', hi: '#7a6a5a', rot: 14, dy: 1.5, sc: 1.2 }, jaw: 1.04, wide: 1.06, ring: BONE,
 };
 const ZAUG: Spec = {
@@ -446,9 +464,9 @@ const ZAUG: Spec = {
 /** The women: the same house; brows and lids a little softer, the jaw narrower. */
 const fem = (s: Spec, eye: EyeO = {}): Spec => ({ ...s, eye: { ...s.eye, ...eye }, jaw: s.jaw * .96 });
 const FEM: Readonly<Record<House, Spec>> = {
-  orc: fem(BASE, { lid: 2.4, low: 1.2 }),
+  orc: { ...fem(BASE, { lid: 2.4, low: 1.2 }), jaw: .92 },
   tark: fem({ ...TARK, jaw: .94 }, { lid: 3 }),
-  morr: fem(MORR, { lid: 3, low: 1.4 }),
+  morr: { ...fem(MORR, { lid: 3, low: 1.4 }), jaw: .96 },
   zaug: fem(ZAUG, { lid: 1.6, low: 1 }),
 };
 const pair = (m: Spec): Draw => { const dm = draw(m), df = draw(FEM[m.house]); return (o) => (o.sex === 'female' ? df(o) : dm(o)); };
