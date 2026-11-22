@@ -252,3 +252,16 @@ The card:
 46. Stats and Lore scroll at the default height ("Scroll känns rätt"):
     the default pane is not made taller. The look's details are still
     open (stage 77 part H).
+
+## Addendum 9 (2026-11-22): Character on a phone
+
+47. The owner, after trying the card on a phone: Character is on and the
+    strip's first page by default, so the panes key opens on it. It
+    reverses stage 52's "Character off" (ADR 0137). A new phone starts so.
+    A stored phone gets it once (`phone.defaults` mark 2,
+    `src/phone/phone-defaults.ts`), only where the strip is still in the
+    old default order (Timers, Group, Character, Statistics); an order the
+    player made is kept, and switching Character off later is never
+    undone. A tablet with no mark keeps the desktop cockpit's settings as
+    ADR 0140 says; a marked one follows. The strip still opens on the page
+    it last had, until the app is loaded again.

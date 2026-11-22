@@ -232,8 +232,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
 - [x] C. The poll (tested live: "Live results, part C")
-- [x] D. The card (not tried live: a click in the line editor, the
-      phone)
+- [x] D. The card (tried live, the phone too)
 - [ ] E. Portraits
 - [ ] F. Group
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
@@ -318,9 +317,8 @@ The owner looks closely and decides first. Named so far:
 - how the pane behaves docked;
 - the tab buttons at some sizes;
 - a nicer MOOD / CASTS / ALERTNESS / WEIGHT;
-- the phone: Character is off in the strip by default since stage 52 (the
-  owner's default then; the switch is under Settings → Panes). Whether it
-  is on by default now is the owner's, after seeing it there.
+- the phone: decided after D, Character is on and first in the strip
+  (ADR 0166 point 47; done).
 
 Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
 
@@ -732,9 +730,9 @@ Parked:
 5. A fight from Stats: Status, red swords, bands as hatched spans. After
    it Stats is back.
 6. Resize, float, Paper, and Height in the gear.
-7. A phone: first switch Character on under Settings → Panes (off by
-   default). The tabs and icons can be hit, and the poll's switch is
-   under Panes too.
+7. A phone: the panes key opens on Character (first and on by default
+   since point 47). The tabs and icons can be hit, and the poll's switch
+   is under Panes in the settings.
 
 Wanted: is it round 9? And at 9 rows, is scrolling Stats and Lore fine,
 or should the default pane be taller?
@@ -780,3 +778,9 @@ answer: type it again for the new one. At most one poll in 10 s.
   Character was not among the strip's panes (off by default; the guide
   did not say so). "Scroll känns rätt." The pass is rounded off and the
   stage goes on in a new one.
+- 2026-11-22, after D: 4 tried, "Det fungerar som önskat (mood skickade
+  inget)". 7: "jag slog på character och det såg bra ut i telefonen och
+  fungerade bra. Ändra gärna så att default är att chracter pane öppnas
+  först när man fäller ner panes + att character pane är på som default"
+  (done, ADR 0166 point 47). "Vi kör vidare enligt planen och tar E
+  härnäst i ett nytt pass."

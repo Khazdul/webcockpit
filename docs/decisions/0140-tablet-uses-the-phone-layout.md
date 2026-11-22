@@ -261,3 +261,10 @@ To verify on the iPad: the 84 px keys and the large compass under the
 hand; whether the compass's growth with the digit row (and the keys'
 narrowing) is welcome or should stay at the four-row size; the hot keys'
 reach at the command row's end.
+
+## Addendum (2026-11-22, stage 77)
+
+The phone's second set of one-time defaults (Character first and on in
+the strip, ADR 0166 point 47) is applied to a tablet that has the mark,
+which only `phoneDefaultSettings()` gives. A tablet with no mark is still
+never patched.
