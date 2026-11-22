@@ -1,7 +1,7 @@
 // The pane strip's pages (ADR 0136 §5). Pure: no DOM.
 //
 // Pages, in order: the built-in panes of the phone's setting that are on
-// (`phone.strip.panes`: Timers, Group, Character, Statistics by default),
+// (`phone.strip.panes`: Character, Timers, Group, Statistics by default),
 // then the script panes that are present, in the order they were added.
 // The open page is kept in memory only; which panes take part and their
 // order are stored.

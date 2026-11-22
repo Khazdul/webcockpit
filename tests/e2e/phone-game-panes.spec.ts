@@ -14,11 +14,12 @@
 //   layout follows the finger; one window size for MUME on the release),
 //   and together they end above the place of three hot keys.
 //
-// Stage 52: Character is out of the strip and the Herblores timers are off
-// by default on a phone (applied once to stored 0.5.0 settings), and the
-// Timers and Group sub-page of the settings sets what those two panes show.
-// The strip cases written for stage 51 put all four panes and the
-// Herblores back first (`fullStrip`), so they still walk every page.
+// Stage 52: the Herblores timers are off by default on a phone (applied
+// once to stored 0.5.0 settings), and the Timers and Group sub-page of the
+// settings sets what those two panes show. Stage 77: Character is the
+// strip's first page by default. The strip cases written for stage 51 take
+// their order, every pane on and the Herblores first (`fullStrip`), so they
+// still walk every page from Timers.
 //
 // `phone` project (Pixel 7). The strip cases replay tests/fixtures in the
 // offline cockpit; the Comm cases play against a `page.routeWebSocket` mock
@@ -57,11 +58,13 @@ function watchErrors(page: Page): string[] {
 // ------------------------------------------------------------ the strip
 
 /** All four built-in panes in the strip and the Herblores timers on, as before stage 52's phone defaults. */
-async function fullStrip(page: Page): Promise<void> {
-  await page.evaluate(() => {
+async function fullStrip(page: Page, order: readonly string[] = ['timers', 'group', 'character', 'statistics']): Promise<void> {
+  // The layer's one-time defaults first, so they do not land on what is set here.
+  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
+  await page.evaluate((order) => {
     const s = window.__wc!.settings;
-    s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
-  });
+    s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: order.map((id) => ({ id: id as 'timers', on: true })) } } });
+  }, order);
 }
 
 /** The offline cockpit on a phone. `full` (the default): with `fullStrip`; false: the phone's own defaults. */
@@ -472,8 +475,8 @@ test('Statistics shows the live run of a replay, as a page of the strip', async 
   await page.goto('/?fixture=gmcp-demo.log&speed=3&phone=1');
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'An orc scout is dead! R.I.P.' }).first()).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
-  // The phone's default strip: Timers, Group, Statistics (Character is out since stage 52).
-  await page.keyboard.press('Control+3');
+  // The phone's default strip: Character, Timers, Group, Statistics.
+  await page.keyboard.press('Control+4');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'statistics');
   const stats = stripPane(page).locator('.wc-st');
   await expect(stats).toBeVisible();
@@ -503,32 +506,53 @@ const herbOn = (page: Page) => page.evaluate(() => window.__wc!.settings.get().t
 const stripOn = (page: Page) => page.evaluate(() => window.__wc!.settings.get().phone.strip.panes.filter((e) => e.on).map((e) => e.id));
 const herbGroup = (page: Page) => pane(page, 'timers').locator('.wc-tm-g[data-group="herb"], .wc-tm-g').filter({ hasText: /Herblore/i });
 
-test('a new phone: Character is not a page of the strip and the Herblores timers are off; both can be switched on', async ({ page }) => {
+test('a new phone: Character is the first page of the strip and the Herblores timers are off; both can be switched', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, false);
   await play(page);
-  expect(await stripOn(page)).toEqual(['timers', 'group', 'statistics']);
+  const first = ['character', 'timers', 'group', 'statistics'];
+  expect(await stripOn(page)).toEqual(first);
   expect(await herbOn(page)).toBe(false);
-  expect((await phone(page)).defaults).toBe(1);
+  expect((await phone(page)).defaults).toBe(2);
   await sat(page, 'panes').tap();
-  await expect(dots(page)).toHaveCount(3);
-  expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'statistics']);
-  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-  await expect(herbGroup(page)).toHaveCount(0);
-  // The player's own choice: both on, and they stay on over a reload (the defaults are not applied again).
-  await fullStrip(page);
   await expect(dots(page)).toHaveCount(4);
+  expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(first);
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
+  await expect(herbGroup(page)).toHaveCount(0);
+  // The player's own choice: Character off and Herblores on stay over a reload (the defaults are not applied again).
+  await page.evaluate(() => {
+    const s = window.__wc!.settings;
+    s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: e.id !== 'character' })) } } });
+  });
+  await expect(dots(page)).toHaveCount(3);
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
   await expect(herbGroup(page)).not.toHaveCount(0);
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await page.waitForTimeout(300);
-  expect(await stripOn(page)).toEqual(['timers', 'group', 'character', 'statistics']);
+  expect(await stripOn(page)).toEqual(['timers', 'group', 'statistics']);
   expect(await herbOn(page)).toBe(true);
   expect(errors).toEqual([]);
 });
 
-test('settings stored by 0.5.0 (no mark): Herblores and Character are switched off once at the start, then the player\'s choice wins', async ({ page }) => {
+test('a phone that had Character off from the old defaults gets it first and on, once', async ({ page }) => {
+  await openPhone(page, false);
+  await page.evaluate(async () => {
+    const s = window.__wc!.settings;
+    const order = ['timers', 'group', 'character', 'statistics'] as const;
+    s.update({ phone: { defaults: 1, strip: { panes: order.map((id) => ({ id, on: id !== 'character' })) } } });
+    await s.flush();
+  });
+  await page.reload();
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
+  expect(await stripOn(page)).toEqual(['character', 'timers', 'group', 'statistics']);
+  await sat(page, 'panes').tap();
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
+});
+
+test('settings stored by 0.5.0 (no mark): Herblores is switched off once at the start, the player\'s order is kept', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, false);
   // What 0.5.0 left in storage: every pane in the strip, in an order of the player's, Herblores on, no mark.
@@ -540,19 +564,19 @@ test('settings stored by 0.5.0 (no mark): Herblores and Character are switched o
   });
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
-  await expect.poll(async () => (await phone(page)).defaults).toBe(1);
+  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
   expect(await herbOn(page)).toBe(false);
-  // Only Character went; the order and the other panes are the player's.
-  expect((await phone(page)).strip.panes.map((e) => `${e.id}:${e.on}`)).toEqual(['statistics:true', 'character:false', 'timers:true', 'group:true']);
+  // The order and the switches are the player's.
+  expect((await phone(page)).strip.panes.map((e) => `${e.id}:${e.on}`)).toEqual(['statistics:true', 'character:true', 'timers:true', 'group:true']);
   // Switched back on: kept over the next start.
-  await fullStrip(page);
+  await fullStrip(page, ['statistics', 'character', 'timers', 'group']);
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await page.waitForTimeout(300);
   expect(await herbOn(page)).toBe(true);
   expect(await stripOn(page)).toEqual(['statistics', 'character', 'timers', 'group']);
-  expect((await phone(page)).defaults).toBe(1);
+  expect((await phone(page)).defaults).toBe(2);
   expect(errors).toEqual([]);
 });
 
@@ -740,7 +764,7 @@ test('the Comm key opens Comm under the fight card in rail mode; the lens stays 
   // The strip opens above the fight card with Comm open: no room is left for the lens. It (and
   // the map pane) hide; the keys stay as a row at the top right, under Comm, in order.
   await sat(page, 'panes').tap();
-  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
   await expect(lens(page)).toBeHidden();
   await expect(pane(page, 'map')).toBeHidden();
   await expect(row(page)).toBeVisible();

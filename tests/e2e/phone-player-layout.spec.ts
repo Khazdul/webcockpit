@@ -277,10 +277,12 @@ test('the strip opens and swipes its pages (no Statistics), Comm is read-only; w
   await expect(stripPane(page)).toHaveCount(0);
   await sat(page, 'panes').tap();
   await expect(stripPane(page)).toBeVisible();
-  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-  expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'character']);
-  // A swipe to the left: the next page, with the recording's group.
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
+  expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['character', 'timers', 'group']);
+  // A swipe to the left: the next page; one more, the recording's group.
   const sb = await box(stripPane(page));
+  await drag(page, sb.x + sb.width * 0.75, sb.y + sb.height / 2, -160, 4);
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
   await drag(page, sb.x + sb.width * 0.75, sb.y + sb.height / 2, -160, 4);
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
   await expect(stripPane(page)).toContainText('Gibur');

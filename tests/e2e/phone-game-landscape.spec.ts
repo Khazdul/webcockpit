@@ -227,7 +227,7 @@ for (const viewport of SCREENS) {
       }
       await expectClear(page, 'closed');
       await sat(page, 'panes').tap();
-      await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
+      await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
       await expect(sat(page, 'panes')).toHaveAttribute('aria-pressed', 'true');
       const g = await layout(page);
       // About 40 % of the columns, from the left edge, every row of the screen (the command row's too).
@@ -268,7 +268,7 @@ for (const viewport of SCREENS) {
       expect(content.height).toBeCloseTo(p.height, 0);
       expect(content.x + content.width).toBeLessThanOrEqual(b.x + 0.5);
       const plate = sideBand(page).locator('.wc-ph-plate-run[data-plate="strip"] .wc-ph-plate');
-      await expect(plate).toHaveText('Timers');
+      await expect(plate).toHaveText('Character');
       expect(await plate.locator('.wc-ph-plate-t').evaluate((e) => getComputedStyle(e).writingMode)).toBe('vertical-rl');
       const pl = (await plate.boundingBox())!;
       // In the band but for the few px it reaches into its pane, and within the strip's stretch of it.
@@ -290,8 +290,8 @@ for (const viewport of SCREENS) {
       for (let i = 1; i <= 4; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx - 40 * i, y: sy + i, id: 0 }] });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await cdp.detach();
-      await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
-      await expect(plate).toHaveText('Group');
+      await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
+      await expect(plate).toHaveText('Timers');
       // Closed again: everything back at the left edge.
       await page.waitForTimeout(450);
       await sat(page, 'panes').tap();
@@ -699,7 +699,7 @@ for (const viewport of [
         expect(e.y + e.h).toBeLessThanOrEqual(viewport.height + 0.5);
       }
       await expect(sideBand(page).locator('.wc-ph-plate-joint')).toBeVisible();
-      await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Timers', 'Comm']);
+      await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Character', 'Comm']);
       await expectClear(page, 'both open');
       // A fight: the card and the hot keys do not lie on each other (the card ends left of the
       // columns where they reach up into its rows); the lens or its key row is clear of both.
@@ -817,7 +817,7 @@ test.describe('turning the phone', () => {
     await expect(page.locator('.wc-ph-strip-band .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeVisible();
     // The names on the two bands in portrait (round 53j), none on the column's.
-    await expect(page.locator('.wc-ph-strip-band .wc-ph-plate')).toHaveText('Timers');
+    await expect(page.locator('.wc-ph-strip-band .wc-ph-plate')).toHaveText('Character');
     await expect(page.locator('.wc-ph-comm-band .wc-ph-plate')).toHaveText('Comm');
     // Turned: both still open, now the column at its own stored width.
     await page.setViewportSize(LANDSCAPE);
@@ -833,7 +833,7 @@ test.describe('turning the phone', () => {
     await expect(sideBand(page).locator('.wc-ph-plate-run[data-plate="strip"] > .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeHidden();
     await expect(sideBand(page)).toBeVisible();
-    await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Timers', 'Comm']);
+    await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Character', 'Comm']);
     await expectClear(page, 'turned to landscape');
     // Close the strip there; turned back, it is closed in portrait too and Comm has its portrait height.
     await sat(page, 'panes').tap();

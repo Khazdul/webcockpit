@@ -161,7 +161,7 @@ describe('the phone layer over a replay: the strip\'s pages', () => {
       h.flush();
       if (h.cockpit.phoneStrip !== seen[seen.length - 1]) seen.push(h.cockpit.phoneStrip);
     }
-    expect(seen).toEqual(['timers', 'group', 'character']);
+    expect(seen).toEqual(['character', 'timers', 'group']);
     // Ctrl/Alt+4 would be Statistics in the game: there is no fourth page.
     expect(h.cockpit.phonePageKey(3)).toBe(false);
   });
@@ -181,17 +181,17 @@ describe('the phone layer over a replay: state over a rebuild', () => {
     expect(h.layer.state).toEqual({ stripOpen: false, stripPage: null, commOpen: false, lensLevel: 'z1' });
     expect(h.told).toEqual([]);
     h.tap('panes');
-    expect(h.told).toEqual([{ stripOpen: true, stripPage: 'timers', commOpen: false, lensLevel: 'z1' }]);
+    expect(h.told).toEqual([{ stripOpen: true, stripPage: 'character', commOpen: false, lensLevel: 'z1' }]);
     h.tap('comm');
-    expect(h.told[1]).toEqual({ stripOpen: true, stripPage: 'timers', commOpen: true, lensLevel: 'z1' });
+    expect(h.told[1]).toEqual({ stripOpen: true, stripPage: 'character', commOpen: true, lensLevel: 'z1' });
     (h.layer as unknown as { stepStrip(step: 1): void }).stepStrip(1);
-    expect(h.told[2]).toEqual({ stripOpen: true, stripPage: 'group', commOpen: true, lensLevel: 'z1' });
+    expect(h.told[2]).toEqual({ stripOpen: true, stripPage: 'timers', commOpen: true, lensLevel: 'z1' });
     // A tap on the glass steps the zoom (a click with no pointer of its own).
     h.layer.el.querySelector<HTMLButtonElement>('.wc-ph-lens-glass')!.click();
-    expect(h.told[3]).toEqual({ stripOpen: true, stripPage: 'group', commOpen: true, lensLevel: 'z2' });
+    expect(h.told[3]).toEqual({ stripOpen: true, stripPage: 'timers', commOpen: true, lensLevel: 'z2' });
     // Closed, the strip keeps its page.
     h.tap('panes');
-    expect(h.told[4]).toEqual({ stripOpen: false, stripPage: 'group', commOpen: true, lensLevel: 'z2' });
+    expect(h.told[4]).toEqual({ stripOpen: false, stripPage: 'timers', commOpen: true, lensLevel: 'z2' });
     expect(h.told).toHaveLength(5);
     // None of it was a settings write.
     expect(h.writes).toEqual([]);

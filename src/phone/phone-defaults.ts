@@ -1,19 +1,22 @@
-// The phone's one-time defaults (stage 52). Pure.
+// The phone's one-time defaults (stages 52 and 77). Pure.
 //
-// The owner's defaults for a phone changed after 0.5.0 was in use: no
-// Herblores timers, no time text in the Timers pane (and so the Pulse
-// signal instead of "Time text"), and Character is not
-// a page of the pane strip. A new
+// The owner's defaults for a phone changed twice while it was in use:
+// 1 (stage 52): no Herblores timers, no time text in the Timers pane (and
+//   so the Pulse signal instead of "Time text").
+// 2 (stage 77): Character is the strip's first page and on. Set 1 had it
+//   off, so a phone has that stored. Only a strip still in the old default
+//   order is changed: an order the player made is theirs.
+// A new
 // phone starts with them (`phoneDefaultSettings()`, which also sets the
 // mark). A phone with stored settings from before gets them ONCE: when the
 // phone's game layout starts and `phone.defaults` is below the mark, the
-// patch below is applied and the mark written. After that the player's own
-// choice always wins: switching Herblores, the time text or Character back
-// on is never undone.
+// sets above it are applied and the mark written. After that the player's
+// own choice always wins: switching Herblores or the time text back on, or
+// Character off, is never undone.
 //
 // Only the phone's game layout asks (src/phone/index.ts), so a computer's
-// settings are never changed by this, whatever their mark says. A tablet's
-// are not either (`phoneDefaultsAtStart`, ADR 0140).
+// settings are never changed by this, whatever their mark says. Nor are a
+// tablet's from before the first mark (`phoneDefaultsAtStart`, ADR 0140).
 //
 // The mark's value repeats src/settings/types.ts `PHONE_DEFAULTS_MARK`,
 // which this chunk may not import as a value (kit.ts); a unit test holds
@@ -25,7 +28,9 @@ import type { Settings, SettingsPatch } from '../settings/types';
 type Stored = Pick<Readonly<Settings>, 'phone'> & { timers?: Pick<Readonly<Settings>['timers'], 'signal'> };
 
 /** The newest set of one-time defaults. */
-export const DEFAULTS_MARK = 1;
+export const DEFAULTS_MARK = 2;
+/** The strip's default order before set 2. */
+const OLD_STRIP_ORDER = 'timers,group,character,statistics';
 
 /**
  * `phoneDefaultsPatch` for a start of the app: nothing in safe mode
@@ -33,13 +38,13 @@ export const DEFAULTS_MARK = 1;
  * one would write the default appearance over the stored one. The mark
  * stays unset, so the defaults come at the next normal start.
  *
- * Nothing on a tablet either (ADR 0140): settings stored there below the
- * mark are the desktop cockpit's, which the tablet had before it got the
- * phone's layout, and they are kept exactly as they are (a new tablet
- * starts from `phoneDefaultSettings()`, which carries the mark).
+ * Nothing on a tablet with no mark either (ADR 0140): what is stored there
+ * is the desktop cockpit's, which the tablet had before it got the phone's
+ * layout, and it is kept exactly as it is. A marked tablet started from
+ * `phoneDefaultSettings()` and follows the later sets as a phone does.
  */
 export function phoneDefaultsAtStart(s: Stored, safe: boolean, tablet = false): SettingsPatch | null {
-  return safe || tablet ? null : phoneDefaultsPatch(s);
+  return safe || (tablet && s.phone.defaults < 1) ? null : phoneDefaultsPatch(s);
 }
 
 /**
@@ -47,17 +52,22 @@ export function phoneDefaultsAtStart(s: Stored, safe: boolean, tablet = false): 
  * mark; null when it has had them all (nothing is written then).
  */
 export function phoneDefaultsPatch(s: Stored): SettingsPatch | null {
-  if (s.phone.defaults >= DEFAULTS_MARK) return null;
+  const had = s.phone.defaults;
+  if (had >= DEFAULTS_MARK) return null;
+  const { panes } = s.phone.strip;
+  // Arrays are replaced whole: Character first and on, the others as they are.
+  const strip =
+    panes.map((e) => e.id).join() === OLD_STRIP_ORDER
+      ? { strip: { panes: [{ id: 'character' as const, on: true }, ...panes.filter((e) => e.id !== 'character').map((e) => ({ ...e }))] } }
+      : {};
+  const phone = { ...strip, defaults: DEFAULTS_MARK };
+  if (had >= 1) return { phone };
   return {
     // The Timers pane's Herblores group (the desktop gear's switch, the same key).
     // And its countdown text (the "Time text" switch): bars only. The "Time text" signal marks
     // an ending timer by its text and would then show nothing, so it becomes Pulse; a signal
     // the player chose (Pulse, None) is kept.
     timers: { groups: { herb: { enabled: false } }, timeText: false, ...(s.timers?.signal === 'text' ? { signal: 'pulse' as const } : {}) },
-    phone: {
-      // Arrays are replaced whole: every pane as it is, Character off.
-      strip: { panes: s.phone.strip.panes.map((e) => (e.id === 'character' ? { ...e, on: false } : { ...e })) },
-      defaults: DEFAULTS_MARK,
-    },
+    phone,
   };
 }

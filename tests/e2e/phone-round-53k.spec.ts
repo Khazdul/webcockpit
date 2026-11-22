@@ -175,11 +175,11 @@ async function play(page: Page, query = '&kbd=en'): Promise<Mock> {
 
 const startFight = (m: Mock): void => m.server().send(gmcp('Char.Vitals', { hp: 150, maxhp: 172, opponent: 'an orc scout', buffer: 'Rasta', 'opponent-hits': 'hurt' }));
 
-/** The strip on its second page (Group) and Comm on Gibur's chat, both open. */
+/** The strip on its third page (Group) and Comm on Gibur's chat, both open. */
 async function openBoth(page: Page, m: Mock): Promise<void> {
   await sat(page, 'panes').tap();
-  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-  await page.keyboard.press('Control+2');
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
+  await page.keyboard.press('Control+3');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
   m.server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
   await sat(page, 'comm').tap();

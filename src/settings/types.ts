@@ -542,8 +542,8 @@ export interface PhoneKeyboardSettings {
   layout: PhoneKeyboardLayout;
 }
 
-/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
-export const PHONE_DEFAULTS_MARK = 1;
+/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off and the Timers pane's time text off with the Pulse signal, 2 is Character first and on in the strip. */
+export const PHONE_DEFAULTS_MARK = 2;
 
 /** How many hot key slots the phone stores (stage 52: two columns of three). */
 export const PHONE_HOTKEY_COUNT = 6;
@@ -570,7 +570,7 @@ export interface PhoneHotkey {
 }
 
 /** The built-in panes that can be pages of the phone's pane strip, in the default order (ADR 0136 §5). */
-export const PHONE_STRIP_PANES = ['timers', 'group', 'character', 'statistics'] as const;
+export const PHONE_STRIP_PANES = ['character', 'timers', 'group', 'statistics'] as const;
 export type PhoneStripPane = (typeof PHONE_STRIP_PANES)[number];
 
 /** One built-in page of the strip: shown or not; its place in the list is its order. */
@@ -594,7 +594,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
 /**
  * Phone defaults: the lens shown, at its nearest zoom (0.6.1's middle; ADR 0136 §4; its
  * size follows the screen, stage 52); the strip's four panes in their
- * order, all on but Character (§5, stage 52), at its default height; Comm
+ * order, all on, Character first (§5, stage 77), at its default height; Comm
  * at its default height, the badge counting private chats (§6);
  * six hot key slots (assist, bash, wimpy at half of the current hit points,
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
@@ -606,7 +606,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
 export function defaultPhoneSettings(): PhoneSettings {
   return {
     lens: { show: true, opensAt: 'z1', portrait: defaultPhoneLensWant(), landscape: defaultPhoneLensWant() },
-    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
+    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: true })) },
     commRows: null,
     stripRows: null,
     unread: 'private',
@@ -784,8 +784,8 @@ export function phoneDefaultSettings(): Settings {
   // ADR 0092 is desktop only: a phone keeps its Character tab and no weather (battery).
   s.panes.character.on = true;
   s.weather.enabled = false;
-  // Stage 52 (the owner's phone defaults): no Herblores timers, no time text; Character is out of the strip
-  // (`defaultPhoneSettings`). A new phone has them from the start, so nothing is applied later.
+  // The owner's phone defaults: no Herblores timers, no time text (stage 52); Character first in the strip
+  // (stage 77, `defaultPhoneSettings`). A new phone has them from the start, so nothing is applied later.
   s.timers.groups.herb.enabled = false;
   // The Timers pane's countdown text is off too: bars only, in the strip's few columns.
   s.timers.timeText = false;

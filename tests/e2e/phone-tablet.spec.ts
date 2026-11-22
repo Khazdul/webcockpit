@@ -318,7 +318,7 @@ test.describe('a phone (the control: the same checks at a phone\'s size)', () =>
     expect(rowOf(b.height, 4)).toBeGreaterThanOrEqual(44);
     expect(rowOf(b.height, 4)).toBeLessThanOrEqual(49);
     expect((await box(key(okb(page), 'k'))).width).toBeCloseTo(356 / 11, 0);
-    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(1);
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(2);
     expect(await page.evaluate(() => window.__wc!.settings.get().timers.groups.herb.enabled)).toBe(false);
   });
 });
@@ -373,7 +373,7 @@ test.describe('a phone in Desktop-site mode: its screen, a window that is not a 
     await expect(html(page)).toHaveClass(/\bwc-phone-game\b/);
     await expect(page.locator('.wc-mb-bar')).toHaveCount(0);
     // A phone, not a tablet: the phone's one-time defaults are applied.
-    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(1);
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(2);
     expect(errors).toEqual([]);
   });
 });
