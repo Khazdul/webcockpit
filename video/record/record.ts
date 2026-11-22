@@ -19,6 +19,7 @@ import { FPS, encode, imageSize } from './lib/encode.ts';
 import type { Scene } from './lib/scene.ts';
 import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
+import { balloonsGittan, balloonsParade, balloonsRasta, balloonsTitle } from './scenes/balloons.ts';
 import { bree } from './scenes/bree.ts';
 import { devicesDesktop, devicesPhone, devicesTablet } from './scenes/devices.ts';
 import { film2A } from './scenes/film2-a.ts';
@@ -37,6 +38,10 @@ const SCENES: Record<string, Scene> = {
   'devices-phone': devicesPhone,
   'film2-a': film2A,
   'film2-b': film2B,
+  'balloons-title': balloonsTitle,
+  'balloons-gittan': balloonsGittan,
+  'balloons-rasta': balloonsRasta,
+  'balloons-parade': balloonsParade,
 };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));
