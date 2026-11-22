@@ -26,6 +26,27 @@
 //         "rohir…")
 //   none  anything else, also a Man of unknown kind: a factor is never
 //         guessed.
+//
+// The race's kind (`raceKind`: who flies the balloon, which portrait the
+// Character card shows), the first rule that matches wins:
+//
+//   numenorean  a word "numenor…" or "black" (before Man: a Black
+//               Númenórean is a Man)
+//   halfelf     "half" and elf, elves or elven ("Half-elf" is two words;
+//               the war lists write "Half-elven")
+//   elf         elf, elves, elven
+//   dwarf       dwarf, dwarves
+//   hobbit      hobbit(s)
+//   troll       troll(s)
+//   beorning    bear(s) and a word "beorn…" (Beorning), with or without a
+//               subrace
+//   orc         orc(s): Tarkhnarb and Zaugurz alike
+//   human       man, men, human
+//   none        anything else, and nothing at all
+//
+// Words, not substrings: "Dunadan" is no "man", and "human" is matched as
+// a word of its own. The prefixes ("numenor", "beorn") are the only
+// partial matches.
 
 /** The age factors of `help age`. */
 export type AgeFactor = 1 | 1.5 | 2 | 2.5 | 3 | 3.5;
@@ -39,6 +60,27 @@ export function raceWords(s: string | null | undefined): string[] {
     .toLowerCase()
     .split(/[^a-z]+/)
     .filter(Boolean);
+}
+
+/** What `raceKind` tells apart (see the file header). */
+export type RaceKind = 'numenorean' | 'halfelf' | 'elf' | 'dwarf' | 'hobbit' | 'troll' | 'beorning' | 'orc' | 'human';
+
+/** The race's kind (see the file header), or null for anything else and nothing at all. */
+export function raceKind(race: string | null | undefined, subrace?: string | null): RaceKind | null {
+  const w = [...raceWords(race), ...raceWords(subrace)];
+  const is = (...names: string[]): boolean => w.some((x) => names.includes(x));
+  const starts = (p: string): boolean => w.some((x) => x.startsWith(p));
+  if (starts('numenor') || is('black')) return 'numenorean';
+  const elf = is('elf', 'elves', 'elven');
+  if (elf && is('half')) return 'halfelf';
+  if (elf) return 'elf';
+  if (is('dwarf', 'dwarves')) return 'dwarf';
+  if (is('hobbit', 'hobbits')) return 'hobbit';
+  if (is('troll', 'trolls')) return 'troll';
+  if (is('bear', 'bears') || starts('beorn')) return 'beorning';
+  if (is('orc', 'orcs')) return 'orc';
+  if (is('man', 'men', 'human')) return 'human';
+  return null;
 }
 
 /** The other forms of the race names. A Map: the words come from the server. */

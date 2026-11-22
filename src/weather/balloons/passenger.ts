@@ -5,31 +5,19 @@
 // passenger's own lazy chunk (passengers/<id>.ts).
 //
 // The race strings MUME sends are known for one character ("Orc" /
-// "Tarkhnarb Orc", stage 77 part A). The subrace seems to hold the race's
-// word, the rest is inferred from that one pair and the game's text. So
-// the match is tolerant: whole words, case-insensitive, diacritics folded
-// ("Númenórean" is "numenorean"; src/gmcp/race.ts), over both fields
-// together, the first rule that matches wins:
+// "Tarkhnarb Orc", stage 77 part A). So the match is tolerant: the race's
+// kind (`raceKind`, src/gmcp/race.ts: whole words over race and subrace,
+// case-insensitive, diacritics folded), drawn as:
 //
-//   numenorean   a word "numenor…" or "black"   (before "man": a Black
-//                                                Númenórean is a Man)
-//   elf          "elf", "elves", "elven" ("Half-elf" is two words: half,
-//                elf; the war lists write "Half-elven")
-//   dwarf        "dwarf", "dwarves"
-//   hobbit       "hobbit(s)"
-//   troll        "troll(s)"
-//   human        "bear(s)" and a word "beorn…" (Beorning): a Bear is
-//                drawn as a human, with or without a subrace
-//   orc          "orc(s)" and a word "zaug…" (Zaugurz) in either field
-//   goblin       any other "orc(s)" (Tarkhnarb)
-//   human        "man", "men", "human"
+//   numenorean   numenorean
+//   elf          elf and halfelf
+//   dwarf, hobbit, troll   as named
+//   human        beorning (a Bear is drawn as a human) and human
+//   orc          orc with a word "zaug…" (Zaugurz) in either field
+//   goblin       any other orc (Tarkhnarb)
 //   goblin       anything else, and nothing at all (before login, the demo)
-//
-// Words, not substrings: "Dunadan" is no "man", and "human" is matched
-// as a word of its own. The prefixes ("numenor", "beorn",
-// "zaug") are the only partial matches, as the stage file allows.
 
-import { raceWords } from '../../gmcp/race';
+import { raceKind, raceWords } from '../../gmcp/race';
 
 /** The eight passengers (notes/research/balloons/round5/skins/<id>.js). */
 export const PASSENGER_IDS = ['dwarf', 'elf', 'human', 'hobbit', 'troll', 'goblin', 'orc', 'numenorean'] as const;
@@ -41,18 +29,26 @@ export { raceWords };
 
 /** The passenger for a race and subrace (either may be missing). */
 export function passengerOf(race: string | null | undefined, subrace?: string | null): PassengerId {
-  const w = [...raceWords(race), ...raceWords(subrace)];
-  const is = (...names: string[]): boolean => w.some((x) => names.includes(x));
-  const starts = (p: string): boolean => w.some((x) => x.startsWith(p));
-  if (starts('numenor') || is('black')) return 'numenorean';
-  if (is('elf', 'elves', 'elven')) return 'elf';
-  if (is('dwarf', 'dwarves')) return 'dwarf';
-  if (is('hobbit', 'hobbits')) return 'hobbit';
-  if (is('troll', 'trolls')) return 'troll';
-  if (is('bear', 'bears') || starts('beorn')) return 'human';
-  if (is('orc', 'orcs')) return starts('zaug') ? 'orc' : 'goblin';
-  if (is('man', 'men', 'human')) return 'human';
-  return 'goblin';
+  switch (raceKind(race, subrace)) {
+    case 'numenorean':
+      return 'numenorean';
+    case 'halfelf':
+    case 'elf':
+      return 'elf';
+    case 'dwarf':
+      return 'dwarf';
+    case 'hobbit':
+      return 'hobbit';
+    case 'troll':
+      return 'troll';
+    case 'beorning':
+    case 'human':
+      return 'human';
+    case 'orc':
+      return [...raceWords(race), ...raceWords(subrace)].some((x) => x.startsWith('zaug')) ? 'orc' : 'goblin';
+    case null:
+      return 'goblin';
+  }
 }
 
 /** A passenger's module: the rig's spec for it (rig.ts). */
