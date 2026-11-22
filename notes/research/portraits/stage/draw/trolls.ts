@@ -18,7 +18,7 @@
 
 import type { Draw, PortraitSet } from '../../../../../src/panes/portraits/types';
 import { dark, light } from '../../../../../src/art/engrave';
-import { type BrowO, type Ctx, type EyeO, type HairCols, INK, baseDefs, braid, ctx, eyes, lg, longHair, mir, mix, n, pen, strands, svg, wx } from '../parts';
+import { type BrowO, type Ctx, type EyeO, type HairCols, INK, baseDefs, braid, brow, ctx, lg, longHair, mir, mix, n, pen, strands, svg, wx } from '../parts';
 
 /** One troll: everything a kind or a sex changes. */
 interface Spec {
@@ -78,8 +78,9 @@ const mirG = (s: string): string => `<g transform="scale(-1,1)">${s}</g>`;
 
 const face = (c: Ctx, s: Spec): string => {
   const j = s.jaw, t = s.tall, top = -64 - t, F = headPath(c, s);
-  const sh = wx(`M-30,${top + 3}C-46,${top + 9} -56,-42 -56,-22L-57,-4C-60,6 -63,16 -62,28C-61,39 -51,45 -36,46L-22,46C-40,30 -44,0 -40,-28C-38,-46 -30,${top + 8} -14,${top - 1}Z`, j);
-  const edge = wx(`M-30,${top + 3}C-46,${top + 9} -56,-42 -56,-22L-57,-4C-60,6 -63,16 -62,28C-61,36 -56,42 -48,44C-56,30 -56,0 -52,-24C-50,-40 -42,${top + 9} -24,${top + 1}Z`, j);
+  const sh = wx(`M-30,${top + 3}C-46,${top + 9} -56,-42 -56,-22L-57,-4C-60,6 -63,16 -62,28C-61,39 -51,45 -36,46C-24,47 -14,47 -6,46C-28,40 -38,24 -40,4C-42,-20 -36,${top + 18} -12,${top - 1}Z`, j);
+  const mid = wx(`M-30,${top + 3}C-46,${top + 9} -56,-42 -56,-22L-57,-4C-60,6 -63,16 -62,28C-61,39 -51,45 -36,46C-30,46 -24,46 -20,45C-40,36 -48,18 -49,0C-50,-22 -44,${top + 14} -22,${top + 1}Z`, j);
+  const edge = wx(`M-30,${top + 3}C-46,${top + 9} -56,-42 -56,-22L-57,-4C-60,6 -63,16 -62,28C-61,36 -56,42 -48,44C-57,32 -58,10 -56,-8C-55,-30 -48,${top + 10} -26,${top + 2}Z`, j);
   const scales = s.top === 'scales' ? `<path d="${F}" fill="${c.url('z')}" stroke="none"/>` : '';
   // the brow ledge, a shelf of stone over the eyes, and its shadow
   const ledge = wx('M-58,-26C-44,-36 -14,-34 0,-26C14,-34 44,-36 58,-26L57,-12C44,-19 16,-18 0,-10C-16,-18 -44,-19 -57,-12Z', j);
@@ -91,25 +92,36 @@ const face = (c: Ctx, s: Spec): string => {
   const jaw = c.fem
     ? `<path d="${wx('M-36,38C-24,45 -10,47 0,47C12,47 26,44 36,38C26,46 12,50 0,50C-12,50 -26,46 -36,38Z', j)}" fill="#1e170f" opacity=".22" stroke="none"/>`
     : `<path d="${wx('M-60,22Q0,34 61,21C62,32 54,44 36,46L0,47L-36,46C-54,44 -61,34 -60,22Z', j)}" fill="#1e170f" opacity=".14" stroke="none"/>`;
-  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.3"/>${scales}<path d="${sh}" fill="#1e170f" opacity=".22" stroke="none"/><path d="${sh}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
+  return `<path d="${F}" fill="${c.url('s')}" stroke-width="1.3"/>${scales}<path d="${sh}" fill="#1e170f" opacity=".16" stroke="none"/><path d="${mid}" fill="#1e170f" opacity=".1" stroke="none"/><path d="${mid}" fill="${c.url('p')}" stroke="none"/><path d="${edge}" fill="${c.url('q')}" stroke="none"/>` +
     `<path d="${wx(`M-4,${top - 1}C14,${top - 1} 34,${top + 5} 46,${top + 16}C38,${top + 14} 20,${top + 10} 0,${top + 10}Z`, j)}" fill="#f4eed6" opacity=".2" stroke="none"/>` +
     `<path d="${wx(`M34,${top + 6}C48,${top + 14} 55,-40 55,-24L56,-4C58,6 60,14 61,22`, j)}" fill="none" stroke="#f6f0d8" stroke-width="1.3" opacity=".45"/>` +
     jaw + lichen + cracks +
-    `<path d="${wx('M-52,-13C-36,-19 -14,-17 0,-9C14,-17 36,-19 52,-13L50,-2C34,-7 14,-5 0,2C-14,-5 -34,-7 -50,-2Z', j)}" fill="#1e170f" opacity="${c.med ? .12 : .26}" stroke="none"/>` +
-    `<path d="${ledge}" fill="${dark(s.skin[1], .03)}" opacity=".7" stroke="none"/>${s.top === 'scales' ? `<path d="${ledge}" fill="${c.url('z')}" stroke="none"/>` : ''}<path d="${wx('M-58,-26C-50,-31 -40,-33 -30,-33L-28,-17C-38,-17 -48,-15 -57,-12Z', j)}" fill="${c.url('p')}" stroke="none"/>` +
-    `<path d="${wx('M6,-28C18,-33 42,-33 56,-25', j)}" fill="none" stroke="#f6f0d8" stroke-width="1.2" opacity=".5"/><path d="${wx('M-50,-14C-40,-19 -20,-19 -7,-12M50,-14C40,-19 20,-19 7,-12', j)}" fill="none" stroke-width="1.3"/>` +
+    `<path d="${wx('M-50,-15C-34,-21 -12,-19 0,-13C12,-19 34,-21 50,-15C49,-4 40,7 24,8C14,8.5 7,5 0,4C-7,5 -14,8.5 -24,8C-40,7 -49,-4 -50,-15Z', j)}" fill="#1e170f" opacity=".2" stroke="none"/>` +
+    `<path d="${wx('M-42,-12C-30,-17 -12,-15 0,-10C12,-15 30,-17 42,-12C40,-3 32,4 22,4.5C13,5 6,2 0,1C-6,2 -13,5 -22,4.5C-32,4 -40,-3 -42,-12Z', j)}" fill="#1e170f" opacity=".22" stroke="none"/>` +
+    `<path d="${ledge}" fill="${dark(s.skin[1], .03)}" opacity=".7" stroke="none"/>${s.top === 'scales' ? `<path d="${ledge}" fill="${c.url('z')}" stroke="none"/>` : ''}<path d="${wx('M-58,-26C-54,-29 -50,-31 -46,-32C-48,-26 -50,-20 -56,-13Z', j)}" fill="${c.url('q')}" stroke="none"/>` +
+    `<path d="${wx('M6,-28C18,-33 42,-33 56,-25', j)}" fill="none" stroke="#f6f0d8" stroke-width="1.2" opacity=".5"/>` +
     c.fine(`<path d="${wx('M-20,-24C-10,-27 10,-27 20,-24M-16,-20C-6,-22 6,-22 16,-20', j)}" fill="none" stroke-width=".6" opacity=".55"/><path d="M-30,16C-36,20 -40,28 -42,36M30,16C36,20 40,28 42,36" fill="none" stroke-width=".7" opacity="${c.fem ? .4 : .75}"/>`);
+};
+
+// ---- the eye: small and deep, a glint in the ledge's shadow; no socket ring, no outline round it ----
+const tEye = (c: Ctx, side: number, s: Spec): string => {
+  const o: EyeO = s.eye, lid = o.lid ?? 2, low = o.low ?? 0, k = (o.size ?? .8) * (c.fem ? 1.06 : 1);
+  const lash = c.fem ? `<path d="M${7 * side},-2.5l${3 * side},-3M${8.4 * side},-.6l${3.6 * side},-1.4" fill="none" stroke="${INK}" stroke-width="1"/>` : '';
+  return `<g transform="translate(${21 * side},0) scale(${k})"><g clip-path="${c.url('c')}"><path d="M-9,-6H9V6H-9Z" fill="#cbbf9e" stroke="none"/><path d="M-10,-6H10V-.8H-10Z" fill="#3d281b" opacity=".4" stroke="none"/>
+<circle r="3.8" fill="${o.iris ?? '#a06a1e'}" stroke="none"/><circle r="1.8" fill="#0c0705" stroke="none"/><circle cx="-1.2" cy="-1.4" r="1" fill="#fff8e6" stroke="none"/>
+<path d="M-12,${-22 + lid}H12V${-5.5 + lid}Q0,${-3.5 + lid} -12,${-5.5 + lid}Z" fill="${dark(s.skin[1], .14)}" stroke="none"/><path d="M-12,${18 - low}H12V${5 - low}Q0,${4 - low} -12,${5 - low}Z" fill="${dark(s.skin[1], .06)}" stroke="none"/></g>
+<path d="M-9.5,${n(.6 + lid * .5)}Q0,${n(-8.8 + lid)} 9.5,${n(.6 + lid * .5)}" fill="none" stroke="${INK}" stroke-width="${c.fem ? 1.9 : 1.5}"/>${lash}</g>`;
 };
 
 // ---- the nose: broad, flat, the balloon's ----
 const nose = (c: Ctx, s: Spec): string => {
   const [sk0, sk1] = s.skin;
   const k = c.fem ? .86 : 1;
-  return `<g transform="translate(0,${c.fem ? 2 : 0}) scale(${k})"><path d="M-6,-8C-8,4 -19,10 -21,20C-22,29 -11,33 -1,32C0,33 1,33 2,32C11,33 22,29 21,20C19,10 8,4 6,-8Z" fill="${mix(sk0, sk1, .62)}" stroke-width="1.2"/>
+  return `<g transform="translate(0,${c.fem ? 2 : 0}) scale(${k})"><path d="M0,-12C-6,-8 -8,4 -19,10C-22,14 -22,26 -16,30C-11,33 -4,33 -1,32C0,33 1,33 2,32C4,33 11,33 16,30C22,26 22,14 19,10C8,4 6,-8 0,-12Z" fill="${mix(sk0, sk1, .62)}" opacity=".9" stroke="none"/><path d="M-7,4C-10,8 -19,10 -21,20C-22,29 -11,33 -1,32C0,33 1,33 2,32C11,33 22,29 21,20C19,10 10,8 7,4" fill="none" stroke-width="1.2"/>
 <path d="M-21,20C-28,21 -28,30 -19,30.5M21,20C28,21 28,30 19,30.5" fill="${dark(sk1, .12)}" stroke-width="1.1"/>
 <path d="M-6,-8C-8,4 -19,10 -21,20C-22,29 -11,33 -4,32C-12,25 -11,12 -2,0Z" fill="${c.url('p')}" stroke="none"/>
 <ellipse cx="6" cy="14" rx="5" ry="8" fill="#f3edd4" opacity=".4" stroke="none"/>
-<path d="M-13,28.5q4,3 8.5,.5M13,28.5q-4,3 -8.5,.5" fill="none" stroke-width="1.2"/>${c.fine('<circle cx="11" cy="4" r="1.8" fill="#8f917a" stroke-width=".5"/><path d="M-2,6q3,6 1.5,12" fill="none" stroke-width=".5" opacity=".6"/>')}</g>`;
+<path d="M-13,28.5q4,3 8.5,.5M13,28.5q-4,3 -8.5,.5" fill="none" stroke-width="1.2"/>${c.fine('<path d="M-2,6q3,6 1.5,12" fill="none" stroke-width=".5" opacity=".6"/>')}</g>`;
 };
 
 // ---- the mouth: wide, an underbite, two tusks; the women's with lips and small tusks ----
@@ -139,11 +151,25 @@ const fur = (seed: number, x0: number, x1: number, y0: number, y1: number, insid
   }
   return [d, l];
 };
+/** A ragged fur edge from (x0,y0) to (x1,y1): tufts of uneven size and lean, pointing out to the right. */
+const ragged = (x0: number, y0: number, x1: number, y1: number, seed: number): string => {
+  const r = rnd(seed), dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy), nx = dy / len, ny = -dx / len;
+  let d = '', t = 0;
+  while (t < 1) {
+    const step = (.035 + r() * .05), t1 = Math.min(1, t + step), tm = (t + t1) / 2 + (r() - .5) * step * .5;
+    const amp = 3 + r() * 9, lean = 2 + r() * 5;
+    const tip = [x0 + dx * tm + nx * amp + lean * dx / len, y0 + dy * tm + ny * amp + lean * dy / len];
+    const e = [x0 + dx * t1 + nx * (r() - .5) * 2, y0 + dy * t1 + ny * (r() - .5) * 2];
+    d += `Q${n(x0 + dx * t + nx * amp * .7)},${n(y0 + dy * t + ny * amp * .7)} ${n(tip[0]!)},${n(tip[1]!)}Q${n(tip[0]! - nx * amp * .3)},${n(tip[1]! - ny * amp * .3 + 2)} ${n(e[0]!)},${n(e[1]!)}`;
+    t = t1;
+  }
+  return d;
+};
 const bust = (c: Ctx, s: Spec): string => {
   const BODY = 'M-132,160L-132,80C-130,50 -110,32 -80,28C-66,26 -56,32 -48,42L48,42C56,32 66,26 80,28C110,32 130,50 132,80L132,160Z';
   const SH = 'M-132,160L-132,80C-130,50 -110,32 -80,28C-66,26 -56,32 -48,42L-30,42C-60,60 -80,100 -78,160Z';
   // the pelt: over the left shoulder and down across the chest, its edge ragged
-  const PELT = 'M-132,160L-132,78C-130,48 -110,28 -80,24C-64,22 -52,30 -44,42L-26,52L-20,48L-14,60L-6,58L-2,72L6,72L8,86L16,88L16,102L24,106L22,120L30,126L28,140L36,146L34,160Z';
+  const PELT = 'M-132,160L-132,78C-130,48 -110,28 -80,24C-64,22 -52,30 -44,42' + ragged(-44, 42, 34, 160, 17) + 'Z';
   const [fd, fl] = fur(31 + s.tall, -128, 30, 26, 158, (x, y) => x < -10 + (y - 50) * .4 && x > -128, c.med ? 0 : 110);
   const pelt = `<path d="${PELT}" fill="${s.pelt[0]}" stroke-width="1.2"/><path d="M-132,160L-132,78C-130,48 -110,28 -80,24C-100,40 -110,70 -104,160Z" fill="${c.url('p')}" stroke="none"/><path d="M-132,160L-132,78C-130,54 -122,40 -108,30C-120,50 -124,90 -120,160Z" fill="${c.url('q')}" stroke="none"/>` +
     (c.med
@@ -270,13 +296,15 @@ const braids = (c: Ctx, s: Spec): string => {
 
 // ---- the hill troll's hammer: a stone maul lashed to a log, the haft over the shoulder ----
 const hammer = (c: Ctx): string => {
-  const HAFT = 'M50,160L78,-40L90,-38L64,162Z';
-  const HEAD = 'M52,-80L104,-73L103,-36L50,-42Z';
-  return `<path d="${HAFT}" fill="${c.url('w')}" stroke-width="1.3"/><path d="M50,160L78,-40L82,-39.5L56,161Z" fill="${c.url('p')}" stroke="none"/>` +
-    c.fine('<path d="M70,60l3,-10M76,20l2,-8M62,110l2,-9" fill="none" stroke-width=".6" opacity=".7"/>') +
-    `<path d="${HEAD}" fill="${c.url('g')}" stroke-width="1.5"/><path d="M52,-80L64,-78.5L62,-40.5L50,-42Z" fill="${c.url('p')}" stroke="none"/><path d="M52,-80L58,-79L56,-41L50,-42Z" fill="${c.url('q')}" stroke="none"/><path d="M68,-78L103,-73L103,-52" fill="none" stroke="#fff6dc" stroke-width="1.3" opacity=".45"/>` +
-    c.fine('<path d="M58,-70l6,4l-2,6M98,-58l-5,4l3,5M88,-42l4,-4" fill="none" stroke-width=".6" opacity=".75"/>') +
-    `<path d="M76,-79L74,-37M84,-78L82,-36" fill="none" stroke-width="3.6"/><path d="M76,-79L74,-37M84,-78L82,-36" fill="none" stroke="#b9a57a" stroke-width="2" stroke-dasharray="2.6 1.2"/>`;
+  const HAFT = 'M48,160L70,-58L80,-57L60,161Z';
+  // the maul: a blunt, roughly square stone, lashed on with crossed thongs
+  const HEAD = 'M58,-58L88,-61L91,-29L60,-26Z';
+  return `<path d="${HAFT}" fill="${c.url('w')}" stroke-width="1.3"/><path d="M48,160L70,-58L73,-57.7L52,160.5Z" fill="${c.url('p')}" stroke="none"/>` +
+    c.fine('<path d="M66,40l2,-9M62,100l2,-9" fill="none" stroke-width=".6" opacity=".7"/>') +
+    `<path d="${HEAD}" fill="${c.url('g')}" stroke-width="1.5"/><path d="M58,-58L66,-58.8L67,-26.7L60,-26Z" fill="${c.url('p')}" stroke="none"/><path d="M66,-59L88,-61L90,-40" fill="none" stroke="#fff6dc" stroke-width="1.3" opacity=".45"/>` +
+    c.fine('<path d="M63,-50l4,3l-1,5M84,-36l-3,-4" fill="none" stroke-width=".6" opacity=".75"/>') +
+    `<path d="M60,-54L89,-31M60,-31L88,-56M73,-61L75,-26" fill="none" stroke-width="3.4"/><path d="M60,-54L89,-31M60,-31L88,-56M73,-61L75,-26" fill="none" stroke="#b9a57a" stroke-width="1.8" stroke-dasharray="2.6 1.2"/>` +
+    '<path d="M70,-26C66,-20 64,-14 66,-8M76,-26C78,-20 80,-16 78,-10" fill="none" stroke="#b9a57a" stroke-width="1.4"/>';
 };
 
 // ---- the whole figure ----
@@ -291,7 +319,7 @@ const draw = (s: Spec): Draw => (o) => {
     pen(c, ears(c, s)) + pen(c, face(c, s), true) + pen(c, top) +
     (hairTop ? pen(c, hairTop, s.pale) : '') + (s.top === 'mane' ? pen(c, shag(c, s), s.pale) : '') +
     pen(c, nose(c, s) + mouth(c, s), true) +
-    pen(c, eyes(c, { lidFill: dark(s.skin[1], .1), lowFill: s.skin[1], ...s.eye, socket: c.med ? s.skin[0] : s.eye.socket, lash: c.fem, size: (s.eye.size ?? .8) * (c.fem ? 1.06 : 1) }, s.brow), true) +
+    pen(c, tEye(c, -1, s) + tEye(c, 1, s) + brow(c, -1, s.brow) + brow(c, 1, s.brow), true) +
     (c.fem ? pen(c, braids(c, s), s.pale) : '');
   return svg(c, defs(c, s), body);
 };
