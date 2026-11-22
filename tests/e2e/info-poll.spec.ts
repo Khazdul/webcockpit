@@ -13,6 +13,11 @@ const play = (m: LoginMock, ...parts: (string | number[])[]): void =>
   void m.server().send(Buffer.from(parts.flatMap((p) => (typeof p === 'string' ? wire(p) : p))));
 const gmcp = (pkg: string, data: unknown): number[] => [255, 250, 201, ...wire(`${pkg} ${JSON.stringify(data)}`), 255, 240];
 const polls = (m: LoginMock): string[] => m.sent[0]!.filter((l) => pollNonce(l) !== null);
+/** The wimpy as the card shows it: the arrow and the HP bar's tooltip. */
+async function expectWimpy(page: Page, n: number): Promise<void> {
+  await expect(page.locator('.wc-pane-character .wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', new RegExp(`Wimpy ${n}:`));
+  await expect(page.locator('.wc-pane-character .wc-cc-wimpy')).toBeVisible();
+}
 
 /** Logs in by hand and gets the game's first vitals and XML prompt. */
 async function login(page: Page, opts: { fetchInfo?: boolean } = {}): Promise<LoginMock> {
@@ -50,7 +55,7 @@ for (const queued of [false, true]) {
     const n = pollNonce(polls(m)[0]!)!;
     const before = await rows(page).count();
     play(m, answerPulse(n, { queued }));
-    await expect(page.locator('.wc-pane-character')).toContainText('120');
+    await expectWimpy(page, 120);
     // Nothing of the pulse: no blank line and no second prompt either.
     await expect(rows(page)).toHaveCount(before);
     await expect(page.locator('.wc-partial')).toBeHidden();
@@ -81,7 +86,7 @@ test('a typed info shows', async ({ page }) => {
   await expect(rows(page).filter({ hasText: 'You are 57 years old.' })).toHaveCount(1);
   await expect(rows(page).last()).toHaveText('o>');
   await expect(output(page)).not.toContainText('GoblinTown');
-  await expect(page.locator('.wc-pane-character')).toContainText('120');
+  await expectWimpy(page, 120);
   expect(await page.evaluate(() => window.__wc!.app.input.getHistory())).toContain('info');
 });
 

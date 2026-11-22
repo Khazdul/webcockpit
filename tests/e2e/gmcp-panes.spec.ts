@@ -8,7 +8,6 @@ const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
 const rows = (page: Page) => page.locator('.wc-rows .wc-row');
 const content = (page: Page, id: string) => page.locator(`.wc-pane[data-pane="${id}"] .wc-pane-content`);
-const prows = (page: Page, id: string) => content(page, id).locator('.wc-prow');
 
 async function demoDone(page: Page): Promise<void> {
   await page.goto(DEMO);
@@ -25,14 +24,18 @@ test('the demo fills Character and Group, and they stay after the replay', async
   page.on('pageerror', (e) => errors.push(e.message));
   await demoDone(page);
   await expect(page.locator('.wc-pane[data-pane="character"]')).toHaveAttribute('data-active', '');
-  // Nine rows: name + level (26 from XP), TP, toggles, the 2×2 gauges.
-  await expect(prows(page, 'character')).toHaveCount(9);
-  const ch = await prows(page, 'character').allTextContents();
-  expect(ch[0]).toMatch(/^\s+Rasta\s+L26$/);
-  expect(ch[2]).toMatch(/SNEAK\s+RIDE\s+CLIMB\s+SWIM/);
-  expect(ch[4]).toMatch(/aggressive\s+careful/);
-  expect(ch[7]).toMatch(/standing\s+50/);
-  expect(ch[8]).toContain('^');
+  // The card: name, level (26 from XP), the toggles, mood, alertness, position and wimpy.
+  const ch = content(page, 'character');
+  await expect(ch.locator('.wc-cc-name')).toHaveText('Rasta');
+  await expect(ch.locator('.wc-cc-level')).toHaveText('26');
+  await expect(ch.locator('.wc-cc-ring-tp')).toHaveCount(1);
+  await expect(ch.locator('.wc-cc-ib')).toHaveCount(5);
+  for (const t of ['sneak', 'ride', 'climb', 'swim']) await expect(ch.locator(`[data-click="${t}"]`)).toHaveAttribute('aria-label', new RegExp(`^${t}: (on|off)$`, 'i'));
+  await expect(ch.locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('aria-label', 'Mood: aggressive');
+  await expect(ch.locator('.wc-cc-f[data-key="alertness"]')).toHaveAttribute('aria-label', 'Alertness: careful');
+  await expect(ch.locator('[data-click="position"]')).toHaveAttribute('aria-label', 'Standing');
+  await expect(ch.locator('.wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', /Wimpy 50:/);
+  await expect(ch.locator('.wc-cc-wimpy')).toBeVisible();
   // Room-scoped group by id: Dori 3, the merc 4, the dog 6 (labeled late),
   // Gibur back as 7; the unlabeled pony only in npcMode all.
   await expect.poll(() => groupNames(page)).toEqual(['Dori', 'a citizen mercenary (MERC)', 'a large dog (DOG)', 'Gibur']);
@@ -109,10 +112,11 @@ test('a live disconnect blanks Character and Group', async ({ page }) => {
   server!.send(gmcp('Char.Name {"name":"Rasta","fullname":"Rasta Fari"}'));
   server!.send(gmcp('Char.Vitals {"mood":"brave","xp":5770000}'));
   server!.send(gmcp('Group.Set [{"id":2,"type":"ally","name":"Gibur","hp":10,"maxhp":100}]'));
-  await expect(prows(page, 'character').first()).toContainText('Rasta');
+  await expect(content(page, 'character').locator('.wc-cc-name')).toHaveText('Rasta');
   await expect.poll(() => groupNames(page)).toEqual(['Gibur']);
   await server!.close();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
-  await expect(prows(page, 'character')).toHaveCount(0);
+  await expect(content(page, 'character').locator('.wc-cc')).toHaveCount(0);
+  await expect(content(page, 'character')).toHaveText('');
   await expect(content(page, 'group').locator('.wc-gp-row')).toHaveCount(0);
 });
