@@ -76,7 +76,7 @@
 //   only those that would cover its left end drop, from the left
 //   (`syncLook`, ADR 0123 "Hood position and hover buttons").
 // - With `onGear` (the App's settings popups, ADR 0107), the Map, Comm,
-//   Timers and Group panes have a Gear left of them (`GEAR_PANES`): its
+//   Timers, Group and Character panes have a Gear left of them (`GEAR_PANES`): its
 //   click calls `onGear(id)`, which toggles the pane's settings popup; the
 //   cockpit never imports the chrome. `markGear(id)` marks the Gear whose
 //   popup is open (`data-open`). The Gear is dropped first when narrow.

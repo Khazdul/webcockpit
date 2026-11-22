@@ -45,6 +45,7 @@ import {
   COMM_LIST_WIDTH_MIN,
   type CommSettings,
   CURSOR_STYLES,
+  type CharacterSettings,
   type ColorSetting,
   GROUP_AWAY_MODES,
   GROUP_NPC_MODES,
@@ -336,6 +337,12 @@ export function migrateGroup(raw: unknown): GroupSettings {
     fight: bool(g.fight, d.fight),
     colors: { hp: colorSetting(c.hp), mana: colorSetting(c.mana), mp: colorSetting(c.mp) },
   };
+}
+
+/** Character pane options from anything (stage 77; additive, so no version). */
+export function migrateCharacter(raw: unknown): CharacterSettings {
+  const c = isObj(raw) ? raw : {};
+  return { fetchInfo: bool(c.fetchInfo, defaultSettings().character.fetchInfo) };
 }
 
 /**
@@ -715,6 +722,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     layout: migrateLayout(s.layout, retired),
     profile,
     group: migrateGroup(s.group),
+    character: migrateCharacter(s.character),
     comm: migrateComm(s.comm, fromVersion),
     timers: migrateTimers(s.timers),
     spotlights: migrateSpotlights(s.spotlights),

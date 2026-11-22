@@ -11,6 +11,7 @@
 //   and the per-group patch.
 // - Group: the NPC visibility and away labels, the vital colours, and
 //   `setGroup` for every other Group setting.
+// - Character (stage 77): `setCharacter`.
 // - Colours (ADR 0122): a colour setting's name.
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
@@ -40,7 +41,7 @@ import {
   type TimersSettings,
 } from '../settings';
 import { PICKER_COLORS } from '../panes/palette';
-import type { GroupSettings } from '../settings/types';
+import type { CharacterSettings, GroupSettings } from '../settings/types';
 import type { TimerGroup } from '../timers/entry';
 
 // ------------------------------------------------------------------ comm
@@ -168,6 +169,11 @@ export const VITAL_COLOR_ROWS: readonly { key: 'hp' | 'mana' | 'mp'; label: stri
 /** Writes `patch` into the Group settings (not the colours). */
 export function setGroup(settings: SettingsStore, patch: Partial<Omit<GroupSettings, 'colors'>>): void {
   settings.update({ group: patch });
+}
+
+/** Writes `patch` into the Character settings. */
+export function setCharacter(settings: SettingsStore, patch: Partial<CharacterSettings>): void {
+  settings.update({ character: patch });
 }
 
 /** Writes one vital's colour setting. */

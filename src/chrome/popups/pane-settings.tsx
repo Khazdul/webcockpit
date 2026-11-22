@@ -1,6 +1,5 @@
-// The Comm, Timers and Group gear popups' content (stage 30 S6, ADR 0107):
-// the Communication, Timers and Group settings as modern controls in the
-// ghost look. The logic is in ../pane-options-model.ts; every change goes to the settings
+// The Comm, Timers, Group and Character gear popups' content (stage 30 S6,
+// ADR 0107): the panes' settings as modern controls in the ghost look. The logic is in ../pane-options-model.ts; every change goes to the settings
 // store at once and the pane follows live (ADR 0010).
 //
 //   Comm                         Timers                                   Group
@@ -23,6 +22,7 @@
 //   visibility, Away members (room name or dim only), the Fight card and
 //   a colour per vital bar (ColorPicker; Auto shows the Group pane's own
 //   side, dark or light).
+// - Character (stage 77, ADR 0166): the hidden info poll's switch.
 
 import { Fragment, type VNode } from 'preact';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
@@ -44,6 +44,7 @@ import {
   colsLabel,
   commChannelRows,
   patchTimerGroup,
+  setCharacter,
   setChatWindow,
   setCommChannel,
   setCommNpcs,
@@ -222,6 +223,18 @@ export function GroupSettings(): VNode {
           />
         </Row>
       ))}
+    </div>
+  );
+}
+
+export function CharacterSettings(): VNode {
+  const { settings } = useServices();
+  const s = useSettings();
+  return (
+    <div class="wc-sp-character">
+      <Row label="Fetch Stats and Lore from the game" help="Also fetches your wimpy at login">
+        <Toggle label="Fetch Stats and Lore from the game" on={s.character.fetchInfo} onChange={(fetchInfo) => setCharacter(settings, { fetchInfo })} />
+      </Row>
     </div>
   );
 }

@@ -62,7 +62,7 @@
 // mounted on first use in the App's element beside the bar's own popups
 // and placed above the Settings icon (`placePopup`). The bar adopts it as
 // its open popup, so the one-popup rule, Esc and hiding the cockpit close
-// it as they close Panes and Exit. The Map, Comm, Timers and
+// it as they close Panes and Exit. The Map, Comm, Timers, Character and
 // Group panes' Gear opens their gear popup through the same layer
 // (`togglePaneSettings`, the App's `ui.togglePaneSettings`), beside the
 // pane (`placeBeside`), placed again after every cockpit layout and closed

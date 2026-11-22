@@ -25,7 +25,7 @@
 // - `onChange(key)` follows what is open, whoever closed it (the shell marks
 //   the pane's Gear with it).
 // - The content per target: `settings` → SettingsPopup; `{ pane }` → the
-//   pane's entry in `GEAR_POPUPS` (Map, Comm, Timers, Group;
+//   pane's entry in `GEAR_POPUPS` (Map, Comm, Timers, Group, Character;
 //   pane-settings.tsx). A target without content does nothing. (The
 //   reel's Spotlights settings left for its card in stage 32c, ADR 0114;
 //   the start page draws their popup itself.)
@@ -41,7 +41,7 @@ import { focusPopup, watchInput } from '../../menubar/popup';
 import { type ChromeServices, ServicesCtx } from '../kit/hooks';
 import { MapperSettings } from './mapper-settings';
 import { type PopupPlace, PopupPanel } from './panel';
-import { CommSettings, GroupSettings, TimersSettings } from './pane-settings';
+import { CharacterSettings, CommSettings, GroupSettings, TimersSettings } from './pane-settings';
 import { SettingsPopup } from './settings-popup';
 
 export type { PopupPlace } from './panel';
@@ -70,6 +70,7 @@ export const GEAR_POPUPS: Partial<Record<string, GearPopup>> = {
   comm: { title: 'Comm', body: () => <CommSettings /> },
   timers: { title: 'Timers', body: () => <TimersSettings /> },
   group: { title: 'Group', body: () => <GroupSettings /> },
+  character: { title: 'Character', body: () => <CharacterSettings /> },
 };
 
 export interface SettingsPopupsOptions {

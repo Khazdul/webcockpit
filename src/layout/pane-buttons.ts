@@ -10,7 +10,7 @@
 //   borderless:  … [Gear][Colour][Border][Background][ × ]    the cross at the right edge
 //
 // The Gear (stage 30 S6, ADR 0095 addendum 30c) is on the Map, Comm,
-// Timers and Group panes only (`GEAR_PANES`), where the cockpit has a gear
+// Timers, Group and Character (stage 77) panes only (`GEAR_PANES`), where the cockpit has a gear
 // handler (the App's settings popups): it opens the pane's settings popup.
 // It is the leftmost button, so it is the first one dropped.
 //
@@ -43,7 +43,7 @@ export const PANE_LOOKS: readonly PaneLook[] = ['color', 'border', 'glass'];
 export type PaneButton = PaneLook | 'gear';
 
 /** The panes with a Gear (their settings popup, ADR 0107). */
-export const GEAR_PANES: readonly string[] = ['map', 'comm', 'timers', 'group'];
+export const GEAR_PANES: readonly string[] = ['map', 'comm', 'timers', 'group', 'character'];
 
 /** True when pane `id` has a Gear. */
 export const hasGear = (id: string): boolean => GEAR_PANES.includes(id);

@@ -37,7 +37,8 @@
   width: 21.5em;
 }
 
-.wc-sp-gear-group {
+.wc-sp-gear-group,
+.wc-sp-gear-character {
   width: 25em;
 }
 

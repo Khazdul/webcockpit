@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // Stage 30c part 2 (ADR 0095 addendum, ADR 0107): the Gear on the Map,
-// Comm, Timers and Group panes (where it is, its drop order, its click and
+// Comm, Timers, Group and Character (stage 77) panes (where it is, its drop order, its click and
 // mark), the gear popup's place beside its pane, its close when the pane
 // is hidden, and the Comm, Timers and Group popups writing the settings.
 import { render } from 'preact';
@@ -8,7 +8,7 @@ import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { legacySettings } from './legacy-defaults';
 import { type ChromeServices, mountSettingsPopups } from '../../src/chrome';
-import { CommSettings, GroupSettings, TimersSettings } from '../../src/chrome/popups/pane-settings';
+import { CharacterSettings, CommSettings, GroupSettings, TimersSettings } from '../../src/chrome/popups/pane-settings';
 import { ServicesCtx } from '../../src/chrome/kit/hooks';
 import { TIMER_COLS_CHOICES, TIMER_WARN_OPTIONS, commChannelRows, setCommChannel, warnAtOf } from '../../src/chrome/pane-options-model';
 import { COMM_CHANNEL_ORDER } from '../../src/gmcp/comm';
@@ -32,10 +32,10 @@ afterEach(() => {
 // ------------------------------------------------------------ helpers
 
 describe('gear helpers', () => {
-  it('the Gear is the leftmost button on Map, Comm, Timers and Group, slot 3', () => {
-    expect([...GEAR_PANES]).toEqual(['map', 'comm', 'timers', 'group']);
+  it('the Gear is the leftmost button on Map, Comm, Timers, Group and Character, slot 3', () => {
+    expect([...GEAR_PANES]).toEqual(['map', 'comm', 'timers', 'group', 'character']);
     expect(hasGear('comm')).toBe(true);
-    expect(hasGear('character')).toBe(false);
+    expect(hasGear('character')).toBe(true);
     expect(hasGear('ui')).toBe(false);
     expect(hasGear('s/bar')).toBe(false);
     expect(paneButtons(true)).toEqual(['gear', 'color', 'border', 'glass']);
@@ -130,9 +130,9 @@ function cockpit(o: { gear?: boolean; width?: number } = {}) {
 }
 
 describe('the Gear on the panes', () => {
-  it('Map, Comm, Timers and Group have it leftmost, labelled by the pane; Character and UI do not', () => {
+  it('Map, Comm, Timers, Group and Character have it leftmost, labelled by the pane; UI does not', () => {
     const t = cockpit();
-    for (const id of ['map', 'comm', 'timers', 'group']) {
+    for (const id of ['map', 'comm', 'timers', 'group', 'character']) {
       const b = t.btns(id);
       expect(b.map((x) => x.dataset.look)).toEqual(['gear', 'color', 'border', 'glass']);
       expect(b[0]!.style.getPropertyValue('--slot')).toBe('3');
@@ -145,9 +145,9 @@ describe('the Gear on the panes', () => {
     expect(t.gear('map')!.title).toBe('Map settings');
     expect(t.gear('timers')!.title).toBe('Timers settings');
     expect(t.gear('group')!.title).toBe('Group settings');
-    expect(t.gear('character')).toBeNull();
+    expect(t.gear('character')!.title).toBe('Character settings');
     expect(t.gear('ui')).toBeNull();
-    expect(t.btns('character')).toHaveLength(3);
+    expect(t.btns('ui')).toHaveLength(3);
   });
 
   it('none without a gear handler, and none on a phone', () => {
@@ -357,6 +357,14 @@ describe('gear popup contents', () => {
     expect(t.s().group.fight).toBe(false);
     click(t.host.querySelector('[aria-label="Fight card"]'));
     expect(t.s().group.fight).toBe(true);
+  });
+
+  it('Character: Fetch Stats and Lore from the game', () => {
+    const t = mountWith(<CharacterSettings />);
+    expect(t.s().character.fetchInfo).toBe(true);
+    expect(t.host.textContent).toContain('wimpy at login');
+    click(t.host.querySelector('[aria-label="Fetch Stats and Lore from the game"]'));
+    expect(t.s().character.fetchInfo).toBe(false);
   });
 
   it('Group: Show players and NPC visibility', () => {
