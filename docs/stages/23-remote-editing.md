@@ -15,6 +15,10 @@ Known state while parked:
 - The recorder stores these GMCP messages, so for such a player mail and
   board text can end up in runs and shared replays (part A below).
 
+Seen again 2026-11-22 (stage 77's live test): `write <title>` at a board
+gave only a prompt, no editor and no message, and the owner took the
+editor to be broken. Likely this state (the setting was not checked).
+
 To resume: start with the live probe (Part 0), then decide whether part
 A ships on its own first.
 

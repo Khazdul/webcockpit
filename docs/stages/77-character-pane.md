@@ -10,7 +10,8 @@ stay.
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C built** (branch `stage-77c`,
-tested against mocks; its live checks wait for the owner and MUME). The wimpy point is decided (open points). Each part stops for the owner's
+on main, live test run 2026-11-22: open are the line editor, the run log
+and the removed wimpy). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -230,9 +231,8 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] A. Live facts
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
-- [ ] C. The poll (built and tested; open: the live test below, with
-      wrap on a phone, a non-zero ability delta, that MUME takes the whole
-      command: 160 characters)
+- [ ] C. The poll (built, live test run; open before D: the line editor,
+      a run log with the poll on, `%y` with the wimpy removed)
 - [ ] D. The card
 - [ ] E. Portraits
 - [ ] F. Group
@@ -610,6 +610,41 @@ the Gear moves the title (ADR 0166 point 31). The test now checks that
 rule, and it passes with the pane specs (82). **Nothing is tried against
 MUME.**
 
+### Live results, part C (Gittan, a Fallohide hobbit, level 45, 2026-11-22)
+
+From the owner's scrollback and report:
+
+| Check | Result |
+|---|---|
+| 1. Login poll | works: the first data had wimpy 204, nothing in the scrollback |
+| 2. The values | equal to a typed `info`, a negative DB too; MUME takes the 160 characters |
+| 3. Line editor | **not tested**: `write` opened no editor, see below |
+| 4. Pager | not sent ("the last output is not a game prompt") |
+| 5. `change wimpy 33%` | `Wimpy set to: 68`, hit points (10%: 21). A removed wimpy: not tested |
+| 6. Strength | str 12, unaffected 10, delta 2, as `info`'s `Str:12(10)` |
+| 7. Phone | ok (the owner) |
+| 8. Off | "the setting is off", the wimpy unknown |
+| 9. Run log | **not proven**: the log handed over is the last session's, with the switch off |
+
+- **The line editor still matters before D.** `write <title>` at a board
+  printed only a prompt and the game went on. That fits `change editor
+  mume` on this character (stage 23's known state; inferred, no GMCP from
+  that session seen). MUME's default is `line` (`help change editor`),
+  whose prompt is `:` and which reads every line sent (`help editor`,
+  `%q` cancels). Those players would get D's 5 minute poll into their
+  text if that prompt is an XML prompt. So it is tested with `change
+  editor line`, and does not wait for stage 23.
+- `StatusVars`: `"race":"Hobbit"`, `"subrace":"Fallohide"`, the second
+  real pair: the subrace does not always hold the race. The model reads
+  Fallohide hobbit, factor 1.5, the hobbit passenger.
+- `%c` with several: `Bree Shire Fornost GreyHavens Rivendell`, separated
+  by spaces, the names without spaces. D shows them as a list.
+- `%q` is not always "You are …": `You must have been sent to Arda to
+  free it from the sorrows that weigh upon it`, kept whole. D must fit a
+  sentence that long (decision 18's shortening).
+- DB follows the position (-31 resting, 19 standing), so Stats can be
+  stale by up to the poll's interval.
+
 Not solved, for the owner: the phone has no gear, so no switch there.
 Until part D, a release from main would send the login poll and show a
 switch that names tabs which do not exist yet.
@@ -672,3 +707,7 @@ answer: type it again for the new one. At most one poll in 10 s.
 - 2026-11-22, part B, the demo fixture on the test server: "Provade och
   den ser ut som tidigare. Kör på" (B approved, C's go). MUME was down,
   so berserk's wimpy 0 is not seen live.
+- 2026-11-22, part C live: 1, 2, 4–8 work. On 3: "Jag tror itne
+  rededitorn fungerar riktigt", perhaps not important until remote
+  editing is picked up (answered above: it is, for `change editor
+  line`).
