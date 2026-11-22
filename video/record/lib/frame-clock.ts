@@ -33,6 +33,7 @@ import { FPS } from './encode.ts';
 const FRAME_MS = 1000 / FPS;
 const WORKER_SCRIPT = /\/(weather|map)\.worker\.ts\?/;
 const SHIM_URL = '/__film/frame-clock.js';
+const SCENE_URL = '/__film/worker-scene.js';
 
 /** The browser's side (serialized: no references to this module). */
 function clockShim(): void {
@@ -302,14 +303,15 @@ export class FrameClock {
     this.page = page;
   }
 
-  /** Before the page's first navigation. */
-  static async install(page: Page): Promise<FrameClock> {
+  /** Before the page's first navigation. `workerScript`: the scene's own, run in those workers before their code. */
+  static async install(page: Page, workerScript = ''): Promise<FrameClock> {
     const body = `(${clockShim.toString()})();`;
     await page.context().addInitScript(`${body}`);
     await page.route(`**${SHIM_URL}`, (r) => r.fulfill({ body, contentType: 'text/javascript' }));
+    await page.route(`**${SCENE_URL}`, (r) => r.fulfill({ body: workerScript, contentType: 'text/javascript' }));
     await page.route(WORKER_SCRIPT, async (r) => {
       const response = await r.fetch();
-      await r.fulfill({ response, body: `import '${SHIM_URL}';${await response.text()}` });
+      await r.fulfill({ response, body: `import '${SHIM_URL}';import '${SCENE_URL}';${await response.text()}` });
     });
     return new FrameClock(page);
   }

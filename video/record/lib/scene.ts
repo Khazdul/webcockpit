@@ -20,9 +20,10 @@ export interface Scene {
   canvas?: { width: number; height: number };
   /**
    * Frame-stepped instead of screencast (frame-clock.ts): setup in real time, then time stands still
-   * between frames. `workers`: how many must follow the clock; `x`: the page's left edge in the 1920 × 1080 frame.
+   * between frames. `workers`: how many must follow the clock; `x`: the page's left edge in the 1920 × 1080 frame;
+   * `workerScript`: the scene's own, run in those workers before their code.
    */
-  stepped?: { workers: number; x: number };
+  stepped?: { workers: number; x: number; workerScript?: string };
   /** Before the camera rolls: log in, pin the weather, lay out the panes. */
   setup(page: Page): Promise<SceneState>;
   /** On camera. Set markers with `marks`; `active` brackets the stretch the fps stats are judged on. */

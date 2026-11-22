@@ -1,11 +1,14 @@
 # Stage 76 — The balloon film
 
 Not a spec §5 row: the owner's request of 2026-11-21. A short film of its
-own (about 1:21) that only shows the balloon notices of 0.22 (stages 69
+own (2:57) that only shows the balloon notices of 0.22 (stages 69
 and 75). It does not replace the presentation films (stages 48 and 70).
 
-Status: **Round 2 rendered** (2026-11-22, manuscript draft 2), waiting
-for the owner.
+Status: **Built; closed for the session of 2026-11-22.** The film is
+round 4 (`video/out/balloon-film-r4*`, copies in the owner's Downloads).
+Left to the owner: the upload. The Balloons help text it shows
+(`ec5bc166`) is committed and goes out with the next release; the owner
+does not want a release of its own for it.
 
 The manuscript and the owner's decisions are in
 `video/manuscript-balloons.md`, which the main session owns. The pipeline
@@ -37,6 +40,18 @@ is ADR 0133's (`video/README.md`).
 - [x] The stutter's causes found and fixed (frame-stepped capture, the
       encoder's timebase; ADR 0133 addendum).
 - [x] Round 2 render, contact sheet, motion measured on the encodes.
+- [x] Round 3: the Balloons row's new help (`ec5bc166`, ADR 0159
+      addendum; typecheck, unit tests, balloons e2e).
+- [x] Round 3: the title's third line, the take recorded again (bird
+      flocks pinned to round 2's), the music's new phrase end.
+- [x] Round 3: the three files (1080p HEVC and H.264, 4K for YouTube),
+      each checked; contact sheet.
+- [x] Round 4: the title says MUMECOCKPIT (`3a0cf362`); rendered from
+      round 3's take, compared with its master.
+- [x] The YouTube title and description (end of the manuscript).
+- [ ] The next release carries `ec5bc166` (the Balloons help text).
+- [ ] The owner: the last look and the upload (the music credit in the
+      description from the first moment).
 
 ## Round 1 (2026-11-22)
 
@@ -193,19 +208,98 @@ passenger's first load); that is for a live check.
   cells, and only so is the map exactly one row from both edges. The two
   columns are black on the sky's black left band.
 
+## Round 3 (2026-11-22, manuscript draft 3): the final film
+
+`npm run record -- balloons-fountain` (12 min), then
+`npm run render -- Balloons --out balloon-film-r3` (18 min, with the 4K
+file: `record/master.ts`, as film 2's upload). In `video/out/`:
+
+| File | Format |
+|---|---|
+| `balloon-film-r3.mp4` | 1920×1080, HEVC Main 10, yuv420p10le |
+| `balloon-film-r3-h264.mp4` | 1920×1080, H.264 High, yuv420p |
+| `balloon-film-r3-youtube.mp4` | 3840×2160, H.264 High 5.2, yuv420p, about 17 Mbit/s: **the upload** |
+| `balloon-film-r3-sheet.png` | the contact sheet |
+
+All three: 177.4 s (2:57.4), 10,644 frames, exactly 60 fps.
+
+| | Round 2 | Round 3 |
+|---|---|---|
+| The title's third line | – | in 0:07.2–0:07.9, whole until 0:11.4, all out by 0:12.7 |
+| The game starts | 0:09.4 | 0:13.1 |
+| Balloons switched on | 0:20.6 | 0:24.3 |
+| Captions | 0:42.9–0:58.9, 1:29.2–1:45.2 | 0:46.6–1:02.6, 1:32.9–1:48.9 |
+| The game out | 2:39.4–2:42.4 | 2:43.1–2:46.1 |
+| End card | from 2:43.0, whole 6.9 s | from 2:46.7, whole 2:48.0–2:55.0 (7.0 s), out by 2:57.0 |
+| Music fade | 2:42.8–2:53.8 | 2:46.0–2:57.0 |
+
+Every balloon's times are round 2's plus 3.7 s.
+
+- **Nothing else changed.** Against round 2's take (`out/round2-takes/`):
+  balloon boxes 0 px apart on all 9,181 frames, the keys and the four
+  presses identical, text, input line and map pixel-identical. The panel
+  keeps its size and the switch its place.
+- **The birds.** Their flocks were random per take (the sky worker's
+  `Math.random`), so a new take would have flown others. They are now
+  pinned to round 2's, measured bird by bird (`FLOCKS` in
+  `feeds/balloons.ts`): the same 20 birds in six flocks, five flocks
+  within 3 px, the big one 12 px ahead. The wing beats differ.
+- **The music** ends at 177.0 s: the harmony turns there, on its 4 s
+  grid, and the next phrase's downbeat strikes at 177.04. It is at
+  −34.6 dB at 2:54, −56.2 at 2:56 and silent from 2:56.75. The end card's
+  fades are a little shorter (in 1.3 s, out 2.0 s; were 1.5 and 2.4) so
+  it keeps its read time without waiting for the next phrase end.
+
+### Motion
+
+`record/motion.ts` now looks at the whole lane (x 1040–1920, y 0–1056,
+the map left out) and at each balloon, and lists nearly still steps
+besides exact repeats (round 2's check saw neither the top of the lane nor
+a slow balloon, and missed the step at 1:59.433).
+
+- **No repeated frame in any of the three files**: 60.00 new pictures a
+  second from 0:31.4 to 2:45.8, also in the worst 5 s.
+- Nearly still steps (under 35 % of the steps round them), 21–26 a file,
+  single frames but for slivers: a balloon's first or last sliver at the
+  edge (it moves on every frame), or a balloon at rest whose position the
+  client rounds to 0.1 CSS px (`balloons.ts` `toFixed(1)`), so that now
+  and then one frame's 0.12 px step is 0. Round 2's 1:59.433 is one of
+  these: in the take and the master, not from the encoder; here it is
+  2:03.133. No hold over 34 ms but in those slivers. Not changed: product
+  code, and 0.12 px.
+
+## Round 4 (2026-11-22): the title's name
+
+The owner: the title shall say MUMECOCKPIT, not WEBCOCKPIT, without doing
+all of it again. One line in `Balloons.tsx` (3a0cf362), rendered from
+round 3's take as `out/balloon-film-r4*`; nothing recorded again. Against
+round 3's master: the title differs, the audio is identical, and after
+the title only 19 frames (18.87–19.95 s) differ, in the antialiasing of
+the drawn pointer at the Settings icon. Upload r4,
+not r3. The presentation films still say WebCockpit on their cards.
+
+## Cleanup (2026-11-22, the owner's OK)
+
+Deleted: rounds 1–3's films, masters and takes (`out/round1-takes/`,
+`out/round2-takes/`, round 1's takes in `public/recordings/`) and their
+copies in Downloads. The paths above to them are history. Kept: round 4's
+films and master, its take `balloons-fountain`, the contact sheets and
+logs, the music.
+
 ## Test guide
 
-Open `video/out/balloon-film-r2.mp4` in a 60 fps player (or
-`balloon-film-r2-h264.mp4`), full screen. Look at:
+Open `video/out/balloon-film-r4-youtube.mp4` (or
+`balloon-film-r4.mp4` on a 1080p screen) in a 60 fps player, full screen:
 
-1. **Motion**: do the balloons, the birds and the pointer move smoothly?
-2. **Pace**: is about 11 s between balloons right, and is one or two on
-   screen too sparse?
-3. **The commands**: is it clear that they are typed, down in the input
-   line? (They do not appear in the game's text.)
-4. **The setting**: is it clear what is switched on (0:15–0:23)?
-5. **The room's life and the sky**: enough, or too much?
-6. **The captions and the two cards**: time to read, and the music's end.
+1. **The title**: MUMECOCKPIT 0.22; the third line at 0:07–0:08, long enough, then the game
+   at about 0:13.
+2. **The setting** (0:19–0:26): the new description reads well.
+3. **The end**: the end card long enough, the music's last phrase.
+4. **The upload**: `balloon-film-r4-youtube.mp4`, with the title and
+   description at the end of `video/manuscript-balloons.md`. The credit is in the
+   description from the moment of upload (Content ID):
+   `'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au`
+   Afterwards look at YouTube's 2160p60 for smoothness.
 
 ## Owner feedback
 
@@ -225,3 +319,29 @@ Open `video/out/balloon-film-r2.mp4` in a 60 fps player (or
   black, then the end card.
 
 The whole of it: `video/manuscript-balloons.md`, draft 2.
+
+### Round 2 (2026-11-22): approved, with two changes
+
+"JAg gillar inte beskrivningen av "Balloons" i weather effects menyn. Vi
+behöver inte lista så exakt alla saker som skapar ballonger. Gör om den
+till något i stil med att en "companion i en luftballong" reagerar på
+händelser från spelet. Lägg till det där vi pratade om tidigare: nobody
+asked we did it anyway. Den kommer ca 7-8 sekunder in och visas ca 3-4
+sekunder. Sen börjar vi. Bygg sen om också kör vi på detta."
+
+- The Balloons row's help says that a companion in a hot-air balloon
+  reacts to what happens in the game, without listing the events.
+- The title gets its third line, *(Nobody asked. We did it anyway.)*, at
+  7–8 s for 3–4 s; then the film starts.
+- Then build it: this is the film.
+
+`video/manuscript-balloons.md`, draft 3.
+
+### Round 3 (2026-11-22): the title's name
+
+"Det står WEBCOCKPIT i början. Det ska stå MUMECOCKPIT. Kan vi åtgärda
+det utan att göra om allt?" → round 4.
+
+### The release (2026-11-22)
+
+"du behöver inte releasa än. commita så tar jag det vid nästa release."

@@ -80,8 +80,40 @@ export const AMBIENT: { at: number; step: Step & { out: Buffer } }[] = [
   { at: 146.0, step: arrives(NOB, 'north') },
 ];
 
-/** Bird crossings besides the sky's own (`__weather.emit('birds')`, the dev hook). */
-export const BIRDS = [4, 36, 71, 106, 133] as const;
+/** One flock as the sky makes it (src/weather/worker/daylife.ts `spawnFlock`), CSS px. */
+export interface Flock {
+  /** Sent (`__weather.emit('birds')`, the dev hook). */
+  at: number;
+  /** Big and near (it enters from the screen's side and stays until it leaves), else small and far. */
+  big: boolean;
+  /** The leader where it starts (a big one starts just off the screen). */
+  x: number;
+  y: number;
+  /** px/s, rightwards positive. */
+  vx: number;
+  /** A small one's seconds, its last six fading. */
+  life: number;
+  /** The others' places behind the leader, in the V's order (one below, one above, two below, …): back, down. */
+  others: readonly (readonly [back: number, down: number])[];
+}
+
+/**
+ * The bird crossings of the approved round 2, measured bird by bird on its
+ * take (each a straight track, to about a pixel): five were sent by the
+ * scene, the one at 20 s was the sky's own. The sky's own timer sends
+ * nothing more (balloon-state.ts `skyScript`), so a retake flies the same.
+ * Round 3's take against round 2's: five flocks within 3 px, the big one
+ * 12 px ahead on its path (a sleeping sky's first step is up to 1/3 s long,
+ * so a flock starts up to that far on).
+ */
+export const FLOCKS: readonly Flock[] = [
+  { at: 4, big: false, x: 1315, y: 139.1, vx: -20.44, life: 30, others: [[8.5, 5.8], [8.5, -7.3], [19, 12.7], [22.6, -13.6], [38.7, 22.4]] },
+  { at: 20, big: false, x: 677.4, y: 212.6, vx: 18.56, life: 31.2, others: [[10.8, 5.4], [9.8, -5.8]] },
+  { at: 36, big: false, x: 255.2, y: 126.5, vx: 25.86, life: 33, others: [[14.1, 5.2], [11.5, -5.4], [21.3, 8.8], [18.1, -14.7]] },
+  { at: 71, big: false, x: 657.3, y: 123.3, vx: 20.82, life: 27.3, others: [[12.8, 5.3], [13, -5.1]] },
+  { at: 6356 / 60, big: true, x: -40, y: 278, vx: 44.23, life: 0, others: [[19.6, 11], [17.3, -8], [39.1, 29.8]] },
+  { at: 133, big: false, x: 1294.6, y: 125.1, vx: 20.86, life: 30, others: [[12, 6.3], [9.2, -5.1]] },
+];
 
 export interface Show {
   passenger: string;

@@ -1,6 +1,9 @@
 # The balloon film — manuscript
 
-Draft 2 (2026-11-22): a new film after the owner's review of round 1
+Draft 4 (2026-11-22): the title's name is MUMECOCKPIT.
+Draft 3: round 2 approved with two changes, the title's third
+line and the setting's own description (the owner: "kör vi på detta").
+Draft 2: a new film after the owner's review of round 1
 (draft 1 is in git, cb4dd880). Much slower, one place, daylight, every
 balloon sent by a typed command. A film of its own that only shows the
 balloon notices of 0.22 (stages 69 and 75, ADR 0159); it does not replace
@@ -24,6 +27,11 @@ the presentation films. Same pipeline (ADR 0133, `README.md`).
 - **Not crowded.** Never more than about 2.5–3 balloons on screen at
   once. The next comes when the one before has stopped and moved on a bit.
 - **The setting on camera.** Balloons is off; the pointer switches it on.
+  Its description no longer lists what sends a balloon (a product change,
+  `BALLOONS_ROW.help`): *A companion in a hot-air balloon reacts to what
+  happens in the game. Desktop only.*
+- **The title's joke is back** (dropped in draft 2): it comes 7–8 s in,
+  stays 3–4 s, then the film starts.
 - **The end.** Fade to black, then the end card in the title's style.
 - **Camera.** No zoom.
 - **Music.** *Into The Wilds* by Scott Buckley (2024, 4:07, CC BY 4.0),
@@ -46,11 +54,18 @@ her arrival at the fountain.
 
 ## Acts (times approximate; the balloons decide)
 
-### 0 · Title, on black (0:00–0:09)
+### 0 · Title, on black (0:00–0:13)
 
-1. *WebCockpit 0.22* fades in and stands alone for about 2 s.
+1. *MumeCockpit 0.22* fades in and stands alone for about 2 s.
+   (The owner, 2026-11-22: the name on screen is MUMECOCKPIT, one word,
+   not WEBCOCKPIT. The title face sets lower case as small capitals.)
 2. *Now with hot-air balloons.* fades in below it. Both stay to be read.
-3. Fade out. No third line, no balloon, no sky.
+3. At 7–8 s *(Nobody asked. We did it anyway.)* fades in below, smaller.
+   The two lines above do not move. It is fully readable for 3–4 s.
+4. Fade out of all three. No balloon, no sky.
+
+The acts after the title keep their lengths and move with it (about 4 s
+later than the times below); the music's end is found again.
 
 ### 1 · The fountain (0:09–0:25)
 
@@ -101,3 +116,33 @@ in the title's style: *Turn them on in Settings → Weather effects.* /
 
 "Real speed" and "not crowded" win over the times and the gaps above:
 lengthen a gap, and with it the film. Never speed a balloon up.
+
+## YouTube
+
+Proposed to the owner 2026-11-22, with the chapters of round 4's times.
+No `#weather` in it: YouTube makes a hashtag of it.
+
+```text
+TITLE
+MumeCockpit 0.22: Now with hot-air balloons
+
+DESCRIPTION
+MumeCockpit is a free MUD client for MUME (Multi-Users in Middle-earth). It runs in your browser, on desktop, tablet and phone.
+
+New in 0.22: hot-air balloons. Nobody asked. We did it anyway.
+
+A companion of your race rises in a balloon and reacts to what happens in the game. There are 8 companions with 10 balloons each, 80 in all. In this demo they are sent by command, so you can see more of them.
+
+To turn them on: Settings → Weather effects → Balloons (desktop only).
+
+0:00 Nobody asked
+0:13 Bree: turning on the balloons
+0:31 The many moods of a goblin
+1:20 The other races
+2:46 We did it anyway
+
+▶ Play: https://mumecockpit.com
+🌍 MUME: https://mume.org
+🎵 Music: 'Into The Wilds' (edited) by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au
+License: https://creativecommons.org/licenses/by/4.0/
+```

@@ -10,11 +10,14 @@
 //     1920 px frame, whose left band is pure black anyway;
 //   - MUME's clock at midday and the sky's own keys pinned to it
 //     (`__weather.jump`); the room's weather, fog and light stay the game's;
+//   - the sky worker's Math.random gives each flock the draws of the one the
+//     film wants (`skyScript`): daylife.ts draws a flock from it alone;
 //   - the page's Math.random gives a balloon the flight seed the scene
 //     queued for it (`queueFlightSeed`): balloons.ts draws one number per
 //     launch. Nothing else of a flight is touched.
 import type { Page, WebSocketRoute } from '@playwright/test';
 import { type DevWindow, GMCP, IAC, WILL, gmcpBytes, sleep, startMenu } from '../../../scripts/lib/mume-feed.ts';
+import type { Flock } from '../../feeds/balloons.ts';
 import { freshStart, keepFilmClock } from './film-state.ts';
 
 /** The page's width and place in the 1920 × 1080 frame, px (see the top). */
@@ -29,6 +32,61 @@ const MIDDAY_SKY = { clock: 'day', sunU: 0.5, moonUp: false, moonU: -1, dayAt: -
 
 /** The page's options: 901 CSS px gives 49 rows and 1080 px at the mode's scale. */
 export const BALLOON_PAGE = { moment: MIDDAY, seed: 7, viewport: { width: 1600, height: 901 } };
+
+/** The weather's canvas, CSS px (the window as the page lays it out at this mode). */
+const SKY_SIZE = { W: 1600, H: 902 } as const;
+
+/**
+ * What Math.random must return, in spawnFlock's order, for `f`: big or
+ * small, the direction, the count, the speed, per bird its place back and
+ * down, flap phase and rate, then x, y and (small) the life.
+ */
+function flockDraws(f: Flock, random: () => number): number[] {
+  const { W, H } = SKY_SIZE;
+  const back = (v: number, a: number, b: number): number => (v - a) / (b - a);
+  const n = f.others.length + 1;
+  const gap = f.big ? 22 : 11;
+  const out = [f.big ? 0.2 : 0.7, f.vx > 0 ? 0.2 : 0.7];
+  if (f.big) out.push(...(n === 1 ? [0.2] : [0.7, (n - 2 + 0.5) / 3]));
+  else out.push((n - 3 + 0.5) / 5);
+  out.push(f.big ? back(Math.abs(f.vx), 30, 46) : back(Math.abs(f.vx), 16, 26));
+  for (let i = 0; i < n; i++) {
+    const k = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
+    const [b, d] = i ? f.others[i - 1]! : [0, 0];
+    out.push(k ? back(b / (Math.abs(k) * gap), 0.8, 1.2) : 0.5, k ? back(d / (k * gap * 0.55), 0.7, 1.3) : 0.5, random(), random());
+  }
+  if (!f.big) out.push(back(f.x / W, 0.1, 0.9));
+  out.push(f.big ? back(f.y / H, 0.08, 0.36) : back(f.y / H, 0.05, 0.24));
+  if (!f.big) out.push(back(f.life, 24, 36));
+  return out;
+}
+
+/**
+ * For the workers, before their own code: a flock sent by the scene gets
+ * its draws from FLOCKS, in order; one the sky's own timer sends gets no
+ * birds; everything else of the sky is seeded.
+ */
+export function skyScript(flocks: readonly Flock[], random: () => number): string {
+  const sent = flocks.flatMap((f) => flockDraws(f, random));
+  // small, leftwards, 0 birds, then its speed, x, y and life: nothing is drawn
+  const none = [0.7, 0.7, -0.5, 0.5, 0.5, 0.5, 0.5];
+  return `(() => {
+  const sent = ${JSON.stringify(sent)}, none = ${JSON.stringify(none)};
+  let i = 0, j = 0, a = 20261122;
+  Math.random = () => {
+    const s = new Error().stack ?? '';
+    if (s.includes('spawnFlock')) {
+      if (!s.includes('birdsNow')) return none[j++ % none.length];
+      if (i < sent.length) return sent[i++];
+    }
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+})();`;
+}
 
 /** The map (cells): round 1's 30 × 13, a column and the 10 px left over from the right edge, a row from the top. */
 const MAP = { x: 128, y: 1, w: 30, h: 13 } as const;
