@@ -10,8 +10,8 @@ stay.
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
 (on main, the owner looked). **Part C done** (on main, tested
-live 2026-11-22). **Part D built** (2026-11-22, branch
-`stage-77d`, waiting for the owner's look). The wimpy point is decided (open points). Each part stops for the owner's
+live 2026-11-22). **Part D done** (on main 2026-11-22, the
+owner looked; polish is a pass of its own, H below). The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -232,10 +232,13 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
 - [x] C. The poll (tested live: "Live results, part C")
-- [ ] D. The card (built; the owner's look left)
+- [x] D. The card (not tried live: a click in the line editor, the
+      phone)
 - [ ] E. Portraits
 - [ ] F. Group
-- [ ] G. Tests
+- [ ] G. Tests (most came with A–D; left: Group without you, a last
+      full run)
+- [ ] H. Polish of the card (the owner's list first)
 
 Record the technical decisions in **ADR 0166** (the card, the poll, the
 click-to-command rule) and in an addendum to ADR 0122 (Group's "show
@@ -306,6 +309,20 @@ raw answer. Write the findings into this file before parts C–D.
 - e2e: the card from a GMCP fixture; tabs; the fight mode; a click sends
   the command and the value changes only after the fixture's GMCP; the
   poll's answer is hidden from the game pane; Group without you.
+
+### H. Polish (the owner, after D; a pass of its own)
+
+The owner looks closely and decides first. Named so far:
+
+- the layout's details in general;
+- how the pane behaves docked;
+- the tab buttons at some sizes;
+- a nicer MOOD / CASTS / ALERTNESS / WEIGHT;
+- the phone: Character is off in the strip by default since stage 52 (the
+  owner's default then; the switch is under Settings → Panes). Whether it
+  is on by default now is the owner's, after seeing it there.
+
+Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
 
 ## Part A: findings
 
@@ -671,7 +688,8 @@ screenshots beside round 9. Full e2e at 5 workers: 2066 passed, 52 skipped, 2 fa
 real phone or in Safari.
 
 Known: at today's default height (9 rows) Stats and Lore scroll, with
-`↓ more`. They fit at the mockup's own heights. The owner decides.
+`↓ more`. They fit at the mockup's own heights. The owner chose the
+scroll.
 
 ## Open points
 
@@ -708,13 +726,15 @@ Parked:
 2. STATS, then LORE: values within some seconds, no `info` in the game.
 3. Click Mood, Casts, Alertness and each icon: the command echoes, `⋯`,
    then the new value. Mood never goes to berserk.
-4. In the line editor (a note you throw away) click Mood: nothing is
-   sent. Then `%q`, and the click works again.
+4. The line editor: `change editor line`, then `write test` at a board.
+   At the `: ` prompt click Mood: nothing is sent. Then `%q`, and the
+   click works again.
 5. A fight from Stats: Status, red swords, bands as hatched spans. After
    it Stats is back.
 6. Resize, float, Paper, and Height in the gear.
-7. A phone: the tabs and icons can be hit, and the switch is under
-   Panes in the settings.
+7. A phone: first switch Character on under Settings → Panes (off by
+   default). The tabs and icons can be hit, and the poll's switch is
+   under Panes too.
 
 Wanted: is it round 9? And at 9 rows, is scrolling Stats and Lore fine,
 or should the default pane be taller?
@@ -753,3 +773,10 @@ answer: type it again for the new one. At most one poll in 10 s.
   line`).
 - 2026-11-22, after C: "Okej på allt. Kör på" (the phone switch, the
   moved title, D's go).
+- 2026-11-22, part D live: 1–3 and 5 ok. 4 was not understood (the guide
+  did not say how to get into the editor; now it does). 6: "Allting
+  verkar fungera som vi tänkt och det ser snyggt ut. Jag kommer dock
+  vilja finputsa många olika detaljer" (part H). 7: not tested, as
+  Character was not among the strip's panes (off by default; the guide
+  did not say so). "Scroll känns rätt." The pass is rounded off and the
+  stage goes on in a new one.

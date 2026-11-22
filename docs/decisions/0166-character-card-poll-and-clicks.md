@@ -246,3 +246,9 @@ The card:
     times the style cost of each prompt in Firefox).
 45. Nothing to press lies under the pane's close cross or the phone's
     resize grip: the tabs begin below the one and beside the other.
+
+## Addendum 8 (2026-11-22): the owner's look at part D
+
+46. Stats and Lore scroll at the default height ("Scroll känns rätt"):
+    the default pane is not made taller. The look's details are still
+    open (stage 77 part H).
