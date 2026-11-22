@@ -7,8 +7,9 @@ look and the data. This stage builds it. It replaces the drawing rules of
 Inv §2.2. The data rules for XP/TP, the session anchors and the toggles
 stay.
 
-**Status: part A measured** (2026-11-22: the live run with Rasta is
-written in, the other races are parked, the owner's decisions awaited). Each part stops for the owner's
+**Status: part A done** (2026-11-22: measured live with Rasta, the other
+races parked, the open points decided, ADR 0166). Next: part B, on the
+owner's go. Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -62,7 +63,8 @@ the page.
    A value that does not fit is shortened (`aggressive` → `aggres.` →
    `agg.`).
 9. **Weight** is the GMCP word `Char.Vitals.carrying` (the six words:
-   part A, "Live results"). It has six steps, as MUME's encumbrance sentences
+   part A, "Live results"), shown as sent, so the lightest reads
+   `peanuts` (owner, after part A). It has six steps, as MUME's encumbrance sentences
    (below). The two highest are red and the third highest orange. The full
    sentence is in the tooltip. The number of pounds is never shown: the
    step is relative to the character's stats.
@@ -110,8 +112,11 @@ the page.
 
 ### Lore (info poll)
 
-18. **Race** comes first: `subrace race` in lower case, for example
-    "Tarkhnarb orc", and only the race when there is no subrace. Then
+18. **Race** comes first (owner, after part A): a subrace that names the
+    race stands alone, with the race's word in lower case ("Tarkhnarb
+    orc", "Cave troll"), and so does Black Númenórean. Otherwise
+    `subrace race` ("Dúnadan man"), and only the race when there is no
+    subrace. Then
     **Alignment** on a full row (the value from `%q` without "You are … !",
     shortened only if it must be), Citizen, War fame, Purse (gold, silver,
     copper), Height, Weight and Birthday ("in 5 months"). No playtime and
@@ -125,11 +130,14 @@ the page.
     | Element | Click sends |
     |---|---|
     | Mood | the next mood: `change mood <next>` in the order wimpy → prudent → normal → brave → aggressive → wimpy. **Never berserk.** |
-    | Casts | the next spell speed: `change spellcasting <next>` (quick, fast, normal, careful, thorough; the cycle: see open points) |
+    | Casts | the next spell speed: `change spellcasting <next>` in the order quick → fast → normal → careful → thorough → quick (owner, after part A) |
     | Alertness | the next step, all of them: `change alertness <next>` (normal → careful → attentive → vigilant → paranoid → normal) |
     | Sneak, climb, swim | `sneak`, `climb`, `swim` (each toggles) |
     | Ride | `lead` when riding, otherwise `ride` |
     | Position | standing → `rest`; resting or sitting → `stand`; sleeping → `wake` |
+
+    A click's command shows in the game pane exactly like a typed one
+    (owner, after part A).
 
 ### Icons (chosen in round 3)
 
@@ -204,7 +212,8 @@ comment naming `help age`. The change between brackets is linear.
   usual (it has no sentinels).
 - **When:** on opening Stats or Lore if the data is older than 30 s, then
   every 5 minutes while one of them is open. Never more often than every
-  10 s. Not while fighting. The age of the data shows in a small line in
+  10 s. Not while fighting, and not without a key or click from the
+  player in the last 5 minutes (owner, after part A). The age of the data shows in a small line in
   the tab ("info 12 s ago").
 - **Verified live (part A, "Live results"), and it changes the above:**
   the 2 s limit counts from the start sentinel, the sentinel is ASCII with
@@ -212,6 +221,17 @@ comment naming `help age`. The change between brackets is linear.
   lines are hidden by the rules written there.
 
 ## Plan
+
+Each part ends with a stop: the owner looks and says go before the next.
+
+- [x] A. Live facts
+- [ ] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
+      bare Bear and "Half-elven")
+- [ ] C. The poll (also check: wrap on a phone, a non-zero ability delta)
+- [ ] D. The card
+- [ ] E. Portraits
+- [ ] F. Group
+- [ ] G. Tests
 
 Record the technical decisions in **ADR 0166** (the card, the poll, the
 click-to-command rule) and in an addendum to ADR 0122 (Group's "show
@@ -248,8 +268,8 @@ raw answer. Write the findings into this file before parts C–D.
 - `src/panes/character.ts` becomes DOM like Group/Timers (ADR 0122): left
   column, the three tabs, vitals, the fight mode, the two height modes and
   the automatic choice between them.
-- Clicks send commands through the normal send path (shown in the game
-  pane like a typed command, or not? see open points) and mark the element
+- Clicks send commands through `sendCommand` (no aliases, echoed like a
+  typed command, ADR 0166) and mark the element
   pending until GMCP reports a change, or 3 s pass.
 - Tooltips only on the level ring, HP (exact or span, and wimpy), the
   abilities (current, unaffected, delta), the weight (the sentence), and
@@ -525,20 +545,9 @@ from the one confirmed case, so nothing matches a whole string:
 
 ## Open points
 
-For the owner, before part B:
-
-1. The Casts cycle (suggestion: quick → fast → normal → careful →
-   thorough → quick).
-2. Whether a click's command shows in the game pane (suggestion: yes,
-   exactly like a typed one, as Comm's reply does; a dimmed echo does not
-   exist today).
-3. Whether the poll goes on while the player is idle (suggestion: no poll
-   without a key or click from the player in the last 5 minutes).
-4. The race line (suggestion: a subrace that names the race stands alone
-   with the race's word in lower case, "Tarkhnarb orc"; so does Black
-   Númenórean; otherwise decision 18's `subrace race`, "Dúnadan man").
-5. The lightest step reads `peanuts`, not the mockup's "light"
-   (suggestion: show the GMCP word, as decision 9 says).
+Decided by the owner 2026-11-22, all five as suggested, and written into
+decisions 9, 18 and 19 and the poll's rules: the Casts cycle, the click's
+echo, no poll while idle, the race line, `peanuts`.
 
 Parked:
 
