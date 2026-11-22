@@ -19,6 +19,8 @@
 // in the same call stack, then emits `cmd.sent`. A command the socket
 // cannot take (not open yet, or closing) emits one `[SYSTEM]` line
 // instead and no `cmd.sent`, so nothing echoes, records or tracks it.
+// `sendHidden` is the info poll's alone (ADR 0166 point 21): no `cmd.sent`
+// either way. It is not part of `Sender`, which scripts and panes get.
 //
 // `cmd.sent` timestamps: a command sent while an inbound frame is being
 // parsed (e.g. the width commands sent on GMCP Char.Name) is stamped with
@@ -127,6 +129,11 @@ export interface SessionOptions {
    * `bufferedAmount` (0 when it has none). The latency monitor (ADR 0047).
    */
   onSend?: (bytes: number, buffered: number) => void;
+  /**
+   * An inbound frame has been parsed to its end (its start is the bus's
+   * `net.bytesIn`). Sends made here still carry the frame's time.
+   */
+  onFrameEnd?: () => void;
 }
 
 export class Session implements Sender {
@@ -147,6 +154,7 @@ export class Session implements Sender {
   private replayConn = false;
   private readonly clockUs: () => number;
   private readonly onSend: ((bytes: number, buffered: number) => void) | null;
+  private readonly onFrameEnd: (() => void) | null;
   /**
    * Automatic login for the session (ADR 0141; phones and tablets only, set
    * by src/phone/auto-login.ts): each line sent at the login prompts of a
@@ -159,6 +167,7 @@ export class Session implements Sender {
     this.bus = opts.bus;
     this.clockUs = opts.clockUs ?? nowUs;
     this.onSend = opts.onSend ?? null;
+    this.onFrameEnd = opts.onFrameEnd ?? null;
     this.socketFactory = opts.socketFactory ?? (() => new WebSocketTransport());
     this.telnet = new Telnet({
       sink: opts.sink,
@@ -268,6 +277,7 @@ export class Session implements Sender {
       try {
         this.telnet.receive(bytes, ts);
       } finally {
+        this.onFrameEnd?.();
         this.frameTs = null;
       }
     };
@@ -407,6 +417,16 @@ export class Session implements Sender {
     if (secret) ev.secret = true;
     if (opts?.echo === false) ev.echo = false;
     this.bus.emit('cmd.sent', ev);
+  }
+
+  /**
+   * Writes one command the player is not to see: no `cmd.sent` (nothing
+   * echoes, records or tracks it) and no system message. Only in the game
+   * on a real connection and outside password mode; false when not sent.
+   */
+  sendHidden(text: string): boolean {
+    if (this.st !== 'playing' || this.replayConn || this.passwordMode) return false;
+    return this.writeRaw(this.telnet.encodeText(text + '\r\n'));
   }
 
   /** Sends a GMCP message (dropped when GMCP is not enabled). */
