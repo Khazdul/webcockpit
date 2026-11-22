@@ -210,6 +210,11 @@ describe('InfoPoll: the gate', () => {
     ['no XML prompt', `o&gt;${GA}`],
     ['the pager', `<prompt>*** Return: continue, b: back, r: redisplay, q: quit, &gt;: bottom (39%) *** </prompt>${GA}`],
     ['the pager untagged', `*** Return: continue, b: back, r: redisplay, q: quit, &gt;: bottom (39%) *** ${GA}`],
+    // Seen live 2026-11-22 (`write test`): the editor reads whatever is sent.
+    ['the line editor', `Write your message for the Mages' board\r\nType %e on an empty line to save and exit, %q to abandon and %h for help.\r\n==&gt;\r\n<prompt>: </prompt>${GA}`],
+    ['the line editor, marked from its ==>', `Write your message for the Mages' board\r\nType %e on an empty line to save and exit, %q to abandon and %h for help.\r\n<prompt>==&gt;\r\n: </prompt>${GA}`],
+    ['the line editor, cut after its ==>', `Write your message for the Mages' board\r\nType %e on an empty line to save and exit, %q to abandon and %h for help.\r\n<prompt>==&gt;\r\n`],
+    ['a question', `<prompt>Are you sure? [y/n] </prompt>${GA}`],
     ['a prompt with text after it', `${XML_PROMPT}Text.\r\n`],
   ];
   for (const [name, text] of closed) {

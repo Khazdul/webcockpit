@@ -34,6 +34,8 @@ export const MAX_KNOWN = 8;
 /** Every sentinel has it, in capitals as part A sent it. */
 const MARK = 'WC';
 const PAGER = /\*\*\* Return: continue\b/;
+/** The line editor's place marker, the line over its `:` prompt. */
+const EDITOR_MARK = '==>';
 
 export const startSentinel = (nonce: string): string => `${MARK}${nonce}[`;
 export const endSentinel = (nonce: string): string => `]${MARK}${nonce}`;
@@ -43,13 +45,24 @@ export function infoCommand(nonce: string): string {
   return `info ${startSentinel(nonce)}${INFO_FIELDS.map((f) => f.code).join(INFO_SEPARATOR)}${endSentinel(nonce)}`;
 }
 
-/** An XML game prompt with no other text on its line, and not MUME's pager. */
-export function isGamePrompt(l: Line): boolean {
+/** An XML prompt with no other text on its line: also one still being received. */
+function isPromptTagged(l: Line): boolean {
   for (const t of l.tags) {
     if (t.tag !== 'prompt') continue;
-    return t.start === 0 && (t.end < 0 || l.text.slice(t.end).trim() === '') && !PAGER.test(l.text);
+    return t.start === 0 && (t.end < 0 || l.text.slice(t.end).trim() === '');
   }
   return false;
+}
+
+/**
+ * An XML game prompt with no other text on its line. The tag is not enough:
+ * the line editor's `: ` has it too. MUME's game prompts end with `>`
+ * (`change prompt` only switches fields), so nothing else is one.
+ */
+export function isGamePrompt(l: Line): boolean {
+  if (!isPromptTagged(l)) return false;
+  const text = l.text.trim();
+  return text.endsWith('>') && text !== EDITOR_MARK && !PAGER.test(text);
 }
 
 export interface InfoFilterOptions {
@@ -162,7 +175,7 @@ export class InfoFilter {
     if (l.text !== '') {
       const poll = this.startOf(l.text);
       if (poll) this.begin(poll.nonce, l.ts);
-      if (poll || this.maybeStart(l.text) || (this.after && !this.pulseShown && isGamePrompt(l))) {
+      if (poll || this.maybeStart(l.text) || (this.after && !this.pulseShown && isPromptTagged(l))) {
         this.keptPartial = l;
         return;
       }

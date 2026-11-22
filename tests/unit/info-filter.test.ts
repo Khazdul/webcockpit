@@ -376,6 +376,15 @@ describe('InfoFilter: hiding that fails puts everything back', () => {
   });
 });
 
+describe('InfoFilter: a tagged prompt that is no game prompt', () => {
+  it("the editor's, after an answer: shown once it is whole", () => {
+    const t = setup();
+    t.frame(answerText(N), `<prompt>: </prompt>${GA}`);
+    expect(t.texts()).toEqual([': ']);
+    expect(t.found).toHaveLength(1);
+  });
+});
+
 describe('isGamePrompt', () => {
   const ln = (text: string, start = 0, end = text.length): Line => ({ text, runs: [], tags: [{ tag: 'prompt', start, end }], prompt: true, raw: text, ts: 0 });
   it('an XML prompt alone on its line, not the pager', () => {
@@ -384,6 +393,9 @@ describe('isGamePrompt', () => {
     expect(isGamePrompt({ ...ln('o>'), tags: [] })).toBe(false);
     expect(isGamePrompt(ln('Text o>', 5))).toBe(false);
     expect(isGamePrompt(ln('o>Text', 0, 2))).toBe(false);
+    // Only what ends as MUME's prompts do (`change prompt` has fields, no free text).
+    for (const p of ['![>', '*[>', '*%~- CSW A1 M2 P8 S3 HP:Fine Mana:Burning Move:Tired>', '>']) expect(isGamePrompt(ln(p)), p).toBe(true);
+    for (const p of [': ', ':', '==>', 'Account password: ', 'Are you sure? [y/n] ', '']) expect(isGamePrompt(ln(p)), p).toBe(false);
     expect(isGamePrompt(ln('*** Return: continue, b: back, r: redisplay, q: quit, >: bottom (39%) *** '))).toBe(false);
   });
 });

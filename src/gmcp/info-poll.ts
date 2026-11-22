@@ -12,8 +12,8 @@
 // not fighting, after the character's Char.Vitals, two failures stop it
 // for the connection, and only when the gate is open:
 //
-// - the last thing MUME printed is an XML game prompt, with nothing after
-//   it and not the pager;
+// - the last thing MUME printed is an XML game prompt ending in `>`, with
+//   nothing after it (not the pager, the line editor or a question);
 // - no command was sent since that prompt. A command sent while a frame is
 //   read (an action) is later than all of that frame: MUME printed the
 //   frame before it could see the command;
