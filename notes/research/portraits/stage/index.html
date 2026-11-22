@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portrait Stage</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #0b0d10; color: #c9c6b8; font: 13px/1.35 system-ui, sans-serif; }
+  body { padding: 12px 16px 40px; }
+  h1 { font-size: 15px; margin: 0 0 4px; color: #e2b34a; letter-spacing: .04em; }
+  .note { margin: 0 0 10px; color: #8b8a80; max-width: 90ch; }
+  .note a { color: #c9a35a; }
+  table.sheet { border-collapse: collapse; }
+  .sheet th { font-weight: 600; font-size: 11px; color: #8b8a80; padding: 2px 8px; text-align: center; white-space: nowrap; }
+  .sheet td { padding: 8px 10px; vertical-align: middle; text-align: center; }
+  .sheet tr.id td.lab { text-align: left; font: 600 12px/1.2 ui-monospace, monospace; color: #e8dcc0; white-space: nowrap; }
+  .sheet tr.id td.lab small { display: block; font-weight: 400; color: #8b8a80; }
+  .sheet td.cell { position: relative; }
+  .sheet td.dark { background: #15171b; }
+  .sheet td.paper { background: #e9dfc8; }
+  .sheet td.sep { width: 14px; padding: 0; }
+  .sheet tr + tr td { border-top: 1px solid #22262c; }
+  /* the pane's tokens without the pane's frame */
+  .wc-pane.stagepane { position: relative; display: inline-block; contain: none; overflow: visible; border: 0; background: none; box-shadow: none; padding: 0; margin: 0; width: auto; height: auto; }
+  .stagepane .wc-cc { position: relative; inset: auto; contain: none; overflow: visible; display: inline-block; }
+  .stagepane .wc-cc-medal { position: relative; display: block; }
+  .raw { display: block; width: 260px; height: 260px; background: #2a2620; border-radius: 4px; }
+  .raw.paper { background: #e9dfc8; }
+  .flag { position: absolute; top: 2px; left: 2px; font: 600 9px/1 ui-monospace, monospace; color: #ff8a7a; }
+  .err { color: #ff8a7a; font: 12px ui-monospace, monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Portrait stage</h1>
+<p class="note">Every portrait in the card's real round frame (<code>.wc-cc-disc</code>, its inner shadow and the level ring), baked once
+as the app does. Columns per sex: XL (180 px, a large font), Large (100 px) dark and Paper, Medium (40 px) dark and Paper, and the raw
+square. Query: <code>?g=dwarves</code> (men, elves, dwarves, hobbits, orcs, trolls, dark, or all), <code>?ids=dwarf,longbeard</code>,
+<code>?sex=male</code>, <code>?raw=0</code>.</p>
+<div id="out"></div>
+<script type="module" src="./stage.ts"></script>
+</body>
+</html>

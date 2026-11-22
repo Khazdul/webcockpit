@@ -38,6 +38,9 @@ import type { Mood, SignContent } from './feed';
 import { signFonts } from './fonts';
 import type { Phase } from './flight';
 import type { BalloonSkin, SkinPose } from './skin';
+import { INK, SOFT, type FiltOpts, dark, filt, hatch, ink2, light, mix, n, n2 } from '../../art/engrave';
+
+export { INK, SOFT, type FiltOpts };
 
 export type Pt2 = [number, number];
 /** The phase as the rig knows it (the mockup's): glide and drift are `leave`. */
@@ -49,51 +52,17 @@ export type SkyMode = 'night' | 'dusk' | 'day' | 'overcast';
 export type Part = Element & ElementCSSInlineStyle;
 
 const NS = 'http://www.w3.org/2000/svg', D = Math.PI / 180;
-export const INK = '#23170f';
 export const K = Object.freeze({ W: 204, CX: 102, TOP: 8, HG: 112, MRX: 24, MRY: 5.5, ER: 80, FY: 136, RY: 248, RIM: 52, R1: 51, R2: 45, BY: 277, BD: 326, SY: 300, SS: 0.85, CY: 7, MAXH: 363 });
 const { W, CX, HG, MRX, MRY, FY, RY, BY, SY, SS } = K;
-const n = (v: number): number => +v.toFixed(1), n2 = (v: number): number => +v.toFixed(2);
 const pp = (p: readonly number[]): string => `${n(p[0]!)},${n(p[1]!)}`;
 let uid = 0, serial = 0;
 
-// ---- the engraving kit ----
-/**
- * The engraving filter's settings. Beyond the pen wobble (`freq`, `scale`)
- * and the paper grain (`grain`): the blotchy ink tone (its colour `ink`,
- * its strength `blot` and offset `bias`) and the grain's alpha (`ga`,
- * `gb`). Stage 75: the softer copies three passengers drew for themselves
- * (elf, human, hobbit) are these options; `SOFT` is the elf's set.
- */
-export interface FiltOpts {
-  freq?: number;
-  scale?: number;
-  grain?: number;
-  ink?: readonly [number, number, number];
-  blot?: number;
-  bias?: number;
-  ga?: number;
-  gb?: number;
-}
-/** A number as the mockup writes it in the filter's matrices (".16", "-.7"). */
-const fm = (v: number): string => String(v).replace(/^(-?)0\./, '$1.');
-// The pen wobble (a displacement), a blotchy ink tone and paper grain, kept inside the drawing.
-const filt = (id: string, o: FiltOpts = {}): string => {
-  const [r, g, b] = o.ink ?? [.16, .09, .04];
-  return `<filter id="${id}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="${o.freq ?? .06}" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${o.scale ?? 1.5}" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 ${fm(r)} 0 0 0 0 ${fm(g)} 0 0 0 0 ${fm(b)} ${fm(o.blot ?? 1.5)} 0 0 0 ${fm(o.bias ?? -.7)}" result="b"/><feTurbulence type="fractalNoise" baseFrequency="${o.grain ?? .8}" numOctaves="2" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 .14 0 0 0 0 .08 0 0 0 0 .04 0 ${fm(o.ga ?? 1.2)} 0 0 ${fm(o.gb ?? -.56)}" result="g"/><feMerge result="m"><feMergeNode in="b"/><feMergeNode in="g"/></feMerge><feComposite in="m" in2="d" operator="in" result="mc"/><feMerge><feMergeNode in="d"/><feMergeNode in="mc"/></feMerge></filter>`;
-};
-/** The softer ink (lighter blots, a fainter grain): the elf's, and a start for any other soft drawing. */
-export const SOFT: FiltOpts = Object.freeze({ blot: .8, bias: -.46, ga: 1, gb: -.5 });
-const hatch = (id: string, rot: number, gap: number, op: number, sw = .55): string => `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${gap}" height="${gap}" patternTransform="rotate(${rot})"><path d="M0,.5H${gap}" stroke="${INK}" stroke-width="${sw}" opacity="${op}"/></pattern>`;
 const defs = (u: number, extra = ''): string => `<svg class="rig-defs" xmlns="${NS}" width="0" height="0" aria-hidden="true"><defs>${filt('rgf' + u)}${hatch('rgp' + u, 38, 3, .6)}${hatch('rgq' + u, -52, 3.4, .5)}${extra}</defs></svg>`;
 const P = (u: number): string => `url(#rgp${u})`, Q = (u: number): string => `url(#rgq${u})`;
 const S = (cls: string, x: number, y: number, w: number, h: number, body: string): string => `<svg class="rig-s ${cls}" xmlns="${NS}" style="left:${CX + x}px;top:${y}px" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}">${body}</svg>`;
 const SL = (cls: string, x: number, y: number, w: number, h: number, body: string): string => `<svg class="rig-s ${cls}" xmlns="${NS}" style="left:${x}px;top:${y}px" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}">${body}</svg>`;
 const Z = (cls: string, x: number, y: number, inner = ''): string => `<div class="rig-z ${cls}" style="left:${CX + x}px;top:${y}px">${inner}</div>`;
 const G = (u: number, body: string, extra = ''): string => `<g filter="url(#rgf${u})" stroke="${INK}" stroke-linejoin="round" stroke-linecap="round" ${extra}>${body}</g>`;
-const ink2 = (d: string, w: number, col: string, extra = ''): string => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${n2(w + 1.5)}" ${extra}/><path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" ${extra}/>`;
-const rgb = (h: string): number[] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-const mix = (a: string, b: string, t: number): string => { const A = rgb(a), B = rgb(b); return '#' + A.map((v, i) => Math.round(v + (B[i]! - v) * t).toString(16).padStart(2, '0')).join(''); };
-const dark = (h: string, t = .3): string => mix(h, '#1a110b', t), light = (h: string, t = .3): string => mix(h, '#f6ecd4', t);
 export interface Clock {
   later(fn: () => void, ms: number): void;
   stop(): void;
