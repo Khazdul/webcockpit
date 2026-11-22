@@ -278,6 +278,14 @@ the title only 19 frames (18.87–19.95 s) differ, in the antialiasing of
 the drawn pointer at the Settings icon. Upload r4,
 not r3. The presentation films still say WebCockpit on their cards.
 
+## Cleanup (2026-11-22, the owner's OK)
+
+Deleted: rounds 1–3's films, masters and takes (`out/round1-takes/`,
+`out/round2-takes/`, round 1's takes in `public/recordings/`) and their
+copies in Downloads. The paths above to them are history. Kept: round 4's
+films and master, its take `balloons-fountain`, the contact sheets and
+logs, the music.
+
 ## Test guide
 
 Open `video/out/balloon-film-r4-youtube.mp4` (or
