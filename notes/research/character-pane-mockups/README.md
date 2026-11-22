@@ -1,0 +1,24 @@
+# Character pane mockups (stage 77)
+
+Nine rounds with the owner, 2026-11-21 … 22. **Round 9 is the approved
+source** for stage 77 (`docs/stages/77-character-pane.md`). The earlier
+rounds are kept to show the paths not taken. Each file is a standalone
+page: open it from disk, or use the published artifact.
+
+| Round | File | Published | What it settled |
+|---|---|---|---|
+| 1 | `round1.html` | <https://claude.ai/artifact/MLpjjmLNGMEFBvDFAVbgrc> | Seven directions; the owner chose B (portrait). Also the exact-or-band demo and the hidden `info` idea. |
+| 2 | `round2.html` | <https://claude.ai/artifact/5U5V1vnnW7zbQurnbRkeNV> | B as a card over Group: B1 gilded, B2 medallion, B3 quiet; the owner chose B3. Nine placeholder race portraits. |
+| 3 | `round3.html` | <https://claude.ai/artifact/1pVBBLU8UeNxTn2eyJTVne> | The icon picker (five options per icon), five vitals styles, five proposals (hide yourself in Group was taken). |
+| 4 | `round4.html` | <https://claude.ai/artifact/UAM1fgRu9sqgGQBF7S3QmX> | The fixed left column with the round portrait and the level ring at the bottom; Status fields; age in Stats; Bio renamed Lore. |
+| 5 | `round5.html` | <https://claude.ai/artifact/K2uy4hDgBLFzNWtik5xsqG> | The chosen icons; clickable fields; three height modes. |
+| 6 | `round6.html` | <https://claude.ai/artifact/34KH1opt1c1VfYMMvEnh9H> | Content fills the pane; clicks update from GMCP, not on click; name placements, combat formats and vitals styles. |
+| 7 | `round7.html` | <https://claude.ai/artifact/EccHZWZvu7729wtUkhU8eZ> | Name centred without race; shields; the weight in six steps; deltas from `info %S` vs `%G`; vitals in the bar. |
+| 8 | `round8.html` | <https://claude.ai/artifact/QknnnHEv6faeoWHkHGL9tt> | Status without boxes, shortened values; weight found in GMCP `carrying`. |
+| 9 | `round9.html` | <https://claude.ai/artifact/ASRXVDkPhvSGYPh88drf9n> | **Approved.** Status only from GMCP (Mood, Casts, Alertness, Weight); shields at the top of Stats. |
+
+The race portraits are crude SVG placeholders (`<symbol id="r-…">` in each
+file, with transparent backgrounds from round 3 on). The chosen icon paths
+are the `I = {…}` table in `round9.html`.
+
+Compact mode (round 5–6) is parked. It does not look right yet.
