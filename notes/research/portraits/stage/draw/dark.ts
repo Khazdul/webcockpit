@@ -11,9 +11,11 @@
 //               brows. The man: a thin moustache and a narrow pointed beard.
 //               The woman: no beard, long black hair falling in front of the
 //               collar, dark red lips, a teardrop gem hanging from the circlet.
-//   neutral     no race known (before login, an unknown race): a broad,
-//               rounded cowl of undyed grey-brown wool, its opening pure
-//               shadow, no face, no eyes, no metal or gem. One drawing for
+//   neutral     no race known (before login, an unknown race): a cowl of
+//               undyed grey-brown wool falling to a soft peak a little off
+//               centre, folds to the shoulders, the rim folded over on the
+//               left, the opening pure shadow (deepest high up), no face, no
+//               eyes, no metal or gem; a plain wooden clasp. One drawing for
 //               both sexes. Warm mid-tone wool so it reads on the dark disc and
 //               on Paper, and never as the Númenórean (black, pointed, silver
 //               and red).
@@ -182,34 +184,41 @@ const numenorean: Draw = (o) => {
 
 const uDefs = (c: Ctx): string =>
   baseDefs(c) + lg(c, 'w', WOOL, .15) +
-  `<radialGradient id="${c.id('d')}" cx=".5" cy=".7" r=".75"><stop offset="0" stop-color="#1e1a17"/><stop offset=".7" stop-color="#0d0b0a"/><stop offset="1" stop-color="#050404"/></radialGradient>`;
+  // the shadow inside: deepest high in the opening, falling off softly toward the bottom
+  `<radialGradient id="${c.id('d')}" cx=".46" cy=".28" r=".8" fx=".44" fy=".22"><stop offset="0" stop-color="#060505"/><stop offset=".55" stop-color="#110e0c"/><stop offset="1" stop-color="#2c2622"/></radialGradient>`;
 
 const neutral: Draw = (o) => {
   const c = ctx(o), W = c.url('w'), hi = light(WOOL[2], .45);
-  // the cloak over the shoulders
-  const body = 'M-124,150L-122,104C-116,82 -98,70 -70,64L-40,58L40,58L70,64C98,70 116,82 122,104L124,150Z';
-  const cloak = `<path d="${body}" fill="${W}" stroke-width="1.2"/><path d="M-124,150L-122,104C-116,82 -98,70 -70,64L-50,60C-74,78 -82,110 -80,150Z" fill="${c.url('p')}" stroke="none"/><path d="M-124,150L-122,104C-116,86 -104,76 -90,70C-102,90 -106,116 -104,150Z" fill="${c.url('q')}" stroke="none"/>` +
-    `<path d="M-6,92L-4,150M4,96L8,150" fill="none" stroke-width=".9" opacity=".7"/>` +
-    c.fine('<path d="M-96,86C-92,106 -92,128 -94,150M-64,80C-62,104 -62,128 -64,150M66,80C64,104 64,128 66,150M96,86C92,106 92,128 94,150" fill="none" stroke-width=".6" opacity=".55"/>') +
-    `<path d="M78,70C100,78 114,90 118,110" fill="none" stroke="${hi}" stroke-width="1.4" opacity=".5"/>`;
-  // the cowl: a broad rounded hood, a soft peak
-  const H = 'M-80,76C-90,20 -82,-48 -46,-72C-28,-84 -10,-90 0,-92C10,-90 28,-84 46,-72C82,-48 90,20 80,76Z';
-  const hood = mass(H, W, 1.3, 'M-80,76C-90,20 -82,-48 -46,-72C-34,-80 -18,-87 -4,-90C-40,-70 -60,-30 -58,76Z', c, 'M-80,76C-90,20 -82,-48 -52,-68C-68,-38 -74,14 -68,76Z') +
-    `<path d="M30,-80C60,-62 78,-30 82,8" fill="none" stroke="${hi}" stroke-width="1.5" opacity=".55"/>` +
-    c.fine('<path d="M-68,-30C-74,0 -74,34 -72,66M-40,-74C-50,-60 -58,-44 -62,-26M70,-26C76,4 76,36 74,66M8,-88C18,-84 28,-80 36,-76M-58,-16C-62,10 -62,36 -58,58M60,-12C64,12 64,36 60,58" fill="none" stroke-width=".6" opacity=".55"/>');
-  // the opening: shadow, no face; the hood's lit inner side on the right gives it depth
-  const O = 'M-42,56C-52,10 -40,-40 0,-52C40,-40 52,10 42,56C26,64 -26,64 -42,56Z';
-  const hole = `<path d="${O}" fill="url(#${c.id('d')})" stroke-width="1.2"/>` +
-    `<path d="M22,-44C40,-28 50,10 42,56Q37,58 31,59C38,14 36,-18 18,-42Z" fill="${WOOL[0]}" opacity=".55" stroke="none"/>` +
-    `<path d="M-42,56C-52,10 -40,-40 0,-52C-28,-38 -36,0 -30,60Z" fill="#000" opacity=".3" stroke="none"/>`;
-  // the cowl's drape across the chest, closing the opening at the bottom, then the rim
-  const drape = 'M-72,48C-44,62 -22,66 0,66C22,66 44,62 72,48C78,56 80,64 78,72C50,92 24,102 0,102C-24,102 -50,92 -78,72C-80,64 -78,56 -72,48Z';
-  const R = 'M-42,56C-52,10 -40,-40 0,-52C40,-40 52,10 42,56L50,54C60,8 48,-50 0,-57C-48,-50 -60,8 -50,54Z';
-  const edge = mass(drape, W, 1.1, 'M-72,48C-50,58 -34,63 -20,65L-22,101C-40,98 -60,88 -78,72C-80,64 -78,56 -72,48Z', c) +
-    `<path d="M-52,70C-30,82 30,82 52,70M-30,86C-12,92 12,92 30,86" fill="none" stroke-width=".8" opacity=".5"/><path d="M14,64C36,62 52,56 64,52" fill="none" stroke="${hi}" stroke-width="1.2" opacity=".5"/>` +
-    mass(R, W, 1, 'M-42,56C-52,10 -40,-40 0,-52L0,-57C-48,-50 -60,8 -50,54Z', c) +
-    `<path d="M8,-55C40,-46 56,-6 48,48" fill="none" stroke="${hi}" stroke-width="1.3" opacity=".6"/>`;
-  return svg(c, uDefs(c), pen(c, cloak, true) + pen(c, hood, true) + pen(c, hole, true) + pen(c, edge, true));
+  // the cloak over sloping shoulders, two deep folds, the front edges meeting at a plain clasp
+  const body = 'M-126,150L-124,116C-120,98 -104,86 -84,80L-40,72L40,72L84,80C104,86 120,98 124,116L126,150Z';
+  const cloak = `<path d="${body}" fill="${W}" stroke-width="1.2"/><path d="M-126,150L-124,116C-120,98 -104,86 -84,80L-64,76C-86,96 -92,120 -90,150Z" fill="${c.url('p')}" stroke="none"/><path d="M-126,150L-124,116C-120,100 -110,92 -98,86C-108,104 -110,126 -108,150Z" fill="${c.url('q')}" stroke="none"/>` +
+    `<path d="M-66,84C-62,106 -64,130 -72,150L-54,150C-52,126 -56,104 -66,84Z" fill="${c.url('p')}" stroke="none"/><path d="M-66,84C-62,106 -64,130 -72,150" fill="none" stroke-width=".9"/>` +
+    `<path d="M70,86C66,108 68,130 76,150L64,150C62,128 62,106 70,86Z" fill="${WOOL[0]}" opacity=".35" stroke="none"/><path d="M70,86C66,108 68,130 76,150" fill="none" stroke-width=".9"/>` +
+    `<path d="M2,86C-2,108 -6,130 -10,150M8,86C10,108 14,130 18,150" fill="none" stroke-width=".9" opacity=".75"/>` +
+    `<path d="M86,84C104,90 116,102 120,118" fill="none" stroke="${hi}" stroke-width="1.4" opacity=".5"/>`;
+  // the hood: falls to a soft peak a little right of centre, as if the head had turned
+  const H = 'M-84,82C-94,26 -86,-40 -54,-68C-32,-86 -6,-93 12,-96C24,-90 42,-80 56,-64C86,-36 94,28 86,82C46,94 -40,96 -84,82Z';
+  const hood = mass(H, W, 1.3, 'M-84,82C-94,26 -86,-40 -54,-68C-36,-82 -16,-90 4,-94C-34,-74 -60,-30 -62,88Z', c, 'M-84,82C-94,26 -86,-40 -58,-64C-72,-34 -78,20 -72,86Z') +
+    // folds radiating from the peak to the shoulders
+    `<path d="M6,-90C-26,-70 -52,-30 -66,30C-68,10 -62,-24 -40,-58Z" fill="${c.url('p')}" stroke="none"/>` +
+    `<path d="M16,-90C40,-70 60,-34 70,24C74,-6 64,-44 38,-74Z" fill="${WOOL[0]}" opacity=".28" stroke="none"/>` +
+    `<path d="M6,-90C-26,-70 -52,-30 -66,30M16,-90C40,-70 60,-34 70,24M-4,-84C-36,-62 -70,-14 -76,56" fill="none" stroke-width=".8" opacity=".7"/>` +
+    `<path d="M22,-88C50,-70 72,-38 80,4" fill="none" stroke="${hi}" stroke-width="1.5" opacity=".55"/><path d="M60,-30C68,-6 72,22 72,52" fill="none" stroke="${hi}" stroke-width="1.1" opacity=".45"/>` +
+    c.fine('<path d="M-30,-74C-50,-56 -64,-30 -70,0M30,-78C48,-62 60,-42 66,-20M-58,40C-60,58 -58,72 -54,84M58,36C62,56 62,70 60,84" fill="none" stroke-width=".55" opacity=".5"/>');
+  // the opening: an irregular oval, turned a little to the right; shadow only (a chin line read as a smile)
+  const O = 'M-34,52C-48,22 -44,-28 -10,-48C12,-58 36,-44 46,-18C54,8 48,40 32,56C12,66 -18,64 -34,52Z';
+  const hole = `<path d="${O}" fill="url(#${c.id('d')})" stroke-width="1.1"/>` +
+    `<path d="M24,-44C40,-30 50,-4 46,26C44,40 40,50 32,56C40,36 42,6 34,-20C30,-32 26,-38 20,-44Z" fill="${WOOL[0]}" opacity=".45" stroke="none"/>`;
+  // the rim: on the left it folds over itself in a soft lip, on the right a thin lit edge
+  const flap = 'M-34,52C-48,22 -44,-28 -10,-48C-2,-52 6,-54 12,-54C-16,-50 -40,-30 -46,0C-50,24 -46,44 -36,62C-30,66 -24,66 -20,62Z';
+  const rim = mass(flap, W, 1.1, flap, c) +
+    `<path d="M-40,58C-50,40 -52,14 -46,-8C-40,-30 -22,-48 4,-54" fill="none" stroke="${hi}" stroke-width="1.2" opacity=".55"/>` +
+    `<path d="M-30,50C-42,26 -40,-16 -14,-40" fill="none" stroke-width=".7" opacity=".6"/>` +
+    `<path d="M12,-56C34,-52 50,-30 54,-4C58,22 52,46 36,62" fill="none" stroke="${hi}" stroke-width="1.4" opacity=".6"/>` +
+    `<path d="M12,-56C34,-52 50,-30 54,-4C58,22 52,46 36,62" fill="none" stroke-width=".8" opacity=".5" transform="translate(-3,1)"/>`;
+  // a plain wooden clasp where the cloak closes under the hood
+  const clasp = `<ellipse cx="5" cy="86" rx="6" ry="4.6" fill="#6b5a46" stroke-width="1"/><path d="M2,84Q5,82.5 8,84" fill="none" stroke="#a89478" stroke-width=".9" opacity=".7"/>`;
+  return svg(c, uDefs(c), pen(c, cloak, true) + pen(c, hood, true) + pen(c, hole, true) + pen(c, rim + clasp, true));
 };
 
 export const portraits: PortraitSet = { numenorean, neutral };
