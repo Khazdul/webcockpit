@@ -8,8 +8,9 @@ Inv §2.2. The data rules for XP/TP, the session anchors and the toggles
 stay.
 
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
-races parked, the open points decided, ADR 0166). Next: part B, on the
-owner's go. Each part stops for the owner's
+races parked, the open points decided, ADR 0166). **Part B built on
+`stage-77b`**, not merged: e2e and the owner's look remain. Part C waits
+for the owner's go and the wimpy decision (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -174,7 +175,7 @@ the page.
 | Mood, alertness, position, toggles | `Char.Vitals` |
 | Casts | `Char.Vitals` `spell-effort` (seen: `"normal"`, `"thorough"`) |
 | Weight step | `Char.Vitals` `carrying` (six words, part A) |
-| Wimpy | `Char.Vitals` and the text lines (as today) |
+| Wimpy | **not in GMCP** (found in part B). Today only the lines `Wimpy set to: N` and `Wimpy removed.`, so unknown after a login (open point) |
 | Race, subrace | `Char.StatusVars` |
 | Everything in Stats and Lore | the hidden `info` poll |
 
@@ -225,9 +226,10 @@ comment naming `help age`. The change between brackets is linear.
 Each part ends with a stop: the owner looks and says go before the next.
 
 - [x] A. Live facts
-- [ ] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
+- [ ] B. The model, built on `stage-77b`, e2e and merge left (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
-- [ ] C. The poll (also check: wrap on a phone, a non-zero ability delta)
+- [ ] C. The poll (also check: wrap on a phone, a non-zero ability delta,
+      that MUME takes the whole command: about 160 characters)
 - [ ] D. The card
 - [ ] E. Portraits
 - [ ] F. Group
@@ -543,7 +545,49 @@ from the one confirmed case, so nothing matches a whole string:
 - **Completion needs no test:** every run log already has `StatusVars`.
   When the owner happens to play another race, its `#runlog` is enough.
 
+## Part B: what was built
+
+`CharModel.view()` has the card's values; `src/gmcp/race.ts` (race line,
+age factor), `src/gmcp/age.ts` (ages, modifiers, birthday) and
+`src/gmcp/info-answer.ts` (the field list and the reader) are new, pure
+modules. Decisions: ADR 0166's addendum (part B).
+
+- A shared run's folding keeps exact or band.
+- The balloons' passenger: a bare Bear and Half-elven no longer goblins.
+- The present pane looks the same and still skips renders for values it
+  does not draw.
+- `runs-demo.gen.ts` no longer reproduces its fixture from today's
+  sources (the default settings have moved on). It was regenerated with
+  the sources of 8176e1ad, which reproduce it byte for byte.
+
+Read from the owner's run log of part A (not committed) by the new model:
+
+| | Read as |
+|---|---|
+| Race, age factor | Tarkhnarb orc, 2.0 |
+| Weight | all six words on steps 0–5; 97 lb |
+| OB, DB, PB, ABS | 81, 13, 85, 70 |
+| Abilities | 16 16 16 11 12 16 8, every delta 0 |
+| Age | 57, 2nd age, 3rd at 64, birthday in 5 months |
+| Points, regeneration | +14 −1 +7, +1.4 +2.2 +2.4 |
+| Height, weight | 4′11″, 8 st 5 lb |
+| Purse, war fame | 380 5 49, warlord 19 |
+
+The mana regeneration is +2.2, not the plan's +2.1: the plan counted 57
+whole years, the card counts 57 years 7 months 7 days, as `help age`'s
+"linear and gradual". The unit test keeps the plan's case at exactly 57.
+
 ## Open points
+
+For the owner, before part C:
+
+- **Wimpy is not in GMCP**, so decision 12's arrow is missing after every
+  login until the wimpy is set. `info %y` gives it (269 in the live run)
+  and `stat` prints it. Suggestion: add `%y` to the poll and send the poll
+  once at login, also when no tab is open. That is an exception to "Only
+  Stats and Lore send commands", so it is the owner's to decide. Without
+  it: `%y` in the poll only, and the arrow comes when Stats or Lore is
+  first opened.
 
 Decided by the owner 2026-11-22, all five as suggested, and written into
 decisions 9, 18 and 19 and the poll's rules: the Casts cycle, the click's
