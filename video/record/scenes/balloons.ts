@@ -1,181 +1,160 @@
-// The balloon film's takes (video/manuscript-balloons.md, stage 76): one
-// desktop take per act, the whole window, no pointer.
+// The balloon film's one take (video/manuscript-balloons.md draft 2, stage
+// 76): Gittan at the fountain in Bree, frame by frame on the film's clock
+// (record/lib/frame-clock.ts: every frame a new picture, at the page's real
+// pace). Times are seconds from the take's first frame (feeds/balloons.ts).
 //
-//   balloons-title   the start page's night sky with its menu, wordmark and
-//                    almanac hidden (the title card goes over it); off
-//                    camera first, a still of the hobbit's balloon for the
-//                    card (public/recordings/balloons-sprite.png, `sprite`)
-//   balloons-gittan  act 1, by day: the troll in Gloomy Valley, the prison
-//                    guard and the mastiffs, the chest (feeds/balloons.ts
-//                    GITTAN)
-//   balloons-rasta   act 2, at dusk: the PvP kills in the caves (RASTA)
-//   balloons-parade  act 3, at night: Gittan at the Gates of Ingrove, six
-//                    passengers sent one by one from the scene (PARADE_SHOWS)
+//   act 1  the window full of the run's text; `dr water`; the pointer opens
+//          Settings → Weather effects, rests by Balloons, switches it on,
+//          closes
+//   act 2  the goblin's four, each typed as `#weather balloon as …` and sent
+//   act 3  one of each other race, the same way
 //
-// The game is the owner's runs, played in legs (record/lib/balloon-state.ts
-// `playLegs`): the take marks `piece-in` / `piece-out` where the film's
-// pieces start and end, and every kill, level and achievement line as it is
-// sent. The composition (src/compositions/Balloons.tsx) cuts from them.
+// Off the film it writes public/recordings/balloons-fountain.track.json
+// (each frame's balloons: record/motion.ts measures the render by it) and
+// checks the hard rules: the count on screen, no early fade, no joined sign,
+// no message from the command.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Page } from '@playwright/test';
-import { sleep } from '../../../scripts/lib/mume-feed.ts';
-import { BALLOON_BACKUP, type BalloonTake, GITTAN, GITTAN_PREV, PARADE, RASTA } from '../../feeds/balloons.ts';
+import type { WebSocketRoute } from '@playwright/test';
+import { type DevWindow, type Step, play, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { AMBIENT, BIRDS, DRINK, PREFEED, SHOWS, TAKE_S, commandOf } from '../../feeds/balloons.ts';
 import { FILM_BACKUP } from '../../feeds/film.ts';
-import { type Light, MOMENT, type LegPlan, balloonList, balloonPage, enterBalloons, planLegs, playLeg, setBalloons, shiftedRun, showBalloon } from '../lib/balloon-state.ts';
-import { freshStart } from '../lib/film-state.ts';
-import { loadBackup } from '../lib/run-feed.ts';
-import type { Scene, SceneState } from '../lib/scene.ts';
-import { Marks } from '../lib/timeline.ts';
+import { BALLOON_MODE, BALLOON_PAGE, PAGE_PX, type Seen, balloonList, balloonsSeen, enterFountain, queueFlightSeed, seedsLeft } from '../lib/balloon-state.ts';
+import { Pointer, seeded } from '../lib/mouse.ts';
+import { excerptFeed, loadBackup } from '../lib/run-feed.ts';
+import type { Scene } from '../lib/scene.ts';
 
-const SPRITE = fileURLToPath(new URL('../../public/recordings/balloons-sprite.png', import.meta.url));
+const TRACK = fileURLToPath(new URL('../../public/recordings/balloons-fountain.track.json', import.meta.url));
+const SEED = 20261122;
+/** balloons.ts MAX_BALLOONS: a launch with this many up would fade the oldest out early. */
+const MAX_BALLOONS = 5;
+/** The owner's limit on screen. */
+const MAX_SEEN = 3;
 
-/** The parade (owner, 2026-11-21: one at a time, about 3 s apart, varied races and moods). */
-export const PARADE_SHOWS: { passenger: string; notice: Record<string, unknown> }[] = [
-  { passenger: 'dwarf', notice: { name: 'A mountain troll', xp: 20648, face: 'superb' } },
-  { passenger: 'elf', notice: { kind: 'achievement', text: 'You found the hidden path to Rivendell!' } },
-  { passenger: 'troll', notice: { name: 'A field mouse', xp: 140, face: 'poor' } },
-  { passenger: 'human', notice: { kind: 'levelup', level: 37 } },
-  { passenger: 'orc', notice: { name: '*Brandir the Dúnadan Man*', xp: 46200, face: 'pvp' } },
-  { passenger: 'numenorean', notice: { kind: 'death', level: 52 } },
-];
-/**
- * The parade's pace, s: the first balloon after the take's `film0`, then
- * one every `gap`, except that a kill waits until the last kill's balloon
- * has left its readable spot (balloons.ts: a kill that comes while a kill
- * balloon is arriving or readable joins its sign, whoever flies it; three
- * of the six are kills, so they come about 10 s apart). `tail`: the take
- * runs on this long after the last one.
- */
-export const PARADE_AT = { first: 0.4, gap: 2.6, tail: 14 } as const;
+/** Settings, unhurried: about 2 s of rest before the click and after it. */
+const UI = { appear: 4.6, settings: 6.2, tab: 8.0, onRow: 9.0, on: 11.2, close: 13.2 } as const;
+/** A typed line stands this long before its Enter. */
+const READ_BEFORE_ENTER_S = 0.55;
 
-/** The title's balloon: the hobbit's, with an achievement of its own. */
-const SPRITE_SHOW = { passenger: 'hobbit', notice: { kind: 'achievement', text: 'You unlocked hot-air balloons!' } };
+export const balloonsFountain: Scene = {
+  mode: BALLOON_MODE,
+  page: BALLOON_PAGE,
+  stepped: { workers: 2, x: PAGE_PX.x },
 
-const faces = async (page: Page, what: string): Promise<void> => {
-  const l = await balloonList(page);
-  console.log(`  ${what}: ${l.map((b) => `${b.passenger} ${b.kind} ${b.face} ×${b.count} (${b.phase})`).join('; ') || 'no balloons'}`);
-};
-
-/** Sets up a run take: enters the game in `light`, plays the first (fast) leg off camera. */
-async function runSetup(page: Page, take: BalloonTake, backup: string, light: Light, prev?: string): Promise<SceneState> {
-  const runs = loadBackup(backup);
-  const plan = planLegs(runs, take);
-  // the earlier run's last event two minutes before now: the live run chains to it (src/runs/stitch.ts: within the hour)
-  const { server } = await enterBalloons(page, light, prev ? () => shiftedRun(backup, prev, (Date.now() - 120_000) * 1000) : undefined);
-  const first = plan[0]!;
-  if (first.leg.kind !== 'fast') throw new Error('a take starts with a fast leg');
-  await playLeg(page, server, first, new Marks(1));
-  // Balloons on now that the run is in the store: the rating's history is read when they start
-  // (and on a run's start, which is before the recorder has written the run: see the stage file, round 1)
-  await sleep(2600);
-  await setBalloons(page, false);
-  await setBalloons(page, true);
-  await sleep(1200);
-  return { server, plan };
-}
-
-async function runTake(page: Page, marks: Marks, st: SceneState, take: BalloonTake): Promise<void> {
-  const plan = st.plan as LegPlan[];
-  const server = st.server as Parameters<typeof playLeg>[1];
-  marks.mark('active', 'the take');
-  marks.mark('film0', 'the take starts');
-  await sleep(400);
-  for (const lp of plan.slice(1)) {
-    if (lp.leg.noBalloons) await setBalloons(page, false);
-    await playLeg(page, server, lp, marks, take.pieces);
-    if (lp.leg.noBalloons) {
-      await setBalloons(page, true);
-      await sleep(600);
-    }
-    if (lp.leg.kind === 'real') await faces(page, lp.leg.name ?? 'leg');
-  }
-  await sleep(1500);
-  await faces(page, 'at the end');
-  marks.mark('active-end', 'the take');
-}
-
-export const balloonsGittan: Scene = {
-  mode: 'intel-1.2-png',
-  page: balloonPage('day'),
-  setup: (page) => runSetup(page, GITTAN, FILM_BACKUP, 'day', GITTAN_PREV),
-  run: ({ page, marks }, st) => runTake(page, marks, st, GITTAN),
-};
-
-export const balloonsRasta: Scene = {
-  mode: 'intel-1.2-png',
-  page: balloonPage('dusk'),
-  setup: (page) => runSetup(page, RASTA, BALLOON_BACKUP, 'dusk'),
-  run: ({ page, marks }, st) => runTake(page, marks, st, RASTA),
-};
-
-export const balloonsParade: Scene = {
-  mode: 'intel-1.2-png',
-  page: balloonPage('night'),
-  setup: (page) => runSetup(page, PARADE, FILM_BACKUP, 'night'),
-  async run({ page, marks }, st) {
-    const plan = st.plan as LegPlan[];
-    const server = st.server as Parameters<typeof playLeg>[1];
-    marks.mark('active', 'the take');
-    const film0 = Date.now();
-    marks.markAt(film0, 'film0', 'the parade starts');
-    const game = (async () => {
-      for (const lp of plan.slice(1)) await playLeg(page, server, lp, marks);
-    })();
-    const parade = (async () => {
-      let next = film0 + PARADE_AT.first * 1000;
-      for (const s of PARADE_SHOWS) {
-        const w = next - Date.now();
-        if (w > 0) await sleep(w);
-        if (!('kind' in s.notice)) {
-          // a kill: not while the last kill's balloon can still take it on its sign
-          while ((await balloonList(page)).some((b) => b.kind === 'kill' && (b.phase === 'arrive' || b.phase === 'read'))) await sleep(40);
-        }
-        await showBalloon(page, s.notice, s.passenger);
-        marks.mark('parade', `${s.passenger} ${String(s.notice.face ?? s.notice.kind)}`);
-        next = Date.now() + PARADE_AT.gap * 1000;
-      }
-    })();
-    await Promise.all([game, parade]);
-    await faces(page, 'the parade');
-    await sleep(PARADE_AT.tail * 1000);
-    await faces(page, 'at the end');
-    marks.mark('active-end', 'the take');
-  },
-};
-
-export const balloonsTitle: Scene = {
-  mode: 'intel-1.2-png',
-  page: balloonPage('night'),
   async setup(page) {
-    // The card's balloon: a still of the rig (reduced motion holds it at its readable spot), with
-    // everything else hidden and the page's background left out (a PNG with alpha).
-    await enterBalloons(page, 'night');
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await showBalloon(page, SPRITE_SHOW.notice, SPRITE_SHOW.passenger);
-    await sleep(2500);
-    const style = await page.addStyleTag({
-      content: 'html, body { background: transparent !important; } body * { visibility: hidden !important; } .wc-balloons, .wc-balloons * { visibility: visible !important; }',
-    });
-    const el = page.locator('.wc-balloons-front > *, .wc-balloons-sky > *').first();
-    const box = await el.boundingBox();
-    if (!box) throw new Error('no balloon to capture');
-    const pad = 24;
-    const png = await page.screenshot({ omitBackground: true, clip: { x: box.x - pad, y: Math.max(0, box.y - pad), width: box.width + 2 * pad, height: box.height + 2 * pad } });
-    writeFileSync(SPRITE, png);
-    console.log(`  the title's balloon: ${SPRITE} (${Math.round(box.width)} × ${Math.round(box.height)} CSS px)`);
-    await style.evaluate((s) => (s as Element).remove());
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    // the start page at night, the sky alone
-    await freshStart(page, MOMENT.night);
-    await page.addStyleTag({ content: '.wc-start-scenery, .wc-stack, .wc-lk-morph { visibility: hidden !important; }' });
-    await sleep(2500);
-    return {};
+    const runs = loadBackup(FILM_BACKUP);
+    const pre = excerptFeed(runs, PREFEED);
+    const server = await enterFountain(page);
+    for (const s of pre.prime) server.send((s as { out: Buffer }).out);
+    await play(page, server, pre.steps.map(({ at: _, ...s }) => s as Step), { typeDelay: 0 });
+    // the day's sky and the map settle
+    await sleep(8000);
+    await page.locator('.wc-input-field').focus();
+    await page.mouse.move(1150, 560);
+    const answer = excerptFeed(runs, DRINK.answer).steps.filter((s) => 'out' in s);
+    return { server, answer };
   },
-  async run({ marks }) {
-    marks.mark('active', 'the take');
-    marks.mark('film0', 'the title');
-    await sleep(7000);
-    marks.mark('active-end', 'the take');
+
+  async run({ page, marks, clock }, state) {
+    if (!clock) throw new Error('the balloon take runs on the frame clock');
+    const server = state.server as WebSocketRoute;
+    const t0 = clock.t0;
+    const T = (s: number): number => t0 + s * 1000;
+    const until = (s: number): Promise<void> => clock.until(T(s));
+    const mark = (kind: string, label: string): void => marks.markAt(clock.now(), kind, label);
+
+    const track: Seen[][] = [];
+    let mostUp = 0;
+    clock.onFrame = async () => {
+      const { all, seen } = await balloonsSeen(page);
+      mostUp = Math.max(mostUp, all);
+      track.push(seen);
+    };
+    /** Server bytes, given time to reach the page before its next frame. */
+    const send = async (out: Buffer): Promise<void> => {
+      server.send(out);
+      await sleep(60);
+    };
+    for (const a of AMBIENT)
+      clock.schedule(T(a.at), async () => {
+        mark('ambient', a.step.out.toString('utf8').replace(/\x1b\[[0-9;]*m/g, '').split('\r\n')[1]!);
+        await send(a.step.out);
+      });
+    for (const at of BIRDS)
+      clock.schedule(T(at), async () => {
+        mark('birds', 'a crossing');
+        await page.evaluate(() => (window as unknown as DevWindow).__weather!.emit('birds'));
+      });
+
+    // a hand on the keys: uneven, a breath at each space
+    const rnd = seeded(SEED);
+    const type = async (text: string, enter: number): Promise<void> => {
+      const gaps = [...text].map((ch) => (ch === ' ' ? 120 + rnd() * 70 : 62 + rnd() * 58));
+      let at = T(enter - READ_BEFORE_ENTER_S) - gaps.reduce((a, b) => a + b, 0);
+      for (const [i, ch] of [...text].entries()) {
+        await clock.until(at);
+        if (i === 0) mark('typing', text);
+        await page.keyboard.type(ch);
+        at += gaps[i]!;
+      }
+      await until(enter);
+      await page.keyboard.press('Enter');
+    };
+
+    await clock.frame(); // the first frame
+    marks.markAt(t0, 'film0', 'the take starts');
+    marks.markAt(t0, 'active', 'the take');
+
+    await type(DRINK.cmd, DRINK.at);
+    mark('cmd', DRINK.cmd);
+    await until(DRINK.at + DRINK.after);
+    for (const s of state.answer as (Step & { out: Buffer })[]) await send(s.out);
+
+    const pointer = new Pointer(page, SEED, { x: 1150, y: 560 }, clock);
+    await until(UI.appear);
+    const popup = page.locator('.wc-sp-settings');
+    marks.markAt(await pointer.clickAt(page.locator('.wc-mb[data-mb="settings"]'), T(UI.settings)), 'settings', 'Settings opens');
+    marks.markAt(await pointer.clickAt(popup.locator('.wc-ck-tab[data-tab="weather"]'), T(UI.tab)), 'tab', 'Weather effects');
+    await pointer.hoverAt(popup.locator('.wc-sp-wx-balloons .wc-ck-tg'), T(UI.onRow));
+    mark('on-row', 'the pointer rests by Balloons');
+    marks.markAt(await pointer.pressAt(T(UI.on)), 'balloons-on', 'Balloons on');
+    marks.markAt(await pointer.clickAt(popup.getByRole('button', { name: 'Close', exact: true }), T(UI.close)), 'settings-closed', 'Settings closes');
+    if (!(await page.evaluate(() => (window as unknown as { __wc: { settings: { get(): { weather: { balloons: boolean } } } } }).__wc.settings.get().weather.balloons)))
+      throw new Error('the click did not switch Balloons on');
+    await page.locator('.wc-input-field').focus();
+
+    for (const s of SHOWS) {
+      const before = await balloonList(page);
+      await queueFlightSeed(page, s.seed);
+      const cmd = commandOf(s);
+      await type(cmd, s.at);
+      const up = await balloonList(page);
+      if (before.length >= MAX_BALLOONS) throw new Error(`${cmd}: ${before.length} flights were up: the client fades one out early`);
+      // the command's own chunks load in real time (no film time passes): the balloon is launched in this frame
+      for (let i = 0; (await seedsLeft(page)) > 0; i++) {
+        if (i > 400) throw new Error(`${cmd}: no balloon was launched`);
+        await sleep(25);
+      }
+      const now = await balloonList(page);
+      const b = now.at(-1);
+      if (!b || b.count !== 1 || b.passenger !== s.passenger) throw new Error(`${cmd}: got ${JSON.stringify(now)}`);
+      mark('balloon', `${s.passenger} ${s.what}`);
+      const line = await page.locator('.wc-input-field').inputValue();
+      if (line !== cmd) console.warn(`  the input line shows "${line}", not the command`);
+      console.log(`  ${s.at.toFixed(2).padStart(6)}  ${cmd}  (${up.length} flights up at Enter, face ${b.face})`);
+    }
+
+    await until(TAKE_S);
+    marks.markAt(clock.now(), 'active-end', 'the take');
+    clock.onFrame = null;
+
+    const joined = (await balloonList(page)).filter((b) => b.count > 1);
+    if (joined.length) throw new Error('two kills joined a sign');
+    const said = await page.evaluate(() => /Balloons are off|could not start|Unknown command/.test(document.body.innerText));
+    if (said) throw new Error('the command printed a message');
+    const most = Math.max(...track.map((f) => f.length));
+    console.log(`  balloons in view at most ${most}, flights at most ${mostUp}`);
+    if (most > MAX_SEEN || mostUp >= MAX_BALLOONS) throw new Error('too crowded');
+    writeFileSync(TRACK, JSON.stringify({ fps: 60, frames: track }));
   },
 };
