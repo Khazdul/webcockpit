@@ -9,9 +9,8 @@ stay.
 
 **Status: part A done** (2026-11-22: measured live with Rasta, the other
 races parked, the open points decided, ADR 0166). **Part B done**
-(on main, the owner looked). **Part C built** (branch `stage-77c`,
-on main, live test run 2026-11-22: open are the line editor, the run log
-and the removed wimpy). The wimpy point is decided (open points). Each part stops for the owner's
+(on main, the owner looked). **Part C done** (on main, tested
+live 2026-11-22). Part D waits for the owner's go. The wimpy point is decided (open points). Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
@@ -231,8 +230,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] A. Live facts
 - [x] B. The model (also: the fixtures' invented `light`, `passengerOf`'s
       bare Bear and "Half-elven")
-- [ ] C. The poll (built, live test run; open before D: the fixed line editor again,
-      a run log with the poll on, `%y` with the wimpy removed)
+- [x] C. The poll (tested live: "Live results, part C")
 - [ ] D. The card
 - [ ] E. Portraits
 - [ ] F. Group
@@ -618,13 +616,13 @@ From the owner's scrollback and report:
 |---|---|
 | 1. Login poll | works: the first data had wimpy 204, nothing in the scrollback |
 | 2. The values | equal to a typed `info`, a negative DB too; MUME takes the 160 characters |
-| 3. Line editor | **failed** in the second try (`change editor line`): the poll was sent into the text at `: `. Fixed (ADR 0166 point 32), to test again |
+| 3. Line editor | failed in the second try (`change editor line`): the poll was sent into the text at `: `. Fixed (ADR 0166 point 32); third try: gate closed at `: `, open and sent at the game prompt after `%q` |
 | 4. Pager | not sent ("the last output is not a game prompt") |
-| 5. `change wimpy 33%` | `Wimpy set to: 68`, hit points (10%: 21). A removed wimpy: not tested |
+| 5. `change wimpy 33%` | `Wimpy set to: 68`, hit points (10%: 21; 500 gave 205, the max). `change wimpy 0` prints `Wimpy set to: 0`, and `%y` is then 0 |
 | 6. Strength | str 12, unaffected 10, delta 2, as `info`'s `Str:12(10)` |
 | 7. Phone | ok (the owner) |
 | 8. Off | "the setting is off", the wimpy unknown |
-| 9. Run log | **not proven**: the log handed over is the last session's, with the switch off |
+| 9. Run log | clean: the 18:47 log has the login poll's and one `#infopoll`'s session and no command, sentinel or field of either |
 
 - **The line editor still matters before D.** `write <title>` at a board
   printed only a prompt and the game went on. That fits `change editor
@@ -645,7 +643,9 @@ From the owner's scrollback and report:
 - DB follows the position (-31 resting, 19 standing), so Stats can be
   stale by up to the poll's interval.
 
-Not solved, for the owner: the phone has no gear, so no switch there.
+For the owner before or in D: a switch on the phone's settings page (no
+gear there), and whether the moved title is fine (ADR 0166 point 31).
+To weigh in D, when the poll repeats: ADR 0166 point 33.
 Until part D, a release from main would send the login poll and show a
 switch that names tabs which do not exist yet.
 
