@@ -55,7 +55,9 @@ her arrival at the fountain.
 
 ### 0 · Title, on black (0:00–0:13)
 
-1. *WebCockpit 0.22* fades in and stands alone for about 2 s.
+1. *MumeCockpit 0.22* fades in and stands alone for about 2 s.
+   (The owner, 2026-11-22: the name on screen is MUMECOCKPIT, one word,
+   not WEBCOCKPIT. The title face sets lower case as small capitals.)
 2. *Now with hot-air balloons.* fades in below it. Both stay to be read.
 3. At 7–8 s *(Nobody asked. We did it anyway.)* fades in below, smaller.
    The two lines above do not move. It is fully readable for 3–4 s.

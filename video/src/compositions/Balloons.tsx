@@ -63,7 +63,7 @@ function Title() {
   const out = interpolate(s, TITLE.out, [1, 0], soft);
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', opacity: out }}>
-      <div style={{ fontFamily: TITLE_FONT, fontWeight: 700, fontSize: 92, letterSpacing: '0.05em', color: PARCHMENT, opacity: interpolate(s, TITLE.nameIn, [0, 1], soft) }}>{`WebCockpit ${VERSION}`}</div>
+      <div style={{ fontFamily: TITLE_FONT, fontWeight: 700, fontSize: 92, letterSpacing: '0.05em', color: PARCHMENT, opacity: interpolate(s, TITLE.nameIn, [0, 1], soft) }}>{`MumeCockpit ${VERSION}`}</div>
       <div style={{ opacity: interpolate(s, TITLE.lineIn, [0, 1], soft) }}>
         <Rule width={460} />
         <div style={{ fontFamily: TEXT_FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 48, color: MIST }}>Now with hot-air balloons.</div>
