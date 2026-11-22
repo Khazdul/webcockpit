@@ -42,7 +42,7 @@ export interface TimelineFile {
   fps: number;
   frames: number;
   durationS: number;
-  capture: CaptureStats & { active: CaptureStats; perSecond: number[] };
+  capture: CaptureStats & { active: CaptureStats; perSecond: number[]; /** A stepped take: the machine's load while it was taken, every 15 s. */ load?: number[] };
   /** Each captured frame's time, s from the first (record/intervals.ts plots their spacing). */
   frameTimes?: number[];
   markers: Marker[];

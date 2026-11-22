@@ -39,13 +39,23 @@ const profile = (t: number): number => {
   return u * u * u * (10 - 15 * u + 6 * u * u);
 };
 
+/** The pointer's time: the wall's, or a stepped take's (frame-clock.ts), where a stroke moves once a frame. */
+export interface PointerClock {
+  now(): number;
+  sleep(ms: number): Promise<void>;
+  frame?(): Promise<void>;
+}
+const WALL: PointerClock = { now: () => Date.now(), sleep };
+
 export class Pointer {
   private readonly page: Page;
+  private readonly clock: PointerClock;
   private readonly rnd: () => number;
   private at: Pt;
 
-  constructor(page: Page, seed: number, start: Pt = { x: 5, y: 5 }) {
+  constructor(page: Page, seed: number, start: Pt = { x: 5, y: 5 }, clock: PointerClock = WALL) {
     this.page = page;
+    this.clock = clock;
     this.rnd = seeded(seed);
     this.at = { ...start };
   }
@@ -88,15 +98,16 @@ export class Pointer {
     const bow = (this.rnd() < 0.5 ? -1 : 1) * this.r(0.03, 0.11) * d;
     const along = this.r(0.35, 0.6);
     const c = { x: from.x + dx * along - (dy / d) * bow, y: from.y + dy * along + (dx / d) * bow };
-    const start = Date.now();
+    const start = this.clock.now();
     for (;;) {
-      const t = Math.min(1, (Date.now() - start) / ms);
+      const t = Math.min(1, (this.clock.now() - start) / ms);
       const u = profile(t);
       const x = (1 - u) ** 2 * from.x + 2 * (1 - u) * u * c.x + u * u * to.x;
       const y = (1 - u) ** 2 * from.y + 2 * (1 - u) * u * c.y + u * u * to.y;
       await this.page.mouse.move(x, y);
       if (t >= 1) break;
-      await sleep(this.r(13, 19));
+      if (this.clock.frame) await this.clock.frame();
+      else await this.clock.sleep(this.r(13, 19));
     }
     this.at = { ...to };
   }
@@ -124,7 +135,7 @@ export class Pointer {
   private async follow(p: { land: Pt; over: Pt | null; ms: number; fixMs: number }): Promise<void> {
     if (p.over) {
       await this.stroke(p.over, p.ms);
-      await sleep(this.r(30, 70));
+      await this.clock.sleep(this.r(30, 70));
       await this.stroke(p.land, p.fixMs);
     } else await this.stroke(p.land, p.ms);
   }
@@ -132,24 +143,24 @@ export class Pointer {
   /** Presses where the pointer is now, the press landing at `at` (epoch ms). */
   async pressAt(at: number): Promise<number> {
     await this.rest(at);
-    const down = Date.now();
+    const down = this.clock.now();
     await this.page.mouse.down();
-    await sleep(this.r(60, 115));
+    await this.clock.sleep(this.r(60, 115));
     await this.page.mouse.up();
     return down;
   }
 
   /** Rests until `until` (epoch ms), drifting a pixel or two now and then. */
   async rest(until: number): Promise<void> {
-    while (Date.now() < until - 40) {
-      const wait = Math.min(this.r(350, 900), until - Date.now() - 40);
-      if (wait > 0) await sleep(wait);
-      if (Date.now() >= until - 120) break;
+    while (this.clock.now() < until - 40) {
+      const wait = Math.min(this.r(350, 900), until - this.clock.now() - 40);
+      if (wait > 0) await this.clock.sleep(wait);
+      if (this.clock.now() >= until - 120) break;
       const to = { x: this.at.x + this.n() * 0.9, y: this.at.y + this.n() * 0.7 };
       await this.stroke(to, this.r(90, 180));
     }
-    const left = until - Date.now();
-    if (left > 0) await sleep(left);
+    const left = until - this.clock.now();
+    if (left > 0) await this.clock.sleep(left);
   }
 
   /** The target's box, once it has stopped moving (a page that grows in). */
@@ -157,7 +168,7 @@ export class Pointer {
     let prev = await el.boundingBox();
     if (polls <= 1 && prev) return prev;
     for (let i = 0; i < polls; i++) {
-      await sleep(50);
+      await this.clock.sleep(50);
       const b = await el.boundingBox();
       if (b && prev && Math.abs(b.x - prev.x) < 0.5 && Math.abs(b.y - prev.y) < 0.5 && Math.abs(b.width - prev.width) < 0.5) return b;
       prev = b;
@@ -185,11 +196,11 @@ export class Pointer {
     const lead = p.ms + (p.over ? p.fixMs + 50 : 0) + react;
     await this.rest(at - lead);
     await this.follow(p);
-    const left = at - Date.now();
-    await sleep(Math.max(60, left));
-    const down = Date.now();
+    const left = at - this.clock.now();
+    await this.clock.sleep(Math.max(60, left));
+    const down = this.clock.now();
     await this.page.mouse.down();
-    await sleep(this.r(60, 115));
+    await this.clock.sleep(this.r(60, 115));
     await this.page.mouse.up();
     return down;
   }
@@ -226,13 +237,13 @@ export class Pointer {
   async dragTo(x: number, y: number, at: number, o: { ms?: number; holdMs?: number } = {}): Promise<number> {
     await this.rest(at);
     await this.page.mouse.down();
-    await sleep(this.r(120, 200));
+    await this.clock.sleep(this.r(120, 200));
     // past the drag threshold first, as a hand takes up the slack
     const d = Math.hypot(x - this.at.x, y - this.at.y);
     await this.stroke({ x: this.at.x + ((x - this.at.x) / d) * 12, y: this.at.y + ((y - this.at.y) / d) * 12 }, 120);
     await this.stroke({ x, y }, o.ms ?? Math.max(700, this.moveMs(d, 40) * 1.8));
-    await sleep(o.holdMs ?? 500);
-    const up = Date.now();
+    await this.clock.sleep(o.holdMs ?? 500);
+    const up = this.clock.now();
     await this.page.mouse.up();
     return up;
   }
