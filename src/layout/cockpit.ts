@@ -1490,6 +1490,8 @@ export class Cockpit {
       // pane but a temporary one is hidden.
       const strip = id === this.pgStrip && g.strip.h > 0 && !g.tooSmall;
       shell.el.toggleAttribute('data-phone-strip', strip);
+      // In the left column: the resize band's grip reaches into the pane's right edge.
+      shell.el.toggleAttribute('data-phone-side', strip && g.landscape);
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
       else if (strip) shell.place({ rect: g.strip, content: phonePaneRect(g.strip, g), framed: false }, cell);
       else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall) shell.place({ rect: g.comm, content: phonePaneRect(g.comm, g), framed: false }, cell);

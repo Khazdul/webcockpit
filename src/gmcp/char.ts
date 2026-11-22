@@ -26,7 +26,7 @@
 // pane starts from `—` until GMCP arrives (Inv §2.1 "Inactive panes").
 
 import { type VitalKind, VITAL_KINDS } from './bands';
-import { type SessionBar, levelFromXp, tpBar, xpBar } from './levels';
+import { type SessionBar, levelFromXp, tpBar, xpBar, xpToNextLevel } from './levels';
 import { raceLine } from './race';
 
 export type Toggle = 'sneak' | 'ride' | 'climb' | 'swim';
@@ -67,6 +67,8 @@ export interface CharView {
   level: number | null;
   /** XP bar through the level, or null while XP is unknown. */
   xp: SessionBar | null;
+  /** XP left to the next level, or null while XP is unknown and at the top level. */
+  toNext: number | null;
   /** TP bar through the level, or null while XP or TP is unknown. */
   tp: SessionBar | null;
   toggles: Record<Toggle, boolean>;
@@ -255,6 +257,7 @@ export class CharModel {
       name: this.name ? capitalise(this.name) : null,
       level,
       xp: xp !== null ? xpBar(xp, this.anchorXp) : null,
+      toNext: xp !== null ? xpToNextLevel(xp) : null,
       tp: xp !== null && tp !== null ? tpBar(xp, tp, this.anchorTp, race) : null,
       toggles: {
         sneak: isFlag(v.get('sneak'), 's'),

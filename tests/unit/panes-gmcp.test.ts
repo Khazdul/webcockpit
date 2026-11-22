@@ -1,9 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { CharModel } from '../../src/gmcp/char';
 import { GameState } from '../../src/gmcp/state';
-import { CHARACTER_ROWS, CharacterPane, characterLines, colWidths, gaugeWidths, toothPositions } from '../../src/panes/character';
+import { CharacterPane } from '../../src/panes/character';
 import { createPaneContext } from '../../src/panes/context';
 import { CellLine, centre } from '../../src/panes/grid';
 import { GroupPane } from '../../src/panes/group';
@@ -12,9 +11,6 @@ import { PANE_FACTORIES } from '../../src/panes/factories';
 import { TimersPane } from '../../src/panes/timers';
 import { SettingsStore } from '../../src/settings';
 import { defaultSettings } from '../../src/settings/types';
-import { shadeRamp } from '../../src/theme/color';
-
-const ramp = shadeRamp(0, 0, false);
 
 describe('shade ramp', () => {
   it('is resolved from the pane colour each call, dark or light', () => {
@@ -46,77 +42,71 @@ describe('grid', () => {
   });
 });
 
-describe('Character layout', () => {
-  const full = () => {
-    const c = new CharModel();
-    c.apply('Char.Name', { name: 'khazdul' });
-    c.apply('Char.StatusVars', { race: 'Dwarf' });
-    c.apply('Char.Vitals', { xp: 5_440_000, tp: 40_000, mood: 'brave', alertness: 'normal', position: 'standing', wimpy: 50, maxhp: 200, sneak: 's', swim: false });
-    return c.view();
-  };
+describe('Character card', () => {
+  function drawn(vitals: object, o: { w?: number; h?: number; name?: boolean } = {}) {
+    const game = new GameState();
+    if (o.name !== false) {
+      game.onGmcp('Char.Name', { name: 'khazdul' });
+      game.onGmcp('Char.StatusVars', { race: 'Dwarf' });
+      game.onGmcp('Char.Vitals', vitals);
+    }
+    const frames: (() => void)[] = [];
+    const ctx = createPaneContext({ doc: document, game, requestFrame: (cb) => frames.push(cb), connState: () => 'playing' });
+    const p = new CharacterPane(ctx);
+    const w = o.w ?? 31;
+    const h = o.h ?? 9;
+    p.place({ rect: { x: 0, y: 0, w, h }, content: { x: 0, y: 0, w, h }, framed: false }, { w: 8, h: 16 });
+    while (frames.length) frames.shift()!();
+    const q = (sel: string): HTMLElement => p.content.querySelector<HTMLElement>(sel)!;
+    return { p, q };
+  }
+  const FULL = { xp: 5_440_000, tp: 40_000, mood: 'brave', alertness: 'normal', position: 'standing', wimpy: 50, maxhp: 200, sneak: 's', swim: false };
 
-  it('splits columns like the toggle grid', () => {
-    expect(colWidths(31)).toEqual([7, 7, 7, 7]);
-    expect(colWidths(30)).toEqual([7, 7, 7, 6]);
-    expect(gaugeWidths(31)).toEqual([15, 15]);
-    const [l, r] = gaugeWidths(30);
-    expect(l + 1 + r).toBe(30);
-    expect(toothPositions(6, 15)).toEqual([0, 3, 6, 8, 11, 14]);
-    expect(toothPositions(1, 5)).toEqual([0]);
+  it('draws name, level, toggles, mood, alertness, position and wimpy', () => {
+    const { p, q } = drawn(FULL);
+    expect(q('.wc-cc-name').textContent).toBe('Khazdul');
+    expect(q('.wc-cc-level').textContent).toBe('25');
+    expect(q('[data-click="sneak"]').hasAttribute('data-on')).toBe(true);
+    expect(q('[data-click="swim"]').hasAttribute('data-on')).toBe(false);
+    expect(q('[data-key="mood"] .wc-cc-word').textContent).toBe('brave');
+    // At 31 cells `normal` may be its short form.
+    expect(['normal', 'norm.']).toContain(q('[data-key="alertness"] .wc-cc-word').textContent);
+    expect(q('[data-click="position"]').getAttribute('aria-label')).toBe('Standing');
+    // The wimpy arrow at 50/200, the XP ring with nothing gained yet, the TP ring.
+    expect(q('.wc-cc-wimpy').style.getPropertyValue('--p')).toBe('25');
+    expect(q('.wc-cc-ring-base').hasAttribute('data-none')).toBe(false);
+    expect(q('.wc-cc-ring-gain').hasAttribute('data-none')).toBe(true);
+    expect(q('.wc-cc-ring-tp').hasAttribute('data-none')).toBe(false);
+    p.dispose();
   });
 
-  it('draws the nine rows at width 31', () => {
-    const lines = characterLines(full(), ramp, 31, 9);
-    expect(lines).toHaveLength(CHARACTER_ROWS);
-    const t = lines.map((l) => l.text());
-    expect(t[0]).toBe('            Khazdul         L25');
-    expect(t[1]!.trimEnd()).toBe('▀'.repeat(Math.floor(31 * ((40_000 - 38_700) / 3300))));
-    expect(t[2]).toBe(' SNEAK   RIDE    CLIMB   SWIM  ');
-    const two = (a: string, b: string) => centre(a, 15) + ' ' + centre(b, 15);
-    expect(t[3]).toBe(two('MOOD', 'ALERTNESS'));
-    expect(t[4]).toBe(two('brave', 'normal'));
-    expect(t[6]).toBe(two('POSITION', 'WIMPY'));
-    expect(t[7]).toBe(two('standing', '50'));
-    // Ticks: mood has 6 teeth, brave (index 3) glows.
-    const tick = lines[5]!;
-    const teeth = [...tick.text().slice(0, 15)].flatMap((ch, i) => (ch === '▀' ? [i] : []));
-    expect(teeth).toEqual(toothPositions(6, 15));
-    expect(tick.fg[8]).toBe(ramp.glow);
-    expect(tick.fg[0]).toBe(ramp.track);
-    // Wimpy caret at 50/200 of the right column.
-    const caret = lines[8]!;
-    expect(caret.text().indexOf('^')).toBe(16 + Math.round(0.25 * 14));
-    // Toggles: sneak on, swim off.
-    expect(lines[2]!.bg[0]).toBe(ramp.glow);
-    expect(lines[2]!.bg[24]).toBe(ramp.track);
-    // XP bar: half way through level 25, nothing gained yet.
-    expect(lines[0]!.bg[0]).toBe(ramp.track);
-    expect(lines[0]!.bg[14]).toBe(ramp.track);
-    expect(lines[0]!.bg[16]).toBe('');
+  it('shows — and empty bars and rings when nothing is known', () => {
+    const { p, q } = drawn({}, { name: false });
+    expect(q('.wc-cc-name').textContent).toBe('—');
+    expect(q('.wc-cc-level').textContent).toBe('—');
+    for (const f of p.content.querySelectorAll('.wc-cc-word')) expect(f.textContent).toBe('—');
+    for (const n of p.content.querySelectorAll('.wc-cc-vn')) expect(n.textContent).toBe('');
+    for (const f of p.content.querySelectorAll<HTMLElement>('.wc-cc-fill')) expect(f.style.getPropertyValue('--p')).toBe('0');
+    expect(q('.wc-cc-wimpy').hidden).toBe(true);
+    expect(q('.wc-cc-ring-base').hasAttribute('data-none')).toBe(true);
+    p.dispose();
   });
 
-  it('shows — and empty gauges when nothing is known', () => {
-    const lines = characterLines(new CharModel().view(), ramp, 20, 9);
-    expect(lines[0]!.text().trim()).toBe('—');
-    expect(lines[4]!.text().trim()).toBe('');
-    expect(lines[4]!.bg[0]).toBe(ramp.track);
-    expect(lines[8]!.text().includes('^')).toBe(false);
-    expect(lines[5]!.fg.filter((f) => f === ramp.glow)).toEqual([]);
+  it('an unknown position is named and takes no click', () => {
+    const { p, q } = drawn({ position: 'flying' });
+    expect(q('[data-click="position"]').getAttribute('aria-label')).toBe('Flying');
+    expect(q('[data-click="position"]').getAttribute('aria-disabled')).toBe('true');
+    p.dispose();
   });
 
-  it('an unknown position shows text but no lit tooth', () => {
-    const c = new CharModel();
-    c.apply('Char.Vitals', { position: 'fighting' });
-    const lines = characterLines(c.view(), ramp, 31, 9);
-    expect(lines[7]!.text()).toContain('fighting');
-    expect(lines[8]!.fg.slice(0, 15).includes(ramp.glow)).toBe(false);
-  });
-
-  it('clips with an overflow line', () => {
-    const lines = characterLines(full(), ramp, 31, 4);
-    expect(lines).toHaveLength(4);
-    expect(lines[3]!.text().trimEnd()).toBe('↓ 6 more rows');
-    expect(characterLines(full(), ramp, 0, 9)).toEqual([]);
+  it('four rows still show Status and the vitals inside the box', () => {
+    const { p, q } = drawn(FULL, { h: 4 });
+    expect(q('.wc-cc').dataset.mode).toBe('small');
+    expect(q('.wc-cc-status').hidden).toBe(false);
+    const px = (e: HTMLElement, k: 'top' | 'height'): number => parseFloat(e.style[k]);
+    expect(px(q('.wc-cc-foot'), 'top') + px(q('.wc-cc-foot'), 'height')).toBeLessThanOrEqual(64);
+    expect(px(q('.wc-cc-main'), 'top') + px(q('.wc-cc-main'), 'height')).toBeLessThanOrEqual(px(q('.wc-cc-foot'), 'top'));
+    p.dispose();
   });
 });
 
@@ -142,7 +132,7 @@ describe('panes on the context', () => {
     t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'rasta' } });
     t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { mood: 'brave' } });
     t.flush();
-    expect(p.content.querySelectorAll('.wc-prow')).toHaveLength(9);
+    expect(p.content.querySelectorAll('.wc-cc')).toHaveLength(1);
     expect(p.content.textContent).toContain('Rasta');
     expect(p.content.textContent).toContain('brave');
     t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });

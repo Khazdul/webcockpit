@@ -1,0 +1,1184 @@
+/* The Character card (src/panes/character.ts, stage 77 part D; the look is
+ * notes/research/character-pane-mockups/round9.html, the quiet card B3: no
+ * ornament, the frame is the shell's). Four absolute boxes whose sizes
+ * character-layout.ts sets in px (`--k` is the chrome's scale), so nothing
+ * here measures and nothing overlaps. Values are in the terminal's font,
+ * the labels and the name in Cinzel, as Group.
+ *
+ * Static paint: a value moves a transform or sets a text. The colours are
+ * the pane's shade ramp (`--cc-*`) and its lamp and iron (layout.css), so
+ * every pane colour, clear and Paper follow. */
+
+.wc-cc {
+  position: absolute;
+  inset: 0;
+  contain: strict;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: inherit;
+  letter-spacing: 0;
+  line-height: 1.15;
+  --display: "Cinzel", Georgia, "Times New Roman", serif;
+  --hot: color-mix(in srgb, var(--lamp) 70%, #fff);
+  --text: color-mix(in srgb, var(--cc-ink, #b8b8b8) 45%, #fff);
+  --dim: var(--cc-label, #999);
+  --off: color-mix(in srgb, var(--cc-mid, #6b6b6b) 85%, transparent);
+  --up: #6fd38a;
+  --down: #ff8a7a;
+  --danger: #ff5a50;
+  --pend: var(--lamp);
+  /* A box: dark glass on the card backing (a clear pane's). */
+  --box: linear-gradient(rgb(0 0 0 / 0.24), rgb(0 0 0 / 0.24)), var(--card-back, transparent);
+  --box-edge: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 9%, transparent);
+  --rule: color-mix(in srgb, var(--lamp) 14%, transparent);
+  --trk-bg: rgb(0 0 0 / 0.55);
+  --trk-edge: inset 0 1px 1px rgb(0 0 0 / 0.7), 0 1px 0 color-mix(in srgb, var(--lamp) 12%, transparent);
+  --gloss: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.15));
+  --label-px: max(7px, calc(8.3px * var(--k, 1)));
+  color: var(--text);
+}
+
+.wc-cc [hidden] {
+  display: none !important;
+}
+
+.wc-cc :where(button) {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-cc button:focus-visible {
+  outline: 1px solid var(--lamp);
+  outline-offset: -1px;
+}
+
+.wc-cc [data-off],
+.wc-cc [data-pending] {
+  cursor: default;
+}
+
+.wc-cc svg {
+  display: block;
+}
+
+.wc-cc-i {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wc-cc-k,
+.wc-cc-vk,
+.wc-cc-tab {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.wc-cc-left,
+.wc-cc-main,
+.wc-cc-tabs,
+.wc-cc-foot {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* With no border the title row's grip lies over the top row (layout.css):
+ * what is pressed, scrolled or hovered here is above it, and the rest lets
+ * the pane be dragged. */
+.wc-pane:not([data-framed]) .wc-cc {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.wc-pane:not([data-framed]) .wc-cc :is(button, .wc-cc-ring, .wc-cc-scroll, .wc-cc-f, .wc-cc-vital) {
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------- left column */
+
+.wc-cc-left {
+  contain: layout style;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wc-cc-left[data-form="row"] {
+  display: grid;
+  grid-template-columns: var(--ring) var(--name-w);
+  align-content: center;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* No portrait and room to spare: the three stay together. */
+.wc-cc:not([data-portrait]) .wc-cc-left[data-form="column"] {
+  justify-content: space-evenly;
+}
+
+.wc-cc-name {
+  box-sizing: border-box;
+  max-width: var(--name-w);
+  /* Room over the capitals for an accent, taken back. */
+  margin-top: -0.14em;
+  padding-top: 0.14em;
+  overflow: hidden;
+  color: var(--hot);
+  font: 700 var(--name-px) / 1.15 var(--display);
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 30%, transparent);
+}
+
+.wc-cc-left[data-form="row"] .wc-cc-name {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.wc-cc-medal {
+  position: relative;
+  flex: none;
+  width: var(--ring);
+  height: var(--ring);
+}
+
+.wc-cc[data-portrait] .wc-cc-medal {
+  width: var(--disc);
+  height: calc(var(--disc) + var(--ring) * 0.375);
+}
+
+.wc-cc-left[data-form="row"] .wc-cc-medal {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+/* The round frame: an iron ring between two black lines, the lamp round it. */
+.wc-cc-disc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  width: var(--disc);
+  height: var(--disc);
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 24%, #14110c), #14110c 72%);
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 0 3px var(--iron-hi),
+    0 0 0 4px #000,
+    0 0 0 5px color-mix(in srgb, var(--lamp) 25%, transparent),
+    inset 0 0 16px rgb(0 0 0 / 0.9);
+}
+
+.wc-cc[data-portrait] .wc-cc-disc {
+  display: block;
+}
+
+/* The vignette lies over the figure. */
+.wc-cc-disc::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 14px rgb(0 0 0 / 0.65);
+}
+
+.wc-cc-fig {
+  position: absolute;
+  top: 5%;
+  left: 6%;
+  width: 88%;
+  height: 100%;
+}
+
+.wc-cc-fig-cloak {
+  fill: color-mix(in srgb, var(--lamp) 20%, #17181b);
+}
+
+.wc-cc-fig-hood {
+  fill: color-mix(in srgb, var(--lamp) 32%, #1b1c20);
+}
+
+.wc-cc-fig-face {
+  fill: color-mix(in srgb, var(--lamp) 8%, #0d0d0e);
+}
+
+.wc-cc-ring {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: var(--ring);
+  height: var(--ring);
+  margin-left: calc(var(--ring) / -2);
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, #15130f 94%, transparent 100%);
+}
+
+.wc-cc-ring > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  transform: rotate(-90deg);
+}
+
+.wc-cc-ring circle {
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.wc-cc-ring circle[data-none] {
+  display: none;
+}
+
+.wc-cc-ring-track {
+  stroke: rgb(0 0 0 / 0.7);
+}
+
+.wc-cc-ring-base {
+  stroke: #6e5832;
+}
+
+.wc-cc-ring-gain {
+  stroke: #efc96e;
+}
+
+.wc-cc-ring .wc-cc-ring-tp {
+  stroke: #62c3b2;
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+
+.wc-cc-level {
+  position: relative;
+  color: var(--hot);
+  font: 700 calc(var(--ring) * 0.38) / 1 var(--display);
+}
+
+.wc-cc-level[data-long] {
+  font-size: calc(var(--ring) * 0.29);
+}
+
+.wc-cc-icons {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ico-gap);
+  height: calc(var(--ico) + 4px);
+}
+
+.wc-cc-left[data-form="row"] .wc-cc-icons {
+  grid-column: 2;
+  grid-row: 2;
+  height: calc(var(--ico) + 2px);
+}
+
+.wc-cc-ib {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--ico) + 2px);
+  height: 100%;
+  border-radius: 3px;
+  color: var(--off);
+}
+
+.wc-cc-ib > svg {
+  width: var(--ico);
+  height: var(--ico);
+}
+
+.wc-cc-ib[data-on] {
+  color: var(--hot);
+}
+
+.wc-cc-ib[data-on] > svg {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--lamp) 70%, transparent));
+}
+
+.wc-cc-ib[data-click="position"][data-on] {
+  color: var(--text);
+}
+
+.wc-cc-ib[data-click="position"] > svg {
+  filter: none;
+}
+
+.wc-cc-ib[data-click="position"][data-fight] {
+  color: var(--danger);
+}
+
+.wc-cc-sep {
+  flex: none;
+  width: 1px;
+  height: 80%;
+  background: color-mix(in srgb, var(--lamp) 22%, transparent);
+}
+
+/* ------------------------------------------------------------- pending */
+
+.wc-cc-ib[data-pending] > svg,
+.wc-cc-f[data-pending] :is(.wc-cc-word, .wc-cc-v > svg) {
+  opacity: 0.4;
+}
+
+.wc-cc-ib[data-pending]::after {
+  content: "⋯";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pend);
+  font: 700 calc(var(--ico) * 0.95) / 1 var(--font-mono, monospace);
+}
+
+/* After the label; where that has no room, under the value, and where
+ * there is no label over it, on the value. */
+.wc-cc-status:not([data-tight]) .wc-cc-f[data-pending] .wc-cc-k::after,
+.wc-cc-status[data-tight] .wc-cc-f[data-pending] .wc-cc-v::after,
+.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f[data-pending] .wc-cc-v::after {
+  content: "⋯";
+  position: absolute;
+  color: var(--pend);
+  font: 700 max(11px, calc(var(--st-label) * 1.35)) / 1 var(--font-mono, monospace);
+}
+
+.wc-cc-status:not([data-tight]) .wc-cc-f[data-pending] .wc-cc-k::after {
+  left: calc(100% + 2px);
+}
+
+.wc-cc-status[data-tight] .wc-cc-f[data-pending] .wc-cc-v::after {
+  top: calc(100% - 0.35em);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f[data-pending] .wc-cc-v::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* --------------------------------------------------------- the tab area */
+
+.wc-cc-main {
+  contain: strict;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-cc-status {
+  flex: 1 1 0;
+  display: grid;
+  grid-template-columns: repeat(var(--st-cols, 4), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wc-cc-f {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--st-label) * 0.35);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 3px;
+  text-align: center;
+}
+
+/* Thin dividers, no boxes. */
+.wc-cc-f::before {
+  content: "";
+  position: absolute;
+  top: 3%;
+  bottom: 3%;
+  left: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.wc-cc-status[data-cols="4"] .wc-cc-f:first-child::before,
+.wc-cc-status[data-cols="2"] .wc-cc-f:nth-child(odd)::before,
+.wc-cc-status[data-cols="1"] .wc-cc-f::before {
+  display: none;
+}
+
+.wc-cc-status[data-cols="2"] .wc-cc-f:nth-child(n + 3),
+.wc-cc-status[data-cols="1"] .wc-cc-f:nth-child(n + 2) {
+  border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+}
+
+.wc-cc-f .wc-cc-k {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  color: var(--dim);
+  font-size: var(--st-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.wc-cc-f .wc-cc-k > svg {
+  width: 1.45em;
+  height: 1.45em;
+  color: var(--lamp);
+}
+
+.wc-cc-f .wc-cc-v {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  max-width: 100%;
+  font-size: var(--st-value);
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.wc-cc-f .wc-cc-v > svg {
+  display: none;
+  width: 1em;
+  height: 1em;
+  color: var(--lamp);
+}
+
+.wc-cc-word {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-cc-status:not([data-form="full"]) .wc-cc-k > svg,
+.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-k {
+  display: none;
+}
+
+.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f {
+  gap: 0;
+}
+
+.wc-cc-status[data-form="inline"] .wc-cc-v > svg {
+  display: block;
+}
+
+.wc-cc-f[data-signal="low"] :is(.wc-cc-word, svg) {
+  color: var(--cc-low);
+}
+
+.wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
+  color: var(--cc-critical);
+}
+
+/* Stats and Lore fill the area, and scroll where they do not fit. */
+.wc-cc-scroll {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.wc-cc-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* More below: the last lines fade, none is cut through. */
+.wc-cc-main[data-more] > .wc-cc-scroll {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+}
+
+.wc-cc-data-age {
+  flex: none;
+  overflow: hidden;
+  padding-top: 1px;
+  color: var(--dim);
+  font-size: var(--age-px, 9px);
+  line-height: 1.2;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+/* The indicator of Group and Timers, in the room the line has. */
+.wc-cc-main[data-more] > .wc-cc-data-age::before {
+  content: "↓";
+  float: left;
+  color: #d9a54a;
+  font-style: italic;
+}
+
+.wc-cc-main[data-more] > .wc-cc-data-age[data-word]::before {
+  content: "↓ more";
+}
+
+.wc-cc-quiet {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  font-size: max(8px, calc(var(--info-value) * 0.85));
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wc-cc-box {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: calc(5px * var(--k)) calc(6px * var(--k));
+  border-radius: 5px;
+  background: var(--box);
+  box-shadow: var(--box-edge);
+}
+
+[data-dense] .wc-cc-box {
+  padding-top: calc(1.5px * var(--k));
+  padding-bottom: calc(1.5px * var(--k));
+}
+
+[data-dense] .wc-cc-box > :is(.wc-cc-k, .wc-cc-bv),
+[data-dense] .wc-cc-age-now > .wc-cc-bv {
+  line-height: 1.12;
+}
+
+.wc-cc-panel:not(.wc-cc-status) .wc-cc-k {
+  color: var(--dim);
+  font-size: var(--label-px);
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wc-cc-bv {
+  min-width: 0;
+  font-size: var(--info-value);
+  font-weight: bold;
+  line-height: 1.22;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------- Stats */
+
+.wc-cc-stats {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--k));
+}
+
+.wc-cc-stats[data-dense] {
+  gap: calc(3px * var(--k));
+}
+
+.wc-cc-shields {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(var(--shield-cols, 4), minmax(0, 1fr));
+}
+
+.wc-cc-shield {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.wc-cc-plate {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: var(--shield);
+  height: var(--shield);
+  padding-bottom: calc(var(--shield) * 0.1);
+}
+
+.wc-cc-plate-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: rgb(0 0 0 / 0.25);
+  stroke: color-mix(in srgb, var(--lamp) 26%, transparent);
+  stroke-width: 1;
+}
+
+.wc-cc-plate > .wc-cc-i {
+  position: relative;
+  width: calc(var(--shield) * 0.24);
+  height: calc(var(--shield) * 0.24);
+  color: var(--lamp);
+}
+
+.wc-cc-sv {
+  position: relative;
+  color: var(--hot);
+  /* By the digits: four fit inside the shield as three do. */
+  font-size: min(calc(var(--shield) * 0.31), calc(var(--shield) * 0.68 / (var(--n, 3) * var(--adv, 0.6))));
+  font-weight: bold;
+  line-height: 1.15;
+}
+
+.wc-cc-abilities {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(var(--ab-cols, 7), minmax(0, 1fr));
+  gap: calc(4px * var(--k));
+}
+
+.wc-cc-ab {
+  align-items: center;
+  justify-content: flex-start;
+  padding-right: 0;
+  padding-left: 0;
+  text-align: center;
+}
+
+.wc-cc-ab .wc-cc-k {
+  letter-spacing: 0.06em;
+}
+
+.wc-cc-delta {
+  min-height: 1.1em;
+  color: var(--dim);
+  font-size: max(7.5px, calc(var(--info-value) * 0.68));
+  line-height: 1.1;
+}
+
+.wc-cc-ab[data-dir="up"] :is(.wc-cc-bv, .wc-cc-delta),
+.wc-cc-mod[data-dir="up"] {
+  color: var(--up);
+}
+
+.wc-cc-ab[data-dir="down"] :is(.wc-cc-bv, .wc-cc-delta),
+.wc-cc-mod[data-dir="down"] {
+  color: var(--down);
+}
+
+.wc-cc-srow {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(5px * var(--k));
+}
+
+.wc-cc-stats[data-side] .wc-cc-srow {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+.wc-cc-age {
+  gap: calc(3px * var(--k));
+}
+
+.wc-cc-age-top,
+.wc-cc-age-now {
+  display: flex;
+  align-items: baseline;
+  column-gap: 0.45em;
+  flex-wrap: wrap;
+}
+
+.wc-cc-age-now {
+  order: 3;
+  flex-basis: 100%;
+}
+
+.wc-cc-next {
+  min-width: 0;
+  margin-left: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.wc-cc-stats[data-dense] .wc-cc-age-now {
+  order: 0;
+  flex-basis: auto;
+}
+
+.wc-cc-stats[data-dense] .wc-cc-age {
+  gap: 1px;
+}
+
+.wc-cc-next {
+  color: var(--dim);
+  font-size: max(8px, calc(var(--info-value) * 0.76));
+}
+
+.wc-cc-age-name {
+  color: var(--hot);
+  font: italic normal calc(var(--info-value) * 1.12) / 1 "Cormorant Garamond", Georgia, serif;
+}
+
+.wc-cc-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin: 2px 0;
+}
+
+.wc-cc-step {
+  height: max(3px, calc(4px * var(--k)));
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--cc-ink) 14%, transparent);
+}
+
+.wc-cc-step[data-past] {
+  background: color-mix(in srgb, var(--lamp) 55%, transparent);
+}
+
+.wc-cc-now {
+  position: absolute;
+  top: -3px;
+  left: calc(var(--p, 0) * 1%);
+  width: 2px;
+  height: calc(100% + 6px);
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--hot);
+  box-shadow: 0 0 4px var(--lamp);
+}
+
+.wc-cc-mods {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  align-items: baseline;
+  gap: 2px calc(6px * var(--k));
+}
+
+.wc-cc-mods .wc-cc-k {
+  letter-spacing: 0.08em;
+}
+
+.wc-cc-stats[data-narrow-age] .wc-cc-mods {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wc-cc-stats[data-narrow-age] .wc-cc-k.is-row {
+  grid-column: 1 / -1;
+}
+
+.wc-cc-mod {
+  font-size: max(8px, calc(var(--info-value) * 0.82));
+  font-weight: bold;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wc-cc-senses {
+  display: grid;
+  grid-template-columns: repeat(var(--sense-cols, 2), minmax(0, 1fr));
+  align-content: stretch;
+  gap: calc(5px * var(--k));
+}
+
+/* ---------------------------------------------------------------- Lore */
+
+.wc-cc-lore {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--lore-cols, 3), minmax(0, 1fr));
+  align-content: stretch;
+  gap: calc(5px * var(--k));
+}
+
+.wc-cc-lore[data-dense] {
+  gap: calc(3px * var(--k));
+}
+
+/* The race alone on its row (a column wide, wider where its words need it),
+ * then the alignment on a full one. */
+.wc-cc-lore > [data-key="race"] {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-width: calc((100% - (var(--lore-cols, 3) - 1) * 5px * var(--k)) / var(--lore-cols, 3));
+  max-width: 100%;
+}
+
+.wc-cc-lore > [data-key="alignment"] {
+  grid-column: 1 / -1;
+}
+
+.wc-cc-points {
+  margin-left: 0.5em;
+  color: var(--dim);
+  font-size: 0.8em;
+  font-weight: normal;
+}
+
+.wc-cc-coin {
+  display: inline-block;
+  margin-right: 0.35em;
+  white-space: nowrap;
+}
+
+.wc-cc-coin:nth-child(3) {
+  margin-right: 0;
+}
+
+.wc-cc-coin::before {
+  content: "";
+  display: inline-block;
+  width: 0.58em;
+  height: 0.58em;
+  margin-right: 0.2em;
+  border-radius: 50%;
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.4);
+}
+
+.wc-cc-coin[data-metal="gold"]::before {
+  background: #e5c158;
+}
+
+.wc-cc-coin[data-metal="silver"]::before {
+  background: #c9ccd1;
+}
+
+.wc-cc-coin[data-metal="copper"]::before {
+  background: #c07a46;
+}
+
+/* ---------------------------------------------------------------- tabs */
+
+.wc-cc-tabs {
+  contain: strict;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--k));
+}
+
+.wc-cc-tab {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 4px 0 0 4px;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.15));
+  box-shadow: inset 1px 0 0 var(--frost-edge);
+  color: var(--dim);
+  font-size: var(--tab-px);
+}
+
+.wc-cc-tabs[data-form="vertical"] .wc-cc-tab {
+  padding: calc(2px * var(--k)) 0;
+}
+
+.wc-cc-tab-t {
+  flex: none;
+  line-height: 1;
+}
+
+.wc-cc-tabs[data-form="vertical"] .wc-cc-tab-t {
+  writing-mode: vertical-rl;
+}
+
+.wc-cc-tabs:not([data-form="vertical"]) .wc-cc-tab {
+  flex-basis: 0;
+}
+
+.wc-cc-tabs[data-form="stacked"] .wc-cc-tab {
+  letter-spacing: 0.08em;
+}
+
+/* Too little for words: three marks, named for a screen reader. */
+.wc-cc-tabs[data-form="marks"] .wc-cc-tab-t {
+  display: none;
+}
+
+.wc-cc-tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--lamp) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--lamp);
+  color: var(--hot);
+}
+
+.wc-cc[data-fight] .wc-cc-tab[aria-selected="false"] {
+  opacity: 0.4;
+}
+
+/* -------------------------------------------------------------- vitals */
+
+/* Group's columns (group.css .wc-gp-bars). */
+.wc-cc-foot {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--foot-gap);
+  padding: 0 var(--foot-pad);
+}
+
+.wc-cc-vital {
+  position: relative;
+  contain: strict;
+  height: 100%;
+  --h: var(--bar);
+}
+
+.wc-cc[data-fight] .wc-cc-vital {
+  --h: var(--bar-fight);
+}
+
+.wc-cc-trk {
+  position: absolute;
+  top: calc((var(--bar-fight) - var(--h)) / 2);
+  right: 0;
+  left: 0;
+  height: var(--h);
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--trk-bg);
+  box-shadow: var(--trk-edge);
+}
+
+.wc-cc-fill,
+.wc-cc-span,
+.wc-cc-hatch {
+  position: absolute;
+  inset: 0;
+}
+
+.wc-cc-fill {
+  border-radius: 5px;
+  background: var(--gloss), var(--c);
+  /* No transition: it would style and paint for frames after every prompt. */
+  transform: translateX(calc((var(--p, 0) - 100) * 1%));
+}
+
+.wc-cc-span {
+  overflow: hidden;
+  transform: translateX(calc(var(--lo, 0) * 1%));
+}
+
+.wc-cc-hatch {
+  border-radius: 0 5px 5px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px);
+  transform: translateX(calc((var(--len, 0) - 100) * 1%));
+}
+
+.wc-cc-vt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--bar-inset);
+  color: #fff;
+  text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+.wc-cc-vk {
+  flex: none;
+  font-size: var(--vk-px);
+  line-height: 1;
+  opacity: 0.88;
+}
+
+.wc-cc-foot:not([data-labels]) .wc-cc-vk,
+.wc-cc-foot[data-form="number"] .wc-cc-vital[data-num] .wc-cc-vk {
+  display: none;
+}
+
+.wc-cc-num {
+  flex: none;
+  margin-left: auto;
+  font-size: var(--num-px);
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wc-cc-vm {
+  font-size: 0.88em;
+  font-weight: normal;
+  white-space: pre;
+  opacity: 0.8;
+}
+
+/* The arrow under the bar: a full-width carrier that moves. */
+.wc-cc-wimpy {
+  position: absolute;
+  top: calc((var(--bar-fight) + var(--h)) / 2);
+  left: 0;
+  width: 100%;
+  height: var(--arrow);
+  pointer-events: none;
+  transform: translateX(calc(var(--p, 0) * 1%));
+}
+
+.wc-cc-wimpy::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(var(--arrow) * -1);
+  width: calc(var(--arrow) * 2);
+  height: var(--arrow);
+  background: var(--hot);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+@media (hover: hover) {
+  .wc-cc-ib:not([data-off], [data-pending]):hover {
+    background: color-mix(in srgb, var(--lamp) 12%, transparent);
+  }
+
+  .wc-cc-f[data-click]:not([data-off], [data-pending], [data-signal]):hover .wc-cc-word {
+    color: var(--hot);
+  }
+
+  .wc-cc-tab[aria-selected="false"]:hover {
+    color: var(--text);
+  }
+}
+
+/* --------------------------------------------------------------- Paper */
+
+/* A light pane (ADR 0123 "Paper"): ink on parchment, raised paper for the
+ * boxes, the tracks as Group's, no glow. */
+.wc-cc[data-light] {
+  --hot: var(--ink, var(--cc-ink));
+  --text: var(--cc-ink, #333);
+  --dim: color-mix(in srgb, var(--cc-label) 70%, var(--cc-ink));
+  --off: color-mix(in srgb, var(--cc-label) 45%, transparent);
+  --up: #2a6e1a;
+  --down: #a8302b;
+  --danger: #c42020;
+  --pend: var(--ink, var(--cc-ink));
+  --box: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --box-edge: inset 0 0 0 1px rgb(60 40 10 / 0.07), 0 1px 2px rgb(60 40 10 / 0.18);
+  --rule: color-mix(in srgb, var(--iron-lo) 28%, transparent);
+  /* Darker than Group's: white numbers stand on it. */
+  --trk-bg: color-mix(in srgb, var(--cc-track) 30%, var(--iron-lo));
+  --trk-edge: inset 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 0 rgb(255 255 255 / 0.9);
+  --gloss: linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.1));
+}
+
+.wc-cc[data-light] .wc-cc-name {
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+.wc-cc[data-light] .wc-cc-disc {
+  background: radial-gradient(circle at 50% 40%, #f4e9d2, color-mix(in srgb, var(--iron) 75%, #fff) 78%);
+  box-shadow:
+    0 0 0 1px var(--engrave),
+    0 0 0 3px var(--iron-hi),
+    0 0 0 4px var(--engrave),
+    0 1px 4px 4px rgb(50 35 10 / 0.15);
+}
+
+.wc-cc[data-light] .wc-cc-disc::after {
+  box-shadow: inset 0 0 10px rgb(60 40 10 / 0.35);
+}
+
+.wc-cc[data-light] .wc-cc-fig-cloak {
+  fill: color-mix(in srgb, var(--iron-lo) 85%, #8a7658);
+}
+
+.wc-cc[data-light] .wc-cc-fig-hood {
+  fill: color-mix(in srgb, var(--iron-lo) 65%, #c4ab80);
+}
+
+.wc-cc[data-light] .wc-cc-fig-face {
+  fill: color-mix(in srgb, var(--iron-lo) 90%, #000);
+}
+
+.wc-cc[data-light] .wc-cc-ring {
+  background: radial-gradient(circle closest-side, #f7efdf 94%, transparent 100%);
+}
+
+.wc-cc[data-light] .wc-cc-ring-track {
+  stroke: color-mix(in srgb, var(--iron-lo) 35%, #f7efdf);
+}
+
+.wc-cc[data-light] .wc-cc-ring-base {
+  stroke: #6e5220;
+}
+
+.wc-cc[data-light] .wc-cc-ring-gain {
+  stroke: #d09a1c;
+}
+
+.wc-cc[data-light] .wc-cc-ring-tp {
+  stroke: #00737e;
+}
+
+.wc-cc[data-light] .wc-cc-ib[data-on] > svg {
+  filter: none;
+}
+
+.wc-cc[data-light] :is(.wc-cc-f, .wc-cc-plate) .wc-cc-i {
+  color: var(--ink, var(--cc-ink));
+}
+
+.wc-cc[data-light] .wc-cc-f[data-signal="low"] :is(.wc-cc-word, svg) {
+  color: var(--cc-low);
+}
+
+.wc-cc[data-light] .wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
+  color: var(--cc-critical);
+}
+
+.wc-cc[data-light] .wc-cc-plate-bg {
+  fill: #fffdf8;
+  stroke: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-vm {
+  opacity: 1;
+}
+
+.wc-cc[data-light] .wc-cc-step[data-past] {
+  background: color-mix(in srgb, var(--iron-lo) 55%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-now {
+  box-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-main[data-more] > .wc-cc-data-age::before {
+  color: #8f5e00;
+}
+
+.wc-cc[data-light] .wc-cc-tab {
+  background: linear-gradient(90deg, rgb(60 40 10 / 0.12), rgb(60 40 10 / 0.04));
+}
+
+.wc-cc[data-light] .wc-cc-tab[aria-selected="true"] {
+  background: #fffdf8;
+  box-shadow: inset 2px 0 0 var(--iron-lo);
+}

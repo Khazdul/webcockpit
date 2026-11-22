@@ -130,6 +130,32 @@ describe('the info poll in the App', () => {
     expect(count()).toBe(2);
   });
 
+  it('a click on the card: sent as typed, no alias; nothing into the line editor (as seen live)', () => {
+    const t = setup();
+    expect(t.app.applyProfile('#alias {sneak} {say leak}\n').ok).toBe(true);
+    t.login();
+    t.frame(answerPulse(pollNonce(t.sent())!));
+    t.frame(gmcp('Char.Vitals', { mood: 'brave', position: 'standing' }));
+    const pane = [...(t.app.cockpit as unknown as { shells: Map<string, { content: HTMLElement; render(): void }> }).shells].find(([id]) => id === 'character')![1];
+    pane.render();
+    const click = (id: string): void => pane.content.querySelector<HTMLElement>(`[data-click="${id}"]`)!.click();
+
+    t.frame(`Write your message for the Mages' board\r\nType %e on an empty line to save and exit, %q to abandon and %h for help.\r\n==&gt;\r\n<prompt>: </prompt>${GA}`);
+    click('mood');
+    t.frame("A hobbit tells you 'hello'\r\n");
+    click('mood');
+    expect(t.sent()).not.toContain('change mood');
+
+    t.frame(`Cancelled.\r\n\r\n${PROMPT}`);
+    click('mood');
+    click('sneak');
+    expect(t.sent()).toContain('change mood aggressive\r\n');
+    expect(t.sent()).toContain('sneak\r\n');
+    expect(t.sent()).not.toContain('say leak');
+    // Echoed and logged like a typed command (decision 19).
+    expect(t.heard).toContain('change mood aggressive');
+  });
+
   it('a log player has no poll', () => {
     const t = setup({ player: true });
     expect(t.app.infoPoll).toBeNull();

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-// ADR 0044 rule 4: the cell-grid panes patch their rows. A row whose content
-// did not change keeps its element, and a render that changes nothing
-// touches no DOM.
+// ADR 0044 rule 4: the panes patch what changed (the cell-grid panes their
+// rows, Group and Character their values). What did not change keeps its
+// element, and a render that changes nothing touches no DOM.
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { GameState } from '../../src/gmcp/state';
@@ -19,8 +19,6 @@ function watch(el: Node): { take: () => MutationRecord[]; stop: () => void } {
   mo.observe(el, { subtree: true, childList: true, attributes: true, characterData: true });
   return { take: () => mo.takeRecords(), stop: () => mo.disconnect() };
 }
-
-const rowEls = (p: PaneShell): Element[] => [...p.content.querySelectorAll('.wc-prow')];
 
 describe('RowList', () => {
   const line = (text: string, fg = '') => new CellLine(8).put(0, text, { fg });
@@ -84,30 +82,38 @@ describe('panes patch their rows', () => {
   const place = (p: PaneShell, w: number, h: number) =>
     p.place({ rect: { x: 0, y: 0, w, h }, content: { x: 0, y: 0, w, h }, framed: false }, { w: 8, h: 16 });
 
-  it('Character: vitals it does not show touch no DOM; a mood change replaces one row', () => {
+  it('Character: vitals it does not show touch no DOM; a value touches only its own element', () => {
     const t = setup();
     const p = new CharacterPane(t.ctx);
-    place(p, 31, 9);
+    place(p, 48, 10);
     t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'rasta' } });
-    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 100, maxhp: 200, mood: 'brave', position: 'standing' } });
+    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 100, maxhp: 200, 'hp-string': 'Hurt', mood: 'brave', position: 'standing' } });
     t.flush();
-    const before = rowEls(p);
-    expect(before).toHaveLength(9);
+    const all = [...p.content.querySelectorAll('*')];
     const w = watch(p.content);
-    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 90, mana: 10, moves: 50 } });
+    // The band word beside a number is not drawn, nor is what the card has no place for.
+    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 100, 'hp-string': 'Fine', foo: 3 } });
     t.flush();
     expect(w.take()).toEqual([]);
+    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { mana: 10 } });
+    t.flush();
+    const mana = p.content.querySelector('.wc-cc-vital[data-kind="mana"]')!;
+    let muts = w.take();
+    expect(muts.length).toBeGreaterThan(0);
+    expect(muts.every((m) => mana.contains(m.target))).toBe(true);
     t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { mood: 'wimpy' } });
     t.flush();
-    const after = rowEls(p);
-    const changed = after.map((el, i) => el !== before[i]);
-    expect(changed).toEqual([false, false, false, false, true, true, false, false, false]);
-    expect(after[4]!.textContent).toContain('wimpy');
+    const mood = p.content.querySelector('.wc-cc-f[data-key="mood"]')!;
+    muts = w.take();
+    expect(muts.length).toBeGreaterThan(0);
+    expect(muts.every((m) => mood.contains(m.target))).toBe(true);
+    expect(mood.textContent).toContain('wimpy');
+    expect([...p.content.querySelectorAll('*')]).toEqual(all);
     w.stop();
     p.dispose();
   });
 
-  it('Character: a blank and the next connection draw the board again', () => {
+  it('Character: a blank and the next connection draw the card again', () => {
     const t = setup();
     let state: 'playing' | 'disconnected' = 'playing';
     const p = new CharacterPane(createPaneContext({ ...t.ctx, connState: () => state }));
@@ -122,7 +128,7 @@ describe('panes patch their rows', () => {
     state = 'playing';
     t.bus.emit('conn.state', { state: 'playing', prev: 'connecting' });
     t.flush();
-    expect(rowEls(p)).toHaveLength(9);
+    expect(p.content.querySelectorAll('.wc-cc')).toHaveLength(1);
     t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'rasta' } });
     t.flush();
     expect(p.content.textContent).toContain('Rasta');

@@ -1,5 +1,6 @@
-// The line icons of the Group and Timers panes (ADR 0122; the set of
-// mockup 3c, notes/research/group-timers-mockups/r2-P3c-revised.dc.html).
+// The line icons of the Group, Timers and Character panes (ADR 0122; the
+// set of mockup 3c, notes/research/group-timers-mockups/r2-P3c-revised.dc.html,
+// and round 3 of the Character pane's, stage 77 decision 20).
 // Each is one SVG path `d` on a 24×24 view box, drawn as a stroke (no
 // fill): stroke width 2, round caps and joins, `currentColor`. Several
 // subpaths share one `d` (`M … M …`).
@@ -46,7 +47,19 @@ export type IconName =
   | 'unfold'
   | 'chevUp'
   | 'chevDown'
-  | 'chevLeft';
+  | 'chevLeft'
+  | 'sneak'
+  | 'ride'
+  | 'climb'
+  | 'swim'
+  | 'ob'
+  | 'db'
+  | 'pb'
+  | 'abs'
+  | 'mood'
+  | 'casts'
+  | 'alertness'
+  | 'weight';
 
 /** Path data by name. */
 export const ICONS: Readonly<Record<IconName, string>> = {
@@ -121,6 +134,30 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   chevDown: 'M7 10l5 5 5-5',
   /** Comm: the spine's fold button. */
   chevLeft: 'M14 7l-5 5 5 5',
+  /** Character (stage 77): sneak, footprints. */
+  sneak: 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4',
+  /** Character: ride, a rider (`riding` is a member's position). */
+  ride: 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2',
+  /** Character: climb, a ladder. */
+  climb: 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10',
+  /** Character: swim, a stroke. */
+  swim: 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',
+  /** Character: OB, a sword. */
+  ob: 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5',
+  /** Character: DB, a feather. */
+  db: 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7',
+  /** Character: PB, a parrying blade. */
+  pb: 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5',
+  /** Character: ABS, armour. */
+  abs: 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6',
+  /** Character: mood, a face. */
+  mood: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M8 15c2.5-2 5.5-2 8 0 M8 9l2.5 1.5 M16 9l-2.5 1.5',
+  /** Character: spell speed, a sparkle. */
+  casts: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  /** Character: alertness, an eye. */
+  alertness: 'M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5',
+  /** Character: weight, a weight. */
+  weight: 'M6 8h12l2 12H4z M9 8V6a3 3 0 0 1 6 0v2',
 };
 
 /** The view box every icon is drawn in. */
