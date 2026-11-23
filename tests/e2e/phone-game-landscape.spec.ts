@@ -19,6 +19,7 @@
 // `phone` project. The offline cockpit (tests/fixtures) and a
 // `page.routeWebSocket` mock for Comm's cases; nothing reaches MUME.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { NAWS_MIN_ROWS, type SizeLog, gridNow, nawsFor, parse, reported, watchNaws } from './phone-naws';
 
 const pane = (page: Page, id: string) => page.locator(`.wc-cockpit > .wc-pane[data-pane="${id}"]`);
 const stripPane = (page: Page) => page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
@@ -143,32 +144,15 @@ async function enterMock(page: Page, query = ''): Promise<() => WebSocketRoute> 
   return () => server!;
 }
 
-/**
- * The window size MUME is told for the game text as it is now: the output
- * pane's own whole cells (a cell is a fraction of a px high, so its rows can
- * be one under the layout's), and 80 columns at the least.
- */
-const nawsNow = (page: Page): Promise<string> =>
-  page.evaluate(() => {
-    const m = window.__wc!.app.output.measureCells();
-    return `${Math.max(80, m.cols)}x${m.rows}`;
-  });
-
-/** Counts the layouts and the window sizes sent to MUME from now on. */
-async function countLayouts(page: Page): Promise<() => Promise<{ layouts: number; naws: string[] }>> {
+/** Counts the layouts, and logs the sizes for MUME (`watchNaws`), from now on. */
+async function countLayouts(page: Page): Promise<() => Promise<{ layouts: number } & SizeLog>> {
   await page.evaluate(() => {
-    const w = window as unknown as { __layouts: number; __naws: string[] };
+    const w = window as unknown as { __layouts: number };
     w.__layouts = 0;
-    w.__naws = [];
     window.__wc!.app.cockpit.onLayout(() => w.__layouts++);
-    const s = window.__wc!.app.session;
-    const orig = s.setWindowSize.bind(s);
-    s.setWindowSize = (c: number, r: number) => {
-      w.__naws.push(`${c}x${r}`);
-      return orig(c, r);
-    };
   });
-  return () => page.evaluate(() => ({ layouts: (window as unknown as { __layouts: number }).__layouts, naws: (window as unknown as { __naws: string[] }).__naws.slice() }));
+  const sizes = await watchNaws(page);
+  return async () => ({ layouts: await page.evaluate(() => (window as unknown as { __layouts: number }).__layouts), ...(await sizes.log()) });
 }
 
 /** A finger on the band's grip: `start`, `move(dx)` from where it pressed (in steps), `end`. */
@@ -436,6 +420,7 @@ for (const viewport of SCREENS) {
       await frames(page);
       expect((await phone(page)).sideCols).toBeNull();
       const mid = await counts();
+      expect(mid.told).toEqual([]);
       expect(mid.naws).toEqual([]);
       expect(mid.layouts).toBeGreaterThanOrEqual(1);
       expect(mid.layouts).toBeLessThanOrEqual(4);
@@ -446,16 +431,22 @@ for (const viewport of SCREENS) {
       expect((await counts()).layouts).toBe(mid.layouts);
       await f.move(6 * c.w);
       await expect.poll(colsOf).toBe(start + 6);
-      expect((await counts()).naws).toEqual([]);
+      expect((await counts()).told).toEqual([]);
       await f.end();
       await expect(sideBand(page)).not.toHaveAttribute('data-dragging', '');
       expect((await phone(page)).sideCols).toBe(start + 6);
-      // One window size for the whole drag: the game text's rows, and MUME's 80 columns at the least.
-      await expect.poll(async () => (await counts()).naws.length).toBe(1);
+      // One size for the whole drag: the game text's own grid as it is now, told to MUME as
+      // 80 columns and 40 rows at the least; NAWS only if that told size changed (the rows of a
+      // landscape phone are under 40, so only the columns can change it).
+      await expect.poll(async () => (await counts()).told.length).toBe(1);
       await frames(page);
       await frames(page);
       const g = await layout(page);
-      expect((await counts()).naws).toEqual([await nawsNow(page)]);
+      const drag = await counts();
+      expect(drag.grids).toEqual([await gridNow(page)]);
+      expect(drag.told).toEqual([reported(await gridNow(page))]);
+      expect(parse(drag.told[0]!).rows).toBe(NAWS_MIN_ROWS);
+      expect(drag.naws).toEqual(nawsFor(drag));
       expect(await colsOf()).toBe(start + 6);
       const drag2 = async (dx: number): Promise<void> => {
         await f.start();
@@ -481,6 +472,7 @@ for (const viewport of SCREENS) {
       await drag2(0);
       await frames(page);
       await frames(page);
+      expect((await counts()).told).toEqual(quiet.told);
       expect((await counts()).naws).toEqual(quiet.naws);
       // Thirty columns: kept when the column is closed and opened, and over a reload.
       await drag2(6 * c.w);
@@ -499,7 +491,7 @@ for (const viewport of SCREENS) {
       expect(errors).toEqual([]);
     });
 
-    test('opening and closing the column sends MUME one window size each, never under 80 columns', async ({ page }) => {
+    test('opening and closing the column sends MUME one window size each, never under 80 columns, always 40 rows', async ({ page }) => {
       await openPhone(page);
       await play(page);
       await frames(page);
@@ -512,19 +504,33 @@ for (const viewport of SCREENS) {
       const open = await layout(page);
       expect(open.game.w).toBeLessThan(before.game.w);
       expect(open.game.h).toBe(before.game.h);
-      // The columns are the game text's, or 80.
-      const sizeOpen = await nawsNow(page);
-      expect(Number(sizeOpen.split('x')[0])).toBeGreaterThanOrEqual(80);
-      expect((await counts()).naws).toEqual([sizeOpen]);
+      // One size for the session: the game text's own grid, told as its columns or 80, and as
+      // 40 rows: a landscape phone has fewer, and MUME would page its output at them.
+      const gridOpen = await gridNow(page);
+      expect(parse(gridOpen).rows).toBeLessThan(NAWS_MIN_ROWS);
+      const sizeOpen = reported(gridOpen);
+      expect(parse(sizeOpen).cols).toBeGreaterThanOrEqual(80);
+      expect(parse(sizeOpen).rows).toBe(NAWS_MIN_ROWS);
+      let log = await counts();
+      expect(log.grids).toEqual([gridOpen]);
+      expect(log.told).toEqual([sizeOpen]);
       await sat(page, 'panes').tap();
       await expect(stripPane(page)).toHaveCount(0);
       await frames(page);
       await frames(page);
-      const sizeClosed = await nawsNow(page);
-      expect(Number(sizeClosed.split('x')[0])).toBeGreaterThanOrEqual(80);
-      // One report each. (Where both are 80 columns wide the two are the same size, and the
-      // telnet layer sends an unchanged size to MUME only once.)
-      expect((await counts()).naws).toEqual([sizeOpen, sizeClosed]);
+      const gridClosed = await gridNow(page);
+      const sizeClosed = reported(gridClosed);
+      expect(parse(sizeClosed).cols).toBeGreaterThanOrEqual(80);
+      expect(parse(sizeClosed).rows).toBe(NAWS_MIN_ROWS);
+      log = await counts();
+      expect(log.grids).toEqual([gridOpen, gridClosed]);
+      expect(log.told).toEqual([sizeOpen, sizeClosed]);
+      // NAWS once per change of the told size: the rows never change it, and where both are
+      // 80 columns wide the two are one size and MUME hears nothing at all.
+      expect(log.naws).toEqual(nawsFor(log));
+      expect(log.naws.every((n) => parse(n).rows === NAWS_MIN_ROWS)).toBe(true);
+      // What MUME is told now: exactly 40 rows.
+      expect(await page.evaluate(() => window.__wc!.app.session.windowSize)).toEqual({ cols: parse(sizeClosed).cols, rows: NAWS_MIN_ROWS });
     });
 
     test('the lens stands left of one and of two hot key columns with its three keys, and does not move when K is tapped; it shrinks to its room and hides under 96 px', async ({ page }) => {

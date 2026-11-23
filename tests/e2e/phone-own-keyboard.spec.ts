@@ -28,6 +28,7 @@
 // matter). The sending cases play against a `page.routeWebSocket` mock; the
 // rest use the offline cockpit. Nothing reaches MUME.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { NAWS_MIN_ROWS, gridNow, nawsFor, parse, reported, watchNaws } from './phone-naws';
 
 const pad = (page: Page) => page.locator('.wc-ph-pad');
 const hot = (page: Page) => page.locator('.wc-ph-hot');
@@ -83,16 +84,8 @@ async function type(page: Page, ...keys: string[]): Promise<void> {
 
 /** Every window size told to the session (what becomes NAWS) from now on. */
 async function watchSizes(page: Page): Promise<() => Promise<string[]>> {
-  await page.evaluate(() => {
-    const s = window.__wc!.app.session;
-    const log: string[] = ((window as unknown as { __sizes: string[] }).__sizes = []);
-    const set = s.setWindowSize.bind(s);
-    s.setWindowSize = (cols: number, rows: number) => {
-      log.push(`${cols}x${rows}`);
-      set(cols, rows);
-    };
-  });
-  return () => page.evaluate(() => (window as unknown as { __sizes: string[] }).__sizes);
+  const sizes = await watchNaws(page);
+  return async () => (await sizes.log()).told;
 }
 
 /** Two frames: the cockpit's relayout and what follows it. */
@@ -318,17 +311,22 @@ test('a window made too low for the open keyboard (800 × 280 to 800 × 200): it
   await setScreen(page, { width: 800, height: 280 });
   await openKeyboard(page);
   await frames(page);
-  const sizes = await watchSizes(page);
+  const sizes = await watchNaws(page);
   await page.setViewportSize({ width: 800, height: 200 });
   await expect(okb(page)).toBeHidden();
   await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
   await page.waitForTimeout(900);
-  const sent = await sizes();
-  expect(sent).toHaveLength(1);
-  // And that one is the lower window's own, without a reserve.
+  const sent = await sizes.log();
+  expect(sent.told).toHaveLength(1);
+  // And that one is the lower window's own game text, without a reserve, told to MUME as 40
+  // rows at the least (NAWS only if that changed the size told before).
   const g = await layout(page);
   expect(g.bottom).toBe(0);
-  expect(sent[0]!.endsWith(`x${await page.evaluate(() => window.__wc!.app.output.measureCells().rows)}`)).toBe(true);
+  const grid = await gridNow(page);
+  expect(sent.grids).toEqual([grid]);
+  expect(sent.told).toEqual([reported(grid)]);
+  expect(parse(sent.told[0]!).rows).toBe(NAWS_MIN_ROWS);
+  expect(sent.naws).toEqual(nawsFor(sent));
   expect(await inputFocused(page)).toBe(false);
   expect(errors).toEqual([]);
 });
@@ -815,7 +813,7 @@ for (const lay of ['sv', 'en'] as const)
     const padClosed = await box(pad(page));
     const hotClosed = await box(hot(page));
     const fieldClosed = await box(field(page));
-    const sizes = await watchSizes(page);
+    const sizes = await watchNaws(page);
 
     await openKeyboard(page);
     const open = await layout(page);
@@ -895,9 +893,9 @@ for (const lay of ['sv', 'en'] as const)
     const l = await box(lens);
     expect(l.y + l.height).toBeLessThanOrEqual(row.y + 0.5);
     expect(l.y + l.height).toBeLessThanOrEqual(hotOpen.y + 0.5);
-    // MUME got one new window size.
+    // One new window size for the session.
     await frames(page);
-    expect(await sizes()).toHaveLength(1);
+    expect((await sizes.log()).told).toHaveLength(1);
 
     // Folded: all back as it was, with one more window size.
     await key(page, 'fold').tap();
@@ -909,10 +907,15 @@ for (const lay of ['sv', 'en'] as const)
     expect(await box(pad(page))).toEqual(padClosed);
     expect(await box(hot(page))).toEqual(hotClosed);
     await frames(page);
-    expect(await sizes()).toHaveLength(2);
-    // (The game text tells its own rows, which follow the pane's: the keyboard's rows less, then back.)
-    const told = (await sizes()).map((t) => Number(t.split('x')[1]));
-    expect(told[1]! - told[0]!).toBe(open.bottom);
+    const sent = await sizes.log();
+    expect(sent.told).toHaveLength(2);
+    // (The game text's own rows follow the pane's: the keyboard's rows less, then back. MUME is
+    // told 40 at the least, and hears NAWS only when that told size changed.)
+    const grid = sent.grids.map((t) => parse(t).rows);
+    expect(grid[1]! - grid[0]!).toBe(open.bottom);
+    expect(sent.told).toEqual(sent.grids.map(reported));
+    expect(sent.told.every((t) => parse(t).rows >= NAWS_MIN_ROWS)).toBe(true);
+    expect(sent.naws).toEqual(nawsFor(sent));
     expect(errors).toEqual([]);
   });
 
@@ -1351,7 +1354,7 @@ test('a rotation keeps it open and lays it out anew, with no window size of its 
   await type(page, 'h', 'i');
   const portrait = await layout(page);
   await frames(page);
-  const sizes = await watchSizes(page);
+  const sizes = await watchNaws(page);
   await setScreen(page, S21_LAND);
   await expect(okb(page)).toBeVisible();
   await expect(html(page)).toHaveClass(/\bwc-okb\b/);
@@ -1368,10 +1371,14 @@ test('a rotation keeps it open and lays it out anew, with no window size of its 
   // The rotation tells MUME what a rotation without the keyboard does, and no more: the new
   // width at once and the new height when the page has taken it (phone-viewport.ts settles after
   // the resize; here the two come as two sizes, on a device often as one). The keyboard adds none.
-  const told = await sizes();
-  expect(told.length).toBeGreaterThanOrEqual(1);
-  expect(told.length).toBeLessThanOrEqual(2);
-  expect(Number(told.at(-1)!.split('x')[1])).toBeLessThan(land.game.h + 1);
+  // The last grid is the game text's landscape rows, told to MUME as 40 (fewer than that).
+  const told = await sizes.log();
+  expect(told.told.length).toBeGreaterThanOrEqual(1);
+  expect(told.told.length).toBeLessThanOrEqual(2);
+  expect(parse(told.grids.at(-1)!).rows).toBeLessThan(land.game.h + 1);
+  expect(told.told).toEqual(told.grids.map(reported));
+  expect(parse(told.told.at(-1)!).rows).toBe(NAWS_MIN_ROWS);
+  expect(told.naws).toEqual(nawsFor(told));
   // And back.
   await setScreen(page, S21);
   await expect(okb(page)).toBeVisible();

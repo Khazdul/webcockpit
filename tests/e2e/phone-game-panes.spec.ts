@@ -25,6 +25,7 @@
 // offline cockpit; the Comm cases play against a `page.routeWebSocket` mock
 // (a replay has no reply line). Nothing reaches MUME.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { NAWS_MIN_ROWS, nawsFor, parse, watchNaws } from './phone-naws';
 
 const pane = (page: Page, id: string) => page.locator(`.wc-cockpit > .wc-pane[data-pane="${id}"]`);
 const stripPane = (page: Page) => page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
@@ -362,29 +363,24 @@ test('the Panes settings: off removes a page, the order moves, both kept over a 
   expect(errors).toEqual([]);
 });
 
-test('opening and closing the strip or Comm lays out once and sends MUME one window size each', async ({ page }) => {
+test('opening and closing the strip or Comm lays out once and tells MUME one window size each', async ({ page }) => {
   await openPhone(page);
   await play(page);
   await page.evaluate(() => {
-    const w = window as unknown as { __layouts: number; __naws: string[] };
+    const w = window as unknown as { __layouts: number };
     w.__layouts = 0;
-    w.__naws = [];
     window.__wc!.app.cockpit.onLayout(() => w.__layouts++);
-    const s = window.__wc!.app.session;
-    const orig = s.setWindowSize.bind(s);
-    s.setWindowSize = (c: number, r: number) => {
-      w.__naws.push(`${c}x${r}`);
-      return orig(c, r);
-    };
   });
-  const take = () =>
-    page.evaluate(() => {
-      const w = window as unknown as { __layouts: number; __naws: string[] };
-      const out = { layouts: w.__layouts, naws: w.__naws.slice() };
+  const sizes = await watchNaws(page);
+  const take = async () => {
+    const layouts = await page.evaluate(() => {
+      const w = window as unknown as { __layouts: number };
+      const n = w.__layouts;
       w.__layouts = 0;
-      w.__naws = [];
-      return out;
+      return n;
     });
+    return { layouts, ...(await sizes.take()) };
+  };
   const rows = () => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.game.h);
   const steps: [string, () => Promise<void>, () => Promise<void>][] = [
     ['strip open', () => sat(page, 'panes').tap(), () => expect(stripPane(page)).toHaveCount(1)],
@@ -398,8 +394,14 @@ test('opening and closing the strip or Comm lays out once and sends MUME one win
     await frames(page);
     const t = await take();
     expect(t.layouts, name).toBe(1);
-    // One window size: the same 80 columns MUME formats for, the game text's new rows.
-    expect(t.naws, name).toEqual([`80x${await rows()}`]);
+    // One size: the game text's new rows, told to MUME as the same 80 columns it formats for
+    // and 40 rows at the least.
+    const r = await rows();
+    expect(t.grids.map((g) => parse(g).rows), name).toEqual([r]);
+    expect(t.told, name).toEqual([`80x${Math.max(NAWS_MIN_ROWS, r)}`]);
+    // NAWS only when that told size changed: none while the rows stay under 40.
+    expect(t.naws, name).toEqual(nawsFor(t));
+    if (r < NAWS_MIN_ROWS && parse(t.start).rows === NAWS_MIN_ROWS) expect(t.naws, name).toEqual([]);
     expect(await page.evaluate(() => window.__wc!.app.output.isScrolled()), name).toBe(false);
   }
   // A page change inside the open strip: a layout (the pane changes), no window size.
@@ -410,7 +412,9 @@ test('opening and closing the strip or Comm lays out once and sends MUME one win
   await page.keyboard.press('Control+2');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
   await frames(page);
-  expect((await take()).naws).toEqual([]);
+  const page2 = await take();
+  expect(page2.told).toEqual([]);
+  expect(page2.naws).toEqual([]);
 });
 
 test('a script\'s pane is a page of the strip after the built-in ones, named by its title', async ({ page }) => {
