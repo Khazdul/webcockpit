@@ -1029,3 +1029,8 @@ answer: type it again for the new one. At most one poll in 10 s.
 - 2026-11-23, E2 on the phone: upright it worked; in landscape the
   probe's `info` was paged and "fastnade" in MUME's pager. Fixed: no
   probe in a window under 30 rows (ADR 0166 item 76).
+- 2026-11-23, an incognito tab in landscape: the login screen, the
+  unread messages and the fields poll came in MUME's pages, and the
+  width commands went to the pager. The owner chose "Minst 40 rader,
+  telefon och surfplatta": a phone or tablet reports at least 40 rows
+  (ADR 0136 addendum, ADR 0166 item 79).

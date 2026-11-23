@@ -168,7 +168,14 @@ with no stage of their own. Remove a line when it is done.
 - **Tested:** unit 5949 passed; full e2e at 5 workers 2071 passed, 6
   failed, all 6 pass alone (11 with their projects).
 - **Next:** the direction pass for Group and Character (F).
-- **Commits:** `328fad89`, `ef4d96d3`, `611ffc70` and the docs commit.
+- **Then:** in an incognito tab in landscape MUME paged the login and
+  the fields poll; on the owner's word a phone or tablet reports at least
+  40 rows (`d89ad3e9`, ADR 0136 addendum); the phone e2e rewritten to tell
+  grid, told size and NAWS apart (`cd98c170`). Full e2e before that
+  commit: 2065 passed, 12 failed (11 the NAWS counts, now fixed, 112/112;
+  1 load, passes alone).
+- **Commits:** `328fad89`, `ef4d96d3`, `611ffc70`, `d89ad3e9`, `cd98c170`
+  and the docs commits.
 
 ### 2026-11-23 — Stage 77 part E2, the card's sex
 

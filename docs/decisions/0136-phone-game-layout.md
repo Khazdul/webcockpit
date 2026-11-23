@@ -316,3 +316,17 @@ does.
 (as the desktop's Background cycle does); the lens in landscape; the two
 defaults above; `#3 north` on a hot key; a script's map mark with focus
 overriding the lens's zoom.
+
+## Addendum (2026-11-23): at least 40 rows to MUME
+
+A phone or tablet now reports at least 40 rows to MUME (NAWS;
+`PHONE_MIN_NAWS_ROWS`, `phoneNawsRows` in `src/layout/phone-game.ts`),
+beside the 80 columns at the least. The owner's word, after a test in
+landscape (stage 77 E2): MUME pages long output at the reported height,
+so at about 8 rows the login screen came in four pages, the unread
+messages in one, and the client's own commands (`change width …`, the
+info poll) were taken by the pager as its input. The client has its own
+scrollback, so long text now comes in one go and is scrolled there. The
+desktop reports its real height. A layout change that moves only the
+rows under 40 sends no NAWS; the phone e2e tell the grid, the size told
+and the NAWS sent apart (`tests/e2e/phone-naws.ts`).

@@ -497,3 +497,12 @@ step (the owner asleep); the style guide is
     for 5 s (`OK_MS`). Each is hidden like an answer, with its blank
     line and the pulse's prompt when nothing else of the pulse showed.
     Other lines pass. They are gone from the run log too.
+79. **The window MUME is told.** In an incognito tab in landscape even
+    the fields poll was paged (its answer wraps to 7 lines at that
+    width), and the width commands went to the pager of the unread
+    messages. A phone and a tablet now report at least 40 rows (ADR 0136
+    addendum of 2026-11-23). The poll and the probe read the size MUME is
+    told (`session.windowSize`), not the pane's: the probe needs 30 rows,
+    and a poll is sent only when about 600 characters wrapped at the
+    width, and 4 rows more, fit (`answerFits`); an unknown size allows a
+    poll but no probe.
