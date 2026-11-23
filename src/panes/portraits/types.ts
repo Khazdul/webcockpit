@@ -7,12 +7,13 @@
 // filters never run on a repaint.
 
 import type { RaceKind, SubraceKind } from '../../gmcp/race';
+import type { Sex } from '../../gmcp/sex';
 
 /** A portrait: a subrace's (`subraceKind`), a race's (`raceKind`), or the neutral figure. */
 export type PortraitId = SubraceKind | RaceKind | 'neutral';
 
-/** The character's sex. Not known yet: the card asks for `male` (ADR 0166 addendum 12). */
-export type Sex = 'male' | 'female';
+/** The character's sex (src/gmcp/sex.ts). Not known yet: the card asks for `male` (ADR 0166 addendum 12). */
+export type { Sex };
 
 /** The two sizes a drawing may tune its line for: Large (about 100–180 px across) and Medium (about 40 px). */
 export type PortraitSize = 'large' | 'medium';
