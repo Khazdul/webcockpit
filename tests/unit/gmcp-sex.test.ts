@@ -85,6 +85,19 @@ describe('SexMemory', () => {
     expect(new SexMemory(s as unknown as Storage).get('__proto__')).toBe('female');
   });
 
+  it('a failed probe: `unknown` for the name until a sex is known, never over one', () => {
+    const s = new MemStorage();
+    const m = new SexMemory(s as unknown as Storage);
+    m.setFailed('Gittan');
+    expect(m.failed('gittan')).toBe(true);
+    expect(m.get('Gittan')).toBeNull();
+    m.set('Gittan', 'female');
+    expect(m.failed('Gittan')).toBe(false);
+    m.setFailed('Gittan');
+    expect(m.get('Gittan')).toBe('female');
+    expect(JSON.parse(s.getItem(SEX_KEY)!)).toEqual({ gittan: 'female' });
+  });
+
   it('no storage, or one that throws: nothing remembered, no error', () => {
     const none = new SexMemory(null);
     none.set('Rasta', 'male');

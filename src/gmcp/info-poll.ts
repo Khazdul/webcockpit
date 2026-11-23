@@ -31,7 +31,9 @@
 // the same write, so that MUME answers all four in one pulse. At most one
 // probe per character and connection, whatever its outcome. A failed probe
 // counts toward MAX_FAILURES like a failed poll: it is the same risk, held
-// game text put back late.
+// game text put back late. It is also reported (`sexFailed`) and remembered
+// for the name, so a character whose `info` MUME pages shows that text once
+// and is never probed again.
 //
 // Entering the game also arms the filter for the `Ok.` answers to
 // Session's width commands (PLAYING_COMMANDS), whether the poll is enabled
@@ -85,6 +87,8 @@ export interface InfoPollOptions {
   needSex?(): boolean;
   /** The probe's answer. */
   applySex?(sex: Sex): void;
+  /** The probe failed: not to be sent again for this character. */
+  sexFailed?(): void;
   /** Six random lower-case letters and digits (tests). */
   nonce?(): string;
 }
@@ -109,6 +113,8 @@ export class InfoPoll {
   private failureCount = 0;
   /** The characters probed for their sex on this connection. */
   private probed = new Set<string>();
+  /** The probes sent and not answered. */
+  private probes = new Set<string>();
   private pressedAt = Number.NEGATIVE_INFINITY;
 
   /** A socket frame is being read. */
@@ -128,6 +134,7 @@ export class InfoPoll {
       partial: (l) => bus.emit('text.partial', l),
       found: (nonce, answer) => this.found(nonce, answer),
       foundSex: (nonce, sex) => {
+        this.probes.delete(nonce);
         if (this.own.delete(nonce)) this.o.applySex?.(sex);
       },
       failed: (nonce) => this.failed(nonce),
@@ -255,6 +262,7 @@ export class InfoPoll {
     this.sentPollAt = this.outstanding = this.lineAtSend = null;
     this.own.clear();
     this.probed.clear();
+    this.probes.clear();
     this.failureCount = 0;
     this.commandAt = Number.NEGATIVE_INFINITY;
   }
@@ -286,7 +294,8 @@ export class InfoPoll {
 
   private failed(nonce: string): void {
     if (this.outstanding === nonce) this.outstanding = null;
-    this.own.delete(nonce);
+    const own = this.own.delete(nonce);
+    if (this.probes.delete(nonce) && own) this.o.sexFailed?.();
     if (++this.failureCount >= MAX_FAILURES) this.clearTimer();
   }
 
@@ -337,6 +346,7 @@ export class InfoPoll {
       this.probed.add(this.character!);
       this.filter.expect(probeNonce, 'sex');
       this.own.add(probeNonce);
+      this.probes.add(probeNonce);
     }
     this.own.add(nonce);
     this.outstanding = nonce;

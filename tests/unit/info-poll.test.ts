@@ -38,7 +38,7 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null }
     fighting: () => game.fighting(),
     dataAt: () => game.info.at,
     apply: (a) => game.applyInfo(a),
-    ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x) } : {}),
+    ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x), sexFailed: () => game.sexProbeFailed() } : {}),
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
   });
   game.attach(bus);
@@ -758,6 +758,36 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
     expect(t.probes()).toHaveLength(2);
     // A new connection may try again.
     t.session.disconnect();
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.probes()).toHaveLength(1);
+  });
+
+  it('a failed probe is remembered for the name: never sent again, a typed info still sets the sex', () => {
+    const storage = new MemStorage();
+    const t = setup({ sex: true, storage: storage as unknown as Storage });
+    t.login();
+    t.wait(SETTLE_MS);
+    // As MUME's pager would: a prompt inside the probe's answer.
+    t.frame(answerText(t.nonce()) + probeText(t.probes()[0]!, { body: ['You are a female Fallohide.', '*** Return: continue ***' + GA] }));
+    expect(t.game.sex).toBeNull();
+    expect(JSON.parse(storage.getItem('wc.charSex.v1')!)).toEqual({ rasta: 'unknown' });
+    t.session.disconnect();
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.polls()).toHaveLength(1);
+    expect(t.probes()).toEqual([]);
+    expect(t.game.sexNeeded()).toBe(false);
+  });
+
+  it('a probe left unanswered at a disconnect is not remembered as failed', () => {
+    const storage = new MemStorage();
+    const t = setup({ sex: true, storage: storage as unknown as Storage });
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.probes()).toHaveLength(1);
+    t.session.disconnect();
+    expect(storage.getItem('wc.charSex.v1')).toBeNull();
     t.login();
     t.wait(SETTLE_MS);
     expect(t.probes()).toHaveLength(1);

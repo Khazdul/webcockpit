@@ -421,6 +421,7 @@ export class App {
           apply: (answer) => this.game.applyInfo(answer),
           needSex: () => this.game.sexNeeded(),
           applySex: (sex) => this.game.applySex(sex),
+          sexFailed: () => this.game.sexProbeFailed(),
         }));
     this.statusImpl = new AppStatus(bus);
     // Before the UI lines and the recorder: a kill folded when the run ends

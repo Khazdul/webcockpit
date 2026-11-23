@@ -10,6 +10,8 @@
 //   `wc.charSex.v1` (a JSON object, lower-case name → sex), the most
 //   recently written last, at most `SEX_MEMORY_CAP` names. Every read and
 //   write is guarded: blocked storage or a broken value remembers nothing.
+//   A name can also hold `unknown`: its probe failed (MUME's pager, say),
+//   so it is never probed again; a typed `info` still sets the sex.
 
 import { stripAnsi } from './comm';
 
@@ -48,9 +50,13 @@ export function parseSexLine(text: string, race?: { race: string | null; subrace
 }
 
 /** No prototype: a stored `__proto__` is a name like any other. */
-const empty = (): Record<string, Sex> => Object.create(null) as Record<string, Sex>;
+const empty = (): Record<string, Kept> => Object.create(null) as Record<string, Kept>;
 
 const isSex = (v: unknown): v is Sex => v === 'male' || v === 'female';
+
+/** What a name holds: a sex, or `unknown` after a failed probe. */
+type Kept = Sex | 'unknown';
+const isKept = (v: unknown): v is Kept => isSex(v) || v === 'unknown';
 
 export class SexMemory {
   constructor(private readonly storage: Storage | null) {}
@@ -61,8 +67,22 @@ export class SexMemory {
     return isSex(v) ? v : null;
   }
 
+  /** The probe failed for `name` and no sex is known: it is not probed again. */
+  failed(name: string): boolean {
+    return this.read()[name.toLowerCase()] === 'unknown';
+  }
+
+  /** Remembers that `name`'s probe failed, unless its sex is known. */
+  setFailed(name: string): void {
+    if (this.get(name) === null) this.write(name, 'unknown');
+  }
+
   /** Remembers `sex` for `name`, as the most recent. */
   set(name: string, sex: Sex): void {
+    this.write(name, sex);
+  }
+
+  private write(name: string, sex: Kept): void {
     if (!this.storage) return;
     const all = this.read();
     const key = name.toLowerCase();
@@ -77,7 +97,7 @@ export class SexMemory {
     }
   }
 
-  private read(): Record<string, Sex> {
+  private read(): Record<string, Kept> {
     let raw: string | null = null;
     try {
       raw = this.storage?.getItem(SEX_KEY) ?? null;
@@ -88,8 +108,8 @@ export class SexMemory {
     try {
       const v: unknown = JSON.parse(raw);
       if (!v || typeof v !== 'object' || Array.isArray(v)) return empty();
-      const out: Record<string, Sex> = empty();
-      for (const [k, s] of Object.entries(v)) if (isSex(s)) out[k] = s;
+      const out: Record<string, Kept> = empty();
+      for (const [k, s] of Object.entries(v)) if (isKept(s)) out[k] = s;
       return out;
     } catch {
       return empty();

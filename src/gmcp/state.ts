@@ -216,7 +216,14 @@ export class GameState {
 
   /** The character's sex is not known: the login poll may probe for it. */
   sexNeeded(): boolean {
-    return this.char.name !== null && this.sex === null;
+    const name = this.char.name;
+    return name !== null && this.sex === null && !this.sexMemory.failed(name);
+  }
+
+  /** The probe failed (MUME's pager, say): this character is not probed again. */
+  sexProbeFailed(): void {
+    const name = this.char.name;
+    if (name !== null && !this.replay) this.sexMemory.setFailed(name);
   }
 
   /** The character's sex, from the probe or a line: remembered (not in a replay). */
