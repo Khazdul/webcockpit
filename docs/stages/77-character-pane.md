@@ -428,6 +428,48 @@ What stands:
      timers in density steps; group colour instead of headers; the step
      circle as a dial.
 
+### Round 11 feedback → round 12 (2026-11-23)
+
+The owner after round 11 (`round11.html`), for round 12:
+
+- **Portrait part:** sneak, ride, climb, swim and position go back under
+  the portrait. Try a **square portrait with rounded corners** (several
+  variants) and other borders, some with a subtle D&D-card feel; the
+  round 11 portrait style a is liked best.
+- **Name:** the glass band is liked best, but high up, not across the
+  middle; perhaps joined to the portrait's frame, inside it or outside
+  (above or below).
+- **Status row:** the letter circles do not work. Mood, Casts, Alertness
+  and Weight with their labels in text (small, discreet), the values
+  clearer, on one row in even columns, perhaps each with a button or
+  border; perhaps a small vertical step meter (a mark per step), one
+  colour only, lit or unlit, discreet but visible. No green, orange, red.
+- **Under the row:** the shield row from Stats (OB, DB, PB, ABS), filling
+  the room in even columns with shields as large as fit. If there is
+  room, the purse bottom right (gold, silver, copper coins); and try the
+  name and race at the top left of the status area (both with and
+  without). This means the info poll is also sent while Status is shown
+  (the owner is ready to try it).
+- **Fight:** only the swords in the status row (the position icon). No
+  red rim.
+- **Bashed/stunned:** left out.
+- **Vitals:** a clearer frame or background, above all in Lykta, so that
+  the empty part of a bar shows where the bar starts; and a less modern
+  feel (a subtle texture, a discreet frame, a D&D-card touch). Several
+  variants.
+- **Stats and Lore:** unchanged for now. Regen and the age modifiers are
+  in the real card's Stats; round 11 left them out.
+- **Sleeping:** the Zz on the portrait is liked (it may later replace the
+  weather effect's Zz).
+- **Timers:** Sanctuary, Spells, Stored, Blinds and Charmies are too
+  much for Character. Character shows Buffs, Debuffs and Herblores, and
+  your own GMCP flags as untimed icons: poison, blind, snared, wound,
+  hungry, thirsty and your sanctuary. The Timers pane might then be
+  renamed Spells (if the owner likes the split; not mocked now). In
+  Character they look like round 11's dense grid of rune stones: small
+  icons with a small bar under them, **winding round the portrait's
+  edge** (several variants); overflow to be explored.
+
 ## Part A: findings
 
 ### Known before the live run (2026-11-22)
