@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   PHONE_MIN_COLS,
   PHONE_MIN_NAWS_COLS,
+  PHONE_MIN_NAWS_ROWS,
   PHONE_MIN_ROWS,
   phoneNawsCols,
+  phoneNawsRows,
   COMMAND_ROW_PX,
   COMM_MIN_ROWS,
   FIGHT_ROWS,
@@ -950,5 +952,13 @@ describe('phoneNawsCols', () => {
     expect(PHONE_MIN_NAWS_COLS).toBe(80);
     expect(phoneNawsCols(41)).toBe(80);
     expect(phoneNawsCols(93)).toBe(93);
+  });
+});
+
+describe('phoneNawsRows', () => {
+  it("reports at least 40 rows so MUME's pager stays out of the way", () => {
+    expect(PHONE_MIN_NAWS_ROWS).toBe(40);
+    expect(phoneNawsRows(8)).toBe(40);
+    expect(phoneNawsRows(52)).toBe(52);
   });
 });

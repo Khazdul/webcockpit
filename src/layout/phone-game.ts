@@ -136,6 +136,21 @@ export function phoneNawsCols(cols: number): number {
   return Math.max(cols, PHONE_MIN_NAWS_COLS);
 }
 
+/**
+ * Least height a phone or tablet reports to MUME (NAWS; the owner,
+ * 2026-11-23). MUME pages long output at the window's height: on a phone
+ * in landscape (about 8 rows) the login screen, help texts and `info`
+ * came in pages, and the client's own commands (`change width`, the info
+ * poll) were taken by the pager as its input. The client has its own
+ * scrollback, so long text comes in one go and is scrolled there.
+ */
+export const PHONE_MIN_NAWS_ROWS = 40;
+
+/** The height sent to MUME for a game pane `rows` high (phone and tablet). */
+export function phoneNawsRows(rows: number): number {
+  return Math.max(rows, PHONE_MIN_NAWS_ROWS);
+}
+
 /** Rows of the fight card while fighting (ADR 0136 §3). */
 export const FIGHT_ROWS = 2;
 /** The open pane strip's share of the rows, and its limits (ADR 0136 §2). */

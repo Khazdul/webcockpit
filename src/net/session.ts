@@ -434,6 +434,11 @@ export class Session implements Sender {
     this.gmcp.send(pkg, data);
   }
 
+  /** The window size MUME is told (NAWS), or null before any. */
+  get windowSize(): { cols: number; rows: number } | null {
+    return this.telnet.windowSize;
+  }
+
   /** Window size in cells, sent via NAWS when enabled and changed. */
   setWindowSize(cols: number, rows: number): void {
     this.telnet.setWindowSize(cols, rows);

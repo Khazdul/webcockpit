@@ -34,7 +34,8 @@
 // game text put back late. It is also reported (`sexFailed`) and remembered
 // for the name, so a character whose `info` MUME pages shows that text once
 // and is never probed again. Only in a window of `PROBE_MIN_ROWS` or more,
-// as MUME's pager follows the window's height.
+// and a poll only when its answer fits (`answerFits`), as MUME's pager
+// follows the window's height.
 //
 // Entering the game also arms the filter for the `Ok.` answers to
 // Session's width commands (PLAYING_COMMANDS), whether the poll is enabled
@@ -68,12 +69,28 @@ export const REPEAT_SETTLE_MS = 10_000;
 /** Failures that stop the polls for the connection. */
 export const MAX_FAILURES = 2;
 /**
- * The probe only in a window this tall (`view.size`): MUME pages a plain
- * `info` (about 20 lines) at the window's height, and its pager would take
- * the probe's last `info` as input and stay open (a phone in landscape,
- * stage 77 E2, the owner's test). Unknown: no probe.
+ * MUME pages long output at the height the client reports (NAWS), and its
+ * pager takes the next command as its input and stays open (a phone in
+ * landscape, stage 77 E2, the owner's test). A phone and a tablet now
+ * report at least 40 rows (`PHONE_MIN_NAWS_ROWS`), but a small desktop
+ * window may be short:
+ *
+ * - the probe only in a window this tall (a plain `info` is about 20
+ *   lines); an unknown size: no probe;
+ * - a poll only when its answer, about `ANSWER_CHARS` wrapped at the
+ *   width, fits with room to spare; an unknown size: allowed.
  */
 export const PROBE_MIN_ROWS = 30;
+/** More than an answer's length (the sample is about 420 characters). */
+export const ANSWER_CHARS = 600;
+/** Rows beside the answer: the blank lines and the prompt, and a margin. */
+export const ANSWER_SPARE_ROWS = 4;
+
+/** The answer of a poll fits a window of this size without MUME's pager. */
+export function answerFits(size: { cols: number; rows: number } | null): boolean {
+  if (size === null) return true;
+  return Math.ceil(ANSWER_CHARS / Math.max(1, size.cols)) + ANSWER_SPARE_ROWS <= size.rows;
+}
 
 export interface InfoPollOptions {
   /** Subscribe first: what is held must go out before anyone sees a disconnect. */
@@ -97,6 +114,8 @@ export interface InfoPollOptions {
   applySex?(sex: Sex): void;
   /** The probe failed: not to be sent again for this character. */
   sexFailed?(): void;
+  /** The window size MUME is told (NAWS), or null before any. None: unknown. */
+  windowSize?(): { cols: number; rows: number } | null;
   /** Six random lower-case letters and digits (tests). */
   nonce?(): string;
 }
@@ -123,8 +142,6 @@ export class InfoPoll {
   private probed = new Set<string>();
   /** The probes sent and not answered. */
   private probes = new Set<string>();
-  /** The window's height in rows, from `view.size`. */
-  private rows: number | null = null;
   private pressedAt = Number.NEGATIVE_INFINITY;
 
   /** A socket frame is being read. */
@@ -170,7 +187,6 @@ export class InfoPoll {
           this.check();
         }
       }),
-      bus.on('view.size', (v) => (this.rows = v.rows)),
       bus.on('gmcp', (m) => {
         const key = gmcpKey(m);
         if (key === 'char.vitals') this.vitals = true;
@@ -331,6 +347,7 @@ export class InfoPoll {
   private blocked(): string | null {
     if (this.o.passwordMode()) return 'password mode';
     if (this.o.fighting()) return 'fighting';
+    if (!answerFits(this.o.windowSize?.() ?? null)) return "the answer would not fit the window: MUME's pager";
     return this.gate();
   }
 
@@ -348,7 +365,8 @@ export class InfoPoll {
 
   private send(now: number): boolean {
     const nonce = this.o.nonce?.() ?? randomNonce();
-    const tall = this.rows !== null && this.rows >= PROBE_MIN_ROWS;
+    const rows = this.o.windowSize?.()?.rows ?? null;
+    const tall = rows !== null && rows >= PROBE_MIN_ROWS;
     const probe = tall && this.loginDue && this.character !== null && !this.probed.has(this.character) && this.o.needSex?.() === true;
     const probeNonce = probe ? (this.o.nonce?.() ?? randomNonce()) : null;
     const text = probeNonce === null ? infoCommand(nonce) : `${infoCommand(nonce)}\r\n${sexProbeCommand(probeNonce)}`;

@@ -133,7 +133,7 @@ import type { ScriptLibrary } from '../scripts';
 import type { ScriptHost } from '../scripts/host';
 import { GmcpCache } from '../scripts/gmcp-cache';
 import { device } from '../core/device';
-import { phoneNawsCols } from '../layout/phone-game';
+import { phoneNawsCols, phoneNawsRows } from '../layout/phone-game';
 import type { PaneId } from '../layout/types';
 
 /** sessionStorage key: the `#perf` overlay is on in this tab (ADR 0135). */
@@ -422,6 +422,7 @@ export class App {
           needSex: () => this.game.sexNeeded(),
           applySex: (sex) => this.game.applySex(sex),
           sexFailed: () => this.game.sexProbeFailed(),
+          windowSize: () => this.session.windowSize,
         }));
     this.statusImpl = new AppStatus(bus);
     // Before the UI lines and the recorder: a kill folded when the run ends
@@ -546,7 +547,7 @@ export class App {
       scrollback: this.settings.get().output.scrollback,
       // The phone's game layout keeps the size back while a band is dragged (one NAWS on release);
       // everywhere else the gate is the function itself.
-      onResize: this.cockpit.phoneSizeGate((cols, rows) => this.session.setWindowSize(device().phone ? phoneNawsCols(cols) : cols, rows)),
+      onResize: this.cockpit.phoneSizeGate((cols, rows) => this.session.setWindowSize(device().phone ? phoneNawsCols(cols) : cols, device().phone ? phoneNawsRows(rows) : rows)),
       onFocusInput: () => this.input.focus(),
       ...(perf
         ? { requestFrame: perf.frames(opts.requestFrame ?? ((cb) => void requestAnimationFrame(() => cb()))) }

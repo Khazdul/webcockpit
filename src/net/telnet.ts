@@ -609,6 +609,11 @@ export class Telnet {
    * Sets the window size in character cells. Sent as NAWS right away when
    * NAWS is enabled and the size changed; otherwise kept for later.
    */
+  /** The window size last set (sent or not), or null before any. */
+  get windowSize(): { cols: number; rows: number } | null {
+    return this.cols > 0 && this.rows > 0 ? { cols: this.cols, rows: this.rows } : null;
+  }
+
   setWindowSize(cols: number, rows: number): void {
     this.cols = clamp16(cols);
     this.rows = clamp16(rows);

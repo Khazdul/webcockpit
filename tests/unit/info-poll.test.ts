@@ -2,7 +2,7 @@
 // 19, 22–25): a real session, line layer and game state, a fake clock.
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, PROBE_MIN_ROWS, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
+import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, PROBE_MIN_ROWS, answerFits, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
 import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -27,6 +27,8 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; 
   let enabled = o.enabled ?? true;
   let n = 0;
   let sock = new FakeSocket();
+  // The window MUME is told (a desktop's by default): the probe needs PROBE_MIN_ROWS.
+  let size: { cols: number; rows: number } | null = o.rows === null ? null : { cols: 110, rows: o.rows ?? 49 };
   const poll: InfoPoll = new InfoPoll({
     bus,
     now,
@@ -39,12 +41,10 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; 
     dataAt: () => game.info.at,
     apply: (a) => game.applyInfo(a),
     ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x), sexFailed: () => game.sexProbeFailed() } : {}),
+    windowSize: () => size,
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
   });
   game.attach(bus);
-  // The window's height (a desktop's): the probe needs PROBE_MIN_ROWS.
-  const rows = o.rows === undefined ? 49 : o.rows;
-  if (rows !== null) bus.emit('view.size', { cols: 110, rows });
   const shown: string[] = [];
   bus.on('text.line', (l) => shown.push(l.text));
   const assembler = new LineAssembler({
@@ -118,7 +118,10 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; 
   };
   // The hub's one-second tick is not the poll's: count only what `pending` had without it.
   const idleTimers = sched.pending;
-  return { bus, game, poll, session, sched, shown, cmds, frame, polls, probes, writes, nonce, connect, login, ready, answer, wait, active, turn, idleTimers, sock: () => sock };
+  const resize = (to: { cols: number; rows: number } | null): void => {
+    size = to;
+  };
+  return { resize, bus, game, poll, session, sched, shown, cmds, frame, polls, probes, writes, nonce, connect, login, ready, answer, wait, active, turn, idleTimers, sock: () => sock };
 }
 
 describe('InfoPoll: the login poll', () => {
@@ -766,6 +769,22 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
     expect(t.probes()).toHaveLength(1);
   });
 
+  it("a poll only when its answer fits the window: MUME's pager would take what follows", () => {
+    expect(answerFits(null)).toBe(true);
+    expect(answerFits({ cols: 80, rows: 12 })).toBe(true);
+    expect(answerFits({ cols: 80, rows: 11 })).toBe(false);
+    expect(answerFits({ cols: 40, rows: 19 })).toBe(true);
+    const t = setup({ sex: true, rows: 8 });
+    t.resize({ cols: 80, rows: 8 });
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.polls()).toEqual([]);
+    expect(t.poll.request()).toBe("the answer would not fit the window: MUME's pager");
+    t.resize({ cols: 80, rows: 40 });
+    expect(t.poll.request()).toBeNull();
+    expect(t.polls()).toHaveLength(1);
+  });
+
   it(`only in a window of ${PROBE_MIN_ROWS} rows or more: MUME pages a plain info at the window's height`, () => {
     for (const rows of [null, 12, PROBE_MIN_ROWS - 1]) {
       const t = setup({ sex: true, rows });
@@ -775,7 +794,7 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
       expect(t.probes()).toEqual([]);
     }
     const t = setup({ sex: true, rows: 12 });
-    t.bus.emit('view.size', { cols: 80, rows: PROBE_MIN_ROWS });
+    t.resize({ cols: 80, rows: PROBE_MIN_ROWS });
     t.login();
     t.wait(SETTLE_MS);
     expect(t.probes()).toHaveLength(1);
