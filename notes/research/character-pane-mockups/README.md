@@ -16,6 +16,7 @@ page: open it from disk, or use the published artifact.
 | 7 | `round7.html` | <https://claude.ai/artifact/EccHZWZvu7729wtUkhU8eZ> | Name centred without race; shields; the weight in six steps; deltas from `info %S` vs `%G`; vitals in the bar. |
 | 8 | `round8.html` | <https://claude.ai/artifact/QknnnHEv6faeoWHkHGL9tt> | Status without boxes, shortened values; weight found in GMCP `carrying`. |
 | 9 | `round9.html` | <https://claude.ai/artifact/ASRXVDkPhvSGYPh88drf9n> | **Approved.** Status only from GMCP (Mood, Casts, Alertness, Weight); shields at the top of Stats. |
+| 10 | `round10.html` | <https://claude.ai/artifact/HqLErmKgiNZy1xiQCmuKko> | The fight card moves into Character (direction pass, 2026-11-23): placements A–J, fight modes a–e, your statuses in four places. Waiting for the owner's pick. |
 
 The race portraits are crude SVG placeholders (`<symbol id="r-…">` in each
 file, with transparent backgrounds from round 3 on). The chosen icon paths

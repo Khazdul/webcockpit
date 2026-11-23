@@ -1,0 +1,883 @@
+<title>Character Pane Round 10</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Round 10: the fight card moves from Group into the Character pane (owner, 2026-11-23).
+   A dark studio wall as round 9: a live bench, the fight-mode variants, the status placements,
+   a static grid of every placement, and the questions. The panes are Lykta, or Paper (light). */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --warn: #ff8c2a; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a; --down: #ff8a7a;
+  --foe: #d8453c; --foe-ink: #ff9b8f; --foe-word: #ffb3a8; --tank: #e8c35a;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; color: var(--ink); }
+p { margin: 0; max-width: 70ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 56px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.box { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box p, .box li { color: var(--ink-dim); font-size: 15px; }
+.box ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+.box strong { color: var(--ink); }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0,1fr); } }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .06em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 520px) { .bench { padding: 10px; } }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); flex-wrap: wrap; }
+.benchnote { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; max-width: 80ch; }
+.benchnote b { color: var(--ink); }
+
+/* ---------------------------------------------------------------- Lykta pane */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22);
+  transition: box-shadow .5s; }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 6; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  display: flex; flex-direction: column; gap: 6px;
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+/* fight variant (c): a thin red rule on the top edge */
+.win.redrule::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 5;
+  background: linear-gradient(90deg, transparent, var(--crit) 20%, var(--crit) 80%, transparent); box-shadow: 0 0 10px 1px rgba(255,77,77,.65); }
+/* fight variant (e): the lantern turns to embers */
+.pane.ember { box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 26px -2px rgba(255,90,60,.5); }
+.pane.ember > .win { background: radial-gradient(38% 46px at 50% 0, rgba(255,110,80,.22), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(255,140,100,.12), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg); }
+
+/* ---------------------------------------------------------------- Paper pane (light) */
+.pane.paper { --iron: #cbbd9c; --iron-hi: #efe6d1; --iron-lo: #8c7b58; --pane-bg: #f1e8d4;
+  --text: #2d2619; --dim: #6e634d; --faint: #b3a78d; --lamp: #6e5220; --lamp-hot: #3b2b10; --frost-edge: rgba(60,40,10,.22);
+  --foe: #c42f26; --foe-ink: #a01c1c; --foe-word: #8a1a14; --tank: #8f6a00; --xp: #d09a1c; --tp: #00737e;
+  box-shadow: inset 1px 1px 0 #f5eedd, inset -1px -1px 0 #8c7b58, 0 0 0 1px #3a3020; }
+.pane.paper.ember { box-shadow: inset 1px 1px 0 #f5eedd, inset -1px -1px 0 #8c7b58, 0 0 0 1px #3a3020, 0 0 22px -2px rgba(220,60,40,.55); }
+.pane.paper > .hood { color: #3b2b10; text-shadow: none; box-shadow: inset 0 -1px 0 #f5eedd, 0 0 0 1px #6e6048, 0 2px 4px rgba(0,0,0,.25); }
+.pane.paper > .win { border-color: #6e6048; background: #f1e8d4; box-shadow: inset 0 0 0 1px rgba(60,40,10,.12); }
+.pane.paper.ember > .win { background: linear-gradient(180deg, rgba(220,60,40,.10), transparent 40px), #f1e8d4; }
+.pane.paper .f, .pane.paper .abx { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.07), 0 1px 2px rgba(60,40,10,.18); }
+.pane.paper .f.bare { background: none; box-shadow: none; }
+.pane.paper .b { background: #a39880; box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 0 #fff; }
+.pane.paper .disc2 { background: radial-gradient(circle at 50% 40%, #f4e9d2, #d9ccb0 78%); box-shadow: 0 0 0 1px #3a3020, 0 0 0 3px var(--iron-hi), 0 0 0 4px #3a3020, 0 1px 4px 4px rgba(50,35,10,.15); }
+.pane.paper .lr { background: radial-gradient(circle, #f7efdf 60%, transparent 63%); }
+.pane.paper .vt button { background: linear-gradient(90deg, rgba(60,40,10,.12), rgba(60,40,10,.04)); box-shadow: none; }
+.pane.paper .vt button.on { background: #fffdf8; box-shadow: inset 2px 0 0 #8c7b58; color: #3b2b10; }
+.pane.paper .ti.on { filter: none; }
+.pane.paper .fc { background: linear-gradient(90deg, rgba(143,106,0,.08), transparent 45%, transparent 55%, rgba(196,32,32,.07)), #fbf6ea; border-color: rgba(60,40,10,.2); box-shadow: 0 1px 2px rgba(60,40,10,.2); }
+.pane.paper .fc.solo, .pane.paper .fc.stack { background: linear-gradient(90deg, rgba(196,32,32,.07), transparent 70%), #fbf6ea; }
+.pane.paper .sti, .pane.paper .pip { background: #fffdf8; box-shadow: 0 0 0 1px rgba(60,40,10,.3); }
+.pane.paper .sti.s-sanct .ti { filter: none; }
+.pane.paper .nm2, .pane.paper .who .wn { text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+.pane.paper .cap10 { background: rgba(196,32,32,.06); }
+
+/* ---------------------------------------------------------------- bars (Rör) */
+.b { position: relative; display: block; height: 11px; border-radius: 4px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); min-width: 0; }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b.rt > i { left: auto; right: 0; }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 4px 4px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); bottom: -5px; height: 4px; width: 0; margin-left: -4px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid var(--lamp-hot); z-index: 2; }
+.b > s { position: absolute; top: 1px; bottom: 1px; left: var(--t); width: 1px; background: rgba(0,0,0,.5); z-index: 1; }
+.b > .lab { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 7px; font: 700 11px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; white-space: nowrap; overflow: hidden; }
+.b > .lab small { font-weight: 400; opacity: .75; } .b > .lab .k2 { font: 700 9px/1 var(--display); letter-spacing: .12em; opacity: .85; }
+.b > .lab > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.b > .lab .ti { width: 11px; height: 11px; stroke: #fff; filter: drop-shadow(0 1px 1px #000); }
+.b > .lab em { font: 400 10px/1 var(--mono); font-style: normal; opacity: .85; }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); } .fo { --c: var(--foe); } .tk { --c: var(--hp); }
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; flex: none; }
+.vit3.four { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.vit3.two2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.vit { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.vit.thin .top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; margin-bottom: 2px; height: 10px; }
+.vit.thin .k { font: 700 8px/1 var(--display); letter-spacing: .12em; color: var(--dim); white-space: nowrap; display: flex; gap: 3px; align-items: center; }
+.vit.thin .k .ti { width: 10px; height: 10px; }
+.vit.thin .n { font: 600 10px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.vit.thin .n small { font-weight: 400; color: var(--dim); }
+.vit.thin .b { height: 5px; border-radius: 3px; }
+.vit.thin.fat .b { height: 10px; border-radius: 4px; }
+.vit.thin.fat .top { height: 11px; }
+.vit.thin .top .fn { display: flex; align-items: center; gap: 3px; overflow: hidden; min-width: 0; }
+.vit.thin .top .fn .ti { width: 10px; height: 10px; }
+.vit .tkb { height: 4px; border-radius: 2px; margin-bottom: 3px; }
+.vit .tkl { font: 700 8px/1 var(--display); letter-spacing: .1em; color: var(--dim); display: flex; justify-content: space-between; margin-bottom: 2px; white-space: nowrap; }
+.vit .tkl b { font: 600 9.5px/1 var(--mono); color: var(--text); letter-spacing: 0; }
+.face { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 5px; align-items: center; padding: 0 6px; flex: none; }
+.face .vsm { font: 700 8.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+
+/* ---------------------------------------------------------------- icons */
+.ti { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); } .ti.posi.fight { stroke: var(--crit); filter: drop-shadow(0 0 3px rgba(255,77,77,.55)); }
+.ti.fo { stroke: var(--foe-ink); } .ti.tk { stroke: var(--tank); }
+
+/* ---------------------------------------------------------------- the card */
+.cw { position: relative; display: flex; gap: 14px; flex: none; min-height: 0; }
+.lc { display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 4px; flex: none; min-height: 0; }
+.lc.row { flex-direction: row; align-items: center; justify-content: flex-start; gap: 7px; }
+.lc.row .lcs { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.who { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; height: 16px; }
+.who .wn { font: 700 14px/1.1 var(--display); letter-spacing: .05em; color: var(--lamp-hot); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lc.row .who { justify-content: flex-start; }
+.medal { position: relative; align-self: center; flex: none; }
+.disc2 { position: absolute; left: 0; top: 0; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%);
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(233,207,159,.25), inset 0 0 16px rgba(0,0,0,.9); }
+.disc2 svg { position: absolute; left: 6%; top: 8%; width: 88%; height: 100%; }
+.medal .lr { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 2; }
+.mic { display: flex; gap: 3px; justify-content: center; flex: none; }
+.mic span { border-radius: 3px; padding: 1px; }
+.mic .sep { width: 1px; background: rgba(233,207,159,.2); margin: 1px 1px; padding: 0; }
+.lr { position: relative; flex: none; display: grid; place-items: center; background: radial-gradient(circle, #15130f 60%, transparent 63%); border-radius: 50%; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+.ra { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+.tpn { display: none; min-height: 0; } .tpn.on { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+
+/* statuses (yours) */
+.sts { display: flex; gap: 3px; justify-content: center; align-items: center; flex: none; height: 16px; }
+.sti { position: relative; display: grid; place-items: center; width: var(--s, 16px); height: var(--s, 16px); border-radius: 50%; flex: none; }
+.sti .ti { width: calc(var(--s, 16px) - 5px); height: calc(var(--s, 16px) - 5px); stroke: var(--down); }
+.sti.s-sanct .ti { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.8)); }
+.sti.s-hungry .ti, .sti.s-thirsty .ti { stroke: var(--mv); }
+.sti .sring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; }
+.sti .sring .bg { stroke: rgba(233,207,159,.14); stroke-width: 2; }
+.sti .sring .arc { stroke: var(--lamp-hot); stroke-width: 2; stroke-linecap: round; }
+.more { font: 700 10px/1 var(--mono); color: var(--dim); padding: 0 1px; flex: none; }
+.pip { position: absolute; z-index: 3; display: grid; place-items: center; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%;
+  background: #15130f; box-shadow: 0 0 0 1px rgba(233,207,159,.35), 0 1px 3px rgba(0,0,0,.7); }
+.pip .ti { width: calc(var(--s) - 6px); height: calc(var(--s) - 6px); stroke: var(--down); }
+.pip.s-hungry .ti { stroke: var(--mv); }
+.pip.more2 { font: 700 8.5px/1 var(--mono); color: var(--text); }
+.sanring { position: absolute; z-index: 1; pointer-events: none; transform: rotate(-90deg); fill: none; overflow: visible; }
+.sanring .arc { stroke: var(--lamp-hot); stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(233,207,159,.9)); }
+.sanring .bg { stroke: rgba(233,207,159,.12); stroke-width: 2.4; }
+.stchips { display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: center; padding: 2px 4px 0; border-top: 1px solid rgba(233,207,159,.12); flex: none; }
+.stchip { display: inline-flex; align-items: center; gap: 4px; font: 600 11px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.stchip .sti { --s: 14px; } .stchip small { font: 400 10px/1 var(--mono); color: var(--dim); }
+
+/* status tab */
+.fields { display: grid; gap: 0; flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+.f { padding: 5px 8px 6px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.f small { display: flex; align-items: center; gap: 5px; font: 700 8.5px/1 var(--display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-bottom: 4px; white-space: nowrap; }
+.f b { display: block; font: 600 14px/1.15 var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f b em { font: 400 11px/1 var(--mono); color: var(--dim); font-style: normal; }
+.f .ti { width: 13px; height: 13px; stroke: var(--lamp); }
+.f.bare { background: none; box-shadow: none; padding: 2px 4px; align-items: center; text-align: center; }
+.f.bare small { justify-content: center; } .f.bare b { font-size: var(--vfs, 16px); }
+.fields.c4 .f.bare + .f.bare { border-left: 1px solid rgba(233,207,159,.12); }
+.fields.c2 .f.bare:nth-child(2n) { border-left: 1px solid rgba(233,207,159,.12); }
+.fields.c2 .f.bare:nth-child(n+3) { border-top: 1px solid rgba(233,207,159,.12); }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 2px 0 4px; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); }
+.coin:first-child { margin-left: 0; }
+.coin.g { background: #e5c158; } .coin.s { background: #c9ccd1; } .coin.c { background: #c07a46; }
+.lore { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); grid-auto-rows: minmax(0,1fr); flex: 1; min-height: 0; }
+.lore .f.wide { grid-column: 1 / -1; }
+.lore .f b { font-size: 12.5px; }
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 3px; }
+.abx { text-align: center; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.abx small { display: block; font: 700 7.5px/1 var(--display); letter-spacing: .08em; color: var(--dim); }
+.abx b { display: block; font: 700 13px/1.25 var(--mono); }
+.abx.up b { color: var(--up); }
+.shl { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; }
+.shl > div { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); }
+.shl .ti { width: 13px; height: 13px; stroke: var(--lamp); } .shl b { font: 700 13px/1 var(--mono); color: var(--lamp-hot); } .shl small { font: 700 7.5px/1 var(--display); color: var(--dim); letter-spacing: .1em; }
+.sline { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font: 600 11.5px/1.2 var(--mono); color: var(--text); padding: 1px 2px 3px; border-bottom: 1px solid rgba(233,207,159,.12); flex: none; }
+.sline span { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.sline .ti { width: 11px; height: 11px; stroke: var(--lamp); }
+
+/* tabs */
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; align-self: stretch; flex: none; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 1 0; min-height: 0; overflow: hidden; font: 700 var(--tfs, 9px)/1 var(--display); letter-spacing: .12em; padding: 4px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: var(--lamp-hot); background: rgba(233,207,159,.11); box-shadow: inset 2px 0 0 var(--lamp); }
+.vt button.ft { color: var(--foe-ink); }
+.vt button.ft.on { background: rgba(255,77,77,.12); box-shadow: inset 2px 0 0 var(--crit); color: var(--foe-ink); }
+.vt.locked button:not(.on) { opacity: .35; }
+
+/* ---------------------------------------------------------------- the fight card */
+.fc { border-radius: 5px; padding: 3px 7px 4px; border: 1px solid var(--frost-edge); flex: none; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  background: linear-gradient(90deg, rgba(232,195,90,.07), transparent 45%, transparent 55%, rgba(255,77,77,.08)), rgba(233,207,159,.045);
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.25), 0 1px 3px rgba(0,0,0,.5); }
+.fc.solo, .fc.stack { background: linear-gradient(90deg, rgba(255,77,77,.09), transparent 70%), rgba(233,207,159,.045); }
+.fl { display: flex; align-items: center; gap: 5px; height: 14px; min-width: 0; font: 700 12px/1 var(--mono); }
+.fl .ti { width: 13px; height: 13px; }
+.fn { color: var(--foe-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tn { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.vs { font: italic 600 13px/1 var(--flavor); color: var(--dim); white-space: nowrap; flex: none; }
+.fl .mid { margin: 0 auto; }
+.fl .r { margin-left: auto; }
+.cond { font: 600 11.5px/1 var(--mono); color: var(--foe-word); white-space: nowrap; flex: none; }
+.num { font: 600 11px/1 var(--mono); color: var(--text); white-space: nowrap; flex: none; } .num small { color: var(--dim); font-weight: 400; }
+.fbars { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+.fc .b { height: 7px; border-radius: 3px; }
+.fsub { display: flex; justify-content: space-between; height: 11px; align-items: center; }
+.fc.over { position: absolute; left: 0; bottom: 0; z-index: 4; backdrop-filter: blur(3px);
+  background: linear-gradient(90deg, rgba(232,195,90,.08), transparent 45%, transparent 55%, rgba(255,77,77,.10)), color-mix(in srgb, var(--pane-bg) 90%, transparent);
+  box-shadow: inset 0 1px 0 rgba(233,207,159,.3), 0 -4px 12px rgba(0,0,0,.55); }
+.fc.over.solo { background: linear-gradient(90deg, rgba(255,77,77,.12), transparent 70%), color-mix(in srgb, var(--pane-bg) 90%, transparent); }
+.pane.paper .fc.over { background: color-mix(in srgb, #fbf6ea 94%, transparent); box-shadow: 0 -3px 10px rgba(60,40,10,.25); }
+.fc.big { flex: 1; justify-content: center; gap: 5px; padding: 6px 9px; }
+.fc.big .bh { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.fc.big .bh .ti { width: 20px; height: 20px; margin-top: 1px; }
+.fc.big .bn { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fc.big .bn b { font: 700 14px/1.2 var(--mono); color: var(--foe-ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fc.big .bh .cond { font-size: 14px; margin-top: 2px; }
+.fc.big .b.fo { height: 12px; border-radius: 4px; }
+.fc.big .bt { display: flex; align-items: center; gap: 6px; font: 700 12.5px/1 var(--mono); margin-top: 2px; }
+.fc.big .bt .ti { width: 14px; height: 14px; }
+.fc.big .bt.you { font: italic 600 13px/1.1 var(--flavor); color: var(--dim); }
+.fc.big .b.tk { height: 8px; }
+.fc.strip { padding: 0; border: 0; background: none; box-shadow: none; }
+.fc.strip .b { height: 15px; border-radius: 4px; }
+.fc.strip .lab { font-size: 10.5px; padding: 0 6px; }
+.cap10 { display: flex; align-items: center; gap: 5px; height: 16px; padding: 0 5px; border-radius: 4px; background: rgba(255,77,77,.07); font: 700 11.5px/1 var(--mono); flex: none; min-width: 0; }
+.cap10 .ti { width: 12px; height: 12px; }
+.fring { position: absolute; z-index: 1; pointer-events: none; transform: rotate(-90deg); fill: none; overflow: visible; }
+.fring .bg { stroke: rgba(0,0,0,.55); stroke-width: 4; }
+.fring .fa { stroke: var(--foe); stroke-width: 4; filter: drop-shadow(0 0 3px rgba(255,77,77,.6)); }
+.fring .ta { stroke: var(--hp); stroke-width: 4; }
+.vsmed { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; min-width: 0; }
+.vsmed .disc3 { position: relative; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a1c1c, #100a0a 72%); box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--iron-hi), 0 0 0 3px #000; }
+.pane.paper .vsmed .disc3 { background: radial-gradient(circle at 50% 40%, #f4e2d2, #dcc7b0 78%); }
+.vsmed .disc3 .ti { width: 46%; height: 46%; }
+.vsmed .mn { font: 700 10.5px/1.15 var(--mono); color: var(--foe-ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vsmed .mt { display: flex; align-items: center; gap: 3px; font: 600 9.5px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.vsmed .mt .ti { width: 10px; height: 10px; }
+.vsmed .mtb { width: 100%; height: 4px; border-radius: 2px; }
+.jrow { display: flex; gap: 8px; flex: 1; min-height: 0; }
+.jrow .fields { flex: 1; }
+
+/* ---------------------------------------------------------------- page bits */
+.rowx { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.cap { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink-dim); min-width: 0; }
+.cap p { font-size: 14px; max-width: 46ch; }
+.altlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.alt { background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 10px 12px; cursor: pointer; }
+.alt:hover { border-color: #3a404c; border-left-color: var(--lamp-hot); }
+.alt.on { background: #1a1c20; border-color: var(--lamp); }
+.alt h3 { font-size: 14px; } .alt h3 span { color: var(--lamp); margin-right: 6px; }
+.alt p { font-size: 14px; color: var(--ink-dim); margin-top: 3px; }
+.gridalt { display: flex; flex-direction: column; gap: 10px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.gridalt h3 span { color: var(--lamp); margin-right: 6px; }
+.gridalt > p { font-size: 14.5px; color: var(--ink-dim); }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.q p { font-size: 15px; color: var(--ink-dim); }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opts span { font: 12.5px/1.2 var(--mono); color: var(--ink); padding: 5px 8px; border-radius: 4px; background: #161a21; border: 1px solid #333944; }
+.q .opts span.rec { border-color: var(--lamp); color: var(--lamp-hot); }
+#tip { position: fixed; z-index: 50; white-space: pre; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="r-orc" viewBox="0 0 60 75">
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 10</span>
+  <h1>Stridskortet flyttar in i Character</h1>
+  <p class="lede">Stridskortet lämnar Group och hamnar längst ner i Character pane. Telefonens och iPadens separata kort försvinner, och de får samma kort på Character-sidan i remsan. Tankar du syns bara fiendens stapel (<code>vs you</code>). Tankar någon annan syns tanken och fienden mot varandra. Här provar jag var kortet får plats, vad som finns kvar av stridsläget och var dina egna statusar kan sitta.</p>
+  <div class="changes">
+    <div><b>Group</b> har inget stridskort längre. Tankens sköld i listan finns kvar.</div>
+    <div><b>Telefon</b>: kortet över spelet tas bort. Samma kort ligger på Character-sidan i remsan.</div>
+    <div><b>Din HP</b> i strid är ofta bara ett intervall, alltså det randiga spannet utan siffror (beslut 11).</div>
+    <div><b>Fiendens tillstånd</b>: antingen skrivs ordet ut, eller så syns bara stapeln i steg och ordet ligger i tooltipen.</div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Prova</span><h2>Bänken</h2>
+      <p>Välj ett alternativ och slå på <b>Strid</b>. Då glider det som ändras på plats, så att du ser vad som flyttar sig. Flikarna går att klicka. Håll muspekaren över staplar, ikoner och namn för att se tooltipen.</p></div>
+    <div class="bench">
+      <div class="ctlrow">
+        <div class="ctl">Alternativ <span class="seg" data-ctl="alt" id="altseg"></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Strid <span class="seg" data-ctl="fight"><button data-v="off">Av</button><button data-v="on" class="on">På</button></span></div>
+        <div class="ctl">Tank <span class="seg" data-ctl="tank"><button data-v="you" class="on">Du</button><button data-v="other">Någon annan</button></span></div>
+        <div class="ctl">Ord <span class="seg" data-ctl="word"><button data-v="word" class="on">Visas</button><button data-v="bar">Bara stapel</button></span></div>
+        <div class="ctl">Fiende <span class="seg" data-ctl="foe"><button data-v="short" class="on">a black-robed orc</button><button data-v="long">långt namn</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Storlek <span class="seg" data-ctl="size"><button data-v="large" class="on">Large</button><button data-v="medium">Medium (standard)</button><button data-v="phone">Telefon</button></span></div>
+        <div class="ctl">Pane <span class="seg" data-ctl="pane"><button data-v="lykta" class="on">Lykta</button><button data-v="paper">Paper</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Stridsläge <span class="seg" data-ctl="fmode"><button data-v="a" class="on">a · dagens</button><button data-v="b">b · bara kortet</button><button data-v="c">c · svärd + röd kant</button><button data-v="d">d · flikarna fälls bort</button><button data-v="e">e · lyktan glöder</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Statusar <span class="seg" data-ctl="stat"><button data-v="off">Av</button><button data-v="on" class="on">På</button></span></div>
+        <div class="ctl">Statusplats <span class="seg" data-ctl="splace"><button data-v="icons" class="on">Under ikonerna</button><button data-v="rim">Porträttets kant</button><button data-v="tab">Rad i Status</button><button data-v="name">Vid namnet</button></span></div>
+      </div>
+      <div class="benchnote" id="benchnote"></div>
+      <div class="scroll"><div id="bench" class="rowx"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Placeringar</span><h2>Var kortet får plats</h2>
+      <p>Varje alternativ har en mening om vad det kostar. A–F är dina, och G–J är mina egna idéer. Klicka på ett alternativ så laddas det i bänken.</p></div>
+    <div class="altlist" id="altlist"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Stridsläget</span><h2>Vad som finns kvar av stridsläget</h2>
+      <p>Varianterna läggs ovanpå alternativet som är valt i bänken (<b id="fmalt">A</b>), i Medium och med Gandalf som tank. Före striden hade du fliken Lore öppen. Det syns tydligast vad varianterna gör med fliken. Ingen variant låter staplarna växa längre, för den platsen behöver kortet.</p></div>
+    <div class="scroll"><div class="rowx" id="fmodes"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Dina statusar</span><h2>Var sanctuary, poison och de andra sitter</h2>
+      <p>Fem statusar är aktiva: sanctuary (din egen, 2:14 kvar, med nedräkningsring), poisoned, bashed, hungry och snared. Det som inte får plats blir <code>+n</code>, och tooltipen visar resten. Raderna visar Large, Medium och telefon utan strid.</p></div>
+    <div id="splaces"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Jämför</span><h2>Alla placeringar sida vid sida</h2>
+      <p>I strid och i Medium, alltså standardpanen i högerdockan (33 celler × 9 rader, ungefär 300 × 160 px), och på telefonens Character-sida i remsan (ungefär 366 px bred), båda tankfallen. Ord, fiende, pane och stridsläge följer bänken. Ganska snart syns det att Medium är där platsen tar slut.</p></div>
+    <div id="grid"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Vilken placering?</h3><p>Mina favoriter är <b>D</b> (Status krymper till en rad, och kortet tar höjden i högra delen) för skrivbordet, och <b>A</b> för telefonen, där bredden räcker till ett riktigt band. <b>C</b> är mest Cockpit-likt men blir trångt i Medium. Ska skrivbord och telefon få samma placering, eller får de skilja sig åt?</p>
+        <div class="opts"><span class="rec">D på skrivbordet, A på telefonen</span><span>samma överallt</span><span>något annat</span></div></div>
+      <div class="q"><h3>Tankens siffror?</h3><p>Group vet ofta Gandalfs HP som siffror (<code>132/160</code>). Ska de visas, eller räcker stapeln och siffrorna i tooltipen? Utan siffror går det in en rad till i Medium.</p>
+        <div class="opts"><span class="rec">siffror när de finns</span><span>bara stapel</span></div></div>
+      <div class="q"><h3>Ordet eller bara stapeln?</h3><p>Ordet (<code>wounded</code>) går att läsa i ögonvrån men tar 7–8 tecken. Stapeln i steg tar ingen plats, men steget mellan <code>hurt</code> och <code>wounded</code> syns knappt. Ett mellanting: ordet bara när det finns plats (Large, telefon), annars bara stapel.</p>
+        <div class="opts"><span>alltid ordet</span><span>bara stapel</span><span class="rec">ordet när det får plats</span></div></div>
+      <div class="q"><h3>Hur ska långa fiendenamn kortas?</h3><p>Prova med <b>långt namn</b> i bänken. Nu tar jag först bort <code>a/an/the</code> och kortar sedan med <code>…</code> på slutet (<code>huge mountain troll…</code>), och hela namnet står i tooltipen. Alternativet är att behålla substantivet på slutet (<code>…troll chieftain</code>), eftersom det säger vad det är.</p>
+        <div class="opts"><span class="rec">ta bort artikeln, sedan … på slutet</span><span>behåll slutet: …troll chieftain</span></div></div>
+      <div class="q"><h3>Medium: vad får ge vika först?</h3><p>I standardpanen (Medium) får kortet bara plats om något annat krymper. I A, B och C försvinner porträttet nästan alltid i strid. I D krymper Status till en rad. Är det okej att porträttet försvinner i strid i Medium, eller ska det vara kvar och Status ge vika i stället?</p>
+        <div class="opts"><span>porträttet går</span><span class="rec">Status ger vika (D)</span></div></div>
+      <div class="q"><h3>Stridsläget</h3><p>Dagens variant (a) byter till Status och dämpar flikarna. Om kortet ligger utanför Status (A, B, C, F, G) behövs inte bytet längre. Jag föreslår <b>c</b>: röda svärd och en tunn röd kant, och fliken du hade får vara kvar. Variant <b>d</b> (flikarna fälls bort) ger mest plats men döljer att flikarna finns.</p>
+        <div class="opts"><span>a</span><span>b</span><span class="rec">c</span><span>d</span><span>e</span></div></div>
+      <div class="q"><h3>Var ska dina statusar sitta?</h3><p>Jag föreslår <b>under ikonerna</b>. Där syns de i alla flikar och liknar Group. Kanten på porträttet är snyggast, men försvinner med porträttet i Medium i strid, och då hamnar statusarna under ikonerna ändå. I Status-fliken syns de bara i den fliken.</p>
+        <div class="opts"><span class="rec">under ikonerna</span><span>porträttets kant</span><span>rad i Status</span><span>vid namnet</span></div></div>
+      <div class="q"><h3>Två saker jag märkte</h3><p>(1) När du tankar visar MUME:s <code>hp-string</code> bara ett intervall för din egen HP. Fiendens ord och ditt intervall har då nästan samma upplösning, så de står bra bredvid varandra (C). (2) Stridskortet fanns förut bakom inställningen <code>group.fight</code> (av som standard). Ska kortet i Character alltid synas i strid, eller ha en egen inställning i kugghjulet?</p>
+        <div class="opts"><span class="rec">alltid i strid</span><span>en inställning, på som standard</span></div></div>
+    </div>
+  </section>
+</main>
+<script>
+// ------------------------------------------------------------------ data
+const D = { name: 'Rasta', race: 'orc', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], band: [46, 70], ma: [93, 111], mv: [98, 122], mvBand: [30, 49], wimpy: 150,
+  tog: { sneak: 1, ride: 0, climb: 1, swim: 0 }, pos: 'standing', mood: 'aggressive', speed: 'normal', alert: 'normal', weight: 'heavy' };
+const TANK = { name: 'Gandalf', hp: [132, 160] };
+const FOES = { short: 'a black-robed orc', long: 'the huge mountain troll chieftain' };
+const COND = { healthy: 100, fine: 85, hurt: 65, wounded: 45, bad: 25, awful: 10 };
+const FOE_COND = 'wounded';
+// Your statuses: Group's set (icons.ts). The first is your own timed sanctuary (a countdown ring).
+const STS = [
+  { k: 'sanct', t: 'Sanctuary · 2:14 left\n(your own cast; the ring counts down)', w: 'sanct', time: '2:14', ring: 0.62 },
+  { k: 'poison', t: 'Poisoned', w: 'poison' },
+  { k: 'bashed', t: 'Bashed', w: 'bashed' },
+  { k: 'hungry', t: 'Hungry', w: 'hungry' },
+  { k: 'snared', t: 'Snared', w: 'snared' },
+];
+const I = {
+  sneak: 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4',
+  ride: 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2',
+  climb: 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10',
+  swim: 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  ob: 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5',
+  db: 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7',
+  pb: 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5',
+  abs: 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6',
+  mood: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M8 15c2.5-2 5.5-2 8 0 M8 9l2.5 1.5 M16 9l-2.5 1.5',
+  cast: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  alert: 'M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5',
+  load: 'M6 8h12l2 12H4z M9 8V6a3 3 0 0 1 6 0v2',
+  // Group's (icons.ts)
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  poison: 'M9.5 3h5 M10.5 3v5.5L6 17a2.4 2.4 0 0 0 2.1 3.5h7.8A2.4 2.4 0 0 0 18 17l-4.5-8.5V3 M7.6 14h8.8 M11 17.2h.01 M13.5 16h.01',
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M9.8 14.2a2.2 2.2 0 0 0 2.2 2.2',
+  slept: 'M4 6h6l-6 7h6 M13 12h6l-6 7h6',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
+  foe: 'M14.5 3.5C11.5 7 8.8 10.8 5.5 15.5 M18.5 5.5C15.5 9.2 12.8 13 9.5 17.5 M20.5 10.5C18.4 13.5 16.4 16.3 14 19.5',
+};
+
+// The pane sizes: outer width and window height, px. Medium is the default docked pane
+// (33 cells × 9 rows in the right dock); the phone is the strip's Character page.
+const SZ = {
+  large: { w: 470, h: 204, pd: 90, ring: 30, ico: 15, bar: 18, vfs: 15, name: 'Large' },
+  medium: { w: 300, h: 166, pd: 56, ring: 24, ico: 13, bar: 16, vfs: 14, name: 'Medium' },
+  phone: { w: 366, h: 190, pd: 62, ring: 26, ico: 15, bar: 18, vfs: 15, name: 'Telefon' },
+};
+
+const ALTS = [
+  { id: 'A', name: 'Tunna stavar, band längst ner', why: 'Kortet blir ett riktigt band med namn och siffror, men dina egna staplar blir tunna och svårare att läsa precis när de betyder mest.' },
+  { id: 'B', name: 'Porträttet krymper', why: 'Dina staplar är orörda, men i Medium försvinner porträttet helt i strid, och kortet tar ändå en hel rad.' },
+  { id: 'C', name: 'Mot varandra i HP-raden', why: 'Mest Cockpit: du och fienden mot varandra på en rad, minst höjd, men fiendens namn får bara en halv stapel och MANA/MOVES blir tunna.' },
+  { id: 'D', name: 'Status blir en rad', why: 'Vitals och vänsterkolumnen står kvar. Status krymper till en rad och kortet tar höjden, men det du ser i Status blir mindre i strid.' },
+  { id: 'E', name: 'En FIGHT-flik', why: 'Mest plats och störst namn, men det är en flik till, och Status och de andra flikarna syns inte medan du slåss.' },
+  { id: 'F', name: 'Band som glider upp över', why: 'Inget ändrar storlek eller hoppar, men bandet täcker nedre delen av porträttet och av Status.' },
+  { id: 'G', name: 'Fiendens stapel i toppkanten', why: 'Tar bara 16 px och syns direkt under titeln, men det blir en tunn rad med namnet inuti stapeln och plats för få tecken.' },
+  { id: 'H', name: 'En ring runt porträttet', why: 'Ingen extra rad för stapeln: fienden är en röd ring runt dig, och tanken den gröna halvan. Vackert men oexakt, och borta när porträttet är borta.' },
+  { id: 'I', name: 'En fjärde kolumn i vitals', why: 'Fienden blir en fjärde stapel bredvid MOVES (och tanken en tunn stapel ovanför din HP). Det tar nästan ingen höjd, men de tre kolumnerna slutar vara Groups.' },
+  { id: 'J', name: 'Motståndarens medaljong', why: 'En "versus"-bild: fienden får en egen liten rund medaljong med röd ring i högra delen, men Status trängs ihop till 2×2, och MUME skickar ingen ras för fienden.' },
+];
+const FMODES = {
+  a: ['a · dagens', 'Byter till Status, dämpar de andra flikarna, och positionen blir röda svärd. Staplarna växer inte.'],
+  b: ['b · bara kortet', 'Kortet dyker upp och inget annat ändras: fliken du hade står kvar och positionen behåller sin ikon.'],
+  c: ['c · svärd + röd kant', 'De röda svärden och en tunn röd glödkant överst i panen. Fliken byts inte.'],
+  d: ['d · flikarna fälls bort', 'Flikkolumnen göms i strid och lämnar sin bredd till innehållet. Status visas, och svärden blir röda.'],
+  e: ['e · lyktan glöder', 'Bara lyktans sken byter färg till glöd. Inga ikoner eller flikar ändras.'],
+};
+
+const st = { alt: 'A', fight: 'on', tank: 'you', word: 'word', foe: 'short', size: 'large', pane: 'lykta', fmode: 'a', stat: 'on', splace: 'icons', tab: '0' };
+
+// ------------------------------------------------------------------ helpers
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const svg = (k, cls = 'ti') => `<svg class="${cls}" viewBox="0 0 24 24"><path d="${I[k]}"/></svg>`;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+// Drop the article first, then cut at the end with an ellipsis (the full name is in the tooltip).
+function shortName(n, max) {
+  if (n.length <= max) return n;
+  const s = n.replace(/^(a|an|the) /i, '');
+  if (s.length <= max) return s;
+  return s.slice(0, Math.max(3, max - 1)).trimEnd() + '…';
+}
+const charsIn = (px, fs = 12) => Math.max(3, Math.floor(px / (fs * 0.6)));
+const SHORT = { aggressive: ['aggressive', 'aggres.', 'agg.'], heavy: ['heavy', 'heavy', 'hvy'], normal: ['normal', 'normal', 'norm.'] };
+const fit = (v, chars) => { const s = SHORT[v] || [v, v, v]; return s.find((x) => x.length <= chars) || s[2]; };
+
+function ring(size) {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `Level ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  return `<span class="lr" data-tip="${tip}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">
+    <circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.7)" stroke-width="2.6"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="#6e5832" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.3" stroke-dasharray="${D.tp * 100} 100" opacity=".85"/></svg><b>${D.level}</b></span>`;
+}
+
+// One of your statuses as a small icon (sanctuary with its countdown ring).
+function stIco(s, px) {
+  const r = s.ring != null ? `<svg class="sring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" class="bg"/><circle cx="12" cy="12" r="11" class="arc" pathLength="100" stroke-dasharray="${s.ring * 100} 100"/></svg>` : '';
+  return `<span class="sti s-${s.k}" data-tip="${s.t}" style="--s:${px}px">${r}${svg(s.k)}</span>`;
+}
+function moreTip(rest) { return rest.map((r) => r.t.split('\n')[0]).join('\n'); }
+function stRow(n, px) {
+  const rest = STS.slice(n);
+  return STS.slice(0, n).map((s) => stIco(s, px)).join('') + (rest.length ? `<span class="more" data-tip="${moreTip(rest)}">+${rest.length}</span>` : '');
+}
+
+// ------------------------------------------------------------------ fight pieces
+function foeName(o) { return FOES[o.foe]; }
+function foeTip(o) { return `${foeName(o)}\n${FOE_COND} (about ${COND[FOE_COND]} %)\nsteps: healthy 100 · fine 85 · hurt 65 · wounded 45 · bad 25 · awful 10`; }
+const tankTip = `${TANK.name} (tank)\nHP ${TANK.hp[0]} / ${TANK.hp[1]} · ${pct(TANK.hp)} %`;
+// The opponent's bar: red, from the left or (facing) from the right; stepped marks when the word is not written.
+function foeBar(o, from = 'l', cls = '', lab = '') {
+  const p = COND[FOE_COND];
+  const ticks = o.word === 'bar' ? [85, 65, 45, 25, 10].map((v) => `<s style="--t:${from === 'r' ? 100 - v : v}%"></s>`).join('') : '';
+  return `<span class="b fo${from === 'r' ? ' rt' : ''} ${cls}" data-tip="${esc(foeTip(o))}"><i style="--w:${p}%"></i>${ticks}${lab}</span>`;
+}
+function tankBar(cls = '', lab = '') { return `<span class="b tk ${cls}" data-tip="${tankTip}"><i style="--w:${pct(TANK.hp)}%"></i>${lab}</span>`; }
+const word = (o, cls = 'cond') => (o.word === 'word' ? `<span class="${cls}" data-tip="${esc(foeTip(o))}">${FOE_COND}</span>` : '');
+const wlen = (o) => (o.word === 'word' ? FOE_COND.length + 1 : 0);
+
+// The band: Group's fight card. Solo (you tank): the opponent alone, "vs you". Else the tank facing the opponent.
+function fcBand(o, w, extra = '') {
+  const solo = o.tank === 'you';
+  if (solo) {
+    const n = shortName(foeName(o), charsIn(w - 30, 12) - 7 - wlen(o));
+    return `<div class="fc solo ${extra}" data-flip="fc"${extra.includes('over') ? ' data-enter="up"' : ''}><div class="fl">${svg('foe', 'ti fo')}<span class="fn" data-tip="${esc(foeTip(o))}">${n}</span><span class="vs">vs you</span>${o.word === 'word' ? `<span class="r">${word(o)}</span>` : ''}</div>${foeBar(o, 'l')}</div>`;
+  }
+  const n = shortName(foeName(o), charsIn(w / 2 - 22, 12) - 1);
+  return `<div class="fc duo ${extra}" data-flip="fc"${extra.includes('over') ? ' data-enter="up"' : ''}><div class="fl">${svg('tank', 'ti tk')}<span class="tn" data-tip="${tankTip}">${TANK.name}</span><span class="vs mid">vs</span><span class="fn" data-tip="${esc(foeTip(o))}">${n}</span>${svg('foe', 'ti fo')}</div>
+    <div class="fbars">${tankBar()}${foeBar(o, 'r')}</div>
+    <div class="fsub"><span class="num">${TANK.hp[0]}<small>/${TANK.hp[1]}</small></span>${word(o)}</div></div>`;
+}
+// Stacked, for the right area (D): the opponent on top, the tank under it.
+function fcStack(o, w) {
+  const solo = o.tank === 'you';
+  const n = shortName(foeName(o), charsIn(w - 30, 12) - (solo ? 0 : 3));
+  const foeLine = `<div class="fl">${solo ? '' : '<span class="vs">vs</span>'}${svg('foe', 'ti fo')}<span class="fn" data-tip="${esc(foeTip(o))}">${n}</span></div>${foeBar(o, 'l')}`;
+  const sub = solo || o.word === 'word' ? `<div class="fsub">${solo ? '<span class="vs">vs you</span>' : '<span></span>'}${word(o)}</div>` : '';
+  const tankLine = solo ? '' : `<div class="fl">${svg('tank', 'ti tk')}<span class="tn" data-tip="${tankTip}">${TANK.name}</span><span class="num r">${TANK.hp[0]}<small>/${TANK.hp[1]}</small></span></div>${tankBar()}`;
+  return `<div class="fc stack" data-flip="fc" style="flex:1;justify-content:center;gap:2px">${tankLine}${foeLine}${sub}</div>`;
+}
+// Big, as a tab of its own (E).
+function fcBig(o) {
+  const solo = o.tank === 'you';
+  const head = `<div class="bh">${svg('foe', 'ti fo')}<div class="bn"><b data-tip="${esc(foeTip(o))}">${esc(foeName(o))}</b><span style="display:flex;justify-content:space-between;gap:6px"><span class="vs">${solo ? 'vs you' : `vs ${TANK.name}`}</span>${word(o)}</span></div></div>`;
+  const tank = solo ? `<div class="bt you">${svg('fighting', 'ti posi fight')}You tank. Your HP is in the bars below.</div>`
+    : `<div class="bt">${svg('tank', 'ti tk')}<span class="tn">${TANK.name}</span><span class="num r" style="margin-left:auto">${TANK.hp[0]}<small> / ${TANK.hp[1]}</small></span></div>${tankBar()}`;
+  return `<div class="fc big${solo ? ' solo' : ''}" data-flip="fc">${head}${foeBar(o, 'l')}${tank}</div>`;
+}
+// A strip along the top edge (G): the names inside the bars.
+function fcStrip(o, w) {
+  const solo = o.tank === 'you';
+  if (solo) {
+    const n = shortName(foeName(o), charsIn(w - 40, 10.5) - 7 - wlen(o));
+    return `<div class="fc strip" data-flip="fc">${foeBar(o, 'l', '', `<span class="lab"><span>${svg('foe')}${n} <em>vs you</em></span><span>${o.word === 'word' ? FOE_COND : ''}</span></span>`)}</div>`;
+  }
+  const n = shortName(foeName(o), charsIn(w / 2 - 26, 10.5) - wlen(o));
+  return `<div class="fc strip" data-flip="fc"><div class="fbars" style="gap:8px">${tankBar('', `<span class="lab"><span>${svg('tank')}${TANK.name}</span><span>${TANK.hp[0]}<small>/${TANK.hp[1]}</small></span></span>`)}${foeBar(o, 'r', '', `<span class="lab"><span>${o.word === 'word' ? FOE_COND : ''}</span><span>${n}${svg('foe')}</span></span>`)}</div></div>`;
+}
+// A caption line (H): whom you fight, in one line at the top of the right area. The ring says the rest
+// (red: the opponent; green, the left half: the tank), so the caption names the opponent only.
+function fcCaption(o, w) {
+  const n = shortName(foeName(o), charsIn(w - 24, 11.5) - wlen(o));
+  return `<div class="cap10" data-flip="fc">${svg('foe', 'ti fo')}<span class="fn" data-tip="${esc(foeTip(o))}">${n}</span><span class="r" style="margin-left:auto">${word(o)}</span></div>`;
+}
+
+// ------------------------------------------------------------------ geometry
+// Like character-layout.ts: what the bottom takes is fixed, the left column gets the rest
+// (the portrait shrinks first, then goes; ring and icons stay).
+function geo(o) {
+  const z = SZ[o.size];
+  const F = o.F, alt = F ? o.alt : null, solo = o.tank === 'you';
+  const innerH = z.h - 28;
+  const tabsHidden = F && o.fmode === 'd';
+  const tabsW = tabsHidden ? 0 : (o.size === 'phone' ? 24 : 18);
+  const vitN = z.bar + 6;
+  const bandH = solo ? 32 : 46;
+  let footH = vitN, below = 0, above = 0;
+  if (alt === 'A') { footH = 22; below = bandH; }
+  if (alt === 'B') { below = bandH; }
+  if (alt === 'C') { footH = 28 + 5 + 18; }
+  if (alt === 'G') { above = 15; }
+  if (alt === 'I' && !solo) footH += 13;
+  const blocks = 1 + 1 + (below ? 1 : 0) + (above ? 1 : 0);
+  const cwH = Math.floor(innerH - footH - below - above - 6 * (blocks - 1));
+  const rimOk = o.stat && o.splace === 'rim';
+  let pd = Math.min(z.pd, cwH - (16 + (z.ico + 4) + 8 + 10));
+  // B: the portrait drops to the next size down in a fight.
+  if (alt === 'B') pd = Math.min(pd, o.size === 'large' ? 54 : 0);
+  const stRowH = o.stat && (o.splace === 'icons' || (rimOk && pd < 40)) ? 20 : 0;
+  pd = Math.min(pd, cwH - (16 + (z.ico + 4) + stRowH + 8 + 10));
+  if (pd < 34) pd = 0;
+  const rowForm = !pd && cwH < 16 + z.ring + (z.ico + 4) + stRowH + 12;
+  const iconsW = 5 * (z.ico + 4) + 6;
+  const lcw = pd ? Math.max(pd + 16, iconsW) : rowForm ? z.ring + 7 + iconsW : iconsW;
+  const raW = z.w - 10 - 16 - lcw - 14 - (tabsW ? 14 + tabsW : 0);
+  return { z, F, alt, solo, innerH, cwH, pd, lcw, raW, tabsW, tabsHidden, rowForm, stRowH, inW: z.w - 26 };
+}
+
+// ------------------------------------------------------------------ the card's parts
+function icons(o, g) {
+  const tog = ['sneak', 'ride', 'climb', 'swim'].map((k) => `<span data-tip="${k} ${D.tog[k] ? 'on' : 'off'}">${svg(k, 'ti' + (D.tog[k] ? ' on' : ''))}</span>`).join('');
+  const red = g.F && ['a', 'c', 'd'].includes(o.fmode);
+  const pk = red ? 'fighting' : D.pos;
+  const s = `width:${g.z.ico}px;height:${g.z.ico}px`;
+  return `<div class="mic" data-flip="icons">${tog.replace(/class="ti/g, `style="${s}" class="ti`)}<span class="sep"></span><span data-tip="${red ? 'fighting' : 'standing\nClick: rest'}">${svg(pk, 'ti posi' + (red ? ' fight' : '')).replace('class=', `style="${s}" class=`)}</span></div>`;
+}
+function leftCol(o, g) {
+  const z = g.z, pd = g.pd;
+  const nameN = o.stat && o.splace === 'name' ? (g.lcw > 100 ? 2 : 1) : 0;
+  const who = `<div class="who" data-flip="name"><span class="wn" style="font-size:${o.size === 'large' ? 15 : 13.5}px">${D.name}</span>${nameN ? `<span style="display:flex;gap:2px;align-items:center;margin-left:2px">${stRow(nameN, 14)}</span>` : ''}</div>`;
+  const rim = o.stat && o.splace === 'rim' && pd >= 40;
+  const sts = o.stat && (o.splace === 'icons' || (o.splace === 'rim' && !rim)) ? `<div class="sts" data-flip="sts">${stRow(3, 16)}</div>` : '';
+  if (!pd) {
+    if (g.rowForm) return `<div class="lc row" style="width:${g.lcw}px" data-flip="lc">${ring(z.ring)}<div class="lcs">${who}${icons(o, g)}${sts}</div></div>`;
+    return `<div class="lc" style="width:${g.lcw}px">${who}<div style="align-self:center" data-flip="medal">${ring(z.ring)}</div>${icons(o, g)}${sts}</div>`;
+  }
+  const ringPx = Math.min(z.ring, Math.max(20, Math.round(pd * 0.48)));
+  const mh = pd + Math.round(ringPx * 0.3);
+  let extra = '';
+  if (rim) {
+    // Sanctuary: its countdown ring round the portrait. The others: pips on the rim, top right.
+    const R = pd / 2 + 7, c = pd / 2, sz = pd + 14;
+    extra += `<svg class="sanring" style="left:-7px;top:-7px;width:${sz}px;height:${sz}px" viewBox="0 0 ${sz} ${sz}" data-tip="${STS[0].t}"><circle cx="${sz / 2}" cy="${sz / 2}" r="${R - 0.5}" class="bg"/><circle cx="${sz / 2}" cy="${sz / 2}" r="${R - 0.5}" class="arc" pathLength="100" stroke-dasharray="${STS[0].ring * 100} 100"/></svg>`;
+    const ps = pd > 70 ? 18 : 15, rest = STS.slice(1);
+    const ang = [-28, 8, 44, 80];
+    const shown = rest.slice(0, 3);
+    // Angles clockwise from the top; the level ring hangs at the bottom.
+    const at = (deg) => { const a = (deg - 90) * Math.PI / 180; return `left:${(c + (R - 2) * Math.cos(a)).toFixed(1)}px;top:${(c + (R - 2) * Math.sin(a)).toFixed(1)}px`; };
+    shown.forEach((s, i) => { extra += `<span class="pip s-${s.k}" style="--s:${ps}px;${at(ang[i] + 60)}" data-tip="${s.t}">${svg(s.k)}</span>`; });
+    if (rest.length > 3) extra += `<span class="pip more2" style="--s:${ps}px;${at(ang[3] + 60)}" data-tip="${moreTip(rest.slice(3))}">+${rest.length - 3}</span>`;
+  }
+  if (g.alt === 'H') {
+    // The opponent as a red ring round the portrait; facing halves when another tanks (tank green on the left).
+    const sz = pd + 18, R = pd / 2 + 8, f = COND[FOE_COND] / 100, t = pct(TANK.hp) / 100;
+    const arcs = g.solo
+      ? `<circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="fa" pathLength="100" stroke-dasharray="${f * 100} 100"/>`
+      : `<circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="fa" pathLength="100" stroke-dasharray="${f * 50} 100"/>
+         <circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="ta" pathLength="100" stroke-dasharray="${t * 50} 100" style="transform:scaleY(-1);transform-origin:center"/>`;
+    extra += `<svg class="fring" data-flip="fring" style="left:-9px;top:-9px;width:${sz}px;height:${sz}px" viewBox="0 0 ${sz} ${sz}" data-tip="${esc(foeTip(o))}${g.solo ? '' : '\n\n' + tankTip}"><circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="bg"/>${arcs}</svg>`;
+  }
+  const medal = `<div class="medal" data-flip="medal" style="width:${pd}px;height:${mh}px"><div class="disc2" style="width:${pd}px;height:${pd}px"><svg viewBox="0 0 60 75" preserveAspectRatio="xMidYMin meet"><use href="#r-${D.race}"/></svg></div>${extra}${ring(ringPx)}</div>`;
+  return `<div class="lc" style="width:${g.lcw}px">${who}${medal}${icons(o, g)}${sts}</div>`;
+}
+
+// Vitals "in the bar" (decision 11): in a fight HP and MOVES are often only a band (hatched, no number).
+// The bar's form follows its column's width, as footLayout: `187 / 270`, then `187`, then the number alone.
+function vForm(colW, label) {
+  const lw = label.length * 8.5 + 4, pad = 22;
+  if (lw + 9 * 6.6 + pad <= colW) return 'full';
+  if (lw + 3 * 6.6 + pad <= colW) return 'value';
+  return 'number';
+}
+function vIn(o, g, label, cls, a, band, extra = '', tip = '', colW = 999) {
+  const known = !(g.F && band);
+  const p = known ? pct(a) : band[0];
+  const form = vForm(colW, label);
+  const num = !known ? '' : form === 'full' ? `${a[0]}<small> / ${a[1]}</small>` : `${a[0]}`;
+  const lab = form === 'number' && known ? '' : `<span class="k2">${label}</span>`;
+  return `<div class="vit" data-flip="v-${cls}"${tip ? ` data-tip="${tip}"` : ''}><span class="b ${cls}" style="height:${g.z.bar}px;border-radius:5px"><i style="--w:${p}%"></i>${known ? '' : `<u style="--lo:${band[0]}%;--hi:${band[1]}%"></u>`}${extra}<span class="lab">${lab}<span>${num}</span></span></span></div>`;
+}
+function vThin(o, g, label, cls, a, band, extra = '', tip = '') {
+  const known = !(g.F && band);
+  const p = known ? pct(a) : band[0];
+  return `<div class="vit thin" data-flip="v-${cls}"${tip ? ` data-tip="${tip}"` : ''}><div class="top"><span class="k">${label}</span><span class="n">${known ? `${a[0]}<small>/${a[1]}</small>` : ''}</span></div><span class="b ${cls}"><i style="--w:${p}%"></i>${known ? '' : `<u style="--lo:${band[0]}%;--hi:${band[1]}%"></u>`}${extra}</span></div>`;
+}
+function vitals(o, g) {
+  const wp = Math.round((D.wimpy / D.hp[1]) * 100);
+  const wim = `<span class="wim" style="--p:${wp}%"></span>`;
+  const hpTip = (g.F ? `HP: only the band is known (${D.band[0]}–${D.band[1]} %)` : 'HP 187 / 270 · 69 %') + '\nwimpy 150: you flee below the arrow';
+  const alt = g.alt;
+  if (alt === 'A') return `<div class="vit3">${vThin(o, g, 'HP', 'hp', D.hp, D.band, wim, hpTip)}${vThin(o, g, 'MANA', 'ma', D.ma)}${vThin(o, g, 'MOVES', 'mv', D.mv, D.mvBand)}</div>`;
+  if (alt === 'C') {
+    // You (or your band) facing the opponent; labels over the bars so the name gets the half's width.
+    const half = (g.inW - 12 - 30) / 2;
+    const n = shortName(foeName(o), charsIn(half - 18 - (o.word === 'word' ? 54 : 0), 10.5));
+    const hp = `<div class="vit thin fat" data-flip="v-hp" data-tip="${hpTip}"><div class="top"><span class="k">HP</span><span class="n"></span></div><span class="b hp"><i style="--w:${D.band[0]}%"></i><u style="--lo:${D.band[0]}%;--hi:${D.band[1]}%"></u>${wim}</span></div>`;
+    const foe = `<div class="vit thin fat" data-flip="v-fo"><div class="top"><span class="cond" style="font-size:10px">${o.word === 'word' ? FOE_COND : ''}</span><span class="k fn" style="font:700 10.5px/1 var(--mono);letter-spacing:0;color:var(--foe-ink)" data-tip="${esc(foeTip(o))}">${n}${svg('foe', 'ti fo')}</span></div>${foeBar(o, 'r')}</div>`;
+    const facing = `<div class="face">${hp}<span class="vsm">VS</span>${foe}</div>`;
+    const col = (g.inW - 12 - 12) / 3;
+    const tkLab = col >= 104 ? `${TANK.hp[0]}<small>/${TANK.hp[1]}</small>` : `${TANK.hp[0]}`;
+    const thin = g.solo ? `<div class="vit3 two2">${vThin(o, g, 'MANA', 'ma', D.ma)}${vThin(o, g, 'MOVES', 'mv', D.mv, D.mvBand)}</div>`
+      : `<div class="vit3"><div class="vit thin" data-flip="v-tk" data-tip="${tankTip}"><div class="top"><span class="k">${svg('tank', 'ti tk')}${TANK.name.toUpperCase()}</span><span class="n">${tkLab}</span></div>${tankBar()}</div>${vThin(o, g, 'MANA', 'ma', D.ma)}${vThin(o, g, 'MOVES', 'mv', D.mv, D.mvBand)}</div>`;
+    return facing + thin;
+  }
+  if (alt === 'I') {
+    const col = (g.inW - 12 - 18) / 4;
+    const n = shortName(foeName(o), charsIn(col - 14, 11));
+    const tk = g.solo ? '' : `<div class="tkl" data-tip="${tankTip}">${TANK.name.toUpperCase()}<b>${TANK.hp[0]}</b></div>${tankBar('tkb')}`;
+    const hp = vIn(o, g, 'HP', 'hp', D.hp, D.band, wim, hpTip, col).replace('<span class="b hp"', `${tk}<span class="b hp"`);
+    const foe = `<div class="vit" data-flip="v-fo">${foeBar(o, 'l', '', `<span class="lab"><span>${n}</span></span>`).replace('class="b fo', `style="height:${g.z.bar}px;border-radius:5px" class="b fo`)}</div>`;
+    return `<div class="vit3 four">${hp}${vIn(o, g, 'MANA', 'ma', D.ma, null, '', '', col)}${vIn(o, g, 'MOVES', 'mv', D.mv, D.mvBand, '', '', col)}${foe}</div>`;
+  }
+  const col = (g.inW - 12 - 12) / 3;
+  return `<div class="vit3">${vIn(o, g, 'HP', 'hp', D.hp, D.band, wim, hpTip, col)}${vIn(o, g, 'MANA', 'ma', D.ma, null, '', '', col)}${vIn(o, g, 'MOVES', 'mv', D.mv, D.mvBand, '', '', col)}</div>`;
+}
+
+// Status as the real card: icon and label over the value; no icon when narrow; icon beside the value when low.
+function statusFields(o, g, cols, w = g.raW, h = g.cwH, vfs = g.z.vfs) {
+  const rows = 4 / cols, colW = w / cols, rowH = (h - (o.stat && o.splace === 'tab' ? 20 : 0)) / rows;
+  const form = rowH < 30 ? 'inline' : colW >= 80 ? 'full' : colW >= 64 ? 'text' : 'inline';
+  const px = form === 'inline' ? Math.min(vfs, 13) : vfs;
+  const chars = Math.floor((colW - (form === 'inline' ? 22 : 6)) / (px * 0.6));
+  const F = [['mood', 'Mood', D.mood], ['cast', 'Casts', D.speed], ['alert', 'Alertness', D.alert], ['load', 'Weight', D.weight]];
+  const cell = ([ic, l, v]) => form === 'inline'
+    ? `<div class="f bare" data-tip="${l}: ${v}"><b style="display:flex;align-items:center;justify-content:center;gap:4px">${svg(ic)}${fit(v, chars)}</b></div>`
+    : `<div class="f bare" data-tip="${v}"><small>${form === 'full' ? svg(ic) : ''}${l}</small><b>${fit(v, chars)}</b></div>`;
+  return `<div class="fields c${cols}" data-flip="status" style="grid-template-columns:repeat(${cols},minmax(0,1fr));--vfs:${px}px">${F.map(cell).join('')}</div>`;
+}
+function statusTab(o, g) {
+  const cols = g.raW >= 290 ? 4 : 2;
+  if (g.alt === 'D') {
+    // One compact line; the card takes the rest of the right area.
+    const chars = g.raW > 250 ? 10 : 6;
+    const line = `<div class="sline" data-flip="status">${[['mood', D.mood], ['cast', D.speed], ['alert', D.alert], ['load', D.weight]].map(([ic, v]) => `<span data-tip="${v}">${svg(ic)}${fit(v, chars)}</span>`).join('')}</div>`;
+    return line + fcStack(o, g.raW);
+  }
+  let chips = '';
+  if (o.stat && o.splace === 'tab') {
+    const n = g.raW > 280 ? 4 : 2, rest = STS.slice(n);
+    chips = `<div class="stchips" data-flip="sts">${STS.slice(0, n).map((s) => `<span class="stchip">${stIco(s, 14)}${s.w}${s.time ? `<small>${s.time}</small>` : ''}</span>`).join('')}${rest.length ? `<span class="more" data-tip="${moreTip(rest)}">+${rest.length}</span>` : ''}</div>`;
+  }
+  if (g.alt === 'H') return fcCaption(o, g.raW) + statusFields(o, g, cols, g.raW, g.cwH - 21) + chips;
+  if (g.alt === 'J') {
+    const md = Math.max(28, Math.min(o.size === 'medium' ? 38 : 50, g.cwH - 58));
+    const mw = md + 22, f = COND[FOE_COND];
+    const n = shortName(foeName(o), charsIn(mw + 14, 10.5));
+    const sz = md + 10, R = md / 2 + 3;
+    const med = `<div class="vsmed" data-flip="fc" style="width:${mw + 14}px"><div class="disc3" style="width:${md}px;height:${md}px;margin:5px" data-tip="${esc(foeTip(o))}">${svg('foe', 'ti fo')}
+      <svg class="fring" style="left:-5px;top:-5px;width:${sz}px;height:${sz}px" viewBox="0 0 ${sz} ${sz}"><circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="bg" style="stroke-width:3"/><circle cx="${sz / 2}" cy="${sz / 2}" r="${R}" class="fa" style="stroke-width:3" pathLength="100" stroke-dasharray="${f} 100"/></svg></div>
+      <span class="mn" data-tip="${esc(foeTip(o))}">${n}</span>${o.word === 'word' ? `<span class="cond" style="font-size:10px">${FOE_COND}</span>` : ''}
+      ${g.solo ? '<span class="vs" style="font-size:11.5px">vs you</span>' : `<span class="mt" data-tip="${tankTip}">${svg('tank', 'ti tk')}${TANK.name}</span>${tankBar('mtb')}`}</div>`;
+    return `<div class="jrow">${statusFields(o, g, g.raW - mw - 22 < 130 ? 1 : 2, g.raW - mw - 22, g.cwH, Math.min(g.z.vfs, 13.5))}${med}</div>${chips}`;
+  }
+  return statusFields(o, g, cols) + chips;
+}
+function statsTab() {
+  const sh = [['ob', 'OB', '137'], ['db', 'DB', '−1'], ['pb', 'PB', '39'], ['abs', 'ABS', '43']];
+  const ab = [['STR', 18, 1], ['INT', 16], ['WIS', 16], ['DEX', 11], ['CON', 12], ['WIL', 16], ['PER', 8]];
+  return `<div class="shl">${sh.map(([i, l, v]) => `<div>${svg(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div><div class="ab">${ab.map(([k, v, u]) => `<div class="abx${u ? ' up' : ''}"><small>${k}</small><b>${v}</b></div>`).join('')}</div>`;
+}
+function loreTab() {
+  const f = (l, v, cls = '') => `<div class="f ${cls}"><small>${l}</small><b>${v}</b></div>`;
+  return `<div class="lore">${f('Race', 'Tarkhnarb orc')}${f('Citizen', 'GoblinTown')}${f('Purse', '<span class="coin g"></span>394')}${f('War fame', 'known<em> 4</em>')}</div>`;
+}
+
+// ------------------------------------------------------------------ the card
+function card(o) {
+  o = Object.assign({}, st, o);
+  o.F = o.fight === 'on' || o.fight === true;
+  o.stat = o.stat === 'on' || o.stat === true;
+  const g = geo(o);
+  const F = g.F, alt = g.alt;
+  // Which tab shows: E opens FIGHT; (a) and (d) switch to Status; (b), (c) and (e) keep yours.
+  const names = ['Status', 'Stats', 'Lore'].concat(alt === 'E' ? ['Fight'] : []);
+  let active = +o.tab;
+  if (F && alt === 'E') active = 3;
+  else if (F && (o.fmode === 'a' || o.fmode === 'd')) active = 0;
+  const dim = F && o.fmode === 'a';
+  // Vertical words while STATUS fits in a tab's height, else marks (S, ST, L, F) as the real card's.
+  const perTab = (g.cwH + 20 - 18 - 3 * (names.length - 1)) / names.length;
+  const tfs = Math.min(9, (perTab - 8) / (6 * 1.0));
+  const marks = tfs < 6.5;
+  const MARK = { Status: 'S', Stats: 'ST', Lore: 'L', Fight: 'F' };
+  const tabs = g.tabsHidden ? '' : `<div class="vt${dim ? ' locked' : ''}" data-flip="tabs" style="width:${g.tabsW}px;--tfs:${marks ? 8.5 : tfs}px">${names.map((n, i) => `<button data-tab="${i}" data-tip="${n}" class="${i === active ? 'on' : ''}${n === 'Fight' ? ' ft' : ''}">${marks ? MARK[n] : n.toUpperCase()}</button>`).join('')}</div>`;
+  const panels = [statusTab(o, g), statsTab(), loreTab()].concat(alt === 'E' ? [fcBig(o)] : []).map((h, i) => `<div class="tpn${i === active ? ' on' : ''}">${h}</div>`).join('');
+  const over = alt === 'F' ? fcBand(o, g.inW - g.tabsW - 14, 'over') : '';
+  const cw = `<div class="cw" style="height:${g.cwH}px" data-card>${leftCol(o, g)}<div class="ra">${panels}</div>${tabs}${over ? over.replace('class="fc ', `style="right:${g.tabsW ? g.tabsW + 6 : 0}px" class="fc `) : ''}</div>`;
+  const top = alt === 'G' ? fcStrip(o, g.inW) : '';
+  const bottom = alt === 'A' || alt === 'B' ? fcBand(o, g.inW) : '';
+  const paneCls = `pane${o.pane === 'paper' ? ' paper' : ''}${F && o.fmode === 'e' ? ' ember' : ''}`;
+  const winCls = `win${F && o.fmode === 'c' ? ' redrule' : ''}`;
+  return `<div class="${paneCls}" style="width:${g.z.w}px"><div class="hood">CHARACTER</div><div class="${winCls}" style="height:${g.z.h}px">${top}${cw}<div class="foot" style="display:flex;flex-direction:column;gap:5px">${vitals(o, g)}</div>${bottom}</div></div>`;
+}
+
+// ------------------------------------------------------------------ motion (FLIP)
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+function snap(root) { const m = new Map(); root.querySelectorAll('[data-flip]').forEach((e) => m.set(e.dataset.flip, e.getBoundingClientRect())); return m; }
+function play(root, before) {
+  if (reduce.matches || !before) return;
+  const ease = 'cubic-bezier(.2,.7,.2,1)';
+  root.querySelectorAll('[data-flip]').forEach((e) => {
+    if (e.parentElement.closest('[data-flip]')) return; // nested: the outer one moves it
+    const a = before.get(e.dataset.flip), b = e.getBoundingClientRect();
+    if (!a) {
+      const from = e.dataset.enter === 'up' ? 'translateY(110%)' : 'translateY(6px)';
+      e.animate([{ opacity: 0, transform: from }, { opacity: 1, transform: 'none' }], { duration: 480, easing: ease, delay: 140, fill: 'backwards' });
+      return;
+    }
+    const dx = a.left - b.left, dy = a.top - b.top, sx = b.width ? a.width / b.width : 1, sy = b.height ? a.height / b.height : 1;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return;
+    e.animate([{ transformOrigin: '0 0', transform: `translate(${dx}px,${dy}px) scale(${sx},${sy})` }, { transformOrigin: '0 0', transform: 'none' }], { duration: 480, easing: ease });
+  });
+}
+
+// ------------------------------------------------------------------ rendering
+function wireTabs(root, onTab) {
+  root.querySelectorAll('[data-card]').forEach((cw) => cw.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+    const i = +b.dataset.tab;
+    if (onTab) { onTab(i); return; }
+    cw.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+    cw.querySelectorAll('.tpn').forEach((p, k) => p.classList.toggle('on', k === i));
+  })));
+}
+function altById(id) { return ALTS.find((a) => a.id === id); }
+function renderBench(animate) {
+  const el = document.getElementById('bench');
+  const before = animate ? snap(el) : null;
+  el.innerHTML = card({});
+  wireTabs(el, (i) => { st.tab = String(i === 3 ? 0 : i); renderBench(true); });
+  play(el, before);
+  const a = altById(st.alt);
+  document.getElementById('benchnote').innerHTML = `<b>${a.id} · ${a.name}.</b> ${a.why} <br><b>Stridsläge ${FMODES[st.fmode][0]}:</b> ${FMODES[st.fmode][1]}`;
+}
+function renderAltList() {
+  document.getElementById('altlist').innerHTML = ALTS.map((a) => `<div class="alt${a.id === st.alt ? ' on' : ''}" data-alt="${a.id}" tabindex="0" role="button"><h3><span>${a.id}</span>${a.name}</h3><p>${a.why}</p></div>`).join('');
+  document.getElementById('altseg').innerHTML = ALTS.map((a) => `<button data-v="${a.id}" class="${a.id === st.alt ? 'on' : ''}" title="${a.name}">${a.id}</button>`).join('');
+}
+function renderFmodes() {
+  document.getElementById('fmalt').textContent = st.alt;
+  const base = { size: 'medium', tank: 'other', tab: '2', stat: 'on' };
+  const before = `<div class="cap"><span class="lbl">före striden · Lore öppen</span>${card(Object.assign({}, base, { fight: 'off' }))}<p>Utgångsläget.</p></div>`;
+  document.getElementById('fmodes').innerHTML = before + Object.keys(FMODES).map((k) => `<div class="cap"><span class="lbl">${FMODES[k][0]}</span>${card(Object.assign({}, base, { fight: 'on', fmode: k }))}<p>${FMODES[k][1]}</p></div>`).join('');
+  wireTabs(document.getElementById('fmodes'));
+}
+const SPLACES = [
+  ['icons', 'Under ikonerna', 'En rad med tre ikoner och <code>+n</code> under de fem ikonerna. Den syns i alla flikar och ser ut som Group. I Medium i strid hamnar den bredvid ringen när porträttet har försvunnit.'],
+  ['rim', 'På porträttets kant', 'Sanctuary blir en nedräkningsring runt porträttet, och de andra sitter som små knappar på kanten. Det är det snyggaste läget, men när porträttet försvinner (Medium i strid) faller det tillbaka till raden under ikonerna.'],
+  ['tab', 'En rad i Status', 'Statusarna står med ord (<code>poison</code>, <code>2:14</code>) under Mood och de andra. De är tydligast här, men syns bara i Status, och i Medium får bara två plats.'],
+  ['name', 'Vid namnet', 'Ett par ikoner direkt efter namnet. Det tar ingen höjd, men bredden räcker bara till en eller två ikoner. Resten blir <code>+n</code>.'],
+];
+function renderSplaces() {
+  document.getElementById('splaces').innerHTML = SPLACES.map(([k, n, why]) => `<div class="gridalt"><h3>${n}</h3><p>${why}</p><div class="scroll" style="padding-top:6px"><div class="rowx">${['large', 'medium', 'phone'].map((s) => `<div class="cap"><span class="lbl">${SZ[s].name}</span>${card({ size: s, fight: 'off', stat: 'on', splace: k, tab: '0', alt: st.alt })}</div>`).join('')}<div class="cap"><span class="lbl">Medium · i strid (${st.alt})</span>${card({ size: 'medium', fight: 'on', stat: 'on', splace: k, tab: '0' })}</div></div></div></div>`).join('');
+  wireTabs(document.getElementById('splaces'));
+}
+function renderGrid() {
+  const cases = [['medium', 'you', 'Medium · du tankar'], ['medium', 'other', 'Medium · Gandalf tankar'], ['phone', 'you', 'Telefon · du tankar'], ['phone', 'other', 'Telefon · Gandalf tankar']];
+  const ref = `<div class="gridalt"><h3><span>–</span>Utan strid (som idag)</h3><div class="scroll" style="padding-top:6px"><div class="rowx">${['medium', 'phone'].map((s) => `<div class="cap"><span class="lbl">${SZ[s].name}</span>${card({ size: s, fight: 'off', tab: '0' })}</div>`).join('')}</div></div></div>`;
+  document.getElementById('grid').innerHTML = ref + ALTS.map((a) => `<div class="gridalt"><h3><span>${a.id}</span>${a.name}</h3><p>${a.why}</p><div class="scroll" style="padding-top:6px"><div class="rowx">${cases.map(([s, t, l]) => `<div class="cap"><span class="lbl">${l}</span>${card({ alt: a.id, size: s, tank: t, fight: 'on', tab: '0' })}</div>`).join('')}</div></div></div>`).join('');
+  wireTabs(document.getElementById('grid'));
+}
+function syncSeg(k) { document.querySelectorAll(`[data-ctl="${k}"] button`).forEach((x) => x.classList.toggle('on', x.dataset.v === String(st[k]))); }
+function renderAll(animate) { renderAltList(); renderBench(animate); renderFmodes(); renderSplaces(); renderGrid(); }
+
+document.querySelectorAll('[data-ctl]').forEach((seg) => seg.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = seg.dataset.ctl; st[k] = b.dataset.v; syncSeg(k);
+  renderAll(k === 'fight' || k === 'alt' || k === 'tank' || k === 'fmode' || k === 'stat' || k === 'splace');
+}));
+document.getElementById('altlist').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-alt]'); if (!c) return;
+  st.alt = c.dataset.alt; st.fight = 'on'; syncSeg('fight');
+  renderAll(true);
+  document.querySelector('.bench').scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'start' });
+});
+document.getElementById('altlist').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const c = e.target.closest('[data-alt]'); if (c) { e.preventDefault(); c.click(); } } });
+renderAll(false);
+
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
