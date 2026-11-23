@@ -33,7 +33,8 @@
 // counts toward MAX_FAILURES like a failed poll: it is the same risk, held
 // game text put back late. It is also reported (`sexFailed`) and remembered
 // for the name, so a character whose `info` MUME pages shows that text once
-// and is never probed again.
+// and is never probed again. Only in a window of `PROBE_MIN_ROWS` or more,
+// as MUME's pager follows the window's height.
 //
 // Entering the game also arms the filter for the `Ok.` answers to
 // Session's width commands (PLAYING_COMMANDS), whether the poll is enabled
@@ -66,6 +67,13 @@ export const SETTLE_MS = 2000;
 export const REPEAT_SETTLE_MS = 10_000;
 /** Failures that stop the polls for the connection. */
 export const MAX_FAILURES = 2;
+/**
+ * The probe only in a window this tall (`view.size`): MUME pages a plain
+ * `info` (about 20 lines) at the window's height, and its pager would take
+ * the probe's last `info` as input and stay open (a phone in landscape,
+ * stage 77 E2, the owner's test). Unknown: no probe.
+ */
+export const PROBE_MIN_ROWS = 30;
 
 export interface InfoPollOptions {
   /** Subscribe first: what is held must go out before anyone sees a disconnect. */
@@ -115,6 +123,8 @@ export class InfoPoll {
   private probed = new Set<string>();
   /** The probes sent and not answered. */
   private probes = new Set<string>();
+  /** The window's height in rows, from `view.size`. */
+  private rows: number | null = null;
   private pressedAt = Number.NEGATIVE_INFINITY;
 
   /** A socket frame is being read. */
@@ -160,6 +170,7 @@ export class InfoPoll {
           this.check();
         }
       }),
+      bus.on('view.size', (v) => (this.rows = v.rows)),
       bus.on('gmcp', (m) => {
         const key = gmcpKey(m);
         if (key === 'char.vitals') this.vitals = true;
@@ -337,7 +348,8 @@ export class InfoPoll {
 
   private send(now: number): boolean {
     const nonce = this.o.nonce?.() ?? randomNonce();
-    const probe = this.loginDue && this.character !== null && !this.probed.has(this.character) && this.o.needSex?.() === true;
+    const tall = this.rows !== null && this.rows >= PROBE_MIN_ROWS;
+    const probe = tall && this.loginDue && this.character !== null && !this.probed.has(this.character) && this.o.needSex?.() === true;
     const probeNonce = probe ? (this.o.nonce?.() ?? randomNonce()) : null;
     const text = probeNonce === null ? infoCommand(nonce) : `${infoCommand(nonce)}\r\n${sexProbeCommand(probeNonce)}`;
     if (!this.o.send(text)) return false;

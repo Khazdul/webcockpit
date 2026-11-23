@@ -100,6 +100,8 @@ describe('the info poll in the App', () => {
   it('the sex probe: no trace anywhere, the sex set', async () => {
     const t = setup();
     expect(t.app.applyProfile('#action {You are a %1} {say leak}\n').ok).toBe(true);
+    // A window tall enough for the probe (PROBE_MIN_ROWS): MUME would page it in a short one.
+    t.app.bus.emit('view.size', { cols: 110, rows: 49 });
     t.login();
     const p = probeNonce(t.sent())!;
     expect(p).toMatch(/^[a-z0-9]{6}$/);

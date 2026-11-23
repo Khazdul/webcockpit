@@ -2,7 +2,7 @@
 // 19, 22–25): a real session, line layer and game state, a fake clock.
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
+import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, PROBE_MIN_ROWS, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
 import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -19,7 +19,7 @@ afterEach(() => {
   for (const c of cleanup.splice(0)) c();
 });
 
-function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null } = {}) {
+function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; rows?: number | null } = {}) {
   const sched = new FakeScheduler();
   const now = (): number => T0 + sched.now();
   const bus = new Bus();
@@ -42,6 +42,9 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null }
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
   });
   game.attach(bus);
+  // The window's height (a desktop's): the probe needs PROBE_MIN_ROWS.
+  const rows = o.rows === undefined ? 49 : o.rows;
+  if (rows !== null) bus.emit('view.size', { cols: 110, rows });
   const shown: string[] = [];
   bus.on('text.line', (l) => shown.push(l.text));
   const assembler = new LineAssembler({
@@ -758,6 +761,21 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
     expect(t.probes()).toHaveLength(2);
     // A new connection may try again.
     t.session.disconnect();
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.probes()).toHaveLength(1);
+  });
+
+  it(`only in a window of ${PROBE_MIN_ROWS} rows or more: MUME pages a plain info at the window's height`, () => {
+    for (const rows of [null, 12, PROBE_MIN_ROWS - 1]) {
+      const t = setup({ sex: true, rows });
+      t.login();
+      t.wait(SETTLE_MS);
+      expect(t.polls()).toHaveLength(1);
+      expect(t.probes()).toEqual([]);
+    }
+    const t = setup({ sex: true, rows: 12 });
+    t.bus.emit('view.size', { cols: 80, rows: PROBE_MIN_ROWS });
     t.login();
     t.wait(SETTLE_MS);
     expect(t.probes()).toHaveLength(1);
