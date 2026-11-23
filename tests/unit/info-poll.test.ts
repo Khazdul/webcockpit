@@ -7,7 +7,7 @@ import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
 import { LineAssembler } from '../../src/text/assembler';
-import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, wire } from '../fixtures/info-poll-answer';
+import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
 import { FakeSocket, sb, utf8 } from './net-helpers';
 
 const PROMPT = XML_PROMPT + GA;
@@ -19,11 +19,11 @@ afterEach(() => {
   for (const c of cleanup.splice(0)) c();
 });
 
-function setup(o: { enabled?: boolean } = {}) {
+function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null } = {}) {
   const sched = new FakeScheduler();
   const now = (): number => T0 + sched.now();
   const bus = new Bus();
-  const game = new GameState({ now, timers: { scheduler: sched } });
+  const game = new GameState({ now, storage: o.storage ?? null, timers: { scheduler: sched } });
   let enabled = o.enabled ?? true;
   let n = 0;
   let sock = new FakeSocket();
@@ -38,6 +38,7 @@ function setup(o: { enabled?: boolean } = {}) {
     fighting: () => game.fighting(),
     dataAt: () => game.info.at,
     apply: (a) => game.applyInfo(a),
+    ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x) } : {}),
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
   });
   game.attach(bus);
@@ -72,6 +73,15 @@ function setup(o: { enabled?: boolean } = {}) {
       .split('\r\n')
       .filter((l) => pollNonce(l) !== null);
   const nonce = (): string => pollNonce(polls().at(-1)!)!;
+  /** The sent sex probes' nonces. */
+  const probes = (): string[] =>
+    new TextDecoder('latin1')
+      .decode(Uint8Array.from(sock.sentBytes()))
+      .split('\r\n')
+      .map((l) => probeNonce(l))
+      .filter((n): n is string => n !== null);
+  /** The sent bytes as written, one string per write. */
+  const writes = (): string[] => sock.sent.map((w) => new TextDecoder('latin1').decode(w));
   const connect = (): void => {
     sock = new FakeSocket();
     session.connect();
@@ -105,7 +115,7 @@ function setup(o: { enabled?: boolean } = {}) {
   };
   // The hub's one-second tick is not the poll's: count only what `pending` had without it.
   const idleTimers = sched.pending;
-  return { bus, game, poll, session, sched, shown, cmds, frame, polls, nonce, connect, login, ready, answer, wait, active, turn, idleTimers, sock: () => sock };
+  return { bus, game, poll, session, sched, shown, cmds, frame, polls, probes, writes, nonce, connect, login, ready, answer, wait, active, turn, idleTimers, sock: () => sock };
 }
 
 describe('InfoPoll: the login poll', () => {
@@ -663,5 +673,104 @@ describe('Session.sendHidden', () => {
     expect(t.session.sendHidden('info')).toBe(false);
     expect(t.cmds).toEqual([]);
     expect(sys).toEqual([]);
+  });
+});
+
+describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
+  class MemStorage {
+    readonly m = new Map<string, string>();
+    getItem(k: string): string | null {
+      return this.m.get(k) ?? null;
+    }
+    setItem(k: string, v: string): void {
+      this.m.set(k, v);
+    }
+  }
+
+  it('goes with the login poll, in the same write, when the sex is not known', () => {
+    const t = setup({ sex: true });
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.polls()).toHaveLength(1);
+    expect(t.probes()).toHaveLength(1);
+    const both = t.writes().filter((w) => pollNonce(w) !== null);
+    expect(both).toHaveLength(1);
+    expect(probeNonce(both[0]!)).toBe(t.probes()[0]);
+    expect(both[0]).toMatch(/\]WCpoll00\r\ninfo WCpoll01\{\r\ninfo\r\ninfo \}WCpoll01\r\n$/);
+  });
+
+  it('the answer in one pulse: all hidden, the sex applied and remembered', () => {
+    const storage = new MemStorage();
+    const t = setup({ sex: true, storage: storage as unknown as Storage });
+    t.login();
+    t.wait(SETTLE_MS);
+    t.frame(answerText(t.nonce()) + probeText(t.probes()[0]!, { sex: 'female' }) + PROMPT);
+    expect(t.shown).toEqual(['o>']);
+    expect(t.game.sex).toBe('female');
+    expect(t.game.info.answer?.wimpy).toBe(120);
+    expect(t.poll.failures).toBe(0);
+    expect(JSON.parse(storage.getItem('wc.charSex.v1')!)).toEqual({ rasta: 'female' });
+  });
+
+  it('not when the sex is remembered', () => {
+    const storage = new MemStorage();
+    storage.setItem('wc.charSex.v1', JSON.stringify({ rasta: 'male' }));
+    const t = setup({ sex: true, storage: storage as unknown as Storage });
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.polls()).toHaveLength(1);
+    expect(t.probes()).toEqual([]);
+    expect(t.game.sex).toBe('male');
+  });
+
+  it('not without needSex, and never with a repeated poll', () => {
+    const t = setup();
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.probes()).toEqual([]);
+    const u = setup({ sex: true });
+    u.login();
+    u.poll.open();
+    u.wait(SETTLE_MS);
+    u.answer(); // the fields only: the probe is never answered
+    u.active(EVERY_MS + REPEAT_SETTLE_MS);
+    expect(u.polls()).toHaveLength(2);
+    expect(u.probes()).toHaveLength(1);
+  });
+
+  it('once per connection and character, failed or not; a failure counts', () => {
+    const t = setup({ sex: true });
+    t.login();
+    t.wait(SETTLE_MS);
+    t.frame(answerText(t.nonce()) + probeText(t.probes()[0]!, { body: ['Huh?!'] }) + PROMPT);
+    expect(t.poll.failures).toBe(1);
+    expect(t.game.sex).toBeNull();
+    expect(t.shown).toContain('Huh?!');
+    // Another character on the same connection: probed once.
+    t.frame(gmcp('Char.Name', { name: 'Gibur' }), gmcp('Char.Vitals', { hp: 5 }), PROMPT);
+    t.wait(MIN_GAP_MS);
+    expect(t.polls()).toHaveLength(2);
+    expect(t.probes()).toHaveLength(2);
+    // Back to the first: not again on this connection.
+    t.frame(gmcp('Char.Name', { name: 'Rasta' }), gmcp('Char.Vitals', { hp: 5 }), PROMPT);
+    t.wait(MIN_GAP_MS);
+    expect(t.polls()).toHaveLength(3);
+    expect(t.probes()).toHaveLength(2);
+    // A new connection may try again.
+    t.session.disconnect();
+    t.login();
+    t.wait(SETTLE_MS);
+    expect(t.probes()).toHaveLength(1);
+  });
+
+  it("an earlier character's probe answer is hidden and not applied", () => {
+    const t = setup({ sex: true });
+    t.login();
+    t.wait(SETTLE_MS);
+    const [old] = t.probes();
+    t.frame(gmcp('Char.Name', { name: 'Gibur' }), gmcp('Char.Vitals', { hp: 5 }));
+    t.frame(probeText(old!, { sex: 'female' }) + PROMPT);
+    expect(t.game.sex).toBeNull();
+    expect(t.shown).toEqual(['o>']);
   });
 });

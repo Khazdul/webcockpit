@@ -8,7 +8,7 @@ import { App } from '../../src/app/app';
 import { RunStore } from '../../src/runs/store';
 import { SETTLE_MS } from '../../src/gmcp/info-poll';
 import { FakeScheduler } from '../../src/script/engine/timers';
-import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, wire } from '../fixtures/info-poll-answer';
+import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
 import { FakeSocket, sb, utf8 } from './net-helpers';
 
 const PROMPT = XML_PROMPT + GA;
@@ -97,6 +97,28 @@ describe('the info poll in the App', () => {
     expect(log.split('\n').filter((l) => / o>$/.test(l))).toHaveLength(2);
   });
 
+  it('the sex probe: no trace anywhere, the sex set', async () => {
+    const t = setup();
+    expect(t.app.applyProfile('#action {You are a %1} {say leak}\n').ok).toBe(true);
+    t.login();
+    const p = probeNonce(t.sent())!;
+    expect(p).toMatch(/^[a-z0-9]{6}$/);
+    t.frame(answerText(pollNonce(t.sent())!) + probeText(p, { sex: 'female' }) + PROMPT);
+    t.frame(`A troll arrives.\r\n\r\n${PROMPT}`);
+    expect(t.app.game.sex).toBe('female');
+    expect(t.sent()).not.toContain('say leak');
+    for (const trace of [p, 'You are a female', 'info']) {
+      expect(t.heard.join('\n')).not.toContain(trace);
+      expect(t.rows()).not.toContain(trace);
+    }
+    await t.app.recorder.idle();
+    await t.app.recorder.flush();
+    const store = (await t.app.recorder.getStore())!;
+    const log = (await store.getChunks(t.app.recorder.runId!)).map((c) => c.text).join('');
+    expect(log).toContain('A troll arrives.');
+    for (const trace of [p, 'You are a female']) expect(log).not.toContain(trace);
+  });
+
   it("the user's actions do not fire on the answer, and do on the text beside it", () => {
     const t = setup();
     expect(t.app.applyProfile('#action {GoblinTown} {say leak}\n#action {warlord} {say leak}\n#action {troll arrives} {say hello}\n').ok).toBe(true);
@@ -123,7 +145,8 @@ describe('the info poll in the App', () => {
     t.frame(answerPulse(pollNonce(t.sent())!));
     t.app.infoPoll!.open();
     t.sched.advance(11 * 60_000);
-    const count = (): number => t.sent().split('info WC').length - 1;
+    // The field polls: the login's sex probe (`info WC…{`) is not one.
+    const count = (): number => t.sent().match(/info WC[a-z0-9]{6}\[/g)?.length ?? 0;
     expect(count()).toBe(1);
     window.dispatchEvent(new Event('pointerdown'));
     t.sched.advance(0);

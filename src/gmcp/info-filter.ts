@@ -19,10 +19,23 @@
 //   the prompt: a question ended by GA is game text.
 // - `text.partial` of what is held never shows, and a partial already shown
 //   of what is hidden is cleared.
+//
+// The sex probe (stage 77 part E2) is a second kind: three `info`s sent
+// with the login poll, answered in the same pulse, each answer between
+// blank lines:
+//
+//   WC<nonce>{                          held, the start: a line of its own
+//   You are a male Tarkhnarb Orc.       a plain `info`, about 25 lines
+//   …
+//   }WC<nonce>                          the end: the first sex line is read
+//
+// Held, hidden and put back by the same rules as the fields' answer. No
+// sex line between the sentinels is a failure.
 
 import type { Line } from '../core/types';
 import type { Scheduler } from '../script/engine/timers';
 import { INFO_FIELDS, INFO_SEPARATOR, type InfoAnswer, parseInfoAnswer } from './info-answer';
+import { type Sex, parseSexLine } from './sex';
 
 /** How long lines are held after a start sentinel. */
 export const HOLD_MS = 2000;
@@ -37,12 +50,20 @@ const PAGER = /\*\*\* Return: continue\b/;
 /** The line editor's place marker, the line over its `:` prompt. */
 const EDITOR_MARK = '==>';
 
-export const startSentinel = (nonce: string): string => `${MARK}${nonce}[`;
-export const endSentinel = (nonce: string): string => `]${MARK}${nonce}`;
+/** What a poll asks: the fields (`infoCommand`) or the sex (`sexProbeCommand`). */
+export type PollKind = 'fields' | 'sex';
+
+export const startSentinel = (nonce: string, kind: PollKind = 'fields'): string => `${MARK}${nonce}${kind === 'sex' ? '{' : '['}`;
+export const endSentinel = (nonce: string, kind: PollKind = 'fields'): string => `${kind === 'sex' ? '}' : ']'}${MARK}${nonce}`;
 
 /** The poll's command. ASCII (ADR 0166 point 1). */
 export function infoCommand(nonce: string): string {
   return `info ${startSentinel(nonce)}${INFO_FIELDS.map((f) => f.code).join(INFO_SEPARATOR)}${endSentinel(nonce)}`;
+}
+
+/** The sex probe's command: a plain `info` between two sentinel `info`s, three lines. ASCII. */
+export function sexProbeCommand(nonce: string): string {
+  return [`info ${startSentinel(nonce, 'sex')}`, 'info', `info ${endSentinel(nonce, 'sex')}`].join('\r\n');
 }
 
 /** An XML prompt with no other text on its line: also one still being received. */
@@ -73,6 +94,8 @@ export interface InfoFilterOptions {
   partial(l: Line): void;
   /** An answer was taken out. */
   found(nonce: string, answer: InfoAnswer): void;
+  /** A sex probe's answer was taken out. */
+  foundSex(nonce: string, sex: Sex): void;
   /** Hiding ended without an answer. The held lines go out after this. */
   failed(nonce: string): void;
   scheduler: Scheduler;
@@ -89,9 +112,9 @@ export class InfoFilter {
   /** A poll is known or an answer is under way: lines take the slow path. */
   private watching = false;
   /** Sentinels of polls sent and not answered, oldest first. */
-  private known: { nonce: string; start: string }[] = [];
+  private known: { nonce: string; kind: PollKind; start: string }[] = [];
   /** The answer being held. */
-  private hold: { nonce: string; end: string; lines: Line[]; body: string[]; tail: string; timer: unknown } | null = null;
+  private hold: { nonce: string; kind: PollKind; end: string; lines: Line[]; body: string[]; tail: string; timer: unknown } | null = null;
   /** A blank line that may be the one before an answer. */
   private before: Line | null = null;
   /** What may still follow an answer: its blank line and the prompt, or only the prompt. */
@@ -106,12 +129,12 @@ export class InfoFilter {
   constructor(private readonly o: InfoFilterOptions) {}
 
   /** A poll was sent: its answer is hidden however late it comes. */
-  expect(nonce: string): void {
+  expect(nonce: string, kind: PollKind = 'fields'): void {
     if (!this.watching) {
       this.pulseShown = this.last !== null && !this.last.prompt;
       this.shown = this.partialOpen;
     }
-    this.known.push({ nonce, start: startSentinel(nonce) });
+    this.known.push({ nonce, kind, start: startSentinel(nonce, kind) });
     if (this.known.length > MAX_KNOWN) this.known.shift();
     this.watching = true;
   }
@@ -164,7 +187,7 @@ export class InfoFilter {
     if (this.hold) return this.holdLine(l);
     const poll = this.startOf(l.text);
     if (poll) {
-      this.begin(poll.nonce, l.ts);
+      this.begin(poll, l.ts);
       return this.holdLine(l);
     }
     this.flushBefore();
@@ -190,7 +213,7 @@ export class InfoFilter {
     }
     if (l.text !== '') {
       const poll = this.startOf(l.text);
-      if (poll) this.begin(poll.nonce, l.ts);
+      if (poll) this.begin(poll, l.ts);
       if (poll || this.maybeStart(l.text) || (this.after && !this.pulseShown && isPromptTagged(l))) {
         this.keptPartial = l;
         return;
@@ -201,7 +224,7 @@ export class InfoFilter {
     this.showPartial(l);
   }
 
-  private startOf(text: string): { nonce: string; start: string } | null {
+  private startOf(text: string): { nonce: string; kind: PollKind; start: string } | null {
     if (!text.startsWith(MARK)) return null;
     return this.known.find((k) => text.startsWith(k.start)) ?? null;
   }
@@ -211,8 +234,9 @@ export class InfoFilter {
     return this.known.some((k) => k.start.startsWith(text));
   }
 
-  private begin(nonce: string, ts: number): void {
-    this.known = this.known.filter((k) => k.nonce !== nonce);
+  private begin(poll: { nonce: string; kind: PollKind }, ts: number): void {
+    const { nonce, kind } = poll;
+    this.known = this.known.filter((k) => k.nonce !== nonce || k.kind !== kind);
     const lines = this.before ? [this.before] : [];
     this.before = this.after = null;
     this.clearShown(ts);
@@ -220,7 +244,7 @@ export class InfoFilter {
       this.fail();
       this.updateWatching();
     }, HOLD_MS);
-    this.hold = { nonce, end: endSentinel(nonce), lines, body: [], tail: '', timer };
+    this.hold = { nonce, kind, end: endSentinel(nonce, kind), lines, body: [], tail: '', timer };
   }
 
   private holdLine(l: Line): void {
@@ -234,12 +258,20 @@ export class InfoFilter {
 
   private finish(): void {
     const h = this.hold!;
-    const answer = parseInfoAnswer(between(h.body, startSentinel(h.nonce), h.end));
-    if (!answer) return this.fail();
+    const body = between(h.body, startSentinel(h.nonce, h.kind), h.end);
+    let done: (() => void) | null = null;
+    if (h.kind === 'sex') {
+      const sex = firstSex(body);
+      if (sex !== null) done = () => this.o.foundSex(h.nonce, sex);
+    } else {
+      const answer = parseInfoAnswer(body);
+      if (answer) done = () => this.o.found(h.nonce, answer);
+    }
+    if (!done) return this.fail();
     this.o.scheduler.clear(h.timer);
     this.hold = this.keptPartial = null;
     this.after = 'blank';
-    this.o.found(h.nonce, answer);
+    done();
   }
 
   private fail(): void {
@@ -279,6 +311,15 @@ export class InfoFilter {
   private updateWatching(): void {
     this.watching = this.known.length > 0 || this.hold !== null || this.after !== null;
   }
+}
+
+/** The sex of a plain `info`'s first sex line, or null. It is bracketed: no race check. */
+function firstSex(lines: readonly string[]): Sex | null {
+  for (const l of lines) {
+    const sex = parseSexLine(l);
+    if (sex !== null) return sex;
+  }
+  return null;
 }
 
 /** The lines without the sentinels. The end may be cut over several lines. */

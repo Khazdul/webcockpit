@@ -419,6 +419,8 @@ export class App {
           fighting: () => this.game.fighting(),
           dataAt: () => this.game.info.at,
           apply: (answer) => this.game.applyInfo(answer),
+          needSex: () => this.game.sexNeeded(),
+          applySex: (sex) => this.game.applySex(sex),
         }));
     this.statusImpl = new AppStatus(bus);
     // Before the UI lines and the recorder: a kill folded when the run ends

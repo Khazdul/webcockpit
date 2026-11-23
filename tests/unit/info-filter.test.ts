@@ -4,11 +4,21 @@ import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Line } from '../../src/core/types';
 import { INFO_FIELDS, type InfoAnswer } from '../../src/gmcp/info-answer';
-import { HOLD_MS, InfoFilter, MAX_LINES, infoCommand, isGamePrompt } from '../../src/gmcp/info-filter';
+import { HOLD_MS, InfoFilter, MAX_LINES, infoCommand, isGamePrompt, sexProbeCommand } from '../../src/gmcp/info-filter';
 import { Telnet } from '../../src/net/telnet';
 import { FakeScheduler } from '../../src/script/engine/timers';
 import { LineAssembler } from '../../src/text/assembler';
-import { ANSWER_FIELDS, GA, XML_PROMPT, answerLines, answerPulse, answerText, wire } from '../fixtures/info-poll-answer';
+import {
+  ANSWER_FIELDS,
+  GA,
+  XML_PROMPT,
+  answerLines,
+  answerPulse,
+  answerText,
+  plainInfoLines,
+  probeText,
+  wire,
+} from '../fixtures/info-poll-answer';
 
 const N = 'k3m9qz';
 const PROMPT = XML_PROMPT + GA;
@@ -26,6 +36,7 @@ function setup(o: { poll?: string | null; prompt?: string } = {}) {
   const events: string[] = [];
   const found: { nonce: string; answer: InfoAnswer }[] = [];
   const failed: string[] = [];
+  const sexes: string[] = [];
   const filter = new InfoFilter({
     line: (l) => {
       lines.push(l);
@@ -37,6 +48,7 @@ function setup(o: { poll?: string | null; prompt?: string } = {}) {
       open = l.text;
     },
     found: (nonce, answer) => found.push({ nonce, answer }),
+    foundSex: (nonce, sex) => sexes.push(`${nonce} ${sex}`),
     failed: (nonce) => failed.push(nonce),
     scheduler: sched,
   });
@@ -59,7 +71,7 @@ function setup(o: { poll?: string | null; prompt?: string } = {}) {
     for (const a of [raw, lines, partials, events]) a.length = 0;
   };
   clear();
-  return { filter, sched, frame, clear, raw, lines, partials, events, found, failed, open: () => open, texts: () => lines.map((l) => l.text) };
+  return { filter, sched, frame, clear, raw, lines, partials, events, found, failed, sexes, open: () => open, texts: () => lines.map((l) => l.text) };
 }
 
 const wimpy = (t: ReturnType<typeof setup>): (number | null)[] => t.found.map((f) => f.answer.wimpy);
@@ -397,5 +409,94 @@ describe('isGamePrompt', () => {
     for (const p of ['![>', '*[>', '*%~- CSW A1 M2 P8 S3 HP:Fine Mana:Burning Move:Tired>', '>']) expect(isGamePrompt(ln(p)), p).toBe(true);
     for (const p of [': ', ':', '==>', 'Account password: ', 'Are you sure? [y/n] ', '']) expect(isGamePrompt(ln(p)), p).toBe(false);
     expect(isGamePrompt(ln('*** Return: continue, b: back, r: redisplay, q: quit, >: bottom (39%) *** '))).toBe(false);
+  });
+});
+
+describe('InfoFilter: the sex probe', () => {
+  const P = 'p7x2ab';
+  const probe = (o: { poll?: string | null } = {}) => {
+    const t = setup(o);
+    t.filter.expect(P, 'sex');
+    return t;
+  };
+
+  it('sexProbeCommand: three ASCII info commands with their own brackets', () => {
+    expect(sexProbeCommand(P)).toBe(`info WC${P}{\r\ninfo\r\ninfo }WC${P}`);
+    expect(sexProbeCommand(P).replace(/\r\n/g, '')).toMatch(/^[\x20-\x7e]+$/);
+  });
+
+  it('alone: hidden with its blank lines and the prompt, the sex read', () => {
+    const t = probe({ poll: null });
+    t.frame(probeText(P, { sex: 'female' }) + PROMPT);
+    expect(t.texts()).toEqual([]);
+    expect(t.partials).toEqual([]);
+    expect(t.sexes).toEqual([`${P} female`]);
+    expect(t.failed).toEqual([]);
+    expect(t.sched.pending).toBe(0);
+  });
+
+  it('right after the fields in one frame: nothing leaks, both read', () => {
+    const t = probe();
+    const bytes = wire(answerText(N) + probeText(P, { sex: 'female' }) + PROMPT);
+    for (let cut = 0; cut <= bytes.length; cut += 7) {
+      const u = probe();
+      u.frame(bytes.slice(0, cut), bytes.slice(cut));
+      expect(u.texts(), `cut ${cut}`).toEqual([]);
+      expect(u.partials, `cut ${cut}`).toEqual([]);
+      expect(u.sexes, `cut ${cut}`).toEqual([`${P} female`]);
+      expect(wimpy(u), `cut ${cut}`).toEqual([120]);
+    }
+    t.frame(bytes);
+    expect(t.texts()).toEqual([]);
+    // What follows is shown again.
+    t.frame(`A crow flies over.\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['A crow flies over.', 'o>']);
+  });
+
+  it('a man: the first sex line is the one read', () => {
+    const t = probe({ poll: null });
+    t.frame(probeText(P, { body: [...plainInfoLines('male'), 'You are a female Tarkhnarb Orc.'] }) + PROMPT);
+    expect(t.sexes).toEqual([`${P} male`]);
+  });
+
+  it('no sex line between the sentinels: a failure, everything shown as it came', () => {
+    const t = probe({ poll: null });
+    t.frame(probeText(P, { body: ['Huh?!'] }) + PROMPT);
+    expect(t.sexes).toEqual([]);
+    expect(t.failed).toEqual([P]);
+    expect(t.texts()).toEqual(t.raw.map((l) => l.text));
+    t.lines.forEach((l, i) => expect(l).toBe(t.raw[i]));
+  });
+
+  it('no end: at the prompt, everything shown', () => {
+    const t = probe({ poll: null });
+    t.frame(`WC${P}{\r\n\r\n\r\n${plainInfoLines().join('\r\n')}\r\n\r\n${PROMPT}`);
+    expect(t.failed).toEqual([P]);
+    expect(t.texts()).toEqual(t.raw.map((l) => l.text));
+    expect(t.texts()[0]).toBe(`WC${P}{`);
+  });
+
+  it(`no end: after ${HOLD_MS} ms`, () => {
+    const t = probe({ poll: null });
+    t.frame(`WC${P}{\r\n\r\n\r\n${plainInfoLines().join('\r\n')}\r\n`);
+    expect(t.texts()).toEqual([]);
+    t.sched.advance(HOLD_MS);
+    expect(t.failed).toEqual([P]);
+    expect(t.texts()).toEqual(t.raw.map((l) => l.text));
+  });
+
+  it("the fields' start is not the probe's, nor the other way", () => {
+    const t = setup({ poll: null });
+    t.filter.expect(P, 'fields');
+    t.frame(probeText(P) + PROMPT);
+    expect(t.sexes).toEqual([]);
+    expect(t.texts()).toEqual(t.raw.map((l) => l.text));
+  });
+
+  it('forged in a say: shown', () => {
+    const t = probe({ poll: null });
+    t.frame(`Bob says 'WC${P}{ You are a female Tarkhnarb Orc. }WC${P}'\r\n${PROMPT}`);
+    expect(t.lines).toEqual(t.raw);
+    expect(t.sexes).toEqual([]);
   });
 });

@@ -26,6 +26,13 @@
 // A command sent into the pager or the line editor is read by them: when in
 // doubt, no poll.
 //
+// The sex probe (stage 77 part E2): when the login poll goes and the
+// character's sex is not known (`needSex`), the probe's three `info`s go in
+// the same write, so that MUME answers all four in one pulse. At most one
+// probe per character and connection, whatever its outcome. A failed probe
+// counts toward MAX_FAILURES like a failed poll: it is the same risk, held
+// game text put back late.
+//
 // One timer at most, and only while time alone can make a poll due. What
 // else a poll waits for (a prompt, the fight's end) comes with a frame.
 
@@ -33,7 +40,8 @@ import type { Bus } from '../core/bus';
 import { type Line, gmcpKey } from '../core/types';
 import type { Scheduler } from '../script/engine/timers';
 import type { InfoAnswer } from './info-answer';
-import { InfoFilter, infoCommand, isGamePrompt } from './info-filter';
+import { InfoFilter, infoCommand, isGamePrompt, sexProbeCommand } from './info-filter';
+import type { Sex } from './sex';
 
 /** Opening a view polls when the data is older. */
 export const FRESH_MS = 30_000;
@@ -68,6 +76,10 @@ export interface InfoPollOptions {
   /** When the model's data was received, or null. */
   dataAt(): number | null;
   apply(answer: InfoAnswer): void;
+  /** The character is named and its sex is not known: the login poll brings the probe. None: never. */
+  needSex?(): boolean;
+  /** The probe's answer. */
+  applySex?(sex: Sex): void;
   /** Six random lower-case letters and digits (tests). */
   nonce?(): string;
 }
@@ -90,6 +102,8 @@ export class InfoPoll {
   /** The polls of this character: only their answers are applied. */
   private own = new Set<string>();
   private failureCount = 0;
+  /** The characters probed for their sex on this connection. */
+  private probed = new Set<string>();
   private pressedAt = Number.NEGATIVE_INFINITY;
 
   /** A socket frame is being read. */
@@ -108,6 +122,9 @@ export class InfoPoll {
       line: (l) => bus.emit('text.line', l),
       partial: (l) => bus.emit('text.partial', l),
       found: (nonce, answer) => this.found(nonce, answer),
+      foundSex: (nonce, sex) => {
+        if (this.own.delete(nonce)) this.o.applySex?.(sex);
+      },
       failed: (nonce) => this.failed(nonce),
       scheduler: o.scheduler,
     });
@@ -230,6 +247,7 @@ export class InfoPoll {
     this.vitals = this.loginDue = this.openDue = this.sentInFrame = false;
     this.sentPollAt = this.outstanding = this.lineAtSend = null;
     this.own.clear();
+    this.probed.clear();
     this.failureCount = 0;
     this.commandAt = Number.NEGATIVE_INFINITY;
   }
@@ -303,8 +321,16 @@ export class InfoPoll {
 
   private send(now: number): boolean {
     const nonce = this.o.nonce?.() ?? randomNonce();
-    if (!this.o.send(infoCommand(nonce))) return false;
+    const probe = this.loginDue && this.character !== null && !this.probed.has(this.character) && this.o.needSex?.() === true;
+    const probeNonce = probe ? (this.o.nonce?.() ?? randomNonce()) : null;
+    const text = probeNonce === null ? infoCommand(nonce) : `${infoCommand(nonce)}\r\n${sexProbeCommand(probeNonce)}`;
+    if (!this.o.send(text)) return false;
     this.filter.expect(nonce);
+    if (probeNonce !== null) {
+      this.probed.add(this.character!);
+      this.filter.expect(probeNonce, 'sex');
+      this.own.add(probeNonce);
+    }
     this.own.add(nonce);
     this.outstanding = nonce;
     this.sentPollAt = now;

@@ -71,3 +71,49 @@ export function wire(text: string): number[] {
 export function pollNonce(sent: string): string | null {
   return [...sent.matchAll(/(?:^|\n|[^\x20-\x7e])info WC([a-z0-9]{6})\[/g)].pop()?.[1] ?? null;
 }
+
+// ------------------------------------------------------------ the sex probe
+
+/** A plain `info` (Rasta's, 2026-09-25, with colour), for `sex`. The blank line inside is MUME's. */
+export function plainInfoLines(sex: 'male' | 'female' = 'male', race = 'Tarkhnarb Orc'): string[] {
+  return [
+    `You are a ${sex} ${race}.`,
+    'You are 82 years, 4 months, and 2 days old.',
+    'You have played 2 months, 6 days, and 17 hours (real time). Session: 29 secs.',
+    `This ranks you as Rasta Fari (level ${G(73)}).`,
+    'You are four feet eleven and weigh eight stone and five pounds.',
+    `Perception: vision ${G(25)}, hearing ${G(10)}, smell ${G(20)}. Alertness: \x1b[32mnormal\x1b[0m.`,
+    'You are totally corrupted by the Evilness of Morgoth!',
+    'You are welcome in Goblin-town.',
+    'Your equipment weighs ninety pounds. Heavy, but we will manage...',
+    `Your base abilities are: Str:${G(17)}(${G(15)}) Int:${G(15)} Wis:${G(17)} Dex:${G(11)} Con:${G(11)} Wil:${G(16)} Per:${G(8)}.`,
+    `Offensive Bonus: ${G(74)}%, Dodging Bonus: ${G(9)}%, Parrying Bonus: ${G(95)}%.`,
+    `Your armour provides an average protection of ${G(61)}%.`,
+    `You have ${G(254)}/${G(254)} hit, ${G(54)}/${G(115)} mana, and ${G(112)}/${G(112)} movement points.`,
+    `Your mood is \x1b[32mwimpy\x1b[0m. You will flee if your hit points go below ${G(200)}.`,
+    'You have scored \x1b[32m81,483,972\x1b[0m experience points and you have \x1b[32m399,929\x1b[0m travel points.',
+    `You have fought a few battles for the forces of the Dark Lord (${G(2)} wp).`,
+    'You need \x1b[32m1,016,028\x1b[0m exp. points and \x1b[32m0\x1b[0m travel points to reach the next level.',
+    `You have ${G(105)} gold coins, ${G(1)} silver penny, and ${G(52)} copper pennies.`,
+    'You are speaking Morbeth.',
+    'You will swim if necessary.',
+    '',
+    'You are subjected to the following temporary effects:',
+    '- tiredness',
+    '- strength',
+  ];
+}
+
+/**
+ * The probe's three answers, each queued (a blank line before and after),
+ * as they follow another answer in the same pulse. No prompt.
+ */
+export function probeText(nonce: string, o: { sex?: 'male' | 'female'; body?: readonly string[] } = {}): string {
+  const body = o.body ?? plainInfoLines(o.sex);
+  return [`\r\nWC${nonce}{\r\n\r\n`, `\r\n${body.join('\r\n')}\r\n\r\n`, `\r\n}WC${nonce}\r\n\r\n`].join('');
+}
+
+/** The nonce in a sent sex probe, or null. */
+export function probeNonce(sent: string): string | null {
+  return [...sent.matchAll(/(?:^|\n|[^\x20-\x7e])info WC([a-z0-9]{6})\{/g)].pop()?.[1] ?? null;
+}
