@@ -470,6 +470,42 @@ The owner after round 11 (`round11.html`), for round 12:
   icons with a small bar under them, **winding round the portrait's
   edge** (several variants); overflow to be explored.
 
+### Round 12 decisions (the owner, 2026-11-24)
+
+From `round12.html` (the owner's picks and answers). These replace the
+look of decisions 2, 3, 8, 10, 12 (the bars' size in a fight) and 13 when
+F is built.
+
+1. **Portrait:** square with rounded corners, the **iron** frame. The
+   level ring at the **bottom right** corner. Sneak, ride, climb, swim and
+   position under the portrait.
+2. **Name:** the glass band **inside the frame along the top edge**. No
+   name or race in the status area.
+3. **Status row:** **cells** (a thin frame, a slightly darker ground) for
+   Mood, Casts, Alertness, Weight in four even columns, small labels,
+   clearer values; the step meter shows **only the current step**, one
+   lamp colour. Clicks as today (weight not clickable).
+4. **Shields:** OB, DB, PB, ABS under the row in the **D&D** shape, as
+   large as the room allows, 1 × 4 or 2 × 2 by what gives larger shields.
+   **No purse.** The shields leave Stats (Stats starts with the
+   abilities).
+5. **Stones:** buffs, debuffs, herblores, your GMCP flags (poison, blind,
+   snared, wound, hungry, thirsty) and your sanctuary (an exception; it
+   is a spell) as small icons with a time bar under them, **at the bottom
+   of the status area only**, left-aligned, filling the width; more rows
+   when the pane is tall, the shields get the rest; what does not fit is
+   **`+n`** (tooltip and a click list). The herblore `+` stays reachable.
+6. **Vitals:** the **parchment track** (the empty part tinted so the
+   bar's start shows).
+7. **The portrait shows no state:** no dim when resting or asleep, no Zz,
+   no sanctuary light.
+8. **Fight:** only the position icon's red swords. No tab switch, no
+   dimmed tabs, no bigger bars, no red rim.
+9. **The info poll** is sent while Status is shown too (the shields come
+   from it); the other poll rules stay (ADR 0166).
+10. Group, the phone's fight card and the Timers pane stay as they are.
+    Renaming Timers to Spells is for later.
+
 ## Part A: findings
 
 ### Known before the live run (2026-11-22)
@@ -1167,3 +1203,12 @@ answer: type it again for the new one. At most one poll in 10 s.
   plate across the portrait's middle, the name only); clicks as today;
   Character's timers with their own settings; all four of the proposed
   ideas into the mockups.
+- 2026-11-24, round 12 picks: iron frame, ring bottom right, name band
+  inside at the top, cells, only the step, D&D shields, no purse, no name
+  and race in the status area, parchment vitals; the stones "längst ner
+  bara i högra statusdelen … fyller hela bredden vänsteralignade.
+  Överflöd +n"; "Vilar ska inte ha effekt på porträtt. Sanctuary ingen
+  effekt på porträttet … den kan få vara med bland buffs/debuffs som ett
+  undantag". Answers: no effect when asleep either; more stone rows when
+  tall; only red swords in a fight; the shields leave Stats.
+

@@ -551,3 +551,27 @@ green, orange or red by step) and the toggle icons, and under it the
 Timers pane's whole content with its own settings in Character's gear;
 red swords and a red rim in a fight, each a switch. This revises
 decisions 2, 8 and 10 when it is built. The Timers pane stays for now.
+
+## Addendum 16 (2026-11-24): the round 12 look, decided
+
+The owner chose from the round 12 mockups (`round12.html`; stage 77,
+"Round 12 decisions"). When part F builds it, it replaces decisions 2
+and 3 (the portrait column and the ring), 8 (Status as four big values),
+10 (affects now show: buffs, debuffs, herblores, your GMCP flags and
+your sanctuary, as small stones at the bottom of the status area), 12's
+bigger bars and 13 (the fight mode is only the red swords) of this ADR,
+and points 39 and 41 of addendum 7.
+
+85. Square iron portrait, the level ring at its bottom right, the name in
+    a glass band inside the frame's top edge; the five icons under it.
+86. Status: a row of four cells (Mood, Casts, Alertness, Weight) with a
+    one-colour meter that lights only the current step; under it the
+    D&D shields OB, DB, PB, ABS, as large as fit; at the bottom the
+    stones, left-aligned, as many rows as fit, then `+n`.
+87. The shields leave Stats. No purse on Status.
+88. The portrait shows no state (resting, asleep, sanctuary).
+89. The info poll also runs while Status is shown, under the same rules
+    (decision 6, points 33–34). The shields show `⋯` until it answers.
+90. Your own GMCP flags come from your `Group.*` entry (`type: "you"`),
+    which the group model keeps only for `bashed` today; part F keeps
+    the flags too. That MUME sends them for you is to be checked live.
