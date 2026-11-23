@@ -15,7 +15,7 @@ owner looked; polish is a pass of its own, H below). **Part E done**
 (on main, portraits per subrace, the owner: "kör vidare"). **Part F stopped**
 (2026-11-23, the owner): what Group and Character each show, and where
 the fight card belongs, is to be discussed in a pass of its own before
-anything more is built. Nothing of F was kept. The wimpy point is decided (open points). Each part stops for the owner's
+anything more is built. Nothing of F was kept. The wimpy point is decided (open points). **The direction pass was held 2026-11-23…24** (mockup rounds 10–12): the decisions are in "Direction pass", "Round 12 decisions" and "The info poll, round 2" below; the plan is F0 (round 13 mockup), F1, F2, G, H. Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). Nothing is built yet.
 
