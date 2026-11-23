@@ -1034,3 +1034,5 @@ answer: type it again for the new one. At most one poll in 10 s.
   width commands went to the pager. The owner chose "Minst 40 rader,
   telefon och surfplatta": a phone or tablet reports at least 40 rows
   (ADR 0136 addendum, ADR 0166 item 79).
+- 2026-11-23, after the 40 rows, incognito in landscape again:
+  "Telefontestet verifierat" (E2 done).
