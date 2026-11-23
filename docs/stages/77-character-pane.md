@@ -718,6 +718,57 @@ the Zaugurz gained a snow-fur collar. Raster: `<subrace>.webp`, else
 typecheck; 5893 unit; a production build; the two Character e2e files
 (29 passed).
 
+## Portrait pass: what was built (2026-11-23, the night pass)
+
+From `notes/research/portraits/brief.md`, on the branch
+`stage-77-portraits` (worktree `../webcockpit-portraits`), not merged.
+The crude placeholders gave way to **55 drawings** in the balloon dwarf's
+tinted engraving: 28 ids, each as a man and a woman, and one sexless
+neutral hood. The main session judged every step, with the owner asleep:
+
+1. The stage, `notes/research/portraits/stage/`: every id in the card's
+   real disc and ring, baked as the app bakes, plus `shot.mjs` for the
+   sheets.
+2. The dwarves first, by a style lead, who also wrote
+   `notes/research/portraits/style.md`. They were judged, and one fix
+   round followed (softer ink on skin).
+3. Six race agents in parallel (men with the Beorning, elves with the
+   half-elf, hobbits, orcs, trolls, the Númenórean with the neutral
+   figure). Each was judged, and several went back for fixes:
+   spectacle-like eye lines, slab hair, too-alike sexes, the trolls'
+   glasses.
+4. A fresh consistency review of the sheets alone. Its 25 findings were
+   triaged and the fixes went back to the race agents. The Medium pairs
+   that had collided now read apart: human and half-elf, the Beorning,
+   the Morruhk and the Hill Troll, troll and Cave Troll, the Dúnadan and
+   the Númenórean, the two kerchiefs.
+5. The build. ADR 0166 addendum 12 has the decisions:
+   - `src/panes/portraits/`, one lazy chunk per people, baked once into
+     a PNG `data:` image at the disc's device pixels.
+   - Sex reaches the drawing and the raster names
+     (`<id>-male.webp` / `<id>-female.webp`). The card shows the men for
+     now.
+   - The old figures are gone, but the neutral silhouette stands in
+     while a chunk loads.
+   - The replay runtime carries no drawings, because it has no Character
+     pane.
+
+Sheets: `notes/research/portraits/sheets/` (`contact.png` for every id,
+`all-medium.png`, a pair per people). The mockup page is
+`notes/research/portraits/mockup.html`, which opens from disk.
+
+Measured:
+
+- A bake takes 5 ms at 80 px, 8–9 ms at 200 px and about 20 ms at 360 px
+  (headless Firefox and Chromium), once per portrait change.
+- Chunks are 13–31 kB raw (4–11 kB gzip), with 8 kB of shared parts.
+- The exported replay's runtime went from 1,917 to 1,754 kB.
+
+Tested: typecheck, the unit tests (5894), a production build, the
+Character e2e file (28 passed, with a new test: baked at the disc's
+pixels and kept over prompts), and the full e2e at 5 workers (see the
+session log).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -745,6 +796,39 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Portrait pass (the branch, no MUME needed)
+
+Fastest: open `notes/research/portraits/mockup.html` in the worktree
+(`/home/ole/proj/webcockpit-portraits/`) from disk. It shows every
+portrait, Large and Medium, dark and Paper, man and woman.
+
+In the app, the 5173 server runs main, so start the branch's own:
+`cd ../webcockpit-portraits && npm run dev -- --port 5174`.
+
+1. Open `http://localhost:5174/?fixture=gmcp-demo.log&speed=0`. The
+   demo's Dúnadan man is drawn.
+2. Add `&portrait=<id>` (the list below), and `&sex=female` for the
+   women.
+3. Try Large, then the gear's Height → Medium, then Paper.
+4. Firefox with `#perf` on: the card should cost what it did before.
+   The portrait is a plain image after its one bake, and nothing
+   rebakes on prompts.
+5. The stage, with every id in the real frame including XL:
+   `http://localhost:5174/notes/research/portraits/stage/?g=dwarves`.
+   `g` is one of men, elves, dwarves, hobbits, orcs, trolls, dark or
+   all.
+
+Wanted:
+
+- Is this the style through all of them?
+- Which portraits are not right yet?
+- The calls made for you (ADR 0166 addendum 12, item 64):
+  - dwarf and Stoor women beardless;
+  - the Rohirrim woman in a circlet;
+  - the Eriadorian woman bareheaded;
+  - the neutral figure as an empty hood.
+- Merge the branch when happy.
 
 ### Part E, portraits (the test server, no MUME needed)
 
