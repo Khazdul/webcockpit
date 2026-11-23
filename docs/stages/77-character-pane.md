@@ -769,6 +769,11 @@ Character e2e file (28 passed, with a new test: baked at the disc's
 pixels and kept over prompts), and the full e2e at 5 workers (see the
 session log).
 
+Follow-up the same morning (the owner: "Orcer och goblins är inte samma
+sak"): the Tarkhnarb redrawn as an orc in a black leather hood, not the
+balloon goblin (ADR 0166 addendum 12, item 65). The sheets and the mockup
+were refreshed.
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,

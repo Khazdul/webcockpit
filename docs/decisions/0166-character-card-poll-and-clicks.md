@@ -410,3 +410,14 @@ step (the owner asleep); the style guide is
     helm; the Eriadorian woman bareheaded with a linen band (the dotted
     kerchief is the Stoor woman's); the neutral figure a grey-brown wool
     hood with an empty opening.
+65. **The Tarkhnarb redrawn (the owner, 2026-11-23).** Orcs and goblins
+    are not the same: the goblin is only the Tarkhnarb's balloon
+    passenger, the portrait is an orc. It is now the balloon orc's face
+    (notched ears, slanting eyes under the heavy brow, the broad flat
+    nose, the tusks), not the goblin's bat ears, round night eyes and
+    hooked nose. Its house mark, so it reads apart from the iron-capped
+    base orc: a hood of black laced leather (a thong down the seam, a
+    stitched rolled edge over the brow), a sunless grey skin, pale yellow
+    eyes squinting against the light, soot on the brow and cheek; the
+    stolen sacking and ragged collar stay. The woman: the same hood, lank
+    black hair loose from under it, small tusks.

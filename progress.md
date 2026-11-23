@@ -177,6 +177,10 @@ with no stage of their own. Remove a line when it is done.
     e2e file (28 passed).
   - The full e2e at 5 workers: 2069 passed and 2 failed (watch-page
     fullscreen, loading's short window). Both files pass alone (73).
+- **Follow-up (the owner, the same morning):** orcs and goblins are not
+  the same, so the Tarkhnarb was redrawn as an orc: the balloon orc's
+  face in a black leather hood (ADR 0166 addendum 12, item 65). The
+  sheets and the mockup were refreshed, and the unit tests passed.
 - **Next:** the owner looks (mockup or `&portrait=…&sex=…` on the
   branch), then merges. Then the direction pass for Group and Character.
 - **Open:**

@@ -40,7 +40,7 @@ MUME's help text where it says something, else Tolkien.
 | `stoor-*.webp` | Stoor | the heftiest, a round face, the only hobbits with sideburns or a beard |
 | `beorning-*.webp` | Beornings, and a Bear (their changed shape) | a bear-ear hood, a dark beard |
 | `orc-*.webp` | An orc of no known kind; the fallback for the three below | green hide, yellow eyes, tusks, a topknot |
-| `tarkhnarb-*.webp` | Tarkhnarb (Uruk-Tarkhnarb, Goblin-town) | smaller and goblin-like: big ears, sallow, night eyes |
+| `tarkhnarb-*.webp` | Tarkhnarb (Uruk-Tarkhnarb, Goblin-town) | an orc, not a goblin (the goblin is only its balloon passenger): a black leather hood, sunless grey skin, pale squinting eyes, soot |
 | `morruhk-*.webp` | Morruhk (Uruk-Morruhk, also written Morrukh) | ritual scarification, a "snuffler's" big snout-like nose, a warg-fur collar |
 | `zaugurz-*.webp` | Zaugurz (Uruk-Zaugurz, the snowy far north) | rougher than a Tarkhnarb, blood on the cheeks, a pale snow-fur collar |
 | `troll-*.webp` | A troll of no known kind; the fallback for the three below | grey-green stony hide |
