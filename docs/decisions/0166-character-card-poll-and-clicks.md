@@ -426,3 +426,52 @@ step (the owner asleep); the style guide is
     branch is merged into main. The Firefox `#perf` cost is left for the
     owner to look at later. Next: the player's own sex on the card (the
     stage file, E2).
+
+## Addendum 13 (2026-11-23): part E2, the card's sex
+
+67. **The source.** `help info_format` has no code for the sex and GMCP
+    sends none. Only a plain `info` prints it, as its first line: `You
+    are a male Tarkhnarb Orc.` (the race text is GMCP's `subrace`).
+    Nothing at login prints it.
+68. **The owner's choice: one probe per character.** A hidden plain
+    `info` is sent once per character, only while its sex is not
+    remembered, and never again after that (the owner, 2026-11-23; a
+    second exception to "Only Stats and Lore send commands", beside the
+    login poll for the wimpy). `info` takes no slot in MUME's queue, so
+    it costs the player nothing.
+69. **The probe.** Three `info`s, written in the same write as the
+    login poll so that MUME answers all four in one pulse:
+    `info WC<n>{`, `info`, `info }WC<n>` (`sexProbeCommand`,
+    `src/gmcp/info-filter.ts`). The braces keep its sentinels apart from
+    the fields poll's `[`/`]`, and it has a nonce of its own. The filter
+    holds and hides everything between the sentinels by the fields
+    poll's rules (2 s from the start, `MAX_LINES`, a prompt inside fails
+    it, a failure shows the held lines unchanged, the blank line and the
+    prompt after it). The first sex line inside is read; none is a
+    failure. A failed probe counts toward `MAX_FAILURES` like a failed
+    poll: the risk is the same, held text shown late. At most one probe
+    per character and connection, whatever came of it.
+70. **The parser and the memory** (`src/gmcp/sex.ts`).
+    `parseSexLine` strips SGR and reads `^You are a (male|female) (.+)\.`.
+    `SexMemory` keeps lower-case name → sex in local storage
+    (`wc.charSex.v1`, 64 names, the oldest written dropped). It is per
+    device and not synced: with an account the probe runs once on each
+    device.
+71. **The model.** `game.sex` is loaded from the memory at Char.Name, so
+    a known character shows the right portrait at once. It resets with
+    the character, like `game.info`. An unknown character shows the man
+    until the probe answers; `setPortrait` swaps only once the new image
+    is ready, so nothing flashes.
+72. **The player's own `info`.** A typed plain `info` also sets the sex,
+    but only when its race text equals GMCP's race or subrace (case and
+    diacritics ignored), so a say or an emote cannot set it. The game
+    wins over the memory. In a replay it sets the card but is not
+    remembered.
+73. **The card.** `PORTRAIT_SEX ?? game.sex ?? 'male'`. The dev server's
+    `?sex=male|female` still wins (the test guide's way to see both).
+74. **To see live** (the owner's first login with a new character, or
+    after clearing `wc.charSex.v1`): that the four answers come in one
+    pulse with one prompt; that `{` and `}` come back as sent; a woman's
+    exact line; and whether a short page length makes MUME page a plain
+    `info` (about 25 lines). A pager fails the hold, so the text shows,
+    and the pager would read the last `info }WC<n>` as its input.

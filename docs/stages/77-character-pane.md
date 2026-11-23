@@ -239,7 +239,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] D. The card (tried live, the phone too)
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
-- [ ] E2. The card's sex (next: the portrait of the player's own sex)
+- [x] E2. The card's sex (built 2026-11-23; the owner's live test left)
 - [ ] F. Group (stopped 2026-11-23: direction to be discussed first)
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
@@ -808,6 +808,28 @@ sak"): the Tarkhnarb redrawn as an orc in a black leather hood, not the
 balloon goblin (ADR 0166 addendum 12, item 65). The sheets and the mockup
 were refreshed.
 
+## Part E2: what was built (2026-11-23)
+
+The card shows the character's own sex (ADR 0166 addendum 13).
+
+- No `%` code for the sex exists (`help info_format`), and nothing at
+  login prints it. Only a plain `info` does. The owner chose a hidden
+  plain `info`, once per character, only while the sex is not
+  remembered.
+- `src/gmcp/sex.ts`: `parseSexLine` and `SexMemory` (local storage,
+  `wc.charSex.v1`, per device).
+- The probe `info WC<n>{` / `info` / `info }WC<n>` goes in the login
+  poll's write and is hidden by the same filter (`info-filter.ts`,
+  `info-poll.ts`).
+- `game.sex` comes from the memory at Char.Name, and from the probe or a
+  typed `info` whose race matches GMCP's.
+- The card passes it to `setPortrait`. `?sex=` stays as the dev
+  override.
+- Tests: unit (`gmcp-sex`, `gmcp-state`, `info-filter`, `info-poll`,
+  `info-poll-app`), e2e `character-card.spec.ts` (a woman's probe gives
+  `data-sex="female"` and leaves no text; a remembered sex at once with
+  no probe; a typed `info` swaps).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -835,6 +857,27 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part E2, the card's sex (the test server, MUME up)
+
+1. Log in on `http://localhost:5173/` with one of your women (or any
+   character). Open the Character pane.
+2. The card shows the man for a moment at the first login, then your
+   character's own sex. Nothing of the hidden `info` shows in the game
+   text or in a run log (`#runlog`).
+3. Log out and in again: the right portrait at once. The probe is not
+   sent again (the run log shows no `info WC…{`).
+4. Type `info` yourself: the usual answer shows, and the card keeps (or
+   corrects) the sex.
+5. To probe again: delete `wc.charSex.v1` in the browser's local
+   storage (devtools) and log in.
+
+Wanted:
+
+- Does a woman show as a woman? Her `info`'s first line, exactly.
+- Did anything of the probe leak into the game text (a `WC…{` line, a
+  stray blank line, a second prompt)?
+- If your page length is short: did MUME's pager show up at login?
 
 ### Portrait pass (the branch, no MUME needed)
 
