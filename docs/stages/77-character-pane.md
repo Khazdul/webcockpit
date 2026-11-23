@@ -242,8 +242,8 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
 - [x] E2. The card's sex (built and tested live by the owner 2026-11-23)
-- [ ] F. Group (stopped 2026-11-23; direction pass held, decisions in
-      "Direction pass"; re-planned after the round 10 mockups)
+- [ ] F. Re-planned 2026-11-23: Timers into Character (round 11
+      mockups first; "Direction pass")
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
 - [ ] H. Polish of the card (the owner's list first)
@@ -339,8 +339,9 @@ the client does not know the player's. The dev-only `?sex=female`
 
 ### F. Group
 
-- ~~The "show yourself" option~~ (struck 2026-11-23, see "Direction
-  pass"). F is re-planned after the fight-card mockups (round 10).
+- ~~The "show yourself" option~~ (struck 2026-11-23). Group unchanged.
+  F is re-planned after the round 11 mockups (Timers into Character,
+  "Direction pass").
 
 ### G. Tests
 
@@ -378,25 +379,54 @@ What the code showed first (the stage's decision 21 had it wrong):
 - Your own statuses (sanctuary, poison, blind, slept, bashed …) are in no
   pane.
 
-The owner's decisions:
+The owner's decisions, first round (same day, **reversed** after the
+round 10 mockups, `round10.html`): the fight card into Character, the
+phone's card removed, your statuses into Character. The owner after
+seeing round 10: "Jag tycker inte battle card passar i character pane.
+Vi kan behålla group oförändrad."
 
-1. **Group never shows you** (as today). Decision 21 is struck.
-2. **The fight card leaves Group.** `group.fight` and Group's card go;
-   the tank's shield in the member list stays.
-3. **The fight card goes into Character, at the bottom.** You tank: the
-   enemy's HP alone, marked as against you ("vs you"). Someone else
-   tanks: the tank's HP and the enemy's. Room for it is to be found,
-   perhaps by smaller bars (the owner's idea, to be tried in mockups).
-4. **The phone's and tablet's own card is removed**; they get the same
-   card inside Character. With Character not on screen (another strip
-   page, the strip closed, or the desktop pane closed) **no card is shown
-   anywhere**, and nothing switches or opens by itself.
-5. **Your own statuses are shown in Character.** Where and how: mockups.
-6. **Open, to be chosen from mockups (round 10):** the card's place and
-   the room for it, the enemy's condition word written or only in the
-   tooltip, what is left of the fight mode (tab switch, dimmed tabs,
-   bigger bars, red swords), and the statuses' place. The owner: "hellre
-   några mockupar för mycket än för lite", and ideas he has missed.
+What stands:
+
+1. **Group stays as it is**: never you, its fight card and `group.fight`
+   unchanged. The phone's own fight card stays. Decision 21 is struck.
+2. **New direction: the Timers pane's content moves into Character**
+   (to be explored in round 11 mockups; nothing decided on the look):
+   - **The portrait part** (left): only the portrait with the
+     level/XP/TP ring, as large as the height allows, shrinking with the
+     pane; at a very low height only the ring. The name: to be tried in
+     mockups (the pane title, a small plate across the portrait's middle,
+     an arc; the name only, no race).
+   - **The status area** (right), the STATUS tab (name kept), with Stats
+     and Lore as today's tabs. A top row, small, only in Status and
+     inside the status area (not over the portrait): left-aligned
+     Mood, Casts, Alertness, Weight as **circles with a letter**
+     (M, C, A, W) whose ring is split in one segment per step, coloured
+     by step:
+     - Mood: wimpy, prudent, normal green; brave, aggressive orange;
+       berserk red.
+     - Casts: normal green; careful, fast orange; quick, thorough red.
+     - Alertness: normal green; careful, attentive, vigilant orange;
+       paranoid red.
+     - Weight: the two highest steps red, the two below them orange, the
+       rest green.
+     Hover gives more. Right-aligned: sneak, ride, climb, swim and the
+     position (today under the portrait). Clicks as today.
+   - **Under the top row: everything the Timers pane shows**, working
+     exactly as today, in a new design that fits the card, and bashed
+     too. There can be very many, so they must adapt to the room by
+     themselves.
+   - **HP, MANA and MOVES** stay at the bottom over the full width.
+   - **The fight**: red swords (larger, in or on the portrait's edge;
+     placements to be explored) and a red rim on the pane. Each is a
+     switch in the pane's gear.
+   - **Settings**: Character's timers have their own settings in its
+     gear (not shared with the Timers pane).
+   - **The Timers pane stays** as a pane of its own for now (perhaps
+     removed later).
+   - Mockup ideas the owner took: the portrait shows the state (your
+     sanctuary as a ring round it, bashed as stars, dimmed when asleep);
+     timers in density steps; group colour instead of headers; the step
+     circle as a dial.
 
 ## Part A: findings
 
@@ -1083,3 +1113,15 @@ answer: type it again for the new one. At most one poll in 10 s.
   ide)." No card when Character is not shown ("Ingenting",
   "Ingenstans"). The word, the fight mode and the statuses' place: "Prova
   flera olika vägar i mockuparna … Var kreativ".
+- 2026-11-23, after round 10: "Jag tycker inte battle card passar i
+  character pane. Vi kan behålla group oförändrad. Däremot vill jag
+  utforska att flytta in hela timers pane (allt den har) i character
+  pane." The portrait part, the status area with the top row of letter
+  circles and the toggles, the timers under it, swords and red rim as
+  switches: "Det här blir en ny riktning. Vi behöver nya mockups. Många
+  många alternativ." Answers: Stats and Lore stay as tabs, the top row
+  only in Status; bars over the full width; the Timers pane kept for
+  now; normal mood green; name placements in mockups (perhaps a small
+  plate across the portrait's middle, the name only); clicks as today;
+  Character's timers with their own settings; all four of the proposed
+  ideas into the mockups.

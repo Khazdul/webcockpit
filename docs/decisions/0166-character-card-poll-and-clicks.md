@@ -535,3 +535,19 @@ round 10 mockups, and a later addendum records it.
     owner's idea: smaller bars in a fight), whether the enemy's condition
     word is written, what is left of decision 13's fight mode, and where
     the statuses sit.
+
+## Addendum 15 (2026-11-23): addendum 14 reversed, Timers into Character
+
+After the round 10 mockups the owner reversed addendum 14 the same day:
+the fight card does not fit in Character. Group and the phone's own card
+stay as they are, and Character gets no fight card. Items 81–84 are void.
+
+The new direction, to be explored in round 11 mockups before anything is
+decided on the look (stage 77, "Direction pass"): the left column
+becomes the portrait part (the portrait and the level ring only, as
+large as the height allows); the Status tab gets a top row of letter
+circles for Mood, Casts, Alertness and Weight (a ring segment per step,
+green, orange or red by step) and the toggle icons, and under it the
+Timers pane's whole content with its own settings in Character's gear;
+red swords and a red rim in a fight, each a switch. This revises
+decisions 2, 8 and 10 when it is built. The Timers pane stays for now.

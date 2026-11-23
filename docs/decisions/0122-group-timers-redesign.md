@@ -357,3 +357,8 @@ before the release. Kept, measured against main's cell-grid panes:
 - **The fight card and its setting `group.fight` are removed from
   Group** (the owner). The card moves into the Character pane (ADR 0166
   addendum 14). The tank's shield in the member list stays.
+- **Reversed the same day** (the owner, after the round 10 mockups):
+  Group's fight card and `group.fight` stay unchanged. Only the struck
+  "Show yourself" option stands. The Timers pane's content is to be
+  explored inside the Character pane (ADR 0166 addendum 15); the Timers
+  pane itself stays.
