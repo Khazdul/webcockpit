@@ -475,3 +475,25 @@ step (the owner asleep); the style guide is
     exact line; and whether a short page length makes MUME page a plain
     `info` (about 25 lines). A pager fails the hold, so the text shows,
     and the pager would read the last `info }WC<n>` as its input.
+75. **Seen live (the owner, 2026-11-23, Gittan).** The probe works on
+    the desktop and on a phone upright: the woman came after a short
+    delay, at once on the next login, and again after the key was
+    removed. A woman's line is `You are a female Fallohide.` (GMCP's
+    `subrace` is `Fallohide`). On a phone in landscape MUME paged the
+    plain `info`: the filter showed what it held, the pager took the
+    probe's last `info }WC<n>` as its input and stayed open.
+76. **The probe only in a tall window.** MUME's pager follows the
+    window's height (NAWS), so the probe is sent only when `view.size`
+    has at least `PROBE_MIN_ROWS` (30) rows; a plain `info` is about 20
+    lines. A short window shows the man until a login in a taller one
+    or a typed `info` (whose first line is read even when paged).
+77. **A failed probe is remembered.** The name gets `unknown` in
+    `wc.charSex.v1` (never over a known sex), so it is not probed
+    again; a page length set by hand fails it once at most. A probe
+    still unanswered at a disconnect is not a failure.
+78. **The width commands' `Ok.`** (the owner: "dölj dessa två direkt
+    efter inloggning"). Entering the game (not a replay) arms the same
+    filter for `PLAYING_COMMANDS.length` lines that are exactly `Ok.`,
+    for 5 s (`OK_MS`). Each is hidden like an answer, with its blank
+    line and the pulse's prompt when nothing else of the pulse showed.
+    Other lines pass. They are gone from the run log too.

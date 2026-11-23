@@ -239,7 +239,7 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] D. The card (tried live, the phone too)
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
-- [x] E2. The card's sex (built 2026-11-23; the owner's live test left)
+- [x] E2. The card's sex (built and tested live by the owner 2026-11-23)
 - [ ] F. Group (stopped 2026-11-23: direction to be discussed first)
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
@@ -825,6 +825,11 @@ The card shows the character's own sex (ADR 0166 addendum 13).
   typed `info` whose race matches GMCP's.
 - The card passes it to `setPortrait`. `?sex=` stays as the dev
   override.
+- After the owner's live test: the probe only in a window of 30 rows or
+  more (a phone in landscape paged it and the pager stayed open), a
+  failed probe remembered as `unknown` and never sent again, and the two
+  `Ok.` answers to the login's width commands hidden (ADR 0166 items
+  75–78).
 - Tests: unit (`gmcp-sex`, `gmcp-state`, `info-filter`, `info-poll`,
   `info-poll-app`), e2e `character-card.spec.ts` (a woman's probe gives
   `data-sex="female"` and leaves no text; a remembered sex at once with
@@ -1015,3 +1020,12 @@ answer: type it again for the new one. At most one poll in 10 s.
   egna hps i character. En fråga är var battle card hör hemma." F's work
   was thrown away uncommitted; a direction pass comes first (a new
   session).
+- 2026-11-23, part E2 live (Gittan): the first login gave the right
+  portrait "efter en liten delay", the next login the right one at once,
+  and after removing `wc.charSex.v1` the delay and the right portrait
+  again: "Så det verkar fungera". The two `Ok.`
+  at login (the answers to `PLAYING_COMMANDS`, there since stage 1) are
+  to be hidden: "Ja dölj dessa två direkt efter inloggning".
+- 2026-11-23, E2 on the phone: upright it worked; in landscape the
+  probe's `info` was paged and "fastnade" in MUME's pager. Fixed: no
+  probe in a window under 30 rows (ADR 0166 item 76).
