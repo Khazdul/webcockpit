@@ -506,3 +506,7 @@ step (the owner asleep); the style guide is
     and a poll is sent only when about 600 characters wrapped at the
     width, and 4 rows more, fit (`answerFits`); an unknown size allows a
     poll but no probe.
+80. **Item 74 seen.** The owner's tests (desktop, phone upright and, with
+    the 40 rows, in landscape) answered the probe in one pulse with
+    nothing shown: the four answers come together, and `{` and `}` come
+    back as sent. A woman's line is item 75's.
