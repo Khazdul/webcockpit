@@ -167,6 +167,7 @@ with no stage of their own. Remove a line when it is done.
   width commands hidden (owner's word); ADR 0166 items 75–78.
 - **Tested:** unit 5949 passed; full e2e at 5 workers 2071 passed, 6
   failed, all 6 pass alone (11 with their projects).
+- **Verified:** the owner's phone test after the 40 rows passed (incognito, landscape).
 - **Next:** the direction pass for Group and Character (F).
 - **Then:** in an incognito tab in landscape MUME paged the login and
   the fields poll; on the owner's word a phone or tablet reports at least
