@@ -155,9 +155,11 @@ the page.
 
 ### Group
 
-21. **You are not shown in Group while the Character pane is visible**
-    (the owner, round 6). This is a Group option, on by default: "Show
-    yourself: always | not when Character is shown".
+21. ~~You are not shown in Group while the Character pane is visible~~
+    (round 6). **Struck in the direction pass (2026-11-23):** Group has
+    never shown you (`type: "you"` is not kept as a member,
+    `src/gmcp/group.ts`, ADR 0120/0122), so the option has nothing to do.
+    Group stays without you. See "Direction pass" below.
 
 ### Portraits
 
@@ -240,7 +242,8 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
 - [x] E2. The card's sex (built and tested live by the owner 2026-11-23)
-- [ ] F. Group (stopped 2026-11-23: direction to be discussed first)
+- [ ] F. Group (stopped 2026-11-23; direction pass held, decisions in
+      "Direction pass"; re-planned after the round 10 mockups)
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
 - [ ] H. Polish of the card (the owner's list first)
@@ -336,8 +339,8 @@ the client does not know the player's. The dev-only `?sex=female`
 
 ### F. Group
 
-- The "show yourself" option. Hidden by default while a Character pane is
-  shown in the layout.
+- ~~The "show yourself" option~~ (struck 2026-11-23, see "Direction
+  pass"). F is re-planned after the fight-card mockups (round 10).
 
 ### G. Tests
 
@@ -359,6 +362,41 @@ The owner looks closely and decides first. Named so far:
   (ADR 0166 point 47; done).
 
 Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
+
+## Direction pass: Group, Character and the fight card (2026-11-23)
+
+What the code showed first (the stage's decision 21 had it wrong):
+
+- Group never shows you; only your id and `bashed` are kept.
+- The desktop fight card is in Group, off by default (`group.fight`):
+  the tank (shield, HP bar, `132/160`) vs the opponent (claw, word, red
+  bar), or the opponent alone when you tank.
+- The phone has a card of its own under the top panes, on by default
+  (`phone.fightCard`, ADR 0136 §3, ADR 0137): `You` or the tank vs the
+  opponent, no words.
+- Character's fight mode (decision 13) shows no opponent.
+- Your own statuses (sanctuary, poison, blind, slept, bashed …) are in no
+  pane.
+
+The owner's decisions:
+
+1. **Group never shows you** (as today). Decision 21 is struck.
+2. **The fight card leaves Group.** `group.fight` and Group's card go;
+   the tank's shield in the member list stays.
+3. **The fight card goes into Character, at the bottom.** You tank: the
+   enemy's HP alone, marked as against you ("vs you"). Someone else
+   tanks: the tank's HP and the enemy's. Room for it is to be found,
+   perhaps by smaller bars (the owner's idea, to be tried in mockups).
+4. **The phone's and tablet's own card is removed**; they get the same
+   card inside Character. With Character not on screen (another strip
+   page, the strip closed, or the desktop pane closed) **no card is shown
+   anywhere**, and nothing switches or opens by itself.
+5. **Your own statuses are shown in Character.** Where and how: mockups.
+6. **Open, to be chosen from mockups (round 10):** the card's place and
+   the room for it, the enemy's condition word written or only in the
+   tooltip, what is left of the fight mode (tab switch, dimmed tabs,
+   bigger bars, red swords), and the statuses' place. The owner: "hellre
+   några mockupar för mycket än för lite", and ideas he has missed.
 
 ## Part A: findings
 
@@ -1036,3 +1074,12 @@ answer: type it again for the new one. At most one poll in 10 s.
   (ADR 0136 addendum, ADR 0166 item 79).
 - 2026-11-23, after the 40 rows, incognito in landscape again:
   "Telefontestet verifierat" (E2 done).
+- 2026-11-23, the direction pass: "Battle card ska bort från group. …
+  Om man själv är tank visas bara fiendens HP … (men det står ändå vs
+  you). Om någon annan är tank visas ett battle card med både tankens HPs
+  och fiendens. Vi tar bort battlecardet som finns i telefon/ipad (de får
+  samma som desktop istället). … battlecard hamnar längst ner i character
+  pane. … Förslagsvis genom att bars bara krymper (men det är bara en
+  ide)." No card when Character is not shown ("Ingenting",
+  "Ingenstans"). The word, the fight mode and the statuses' place: "Prova
+  flera olika vägar i mockuparna … Var kreativ".

@@ -347,3 +347,13 @@ before the release. Kept, measured against main's cell-grid panes:
   layer, and a fixed-size time text (no gain, or a loss); dropping the
   Group bar transition (saves about 0.4 ms per update in Firefox, but the
   transition is part of the approved look).
+
+## Addendum (stage 77 direction pass, 2026-11-23): the fight card leaves Group
+
+- **Group never shows you.** It has not since ADR 0120 (`type: "you"` is
+  not kept as a member). Stage 77's planned "Show yourself" option
+  (decision 21) is struck. Your vitals and, from stage 77, your statuses
+  are in the Character pane.
+- **The fight card and its setting `group.fight` are removed from
+  Group** (the owner). The card moves into the Character pane (ADR 0166
+  addendum 14). The tank's shield in the member list stays.

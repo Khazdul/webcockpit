@@ -510,3 +510,28 @@ step (the owner asleep); the style guide is
     the 40 rows, in landscape) answered the probe in one pulse with
     nothing shown: the four answers come together, and `{` and `}` come
     back as sent. A woman's line is item 75's.
+
+## Addendum 14 (2026-11-23): the direction pass, the fight card moves in
+
+The owner's direction pass for Group and Character (stage 77, "Direction
+pass"). It decides what goes where. The card's look is chosen from the
+round 10 mockups, and a later addendum records it.
+
+81. **The fight card belongs to Character**, at the bottom of the pane.
+    You tank: the enemy's HP alone, marked as against you. Someone else
+    tanks: the tank's HP and the enemy's. It replaces Group's card (ADR
+    0122 addendum of 2026-11-23) and the phone's own card (ADR 0136 §3,
+    ADR 0137 "The fight card's place"), so the desktop, the phone and the
+    tablet show the same card. `phone.fightCard` goes with it.
+82. **No card without Character.** When the Character pane is not on
+    screen (closed on the desktop, another strip page or a closed strip
+    on a phone), no card is shown anywhere, and nothing switches page or
+    opens by itself. The prompt still shows the fight.
+83. **Your own statuses go into Character** (sanctuary, poison, blind,
+    slept, bashed and the rest of Group's flags, from your own
+    `Group.*` entry). This revises decision 10's "no affects" for these
+    flags. Timed affects stay in Timers.
+84. **Open until round 10:** where the room for the card comes from (the
+    owner's idea: smaller bars in a fight), whether the enemy's condition
+    word is written, what is left of decision 13's fight mode, and where
+    the statuses sit.
