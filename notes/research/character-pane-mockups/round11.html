@@ -1,0 +1,1292 @@
+<title>Character Pane Round 11</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Round 11: the Timers pane's content moves into Character (owner, 2026-11-23). The fight card
+   stays in Group. A live bench, the step circles, the name, the timer designs with their density
+   steps, the swords, the portrait's state, the gear, the low heights and the questions. */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --warn: #ff8c2a; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a; --down: #ff8a7a;
+  --s-g: #4cc96a; --s-o: #ff9a3a; --s-r: #ff4d4d; --s-track: rgba(255,255,255,.12);
+  --g-herb: #a6c95a; --g-sanct: #f0b6e4; --g-spell: #66b2ff; --g-buff: #4cc96a; --g-debuff: #c8504f; --g-stored: #d6407e; --g-blind: #3fd0d0; --g-charm: #9d86ff;
+  --star: #ffd34d;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; color: var(--ink); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 56px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .06em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 520px) { .bench { padding: 10px; } }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); flex-wrap: wrap; }
+.benchnote { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; max-width: 90ch; }
+.benchnote b { color: var(--ink); }
+
+/* ---------------------------------------------------------------- Lykta pane */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 8; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.pane > .gearb { position: absolute; right: 9px; top: 1px; z-index: 8; width: 12px; height: 12px; stroke: var(--dim); fill: none; stroke-width: 2; opacity: .7; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  display: flex; flex-direction: column; gap: 6px;
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+/* the red rim (round 10's variant c): a thin glowing rule along the top edge */
+.win.redrule::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 7;
+  background: linear-gradient(90deg, transparent, var(--crit) 20%, var(--crit) 80%, transparent); box-shadow: 0 0 10px 1px rgba(255,77,77,.65); }
+
+/* ---------------------------------------------------------------- Paper pane (light) */
+.pane.paper, .lightbg { --iron: #cbbd9c; --iron-hi: #efe6d1; --iron-lo: #8c7b58; --pane-bg: #f1e8d4;
+  --text: #2d2619; --dim: #6e634d; --faint: #b3a78d; --lamp: #6e5220; --lamp-hot: #3b2b10; --frost-edge: rgba(60,40,10,.22);
+  --xp: #d09a1c; --tp: #00737e; --crit: #c42f26; --star: #d08a00;
+  --s-g: #2a8a3a; --s-o: #c25e00; --s-r: #c42f26; --s-track: rgba(60,40,10,.14);
+  --g-herb: #5c7a12; --g-sanct: #a956b5; --g-spell: #2a56c8; --g-buff: #2a6e1a; --g-debuff: #98332f; --g-stored: #8e1a50; --g-blind: #00737e; --g-charm: #4b3aa8; }
+.pane.paper { box-shadow: inset 1px 1px 0 #f5eedd, inset -1px -1px 0 #8c7b58, 0 0 0 1px #3a3020; }
+.pane.paper > .hood { color: #3b2b10; text-shadow: none; box-shadow: inset 0 -1px 0 #f5eedd, 0 0 0 1px #6e6048, 0 2px 4px rgba(0,0,0,.25); }
+.pane.paper > .win { border-color: #6e6048; background: #f1e8d4; box-shadow: inset 0 0 0 1px rgba(60,40,10,.12); }
+.pane.paper .f, .pane.paper .abx, .pane.paper .shl > div { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.07), 0 1px 2px rgba(60,40,10,.18); }
+.pane.paper .b { background: #a39880; box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 0 #fff; }
+.pane.paper .disc2 { background: radial-gradient(circle at 50% 40%, #f4e9d2, #d9ccb0 78%); box-shadow: 0 0 0 1px #3a3020, 0 0 0 3px var(--iron-hi), 0 0 0 4px #3a3020, 0 1px 4px 4px rgba(50,35,10,.15); }
+.pane.paper .lr { background: radial-gradient(circle, #f7efdf 60%, transparent 63%); }
+.pane.paper .vt button { background: linear-gradient(90deg, rgba(60,40,10,.12), rgba(60,40,10,.04)); box-shadow: none; }
+.pane.paper .vt button.on { background: #fffdf8; box-shadow: inset 2px 0 0 #8c7b58; color: #3b2b10; }
+.pane.paper .ti.on { filter: none; }
+.pane.paper .npl.plaque { background: linear-gradient(180deg, #e9dfc6, #cbbd9c); color: #3b2b10; text-shadow: none; box-shadow: 0 0 0 1px #6e6048, inset 0 1px 0 #fff, 0 2px 4px rgba(0,0,0,.3); }
+.pane.paper .npl.glass { background: rgba(255,250,238,.72); color: #3b2b10; text-shadow: none; }
+.pane.paper .d-stone.l1, .pane.paper .d-stone.l2, .pane.paper .d-stone.l3 { background: linear-gradient(0deg, color-mix(in srgb, var(--c) 24%, transparent) var(--p), transparent var(--p)), linear-gradient(180deg, #fffdf8, #ebe2cc); box-shadow: inset 0 2px 0 var(--c), 0 1px 2px rgba(60,40,10,.25); }
+.pane.paper .tm.l4 { background: color-mix(in srgb, var(--c) 16%, #fffdf8); }
+.pane.paper .d-pill.l1, .pane.paper .d-pill.l2, .pane.paper .d-pill.l3 { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 22%, transparent) var(--p), rgba(60,40,10,.06) var(--p)); }
+.pane.paper .d-ring.l1, .pane.paper .d-ring.l2, .pane.paper .d-dial.l1 { background: rgba(60,40,10,.05); }
+.pane.paper .swb, .pane.paper .bburst { background: radial-gradient(circle at 50% 40%, #fbf3e2, #e5d6b6); }
+.pane.paper .tmore, .pane.paper .tcount { background: rgba(60,40,10,.08); }
+.pane.paper .d-tl { background: rgba(60,40,10,.07); }
+
+/* ---------------------------------------------------------------- bars */
+.b { position: relative; display: block; height: 11px; border-radius: 4px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); min-width: 0; }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit; transition: width .4s;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 4px 4px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); bottom: -5px; height: 4px; width: 0; margin-left: -4px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid var(--lamp-hot); z-index: 2; }
+.b > .lab { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 7px; font: 700 11px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; white-space: nowrap; overflow: hidden; }
+.b > .lab small { font-weight: 400; opacity: .75; } .b > .lab .k2 { font: 700 9px/1 var(--display); letter-spacing: .12em; opacity: .85; }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); }
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; flex: none; }
+.vit { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+
+/* ---------------------------------------------------------------- icons */
+.ti { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); } .ti.posi.fight { stroke: var(--crit); filter: drop-shadow(0 0 3px rgba(255,77,77,.55)); }
+
+/* ---------------------------------------------------------------- the card */
+.cw { position: relative; display: flex; gap: 8px; flex: none; min-height: 0; }
+.lc2 { flex: none; display: flex; justify-content: center; align-items: center; min-height: 0; }
+.lc2.top { align-items: flex-start; }
+.medal2 { position: relative; flex: none; }
+.disc2 { position: absolute; left: 0; border-radius: 50%; overflow: hidden; z-index: 1;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%); transition: box-shadow .6s, transform .5s;
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(233,207,159,.25), inset 0 0 16px rgba(0,0,0,.9); }
+.disc2 svg.fig { position: absolute; left: 6%; top: 8%; width: 88%; height: 100%; transition: filter .6s; }
+.disc2.dim1 svg.fig { filter: brightness(.68) saturate(.75); }
+.disc2.sleepa svg.fig { filter: grayscale(.75) brightness(.4); }
+.disc2.sleepb svg.fig { filter: brightness(.48) saturate(.55); }
+.disc2.sleepc svg.fig { filter: brightness(.6) saturate(.7); }
+.disc2.sleepc::after { content: ""; position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, rgba(5,6,9,.94) 0 36%, rgba(5,6,9,.45) 50%, transparent 68%); }
+.disc2.tilt { transform: rotate(-9deg); }
+.disc2.halo { box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(255,246,226,.55), 0 0 18px 7px rgba(255,240,214,.42), inset 0 0 16px rgba(0,0,0,.9); animation: halo 3.2s ease-in-out infinite; }
+@keyframes halo { 50% { box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(255,246,226,.35), 0 0 12px 4px rgba(255,240,214,.25), inset 0 0 16px rgba(0,0,0,.9); } }
+.lrpos { position: absolute; z-index: 4; }
+.lr { position: relative; flex: none; display: grid; place-items: center; background: radial-gradient(circle, #15130f 60%, transparent 63%); border-radius: 50%; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+.ra { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.tpn { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
+
+/* the name */
+.npl { position: absolute; z-index: 3; display: grid; place-items: center; font-family: var(--display); font-weight: 700; letter-spacing: .14em; white-space: nowrap; pointer-events: auto; }
+.npl.ribbon { color: #fbe7c2; text-shadow: 0 1px 1px #000, 0 0 6px rgba(251,231,194,.4);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 50%, 100% 100%, 0 100%, 6px 50%);
+  background: linear-gradient(180deg, rgba(251,231,194,.55) 0 1px, transparent 1px calc(100% - 1px), rgba(251,231,194,.4) calc(100% - 1px)), linear-gradient(180deg, #8a2620, #5a1310 60%, #3f0c0a); }
+.npl.plaque { border-radius: 3px; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.8);
+  background: linear-gradient(180deg, #3b3f46, #23262b); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.14), 0 2px 5px rgba(0,0,0,.7); }
+.npl.plaque::before, .npl.plaque::after { content: ""; position: absolute; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: 50%; background: #6a6e76; box-shadow: inset 0 -1px 0 #111; }
+.npl.plaque::before { left: 4px; } .npl.plaque::after { right: 4px; }
+.npl.glass { left: 0; right: 0; color: var(--lamp-hot); text-shadow: 0 0 5px rgba(233,207,159,.8), 0 1px 1px #000; backdrop-filter: blur(2px);
+  background: rgba(10,12,16,.58); box-shadow: inset 0 1px 0 rgba(233,207,159,.35), inset 0 -1px 0 rgba(233,207,159,.35); }
+.nsvg { position: absolute; z-index: 3; overflow: visible; pointer-events: none; }
+.nsvg text { font-family: var(--display); font-weight: 700; letter-spacing: .16em; fill: var(--lamp-hot); }
+.nsvg .smile { fill: none; stroke: #6a1813; }
+.nsvg .smile2 { fill: none; stroke: rgba(251,231,194,.5); }
+.pane.paper .nsvg .smile { stroke: #8a2620; }
+.nsvg .arct { paint-order: stroke; stroke: rgba(0,0,0,.65); stroke-width: 2.4px; filter: drop-shadow(0 0 3px rgba(233,207,159,.6)); }
+.pane.paper .nsvg .arct { stroke: rgba(255,255,255,.7); filter: none; }
+
+/* the portrait's state */
+.sanring { position: absolute; z-index: 2; pointer-events: none; transform: rotate(-90deg); fill: none; overflow: visible; }
+.sanring .arc { stroke: #fff4dc; stroke-width: 2.6; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255,240,214,.95)) drop-shadow(0 0 6px rgba(255,240,214,.5)); }
+.sanring .arc.thin { stroke-width: 1.6; }
+.sanring .bg { stroke: rgba(255,240,214,.13); stroke-width: 2.6; }
+.sanring .ray { stroke: rgba(255,240,214,.16); stroke-width: 1.6; stroke-linecap: round; }
+.sanring .ray.lit { stroke: #fff4dc; filter: drop-shadow(0 0 2px rgba(255,240,214,.9)); }
+.pane.paper .sanring .arc, .pane.paper .sanring .ray.lit { stroke: #a956b5; filter: none; }
+.orb { position: absolute; z-index: 5; pointer-events: none; transform: scaleY(.38); }
+.orb i { position: absolute; left: 50%; top: 50%; width: var(--ss); height: var(--ss); margin: calc(var(--ss) / -2) 0 0 calc(var(--ss) / -2);
+  animation: orbit 2.4s linear infinite; }
+.orb i svg { width: 100%; height: 100%; fill: var(--star); stroke: #5a3a00; stroke-width: 1; filter: drop-shadow(0 0 3px rgba(255,211,77,.8)); }
+@keyframes orbit { from { transform: rotate(0deg) translateX(var(--R)) rotate(0deg) scaleY(2.63); } to { transform: rotate(360deg) translateX(var(--R)) rotate(-360deg) scaleY(2.63); } }
+.bburst { position: absolute; z-index: 5; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a2a12, #140e06); box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--star), 0 0 8px rgba(255,211,77,.6); }
+.bburst svg { width: 74%; height: 74%; fill: var(--star); stroke: none; }
+.zz { position: absolute; z-index: 5; font: italic 600 1em/1 var(--flavor); color: var(--lamp-hot); text-shadow: 0 0 5px rgba(233,207,159,.7); animation: zz 3s ease-in-out infinite; pointer-events: none; }
+.zz small { font-size: .7em; margin-left: 1px; vertical-align: super; }
+@keyframes zz { 0% { transform: translateY(3px); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateY(-4px); opacity: .3; } }
+
+/* swords */
+.swd { position: absolute; color: var(--crit); overflow: visible; pointer-events: none; filter: drop-shadow(0 0 3px rgba(255,77,77,.55)) drop-shadow(0 1px 1px rgba(0,0,0,.8)); }
+.swd.behind { z-index: 0; }
+.swd.atring { z-index: 3; }
+.swd.emblem { z-index: 2; opacity: .42; filter: drop-shadow(0 0 6px rgba(255,77,77,.7)); }
+.swd.flank { z-index: 0; }
+.swb { position: absolute; z-index: 6; border-radius: 50%; display: grid; place-items: center; color: var(--crit);
+  background: radial-gradient(circle at 50% 40%, #3a1414, #120606); box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--crit), 0 0 9px rgba(255,77,77,.65); }
+.swb svg { width: 78%; height: 78%; overflow: visible; filter: drop-shadow(0 0 2px rgba(255,77,77,.6)); }
+.swb.crest { border-radius: 40% 40% 50% 50%; }
+
+/* the top row */
+.trow { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex: none; }
+.trow .stp, .trow .tgl { display: flex; align-items: center; gap: 3px; }
+.trow .tgl > span { cursor: pointer; border-radius: 3px; }
+.sc { position: relative; display: block; flex: none; cursor: pointer; border-radius: 50%; }
+.sc.ro { cursor: default; }
+.sc svg { display: block; overflow: visible; }
+.sc.pend { opacity: .4; animation: pend 1s ease-in-out infinite; }
+.tgl .pend { opacity: .4; }
+@keyframes pend { 50% { opacity: .75; } }
+.sc .lt { font-family: var(--display); font-weight: 700; }
+.seglit { filter: drop-shadow(0 0 2px currentColor); }
+.tcount { display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px; border-radius: 3px; background: rgba(0,0,0,.3); font: 700 10px/1 var(--mono); color: var(--text); }
+.tcount .ti { width: 10px; height: 10px; stroke: var(--lamp); }
+
+/* ---------------------------------------------------------------- timers in the card */
+.tma { position: relative; flex: none; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; overflow: hidden; }
+.tma.gap2 { gap: 2px; }
+.tm { position: relative; flex: none; display: inline-flex; align-items: center; gap: 3px; font: 600 10px/1 var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; }
+.tm .ti { width: 10px; height: 10px; stroke: var(--c); stroke-width: 2.2; }
+.tm .nm { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.tm .t { font-weight: 600; flex: none; margin-left: auto; }
+.tm.untimed .t { color: var(--dim); }
+.sig-text .tm.end .t { color: var(--crit); font-weight: 800; text-shadow: 0 0 5px rgba(255,77,77,.45); }
+.sig-text .tm.l3.end, .sig-text .tm.l4.end { box-shadow: 0 0 0 1px var(--crit), 0 0 5px rgba(255,77,77,.6); }
+.sig-pulse .tm.end { animation: tpulse 1.4s ease-in-out infinite; }
+@keyframes tpulse { 50% { opacity: .42; } }
+.tm .x { display: none; flex: none; margin-left: auto; cursor: pointer; padding: 0 1px; }
+.tm .x .ti { stroke: var(--text); width: 9px; height: 9px; }
+.tm.rm:hover .t { display: none; }
+.tm.rm:hover .x { display: inline-flex; }
+.tm.l3.rm:hover .x, .tm.l4.rm:hover .x { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.72); border-radius: inherit; }
+.tm.l3 > .ti, .tm.l4 > .ti { margin: auto; }
+/* pills (today's bars) */
+.d-pill.l1, .d-pill.l2 { padding: 0 5px; border-radius: 8px; }
+.d-pill.l1, .d-pill.l2, .d-pill.l3 { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent) var(--p), rgba(0,0,0,.30) var(--p));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+.d-pill.l3 { border-radius: 4px; }
+.d-pill.untimed { background: rgba(0,0,0,.2); box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--c) 60%, transparent); outline-offset: -1px; }
+.d-pill.charm { background: color-mix(in srgb, var(--c) 14%, rgba(0,0,0,.25)); }
+/* ring chips */
+.d-ring.l1, .d-ring.l2 { padding: 0 5px 0 0; border-radius: 8px; background: rgba(0,0,0,.22); }
+.rgw { position: relative; flex: none; display: grid; place-items: center; }
+.rgw svg.rg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; }
+.rg .tr { stroke: color-mix(in srgb, var(--c) 24%, rgba(0,0,0,.55)); stroke-width: 2.6; }
+.rg .ar { stroke: var(--c); stroke-width: 2.6; stroke-linecap: round; }
+.untimed .rg .tr { stroke-dasharray: 3 2.4; stroke: color-mix(in srgb, var(--c) 55%, transparent); }
+.charm .rg .tr { stroke: color-mix(in srgb, var(--c) 50%, transparent); }
+.rgw .ti { width: 56% !important; height: 56% !important; }
+/* rune stones */
+.d-stone.l1, .d-stone.l2, .d-stone.l3 { border-radius: 3px 3px 7px 7px;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--c) 28%, transparent) var(--p), transparent var(--p)), linear-gradient(180deg, #2b2f37, #181b21);
+  box-shadow: inset 0 2px 0 var(--c), inset 0 0 0 1px rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.6); }
+.d-stone.l1 { flex-direction: column; align-items: stretch; justify-content: space-between; padding: 5px 4px 3px; gap: 2px; }
+.d-stone .st1 { display: flex; align-items: center; gap: 3px; }
+.d-stone.l1 .nm { font: 500 9px/1 var(--mono); color: var(--dim); }
+.d-stone.l2 { flex-direction: column; justify-content: center; gap: 3px; padding-top: 2px; }
+.d-stone.l2 .t { margin: 0; font-size: 9.5px; }
+.d-stone.l3 { justify-content: center; border-radius: 2px 2px 5px 5px; }
+.d-stone.untimed { background: linear-gradient(180deg, #23262d, #181b21); outline: 1px dashed color-mix(in srgb, var(--c) 55%, transparent); outline-offset: -1px; }
+/* ledger */
+.d-ledger.l1, .d-ledger.l2 { padding: 0 2px 0 6px; box-shadow: inset 2px 0 0 var(--c); }
+.d-ledger.l1::after, .d-ledger.l2::after { content: ""; position: absolute; left: 6px; bottom: 0; height: 1px; width: calc((100% - 8px) * var(--f)); background: var(--c); opacity: .85; }
+.d-ledger .ld { flex: 1 1 4px; min-width: 3px; align-self: flex-end; margin-bottom: 3px; border-bottom: 1px dotted color-mix(in srgb, var(--text) 30%, transparent); }
+.d-ledger.untimed { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--c) 45%, transparent); }
+.d-ledger.l2 .t { margin-left: 3px; }
+/* timeline (log scale, now → 2 h) */
+.d-tl { border-radius: 2px; background: rgba(0,0,0,.24); }
+.d-tl .tb { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: color-mix(in srgb, var(--c) 40%, transparent); box-shadow: inset -2px 0 0 var(--c); }
+.d-tl.untimed .tb { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent) 0 4px, transparent 4px 7px); box-shadow: none; }
+.d-tl .tk { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.d-tl .tl { position: relative; display: flex; gap: 3px; align-items: center; padding-left: 3px; min-width: 0; overflow: hidden; flex: 0 1 auto; }
+.d-tl .t, .d-tl .x { position: relative; padding-right: 3px; }
+.d-tl.l1 { font-size: 9.5px; } .d-tl.l2 { font-size: 8.5px; } .d-tl.l2 .ti { width: 8px; height: 8px; }
+.d-tl.l3 { background: rgba(0,0,0,.18); border-radius: 1px; }
+/* dials (pie wedges) */
+.pie { flex: none; display: block; }
+.pie .pb { fill: color-mix(in srgb, var(--c) 18%, rgba(0,0,0,.55)); stroke: color-mix(in srgb, var(--c) 55%, transparent); stroke-width: .8; }
+.pie .pw { fill: var(--c); opacity: .85; }
+.pie .pc { fill: var(--pane-bg); }
+.untimed .pie .pb { stroke-dasharray: 2 1.6; }
+.d-dial.l1 { gap: 4px; padding-right: 3px; border-radius: 11px 4px 4px 11px; background: rgba(0,0,0,.18); }
+.d-dial .dt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.d-dial .dt .nm { font-size: 9.5px; } .d-dial .dt .t { font-size: 9px; margin: 0; }
+.d-dial.l2 { flex-direction: column; gap: 2px; justify-content: flex-start; }
+.d-dial.l2 .t { margin: 0; font-size: 9px; }
+.d-dial.l3 { justify-content: center; }
+/* the dense grid */
+.tm.l4 { justify-content: center; border-radius: 3px; background: color-mix(in srgb, var(--c) 20%, rgba(0,0,0,.35)); }
+.tm.l4 .ti { width: 9px; height: 9px; }
+.tm.l4::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: var(--p); background: var(--c); }
+.tm.l4.d-pill, .tm.l4.d-ring, .tm.l4.d-dial { border-radius: 50%; }
+.tm.l4.d-pill::after, .tm.l4.d-ring::after, .tm.l4.d-dial::after { display: none; }
+.tm.l4.untimed { outline: 1px dashed color-mix(in srgb, var(--c) 60%, transparent); outline-offset: -1px; }
+/* headers, tags, the herblore +, +n */
+.tgh { flex: 0 0 100%; height: 11px; display: flex; align-items: center; gap: 4px; font: 700 7.5px/1 var(--display); letter-spacing: .12em; color: var(--c); text-transform: uppercase; }
+.tgh::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--c) 35%, transparent); order: 3; }
+.tgh .ti { width: 9px; height: 9px; stroke: var(--c); stroke-width: 2.2; }
+.tgh .hadd, .ttag b { all: unset; cursor: pointer; order: 4; font: 700 11px/1 var(--mono); color: var(--g-herb); padding: 0 2px; }
+.ttag { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 1px; box-shadow: inset 2px 0 0 var(--c); padding-left: 2px; }
+.ttag .ti { width: 8px; height: 8px; stroke: var(--c); stroke-width: 2.4; }
+.ttag b { font-size: 9px; padding: 0; }
+.tadd { flex: none; overflow: hidden; display: grid; place-items: center; border-radius: 8px; outline: 1px dashed color-mix(in srgb, var(--g-herb) 65%, transparent); outline-offset: -1px; color: var(--g-herb); cursor: pointer; font: 700 11px/1 var(--mono); }
+.tadd.row { justify-content: start; padding-left: 4px; font-size: 9px; border-radius: 2px; }
+.tadd:hover, .tgh .hadd:hover { background: color-mix(in srgb, var(--g-herb) 22%, transparent); }
+.tmore { flex: none; display: grid; place-items: center; border-radius: 3px; background: rgba(0,0,0,.3); font: 700 9.5px/1 var(--mono); color: var(--text); }
+.hmenu { position: absolute; z-index: 30; min-width: 150px; background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.6); font: 12px/1.2 var(--mono); }
+.hmenu div { padding: 5px 8px; border-radius: 3px; cursor: pointer; color: var(--ink); display: flex; gap: 6px; align-items: center; }
+.hmenu div:hover { background: #262b34; }
+.hmenu div.dis { color: #6b6a66; cursor: default; background: none; }
+.hmenu .ti { width: 11px; height: 11px; stroke: #a6c95a; }
+
+/* tabs */
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; align-self: stretch; flex: none; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 1 0; min-height: 0; overflow: hidden; font: 700 var(--tfs, 9px)/1 var(--display); letter-spacing: .12em; padding: 4px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: var(--lamp-hot); background: rgba(233,207,159,.11); box-shadow: inset 2px 0 0 var(--lamp); }
+
+/* stats / lore */
+.f { padding: 4px 7px 5px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.f small { display: flex; align-items: center; gap: 5px; font: 700 8px/1 var(--display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-bottom: 3px; white-space: nowrap; }
+.f b { display: block; font: 600 12px/1.15 var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f b em { font: 400 10.5px/1 var(--mono); color: var(--dim); font-style: normal; }
+.coin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 3px 0 0; box-shadow: inset 0 -1px 0 rgba(0,0,0,.4); background: #e5c158; }
+.lore { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); grid-auto-rows: minmax(0,1fr); flex: 1; min-height: 0; overflow: hidden; }
+.lore .f.wide { grid-column: 1 / -1; }
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 3px; }
+.abx { text-align: center; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.abx small { display: block; font: 700 7.5px/1 var(--display); letter-spacing: .08em; color: var(--dim); }
+.abx b { display: block; font: 700 12.5px/1.25 var(--mono); }
+.abx.up b { color: var(--up); }
+.shl { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; }
+.shl > div { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.shl .ti { width: 12px; height: 12px; stroke: var(--lamp); } .shl b { font: 700 12.5px/1 var(--mono); color: var(--lamp-hot); } .shl small { font: 700 7px/1 var(--display); color: var(--dim); letter-spacing: .1em; }
+.ageln { font: 600 11px/1.3 var(--mono); color: var(--dim); } .ageln b { color: var(--text); }
+
+/* ---------------------------------------------------------------- page bits */
+.rowx { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.rowx.nowrap { flex-wrap: nowrap; }
+.rowx > .cap { flex: none; }
+.cap { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink-dim); min-width: 0; }
+.cap p { font-size: 14px; max-width: 46ch; }
+.host { position: relative; }
+.gridalt { display: flex; flex-direction: column; gap: 8px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.gridalt h3 span { color: var(--lamp); margin-right: 6px; }
+.gridalt > p { font-size: 14.5px; color: var(--ink-dim); }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.q p { font-size: 15px; color: var(--ink-dim); }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opts span { font: 12.5px/1.2 var(--mono); color: var(--ink); padding: 5px 8px; border-radius: 4px; background: #161a21; border: 1px solid #333944; }
+.q .opts span.rec { border-color: var(--lamp); color: var(--lamp-hot); }
+#tip { position: fixed; z-index: 50; white-space: pre; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; max-width: min(460px, 94vw); white-space: pre-wrap; }
+
+/* step circle studio */
+.stab { display: grid; grid-template-columns: minmax(200px, 1.3fr) 56px repeat(4, 78px) 120px; gap: 0; min-width: 820px; }
+.stab > div { padding: 10px 8px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 8px; }
+.stab .hd { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .05em; }
+.stab .nm h3 { font-size: 14px; } .stab .nm p { font-size: 13px; color: var(--ink-dim); }
+.stab .nm { flex-direction: column; align-items: flex-start; gap: 2px; }
+.stepbg { background: var(--pane-bg); border-radius: 8px; border: 1px solid var(--rule); padding: 4px 10px; }
+.stab .cell { flex-direction: column; gap: 5px; align-items: center; }
+.stab .cell span.lb { font: 10px/1 var(--mono); color: var(--dim); }
+.stab .pair { display: flex; gap: 8px; align-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13.5px; color: var(--ink-dim); margin-bottom: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+/* gear */
+.gearwrap { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.gear { width: min(100%, 34em); background: #1a1d24; border: 1px solid #39404c; border-radius: 7px; box-shadow: 0 10px 30px rgba(0,0,0,.55); font: 13px/1.3 var(--body); color: var(--ink); overflow: hidden; }
+.gear .gt { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid #2c313b; font: 700 12px/1 var(--display); letter-spacing: .1em; color: var(--lamp-hot); }
+.gear .gt small { font: 400 11.5px/1 var(--body); color: var(--ink-dim); letter-spacing: 0; }
+.gear .gs { padding: 8px 12px 10px; border-bottom: 1px solid #2c313b; display: flex; flex-direction: column; gap: 7px; }
+.gear .gs.new { box-shadow: inset 3px 0 0 var(--lamp); }
+.gear .gs h4 { margin: 0; font: 700 10px/1 var(--display); letter-spacing: .14em; color: var(--ink-dim); text-transform: uppercase; display: flex; gap: 8px; align-items: center; }
+.gear .gs h4 em { font: 600 10px/1 var(--body); letter-spacing: .02em; text-transform: none; color: #1b160d; background: var(--lamp); padding: 2px 5px; border-radius: 3px; font-style: normal; }
+.gear .gr { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gear .gr > span:first-child { color: var(--ink-dim); font-size: 12.5px; }
+.gear .seg button { font-size: 11.5px; padding: 5px 7px; }
+.gear .gtab { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; align-items: center; font-size: 12.5px; }
+.gear .gtab .gn { display: flex; align-items: center; gap: 6px; }
+.gear .gtab .gn .ti { width: 12px; height: 12px; stroke: var(--c); }
+.gear .chk { all: unset; cursor: pointer; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #4a505c; display: grid; place-items: center; }
+.gear .chk.on { background: var(--lamp); border-color: var(--lamp); }
+.gear .chk.on::after { content: ""; width: 7px; height: 4px; border-left: 2px solid #1b160d; border-bottom: 2px solid #1b160d; transform: rotate(-45deg) translate(1px, -1px); }
+.gear .sw { display: inline-flex; align-items: center; gap: 5px; font: 11.5px/1 var(--mono); color: var(--ink-dim); }
+.gear .sw i { width: 12px; height: 12px; border-radius: 3px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.4); }
+.gear .note { font-size: 11.5px; color: var(--ink-dim); }
+@media (prefers-reduced-motion: reduce) { .orb i { animation-play-state: paused; } .disc2.halo, .zz, .sig-pulse .tm.end, .sc.pend { animation: none; } .b > i, .disc2, .disc2 svg.fig { transition: none; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="r-orc" viewBox="0 0 60 75">
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="sword1" viewBox="0 0 40 100">
+  <path d="M17.2 68V15L20 4l2.8 11v53z" fill="currentColor" stroke="#1a0605" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M20 14v52" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+  <path d="M7 69.5h26" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  <path d="M20 72v15" stroke="#6e221b" stroke-width="5.4" stroke-linecap="round"/>
+  <circle cx="20" cy="91.5" r="4.4" fill="currentColor" stroke="#1a0605" stroke-width="1.1"/></symbol>
+<symbol id="swords" viewBox="0 0 100 100">
+  <use href="#sword1" x="30" y="0" width="40" height="100" transform="rotate(42 50 50)"/>
+  <use href="#sword1" x="30" y="0" width="40" height="100" transform="rotate(-42 50 50)"/></symbol>
+</defs></svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 11</span>
+  <h1>Timers flyttar in i Character</h1>
+  <p class="lede">Stridskortet stannar i Group. I stället tar Character över allt som Timers-panen visar. Till vänster finns bara porträttet med nivåringen, så stort som höjden tillåter. Till höger ligger Status-fliken med en liten topprad (stegcirklarna M, C, A, W och de fem ikonerna) och under den dina timers. De väljer själva en täthet som passar antalet och platsen. Vitals ligger kvar längst ner. Allt nedan är en attrapp: inga riktiga data, men namnen och tiderna är tagna från koden.</p>
+  <div class="changes">
+    <div><b>Porträttet</b> fyller höjden och visar läget: sanctuary som en glödande ring, bashed som stjärnor och dämpat när du vilar eller sover.</div>
+    <div><b>Mood, Casts, Alertness, Weight</b> blir små cirklar med en bokstav. Ringen har ett segment per steg i stegets färg.</div>
+    <div><b>Timers</b>: alla åtta grupper plus bashed. Täthetsstegen är namn + tid → ikon + tid → bara ringar → tätt rutnät med <code>+n</code>.</div>
+    <div><b>Strid</b>: större röda svärd på eller i porträttet och den röda kanten, båda som brytare i kugghjulet.</div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">1 · Prova</span><h2>Bänken</h2>
+      <p>En levande pane. Det mesta går att klicka: stegcirklarna (de går ett steg vidare efter en kort väntan, som när GMCP svarar), ikonerna i topprader, flikarna, Herblores <code>+</code> och <code>×</code> på en herblore eller en charmie (håll muspekaren över dem). Håll muspekaren över allt för att se tooltipen. Ändringar glider på plats.</p></div>
+    <div class="bench">
+      <div class="ctlrow">
+        <div class="ctl">Storlek <span class="seg" data-ctl="size"><button data-v="medium">Medium (standard)</button><button data-v="large">Large</button><button data-v="phone">Telefon</button><button data-v="tallN">Hög smal</button><button data-v="tallW">Hög bred</button></span></div>
+        <div class="ctl">Antal timers <span class="seg" data-ctl="count"><button data-v="few">få (3)</button><button data-v="normal">normalt (8)</button><button data-v="many">många (23)</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Namn <span class="seg" data-ctl="name" id="nameseg"></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Stegcirklar <span class="seg" data-ctl="steps" id="stepseg"></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Timers-design <span class="seg" data-ctl="design" id="desseg"></span></div>
+        <div class="ctl">Timers-täthet <span class="seg" data-ctl="dens"><button data-v="auto">Auto</button><button data-v="1">1 · namn + tid</button><button data-v="2">2 · ikon + tid</button><button data-v="3">3 · bara ringar</button><button data-v="4">4 · rutnät</button></span></div>
+        <div class="ctl">Grupper <span class="seg" data-ctl="groups"><button data-v="color">färg</button><button data-v="headers">rubriker</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Strid <span class="seg" data-ctl="fight"><button data-v="off">Av</button><button data-v="on">På</button></span></div>
+        <div class="ctl">Svärd <span class="seg" data-ctl="swords" id="swseg"></span></div>
+        <div class="ctl">Svärd i toppraden <span class="seg" data-ctl="swTop"><button data-v="on">Ja</button><button data-v="off">Nej</button></span></div>
+        <div class="ctl">Röd kant <span class="seg" data-ctl="rim"><button data-v="off">Av</button><button data-v="on">På</button></span></div>
+      </div>
+      <div class="ctlrow">
+        <div class="ctl">Läge <span class="seg" data-ctl="state"><button data-v="stand">står</button><button data-v="rest">vilar</button><button data-v="sleep">sover</button><button data-v="bashed">bashed</button><button data-v="sanct">sanctuary på dig</button></span></div>
+        <div class="ctl">Porträttstil <span class="seg" data-ctl="pstyle"><button data-v="a">a</button><button data-v="b">b</button><button data-v="c">c</button></span></div>
+        <div class="ctl">Flik <span class="seg" data-ctl="tab"><button data-v="0">Status</button><button data-v="1">Stats</button><button data-v="2">Lore</button></span></div>
+        <div class="ctl">Pane <span class="seg" data-ctl="pane"><button data-v="lykta">Lykta</button><button data-v="paper">Paper</button></span></div>
+      </div>
+      <div class="benchnote" id="benchnote"></div>
+      <div class="scroll"><div id="bench" class="rowx"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">2 · Stegcirklarna</span><h2>M, C, A och W som cirklar</h2>
+      <p>Ringen har ett segment per steg, i stegets färg. Det som skiljer varianterna åt är hur det nuvarande steget markeras. Kolumnerna visar Mood på fyra steg, så att du ser färgen vandra. Varje cell har först 18 px (Large) och sedan 14 px (det minsta som går att använda). Lupen är 44 px och sista kolumnen visar hela raden M C A W i 16 px (Medium). Klicka på en rad för att ladda den i bänken.</p></div>
+    <div class="legend" id="steplegend"></div>
+    <div class="scroll"><div class="stepbg" id="steps"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">3 · Namnet</span><h2>Var Rasta står</h2>
+      <p>Bara namnet, ingen ras (rasen står i porträttets tooltip). Plåtarna sitter strax under mitten, över bröstet, så att ansiktet syns. Varje variant visas i Medium och Large. Om porträttet försvinner (låg pane) faller plåten och bågen tillbaka till nivåringens tooltip.</p></div>
+    <div id="names"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">4 · Timers i kortet</span><h2>Sex riktningar, med automatisk täthet</h2>
+      <p>Varje riktning visas med få, normalt och många timers i Medium och med många i de höga panerna och Large. Under kortet står vilket steg Auto valde. När inte ens rutnätet räcker visas de som tar slut snart först, sedan debuffs och blinds, och resten blir <code>+n</code> (tooltipen listar dem). Grupper (färg eller rubriker), varningssignal och Paper följer bänken.</p></div>
+    <div id="ladder"></div>
+    <div id="designs"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">5 · Strid</span><h2>Svärden och den röda kanten</h2>
+      <p>Sju placeringar. Varje rad visar Large och Medium med röd kant, och Medium utan kant. Toppradens position följer bänkens brytare <b>Svärd i toppraden</b>. Klicka på en rad för att ladda den i bänken.</p></div>
+    <div id="swordsec"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">6 · Porträttet visar läget</span><h2>Sanctuary, bashed, vila och sömn</h2>
+      <p>Tre behandlingar (a, b, c) för varje läge, på ett porträtt i Large-storlek. Bänkens Porträttstil väljer vilken som används i korten.</p></div>
+    <div class="scroll"><div id="states"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">7 · Kugghjulet</span><h2>Characters egna inställningar</h2>
+      <p>Character får egna timer-inställningar som inte delas med Timers-panen. Det nya är markerat med en guldkant. Kontrollerna är kopplade till bänken och kortet bredvid, så ändringar syns direkt i båda.</p></div>
+    <div class="gearwrap"><div class="gear" id="gear"></div><div class="host" id="gearcard"></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">8 · Låga höjder</span><h2>Vad som finns kvar</h2>
+      <p>Samma bredd och allt lägre höjd. Först krymper porträttet och timers blir tätare, sedan finns bara nivåringen kvar, sedan bara toppraden (timers blir en räknare med timglas) och längst ner bara vitals. Sist visas telefonens sida i remsan.</p></div>
+    <div id="low"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">9 · Att bolla</span><h2>Frågor till dig</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Namnet</h3><p>Banderollen (<b>ribbon</b>) är vackrast i Large och på telefonen, men i Medium (porträttet ca 87 px) täcker den en sjättedel av bilden. Mitt förslag: banderollen, och när porträttet är för litet för den (under ca 70 px) visas namnet i titeln i stället (<code>RASTA</code>). Bågen ovanför tar 11 px höjd från porträttet.</p>
+        <div class="opts"><span class="rec">banderoll, titeln när det blir trångt</span><span>järnplåt</span><span>glasband</span><span>leende banderoll</span><span>båge</span><span>bara titeln</span><span>bara tooltip</span></div></div>
+      <div class="q"><h3>Stegcirklarna</h3><p>I 14–16 px syns <b>tänt segment</b> och <b>pärla</b> bäst. Fyllning läses som en mätare (mer = mer aggressiv), vilket passar Mood och Weight men inte Casts, där mitten är normalt. Urtavlan är fin i Large men nålen syns knappt i 16 px.</p>
+        <div class="opts"><span class="rec">tänt segment</span><span>pärla</span><span>visare</span><span>tjockt segment</span><span>urtavla</span><span>fyllning</span><span>juvel</span></div></div>
+      <div class="q"><h3>Timer-designen</h3><p>Jag föreslår <b>piller</b>: de ser ut som Timers-panen i dag och läser bäst i steg 1 och 2, och steg 3 blir små kapslar. Ringchips är tätast i steg 2. Runstenarna är vackrast men tar mest höjd. Liggaren läser som en lista och klarar höga, smala paner bäst. Tidslinjen visar ordningen (vad tar slut först) bäst, men sämst i Medium.</p>
+        <div class="opts"><span class="rec">piller</span><span>ringchips</span><span>runstenar</span><span>liggare</span><span>tidslinje</span><span>urtavlor</span></div></div>
+      <div class="q"><h3>Färg eller rubriker?</h3><p>En rubrik tar 11 px per grupp. I Medium med normalt antal betyder det att Auto går ner ett steg. Jag föreslår <b>färg</b> som standard och rubriker som inställning. Herblores <code>+</code> sitter då som en streckad knapp först i listan.</p>
+        <div class="opts"><span class="rec">färg, rubriker som val</span><span>rubriker</span></div></div>
+      <div class="q"><h3>Täthet för hela listan eller per timer?</h3><p>Nu byter Auto steg för hela listan på en gång, så att allt ser likadant ut. Ett alternativ är att timers som snart tar slut och dina debuffs behåller namnet, och bara resten blir ringar. Det ger mer information men en rörigare lista.</p>
+        <div class="opts"><span class="rec">hela listan</span><span>blandat: viktiga behåller namnet</span></div></div>
+      <div class="q"><h3>Din sanctuary två gånger?</h3><p>När sanctuary ligger på dig syns den som ring runt porträttet och som en rad (<code>You 2m</code>) i listan. Ringen ger känslan, raden ger tiden. Ska raden gömmas när porträttet visar ringen?</p>
+        <div class="opts"><span class="rec">båda</span><span>bara ringen (tiden i tooltipen)</span></div></div>
+      <div class="q"><h3>Svärden</h3><p>Mitt förslag är <b>märket på kanten</b> (överst till höger): det syns i alla storlekar och täcker inget, och det följer med till nivåringen när porträttet försvinner. <b>Bakom porträttet</b> är vackrast i Large. Tillsammans med den röda kanten räcker det, så toppradens position kan behålla sin ikon (Svärd i toppraden: nej).</p>
+        <div class="opts"><span class="rec">märke på kanten + röd kant, inte i toppraden</span><span>bakom porträttet</span><span>vapensköld</span><span>vid nivåringen</span><span>emblem</span><span>på sidorna</span></div></div>
+      <div class="q"><h3>Porträttet i höga paner</h3><p>Toppraden behöver ca 160 px bredd i Medium, så porträttet begränsas av bredden och fyller inte höjden i Hög smal (det hamnar överst, ca 87 px). Är det okej, eller ska porträttet få växa och timers bli smalare (toppraden går då på två rader)?</p>
+        <div class="opts"><span class="rec">okej, timers får höjden</span><span>porträttet växer</span></div></div>
+      <div class="q"><h3>Porträttets läge</h3><p>Förslag: sanctuary <b>a</b> (glödande nedräkningsring), bashed <b>a</b> (stjärnor som snurrar, stilla vid reducerad rörelse), sömn <b>a</b> (grått och mörkt) och vila som en lätt dämpning. Zz (b) och ögonlocken (c) är roligare, men ögonlocken täcker ansiktet.</p>
+        <div class="opts"><span class="rec">a, a, a</span><span>b-varianterna</span><span>c-varianterna</span><span>blandat</span></div></div>
+    </div>
+  </section>
+</main>
+<script>
+// ------------------------------------------------------------------ data
+const D = { name: 'Rasta', race: 'orc', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], band: [46, 70], ma: [93, 111], mv: [98, 122], mvBand: [30, 49], wimpy: 150 };
+
+const STEPS = {
+  mood: { L: 'M', label: 'Mood', cmd: 'change mood', steps: ['wimpy', 'prudent', 'normal', 'brave', 'aggressive', 'berserk'], col: ['g', 'g', 'g', 'o', 'o', 'r'],
+    cycle: ['wimpy', 'prudent', 'normal', 'brave', 'aggressive'] },
+  casts: { L: 'C', label: 'Casts', cmd: 'change spellcasting', steps: ['quick', 'fast', 'normal', 'careful', 'thorough'], col: ['r', 'o', 'g', 'o', 'r'],
+    cycle: ['quick', 'fast', 'normal', 'careful', 'thorough'] },
+  alert: { L: 'A', label: 'Alertness', cmd: 'change alertness', steps: ['normal', 'careful', 'attentive', 'vigilant', 'paranoid'], col: ['g', 'o', 'o', 'o', 'r'],
+    cycle: ['normal', 'careful', 'attentive', 'vigilant', 'paranoid'] },
+  weight: { L: 'W', label: 'Weight', steps: ['peanuts', 'uncomfortable', 'heavy', 'really heavy', 'painful', 'torture'], col: ['g', 'g', 'o', 'o', 'r', 'r'],
+    say: { peanuts: 'Peanuts.', uncomfortable: 'A tad uncomfortable, but no problem.', heavy: 'Heavy, but we will manage...', 'really heavy': 'That is really heavy!', painful: 'You are trying to forget the pain...', torture: 'Every single move is sheer torture...' } },
+};
+
+// Timer entries: real names (src/timers/data), times as countdownText draws them.
+const GORD = ['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm'];
+const GLAB = { herb: 'Herblores', sanct: 'Sanctuary', spell: 'Spells', buff: 'Buffs', debuff: 'Debuffs', stored: 'Stored', blind: 'Blinds', charm: 'Charmies' };
+const TM = [
+  { id: 'h1', g: 'herb', n: 'Healing', left: 2520, dur: 3600 },
+  { id: 'h2', g: 'herb', n: 'Haste (recovery)', left: 205, dur: 600, ic: 'debuff', phase: 'debuff' },
+  { id: 's2', g: 'sanct', n: 'Arwen', left: 170, dur: 270, est: 1 },
+  { id: 's1', g: 'sanct', n: 'Gandalf', un: 1 },
+  { id: 'p1', g: 'spell', n: 'Bless', left: 18, dur: 480 },
+  { id: 'p2', g: 'spell', n: 'Armour', left: 412, dur: 1100 },
+  { id: 'p3', g: 'spell', n: 'Strength', left: 980, dur: 1560 },
+  { id: 'p4', g: 'spell', n: 'Shield', left: 1210, dur: 1560 },
+  { id: 'p5', g: 'spell', n: 'Detect magic', left: 1880, dur: 2400 },
+  { id: 'p6', g: 'spell', n: 'Night vision', left: 2290, dur: 2650 },
+  { id: 'b1', g: 'buff', n: 'Second wind', left: 52, dur: 60 },
+  { id: 'b2', g: 'buff', n: 'Miruvor', left: 140, dur: 180 },
+  { id: 'b3', g: 'buff', n: 'Comfortable', still: 1 },
+  { id: 'd1', g: 'debuff', n: 'Chill touch', left: 9, dur: 45 },
+  { id: 'd2', g: 'debuff', n: 'Hunger', still: 1 },
+  { id: 'd3', g: 'debuff', n: 'Winded', left: 1210, dur: 1380 },
+  { id: 'o1', g: 'stored', n: 'Lightning bolt', left: 2900, dur: 5400 },
+  { id: 'o2', g: 'stored', n: 'Fireball', left: 4320, dur: 5400 },
+  { id: 'o3', g: 'stored', n: 'Teleport', un: 1 },
+  { id: 'l1', g: 'blind', n: 'a black-robed orc', left: 14, dur: 45 },
+  { id: 'l2', g: 'blind', n: 'a captain of Fornost', left: 38, dur: 45 },
+  { id: 'c1', g: 'charm', n: 'A wolf', charm: 1, mins: 12 },
+  { id: 'c2', g: 'charm', n: 'A pony', charm: 1, mins: 31 },
+];
+const SELF_SANCT = { id: 's0', g: 'sanct', n: 'You', left: 134, dur: 270, self: 1 };
+const BASH = { id: 'bx', g: 'debuff', n: 'Bashed', still: 1, ic: 'bashed', bash: 1 };
+const SETS = { few: ['p2', 'p4', 'o2'], normal: ['h1', 'p1', 'p2', 'p4', 'b1', 'd1', 'o2', 'c1'], many: 'all' };
+const HERBS = [['Healing', 3600], ['Travelling', 7200], ['Clearthought', 3600], ['Walking', 3600], ['Haste', 600], ['Dark aura', 1800]];
+
+const I = {
+  sneak: 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4',
+  ride: 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2',
+  climb: 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10',
+  swim: 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  ob: 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5',
+  db: 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7',
+  pb: 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5',
+  abs: 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6',
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  stored: 'M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z M6.5 4.5a9 9 0 0 0 0 15 M17.5 4.5a9 9 0 0 1 0 15',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+  spell: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  close: 'M5 5l14 14 M19 5L5 19',
+  waiting: 'M7 3h10 M7 21h10 M8 3v2a4 4 0 0 0 1.6 3.2L12 12l2.4-3.8A4 4 0 0 0 16 5V3 M8 21v-2a4 4 0 0 1 1.6-3.2L12 12l2.4 3.8A4 4 0 0 1 16 19v2',
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M2 12h3 M19 12h3 M4.9 19.1L7 17 M17 7l2.1-2.1',
+};
+
+// Pane sizes: outer width × window height, px. Medium is the default docked pane (33 cells × 9 rows).
+const SZ = {
+  medium: { w: 300, h: 166, name: 'Medium', bar: 16, cs: 16, ico: 12, tabs: 18 },
+  large: { w: 470, h: 204, name: 'Large', bar: 18, cs: 18, ico: 14, tabs: 18 },
+  phone: { w: 366, h: 190, name: 'Telefon', bar: 18, cs: 18, ico: 14, tabs: 24 },
+  tallN: { w: 300, h: 320, name: 'Hög smal', bar: 16, cs: 16, ico: 12, tabs: 18 },
+  tallW: { w: 470, h: 360, name: 'Hög bred', bar: 18, cs: 18, ico: 14, tabs: 18 },
+};
+
+const NAMES = [
+  ['ribbon', 'Banderoll', 'En oxblodsröd banderoll med svalstjärtar, bredare än porträttet. Mest "vapensköld".'],
+  ['plaque', 'Järnplåt', 'En liten nitad plåt i panens järn, med lyktans glöd. Diskretast, och den passar ramen.'],
+  ['glass', 'Glasband', 'Ett frostat band som klipps av cirkeln. Det ser ut att ligga i bilden, inte på den.'],
+  ['smile', 'Leende banderoll', 'Banderollen böjer sig lätt nedåt, och texten följer bågen. Mest dekorativ, men tar mest av bilden.'],
+  ['arc', 'Båge ovanför', 'Namnet följer porträttets överkant utanför ringen. Täcker inget, men tar 11 px höjd.'],
+  ['hood', 'I titeln', 'Panens titel säger RASTA i stället för CHARACTER. Gratis, men titeln heter då inte som panen.'],
+  ['tip', 'Bara tooltip', 'Namnet syns bara när du håller över porträttet eller nivåringen.'],
+];
+const STEPVARS = [
+  ['lit', 'Tänt segment', 'Alla segment syns svagt i sin färg, och det nuvarande lyser.'],
+  ['pointer', 'Visare', 'Segmenten syns lika starkt, och en liten triangel utanför pekar på steget.'],
+  ['thick', 'Tjockt segment', 'Det nuvarande segmentet är dubbelt så tjockt och sticker ut.'],
+  ['dial', 'Urtavla', 'En mätare på 270°, där en nål pekar på steget. Det första steget är nere till vänster.'],
+  ['fill', 'Fyllning', 'Segmenten fylls upp till och med steget, och resten är tomma.'],
+  ['bead', 'Pärla', 'En tunn ring i stegens färger, med en lysande pärla på steget. Bokstaven får stegets färg.'],
+  ['gem', 'Juvel', 'Hela cirkeln får stegets färg, och prickar runt om visar var i skalan du är.'],
+];
+const DESIGNS = [
+  ['pill', 'Piller', 'Dagens Timers-piller: fyllningen töms från höger, och gruppens färg sitter i kanten. Steg 3 blir korta kapslar utan text.'],
+  ['ring', 'Ringchips', 'En ring som töms, med gruppens ikon i mitten. Namn och tid står bredvid. Steg 2 är tätast av alla.'],
+  ['stone', 'Runstenar', 'Små stenar med gruppens färg överst. Fyllningen sjunker nerifrån när tiden går. Vackrast, men tar mest höjd.'],
+  ['ledger', 'Liggare', 'En lista i kolumner: namn, prickad linje och tid. Ett tunt streck under visar tiden som är kvar.'],
+  ['timeline', 'Tidslinje', 'En rad per timer på en logaritmisk tidsaxel (1 min, 10 min och 1 h är markerade). Du ser direkt vad som tar slut först.'],
+  ['dial', 'Urtavlor', 'Varje timer är en tårtbit som krymper medsols. Namn och tid står bredvid, och i steg 2 står tiden under.'],
+];
+const SWORDS = [
+  ['badge', 'Märke på kanten', 'Ett runt märke överst till höger på porträttets kant, som en notis.'],
+  ['crest', 'Vapensköld överst', 'Märket sitter mitt på överkanten, som en hjälmkam.'],
+  ['behind', 'Korsade bakom', 'Stora svärd korsade bakom porträttet. Spetsar och fästen sticker ut i hörnen.'],
+  ['ring', 'Vid nivåringen', 'Svärden korsas bakom nivåringen, som ett vapen under en sköld.'],
+  ['emblem', 'Emblem över bilden', 'Stora, svagt lysande svärd över hela porträttet.'],
+  ['flank', 'På sidorna', 'Ett svärd på var sida om porträttet, lätt lutade.'],
+  ['off', 'Inga svärd', 'Bara den röda kanten och (om du vill) toppradens position.'],
+];
+
+const st = { size: 'medium', count: 'normal', name: 'ribbon', steps: 'lit', design: 'pill', dens: 'auto', groups: 'color',
+  fight: 'off', swords: 'badge', swTop: 'off', rim: 'on', state: 'sanct', pstyle: 'a', tab: '0', pane: 'lykta',
+  signal: 'text', warn: '20', soonest: 'on', prio: 'on', psanct: 'on', pbash: 'on', pdim: 'on', lock: 'auto',
+  mood: 'aggressive', casts: 'normal', alert: 'normal', weight: 'heavy', tog: { sneak: 1, ride: 0, climb: 1, swim: 0 },
+  gone: new Set(), added: [], off: new Set(), pend: {} };
+
+// ------------------------------------------------------------------ helpers
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const svg = (k, cls = 'ti', style = '') => `<svg class="${cls}" viewBox="0 0 24 24"${style ? ` style="${style}"` : ''}><path d="${I[k]}"/></svg>`;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function cdt(secs) { const s = Math.max(0, Math.floor(secs)); if (s <= 90) return `${s}s`; const m = Math.floor((s + 30) / 60); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; }
+function exact(secs) { const s = Math.max(0, Math.floor(secs)); if (s < 60) return `${s}s`; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${r}` : `${m}:${r}`; }
+function blindShort(full, cap) {
+  const s = full.replace(/^(a|an|the)\s+/i, '');
+  if (s.length <= cap) return s;
+  const w = s.split(/\s+/), last = w[w.length - 1];
+  if (w.length < 2 || last.length + 3 > cap) return s.slice(0, cap - 1) + '…';
+  return s.slice(0, cap - last.length - 1).replace(/[\s,-]+$/, '') + '…' + last;
+}
+const CH = 6.0, CH9 = 5.4;
+const lx = (sec) => Math.min(1, Math.log10(1 + sec / 15) / Math.log10(1 + 7200 / 15));
+
+// ------------------------------------------------------------------ the level ring
+function ring(size, pre = '') {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `${pre}Level ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  return `<span class="lr" data-tip="${esc(tip)}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">
+    <circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.7)" stroke-width="2.6"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="#6e5832" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.3" stroke-dasharray="${D.tp * 100} 100" opacity=".85"/></svg><b>${D.level}</b></span>`;
+}
+
+// ------------------------------------------------------------------ step circles
+const pt = (c, r, deg) => { const a = deg * Math.PI / 180; return [(c + r * Math.sin(a)).toFixed(2), (c - r * Math.cos(a)).toFixed(2)]; };
+function arcD(c, r, a0, a1) { const [x0, y0] = pt(c, r, a0), [x1, y1] = pt(c, r, a1); return `M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`; }
+function stepSvg(kind, cur, size, v) {
+  const S = STEPS[kind], n = S.steps.length, ci = Math.max(0, S.steps.indexOf(cur));
+  const c = size / 2, sw = size <= 14 ? 1.9 : size <= 18 ? 2.3 : size / 8;
+  const pad = v === 'pointer' ? sw * 0.85 + 0.3 : v === 'thick' ? sw * 0.6 : 0;
+  const r = c - sw / 2 - 0.3 - pad;
+  const col = (i) => `var(--s-${S.col[i]})`;
+  const dial = v === 'dial';
+  const start = dial ? -135 : 0, span = dial ? 270 : 360, step = span / n, gap = n > 5 ? 12 : 14;
+  const mid = (i) => start + step * (i + 0.5);
+  let segs = '', extra = '';
+  for (let i = 0; i < n; i++) {
+    const a0 = start + step * i + gap / 2, a1 = start + step * (i + 1) - gap / 2, d = arcD(c, r, a0, a1), on = i === ci;
+    let stroke = col(i), op = 1, w = sw, cls = '';
+    if (v === 'lit') { op = on ? 1 : 0.26; w = on ? sw * 1.15 : sw; cls = on ? 'seglit' : ''; }
+    else if (v === 'pointer') { op = 0.85; w = sw * 0.85; }
+    else if (v === 'thick') { op = on ? 1 : 0.55; w = on ? sw * 1.9 : sw * 0.7; }
+    else if (v === 'dial') { op = on ? 1 : 0.55; w = sw * 0.9; }
+    else if (v === 'fill') { if (i > ci) stroke = 'var(--s-track)'; }
+    else if (v === 'bead') { op = 0.5; w = sw * 0.62; }
+    else if (v === 'gem') { op = 0; }
+    if (op > 0) segs += `<path d="${d}" stroke="${stroke}" stroke-width="${w.toFixed(2)}" fill="none" opacity="${op}" class="${cls}" style="color:${stroke}"/>`;
+  }
+  const cc = col(ci), m = mid(ci);
+  if (v === 'pointer') {
+    const [tx, ty] = pt(c, r + sw * 0.55, m), [bx1, by1] = pt(c, c + 0.4, m - 11), [bx2, by2] = pt(c, c + 0.4, m + 11);
+    extra = `<path d="M${tx} ${ty}L${bx1} ${by1}L${bx2} ${by2}Z" fill="var(--text)"/>`;
+  }
+  if (v === 'dial') {
+    const [x0, y0] = pt(c, r * 0.18, m), [x1, y1] = pt(c, r - sw * 0.9, m);
+    extra = `<path d="M${x0} ${y0}L${x1} ${y1}" stroke="${cc}" stroke-width="${Math.max(1.1, size / 14).toFixed(2)}" stroke-linecap="round"/><circle cx="${c}" cy="${c}" r="${Math.max(1, size / 18).toFixed(2)}" fill="${cc}"/>`;
+  }
+  if (v === 'bead') { const [bx, by] = pt(c, r, m); extra = `<circle cx="${bx}" cy="${by}" r="${(sw * 1.05).toFixed(2)}" fill="${cc}" stroke="var(--pane-bg)" stroke-width=".8" class="seglit" style="color:${cc}"/>`; }
+  if (v === 'gem') {
+    extra = `<circle cx="${c}" cy="${c}" r="${(c - 1).toFixed(2)}" fill="${cc}" fill-opacity=".2" stroke="${cc}" stroke-width="1.2"/>`;
+    for (let i = 0; i < n; i++) { const [x, y] = pt(c, c - 2.6, mid(i)); extra += `<circle cx="${x}" cy="${y}" r="${i === ci ? 1.3 : 0.65}" fill="${i === ci ? 'var(--text)' : col(i)}" opacity="${i === ci ? 1 : 0.8}"/>`; }
+  }
+  const letterCol = v === 'bead' || v === 'gem' ? cc : 'var(--text)';
+  const fs = dial ? size * 0.4 : v === 'gem' ? size * 0.46 : v === 'pointer' ? size * 0.42 : size * 0.5;
+  const ly = dial ? c + size * 0.22 : c + 0.5;
+  const letter = `<text class="lt" x="${c}" y="${ly.toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-size="${fs.toFixed(2)}" fill="${letterCol}">${S.L}</text>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${segs}${extra}${letter}</svg>`;
+}
+function nextStep(kind, cur) { const cy = STEPS[kind].cycle; const i = cy.indexOf(cur); return cy[(i + 1) % cy.length]; }
+function stepTip(kind, cur) {
+  const S = STEPS[kind];
+  const list = S.steps.map((s) => (s === cur ? `[${s}]` : s)).join(' · ');
+  if (kind === 'weight') return `Weight: ${cur}\n"${S.say[cur]}"\n${list}\n(GMCP carrying; not clickable)`;
+  return `${S.label}: ${cur}\n${list}\nClick: ${S.cmd} ${nextStep(kind, cur)}`;
+}
+function stepEl(o, kind, size) {
+  const cur = o[kind], ro = kind === 'weight';
+  const pend = o.live && st.pend[kind] ? ' pend' : '';
+  return `<span class="sc${ro ? ' ro' : ''}${pend}"${ro ? '' : ` data-step="${kind}"`} data-tip="${esc(stepTip(kind, cur))}" style="width:${size}px;height:${size}px">${stepSvg(kind, cur, size, o.steps)}</span>`;
+}
+
+// ------------------------------------------------------------------ timers: model
+function model(t, o) {
+  const kind = t.charm ? 'charm' : t.un ? 'untimed' : t.still ? 'still' : 'timed';
+  const time = kind === 'timed' ? (t.est ? '~' : '') + cdt(t.left) : kind === 'untimed' ? '?' : kind === 'charm' ? `${t.mins}m` : null;
+  const p = kind === 'timed' ? Math.round((t.left / t.dur) * 1000) / 10 : kind === 'still' ? 100 : 0;
+  const end = kind === 'timed' && t.left <= +o.warn && o.signal !== 'none';
+  const disp = t.g === 'blind' ? blindShort(t.n, 13) : t.n.length > 13 ? t.n.slice(0, 12) + '…' : t.n;
+  const who = t.g === 'sanct' ? (t.self ? 'On you.' : `On ${t.n}.`) : t.g === 'blind' ? 'Blinded by you.' : t.g === 'herb' ? `Herblore, ${t.phase === 'debuff' ? 'a debuff' : 'a buff'} phase.` : '';
+  let tip;
+  if (t.bash) tip = 'Bashed (GMCP). No prompt until "Your head stops stinging."';
+  else if (kind === 'timed') tip = `${t.est ? 'about ' : ''}${exact(t.left)} left. Of ${t.est ? 'about ' : ''}${exact(t.dur)}.${t.est ? ' Timed from your cast.' : ''} ${who}`.trim();
+  else if (kind === 'still') tip = who || 'No end time.';
+  else if (kind === 'charm') tip = `Charmed ${t.mins}m ago.\nHover: × forgets it.`;
+  else tip = `${who ? who + ' ' : ''}${t.g === 'sanct' ? 'Glowing (GMCP). Not cast by you, so no time.' : t.g === 'stored' ? 'Stored, time unknown.' : 'No time.'}`;
+  if (t.g === 'herb') tip += '\nHover: × stops it.';
+  if (end) tip += `\nEnding soon (≤ ${o.warn} s).`;
+  const rm = t.g === 'charm' ? 'charm' : t.g === 'herb' ? 'herb' : null;
+  return Object.assign({}, t, { kind, time, pct: p, end, disp, tip, rm, ic: t.ic || t.g });
+}
+function itemsFor(o) {
+  const set = SETS[o.count];
+  let L = TM.filter((t) => set === 'all' || set.includes(t.id));
+  if (o.state === 'sanct') L.unshift(SELF_SANCT);
+  if (o.state === 'bashed') L.push(BASH);
+  if (o.live) {
+    L = L.filter((t) => !st.gone.has(t.id));
+    L = L.concat(st.added.map(([n, dur]) => ({ id: 'hx-' + n.replace(/\W/g, ''), g: 'herb', n, left: dur - 4, dur })));
+  }
+  L = L.filter((t) => !st.off.has(t.g));
+  const its = L.map((t) => model(t, o));
+  const out = [];
+  GORD.forEach((g) => {
+    let gi = its.filter((i) => i.g === g);
+    if (o.soonest === 'on' && g !== 'charm') {
+      const rk = (t) => (t.kind === 'timed' ? 0 : t.kind === 'still' ? 1 : 2);
+      gi = gi.slice().sort((a, b) => rk(a) - rk(b) || (a.kind === 'timed' && b.kind === 'timed' ? a.left - b.left : 0));
+    }
+    out.push(...gi);
+  });
+  return out;
+}
+// Cramped: ending soon first, then your debuffs (bashed first), blinds and your sanctuary, then the rest.
+function byPrio(o, its) {
+  if (o.prio !== 'on') return its.slice();
+  const r = (t) => (t.end ? 0 : t.bash ? 1 : t.g === 'debuff' ? 2 : t.g === 'blind' || t.self ? 3 : 4);
+  return its.slice().sort((a, b) => r(a) - r(b) || (a.kind === 'timed' ? a.left : 1e9) - (b.kind === 'timed' ? b.left : 1e9));
+}
+
+// ------------------------------------------------------------------ timers: sizes and fitting
+const IH = { pill: [16, 16, 8], ring: [16, 16, 14], stone: [30, 28, 16], ledger: [13, 13, 13], timeline: [12, 9, 4], dial: [21, 28, 14] };
+const itemH = (d, l) => (l === 4 ? 12 : IH[d][l - 1]);
+const gapOf = (d, l) => (l === 4 || d === 'timeline' ? 2 : 3);
+function dsize(d, l, t, W) {
+  if (l === 4) return { w: 12, h: 12 };
+  const n = t.disp.length, tl = (t.time || '').length, T = tl ? 4 + tl * CH : 0, h = itemH(d, l);
+  switch (d) {
+    case 'pill': return l === 1 ? { w: 23 + n * CH + T, h } : l === 2 ? { w: 23 + (tl ? tl * CH : 0), h } : { w: 22, h };
+    case 'ring': return l === 1 ? { w: 24 + n * CH + T, h } : l === 2 ? { w: tl ? 24 + tl * CH : 16, h } : { w: 14, h };
+    case 'stone': return l === 1 ? { w: clamp(Math.max(n * CH9, 13 + tl * CH) + 9, 46, 74), h } : l === 2 ? { w: Math.max(24, tl * CH + 6), h } : { w: 16, h };
+    case 'ledger': return l === 1 ? { w: 8 + n * CH + 10 + tl * CH + 4, h } : l === 2 ? { w: 8 + 13 + tl * CH + 5, h } : { w: 13, h };
+    case 'timeline': return { w: W, h };
+    case 'dial': return l === 1 ? { w: 22 + Math.max(n * CH9 * 0.95, tl * CH9) + 4, h } : l === 2 ? { w: Math.max(20, tl * CH9 + 4), h } : { w: 14, h };
+  }
+  return { w: 20, h: 16 };
+}
+function mkBoxes(o, d, l, its, W, more) {
+  const B = [], ih = itemH(d, l), herbOn = !st.off.has('herb');
+  const tl = d === 'timeline' && l < 4;
+  const add = tl ? { k: 'add', w: W, h: Math.max(ih, 8), row: 1 } : l <= 2 ? { k: 'add', w: 16, h: ih } : { k: 'add', w: ih, h: ih };
+  if (l === 4) {
+    its.forEach((t) => B.push(Object.assign({ k: 'it', t }, dsize(d, 4, t, W))));
+    if (herbOn) B.push({ k: 'add', w: 12, h: 12 });
+  } else if (o.groups === 'headers') {
+    GORD.forEach((g) => {
+      const gi = its.filter((t) => t.g === g);
+      if (!gi.length && !(g === 'herb' && herbOn)) return;
+      if (l <= 2 || tl) B.push({ k: 'hdr', g, w: W, h: 11, row: 1 });
+      else B.push({ k: 'tag', g, w: g === 'herb' ? 18 : 9, h: ih });
+      gi.forEach((t) => B.push(Object.assign({ k: 'it', t }, dsize(d, l, t, W))));
+    });
+  } else {
+    if (herbOn) B.push(add);
+    its.forEach((t) => B.push(Object.assign({ k: 'it', t }, dsize(d, l, t, W))));
+  }
+  // Even columns: stones and the ledger.
+  if ((d === 'stone' || d === 'ledger') && l <= 2) {
+    const gap = gapOf(d, l), it = B.filter((b) => b.k === 'it');
+    if (it.length) {
+      const mx = Math.max(...it.map((b) => b.w));
+      let cols = Math.max(1, Math.floor((W + gap) / (mx + gap)));
+      if (d === 'ledger') cols = Math.min(cols, 3);
+      const w = Math.floor((W - gap * (cols - 1)) / cols);
+      it.forEach((b) => { b.w = w; });
+    }
+  }
+  if (more && more.length) B.push({ k: 'more', rest: more, w: l === 4 ? 8 + String(more.length).length * 6 : tl ? W : 22, h: l === 4 ? 12 : Math.max(ih, 9), row: tl ? 1 : 0 });
+  return B;
+}
+function flow(B, W, H, gap) {
+  let x = 0, y = 0, rh = 0;
+  for (const b of B) {
+    const w = Math.min(b.w, W);
+    if ((b.row && x > 0) || (x > 0 && x + w > W + 0.5)) { y += rh + gap; x = 0; rh = 0; }
+    rh = Math.max(rh, b.h);
+    if (y + rh > H + 0.5) return false;
+    x += w + gap;
+  }
+  return true;
+}
+function layoutTimers(o, W, H) {
+  const d = o.design, its = itemsFor(o);
+  const levels = o.dens === 'auto' ? [1, 2, 3, 4] : [+o.dens];
+  for (const l of levels) {
+    const list = l === 4 ? byPrio(o, its) : its;
+    const B = mkBoxes(o, d, l, list, W);
+    if (flow(B, W, H, gapOf(d, l))) return { l, B, its, hidden: [] };
+  }
+  const l = levels[levels.length - 1], pr = byPrio(o, its);
+  for (let k = pr.length - 1; k >= 0; k--) {
+    const keep = new Set(pr.slice(0, k).map((t) => t.id));
+    const shown = l === 4 ? pr.slice(0, k) : its.filter((t) => keep.has(t.id));
+    const hidden = pr.slice(k);
+    const B = mkBoxes(o, d, l, shown, W, hidden);
+    if (flow(B, W, H, gapOf(d, l))) return { l, B, its, hidden };
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ timers: drawing
+function ringW(t, s) {
+  const arc = t.kind === 'timed' || t.kind === 'still' ? `<circle cx="10" cy="10" r="8.4" class="ar" pathLength="100" stroke-dasharray="${t.pct} 100"/>` : '';
+  return `<span class="rgw" style="width:${s}px;height:${s}px"><svg class="rg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" class="tr"/>${arc}</svg>${svg(t.ic)}</span>`;
+}
+function pie(t, s, ico) {
+  const p = t.kind === 'timed' ? t.pct / 100 : t.kind === 'still' ? 1 : 0;
+  let w = '';
+  if (p >= 0.999) w = '<circle cx="10" cy="10" r="9" class="pw"/>';
+  else if (p > 0) { const a = p * 360, [x, y] = pt(10, 9, a); w = `<path class="pw" d="M10 10L10 1A9 9 0 ${a > 180 ? 1 : 0} 1 ${x} ${y}Z"/>`; }
+  const c = ico ? `<circle cx="10" cy="10" r="5.4" class="pc"/>` : '';
+  return `<span class="rgw" style="width:${s}px;height:${s}px"><svg class="pie" viewBox="0 0 20 20" width="${s}" height="${s}"><circle cx="10" cy="10" r="9" class="pb"/>${w}${c}</svg>${ico ? svg(t.ic, 'ti', 'width:46%;height:46%;position:relative') : ''}</span>`;
+}
+const TICKS = [60, 600, 3600].map((s) => `<i class="tk" style="left:${(lx(s) * 100).toFixed(1)}%"></i>`).join('');
+function itemHtml(o, d, l, t, w, h) {
+  const cls = ['tm', `d-${d === 'timeline' ? 'tl' : d}`, `l${l}`, t.kind, t.end ? 'end' : '', t.rm ? 'rm' : ''].join(' ');
+  const tip = `${GLAB[t.g]} · ${t.n}\n${t.tip}`;
+  const sty = `width:${w}px;height:${h}px;--c:var(--g-${t.g});--p:${t.pct}%;--f:${t.pct / 100}`;
+  const ic = svg(t.ic), tm = t.time ? `<b class="t">${t.time}</b>` : '';
+  const x = t.rm ? `<i class="x" data-rm="${t.id}" data-tip="${t.rm === 'charm' ? 'Forget this charmie' : 'Stop this herblore'}">${svg('close')}</i>` : '';
+  const nm = `<span class="nm">${esc(t.disp)}</span>`;
+  let inner = '';
+  if (l === 4) inner = ic + x;
+  else if (d === 'pill') inner = l === 1 ? ic + nm + tm + x : l === 2 ? ic + tm + x : x;
+  else if (d === 'ring') inner = l === 1 ? ringW(t, 16) + nm + tm + x : l === 2 ? ringW(t, 16) + tm + x : ringW(t, 14) + x;
+  else if (d === 'stone') inner = l === 1 ? `<span class="st1">${ic}${tm}${x}</span>${nm}` : l === 2 ? ic + tm + x : ic + x;
+  else if (d === 'ledger') inner = l === 1 ? nm + '<i class="ld"></i>' + tm + x : l === 2 ? ic + '<i class="ld"></i>' + tm + x : ringW(t, 13) + x;
+  else if (d === 'timeline') {
+    const xp = t.kind === 'timed' ? lx(t.left) * 100 : t.kind === 'charm' ? 0 : 100;
+    const bar = `<span class="tb" style="width:${xp.toFixed(1)}%"></span>${l < 3 ? TICKS : ''}`;
+    inner = l === 1 ? bar + `<span class="tl">${ic}${nm}</span>` + tm + x : l === 2 ? bar + `<span class="tl">${ic}</span>` + tm + x : bar;
+  } else if (d === 'dial') inner = l === 1 ? pie(t, 18, false) + `<span class="dt">${nm}${tm}</span>` + x : l === 2 ? pie(t, 18, true) + tm + x : pie(t, 14, true) + x;
+  return `<span class="${cls}" data-flip="t-${t.id}" data-tip="${esc(tip)}" style="${sty}">${inner}</span>`;
+}
+function boxHtml(o, d, l, b, W) {
+  const w = Math.min(b.w, W), h = b.h;
+  if (b.k === 'it') return itemHtml(o, d, l, b.t, w, h);
+  if (b.k === 'hdr') return `<div class="tgh" style="--c:var(--g-${b.g})">${svg(b.g)}${GLAB[b.g]}${b.g === 'herb' ? '<button class="hadd" data-add data-tip="Start a herblore">+</button>' : ''}</div>`;
+  if (b.k === 'tag') return `<span class="ttag" style="width:${w}px;height:${h}px;--c:var(--g-${b.g})" data-tip="${GLAB[b.g]}">${svg(b.g)}${b.g === 'herb' ? '<b data-add data-tip="Start a herblore">+</b>' : ''}</span>`;
+  if (b.k === 'add') return `<span class="tadd${b.row ? ' row' : ''}" data-add data-flip="t-add" data-tip="Herblores\nClick: start a herblore" style="width:${w}px;height:${h}px;${l === 4 ? 'border-radius:3px;font-size:10px' : ''}">${b.row && h >= 8 ? '+ herblore' : '+'}</span>`;
+  if (b.k === 'more') return `<span class="tmore" data-flip="t-more" data-tip="${esc(`${b.rest.length} more (no room):\n` + b.rest.map((t) => `${t.n}${t.time ? '  ' + t.time : ''}`).join('\n'))}" style="width:${w}px;height:${h}px">+${b.rest.length}</span>`;
+  return '';
+}
+function timersArea(o, W, H) {
+  const lay = layoutTimers(o, W, H);
+  if (!lay) return null;
+  const d = o.design;
+  const html = `<div class="tma sig-${o.signal}${gapOf(d, lay.l) === 2 ? ' gap2' : ''}" style="width:${W}px;max-height:${H}px">${lay.B.map((b) => boxHtml(o, d, lay.l, b, W)).join('')}</div>`;
+  return { html, l: lay.l, n: lay.its.length, hidden: lay.hidden.length };
+}
+
+// ------------------------------------------------------------------ geometry
+function geo(o) {
+  const z = Object.assign({}, SZ[o.size]);
+  if (o.W) z.w = o.W; if (o.H) z.h = o.H;
+  const innerW = z.w - 28;
+  const cwH = Math.floor(z.h - 28 - z.bar - 6);
+  const showCw = cwH >= 14;
+  const tabsW = z.tabs, tr = z.cs + 2;
+  const trW = 4 * z.cs + 3 * 3 + 8 + 5 * z.ico + 4 * 3 + 7;
+  const arcTop = o.name === 'arc' ? 11 : 0;
+  const pdW = innerW - tabsW - 8 - trW;
+  let p = Math.min(pdW, 170, cwH - arcTop);
+  for (let i = 0; i < 3; i++) { const rp = clamp(Math.round(p * 0.3), 20, 34); p = Math.min(pdW, 170, cwH - arcTop - Math.round(rp * 0.32)); }
+  let pd = 0, ringPx;
+  if (p >= 44) { pd = Math.floor(p); ringPx = clamp(Math.round(pd * 0.3), 20, 34); }
+  else ringPx = clamp(Math.min(cwH, 30), 16, 30);
+  const lcw = pd || ringPx;
+  const raW = innerW - lcw - 8 - tabsW;
+  return { z, innerW, cwH, showCw, tabsW, tr, pd, ringPx, lcw, raW, arcTop, tall: pd && cwH > pd * 1.5 };
+}
+
+// ------------------------------------------------------------------ the portrait
+function nameFx(o, pd, at) {
+  const ext = clamp(Math.round(pd * 0.08), 5, 12);
+  const h = clamp(Math.round(pd * 0.16), 12, 22), fs = clamp(Math.round(h * 0.62), 8, 13);
+  const top = at + Math.round(pd * 0.57);
+  if (o.name === 'ribbon') return `<div class="npl ribbon" data-flip="name" style="left:${-ext}px;top:${top}px;width:${pd + 2 * ext}px;height:${h}px;font-size:${fs}px">${D.name}</div>`;
+  if (o.name === 'plaque') { const w = clamp(Math.round(pd * 0.62), 46, 104); return `<div class="npl plaque" data-flip="name" style="left:${(pd - w) / 2}px;top:${top}px;width:${w}px;height:${h - 1}px;font-size:${fs}px">${D.name}</div>`; }
+  if (o.name === 'smile') {
+    const W = pd + 2 * ext, y0 = Math.round(pd * 0.56) + h / 2, dip = pd * 0.12;
+    return `<svg class="nsvg" data-flip="name" style="left:${-ext}px;top:${at}px;width:${W}px;height:${pd}px" viewBox="0 0 ${W} ${pd}"><path id="sm${pd}" d="M2 ${y0} Q${W / 2} ${y0 + dip} ${W - 2} ${y0}" class="smile" stroke-width="${h}"/><path d="M2 ${y0 - h / 2 + 0.5} Q${W / 2} ${y0 + dip - h / 2 + 0.5} ${W - 2} ${y0 - h / 2 + 0.5}" class="smile2" stroke-width=".8"/><text font-size="${fs}" dy="${(fs * 0.36).toFixed(1)}"><textPath href="#sm${pd}" startOffset="50%" text-anchor="middle">${D.name}</textPath></text></svg>`;
+  }
+  if (o.name === 'arc') {
+    const W = pd + 16, cx = W / 2, cy = at + pd / 2, R = pd / 2 + 3.5;
+    const [x1, y1] = pt(0, R, -62).map(Number), [x2, y2] = pt(0, R, 62).map(Number);
+    const fs2 = clamp(Math.round(pd * 0.1), 9, 13);
+    return `<svg class="nsvg" data-flip="name" style="left:-8px;top:0;width:${W}px;height:${at + pd / 2}px" viewBox="0 0 ${W} ${at + pd / 2}"><path id="ar${pd}" d="M${(cx + x1).toFixed(1)} ${(cy + y1).toFixed(1)}A${R} ${R} 0 0 1 ${(cx + x2).toFixed(1)} ${(cy + y2).toFixed(1)}" fill="none"/><text class="arct" font-size="${fs2}"><textPath href="#ar${pd}" startOffset="50%" text-anchor="middle">${D.name.toUpperCase()}</textPath></text></svg>`;
+  }
+  return '';
+}
+function swordsFx(o, pd, rp, at, over) {
+  const cx = pd / 2, cy = at + pd / 2;
+  const big = (s, x, y, cls) => `<svg class="swd ${cls}" data-flip="sw" viewBox="0 0 100 100" style="left:${(x - s / 2).toFixed(1)}px;top:${(y - s / 2).toFixed(1)}px;width:${s.toFixed(1)}px;height:${s.toFixed(1)}px"><use href="#swords"/></svg>`;
+  const badge = (s, x, y, cls = '') => `<span class="swb ${cls}" data-flip="sw" data-tip="Fighting" style="left:${(x - s / 2).toFixed(1)}px;top:${(y - s / 2).toFixed(1)}px;width:${s}px;height:${s}px"><svg viewBox="0 0 100 100"><use href="#swords"/></svg></span>`;
+  switch (o.swords) {
+    case 'badge': { const s = clamp(Math.round(pd * 0.3), 16, 34), [x, y] = pt(cx, pd / 2, 45).map(Number); return badge(s, x, y - cx + cy); }
+    case 'crest': { const s = clamp(Math.round(pd * 0.32), 16, 36); return badge(s, cx, at + s * 0.22, 'crest'); }
+    case 'behind': return big(pd * 1.55, cx, cy, 'behind');
+    case 'ring': return big(rp * 2.3, cx, at + pd + over - rp / 2, 'atring');
+    case 'emblem': return big(pd * 0.74, cx, cy, 'emblem');
+    case 'flank': {
+      const hgt = pd * 0.95, wd = hgt * 0.4;
+      const one = (x, rot) => `<svg class="swd flank" data-flip="sw${rot}" viewBox="0 0 40 100" style="left:${(x - wd / 2).toFixed(1)}px;top:${(cy - hgt / 2).toFixed(1)}px;width:${wd.toFixed(1)}px;height:${hgt.toFixed(1)}px;transform:rotate(${rot}deg)"><use href="#sword1"/></svg>`;
+      return one(-pd * 0.02, -16) + one(pd * 1.02, 16);
+    }
+  }
+  return '';
+}
+function sanctFx(o, pd, at, style) {
+  const f = SELF_SANCT.left / SELF_SANCT.dur, sz = pd + 16, c = sz / 2;
+  const tip = `Sanctuary on you\n${exact(SELF_SANCT.left)} left. Of ${exact(SELF_SANCT.dur)}.`;
+  const pos = `left:-8px;top:${at - 8}px;width:${sz}px;height:${sz}px`;
+  if (style === 'c') {
+    const N = 36, R1 = pd / 2 + 3, L = clamp(pd * 0.05, 3, 7);
+    let rays = '';
+    for (let i = 0; i < N; i++) { const a = (i + 0.5) * 360 / N + 90, [x1, y1] = pt(c, R1, a), [x2, y2] = pt(c, R1 + L, a); rays += `<path d="M${x1} ${y1}L${x2} ${y2}" class="ray${i < Math.round(f * N) ? ' lit' : ''}"/>`; }
+    return `<svg class="sanring" data-flip="sanct" style="${pos}" viewBox="0 0 ${sz} ${sz}" data-tip="${esc(tip)}">${rays}</svg>`;
+  }
+  const R = pd / 2 + 4.5;
+  return `<svg class="sanring" data-flip="sanct" style="${pos}" viewBox="0 0 ${sz} ${sz}" data-tip="${esc(tip)}"><circle cx="${c}" cy="${c}" r="${R}" class="bg"/><circle cx="${c}" cy="${c}" r="${R}" class="arc${style === 'b' ? ' thin' : ''}" pathLength="100" stroke-dasharray="${(f * 100).toFixed(1)} 100"/></svg>`;
+}
+const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2l-6.1 3.4 1.4-6.8L2.2 9.1l6.9-.8z"/></svg>';
+function bashFx(pd, at, style) {
+  if (style === 'b') { const s = clamp(Math.round(pd * 0.28), 15, 32), [x, y] = pt(pd / 2, pd / 2, -45).map(Number); return `<span class="bburst" data-flip="bash" data-tip="Bashed" style="left:${x - s / 2}px;top:${at + y - s / 2}px;width:${s}px;height:${s}px">${svg('bashed', '')}</span>`; }
+  const ss = clamp(Math.round(pd * 0.13), 7, 15);
+  return `<div class="orb" data-tip="Bashed" style="left:${pd * 0.2}px;top:${at + pd * 0.02}px;width:${pd * 0.6}px;height:${pd * 0.3}px;--R:${(pd * 0.27).toFixed(1)}px;--ss:${ss}px">${[0, 0.8, 1.6].map((dl) => `<i style="animation-delay:-${dl}s">${STAR}</i>`).join('')}</div>`;
+}
+function leftCol(o, g, F) {
+  const pd = g.pd, rp = g.ringPx, at = g.arcTop;
+  const pre = o.name !== 'hood' ? `${D.name}\n` : '';
+  if (!pd) {
+    const sw = F && o.swords !== 'off' ? `<span class="swb" data-flip="sw" data-tip="Fighting" style="right:-6px;top:-5px;width:13px;height:13px"><svg viewBox="0 0 100 100"><use href="#swords"/></svg></span>` : '';
+    return `<div class="lc2 top" style="width:${rp}px"><div class="medal2" data-flip="medal" style="width:${rp}px;height:${rp}px">${ring(rp, pre)}${sw}</div></div>`;
+  }
+  const over = Math.round(rp * 0.32), mh = at + pd + over;
+  const ps = o.pstyle;
+  let dc = '', fx = '';
+  if ((o.state === 'rest') && o.pdim === 'on') dc = 'dim1';
+  if (o.state === 'sleep' && o.pdim === 'on') dc = 'sleep' + ps;
+  if (o.state === 'bashed' && o.pbash === 'on') { if (ps === 'c') dc = 'tilt'; fx += bashFx(pd, at, ps === 'b' ? 'b' : 'a'); }
+  if (o.state === 'sanct' && o.psanct === 'on') { if (ps === 'b') dc = 'halo'; fx += sanctFx(o, pd, at, ps); }
+  if (o.state === 'sleep' && o.pdim === 'on' && ps === 'b') fx += `<span class="zz" style="left:${pd * 0.7}px;top:${at + pd * 0.04}px;font-size:${clamp(Math.round(pd * 0.17), 9, 20)}px">z<small>z</small></span>`;
+  const glass = o.name === 'glass' ? `<div class="npl glass" data-flip="name" style="top:${Math.round(pd * 0.57)}px;height:${clamp(Math.round(pd * 0.16), 12, 22)}px;font-size:${clamp(Math.round(pd * 0.1), 8, 13)}px">${D.name}</div>` : '';
+  const disc = `<div class="disc2 ${dc}" data-tip="${esc(`${D.name}\nTarkhnarb orc`)}" style="top:${at}px;width:${pd}px;height:${pd}px"><svg class="fig" viewBox="0 0 60 75" preserveAspectRatio="xMidYMin meet"><use href="#r-${D.race}"/></svg>${glass}</div>`;
+  const named = o.name !== 'glass' ? nameFx(o, pd, at) : '';
+  const sw = F ? swordsFx(o, pd, rp, at, over) : '';
+  const lr = `<div class="lrpos" style="left:${(pd - rp) / 2}px;top:${at + pd + over - rp}px">${ring(rp, pre)}</div>`;
+  return `<div class="lc2${g.tall ? ' top' : ''}" style="width:${pd}px"><div class="medal2" data-flip="medal" style="width:${pd}px;height:${mh}px">${disc}${fx}${named}${sw}${lr}</div></div>`;
+}
+
+// ------------------------------------------------------------------ the status area
+const POS = { stand: 'standing', rest: 'resting', sleep: 'sleeping', bashed: 'resting', sanct: 'standing' };
+const POSCLICK = { standing: 'rest', resting: 'stand', sleeping: 'wake' };
+function topRow(o, g, F, count) {
+  const cs = g.z.cs, ic = g.z.ico, s = `width:${ic}px;height:${ic}px`;
+  const circles = ['mood', 'casts', 'alert', 'weight'].map((k) => stepEl(o, k, cs)).join('');
+  const tog = ['sneak', 'ride', 'climb', 'swim'].map((k) => {
+    const on = o.tog[k];
+    const cmd = k === 'ride' ? (on ? 'lead' : 'ride') : k;
+    return `<span data-tog="${k}" class="${o.live && st.pend[k] ? 'pend' : ''}" data-tip="${k}: ${on ? 'on' : 'off'}\nClick: ${cmd}">${svg(k, 'ti' + (on ? ' on' : ''), s)}</span>`;
+  }).join('');
+  const red = F && o.swTop === 'on';
+  const pk = red ? 'fighting' : POS[o.state];
+  const ptip = red ? 'fighting' : `${pk}${o.state === 'bashed' ? ' (bashed)' : ''}\nClick: ${POSCLICK[pk]}`;
+  const pos = `<span data-pos class="${o.live && st.pend.pos ? 'pend' : ''}" data-tip="${ptip}">${svg(pk, 'ti posi' + (red ? ' fight' : ''), s)}</span>`;
+  const cnt = count && count.length ? `<span class="tcount" data-tip="${esc(`${count.length} timers (no room to show them):\n` + count.map((t) => `${t.n}${t.time ? '  ' + t.time : ''}`).join('\n'))}">${svg('waiting')}${count.length}</span>` : '';
+  return `<div class="trow" data-flip="trow" style="height:${g.tr}px"><span class="stp">${circles}</span>${cnt}<span class="tgl">${tog}${pos}</span></div>`;
+}
+function statusArea(o, g, F) {
+  if (g.cwH < g.tr) return { html: '' };
+  const H = g.cwH - g.tr - 4;
+  const tm = H >= 12 ? timersArea(o, g.raW, H) : null;
+  const html = topRow(o, g, F, tm ? null : itemsFor(o)) + (tm ? tm.html : '');
+  return { html, tm };
+}
+function statsTab() {
+  const sh = [['ob', 'OB', '137'], ['db', 'DB', '−1'], ['pb', 'PB', '39'], ['abs', 'ABS', '43']];
+  const ab = [['STR', 18, 1], ['INT', 16], ['WIS', 16], ['DEX', 11], ['CON', 12], ['WIL', 16], ['PER', 8]];
+  return `<div class="shl">${sh.map(([i, l, v]) => `<div>${svg(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div><div class="ab">${ab.map(([k, v, u]) => `<div class="abx${u ? ' up' : ''}"><small>${k}</small><b>${v}</b></div>`).join('')}</div><div class="ageln">Age <b>57</b> · 2nd age · 3rd at 64</div>`;
+}
+function loreTab() {
+  const f = (l, v, cls = '') => `<div class="f ${cls}"><small>${l}</small><b>${v}</b></div>`;
+  return `<div class="lore">${f('Race', 'Tarkhnarb orc')}${f('Alignment', 'totally corrupted by the Evilness of Morgoth', 'wide')}${f('Citizen', 'GoblinTown')}${f('War fame', 'known<em> 4</em>')}${f('Purse', '<span class="coin"></span>380')}${f('Height', "4' 11\"")}${f('Birthday', 'in 5 months')}</div>`;
+}
+
+// ------------------------------------------------------------------ vitals
+function vForm(colW, label) { const lw = label.length * 8.5 + 4, pad = 22; return lw + 9 * 6.6 + pad <= colW ? 'full' : lw + 3 * 6.6 + pad <= colW ? 'value' : 'number'; }
+function vIn(g, F, label, cls, a, band, extra, tip, colW) {
+  const known = !(F && band), p = known ? pct(a) : band[0], form = vForm(colW, label);
+  const num = !known ? '' : form === 'full' ? `${a[0]}<small> / ${a[1]}</small>` : `${a[0]}`;
+  const lab = form === 'number' && known ? '' : `<span class="k2">${label}</span>`;
+  return `<div class="vit" data-flip="v-${cls}"${tip ? ` data-tip="${tip}"` : ''}><span class="b ${cls}" style="height:${g.z.bar}px;border-radius:5px"><i style="--w:${p}%"></i>${known ? '' : `<u style="--lo:${band[0]}%;--hi:${band[1]}%"></u>`}${extra || ''}<span class="lab">${lab}<span>${num}</span></span></span></div>`;
+}
+function vitals(g, F) {
+  const wim = `<span class="wim" style="--p:${Math.round((D.wimpy / D.hp[1]) * 100)}%"></span>`;
+  const hpTip = (F ? `HP: only the band is known (${D.band[0]}–${D.band[1]} %)` : 'HP 187 / 270 · 69 %') + '\nwimpy 150: you flee below the arrow';
+  const col = (g.innerW - 12 - 12) / 3;
+  return `<div class="vit3">${vIn(g, F, 'HP', 'hp', D.hp, D.band, wim, hpTip, col)}${vIn(g, F, 'MANA', 'ma', D.ma, null, '', '', col)}${vIn(g, F, 'MOVES', 'mv', D.mv, D.mvBand, '', '', col)}</div>`;
+}
+
+// ------------------------------------------------------------------ the card
+let lastMeta = null;
+function card(o) {
+  o = Object.assign({}, st, o);
+  const g = geo(o), F = o.fight === 'on', tab = +o.tab;
+  let ra = '', meta = null;
+  if (g.showCw) {
+    if (tab === 0) { const s = statusArea(o, g, F); ra = s.html; meta = s.tm; }
+    else ra = tab === 1 ? statsTab() : loreTab();
+  }
+  if (o.live) lastMeta = { g, tm: meta, n: itemsFor(o).length };
+  const names = ['Status', 'Stats', 'Lore'];
+  const perTab = (g.cwH + 20 - 18 - 6) / 3, tfs = Math.min(9, (perTab - 8) / 6), marks = tfs < 6.5, MK = ['S', 'ST', 'L'];
+  const tabs = `<div class="vt" data-flip="tabs" style="width:${g.tabsW}px;--tfs:${marks ? 8.5 : tfs}px">${names.map((n, i) => `<button data-tab="${i}" data-tip="${n}" class="${i === tab ? 'on' : ''}">${marks ? MK[i] : n.toUpperCase()}</button>`).join('')}</div>`;
+  const cw = g.showCw ? `<div class="cw" style="height:${g.cwH}px">${leftCol(o, g, F)}<div class="ra"><div class="tpn">${ra}</div></div>${tabs}</div>` : '';
+  const hood = o.name === 'hood' ? D.name.toUpperCase() : 'CHARACTER';
+  return `<div class="pane${o.pane === 'paper' ? ' paper' : ''}" style="width:${g.z.w}px"><div class="hood">${hood}</div>${svg('gear', 'gearb')}<div class="win${F && o.rim === 'on' ? ' redrule' : ''}" style="height:${g.z.h}px">${cw}<div class="foot">${vitals(g, F)}</div></div></div>`;
+}
+function host(o, label = '', note = '') {
+  return `<div class="cap">${label ? `<span class="lbl">${label}</span>` : ''}<div class="host" data-o="${esc(JSON.stringify(o))}">${card(o)}</div>${note ? `<p>${note}</p>` : ''}</div>`;
+}
+const LV = ['', '1 · namn + tid', '2 · ikon + tid', '3 · bara ringar', '4 · rutnät'];
+function autoNote(o) {
+  o = Object.assign({}, st, o);
+  const g = geo(o);
+  if (!g.showCw || +o.tab !== 0) return '';
+  const H = g.cwH - g.tr - 4;
+  const tm = H >= 12 ? layoutTimers(o, g.raW, H) : null;
+  const n = itemsFor(o).length;
+  if (!tm) return `${n} timers · ingen plats: räknare i toppraden`;
+  return `${o.dens === 'auto' ? 'auto → ' : ''}steg ${LV[tm.l]}${tm.hidden.length ? ` · +${tm.hidden.length} gömda` : ''}`;
+}
+
+// ------------------------------------------------------------------ motion (FLIP)
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+function snap(root) { const m = new Map(); root.querySelectorAll('[data-flip]').forEach((e) => m.set(e.dataset.flip, e.getBoundingClientRect())); return m; }
+function play(root, before) {
+  if (reduce.matches || !before) return;
+  const ease = 'cubic-bezier(.2,.7,.2,1)';
+  root.querySelectorAll('[data-flip]').forEach((e) => {
+    if (e.parentElement.closest('[data-flip]')) return;
+    const a = before.get(e.dataset.flip), b = e.getBoundingClientRect();
+    if (!a) { e.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: ease, delay: 80, fill: 'backwards' }); return; }
+    const dx = a.left - b.left, dy = a.top - b.top, sx = b.width ? a.width / b.width : 1, sy = b.height ? a.height / b.height : 1;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return;
+    e.animate([{ transformOrigin: '0 0', transform: `translate(${dx}px,${dy}px) scale(${sx},${sy})` }, { transformOrigin: '0 0', transform: 'none' }], { duration: 420, easing: ease });
+  });
+}
+
+// ------------------------------------------------------------------ sections
+function renderBench(animate) {
+  const el = document.getElementById('bench');
+  const before = animate ? snap(el) : null;
+  el.innerHTML = `<div class="host" data-live>${card({ live: true })}</div>`;
+  play(el, before);
+  const m = lastMeta, z = m.g.z;
+  let t = `<b>${z.name} ${z.w} × ${z.h} px.</b> Porträtt ${m.g.pd ? m.g.pd + ' px' : 'borta (bara nivåringen)'}, statusytan ${m.g.raW} px bred. `;
+  if (+st.tab === 0) t += m.tm ? `<b>${m.n} timers</b> → ${st.dens === 'auto' ? 'Auto valde' : 'tvingat'} <b>steg ${LV[m.tm.l]}</b>${m.tm.hidden ? `, och ${m.tm.hidden} får inte plats (<code>+${m.tm.hidden}</code>)` : ''}.` : `<b>${m.n} timers</b> får inte plats och blir en räknare i toppraden.`;
+  const dz = DESIGNS.find((x) => x[0] === st.design);
+  t += ` <br><b>${dz[1]}:</b> ${dz[2]}`;
+  document.getElementById('benchnote').innerHTML = t;
+  const gc = document.getElementById('gearcard');
+  const b2 = animate ? snap(gc) : null;
+  gc.innerHTML = `<div class="host" data-live>${card({ live: true, size: 'medium', tab: '0' })}</div>`;
+  play(gc, b2);
+}
+function renderSteps() {
+  const leg = { mood: 'Mood', casts: 'Casts', alert: 'Alertness', weight: 'Weight' };
+  document.getElementById('steplegend').innerHTML = Object.keys(leg).map((k) => `<span><b style="color:var(--ink)">${leg[k]}</b>: ${STEPS[k].steps.map((s, i) => `<i style="background:var(--s-${STEPS[k].col[i]})"></i>${s}`).join(' ')}</span>`).join('');
+  const moods = ['wimpy', 'normal', 'aggressive', 'berserk'];
+  const pl = st.pane === 'paper' ? ' lightbg' : '';
+  let h = `<div class="stab${pl}" style="background:var(--pane-bg);color:var(--text)"><div class="hd">variant</div><div class="hd">lupp</div>${moods.map((m) => `<div class="hd">${m}</div>`).join('')}<div class="hd">M C A W · 16 px</div>`;
+  STEPVARS.forEach(([id, n, why]) => {
+    h += `<div class="nm" data-pick="steps:${id}" style="cursor:pointer"><h3 style="color:var(--text)">${n}${st.steps === id ? ' ·  i bänken' : ''}</h3><p style="color:var(--dim)">${why}</p></div>`;
+    h += `<div class="cell"><span class="sc" data-tip="${esc(stepTip('mood', 'aggressive'))}">${stepSvg('mood', 'aggressive', 44, id)}</span></div>`;
+    moods.forEach((m) => { h += `<div class="cell"><span class="pair"><span class="sc" data-tip="${esc(stepTip('mood', m))}">${stepSvg('mood', m, 18, id)}</span><span class="sc" data-tip="${esc(stepTip('mood', m))}">${stepSvg('mood', m, 14, id)}</span></span></div>`; });
+    h += `<div class="cell"><span class="pair" style="gap:3px">${['mood', 'casts', 'alert', 'weight'].map((k) => `<span class="sc" data-tip="${esc(stepTip(k, st[k]))}">${stepSvg(k, st[k], 16, id)}</span>`).join('')}</span></div>`;
+  });
+  document.getElementById('steps').innerHTML = h + '</div>';
+  document.getElementById('steps').className = 'stepbg' + pl;
+}
+function renderNames() {
+  document.getElementById('names').innerHTML = NAMES.map(([id, n, why]) => `<div class="gridalt"><h3 data-pick="name:${id}" style="cursor:pointer"><span>${id === st.name ? '●' : '○'}</span>${n}</h3><p>${why}</p><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${host({ name: id, size: 'medium' }, 'Medium')}${host({ name: id, size: 'large' }, 'Large')}</div></div></div>`).join('');
+}
+function renderDesigns() {
+  const cases = [['medium', 'few', 'Medium · få'], ['medium', 'normal', 'Medium · normalt'], ['medium', 'many', 'Medium · många'], ['large', 'many', 'Large · många'], ['tallN', 'many', 'Hög smal · många'], ['tallW', 'many', 'Hög bred · många']];
+  document.getElementById('designs').innerHTML = DESIGNS.map(([id, n, why]) => `<div class="gridalt"><h3 data-pick="design:${id}" style="cursor:pointer"><span>${id === st.design ? '●' : '○'}</span>${n}</h3><p>${why}</p><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${cases.map(([s, c, l]) => { const o = { design: id, size: s, count: c, tab: '0', dens: 'auto', fight: 'off' }; return host(o, `${l} · ${autoNote(o)}`); }).join('')}</div></div></div>`).join('');
+  const dz = DESIGNS.find((x) => x[0] === st.design);
+  const lad = [1, 2, 3, 4].map((l) => { const o = { design: st.design, size: 'medium', count: 'many', tab: '0', dens: String(l), fight: 'off' }; return host(o, `steg ${LV[l]} · ${autoNote(o)}`); }).join('');
+  const gr = ['color', 'headers'].map((gm) => { const o = { design: st.design, size: 'tallN', count: 'many', tab: '0', dens: 'auto', groups: gm, fight: 'off' }; return host(o, `Hög smal · ${gm === 'color' ? 'färg' : 'rubriker'} · ${autoNote(o)}`); }).join('');
+  document.getElementById('ladder').innerHTML = `<div class="gridalt"><h3><span>↓</span>Trappan: ${dz[1]}, alla fyra stegen i Medium (23 timers)</h3><p>Varje steg är tvingat. Det som inte får plats blir <code>+n</code>, och de som tar slut snart och dina debuffs visas först. Håll muspekaren över en charmie eller herblore för att se <code>×</code>.</p><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${lad}</div></div></div>
+    <div class="gridalt"><h3><span>≡</span>Färg eller rubriker (${dz[1]})</h3><p>Med färg skiljs grupperna bara åt av sin färg och ikon, och Herblores <code>+</code> är en streckad knapp först i listan. Med rubriker har varje grupp en liten rubrik (11 px), och <code>+</code> sitter i Herblores rubrik. I steg 3 blir rubrikerna en färgad flik med ikonen.</p><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${gr}</div></div></div>`;
+}
+function renderSwords() {
+  document.getElementById('swordsec').innerHTML = SWORDS.map(([id, n, why]) => `<div class="gridalt"><h3 data-pick="swords:${id}" style="cursor:pointer"><span>${id === st.swords ? '●' : '○'}</span>${n}</h3><p>${why}</p><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${host({ swords: id, fight: 'on', rim: 'on', size: 'large', tab: '0' }, 'Large · röd kant')}${host({ swords: id, fight: 'on', rim: 'on', size: 'medium', tab: '0' }, 'Medium · röd kant')}${host({ swords: id, fight: 'on', rim: 'off', size: 'medium', tab: '0' }, 'Medium · utan kant')}</div></div></div>`).join('');
+}
+const STATEROWS = [
+  ['sanct', 'Sanctuary på dig', { a: 'En glödande nedräkningsring utanför kanten (2:14 kvar av 4:30).', b: 'En gloria som andas runt porträttet, och en tunn ring för tiden.', c: 'Strålar runt om, och de släcks en efter en medsols.' }],
+  ['bashed', 'Bashed', { a: 'Tre stjärnor snurrar över huvudet (stilla vid reducerad rörelse).', b: 'Ett stjärnmärke på kanten uppe till vänster.', c: 'Porträttet lutar, och stjärnorna snurrar.' }],
+  ['sleep', 'Sover', { a: 'Grått och mörkt.', b: 'Mörkt och Zz som stiger.', c: 'Ögonlock: det mörknar uppifrån.' }],
+  ['rest', 'Vilar', { a: 'Lätt dämpning (samma i alla tre).', b: 'Lätt dämpning.', c: 'Lätt dämpning.' }],
+];
+function renderStates() {
+  const pl = st.pane === 'paper' ? ' paper' : '';
+  const crop = (state, ps) => {
+    const o = Object.assign({}, st, { state, pstyle: ps, name: 'tip', fight: 'off' });
+    const g = { pd: 110, ringPx: 32, arcTop: 0, tall: false, z: SZ.large };
+    return `<div class="pane${pl}" style="width:150px"><div class="win" style="height:148px;align-items:center;justify-content:center;padding:14px">${leftCol(o, g, false)}</div></div>`;
+  };
+  document.getElementById('states').innerHTML = `<div style="display:grid;grid-template-columns:150px repeat(3, 170px);gap:14px 18px;min-width:720px;align-items:start">` +
+    `<div></div>${['a', 'b', 'c'].map((s) => `<div class="lbl" data-pick="pstyle:${s}" style="cursor:pointer">stil ${s}${st.pstyle === s ? ' · i bänken' : ''}</div>`).join('')}` +
+    STATEROWS.map(([k, n, why]) => `<div><h3 style="font-size:14px">${n}</h3></div>${['a', 'b', 'c'].map((s) => `<div class="cap">${crop(k, s)}<p style="font-size:13px">${why[s]}</p></div>`).join('')}`).join('') + '</div>';
+}
+function renderLow() {
+  const rows = [
+    ['Medium-bredd (300 px)', [[300, 166, 'standard'], [300, 140], [300, 118], [300, 98], [300, 80], [300, 62]]],
+    ['Large-bredd (470 px)', [[470, 150], [470, 110], [470, 84]]],
+    ['Telefonens sida i remsan', [[366, 190, 'phone'], [366, 150, 'phone'], [366, 110, 'phone']]],
+  ];
+  const what = (o) => {
+    const g = geo(Object.assign({}, st, o));
+    if (!g.showCw) return 'bara vitals';
+    const parts = [g.pd ? `porträtt ${g.pd} px` : 'bara nivåringen'];
+    if (g.cwH < g.tr) parts.push('ingen topprad');
+    else parts.push(autoNote(o) || 'topprad');
+    return parts.join(' · ');
+  };
+  document.getElementById('low').innerHTML = rows.map(([t, list]) => `<div class="gridalt"><h3>${t}</h3><div class="scroll" style="padding-top:6px"><div class="rowx nowrap">${list.map(([w, h, s]) => { const o = { size: s === 'phone' ? 'phone' : w === 470 ? 'large' : 'medium', W: w, H: h, tab: '0', count: 'normal' }; return host(o, `${w} × ${h} · ${what(o)}`); }).join('')}</div></div></div>`).join('');
+}
+function gearHtml() {
+  const seg = (k, opts) => `<span class="seg" data-ctl="${k}">${opts.map(([v, l]) => `<button data-v="${v}" class="${String(st[k]) === v ? 'on' : ''}">${l}</button>`).join('')}</span>`;
+  const row = (l, c) => `<div class="gr"><span>${l}</span>${c}</div>`;
+  const onoff = (k) => seg(k, [['on', 'On'], ['off', 'Off']]);
+  const grp = GORD.map((g) => `<span class="gn" style="--c:var(--g-${g})">${svg(g)}${GLAB[g]}${g === 'debuff' ? ' <small style="color:var(--ink-dim)">(+ bashed)</small>' : ''}</span><button class="chk${st.off.has(g) ? '' : ' on'}" data-grp="${g}" aria-label="Show ${GLAB[g]}"></button><span class="sw" style="--c:var(--g-${g})"><i></i>Auto</span>`).join('');
+  return `<div class="gt">CHARACTER <small>gear · its own timer settings</small></div>
+  <div class="gs"><h4>Layout</h4>${row('Height', seg('lock', [['auto', 'Auto'], ['large', 'Large'], ['medium', 'Medium']]))}${row('Name', seg('name', NAMES.map(([id, n]) => [id, { ribbon: 'Ribbon', plaque: 'Plate', glass: 'Glass', smile: 'Curved', arc: 'Arc', hood: 'Title', tip: 'Tooltip' }[id]])))}</div>
+  <div class="gs new"><h4>Status row <em>new</em></h4>${row('Step circles', seg('steps', STEPVARS.map(([id]) => [id, { lit: 'Lit', pointer: 'Pointer', thick: 'Thick', dial: 'Dial', fill: 'Fill', bead: 'Bead', gem: 'Gem' }[id]])))}</div>
+  <div class="gs new"><h4>Timers <em>new</em></h4>
+    ${row('Style', seg('design', DESIGNS.map(([id]) => [id, { pill: 'Pills', ring: 'Rings', stone: 'Stones', ledger: 'Ledger', timeline: 'Timeline', dial: 'Dials' }[id]])))}
+    ${row('Density', seg('dens', [['auto', 'Auto'], ['1', 'Name'], ['2', 'Icon'], ['3', 'Ring'], ['4', 'Grid']]))}
+    ${row('Groups shown by', seg('groups', [['color', 'Colour'], ['headers', 'Headers']]))}
+    ${row('Ending soon', seg('signal', [['text', 'Text'], ['pulse', 'Pulse'], ['none', 'None']]))}
+    ${row('Warn at', seg('warn', [['10', '10 s'], ['20', '20 s'], ['30', '30 s'], ['60', '60 s']]))}
+    ${row('Soonest first', onoff('soonest'))}
+    ${row('When cramped: ending soon and debuffs first', onoff('prio'))}
+    <div class="gtab">${grp}</div>
+    <div class="note">Not shared with the Timers pane. Colours: Auto or one of the twelve swatches.</div></div>
+  <div class="gs new"><h4>Portrait <em>new</em></h4>${row('Sanctuary ring', onoff('psanct'))}${row('Bashed stars', onoff('pbash'))}${row('Dim when resting or asleep', onoff('pdim'))}</div>
+  <div class="gs new"><h4>Fight <em>new</em></h4>${row('Swords', seg('swords', SWORDS.map(([id]) => [id, { badge: 'Badge', crest: 'Crest', behind: 'Behind', ring: 'Ring', emblem: 'Emblem', flank: 'Sides', off: 'Off' }[id]])))}${row('Swords in the status row', onoff('swTop'))}${row('Red rim', onoff('rim'))}</div>`;
+}
+function renderGear() { document.getElementById('gear').innerHTML = gearHtml(); }
+
+function fillSegs() {
+  document.getElementById('nameseg').innerHTML = NAMES.map(([id, n]) => `<button data-v="${id}">${n}</button>`).join('');
+  document.getElementById('stepseg').innerHTML = STEPVARS.map(([id, n]) => `<button data-v="${id}">${n}</button>`).join('');
+  document.getElementById('desseg').innerHTML = DESIGNS.map(([id, n]) => `<button data-v="${id}">${n}</button>`).join('');
+  document.getElementById('swseg').innerHTML = SWORDS.map(([id, n]) => `<button data-v="${id}">${n}</button>`).join('');
+}
+function syncSegs() { document.querySelectorAll('[data-ctl]').forEach((seg) => { const k = seg.dataset.ctl; seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.v === String(st[k]))); }); }
+function renderAll(animate) {
+  renderGear(); syncSegs(); renderBench(animate); renderSteps(); renderNames(); renderDesigns(); renderSwords(); renderStates(); renderLow();
+}
+function renderLive(animate) { renderBench(animate); }
+
+// ------------------------------------------------------------------ events
+document.addEventListener('click', (e) => {
+  const seg = e.target.closest('[data-ctl]');
+  if (seg) {
+    const b = e.target.closest('button'); if (!b) return;
+    st[seg.dataset.ctl] = b.dataset.v;
+    if (seg.dataset.ctl === 'lock' && b.dataset.v !== 'auto') st.size = b.dataset.v;
+    renderAll(true); return;
+  }
+  const pick = e.target.closest('[data-pick]');
+  if (pick) { const [k, v] = pick.dataset.pick.split(':'); st[k] = v; if (k === 'swords') st.fight = 'on'; renderAll(true); document.querySelector('.bench').scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'start' }); return; }
+  const grp = e.target.closest('[data-grp]');
+  if (grp) { const g = grp.dataset.grp; if (st.off.has(g)) st.off.delete(g); else st.off.add(g); renderAll(true); return; }
+  const hm = e.target.closest('[data-herb]');
+  if (hm) { const h = HERBS.find((x) => x[0] === hm.dataset.herb); if (h && !st.added.some((a) => a[0] === h[0])) st.added.push(h); closeMenu(); renderAll(true); return; }
+  if (!e.target.closest('.hmenu')) closeMenu();
+  const h = e.target.closest('.host'); if (!h) return;
+  const live = h.hasAttribute('data-live');
+  const tab = e.target.closest('[data-tab]');
+  if (tab) {
+    if (live) { st.tab = tab.dataset.tab; renderAll(true); }
+    else { const o = JSON.parse(h.dataset.o); o.tab = tab.dataset.tab; const b = snap(h); h.dataset.o = JSON.stringify(o); h.innerHTML = card(o); play(h, b); }
+    return;
+  }
+  if (!live) return;
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { const id = rm.dataset.rm; if (id.startsWith('hx-')) st.added = st.added.filter((a) => 'hx-' + a[0].replace(/\W/g, '') !== id); else st.gone.add(id); renderAll(true); return; }
+  const add = e.target.closest('[data-add]');
+  if (add) { openMenu(h, add); return; }
+  const step = e.target.closest('[data-step]');
+  if (step) { const k = step.dataset.step; if (st.pend[k]) return; st.pend[k] = 1; renderLive(false); setTimeout(() => { st[k] = nextStep(k, st[k]); delete st.pend[k]; renderAll(true); }, 650); return; }
+  const tg = e.target.closest('[data-tog]');
+  if (tg) { const k = tg.dataset.tog; if (st.pend[k]) return; st.pend[k] = 1; renderLive(false); setTimeout(() => { st.tog[k] = st.tog[k] ? 0 : 1; delete st.pend[k]; renderAll(true); }, 500); return; }
+  const pos = e.target.closest('[data-pos]');
+  if (pos) { if (st.pend.pos) return; st.pend.pos = 1; renderLive(false); setTimeout(() => { const p = POS[st.state]; st.state = p === 'standing' ? 'rest' : 'stand'; delete st.pend.pos; renderAll(true); }, 650); }
+});
+function openMenu(h, anchor) {
+  closeMenu();
+  const r = anchor.getBoundingClientRect(), hr = h.getBoundingClientRect();
+  const running = new Set(itemsFor(Object.assign({}, st, { live: true })).filter((t) => t.g === 'herb').map((t) => t.n.replace(/ \(.*\)$/, '')));
+  const m = document.createElement('div');
+  m.className = 'hmenu';
+  m.innerHTML = HERBS.map(([n]) => running.has(n) ? `<div class="dis">✓ ${n}</div>` : `<div data-herb="${n}">${svg('herb')}${n}</div>`).join('');
+  m.style.left = Math.max(0, r.left - hr.left) + 'px';
+  m.style.top = (r.bottom - hr.top + 4) + 'px';
+  h.appendChild(m);
+}
+function closeMenu() { document.querySelectorAll('.hmenu').forEach((m) => m.remove()); }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+fillSegs();
+renderAll(false);
+
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
