@@ -575,3 +575,18 @@ and points 39 and 41 of addendum 7.
 90. Your own GMCP flags come from your `Group.*` entry (`type: "you"`),
     which the group model keeps only for `bashed` today; part F keeps
     the flags too. That MUME sends them for you is to be checked live.
+
+## Addendum 17 (2026-11-24): the info poll, round 2 (decided, not built)
+
+The owner: the card goes stale when the player sees other values (a
+typed `stat` or `info`), and 5 minutes is too seldom. Part F builds the
+following as settings to try while playing (stage 77, "The info poll,
+round 2"):
+
+91. The answer to the player's own `stat`, `info` and similar is read
+    and updates the card, with no extra command (measured live first).
+92. A typed `change …` (above all `change mood`) triggers a poll.
+93. The repeat interval is a setting: 15 s, 30 s, 1, 2 or 5 min.
+    Decision 6 (no poll without input in the last 5 minutes) stays.
+94. Event triggers, each a switch: equipment commands, and an affect
+    starting or ending.

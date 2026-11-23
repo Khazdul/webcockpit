@@ -242,11 +242,27 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
 - [x] E2. The card's sex (built and tested live by the owner 2026-11-23)
-- [ ] F. Re-planned 2026-11-23: Timers into Character (round 11
-      mockups first; "Direction pass")
-- [ ] G. Tests (most came with A–D; left: Group without you, a last
-      full run)
-- [ ] H. Polish of the card (the owner's list first)
+- [ ] F0. Round 13 mockup: only the chosen combination (round 12
+      decisions) at Medium, Large, tall and phone, with 3, 8 and 16
+      stones; the stones at the bottom beside the shields have not been
+      seen. Owner's go before F1.
+- [ ] F1. Model and poll: your own GMCP flags kept from `type: "you"`
+      (check live first that MUME sends them), the stone view (herb, buff,
+      debuff, flags, your sanctuary), the poll round 2 (read typed
+      `stat`/`info`, `change` triggers, the interval and event settings,
+      the poll on Status).
+- [ ] F2. The card: round 12 decisions 1–9 (iron square portrait, ring
+      bottom right, name band, cells with the step meter, D&D shields,
+      stones with `+n`, parchment vitals, swords only); Stats without
+      shields; the gear (stone groups, the poll settings); the phone's
+      strip page the same.
+- [ ] G. Tests: unit (flags from `you`, the stone view and order, the
+      layout's shield size, stone rows and `+n`, the poll triggers and
+      interval) and e2e (the card from a GMCP fixture, stones and `+n`,
+      the click list, herb `+` and ×, swords only, `⋯` until the poll),
+      then the full e2e at 5 workers alone on the machine.
+- [ ] H. Polish: the owner's list from D and what F shows live; whether
+      Timers becomes Spells.
 
 Record the technical decisions in **ADR 0166** (the card, the poll, the
 click-to-command rule) and in an addendum to ADR 0122 (Group's "show
@@ -505,6 +521,26 @@ F is built.
    from it); the other poll rules stay (ADR 0166).
 10. Group, the phone's fight card and the Timers pane stay as they are.
     Renaming Timers to Spells is for later.
+
+### The info poll, round 2 (the owner, 2026-11-24)
+
+The card goes stale when the player sees other values in the game (a
+typed `stat` or `info`), and a 5-minute repeat is too seldom. To be built
+in F as **settings the owner can try while playing**, then narrowed:
+
+1. **Read what the player sees.** The answer to the player's own `stat`,
+   `info` (any format) and similar commands updates the card directly; no
+   extra command. Their output is to be measured live first (part F1).
+2. **`change …` triggers a poll** (above all `cha mood …`, which the
+   owner uses often and which changes OB/DB). The GMCP value itself
+   already updates the cell.
+3. **Repeat interval, a setting:** 15 s, 30 s, 1 min, 2 min, 5 min (5 min
+   is today's). The 5-minute input rule (decision 6) stays: no poll
+   without a key or click in the last 5 minutes.
+4. **Event triggers, each a switch:** equipment (`wear`, `remove`,
+   `wield`, `hold` and the like), and an affect starting or ending. The
+   owner may add more later.
+5. The poll also runs while Status is shown (round 12, item 9).
 
 ## Part A: findings
 
