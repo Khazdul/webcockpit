@@ -133,7 +133,9 @@ test('the portrait: drawn once into an image at the disc\'s pixels, kept over pr
   await expect(disc).toHaveAttribute('data-art', 'drawn');
   const img = disc.locator('img.wc-cc-photo');
   await expect(img).toHaveCount(1);
-  const shot = await img.evaluate((i: HTMLImageElement) => ({ src: i.src.slice(0, 22), w: i.naturalWidth, css: i.getBoundingClientRect().width, dpr: devicePixelRatio }));
+  // The disc's laid-out width (under load Firefox can report 0 for a moment right after the swap).
+  await expect.poll(() => disc.evaluate((d) => d.getBoundingClientRect().width)).toBeGreaterThan(0);
+  const shot = await img.evaluate((i: HTMLImageElement) => ({ src: i.src.slice(0, 22), w: i.naturalWidth, css: i.closest('.wc-cc-disc')!.getBoundingClientRect().width, dpr: devicePixelRatio }));
   expect(shot.src).toBe('data:image/png;base64,');
   // Baked at the disc's device pixels or a little more (a bucket), never less.
   expect(shot.w).toBeGreaterThanOrEqual(Math.floor(shot.css * shot.dpr));

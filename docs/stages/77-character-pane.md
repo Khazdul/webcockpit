@@ -237,7 +237,9 @@ Each part ends with a stop: the owner looks and says go before the next.
       bare Bear and "Half-elven")
 - [x] C. The poll (tested live: "Live results, part C")
 - [x] D. The card (tried live, the phone too)
-- [x] E. Portraits (built; the owner's look pending)
+- [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
+      by the owner)
+- [ ] E2. The card's sex (next: the portrait of the player's own sex)
 - [ ] F. Group (stopped 2026-11-23: direction to be discussed first)
 - [ ] G. Tests (most came with A–D; left: Group without you, a last
       full run)
@@ -299,6 +301,38 @@ raw answer. Write the findings into this file before parts C–D.
 
 - Nine placeholder SVGs from the mockup. A per-race lookup reusing the
   passenger matching. The README with the image contract for the owner.
+
+### E2. The card's sex (the next pass, decided by the owner 2026-11-23)
+
+Today the card always shows the man: the drawings have both sexes, but
+the client does not know the player's. The dev-only `?sex=female`
+(`PORTRAIT_SEX`, `src/panes/portrait.ts`) is the only way to the woman.
+
+1. **Find the source, live.** GMCP's `Char.StatusVars` has no sex. MUME
+   writes it in game text: `You are a male Tarkhnarb Orc.` (part A).
+   First check `help info` for a `%` code for the sex. If there is one,
+   it joins the poll's field list, which is cheapest. If not, find which
+   command prints that sentence and whether its line can be read where
+   it already comes (at login, or in `info` without a format). Never a
+   new command of its own without the owner's word ("Only Stats and Lore
+   send commands").
+2. **The model.** `InfoModel` (or the char view) gains `sex: Sex | null`.
+   The parser is pure and unit-tested on the live sample, including a
+   woman's sentence (the owner has female characters? ask only if no log
+   has one: grep the Cockpit logs under /home/ole/MUME read-only first).
+3. **Before it is known.** Proposed (decide in the pass, record in ADR
+   0166): remember the last sex per character name in local settings,
+   and show that at once. A character never seen shows the man as today,
+   and swaps without a flash when the poll answers (portraitEl already
+   swaps only after the new image has loaded).
+4. **The card.** `character.ts` passes the model's sex to
+   `setPortrait` instead of `PORTRAIT_SEX`; `?sex=` stays as a dev
+   override. A raster keeps the `<id>-<sex>.webp` names (README).
+5. **Tests.** Unit: the parser, the remembered sex. e2e
+   (`character-card.spec.ts`): a fixture with a woman's answer gives
+   `data-sex="female"`; the swap after the poll. Then the full e2e at 5
+   workers.
+6. **Docs.** ADR 0166 addendum 13, this file's test guide, progress.md.
 
 ### F. Group
 

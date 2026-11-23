@@ -421,3 +421,8 @@ step (the owner asleep); the style guide is
     eyes squinting against the light, soot on the brow and cheek; the
     stolen sacking and ragged collar stay. The woman: the same hood, lank
     black hair loose from under it, small tusks.
+66. **Approved (the owner, 2026-11-23).** The portrait pass with the
+    redrawn Tarkhnarb, and the four choices of item 64, are approved; the
+    branch is merged into main. The Firefox `#perf` cost is left for the
+    owner to look at later. Next: the player's own sex on the card (the
+    stage file, E2).
