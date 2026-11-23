@@ -7,7 +7,8 @@
 //   fallbacks), else the neutral figure: anything else, and nothing at all.
 // - Every id is drawn as a man and as a woman (src/panes/portraits/, the
 //   portrait pass, addendum 12); the neutral figure is one. The card asks
-//   for `male` until the client can tell a character's sex.
+//   for the character's sex (`game.sex`, src/gmcp/sex.ts), `male` while it
+//   is not known.
 // - A raster file `public/portraits/<id>-<sex>.webp` (or `neutral.webp`;
 //   public/portraits/README.md) replaces the drawing when it exists: the
 //   subrace's own file, else its race's file of the same sex (a real image
@@ -21,8 +22,8 @@
 //   it shows no Character pane today, and carries no drawings either
 //   (portraits/index.ts).
 // - Dev server only: `?portrait=<id or race words>` shows that portrait
-//   whatever the race, and `?sex=female` the women (to look at all of
-//   them; the stage's test guide).
+//   whatever the race, and `?sex=female` (or `male`) that sex whatever the
+//   character's (to look at all of them; the stage's test guide).
 
 import { type RaceKind, SUBRACE_RACE, type SubraceKind, raceKind, subraceKind } from '../gmcp/race';
 import type { PortraitId, Sex } from './portraits/types';
@@ -86,8 +87,9 @@ export function portraitOf(race: string | null | undefined, subrace?: string | n
   return FORCED ?? portraitFor(race, subrace);
 }
 
-/** The dev server's `?sex=`, read once: the card's sex until the client can tell it (`male`). */
-export const PORTRAIT_SEX: Sex = (() => {
-  if (!import.meta.env?.DEV || typeof location === 'undefined') return 'male';
-  return new URLSearchParams(location.search).get('sex') === 'female' ? 'female' : 'male';
+/** The dev server's `?sex=male|female`, read once: it wins over the character's sex. Null: none. */
+export const PORTRAIT_SEX: Sex | null = (() => {
+  if (!import.meta.env?.DEV || typeof location === 'undefined') return null;
+  const s = new URLSearchParams(location.search).get('sex');
+  return s === 'female' || s === 'male' ? s : null;
 })();

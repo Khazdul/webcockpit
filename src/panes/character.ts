@@ -251,7 +251,8 @@ export class CharacterPane extends PaneShell {
     const fighting = this.tabs.fighting;
     if (this.changed('fight', String(fighting))) card.setFight(fighting);
     if (this.changed('name', name)) card.left.setName(name);
-    if (this.changed('portrait', `${v.race}|${v.subrace}`)) card.left.setPortrait(portraitOf(v.race, v.subrace), PORTRAIT_SEX);
+    const sex = PORTRAIT_SEX ?? ctx.game.sex ?? 'male';
+    if (this.changed('portrait', `${v.race}|${v.subrace}|${sex}`)) card.left.setPortrait(portraitOf(v.race, v.subrace), sex);
     if (this.changed('ring', `${v.level}|${v.xp?.baseline}|${v.xp?.progress}|${v.toNext}|${v.tp?.progress}`)) card.left.setRing(ringView(v));
 
     const env: CardEnv = { clicks: this.clicks, fighting, pending: this.pending };

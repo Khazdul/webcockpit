@@ -2,7 +2,7 @@
 // GMCP demo and a mocked MUME socket: nothing reaches MUME. Uses the
 // dev-only `window.__wc`.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
-import { GA, XML_PROMPT, answerPulse, pollNonce, wire } from '../fixtures/info-poll-answer';
+import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 const PROMPT = XML_PROMPT + GA;
@@ -222,6 +222,41 @@ test('Stats and Lore from the poll; the tabs keep the focus in the input', async
   expect(polls()).toHaveLength(1);
   await expect(page.locator('.wc-output')).not.toContainText('GoblinTown');
   expect(await inputFocused(page)).toBe(true);
+});
+
+test("the player's sex: probed with the login poll, hidden, remembered", async ({ page }) => {
+  const game = await play(page, { fetchInfo: true });
+  const disc = card(page).locator('.wc-cc-disc');
+  await expect(disc).toHaveAttribute('data-sex', 'male');
+  const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
+  const probes = (): string[] => game.sent.filter((l) => probeNonce(l) !== null);
+  await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
+  expect(probes()).toHaveLength(1);
+  expect(game.sent).toContain('info');
+  game.play(answerText(pollNonce(polls()[0]!)!) + probeText(probeNonce(probes()[0]!)!, { sex: 'female' }) + PROMPT);
+  await expect(disc).toHaveAttribute('data-sex', 'female');
+  await expect(disc).toHaveAttribute('data-art', 'drawn');
+  await expect(page.locator('.wc-output')).not.toContainText('You are a female');
+  await expect(page.locator('.wc-output')).not.toContainText('WC');
+  expect(await page.evaluate(() => localStorage.getItem('wc.charSex.v1'))).toBe('{"rasta":"female"}');
+});
+
+test('a remembered sex shows at once, and no probe is sent', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('wc.charSex.v1', '{"rasta":"female"}'));
+  const game = await play(page, { fetchInfo: true });
+  await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-sex', 'female');
+  await expect.poll(() => game.sent.filter((l) => pollNonce(l) !== null).length, { timeout: 10_000 }).toBe(1);
+  expect(game.sent.filter((l) => probeNonce(l) !== null)).toEqual([]);
+  expect(game.sent).not.toContain('info');
+});
+
+test("a plain info the player types tells the sex", async ({ page }) => {
+  const game = await play(page);
+  const disc = card(page).locator('.wc-cc-disc');
+  await expect(disc).toHaveAttribute('data-sex', 'male');
+  game.play(`You are a female Tarkhnarb Orc.\r\nYou are 82 years, 4 months, and 2 days old.\r\n\r\n${PROMPT}`);
+  await expect(disc).toHaveAttribute('data-sex', 'female');
+  await expect(page.locator('.wc-output')).toContainText('You are a female Tarkhnarb Orc.');
 });
 
 test('fight mode: Status, band bars, the swords; back to the tab afterwards', async ({ page }) => {
