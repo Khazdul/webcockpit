@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { type Line } from '../../src/core/types';
 import type { InfoAnswer } from '../../src/gmcp/info-answer';
+import { SEX_KEY } from '../../src/gmcp/sex';
 import { CLOCK_KEY, GameState, type GamePart } from '../../src/gmcp/state';
 import { ScriptEngine } from '../../src/script/engine';
 
@@ -153,5 +154,90 @@ describe('GameState', () => {
     const t = setup(null);
     t.engine.processLine(line('Sterday, the 12th of Astron, year 2973 of the Third Age.'));
     expect(t.game.clock.precision).toBe('day');
+  });
+});
+
+describe('GameState: the sex (stage 77 part E2)', () => {
+  const named = (t: ReturnType<typeof setup>, name: string, statusVars: Record<string, string> = { race: 'Orc', subrace: 'Tarkhnarb Orc' }): void => {
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name } });
+    t.bus.emit('gmcp', { pkg: 'Char.StatusVars', data: statusVars });
+  };
+
+  it('remembered per name: loaded at Char.Name, at once', () => {
+    const storage = new MemStorage();
+    storage.setItem(SEX_KEY, JSON.stringify({ rasta: 'female' }));
+    const t = setup(storage);
+    expect(t.game.sex).toBeNull();
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    expect(t.game.sex).toBe('female');
+    expect(t.game.sexNeeded()).toBe(false);
+    expect(t.parts).toEqual(['char']);
+  });
+
+  it('not remembered: needed, and the probe stores it', () => {
+    const t = setup();
+    expect(t.game.sexNeeded()).toBe(false);
+    named(t, 'Rasta');
+    expect(t.game.sex).toBeNull();
+    expect(t.game.sexNeeded()).toBe(true);
+    t.parts.length = 0;
+    t.game.applySex('female');
+    expect(t.parts).toEqual(['char']);
+    expect(t.game.sex).toBe('female');
+    expect(JSON.parse(t.storage!.getItem(SEX_KEY)!)).toEqual({ rasta: 'female' });
+    expect(setup(t.storage).game.sex).toBeNull();
+  });
+
+  it('another character, a new connection: forgotten and loaded again', () => {
+    const storage = new MemStorage();
+    storage.setItem(SEX_KEY, JSON.stringify({ rasta: 'female' }));
+    const t = setup(storage);
+    named(t, 'Rasta');
+    expect(t.game.sex).toBe('female');
+    named(t, 'Gibur');
+    expect(t.game.sex).toBeNull();
+    named(t, 'Rasta');
+    expect(t.game.sex).toBe('female');
+    t.bus.emit('conn.state', { state: 'connecting', prev: 'disconnected' });
+    expect(t.game.sex).toBeNull();
+    named(t, 'Rasta');
+    expect(t.game.sex).toBe('female');
+  });
+
+  it('read from a plain info the player typed: only with the own race', () => {
+    const t = setup();
+    named(t, 'Rasta');
+    t.bus.emit('text.line', line("Bob says 'You are a female Tarkhnarb Orc.'"));
+    t.bus.emit('text.line', line('You are a female Silvan Elf.'));
+    expect(t.game.sex).toBeNull();
+    t.bus.emit('text.line', line('You are a female Tarkhnarb Orc.'));
+    expect(t.game.sex).toBe('female');
+    expect(JSON.parse(t.storage!.getItem(SEX_KEY)!)).toEqual({ rasta: 'female' });
+    t.bus.emit('text.line', line('You are a male Tarkhnarb Orc.'));
+    expect(t.game.sex).toBe('male');
+  });
+
+  it('the race not known yet: the line is not read', () => {
+    const t = setup();
+    t.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    t.bus.emit('text.line', line('You are a female Tarkhnarb Orc.'));
+    expect(t.game.sex).toBeNull();
+  });
+
+  it('in a replay: read, not remembered', () => {
+    const t = setup();
+    t.bus.emit('conn.state', { state: 'playing', prev: 'login', replay: true });
+    named(t, 'Rasta');
+    t.bus.emit('text.line', line('You are a female Tarkhnarb Orc.'));
+    expect(t.game.sex).toBe('female');
+    expect(t.storage!.getItem(SEX_KEY)).toBeNull();
+  });
+
+  it('without storage: known for the page only', () => {
+    const t = setup(null);
+    named(t, 'Rasta');
+    t.game.applySex('female');
+    expect(t.game.sex).toBe('female');
+    expect(t.game.sexNeeded()).toBe(false);
   });
 });

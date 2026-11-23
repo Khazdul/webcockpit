@@ -8,6 +8,12 @@
 //                     against the moon model; diagnostics only)
 //   info poll       → `applyInfo`: `game.info` (info-model.ts) and the
 //                     wimpy; reset with the character and on another name
+//   sex             → `game.sex` (sex.ts, stage 77 part E2): remembered per
+//                     name (`wc.charSex.v1`, the same storage), loaded at
+//                     Char.Name; set by the poll's probe (`applySex`) and
+//                     by a `You are a male|female <own race>.` line on the
+//                     bus (a plain `info` the player typed); a replay's
+//                     line sets it and is not remembered
 //   system rules    → wimpy (`Wimpy set to: N`, `Wimpy removed.`) and the
 //                     clock lines (`… of the Third Age.`, `The current time
 //                     is …`), installed into the script engine's system
@@ -44,6 +50,7 @@ import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
 import type { InfoAnswer } from './info-answer';
 import { InfoModel } from './info-model';
+import { SEX_LINE_START, type Sex, SexMemory, parseSexLine } from './sex';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
 export { CLOCK_KEY };
@@ -63,7 +70,7 @@ export interface SystemRules {
 export interface GameStateOptions {
   /** Wall clock in ms. */
   now?: () => number;
-  /** Where the clock is kept (null: memory only). */
+  /** Where the clock and the characters' sex are kept (null: memory only). */
   storage?: Storage | null;
   /** Timers hub options (database, scheduler, window, trackers); `now` is shared. */
   timers?: Omit<TimersHubOptions, 'now'>;
@@ -77,6 +84,13 @@ export class GameState {
   readonly info = new InfoModel();
   /** Timers trackers and their persistence (ADR 0017). */
   readonly timers: TimersHub;
+  /** The character's sex: remembered, probed or read; null until known. */
+  sex: Sex | null = null;
+  /** Whose `sex` it is (lower case). */
+  private sexOf: string | null = null;
+  private readonly sexMemory: SexMemory;
+  /** The connection is a replay: what it shows is not remembered. */
+  private replay = false;
   private readonly now: () => number;
   private readonly storage: Storage | null;
   private readonly listeners = new Set<(part: GamePart) => void>();
@@ -94,6 +108,7 @@ export class GameState {
       saved = null;
     }
     this.clock = new ClockModel(loadClockState(saved, this.now()));
+    this.sexMemory = new SexMemory(this.storage);
     this.timers = new TimersHub({ ...opts.timers, now: this.now });
     this.timers.subscribe(() => this.emit('timers'));
   }
@@ -102,7 +117,11 @@ export class GameState {
   attach(bus: Bus): this {
     this.unsubs.push(
       bus.on('gmcp', (m) => this.take(m)),
+      bus.on('text.line', (l) => {
+        if (l.text.startsWith(SEX_LINE_START)) this.sexLine(l.text);
+      }),
       bus.on('conn.state', (s) => {
+        this.replay = s.replay === true;
         if (s.state === 'connecting' || (s.state === 'disconnected' && !s.replay)) this.resetCharacter();
       }),
     );
@@ -150,6 +169,7 @@ export class GameState {
       if (this.char.apply(pkg, data)) {
         const other = name !== null && this.char.name?.toLowerCase() !== name.toLowerCase();
         const infoGone = other && this.info.reset();
+        if (p === 'char.name') this.loadSex();
         this.emit('char');
         if (infoGone) this.emit('info');
       }
@@ -180,6 +200,7 @@ export class GameState {
     this.char.reset();
     this.group.reset();
     const infoGone = this.info.reset();
+    this.sex = this.sexOf = null;
     this.noteGroup();
     this.emit('char');
     this.emit('group');
@@ -191,6 +212,40 @@ export class GameState {
     this.info.apply(answer, this.now());
     if (answer.wimpy !== null) this.setWimpy(answer.wimpy);
     this.emit('info');
+  }
+
+  /** The character's sex is not known: the login poll may probe for it. */
+  sexNeeded(): boolean {
+    return this.char.name !== null && this.sex === null;
+  }
+
+  /** The character's sex, from the probe or a line: remembered (not in a replay). */
+  applySex(sex: Sex): void {
+    const name = this.char.name;
+    if (name === null) return;
+    if (!this.replay) this.sexMemory.set(name, sex);
+    this.sexOf = name.toLowerCase();
+    if (this.sex === sex) return;
+    this.sex = sex;
+    this.emit('char');
+  }
+
+  /** A line that may be a plain `info`'s first: only with the character's own race. */
+  sexLine(text: string): void {
+    const race = this.char.statusVars.get('race');
+    const subrace = this.char.statusVars.get('subrace');
+    const own = { race: typeof race === 'string' ? race : null, subrace: typeof subrace === 'string' ? subrace : null };
+    if (own.race === null && own.subrace === null) return;
+    const sex = parseSexLine(text, own);
+    if (sex !== null) this.applySex(sex);
+  }
+
+  /** At Char.Name: another character's remembered sex, or null. */
+  private loadSex(): void {
+    const name = this.char.name?.toLowerCase() ?? null;
+    if (name === this.sexOf) return;
+    this.sexOf = name;
+    this.sex = name === null ? null : this.sexMemory.get(name);
   }
 
   /** Wimpy from a text line or the poll. */
