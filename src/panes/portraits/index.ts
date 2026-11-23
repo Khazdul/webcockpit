@@ -53,7 +53,11 @@ export const PORTRAIT_GROUP: Readonly<Record<PortraitId, Group>> = {
   neutral: 'dark',
 };
 
-const CHUNKS: Readonly<Record<Group, () => Promise<{ portraits: PortraitSet }>>> = {
+declare const __WC_REPLAY__: boolean | undefined;
+/** The replay runtime (one IIFE, which would inline every chunk) shows no Character pane (src/share/shared-panes.ts): it carries no drawings. */
+const IN_REPLAY = typeof __WC_REPLAY__ === 'boolean' && __WC_REPLAY__;
+
+const CHUNKS: Readonly<Record<Group, () => Promise<{ portraits: PortraitSet }>>> | null = IN_REPLAY ? null : {
   men: () => import('./men'),
   elves: () => import('./elves'),
   dwarves: () => import('./dwarves'),
@@ -65,6 +69,7 @@ const CHUNKS: Readonly<Record<Group, () => Promise<{ portraits: PortraitSet }>>>
 
 /** The drawing of `id` (its chunk loaded once; the module system caches it), or null when it has none. */
 export async function loadDraw(id: PortraitId): Promise<Draw | null> {
+  if (CHUNKS === null) return null;
   const m = await CHUNKS[PORTRAIT_GROUP[id]]();
   return m.portraits[id] ?? null;
 }

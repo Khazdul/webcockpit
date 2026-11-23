@@ -3,8 +3,9 @@
 // Served by the worktree's Vite dev server:
 //   http://localhost:<port>/notes/research/portraits/stage/?g=dwarves
 // A drawing module is draw/<group>.ts exporting `portraits: PortraitSet`
-// (src/panes/portraits/types.ts). An id with no drawing yet shows the old
-// placeholder (portrait-figures.ts), flagged "old".
+// (src/panes/portraits/types.ts); since the port the draw files re-export
+// the app's (src/panes/portraits/<group>.ts). An id with no drawing shows
+// the neutral silhouette, flagged "none".
 
 import '../../../../src/layout/layout.css';
 import '../../../../src/panes/character.css';
@@ -42,7 +43,7 @@ const COLS = [
   { name: 'Medium', disc: 40, ring: 20, light: false },
   { name: 'Medium Paper', disc: 40, ring: 20, light: true },
 ] as const;
-const cols = q.get('medium') ? COLS.filter((c) => c.disc < 70) : COLS;
+const cols = q.get('medium') ? COLS.filter((c) => c.disc < 70) : q.get('noxl') ? COLS.filter((c) => c.name !== 'XL') : COLS;
 
 const DARK_BORDER = '#5c4a30';
 const PAPER_BORDER = '#9c8458';
@@ -65,6 +66,9 @@ async function drawings(errors: string[]): Promise<Map<PortraitId, PortraitSet[P
 }
 
 let serial = 0;
+/** Per bake: the drawing's string time and the bake's (for the cost note, ADR 0166 addendum 12). */
+const TIMES: { id: string; sex: string; px: number; draw: number; bake: number; bytes: number }[] = [];
+(window as unknown as { __times: typeof TIMES }).__times = TIMES;
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -112,7 +116,7 @@ async function main(): Promise<void> {
     const tr = h('tr', 'id');
     const lab = h('td', 'lab', id);
     const draw = all.get(id);
-    lab.append(h('small', '', draw ? 'drawn' : 'old placeholder'));
+    lab.append(h('small', '', draw ? 'drawn' : 'no drawing'));
     tr.append(lab);
     for (const sex of sexes) {
       tr.append(h('td', 'sep'));
@@ -125,7 +129,7 @@ async function main(): Promise<void> {
         const td = h('td', `cell ${c.light ? 'paper' : 'dark'}`);
         tr.append(td);
         if (!draw) {
-          td.append(medal(c.disc, c.ring, c.light, figureSvg(document, id)), h('span', 'flag', 'old'));
+          td.append(medal(c.disc, c.ring, c.light, figureSvg(document)), h('span', 'flag', 'none'));
           continue;
         }
         const img = h('img', 'wc-cc-photo');
@@ -134,8 +138,11 @@ async function main(): Promise<void> {
         const size = c.disc >= 70 ? 'large' : 'medium';
         jobs.push(
           (async () => {
+            const t0 = performance.now();
             const svg = draw({ sex, size, uid: `p${++serial}` });
+            const t1 = performance.now();
             img.src = await bake(document, svg, c.disc * dpr);
+            TIMES.push({ id, sex, px: Math.round(c.disc * dpr), draw: t1 - t0, bake: performance.now() - t1, bytes: svg.length });
           })().catch((e: unknown) => {
             errors.push(`${id} ${sex} ${c.name}: ${String(e)}`);
           }),

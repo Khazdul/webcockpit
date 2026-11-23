@@ -17,6 +17,7 @@ const [group = 'all', outDir = join(here, '..', 'sheets'), port = process.env.WC
 if (port === '5173') { console.error('never 5173'); process.exit(1); }
 mkdirSync(outDir, { recursive: true });
 const url = (extra = '') => `http://localhost:${port}/notes/research/portraits/stage/?g=${group}${extra}`;
+// `all`: writes contact.png and all-medium.png (see below).
 
 const browser = await chromium.launch();
 const errors = [];
@@ -29,8 +30,14 @@ async function sheet(file, extra, scale) {
   await page.locator('table.sheet').screenshot({ path: join(outDir, file) });
   await page.close();
 }
-await sheet(`${group}.png`, '', 2);
-await sheet(`${group}-medium.png`, '&raw=0&medium=1', 3);
+if (group === 'all') {
+  // Every id: a compact contact sheet (Large and Medium, no XL or raw) and the Medium one.
+  await sheet('contact.png', '&raw=0&noxl=1', 1.5);
+  await sheet('all-medium.png', '&raw=0&medium=1', 2);
+} else {
+  await sheet(`${group}.png`, '', 2);
+  await sheet(`${group}-medium.png`, '&raw=0&medium=1', 3);
+}
 await browser.close();
 if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); process.exit(2); }
 console.log('ok', join(outDir, `${group}.png`));

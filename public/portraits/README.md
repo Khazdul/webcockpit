@@ -97,5 +97,4 @@ The first one that exists is used:
 - A file that fails to load falls back to the drawing.
 - The replays have no portrait files: the exported HTML replay (no files
   beside it) and the shared replay's frame (its policy allows no image
-  from the site) always show the drawings (baked into `data:` images,
-  which both allow).
+  from the site) request none. They show no Character pane today.

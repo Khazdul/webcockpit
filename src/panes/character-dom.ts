@@ -58,7 +58,7 @@ const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
  * per render. Still images only.
  */
 function portraitEl(doc: Document, disc: HTMLElement) {
-  const wait = figureSvg(doc, 'neutral');
+  const wait = figureSvg(doc);
   disc.append(wait);
   let img: HTMLImageElement | null = null;
   let id: PortraitId = 'neutral';

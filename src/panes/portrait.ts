@@ -17,8 +17,9 @@
 //   bundles no image), so a missing file is never requested. Nothing falls
 //   back to `neutral.webp`, which is the neutral figure's only.
 // - The replay runtime (`__WC_REPLAY__`: the exported HTML file, ADR
-//   0019, and the share frame, whose CSP has `img-src data: blob:`) has
-//   no files beside it and shows the drawings only.
+//   0019, and the share frame) has no files beside it and asks for none;
+//   it shows no Character pane today, and carries no drawings either
+//   (portraits/index.ts).
 // - Dev server only: `?portrait=<id or race words>` shows that portrait
 //   whatever the race, and `?sex=female` the women (to look at all of
 //   them; the stage's test guide).

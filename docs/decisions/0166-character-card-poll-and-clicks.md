@@ -334,3 +334,79 @@ placeholders now, and the owner's WebP images later.
     only. The glob keys and the replays work as before.
 56. **Dev only:** `?portrait=` takes any of the 28 ids or race words
     (`Cave Troll` gives cavetroll).
+
+## Addendum 12 (2026-11-23): the portrait pass
+
+The night pass of `notes/research/portraits/brief.md`: the crude
+placeholders give way to drawn portraits in the balloon dwarf's tinted
+engraving (stage 75), one per id and sex. The main session judged every
+step (the owner asleep); the style guide is
+`notes/research/portraits/style.md`.
+
+57. **The drawings.** 28 ids, each a man and a woman, and one sexless
+    neutral figure: 55 drawings. Each race has a base figure (also the
+    fallback); its subraces are that figure with their own marks
+    exaggerated. A drawing is a pure function (`src/panes/portraits/
+    types.ts` `Draw`) that returns one standalone SVG string in a 200
+    square, of which the frame shows the inscribed disc, as a raster
+    file does. It is drawn for one of two sizes: `large` (from 72 CSS px
+    across) and `medium` (thicker lines, hatching as flat tone, no fine
+    strokes). Still images only: no animation, no transitions, no CSS.
+58. **The kit.** The engraving filter, hatching and colour helpers moved
+    out of the balloon rig into `src/art/engrave.ts`, which the rig and
+    the portraits share. The portraits' own shared parts (the frame, the
+    living eye, brows, strands, the soft pen for skin) are
+    `src/panes/portraits/parts.ts`.
+59. **Sex.** `setPortrait(id, sex)` and `portraitImage(id, sex)` take
+    `male | female`. The card passes `male` until the client can tell a
+    character's sex (`PORTRAIT_SEX`; the dev server's `?sex=female`
+    shows the women). The disc carries `data-portrait`, `data-sex` and
+    `data-art` (`drawn` or `raster` once an image shows).
+60. **Raster names.** `public/portraits/<id>-male.webp` and
+    `<id>-female.webp`, and the one `neutral.webp`. The lookup is the
+    subrace's file of that sex, else its race's of that sex, else the
+    drawing. Never the other sex's file: both are drawn. A file that
+    fails to load falls back to the drawing.
+61. **Cost: baked once.** The drawings use SVG filters (turbulence and
+    displacement), which must not run on the card's repaints. Each is
+    baked once: the SVG string as a `data:` image, drawn to a canvas at
+    the disc's device pixels and read back as a PNG `data:` URL
+    (`src/panes/portraits/bake.ts`). The card then shows a plain
+    decoded bitmap, which costs a repaint what any `<img>` costs. A
+    `data:` URL is allowed by every CSP the card runs under (the app's,
+    the exported replay's, the share frame's `img-src data: blob:`) and
+    needs no revoking. The pixel size is rounded up a 1.25 × ladder
+    (`bucketPx`), and the card rebakes only to grow, so dragging a pane
+    larger bakes a handful of times. A small most-recent cache keeps six
+    bakes. Measured headless, one at a time: 5 ms at 80 px, 8–9 ms at 200
+    px, about 20 ms (at most 30) at 360 px, in Firefox and Chromium
+    alike; building the SVG string is under 0.5 ms.
+62. **Loading.** One lazy chunk per people (men, elves, dwarves,
+    hobbits, orcs, trolls, dark: the Númenórean and the neutral figure),
+    as the balloon passengers. Only the player's race is fetched. A
+    shared `parts` chunk goes with any of them. Built sizes: 13–29 kB
+    raw and 4–10 kB gzip per chunk, and 8 kB (3 kB gzip) for the parts.
+    Until the first image is ready, the old neutral silhouette in the
+    pane's colours stands in. After that, a new portrait replaces the old
+    one only once it has loaded, so nothing flashes. The old placeholder
+    figures are gone. The replays show no Character pane (a shared run's
+    panes are Timers, Group and Map, `src/share/shared-panes.ts`), so the
+    replay runtime (`__WC_REPLAY__`, one IIFE, which would inline every
+    chunk) carries no drawings: `loadDraw` is null there and the build
+    drops the chunks (the exported file's runtime 1,917 → 1,754 kB). If a
+    replay ever shows Character, the drawings work there as they are: a
+    `data:` image is allowed by both replay CSPs.
+63. **The stage.** `notes/research/portraits/stage/` holds the mockup
+    page (every id in the card's real frame and ring, baked as the app
+    bakes), `shot.mjs` (the contact sheets in `../sheets/`:
+    `contact.png` and `all-medium.png` for every id, one pair per
+    people) and `mockup.mjs` (the standalone
+    `notes/research/portraits/mockup.html`). The drawings were made
+    there and then moved into `src/panes/portraits/`; the stage's draw
+    files now re-export the app's, so there is one source.
+64. **Judged, not owner-approved yet.** Decisions the main session took
+    for the owner: dwarf and Stoor women beardless (a light chin-braid
+    is easy to add); the Rohirrim woman in a gold circlet instead of the
+    helm; the Eriadorian woman bareheaded with a linen band (the dotted
+    kerchief is the Stoor woman's); the neutral figure a grey-brown wool
+    hood with an empty opening.

@@ -9,7 +9,7 @@ vi.mock('../../src/panes/portraits', async (orig) => ({ ...(await orig<typeof im
 import { SUBRACE_RACE, raceKind, subraceKind } from '../../src/gmcp/race';
 import { PORTRAIT_IDS, isPortraitId, portraitImage, portraitOf, portraitRace, rasterIds, rasterName } from '../../src/panes/portrait';
 import { figureSvg } from '../../src/panes/portrait-figures';
-import { bucketPx } from '../../src/panes/portraits';
+import { PORTRAIT_GROUP, bucketPx, loadDraw, sizeFor } from '../../src/panes/portraits';
 import { Bus } from '../../src/core/bus';
 import { GameState } from '../../src/gmcp/state';
 import { CharacterPane } from '../../src/panes/character';
@@ -99,41 +99,71 @@ describe('portraitOf', () => {
   });
 });
 
-describe('the figures', () => {
-  it('one per id, in the 60 × 75 box, with no markup but shapes', () => {
-    // Nine races, their eighteen subraces and the neutral figure.
+describe('the drawings', () => {
+  const sexes = ['male', 'female'] as const;
+  const sizes = ['large', 'medium'] as const;
+
+  it('one per id in a lazy chunk, both sexes and sizes, a standalone still SVG in the 200 square', async () => {
     expect(PORTRAIT_IDS).toHaveLength(28);
     expect(new Set(PORTRAIT_IDS).size).toBe(28);
     for (const sub of Object.keys(SUBRACE_RACE)) expect(isPortraitId(sub), sub).toBe(true);
     for (const id of PORTRAIT_IDS) {
-      const svg = figureSvg(document, id);
-      expect(svg.getAttribute('viewBox')).toBe('0 0 60 75');
-      expect(svg.getAttribute('class')).toBe('wc-cc-fig');
-      expect(svg.dataset.portrait).toBe(id);
-      expect(svg.children.length).toBeGreaterThan(2);
-      for (const c of svg.children) expect(['path', 'rect', 'ellipse', 'circle']).toContain(c.tagName);
+      expect(PORTRAIT_GROUP[id], id).toBeDefined();
+      const draw = await loadDraw(id);
+      expect(draw, id).not.toBeNull();
+      for (const sex of sexes)
+        for (const size of sizes) {
+          const uid = `t${id}${sex[0]}${size[0]}-`;
+          const svg = draw!({ sex, size, uid });
+          const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+          const root = doc.documentElement;
+          expect(root.tagName.toLowerCase(), `${id} ${sex} ${size}`).toBe('svg');
+          expect(root.getAttribute('viewBox')).toBe('0 0 200 200');
+          expect(root.getAttribute('xmlns')).toBe('http://www.w3.org/2000/svg');
+          // Still images: nothing that moves, no style sheet, no script.
+          expect(svg).not.toMatch(/<(animate|animateTransform|animateMotion|set|style|script)\b/);
+          // Every def id is this drawing's own, so two drawings never clash.
+          for (const m of svg.matchAll(/\sid="([^"]+)"/g)) expect(m[1]!.startsWith(uid), `${id}: ${m[1]}`).toBe(true);
+          for (const m of svg.matchAll(/url\(#([^)]+)\)/g)) expect(m[1]!.startsWith(uid), `${id}: url(#${m[1]})`).toBe(true);
+        }
     }
   });
 
-  it('the races keep their own fills, the neutral figure takes the pane’s', () => {
-    expect(figureSvg(document, 'orc').querySelector('[fill="#ffcf4a"]')).not.toBeNull();
-    expect(figureSvg(document, 'neutral').querySelector('[fill]')).toBeNull();
-  });
-
-  it('every subrace draws apart from its siblings and its race, but the Tarkhnarb is the orc', () => {
-    const markup = (id: (typeof PORTRAIT_IDS)[number]): string => figureSvg(document, id).innerHTML;
-    const subs = Object.keys(SUBRACE_RACE) as Array<keyof typeof SUBRACE_RACE>;
+  it('every drawing differs from every other, the women from the men, but the neutral figure is one', async () => {
     const seen = new Map<string, string>();
     for (const id of PORTRAIT_IDS) {
-      const m = markup(id);
-      if (id === 'tarkhnarb') {
-        expect(m).toBe(markup('orc'));
-        continue;
+      const draw = (await loadDraw(id))!;
+      for (const sex of sexes) {
+        const svg = draw({ sex, size: 'large', uid: 'u-' });
+        if (id === 'neutral' && sex === 'female') {
+          expect(svg).toBe(draw({ sex: 'male', size: 'large', uid: 'u-' }));
+          continue;
+        }
+        expect(seen.get(svg), `${id} ${sex} draws as ${seen.get(svg)}`).toBeUndefined();
+        seen.set(svg, `${id} ${sex}`);
       }
-      expect(seen.get(m), `${id} draws as ${seen.get(m)}`).toBeUndefined();
-      seen.set(m, id);
     }
-    expect(subs).toHaveLength(18);
+    expect(seen.size).toBe(55);
+  });
+
+  it('the Medium drawing is its own, and the pixel buckets climb by about a quarter', async () => {
+    const d = (await loadDraw('longbeard'))!;
+    expect(d({ sex: 'male', size: 'medium', uid: 'u-' })).not.toBe(d({ sex: 'male', size: 'large', uid: 'u-' }));
+    expect(sizeFor(40)).toBe('medium');
+    expect(sizeFor(71)).toBe('medium');
+    expect(sizeFor(72)).toBe('large');
+    expect(bucketPx(1)).toBe(32);
+    expect(bucketPx(80)).toBeGreaterThanOrEqual(80);
+    expect(bucketPx(200)).toBeGreaterThanOrEqual(200);
+    expect(bucketPx(200)).toBeLessThan(260);
+    expect(bucketPx(5000)).toBe(1024);
+    for (const px of [33, 99, 360, 700]) expect(bucketPx(bucketPx(px))).toBe(bucketPx(px));
+  });
+
+  it('the stand-in silhouette takes the pane\'s colours', () => {
+    const svg = figureSvg(document);
+    expect(svg.getAttribute('viewBox')).toBe('0 0 60 75');
+    expect(svg.querySelector('[fill]')).toBeNull();
   });
 });
 
