@@ -774,3 +774,41 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
     expect(t.shown).toEqual(['o>']);
   });
 });
+
+describe("InfoPoll: the width commands' Ok. at login", () => {
+  const OKS = 'Ok.\r\n\r\nOk.\r\n\r\n';
+
+  it('hidden with their blank lines and the pulse prompt; the login prompt shows; the poll still goes', () => {
+    for (const enabled of [true, false]) {
+      const t = setup({ enabled });
+      t.connect();
+      t.frame(gmcp('Char.Name', { name: 'Rasta' }), PROMPT);
+      t.frame(OKS, gmcp('Char.Vitals', { hp: 1 }), PROMPT);
+      expect(t.shown, `enabled ${enabled}`).toEqual(['o>']);
+      t.wait(SETTLE_MS);
+      expect(t.polls(), `enabled ${enabled}`).toHaveLength(enabled ? 1 : 0);
+      t.frame(`Ok.\r\n\r\n${PROMPT}`);
+      expect(t.shown.slice(1), `enabled ${enabled}`).toEqual(['Ok.', '', 'o>']);
+    }
+  });
+
+  it('a replay connection hides nothing', () => {
+    const t = setup();
+    const replay = Object.assign(new FakeSocket(), { replay: true as const });
+    t.session.connect(replay);
+    replay.open();
+    replay.data([255, 251, 201, ...gmcp('Char.Name', { name: 'Rasta' })]);
+    replay.data(wire(OKS + PROMPT));
+    expect(t.shown).toEqual(['Ok.', '', 'Ok.', '', 'o>']);
+  });
+
+  it('a disconnect and a new connection disarm', () => {
+    const t = setup();
+    t.connect();
+    t.frame(gmcp('Char.Name', { name: 'Rasta' }));
+    t.session.disconnect();
+    t.connect();
+    t.frame(OKS + PROMPT);
+    expect(t.shown).toEqual(['Ok.', '', 'Ok.', '', 'o>']);
+  });
+});

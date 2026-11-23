@@ -31,6 +31,22 @@
 //
 // Held, hidden and put back by the same rules as the fields' answer. No
 // sex line between the sentinels is a failure.
+//
+// The login's width commands (Session's PLAYING_COMMANDS) are answered
+// `Ok.` each, two stray lines at every login. `expectOk` arms the filter
+// for that many when the game is entered:
+//
+//   Ok.                                 hidden, like a finished answer
+//   ␍␊                                  hidden: the blank line after
+//   Ok.                                 hidden
+//   ␍␊                                  hidden
+//   <prompt>o&gt;</prompt> GA           hidden: the pulse showed nothing else
+//
+// - Only a whole line that is `Ok.` and nothing else, not a prompt; other
+//   lines between pass and do not disarm. A partial that can still become
+//   `Ok.` waits for its line.
+// - Disarmed after the count, on `dropOk` (another `conn.state`), on `reset`
+//   and OK_MS after arming: a later `Ok.` is the player's own and shows.
 
 import type { Line } from '../core/types';
 import type { Scheduler } from '../script/engine/timers';
@@ -43,6 +59,11 @@ export const HOLD_MS = 2000;
 export const MAX_LINES = 80;
 /** The most unanswered polls that are still recognised. */
 export const MAX_KNOWN = 8;
+
+/** How long after entering the game its width commands' `Ok.`s are hidden. */
+export const OK_MS = 5000;
+/** The width commands' answer. */
+const OK = 'Ok.';
 
 /** Every sentinel has it, in capitals as part A sent it. */
 const MARK = 'WC';
@@ -125,18 +146,34 @@ export class InfoFilter {
   private shown = false;
   /** The partial that was not passed on. */
   private keptPartial: Line | null = null;
+  /** `Ok.` lines still to hide, until `okUntil` (scheduler time). */
+  private okLeft = 0;
+  private okUntil = 0;
 
   constructor(private readonly o: InfoFilterOptions) {}
 
   /** A poll was sent: its answer is hidden however late it comes. */
   expect(nonce: string, kind: PollKind = 'fields'): void {
-    if (!this.watching) {
-      this.pulseShown = this.last !== null && !this.last.prompt;
-      this.shown = this.partialOpen;
-    }
+    this.watch();
     this.known.push({ nonce, kind, start: startSentinel(nonce, kind) });
     if (this.known.length > MAX_KNOWN) this.known.shift();
-    this.watching = true;
+  }
+
+  /** The game was entered: the next `count` lines of `Ok.` in OK_MS are hidden. */
+  expectOk(count: number): void {
+    if (count <= 0) return this.dropOk();
+    this.watch();
+    this.okLeft = count;
+    this.okUntil = this.o.scheduler.now() + OK_MS;
+  }
+
+  /** No more `Ok.` is hidden. */
+  dropOk(): void {
+    if (this.okLeft === 0) return;
+    this.okLeft = 0;
+    const partial = this.hold ? null : this.keptPartial;
+    if (partial) this.takePartial(partial);
+    this.updateWatching();
   }
 
   line(l: Line): void {
@@ -177,6 +214,7 @@ export class InfoFilter {
     if (hold) this.o.scheduler.clear(hold.timer);
     this.hold = this.before = this.after = this.keptPartial = this.last = this.asked = null;
     this.known = [];
+    this.okLeft = 0;
     this.partialOpen = this.watching = false;
     for (const l of lines) this.show(l);
     if (partial) this.showPartial(partial);
@@ -189,6 +227,13 @@ export class InfoFilter {
     if (poll) {
       this.begin(poll, l.ts);
       return this.holdLine(l);
+    }
+    if (this.isOk(l)) {
+      // A blank line before it would have been its own (the one before an answer).
+      this.before = null;
+      if (--this.okLeft === 0) this.updateWatching();
+      this.after = 'blank';
+      return this.clearShown(l.ts);
     }
     this.flushBefore();
     const blank = !l.prompt && l.text.trim() === '';
@@ -214,7 +259,7 @@ export class InfoFilter {
     if (l.text !== '') {
       const poll = this.startOf(l.text);
       if (poll) this.begin(poll, l.ts);
-      if (poll || this.maybeStart(l.text) || (this.after && !this.pulseShown && isPromptTagged(l))) {
+      if (poll || this.maybeStart(l.text) || this.maybeOk(l) || (this.after && !this.pulseShown && isPromptTagged(l))) {
         this.keptPartial = l;
         return;
       }
@@ -232,6 +277,22 @@ export class InfoFilter {
   /** An unfinished line that can still become a start sentinel. */
   private maybeStart(text: string): boolean {
     return this.known.some((k) => k.start.startsWith(text));
+  }
+
+  /** Armed for the width commands' `Ok.` and still in time. */
+  private okArmed(): boolean {
+    if (this.okLeft > 0 && this.o.scheduler.now() >= this.okUntil) this.okLeft = 0;
+    return this.okLeft > 0;
+  }
+
+  private isOk(l: Line): boolean {
+    return this.okArmed() && !l.prompt && !isPromptTagged(l) && l.text.trim() === OK;
+  }
+
+  /** An unfinished line that can still become `Ok.`. */
+  private maybeOk(l: Line): boolean {
+    const text = l.text.trim();
+    return text !== '' && OK.startsWith(text) && !isPromptTagged(l) && this.okArmed();
   }
 
   private begin(poll: { nonce: string; kind: PollKind }, ts: number): void {
@@ -308,8 +369,16 @@ export class InfoFilter {
     this.showPartial({ text: '', runs: [], tags: [], prompt: false, raw: '', ts });
   }
 
+  private watch(): void {
+    if (!this.watching) {
+      this.pulseShown = this.last !== null && !this.last.prompt;
+      this.shown = this.partialOpen;
+    }
+    this.watching = true;
+  }
+
   private updateWatching(): void {
-    this.watching = this.known.length > 0 || this.hold !== null || this.after !== null;
+    this.watching = this.known.length > 0 || this.hold !== null || this.after !== null || this.okArmed();
   }
 }
 

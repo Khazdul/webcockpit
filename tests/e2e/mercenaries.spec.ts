@@ -52,6 +52,8 @@ test('mercenaries: enable, hire, the pane row and gauge, orders, cost toggle, pa
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Rasta","fullname":"Rasta the Orc"}'));
+  // MUME's answers to the login's width commands (hidden by the client).
+  server!.send(bytes('Ok.\r\n\r\nOk.\r\n\r\n'));
 
   await command(page, '#script enable mercenaries');
   await expect(pane(page)).toBeVisible();

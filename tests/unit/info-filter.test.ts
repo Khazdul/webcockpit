@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Line } from '../../src/core/types';
 import { INFO_FIELDS, type InfoAnswer } from '../../src/gmcp/info-answer';
-import { HOLD_MS, InfoFilter, MAX_LINES, infoCommand, isGamePrompt, sexProbeCommand } from '../../src/gmcp/info-filter';
+import { HOLD_MS, InfoFilter, MAX_LINES, OK_MS, infoCommand, isGamePrompt, sexProbeCommand } from '../../src/gmcp/info-filter';
 import { Telnet } from '../../src/net/telnet';
 import { FakeScheduler } from '../../src/script/engine/timers';
 import { LineAssembler } from '../../src/text/assembler';
@@ -498,5 +498,161 @@ describe('InfoFilter: the sex probe', () => {
     t.frame(`Bob says 'WC${P}{ You are a female Tarkhnarb Orc. }WC${P}'\r\n${PROMPT}`);
     expect(t.lines).toEqual(t.raw);
     expect(t.sexes).toEqual([]);
+  });
+});
+
+describe("InfoFilter: the login's width commands' Ok.", () => {
+  const OKS = 'Ok.\r\n\r\nOk.\r\n\r\n';
+  const VITALS = [255, 250, 201, ...wire('Char.Vitals {"hp":1}'), 255, 240];
+  /** The sample login: the game entered (armed) before the login prompt of the same frame, which shows. */
+  const login = (o: { poll?: boolean } = {}) => {
+    const t = setup({ poll: null });
+    t.frame([255, 251, 201]);
+    t.frame('Reconnecting.\r\n');
+    t.clear();
+    t.filter.expectOk(2);
+    if (o.poll) {
+      t.filter.expect(N);
+      t.filter.expect('p7x2ab', 'sex');
+    }
+    t.frame(PROMPT);
+    expect(t.texts()).toEqual(['o>']);
+    t.clear();
+    return t;
+  };
+
+  it('the sample: both hidden with their blank lines and the pulse prompt, GMCP kept', () => {
+    const t = login();
+    t.frame(OKS, VITALS, PROMPT);
+    expect(t.events).toEqual(['gmcp Char.Vitals {"hp":1}']);
+    expect(t.partials).toEqual([]);
+    // Disarmed: the fast path again, the same objects.
+    t.frame(`A troll arrives.\r\n${PROMPT}`);
+    expect(t.lines).toEqual(t.raw.slice(-2));
+    expect(t.texts()).toEqual(['A troll arrives.', 'o>']);
+  });
+
+  it('cut in two chunks at every position, every 3 bytes, one byte at a time: nothing leaks', () => {
+    const bytes = [...wire(OKS), ...VITALS, ...wire(PROMPT)];
+    const cuts: number[][][] = [];
+    for (let cut = 0; cut <= bytes.length; cut++) cuts.push([bytes.slice(0, cut), bytes.slice(cut)]);
+    for (const n of [1, 3]) cuts.push(Array.from({ length: Math.ceil(bytes.length / n) }, (_, i) => bytes.slice(i * n, i * n + n)));
+    for (const chunks of cuts) {
+      const t = login();
+      t.frame(...chunks);
+      const name = chunks.map((c) => c.length).join(',');
+      expect(t.texts(), name).toEqual([]);
+      expect(t.partials, name).toEqual([]);
+      expect(t.open(), name).toBe('');
+    }
+  });
+
+  it('in two frames: nothing leaks', () => {
+    const t = login();
+    t.frame('Ok.\r\n\r\n');
+    t.frame('Ok.\r\n\r\n');
+    t.frame(PROMPT);
+    expect(t.texts()).toEqual([]);
+  });
+
+  it('a tell between them shows, and so does the prompt after it', () => {
+    const t = login();
+    t.frame(`Ok.\r\n\r\nBob tells you 'hi'\r\nOk.\r\n\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(["Bob tells you 'hi'", 'o>']);
+  });
+
+  it('text in the same pulse shows with its prompt', () => {
+    const t = login();
+    t.frame(`${OKS}A troll arrives.\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['A troll arrives.', 'o>']);
+  });
+
+  it('a third Ok. shows', () => {
+    const t = login();
+    t.frame(OKS + PROMPT);
+    t.frame(`Ok.\r\n\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['Ok.', '', 'o>']);
+  });
+
+  it(`an Ok. after ${OK_MS} ms shows`, () => {
+    const t = login();
+    t.sched.advance(OK_MS);
+    t.frame(`Ok.\r\n\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['Ok.', '', 'o>']);
+    expect(t.sched.pending).toBe(0);
+  });
+
+  it('one before the time limit is hidden, then the limit disarms the second', () => {
+    const t = login();
+    t.frame(`Ok.\r\n\r\n${PROMPT}`);
+    t.sched.advance(OK_MS);
+    t.frame(`Ok.\r\n\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['Ok.', '', 'o>']);
+  });
+
+  it('only a line that is Ok. and nothing else: colour and spaces do not count, other text shows', () => {
+    const t = login();
+    t.frame(`\x1b[32m Ok. \x1b[0m\r\n\r\nOk, fine.\r\nOk. Bob\r\nok.\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['Ok, fine.', 'Ok. Bob', 'ok.', 'o>']);
+  });
+
+  it('a tagged prompt Ok. is not one', () => {
+    const t = login();
+    t.frame(`<prompt>Ok.</prompt>${GA}`);
+    expect(t.texts()).toEqual(['Ok.']);
+  });
+
+  it('a partial that can become Ok. waits; one that cannot shows', () => {
+    const t = login();
+    t.frame('Ok');
+    expect(t.partials).toEqual([]);
+    t.frame('ay then.');
+    expect(t.partials).toEqual(['Okay then.']);
+    t.frame('\r\n');
+    expect(t.texts()).toEqual(['Okay then.']);
+  });
+
+  it('a waiting partial shows when disarmed', () => {
+    const t = login();
+    t.frame('Ok');
+    t.filter.dropOk();
+    expect(t.open()).toBe('Ok');
+  });
+
+  it('dropOk and reset disarm', () => {
+    for (const drop of [(f: InfoFilter) => f.dropOk(), (f: InfoFilter) => f.reset()]) {
+      const t = login();
+      drop(t.filter);
+      t.frame(OKS + PROMPT);
+      expect(t.texts()).toEqual(['Ok.', '', 'Ok.', '', 'o>']);
+      t.lines.forEach((l, i) => expect(l).toBe(t.raw[i]));
+    }
+  });
+
+  it('with the login poll and the sex probe answered in the same frame, at every 7th cut: nothing leaks', () => {
+    const P = 'p7x2ab';
+    const bytes = wire(OKS + answerText(N, { queued: true }) + probeText(P, { sex: 'female' }) + PROMPT);
+    for (let cut = 0; cut <= bytes.length; cut += 7) {
+      const t = login({ poll: true });
+      t.frame(bytes.slice(0, cut), bytes.slice(cut));
+      expect(t.texts(), `cut ${cut}`).toEqual([]);
+      expect(t.partials, `cut ${cut}`).toEqual([]);
+      expect(wimpy(t), `cut ${cut}`).toEqual([120]);
+      expect(t.sexes, `cut ${cut}`).toEqual([`${P} female`]);
+      t.frame(`Ok.\r\nA crow flies over.\r\n${PROMPT}`);
+      expect(t.texts(), `cut ${cut}`).toEqual(['Ok.', 'A crow flies over.', 'o>']);
+    }
+  });
+
+  it('with the login poll and the sex probe answered in the next frame: nothing leaks, nothing else hidden', () => {
+    const P = 'p7x2ab';
+    const t = login({ poll: true });
+    t.frame(OKS + PROMPT);
+    t.frame(answerText(N, { queued: true }) + probeText(P, { sex: 'male' }) + PROMPT);
+    expect(t.texts()).toEqual([]);
+    expect(wimpy(t)).toEqual([120]);
+    expect(t.sexes).toEqual([`${P} male`]);
+    t.frame(`A crow flies over.\r\n${PROMPT}`);
+    expect(t.texts()).toEqual(['A crow flies over.', 'o>']);
   });
 });

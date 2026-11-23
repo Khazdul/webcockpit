@@ -33,11 +33,16 @@
 // counts toward MAX_FAILURES like a failed poll: it is the same risk, held
 // game text put back late.
 //
+// Entering the game also arms the filter for the `Ok.` answers to
+// Session's width commands (PLAYING_COMMANDS), whether the poll is enabled
+// or not; any other `conn.state` disarms it.
+//
 // One timer at most, and only while time alone can make a poll due. What
 // else a poll waits for (a prompt, the fight's end) comes with a frame.
 
 import type { Bus } from '../core/bus';
 import { type Line, gmcpKey } from '../core/types';
+import { PLAYING_COMMANDS } from '../net/session';
 import type { Scheduler } from '../script/engine/timers';
 import type { InfoAnswer } from './info-answer';
 import { InfoFilter, infoCommand, isGamePrompt, sexProbeCommand } from './info-filter';
@@ -137,6 +142,8 @@ export class InfoPoll {
         if (this.inFrame) this.sentInFrame = true;
       }),
       bus.on('conn.state', (s) => {
+        if (s.state === 'playing' && !s.replay) this.filter.expectOk(PLAYING_COMMANDS.length);
+        else this.filter.dropOk();
         if (s.state === 'connecting') this.newConnection();
         else if (s.state === 'disconnected') {
           this.filter.reset();

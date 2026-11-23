@@ -69,7 +69,7 @@ function setup(o: { player?: boolean } = {}) {
     app.input.input.value = text;
     app.input.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
   };
-  return { app, sched, heard, frame, sent, login, rows, type };
+  return { app, sched, sock, heard, frame, sent, login, rows, type };
 }
 
 describe('the info poll in the App', () => {
@@ -177,6 +177,27 @@ describe('the info poll in the App', () => {
     expect(t.sent()).not.toContain('say leak');
     // Echoed and logged like a typed command (decision 19).
     expect(t.heard).toContain('change mood aggressive');
+  });
+
+  it("the width commands' Ok.: not on the bus, the screen or in the run log; a later one is", async () => {
+    const t = setup();
+    t.app.connectLive();
+    t.sock.open();
+    t.frame([255, 251, 201]);
+    t.frame(gmcp('Char.Name', { name: 'Rasta' }), PROMPT);
+    t.frame('Ok.\r\n\r\nOk.\r\n\r\n', gmcp('Char.Vitals', { hp: 100, maxhp: 200 }), PROMPT);
+    expect(t.heard.filter((h) => h === 'Ok.')).toEqual([]);
+    expect(t.rows()).not.toContain('Ok.');
+    t.sched.advance(10_000);
+    t.frame(`Ok.\r\n\r\n${PROMPT}`);
+    // Its line and its display.
+    expect(t.heard.filter((h) => h === 'Ok.')).toHaveLength(2);
+    await t.app.recorder.idle();
+    await t.app.recorder.flush();
+    const store = (await t.app.recorder.getStore())!;
+    const log = (await store.getChunks(t.app.recorder.runId!)).map((c) => c.text).join('');
+    expect(log).toContain('change width all 500');
+    expect(log.split('\n').filter((l) => / Ok\.$/.test(l))).toHaveLength(1);
   });
 
   it('a log player has no poll', () => {
