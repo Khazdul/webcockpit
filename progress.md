@@ -115,7 +115,7 @@ with no stage of their own. Remove a line when it is done.
 - Flaky on main, from before stage 74: `phone-own-keyboard-editors.spec.ts:218`
   (a completion taken with Tab; fails 3 of 4 alone, may be a real fault),
   `profile-place.spec.ts:444` in Firefox (1 of 4), `import.spec.ts:148`
-  in Firefox (once under load).
+  in Firefox (once under load; 2026-11-23 once alone too, then 4 of 4).
 - Stage 73: Chrome on an iPad plays a shared run's fullscreen as the
   fill (Safari keeps the real one); History's run log player and the game
   in Chrome on an iPad may break the same way on a turn (untested). The
@@ -168,7 +168,7 @@ with no stage of their own. Remove a line when it is done.
 - **Tested:** unit 5949 passed; full e2e at 5 workers 2071 passed, 6
   failed, all 6 pass alone (11 with their projects).
 - **Verified:** the owner's phone test after the 40 rows passed (incognito, landscape).
-- **Final full e2e** (after `cd98c170`, 5 workers): 2076 passed, 1 failed (`import.spec.ts:148` in Firefox, the known flaky one; passes alone).
+- **Final full e2e** (after `cd98c170`, 5 workers): 2076 passed, 1 failed (`import.spec.ts:148` in Firefox, the known flaky one: alone it failed once and then passed 4 of 4; untouched by this pass).
 - **Next:** the direction pass for Group and Character (F).
 - **Then:** in an incognito tab in landscape MUME paged the login and
   the fields poll; on the owner's word a phone or tablet reports at least
