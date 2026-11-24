@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CastQueue, parseCast, parseCastEcho } from '../../src/timers/castq';
 import { STORABLE_SPELLS, resolveSpell } from '../../src/timers/data/spells';
+import { herbDef } from '../../src/timers/data/herblores';
 import { T0, bench } from './timers-helpers';
 
 describe('cast parsing', () => {
@@ -284,9 +285,25 @@ describe('charms', () => {
 });
 
 describe('herblores', () => {
+  it("the six from the player's guide (stage 77 H9): its phases, a MUME hour a minute", () => {
+    const phases = (key: string): string[] => herbDef(key)!.phases.map((p) => `${p.name} ${p.duration} ${p.type}`);
+    expect(phases('Seeing')).toEqual(['Seeing 600 buff', 'Seeing (med) 900 buff', 'Seeing (min) 2400 buff']);
+    expect(phases('Shadows')).toEqual(['Shadows (neg) 600 debuff', 'Shadows 3600 buff', 'Shadows (low) 1800 buff']);
+    expect(phases('SkillfulOil')).toEqual(['Skillful oil 480 buff', 'Skillful oil (neg) 240 debuff']);
+    expect(phases('SoothingDraught')).toEqual(['Soothing draught 240 buff', 'Soothing draught (low) 300 buff']);
+    expect(phases('Strength')).toEqual(['Strength 7200 buff']);
+    expect(phases('OrcBalm')).toEqual(['Orc balm 180 buff', 'Orc balm (med) 360 buff', 'Orc balm (min) 180 buff']);
+    // Started by hand, as the others: the + menu lists them.
+    const b = bench();
+    b.tr.herbs.addHerb('Shadows', b.now());
+    expect(b.cell('Shadows (neg)')).toMatchObject({ group: 'herb', phase: 'debuff', expiresAt: b.now() + 600_000 });
+    b.advance(600);
+    expect(b.cell('Shadows')).toMatchObject({ phase: 'buff' });
+  });
+
   it('manual add/remove with phases derived from the start', () => {
     const b = bench();
-    expect(b.tr.herbs.herbs().map((h) => h.key)).toEqual(['Healing', 'Travelling', 'Clearthought', 'Walking', 'Haste', 'DarkAura']);
+    expect(b.tr.herbs.herbs().map((h) => h.key)).toEqual(['Healing', 'Travelling', 'Clearthought', 'Walking', 'Haste', 'DarkAura', 'Seeing', 'Shadows', 'SkillfulOil', 'SoothingDraught', 'Strength', 'OrcBalm']);
     b.tr.herbs.addHerb('Clearthought', b.now());
     b.tr.herbs.addHerb('Clearthought', b.now()); // no refresh
     expect(b.take()).toEqual(['◆ HERB: Clearthought up.']);

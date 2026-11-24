@@ -1,6 +1,12 @@
 // The herblore catalogue (Inv §2.6.10): each herblore is a fixed sequence of
 // phases, each a buff or a debuff with its own length. Facts about the game,
 // in our own format (ADR 0017). The order is the Herblores `+` menu's order.
+//
+// The guide's times are MUME hours, a real minute each (Clearthought's 2, 4
+// and 6 hours are 120, 240 and 360 s). Seeing, Shadows, Skillful oil,
+// Soothing draught, Strength and Orc balm come from the player-written
+// herblore guide alone (stage 77 H9, ADR 0166 addendum 31): no game line is
+// known for them, so they are started by hand, as the others.
 
 export interface HerbPhase {
   name: string;
@@ -67,6 +73,60 @@ export const HERBLORES: readonly HerbDef[] = [
     phases: [
       { name: 'Dark aura', duration: 210, type: 'buff' },
       { name: 'Dark aura (faded)', duration: 3600, type: 'debuff' },
+    ],
+  },
+  {
+    // Night vision; perception +3, +2, +1 (constitution −1 in the first two).
+    key: 'Seeing',
+    name: 'Seeing',
+    phases: [
+      { name: 'Seeing', duration: 600, type: 'buff' },
+      { name: 'Seeing (med)', duration: 900, type: 'buff' },
+      { name: 'Seeing (min)', duration: 2400, type: 'buff' },
+    ],
+  },
+  {
+    // Shroud; perception −3 and willpower −1, then DB +2, then DB +1 (perception −2, −1).
+    key: 'Shadows',
+    name: 'Shadows',
+    phases: [
+      { name: 'Shadows (neg)', duration: 600, type: 'debuff' },
+      { name: 'Shadows', duration: 3600, type: 'buff' },
+      { name: 'Shadows (low)', duration: 1800, type: 'buff' },
+    ],
+  },
+  {
+    // OB and DB +5, then OB −5 and DB −10.
+    key: 'SkillfulOil',
+    name: 'Skillful oil',
+    phases: [
+      { name: 'Skillful oil', duration: 480, type: 'buff' },
+      { name: 'Skillful oil (neg)', duration: 240, type: 'debuff' },
+    ],
+  },
+  {
+    // HP regeneration +15 and constitution +2, then +5 and dexterity −2.
+    key: 'SoothingDraught',
+    name: 'Soothing draught',
+    phases: [
+      { name: 'Soothing draught', duration: 240, type: 'buff' },
+      { name: 'Soothing draught (low)', duration: 300, type: 'buff' },
+    ],
+  },
+  {
+    // Strength +2.
+    key: 'Strength',
+    name: 'Strength',
+    phases: [{ name: 'Strength', duration: 7200, type: 'buff' }],
+  },
+  {
+    // HP regeneration +16, +8, +4; mana regeneration −6, −3, −1.
+    key: 'OrcBalm',
+    name: 'Orc balm',
+    phases: [
+      { name: 'Orc balm', duration: 180, type: 'buff' },
+      { name: 'Orc balm (med)', duration: 360, type: 'buff' },
+      { name: 'Orc balm (min)', duration: 180, type: 'buff' },
     ],
   },
 ];
