@@ -489,7 +489,7 @@
 
 .wc-cc-status[data-form="line"] .wc-cc-f {
   gap: calc(4px * var(--k));
-  padding-right: calc(7px * var(--k));
+  padding-right: calc(3px * var(--k));
 }
 
 .wc-cc-f .wc-cc-k {
@@ -520,9 +520,9 @@
   line-height: 1.2;
 }
 
-/* The value keeps clear of the meter at the right. */
+/* The value keeps clear of the corner mark (CELL_MARK). */
 .wc-cc-status[data-form="cells"] .wc-cc-v {
-  max-width: calc(100% - var(--k) * 7px);
+  max-width: calc(100% - var(--k) * 3px);
   line-height: 1;
 }
 
@@ -545,45 +545,89 @@
   display: inline;
 }
 
-.wc-cc-f[data-signal="low"] :is(.wc-cc-word, svg) {
-  color: var(--cc-low);
+/* Heat (round 16 C, ADR 0166 addendum 30): colour by step, calm to hot
+ * (src/panes/character-heat.ts). The DOM writes the step's colour for both
+ * sides (`--hd`, `--hl`; each track step its own `--sd`, `--sl`) on a change
+ * of step only; the side is chosen here. No step: no colour, no warming.
+ * Weight's hot end is the signal (`data-signal` stays as the state). */
+.wc-cc-f {
+  --hc: var(--hd, transparent);
 }
 
-.wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
-  color: var(--cc-critical);
+.wc-cc-f[data-heat] :is(.wc-cc-word, .wc-cc-v > svg) {
+  color: var(--hc);
 }
 
-/* The step meter, only the current lamp lit: in the cells and on one line. */
-.wc-cc-mt {
+.wc-cc-status:is([data-form="cells"], [data-form="line"]) .wc-cc-f[data-heat] .wc-cc-word {
+  text-shadow: 0 0 6px color-mix(in srgb, var(--hc) 35%, transparent);
+}
+
+/* The ground warms a little toward its foot (dark: 13 % of the colour). */
+.wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f[data-heat] {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.2), color-mix(in srgb, var(--hc) 13%, rgb(0 0 0 / 0.2)));
+}
+
+/* The track at the foot: every step in its own colour, those below the
+ * current at half, the current full; in the cells, on one line, the plain
+ * values and the compact card's cells (not its flat rows). */
+.wc-cc-ht {
   display: none;
 }
 
-.wc-cc-status:is([data-form="cells"], [data-form="line"]) .wc-cc-mt {
+.wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="plain"], [data-form="compact"]:not([data-flat])) .wc-cc-ht {
   position: absolute;
-  top: 50%;
-  right: calc(3px * var(--k));
+  right: calc(4px * var(--k));
+  bottom: max(1px, calc(1px * var(--k)));
+  left: calc(4px * var(--k));
   display: flex;
-  flex-direction: column-reverse;
   gap: 1px;
-  transform: translateY(-50%);
-}
-
-.wc-cc-status[data-form="line"] .wc-cc-lamp {
-  height: max(1px, calc(1.5px * var(--k)));
-}
-
-.wc-cc-lamp {
-  display: block;
-  width: calc(3px * var(--k));
   height: max(1.5px, calc(2px * var(--k)));
-  border-radius: 0.5px;
-  background: color-mix(in srgb, var(--lamp) 20%, transparent);
+  pointer-events: none;
 }
 
-/* Only the current step, one lamp colour. */
-.wc-cc-lamp[data-on] {
-  background: var(--hot);
-  box-shadow: 0 0 3px color-mix(in srgb, var(--lamp) 75%, transparent);
+.wc-cc-status:is([data-form="plain"], [data-form="compact"]) .wc-cc-ht {
+  right: calc(3px * var(--k));
+  bottom: 0.5px;
+  left: calc(3px * var(--k));
+  height: max(1px, calc(1.2px * var(--k)));
+}
+
+.wc-cc-hs {
+  --c: var(--sd);
+  flex: 1;
+  background: color-mix(in srgb, var(--lamp) 12%, transparent);
+}
+
+.wc-cc-hs[data-past] {
+  background: color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.wc-cc-hs[data-on] {
+  background: var(--c);
+  box-shadow: 0 0 4px var(--c);
+}
+
+/* The corner mark of a clickable cell (Mood, Casts, Alertness; not Weight). */
+.wc-cc-cm {
+  display: none;
+}
+
+.wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-cm {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: calc(6px * var(--k)) solid color-mix(in srgb, var(--lamp) 55%, transparent);
+  border-left: calc(6px * var(--k)) solid transparent;
+  border-top-right-radius: 3px;
+  pointer-events: none;
+}
+
+.wc-cc-status[data-form="compact"] .wc-cc-cm {
+  border-top-width: calc(4px * var(--k));
+  border-left-width: calc(4px * var(--k));
 }
 
 /* The shields (round 12 decision 4, `SHAPES.dnd`): as large as the room
@@ -1459,8 +1503,17 @@
     background: color-mix(in srgb, var(--lamp) 12%, transparent);
   }
 
-  .wc-cc-f[data-click]:not([data-off], [data-pending], [data-signal]):hover .wc-cc-word {
+  .wc-cc-f[data-click]:not([data-off], [data-pending], [data-signal], [data-heat]):hover .wc-cc-word {
     color: var(--hot);
+  }
+
+  /* Heat: the cell's frame takes its colour, the corner mark lights. */
+  .wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f[data-click][data-heat]:not([data-off], [data-pending]):hover {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 60%, transparent);
+  }
+
+  .wc-cc-f[data-click]:not([data-off], [data-pending]):hover .wc-cc-cm {
+    border-top-color: var(--hot);
   }
 
   .wc-cc-tab[aria-selected="false"]:hover {
@@ -1517,13 +1570,37 @@
   box-shadow: inset 0 0 0 1px rgb(60 40 10 / 0.2);
 }
 
-.wc-cc[data-light] .wc-cc-lamp {
+/* Heat on Paper: its own table (`--hl`, `--sl`), a ground of #fffdf8 with
+ * 9 % of the colour at the foot, no glow. */
+.wc-cc[data-light] .wc-cc-f {
+  --hc: var(--hl, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f[data-heat] {
+  background: linear-gradient(180deg, #fffdf8, color-mix(in srgb, var(--hc) 9%, #fffdf8));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 35%, rgb(60 40 10 / 0.15));
+}
+
+.wc-cc[data-light] .wc-cc-status .wc-cc-f[data-heat] .wc-cc-word {
+  text-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-hs {
+  --c: var(--sl);
   background: color-mix(in srgb, var(--iron-lo) 25%, transparent);
 }
 
-.wc-cc[data-light] .wc-cc-lamp[data-on] {
-  background: var(--ink, var(--cc-ink));
+.wc-cc[data-light] .wc-cc-hs[data-past] {
+  background: color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-hs[data-on] {
+  background: var(--c);
   box-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-status .wc-cc-cm {
+  border-top-color: color-mix(in srgb, var(--iron-lo) 60%, transparent);
 }
 
 .wc-cc[data-light] .wc-cc-so {
@@ -1610,12 +1687,9 @@
   color: var(--ink, var(--cc-ink));
 }
 
-.wc-cc[data-light] .wc-cc-f[data-signal="low"] :is(.wc-cc-word, svg) {
-  color: var(--cc-low);
-}
-
-.wc-cc[data-light] .wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
-  color: var(--cc-critical);
+/* Paper's heat over the ink above (the icon in a cell's value line). */
+.wc-cc[data-light] .wc-cc-f[data-heat] :is(.wc-cc-word, .wc-cc-v > svg) {
+  color: var(--hc);
 }
 
 .wc-cc[data-light] .wc-cc-vm {

@@ -7,6 +7,7 @@
 import { ABILITIES, AGE_NAMES } from '../gmcp/age';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import { countdownText } from '../timers/entry';
+import { heatColor } from './character-heat';
 import type { CardLayout, Rect } from './character-layout';
 import {
   CARD_TABS,
@@ -249,7 +250,8 @@ const STATUS_LABELS = [
 
 /**
  * Status: the four cells (Mood, Casts, Alertness, Weight; ADR 0166 point
- * 86), each with its step meter, and the four shields under them.
+ * 86), each in its step's colour with a heat track at its foot (round 16
+ * C), and the four shields under them.
  */
 function statusEl(doc: Document, click: (id: ClickId) => void) {
   const box = el(doc, 'div', 'wc-cc-panel wc-cc-status');
@@ -267,10 +269,12 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
     const line = el(doc, 'span', 'wc-cc-v');
     const value = el(doc, 'span', 'wc-cc-word');
     line.append(iconSvg(doc, key, 'wc-cc-i'), el(doc, 'i', 'wc-cc-lt', letter), value);
-    const meter = el(doc, 'span', 'wc-cc-mt');
-    f.append(small, line, meter);
+    // The heat track at the cell's foot (round 16 C, ADR 0166 addendum 30); a corner mark on the clickable three.
+    const track = el(doc, 'span', 'wc-cc-ht');
+    f.append(small, line, track);
+    if (key !== 'weight') f.append(el(doc, 'span', 'wc-cc-cm'));
     cells.append(f);
-    return { f, value, text, label, short, meter, lamps: [] as HTMLElement[] };
+    return { f, key, value, text, label, short, track, segs: [] as HTMLElement[] };
   });
 
   const shieldBox = el(doc, 'div', 'wc-cc-shields');
@@ -290,7 +294,7 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
 
   const set = (views: readonly StatusFieldView[]): void => {
     views.forEach((v, i) => {
-      const { f, value, meter, lamps } = fields[i]!;
+      const { f, key, value, track, segs } = fields[i]!;
       setText(value, v.value);
       setAttr(f, 'data-signal', v.signal);
       if (v.click) setClick(f, v.click);
@@ -300,13 +304,23 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
         setAttr(f, 'aria-label', v.name);
       }
       setTip(f, v.tip, v.name, `cc:${v.key}`);
-      // The lamps are built once: a field's steps never change.
-      while (lamps.length < v.steps) {
-        const lamp = el(doc, 'i', 'wc-cc-lamp');
-        meter.append(lamp);
-        lamps.push(lamp);
+      // The track's steps are built once, each in its own colour on both sides: a field's steps never change.
+      while (segs.length < v.steps) {
+        const seg = el(doc, 'i', 'wc-cc-hs');
+        const j = segs.length;
+        setProp(seg, '--sd', heatColor(key, j, false) ?? '');
+        setProp(seg, '--sl', heatColor(key, j, true) ?? '');
+        track.append(seg);
+        segs.push(seg);
       }
-      lamps.forEach((lamp, j) => setAttr(lamp, 'data-on', j === v.step ? '' : null));
+      // The step's colour, both sides (the CSS takes the pane's): written on a change of step only.
+      setAttr(f, 'data-heat', v.step === null ? null : String(v.step));
+      setProp(f, '--hd', heatColor(key, v.step, false) ?? '');
+      setProp(f, '--hl', heatColor(key, v.step, true) ?? '');
+      segs.forEach((seg, j) => {
+        setAttr(seg, 'data-on', j === v.step ? '' : null);
+        setAttr(seg, 'data-past', v.step !== null && j < v.step ? '' : null);
+      });
     });
   };
   /** The short labels (`Alert.`) where the long do not fit. */

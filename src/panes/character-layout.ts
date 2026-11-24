@@ -173,8 +173,8 @@ export interface Rect {
 }
 
 /**
- * The Status forms: `cells` the framed cells, label over value, the step
- * meter, 4 or 2 a row (steps 0–1); `line` the cells on one line, the label
+ * The Status forms: `cells` the framed cells, label over value, the heat
+ * track at the foot, 4 or 2 a row (steps 0–1); `line` the cells on one line, the label
  * beside the value where there is room (steps 2–3); `plain` the values with
  * no cells (step 4); `compact` the compact card's letter and value.
  */
@@ -556,13 +556,18 @@ function leftLayout(b: CardBox, mode: CardMode, k: number, at: { x: number; y: n
   };
 }
 
-/** A cell's padding each side, px; the step meter's room beside the value at scale 1 (character.css). */
+/**
+ * A cell's padding each side, px; the room the value keeps from the corner
+ * mark at scale 1 (character.css). The step meter at the right (7 px) went
+ * with round 16 C: the heat track lies in the cell's foot padding, so the
+ * value has the cell's width (ADR 0166 addendum 30).
+ */
 export const CELL_PAD = 2;
-export const CELL_METER = 7;
+export const CELL_MARK = 3;
 
 /**
  * Steps 0–1, the round 12 status cells (ADR 0166 point 86): four in a row,
- * else two; small labels over the value, the step meter at the right. Null:
+ * else two; small labels over the value, the heat track at the foot. Null:
  * they do not fit.
  */
 function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLayout | null {
@@ -571,7 +576,7 @@ function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusL
   const want = SIZES[mode].value * k;
   for (const cols of [4, 2] as const) {
     const cw = (main.w - (cols - 1) * gap) / cols;
-    const room = cw - 2 * CELL_PAD - CELL_METER * k;
+    const room = cw - 2 * CELL_PAD - CELL_MARK * k;
     let valuePx = down(want);
     let chars = Math.floor(room / glyphW(valuePx, adv) + 1e-3);
     // Four characters at least (`agg.`), a little smaller where that gives them.
@@ -597,7 +602,7 @@ function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusL
 
 /**
  * Steps 2–3: the four cells on one line (the mockups' `statusRow` `one`),
- * the meter at the right; the label beside the value where a cell is at
+ * the heat track at the foot; the label beside the value where a cell is at
  * least 64 px and four characters stay, else the value only. Null: not
  * even four characters fit.
  */
@@ -605,7 +610,7 @@ function lineLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLa
   const { adv } = b;
   const gap = Math.max(2, Math.round(3 * k));
   const cw = (main.w - 3 * gap) / 4;
-  const room = cw - 2 * CELL_PAD - CELL_METER * k;
+  const room = cw - 2 * CELL_PAD - CELL_MARK * k;
   let valuePx = down(SIZES[mode].value * k);
   if (glyphW(valuePx, adv) * 4 > room) valuePx = pxFor(room, 4, adv);
   if (valuePx < 7) return null;

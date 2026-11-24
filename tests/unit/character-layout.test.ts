@@ -449,7 +449,8 @@ function problems(b: CardBox, l: CardLayout): string[] {
     }
     // What a cell's value is promised fits it.
     const cw = (main.w - (status.cols - 1) * status.gap) / status.cols;
-    let room = cw - 4 - (status.form === 'plain' ? 0 : 7 * k);
+    // The corner mark's room (round 16 C; the meter's 7 px went, ADR 0166 addendum 30).
+    let room = cw - 4 - (status.form === 'plain' ? 0 : 3 * k);
     if (status.form === 'line' && status.label) room -= status.labelPx * (status.short ? SHORT_EM : LABEL_EM) + 4 * k;
     if (status.form === 'cells' && status.labelPx * (status.short ? SHORT_EM : LABEL_EM) > cw - 4 + 0.01) out.push('a Status label is too long');
     if (status.chars * g > room + 0.01) out.push(`Status words are too long (${status.form})`);
