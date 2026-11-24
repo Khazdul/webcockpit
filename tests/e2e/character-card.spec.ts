@@ -205,7 +205,8 @@ test('Stats and Lore from the poll; the tabs keep the focus in the input', async
   const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
   await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
   game.play(answerPulse(pollNonce(polls()[0]!)!));
-  await expect(card(page).locator('.wc-cc-sv')).toHaveText(['81', '13', '85', '70']);
+  // The shields are on Status since F2b (ADR 0166 point 87); Stats has none.
+  await expect(card(page).locator('.wc-cc-stats .wc-cc-sv')).toHaveCount(0);
   await expect(card(page).locator('.wc-cc-ab .wc-cc-bv')).toHaveText(['16', '16', '16', '11', '12', '16', '8']);
   await expect(card(page).locator('.wc-cc-age-name')).toHaveText('2nd age');
   await expect(card(page).locator('.wc-cc-next')).toHaveText('3rd at 64');
@@ -218,6 +219,10 @@ test('Stats and Lore from the poll; the tabs keep the focus in the input', async
   await expect(field('alignment')).toHaveText('totally corrupted by the Evilness of Morgoth');
   await expect(field('citizen')).toHaveText('GoblinTown');
   await expect(field('height')).toHaveText('4′11″');
+  // A box for War fame and one for War points (ADR 0166 point 123); the purse stays.
+  await expect(field('warFame')).toHaveText('warlord');
+  await expect(field('warPoints')).toHaveText('19');
+  await expect(card(page).locator('.wc-cc-lore .wc-cc-coin')).toHaveText(['380', '5', '49']);
   // Fresh data: the tab change sends no second poll.
   expect(polls()).toHaveLength(1);
   await expect(page.locator('.wc-output')).not.toContainText('GoblinTown');
@@ -259,27 +264,138 @@ test("a plain info the player types tells the sex", async ({ page }) => {
   await expect(page.locator('.wc-output')).toContainText('You are a female Tarkhnarb Orc.');
 });
 
-test('fight mode: Status, band bars, the swords; back to the tab afterwards', async ({ page }) => {
+test('a fight: only the swords; the tab, the bars and the boxes stay (round 12 decision 8)', async ({ page }) => {
   const game = await play(page);
   await tab(page, 'lore').click();
   await expect(selected(page)).toHaveText('LORE');
   const left = await card(page).locator('.wc-cc-left').boundingBox();
   const bar = card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-trk');
   const before = (await bar.boundingBox())!;
+  const position = card(page).locator('[data-click="position"]');
+  await expect(position).not.toHaveAttribute('data-fight', '');
   game.play(gmcp('Char.Vitals', { opponent: 'a troll', 'hp-string': 'Hurt' }));
-  await expect(selected(page)).toHaveText('STATUS');
-  await expect(card(page)).toHaveAttribute('data-fight', '');
-  await expect(card(page).locator('[data-click="position"]')).toHaveAttribute('data-fight', '');
+  await expect(position).toHaveAttribute('data-fight', '');
+  await expect(position).toHaveAttribute('aria-label', 'Fighting');
+  // The red swords, nothing else.
+  expect(await position.evaluate((b) => getComputedStyle(b).color)).toMatch(/^rgb\((2[0-9]{2}), /);
+  await expect(selected(page)).toHaveText('LORE');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-span')).toBeVisible();
   await expect(card(page)).not.toContainText(/hurt/i);
-  expect((await bar.boundingBox())!.height).toBeGreaterThan(before.height);
+  expect(await bar.boundingBox()).toEqual(before);
   expect(await card(page).locator('.wc-cc-left').boundingBox()).toEqual(left);
+  expect(await card(page).locator('.wc-cc-tab[aria-selected="false"]').first().evaluate((b) => getComputedStyle(b).opacity)).toBe('1');
   await tab(page, 'stats').click();
   await expect(selected(page)).toHaveText('STATS');
   game.play(gmcp('Char.Vitals', { opponent: null, hp: 150 }));
-  await expect(selected(page)).toHaveText('LORE');
+  await expect(position).not.toHaveAttribute('data-fight', '');
+  await expect(selected(page)).toHaveText('STATS');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('150');
+});
+
+// ------------------------------------------------- the round 12–14 look (F2b)
+
+/** Puts `n` buffs in as debug cells (`left` ms of `total`), and returns their ids. */
+async function buffs(page: Page, n: number, left = 300_000, total = 600_000): Promise<string[]> {
+  return page.evaluate(
+    ({ n, left, total }) => {
+      const t = window.__wc!.app.game.timers;
+      const now = Date.now();
+      const ids: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const id = `e2e-b${String(i).padStart(2, '0')}`;
+        ids.push(id);
+        t.debugAdd({ id, name: `buff ${i}`, group: 'buff', startedAt: now - (total - left), expiresAt: now + left + i * 1000, expected: total, tracked: true });
+      }
+      return ids;
+    },
+    { n, left, total },
+  );
+}
+
+const stone = (page: Page, id: string) => card(page).locator(`.wc-cc-st[data-id="${id}"]`);
+const shown = (page: Page) => card(page).locator('.wc-cc-st:not([hidden])');
+
+test('Status: the cells, the shields `⋯` until the poll answers, the purse in the stones’ row', async ({ page }) => {
+  const game = await play(page, { fetchInfo: true });
+  const sv = card(page).locator('.wc-cc-status .wc-cc-sv');
+  await expect(card(page).locator('.wc-cc-status')).toHaveAttribute('data-form', 'cells');
+  await expect(sv).toHaveText(['⋯', '⋯', '⋯', '⋯']);
+  await expect(card(page).locator('.wc-cc-purse')).toBeHidden();
+  // The step meter lights only the current step: brave is mood's fourth.
+  const lamps = card(page).locator('.wc-cc-f[data-key="mood"] .wc-cc-lamp');
+  await expect(lamps).toHaveCount(6);
+  expect(await lamps.evaluateAll((ls) => ls.map((l) => l.hasAttribute('data-on')))).toEqual([false, false, false, true, false, false]);
+  const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
+  await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
+  game.play(answerPulse(pollNonce(polls()[0]!)!));
+  await expect(sv).toHaveText(['81', '13', '85', '70']);
+  await expect(card(page).locator('.wc-cc-shield[data-key="ob"]')).toHaveAttribute('data-tip-title', 'OB 81');
+  // The purse, right-aligned in the stones' one row, all of it in a wide pane.
+  const purse = card(page).locator('.wc-cc-purse');
+  await expect(purse.locator('.wc-cc-coin:not([hidden])')).toHaveText(['380', '5', '49']);
+  await expect(purse).toHaveAttribute('data-tip', /380 gold, 5 silver, 49 copper/);
+  const row = (await card(page).locator('.wc-cc-stones').boundingBox())!;
+  const p = (await purse.boundingBox())!;
+  expect(Math.abs(p.x + p.width - (row.x + row.width))).toBeLessThan(1);
+  // Stats: the same stones, never the purse.
+  await tab(page, 'stats').click();
+  await expect(card(page).locator('.wc-cc-stones')).toBeVisible();
+  await expect(purse).toBeHidden();
+  expect((await card(page).locator('.wc-cc-stones').boundingBox())!.height).toBeCloseTo(row.height, 0);
+});
+
+test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ page }) => {
+  await play(page, { cols: 40, rows: 9 });
+  const ids = await buffs(page, 80);
+  await expect.poll(() => shown(page).count()).toBeGreaterThan(5);
+  const more = card(page).locator('.wc-cc-st[data-k="more"]');
+  await expect(more).toBeVisible();
+  const n = Number((await more.textContent())!.slice(1));
+  expect(n).toBeGreaterThan(0);
+  expect(await card(page).locator('.wc-cc-st[data-k="stone"]:not([hidden])').count()).toBe(ids.length - n);
+  await expect(more).toHaveAttribute('data-tip', 'live');
+  // The list: a press opens it, Esc closes it, and a press outside.
+  await more.click();
+  const list = page.locator('.wc-cc-list');
+  await expect(list).toBeVisible();
+  await expect(list.locator('.wc-cc-lr')).toHaveCount(n);
+  await expect(list).toContainText(`${n} more (no room)`);
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  await more.click();
+  await expect(list).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(list).toHaveCount(0);
+
+  // The herblore `+` opens the Timers pane's menu; a pick starts it, its × stops it.
+  await page.evaluate(() => window.__wc!.app.game.timers.debugClear());
+  await expect(shown(page)).toHaveCount(1);
+  await card(page).locator('.wc-cc-st[data-k="add"]').click();
+  const menu = page.locator('.wc-tm-menu[aria-label="Herblores"]');
+  await expect(menu).toBeVisible();
+  const key = (await menu.locator('.wc-tm-mi').first().getAttribute('data-key'))!;
+  await menu.locator('.wc-tm-mi').first().click();
+  await expect(menu).toHaveCount(0);
+  const herb = card(page).locator('.wc-cc-st[data-k="stone"][data-tone="herb"]');
+  await expect(herb).toHaveCount(1);
+  await herb.hover();
+  const x = herb.locator('.wc-cc-stx');
+  await expect(x).toHaveAttribute('data-key', key);
+  await x.click();
+  await expect(herb).toHaveCount(0);
+  expect(await page.evaluate((k) => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === k)?.active, key)).toBe(false);
+});
+
+test('a stone’s bar drains on the second and the list of stones does not rebuild', async ({ page }) => {
+  await play(page);
+  const [id] = await buffs(page, 1, 30_000, 60_000);
+  const fill = stone(page, id!).locator('.wc-cc-stf');
+  await expect(fill).toHaveAttribute('style', /--f: 0\.(4|5)/);
+  await stone(page, id!).evaluate((e) => ((e as HTMLElement & { mark?: number }).mark = 1));
+  const first = await fill.evaluate((e) => (e as HTMLElement).style.getPropertyValue('--f'));
+  await expect.poll(() => fill.evaluate((e) => (e as HTMLElement).style.getPropertyValue('--f')), { timeout: 5000 }).not.toBe(first);
+  expect(await stone(page, id!).evaluate((e) => (e as HTMLElement & { mark?: number }).mark)).toBe(1);
 });
 
 test('border off: the top row clicks, and the name still drags the pane', async ({ page }) => {
@@ -374,6 +490,9 @@ for (const [font, size] of [
     await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
     game.play(answerPulse(pollNonce(polls()[0]!)!));
     await expect.poll(() => page.evaluate(() => window.__wc!.app.game.info.answer !== null)).toBe(true);
+    // Stones too (F2b): eight buffs and a flag; the `+` and, where they do not fit, the `+n`.
+    await buffs(page, 8);
+    game.play(gmcp('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', poison: true }]));
     await page.evaluate(({ font, size }) => window.__wc!.settings.update({ appearance: { font, size } }), { font, size });
     await page.evaluate(() => document.fonts.ready);
     const bad: string[] = [];

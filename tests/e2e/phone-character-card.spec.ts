@@ -33,8 +33,24 @@ async function everyTab(page: Page): Promise<void> {
   }
 }
 
-test('the strip: the tabs take a finger', async ({ page }) => {
+/** The round 12–14 card (F2b): the portrait, the cells, the shields and the stones' row, inside the pane. */
+async function sameCard(page: Page): Promise<void> {
+  await expect(pane(page).locator('.wc-cc-left')).toHaveAttribute('data-form', 'portrait');
+  await expect(pane(page).locator('.wc-cc-status')).toHaveAttribute('data-form', 'cells');
+  await expect(pane(page).locator('.wc-cc-status .wc-cc-shield')).toHaveCount(4);
+  await expect(pane(page).locator('.wc-cc-status .wc-cc-shield').first()).toBeVisible();
+  await expect(pane(page).locator('.wc-cc-stones')).toBeVisible();
+  const card = (await pane(page).locator('.wc-cc').boundingBox())!;
+  for (const sel of ['.wc-cc-stones', '.wc-cc-shields', '.wc-cc-left']) {
+    const b = (await pane(page).locator(sel).boundingBox())!;
+    expect(b.x + b.width, sel).toBeLessThanOrEqual(card.x + card.width + 0.5);
+    expect(b.y + b.height, sel).toBeLessThanOrEqual(card.y + card.height + 0.5);
+  }
+}
+
+test('the strip: the same card; the tabs take a finger', async ({ page }) => {
   await open(page);
+  await sameCard(page);
   await everyTab(page);
   expect((await tab(page, 'status').boundingBox())!.width).toBeGreaterThanOrEqual(24);
 });
@@ -45,6 +61,7 @@ test.describe('landscape', () => {
   test('the column: the tabs stand clear of the band’s grip', async ({ page }) => {
     await open(page);
     await expect(pane(page)).toHaveAttribute('data-phone-side', '');
+    await sameCard(page);
     await everyTab(page);
     const t = (await tab(page, 'status').boundingBox())!;
     const grip = (await page.locator('.wc-ph-side-grip').boundingBox())!;

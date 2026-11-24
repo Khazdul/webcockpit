@@ -457,6 +457,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
       s.stone = null;
       setHidden(s.el, true);
       setTip(s.el, null);
+      for (const a of ['data-k', 'data-id', 'data-tone', 'data-state', 'data-act', 'data-end']) setAttr(s.el, a, null);
     }
     used = rows.entries.length;
     return true;

@@ -1074,8 +1074,11 @@
 }
 
 .wc-cc-age-name {
+  min-width: 0;
   color: var(--hot);
   font: italic normal calc(var(--info-value) * 1.12) / 1 "Cormorant Garamond", Georgia, serif;
+  /* `2nd age` breaks at its space in a very narrow pane. */
+  white-space: normal;
 }
 
 .wc-cc-track {
