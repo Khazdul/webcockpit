@@ -577,6 +577,36 @@ of line 1, the whole word when it fits, else four characters. Then (the
 owner): readable short forms, `heavy` → `hvy` and the like; version 3
 uses a hand-made table (`aggr`, `norm`, `hvy`, `attn`, `bsrk`, `r.hvy` …).
 
+## Part F1: live findings (2026-11-24)
+
+From the owner's run logs (Rasta 2026-11-22, Gittan 2026-11-24 09:41; not
+committed).
+
+- **Your flags come in `type: "you"`.** At login `Group.Set` carries your
+  entry with every flag (`{"id":1,"type":"you","thirsty":true,"hungry":
+  false,"poison":false,…,"waiting":false}`); changes come as
+  `Group.Update {"id":1,"thirsty":false}`. Seen changing live: `thirsty`,
+  `waiting`.
+- **`stat`** (two lines, then `Affected by:` and `- <affect>` lines only
+  when affected, then an empty line):
+
+      OB: 50%, DB: 18%, PB: 60%, Armour: 38%. Wimpy: 204. Mood: wimpy.
+      Needed: 159,510 xp, 0 tp. Gold: 82. Alert: normal.
+
+  `Gold:` is the gold coins only (`info` the same moment: 82 gold, 8
+  silver, 5 copper). Numbers are green (strip colour).
+- **`info`** typed plain: the known block (part A). `inf` is `info`.
+  `sta` is `stand`. `score` is one line of vitals only.
+- **`info` with the player's own format** prints the format with the
+  codes filled in, nothing else: `info OB=%O DB=%D PB=%k ABS=%A` →
+  `OB=50 DB=18 PB=60 ABS=38`.
+- **Mood moves OB and PB a lot:** wimpy → brave 50/60 → 73/37 (OB/PB).
+  GMCP sends the mood (`Char.Vitals {"mood":"brave"}`), not the bonuses.
+- **Equipment moves them too:** without the staff PB 40, with it OB 44
+  PB 51. Lines seen: `You stop using a bejewelled oak staff.`, `You
+  awkwardly wield a bejewelled oak staff, ready to strike your foes.`
+  (`wield`, `draw` and `wear` gave the same line).
+
 ## Part A: findings
 
 ### Known before the live run (2026-11-22)
