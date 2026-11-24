@@ -14,6 +14,10 @@
 //                     by a `You are a male|female <own race>.` line on the
 //                     bus (a plain `info` the player typed); a replay's
 //                     line sets it and is not remembered
+//   typed reads     → `game.info` merged (info-typed.ts, ADR 0166 addendum
+//                     18 point 96): the answer to the player's own `stat`,
+//                     `info`/`inf` or `info <format>` (a live `cmd.sent`,
+//                     then the lines on the bus); a read counts as a poll
 //   system rules    → wimpy (`Wimpy set to: N`, `Wimpy removed.`) and the
 //                     clock lines (`… of the Third Age.`, `The current time
 //                     is …`), installed into the script engine's system
@@ -50,6 +54,7 @@ import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
 import type { InfoAnswer } from './info-answer';
 import { InfoModel } from './info-model';
+import { type InfoRead, TypedInfoReader } from './info-typed';
 import { SEX_LINE_START, type Sex, SexMemory, parseSexLine } from './sex';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
@@ -89,6 +94,8 @@ export class GameState {
   /** Whose `sex` it is (lower case). */
   private sexOf: string | null = null;
   private readonly sexMemory: SexMemory;
+  /** The player's own `stat` and `info` answers. */
+  private readonly typed: TypedInfoReader;
   /** The connection is a replay: what it shows is not remembered. */
   private replay = false;
   private readonly now: () => number;
@@ -109,6 +116,7 @@ export class GameState {
     }
     this.clock = new ClockModel(loadClockState(saved, this.now()));
     this.sexMemory = new SexMemory(this.storage);
+    this.typed = new TypedInfoReader({ now: this.now, read: (r) => this.applyRead(r) });
     this.timers = new TimersHub({ ...opts.timers, now: this.now });
     this.timers.subscribe(() => this.emit('timers'));
   }
@@ -119,9 +127,14 @@ export class GameState {
       bus.on('gmcp', (m) => this.take(m)),
       bus.on('text.line', (l) => {
         if (l.text.startsWith(SEX_LINE_START)) this.sexLine(l.text);
+        this.typed.line(l);
+      }),
+      bus.on('cmd.sent', (c) => {
+        if (!c.replay && !c.secret && !this.replay) this.typed.sent(c.text);
       }),
       bus.on('conn.state', (s) => {
         this.replay = s.replay === true;
+        if (s.state === 'connecting') this.typed.reset();
         if (s.state === 'connecting' || (s.state === 'disconnected' && !s.replay)) this.resetCharacter();
       }),
     );
@@ -169,6 +182,7 @@ export class GameState {
       if (this.char.apply(pkg, data)) {
         const other = name !== null && this.char.name?.toLowerCase() !== name.toLowerCase();
         const infoGone = other && this.info.reset();
+        if (other) this.typed.reset();
         if (p === 'char.name') this.loadSex();
         this.emit('char');
         if (infoGone) this.emit('info');
@@ -211,6 +225,13 @@ export class GameState {
   applyInfo(answer: InfoAnswer): void {
     this.info.apply(answer, this.now());
     if (answer.wimpy !== null) this.setWimpy(answer.wimpy);
+    this.emit('info');
+  }
+
+  /** What the player's own `stat` or `info` showed, read now: it counts as a poll. */
+  applyRead(read: InfoRead): void {
+    this.info.merge(read, this.now());
+    if (read.wimpy !== undefined) this.setWimpy(read.wimpy);
     this.emit('info');
   }
 

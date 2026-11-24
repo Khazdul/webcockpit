@@ -124,7 +124,7 @@ export function parseInfoAnswer(lines: readonly string[]): InfoAnswer | null {
     weight: weightOf(f.weight),
     carrying: poundsOf(f.carrying),
     load: f.load || null,
-    alignment: f.alignment.replace(/^You are /, '').replace(/[!.]$/, '') || null,
+    alignment: alignmentOf(f.alignment),
     citizen: f.citizen || null,
     purse: purseOf(f.purse),
     warFame: warFameOf(f.warFame),
@@ -133,6 +133,69 @@ export function parseInfoAnswer(lines: readonly string[]): InfoAnswer | null {
     smell: numberOf(f.smell),
     wimpy: numberOf(f.wimpy),
   };
+}
+
+/** An answer with nothing known: what a partial read (info-typed.ts) fills when no poll has answered. */
+export function emptyAnswer(): InfoAnswer {
+  const abilities = {} as Record<Ability, AbilityScore>;
+  for (const a of ABILITIES) abilities[a] = { current: null, unaffected: null, delta: null };
+  return {
+    level: null,
+    ob: null,
+    db: null,
+    pb: null,
+    abs: null,
+    abilities,
+    years: null,
+    months: null,
+    days: null,
+    height: null,
+    weight: null,
+    carrying: null,
+    load: null,
+    alignment: null,
+    citizen: null,
+    purse: null,
+    warFame: null,
+    vision: null,
+    hearing: null,
+    smell: null,
+    wimpy: null,
+  };
+}
+
+/**
+ * One field's text (SGR stripped, trimmed) read as the poll reads it, or
+ * null when unreadable or empty. An ability is its current value; `%G`
+ * the seven unaffected values.
+ */
+export function readInfoField(key: InfoKey, s: string): unknown {
+  switch (key) {
+    case 'unaffected':
+      return unaffectedOf(s);
+    case 'height':
+      return heightOf(s);
+    case 'weight':
+      return weightOf(s);
+    case 'carrying':
+      return poundsOf(s);
+    case 'load':
+    case 'citizen':
+      return s || null;
+    case 'alignment':
+      return alignmentOf(s);
+    case 'purse':
+      return purseOf(s);
+    case 'warFame':
+      return warFameOf(s);
+    default:
+      return numberOf(s);
+  }
+}
+
+/** `%q` without "You are " and its final "!" or ".". */
+export function alignmentOf(s: string): string | null {
+  return s.replace(/^You are /, '').replace(/[!.]$/, '') || null;
 }
 
 /** A bare number, with a sign or not. */
@@ -205,7 +268,7 @@ function poundsOf(s: string): number | null {
 }
 
 /** `%h`: "four feet eleven". */
-function heightOf(s: string): InfoAnswer['height'] {
+export function heightOf(s: string): InfoAnswer['height'] {
   const m = /^(.+?) (?:feet|foot)(?:,? (?:and )?(.+?)(?: inch(?:es)?)?)?$/i.exec(s);
   if (!m) return null;
   const feet = wordsToNumber(m[1]!);
@@ -214,7 +277,7 @@ function heightOf(s: string): InfoAnswer['height'] {
 }
 
 /** `%W`: "eight stone and five pounds", either part alone too. */
-function weightOf(s: string): InfoAnswer['weight'] {
+export function weightOf(s: string): InfoAnswer['weight'] {
   const m = /^(.+?) stones?(?:,? (?:and )?(.+?) pounds?)?$/i.exec(s);
   if (!m) {
     const pounds = poundsOf(s);
@@ -228,7 +291,7 @@ function weightOf(s: string): InfoAnswer['weight'] {
 const COIN = /^(\d{1,3}(?:,\d{3})+|\d+) (?:(gold) coins?|(silver) penn(?:y|ies)|(copper) penn(?:y|ies))$/i;
 
 /** `%r`: "380 gold coins, 5 silver pennies, and 49 copper pennies". A coin not named is 0. */
-function purseOf(s: string): InfoAnswer['purse'] {
+export function purseOf(s: string): InfoAnswer['purse'] {
   const out = { gold: 0, silver: 0, copper: 0 };
   const seen = new Set<string>();
   for (const part of s.split(/,? and |, /)) {
