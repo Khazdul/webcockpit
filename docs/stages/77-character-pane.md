@@ -382,7 +382,9 @@ effect.
       (2026-11-24).
 - [x] F1b (ADR 0166 addendum 20): quicker timings, 10 s default, the
       position event, the gear fits its popup.
-- [ ] The owner's look at F1b (test guide "Part F1b").
+- [x] F1c (ADR 0166 addendum 21): a burst needs two commands with no game
+      prompt between them; the owner's session as regression tests.
+- [ ] The owner's look at F1b and F1c (test guides "Part F1b", "Part F1c").
 
 ### G. Tests
 
@@ -1126,7 +1128,9 @@ the card's look: today's Stats shields show the effect.
   default since F1b) and runs while the card is shown, Status included
   (`src/panes/character.ts` holds the poll on every tab).
 - **The quiet** (`src/gmcp/info-poll.ts`): the repeat and the events wait
-  1 s after the last command, 10 s after a burst, and not while a cast is
+  1 s after the last command, 10 s after a burst (a command less than 2 s
+  after the one before it with no game prompt between them, F1c), and not
+  while a cast is
   pending (`TimersHub.castPendingUntil`, from `src/timers/castq.ts`). The
   login poll and an opened view wait 1 s too. The gate is unchanged.
 - **The events**, each a switch in `character.pollOn` (all on): a mood or
@@ -1174,6 +1178,18 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part F1c, position changes in a row (the test server, MUME up)
+
+1. Character pane on Stats. Type `sit`, `rest`, `stand`, `sleep`, `wake`,
+   `stand` at your normal pace (a second or two apart): about 1 s after
+   each command the shields follow (a state you leave within a second may
+   be skipped; the one you stay in is fetched).
+2. Your MUME aliases for the mood (`wi`, `bra` …), also typed quickly one
+   after another: the same.
+3. Still waits: a command typed while another is held (during a cast, or
+   two commands typed so fast that MUME has not answered the first) waits
+   10 s after the last one.
 
 ### Part F1b, quicker and the position (the test server, MUME up)
 

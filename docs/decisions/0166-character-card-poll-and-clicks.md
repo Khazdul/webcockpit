@@ -733,3 +733,32 @@ differ.
     does not fit beside its label goes under it, at the right. The
     owner's sideways scroll came from a short window, whose vertical
     scroll bar left the repeat's five segments too little room.
+
+## Addendum 21 (2026-11-24): F1c, the burst
+
+The owner's live test of F1b: the shields did not follow every position
+change, and a MUME alias for the mood seemed not to update them. Replayed
+with the session's commands and timings through the real session, filter
+and poll (unit tests `info-poll` and `info-poll-app`, "the owner's live
+session"):
+
+118. **A burst** is a command sent less than `BURST_MS` (2 s) after the one
+    before it **with no game prompt between them**: MUME had not answered
+    the first. Point 98's burst was the time alone, so normal typing (each
+    command answered in 0.1–0.25 s, the next 0.2–2 s later: `r` 1.9 s after
+    `sit`, `st` 0.18 s after `wa`) waited 10 s, and the next command
+    started it again: five of the session's lasting positions were never
+    fetched before the next command. What point 98 guards is kept: a
+    command held behind a delay (a cast, a stun, a door) prints no prompt
+    until MUME runs it, so the next command within 2 s is still a burst,
+    and a `write` behind it still waits 10 s. A prompt in the frame a
+    command was sent in does not answer it (the frame was printed before
+    MUME saw the command). Any game prompt counts, the hidden poll's too.
+119. **The alias.** MUME's echo `[cha mood wimpy]`, `Ok.`, the GMCP mood and
+    the prompt poll 1 s after the command, as a typed `cha mood` does,
+    also when the alias follows a repeat poll at once (the answer comes
+    first, so it does not serve the event). Nothing in the client treats
+    the echo line otherwise. Not reproduced: the session's aliases were
+    each answered and more than 2 s apart; the likeliest cause of what the
+    owner saw is point 118 (an alias typed within 2 s of another command
+    waited 10 s).
