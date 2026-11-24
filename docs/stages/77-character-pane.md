@@ -2102,3 +2102,19 @@ zero. Still to check in that pass: what GMCP sends for a troll's mana
 (0, or no keys), the Group pane and the phone's fight card with a 0 max,
 and a unit test for a troll; and ask the owner whether a troll's card
 shows the mana bar at all.
+
+### Round 20 and the troll's mana (the owner, 2026-11-24)
+
+- **The tabs: G8** ("Järnark, bara skifferkanten"): G1's iron sheet with
+  G3's edge exactly (a near-black outline on the edge, one light line 1 px
+  inside, no G1 inner line); the tabs under the hood, on the right edge
+  below 110 px of content (`round20.html`). To build.
+- **A troll's card hides the mana bar** (HP and moves take the width).
+- The owner's troll run log (`~/Downloads/Stewash-2026-11-24T22-38-58.log`,
+  a Hill Troll, level 1; not committed): `Char.Vitals` carries **no mana
+  keys at all** (no `mana`, `maxmana`, `mana-string`, and no
+  `spell-effort`), also in the first full message; `Char.StatusVars` has
+  `"race":"Troll","subrace":"Hill Troll"`. So the rule: no mana bar when
+  the race is Troll (or, safer, while no mana key has come and the poll's
+  `%E` is 0). Casts (spell-effort) is absent too: what the Casts cell shows
+  for a troll is to decide in the pass (hide it, or `—`).
