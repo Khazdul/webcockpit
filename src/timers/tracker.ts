@@ -56,7 +56,16 @@ export interface TrackerHost {
   announce(tag: StateTag, name: string, verb: string, detail?: string): void;
   /** Emits any UI line (e.g. `⚠ WARN: STORE: lost track of stored spells.`). */
   message(m: UiMessage): void;
+  /**
+   * An affect on you started, was refreshed or ended, or a herblore was
+   * started (the info poll's events, ADR 0166 addendum 18 point 99). Live
+   * changes only, never a restore or a reconcile. Absent: nobody listens.
+   */
+  effect?(e: EffectEvent): void;
 }
+
+/** What `TrackerHost.effect` reports. */
+export type EffectEvent = 'affect-up' | 'affect-refreshed' | 'affect-down' | 'herb-up';
 
 /** One tracker behind the hub. Optional members are called only when present. */
 export interface Tracker {

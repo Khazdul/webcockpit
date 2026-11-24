@@ -127,6 +127,7 @@ export class AffectsTracker implements Tracker {
     this.host.changed();
     if (!e) this.host.announce(TAG[def.type], name, 'up');
     else if (expected !== null) this.host.announce(TAG[def.type], name, 'refreshed');
+    this.host.effect?.(e ? 'affect-refreshed' : 'affect-up');
   }
 
   /** A drop line: down, with a learned sample when the entry was timed. */
@@ -141,6 +142,7 @@ export class AffectsTracker implements Tracker {
     this.active.delete(name);
     this.host.changed();
     if (def) this.host.announce(TAG[def.type], name, 'down');
+    this.host.effect?.('affect-down');
   }
 
   private learn(name: string, secs: number): void {
@@ -202,6 +204,7 @@ export class AffectsTracker implements Tracker {
         this.active.delete(e.name);
         changed = true;
         this.host.announce(TAG[def.type], e.name, 'down');
+        this.host.effect?.('affect-down');
       }
     }
     if (changed) this.host.changed();

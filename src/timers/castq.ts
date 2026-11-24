@@ -19,6 +19,12 @@
 // The queue forgets everything 10 s after the last cast was queued, so a
 // cast that got no answer cannot mislabel a much later landing. Runtime
 // only: never saved (key 'cast', `serialize` → undefined).
+//
+// Apart from the queue (which holds only blindness and charm), any cast
+// sent is pending (`pendingUntil`, the info poll's quiet, ADR 0166
+// addendum 18 point 98) until a shared failure line, a bad target, an
+// empty Enter, a landing of an affect (`landed`, from the hub) or
+// `CAST_PENDING_MS` after it was sent or its concentration started.
 
 import type { TimerCell } from './entry';
 import type { LineRouter } from './lines';
@@ -26,6 +32,8 @@ import type { Tracker } from './tracker';
 
 /** The queue is dropped this long after the last cast was queued, ms. */
 export const CAST_QUEUE_IDLE_MS = 10_000;
+/** A cast with no end seen is over this long after it was sent or started, ms. */
+export const CAST_PENDING_MS = 8000;
 
 export interface CastAttempt {
   kind: 'blindness' | 'charm';
@@ -101,6 +109,8 @@ export class CastQueue implements Tracker {
   readonly key = 'cast';
   private items: CastAttempt[] = [];
   private lastPush = 0;
+  /** When a cast (any spell) was sent or started, and is not seen over. */
+  private castAt: number | null = null;
   private readonly now: () => number;
   private readonly failed: Listener[] = [];
   private readonly started: Listener[] = [];
@@ -134,6 +144,7 @@ export class CastQueue implements Tracker {
   route(router: LineRouter): void {
     const fail = (): void => {
       const now = this.now();
+      this.castAt = null;
       this.failFront(now);
       for (const fn of this.failed) fn(now);
     };
@@ -141,7 +152,10 @@ export class CastQueue implements Tracker {
     router.onPrefix(FLEE_PREFIX, (text) => {
       if (text.endsWith('.')) fail();
     });
-    router.onLine(CAST_BAD_TARGET, () => this.failFront(this.now()));
+    router.onLine(CAST_BAD_TARGET, () => {
+      this.castAt = null;
+      this.failFront(this.now());
+    });
     router.onLine(CAST_RECALL, () => {
       const now = this.now();
       for (const fn of this.recalled) fn(now);
@@ -149,6 +163,7 @@ export class CastQueue implements Tracker {
     for (const l of CAST_STARTED) {
       router.onLine(l, () => {
         const now = this.now();
+        if (this.castAt !== null) this.castAt = now;
         for (const fn of this.started) fn(now);
       });
     }
@@ -195,6 +210,20 @@ export class CastQueue implements Tracker {
     this.items.shift();
   }
 
+  /** Until when a cast is pending, or null when none is. */
+  pendingUntil(now: number): number | null {
+    if (this.castAt === null) return null;
+    const until = this.castAt + CAST_PENDING_MS;
+    if (now < until) return until;
+    this.castAt = null;
+    return null;
+  }
+
+  /** An affect landed (or was refreshed): the cast is over. */
+  landed(): void {
+    this.castAt = null;
+  }
+
   /** Queued casts (tests). */
   get length(): number {
     return this.items.length;
@@ -208,12 +237,14 @@ export class CastQueue implements Tracker {
 
   onSent(text: string, now: number): void {
     if (text === '') {
+      this.castAt = null;
       this.failFront(now);
       for (const fn of this.aborted) fn(now);
       return;
     }
     const c = parseCast(text);
     if (!c) return;
+    this.castAt = now;
     const spell = c.spell.toLowerCase();
     if (spell.length >= 3 && 'blindness'.startsWith(spell)) {
       const m = /^(\d+\.)/.exec(c.tail);
@@ -239,5 +270,6 @@ export class CastQueue implements Tracker {
 
   reset(): void {
     this.items = [];
+    this.castAt = null;
   }
 }

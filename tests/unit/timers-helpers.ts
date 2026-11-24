@@ -7,7 +7,7 @@ import type { Line, UiMessage } from '../../src/core/types';
 import { LineAssembler } from '../../src/text/assembler';
 import { ScriptEngine } from '../../src/script/engine';
 import type { TimerCell, TimerGroup } from '../../src/timers/entry';
-import type { StateTag, TrackerHost } from '../../src/timers/tracker';
+import type { EffectEvent, StateTag, TrackerHost } from '../../src/timers/tracker';
 import { buildTrackers } from '../../src/timers/trackers';
 
 export const T0 = 1_790_000_000_000;
@@ -29,12 +29,14 @@ export function bench() {
   const msgs: string[] = [];
   const errors: string[] = [];
   let changes = 0;
+  const effects: EffectEvent[] = [];
   const host: TrackerHost = {
     now: () => t,
     changed: () => void changes++,
     announce: (tag: StateTag, name: string, verb: string, detail?: string) =>
       msgs.push(`◆ ${tag}: ${name} ${verb}${detail ? ` (${detail})` : ''}.`),
     message: (m) => msgs.push(plain(m)),
+    effect: (e) => void effects.push(e),
   };
   const tr = buildTrackers(host);
   const engine = new ScriptEngine({ send: () => {}, message: (s) => errors.push(s) });
@@ -65,6 +67,7 @@ export function bench() {
     engine,
     host,
     msgs,
+    effects,
     errors,
     line,
     send,

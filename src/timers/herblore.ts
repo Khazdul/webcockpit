@@ -41,6 +41,7 @@ export class HerbloreTracker implements Tracker {
     this.running.set(key, { key, startedAt: now, phase: 0 });
     this.host.changed();
     this.host.announce('HERB', def.phases[0]!.name, 'up');
+    this.host.effect?.('herb-up');
   }
 
   removeHerb(key: string, now: number): void {

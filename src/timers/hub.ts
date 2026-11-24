@@ -37,7 +37,16 @@ import type { SystemRules } from '../gmcp/state';
 import { type Scheduler, realScheduler } from '../script/engine/timers';
 import { TimersArchive } from './archive';
 import { TIMER_GROUPS, type TimerCell, type TimerGroup, type TimersView, emptyView, sortCells } from './entry';
-import { ManualTracker, type StateTag, type Tracker, type TrackerFactory, type TrackerHost, stateMessage } from './tracker';
+import { CastQueue } from './castq';
+import {
+  type EffectEvent,
+  ManualTracker,
+  type StateTag,
+  type Tracker,
+  type TrackerFactory,
+  type TrackerHost,
+  stateMessage,
+} from './tracker';
 import { createTrackers } from './trackers';
 import type { SanctMember } from './sanct';
 
@@ -86,6 +95,9 @@ export class TimersHub {
   /** Cells put in by `debugAdd` (never saved). */
   private readonly debug: ManualTracker;
   private readonly listeners = new Set<() => void>();
+  private readonly effectListeners = new Set<(e: EffectEvent) => void>();
+  /** The cast queue among the trackers, or null (a test's factory). */
+  private readonly casts: CastQueue | null;
   private readonly unsubs: Array<() => void> = [];
   private bus: Bus | null = null;
 
@@ -119,8 +131,10 @@ export class TimersHub {
       announce: (tag: StateTag, name: string, verb: string, detail?: string) =>
         this.message(stateMessage(tag, name, verb, detail)),
       message: (m: UiMessage) => this.message(m),
+      effect: (e: EffectEvent) => this.effect(e),
     };
     this.trackers = (opts.trackers ?? createTrackers)(host);
+    this.casts = this.trackers.find((t): t is CastQueue => t instanceof CastQueue) ?? null;
     this.debug = new ManualTracker('debug', { ...host, changed: () => this.notify() });
     this.win?.addEventListener('pagehide', this.onHide);
   }
@@ -161,7 +175,27 @@ export class TimersHub {
     this.tickTimer = null;
     this.win?.removeEventListener('pagehide', this.onHide);
     this.listeners.clear();
+    this.effectListeners.clear();
     this.bus = null;
+  }
+
+  /**
+   * Calls `fn` when an affect on you starts, is refreshed or ends, or a
+   * herblore is started (the info poll's events). Returns the unsubscribe.
+   */
+  onEffect(fn: (e: EffectEvent) => void): () => void {
+    this.effectListeners.add(fn);
+    return () => this.effectListeners.delete(fn);
+  }
+
+  /** Until when a cast sent is pending (the info poll waits), or null. */
+  castPendingUntil(): number | null {
+    return this.casts?.pendingUntil(this.now()) ?? null;
+  }
+
+  private effect(e: EffectEvent): void {
+    if (e === 'affect-up' || e === 'affect-refreshed') this.casts?.landed();
+    for (const fn of [...this.effectListeners]) fn(e);
   }
 
   /** Installs every tracker's game-text actions into the system store (ADR 0017 "Rules"). */
