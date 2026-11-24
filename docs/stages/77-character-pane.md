@@ -365,19 +365,20 @@ Built on a branch by a building agent, then the owner's live test. No
 card look changes (that is F2); the shields in today's Stats show the
 effect.
 
-- [ ] Your flags kept from `type: "you"` (`selfFlags`), with unit tests.
-- [ ] Read a typed `stat` (OB, DB, PB, armour, gold coins), `info`/`inf`
+- [x] Your flags kept from `type: "you"` (`selfFlags`), with unit tests.
+- [x] Read a typed `stat` (OB, DB, PB, armour, gold coins), `info`/`inf`
       and `info <format>`; the reads count as a poll. Unit tests from the
       logged lines.
-- [ ] The repeat as a setting (10 s, 20 s default, 30 s, 1 min, 5 min),
+- [x] The repeat as a setting (10 s, 20 s default, 30 s, 1 min, 5 min),
       while Status, Stats or Lore is shown.
-- [ ] Quiet: 3 s, 10 s after a burst, none while a cast is pending.
-- [ ] Events (switches, all on): mood, equipment lines, affect start/end,
+- [x] Quiet: 3 s, 10 s after a burst, none while a cast is pending.
+- [x] Events (switches, all on): mood, equipment lines, affect start/end,
       herblore started; coalesced 1.5 s, 3 s between polls.
-- [ ] The gear: interval and the four switches (desktop and the phone's
+- [x] The gear: interval and the four switches (desktop and the phone's
       settings page).
-- [ ] Unit tests for the scheduling; e2e for the gear; full e2e at 5
+- [x] Unit tests for the scheduling; e2e for the gear; full e2e at 5
       workers.
+- [ ] The owner's live test (test guide "Part F1").
 
 ### G. Tests
 
@@ -1102,6 +1103,44 @@ The card shows the character's own sex (ADR 0166 addendum 13).
   `data-sex="female"` and leaves no text; a remembered sex at once with
   no probe; a typed `info` swaps).
 
+## Part F1: what was built (2026-11-24)
+
+The model and the poll of ADR 0166 addendum 18 (points 95–101); the
+technical choices beyond it are addendum 19 (points 102–113). No change to
+the card's look: today's Stats shields show the effect.
+
+- **Your flags.** `src/gmcp/group.ts` keeps every `STATUS_FLAGS` flag of
+  your own entry (`selfFlags`); `selfBashed` reads its `bashed`.
+- **What the player sees.** `src/gmcp/info-typed.ts`: the player's own
+  `stat`, `info`/`inf` and `info <format>` arm a reader (`cmd.sent`); the
+  answer is the next paragraph (up to an empty line or a prompt) that
+  reads as one, within 10 s. `GameState.applyRead` merges it into
+  `game.info` (`InfoModel.merge`, only what was read; `stat`'s `Gold:`
+  changes the gold coins only), and the read counts as a poll. Nothing is
+  hidden.
+- **The repeat** is `character.pollEvery` (10, 20, 30, 60 or 300 s;
+  20 s by default) and runs while the card is shown, Status included
+  (`src/panes/character.ts` holds the poll on every tab).
+- **The quiet** (`src/gmcp/info-poll.ts`): the repeat and the events wait
+  3 s after the last command, 10 s after a burst, and not while a cast is
+  pending (`TimersHub.castPendingUntil`, from `src/timers/castq.ts`). The
+  login poll and an opened view keep 2 s. The gate is unchanged.
+- **The events**, each a switch in `character.pollOn` (all on): a mood
+  change in `Char.Vitals`, MUME's equipment lines (`isEquipmentLine`, one
+  anchored test per verb), an affect on you up or down and a herblore
+  started (`TrackerHost.effect` → `TimersHub.onEffect` → `InfoPoll.effect`).
+  Events within 1.5 s are one poll, at least 3 s between polls, one
+  outstanding, none in a fight; data newer than the event serves it.
+- **The gear**: "Fetch every" and four switches under "Fetch at once
+  when" in the Character gear (`src/chrome/popups/pane-settings.tsx`), and
+  a "Character fetching" sub-page from the phone's Panes group
+  (`src/phone/settings-page.tsx`).
+- Tests: unit `gmcp-group`, `gmcp-info-typed`, `info-poll` (the F1 block
+  and `isEquipmentLine`), `timers-effects`, `settings`, `pane-gear`,
+  `phone-menu`, `character-pane`; e2e `info-poll.spec.ts` (the gear's
+  repeat and switches; a typed `stat` sets the shields and shows; a wear
+  line polls).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1129,6 +1168,32 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part F1, the poll's triggers (the test server, MUME up)
+
+Open `http://localhost:5173/`, log in, and keep the Character pane on
+Stats (its shields: OB, DB, PB, ABS).
+
+1. Type `stat`. The answer shows in the game text as always, and the
+   shields take its OB, DB, PB and armour at once (Lore's gold too; silver
+   and copper stay).
+2. Type `info OB=%O DB=%D`, then a plain `info`. The same: the shields
+   follow what MUME printed. A format that does not match is left alone.
+3. Type `cha mood brave` (or click the mood). About 1.5 s after GMCP's new
+   mood (3 s after your command) the shields change by themselves.
+4. `remove` your weapon, then `wield` it. About 3 s after the command the
+   shields change. Try `wear all`: one fetch, not one per line.
+5. Cast a spell on yourself (`cast 'armour'`). Nothing is fetched while
+   you concentrate; when it lands the shields update.
+6. Leave the card on Status for a while: it is fetched every 20 s there
+   too (watch "info N s ago" on Stats when you switch back).
+7. The gear (hover the pane, the cog): "Fetch every" (10 s … 5 min) and
+   the four switches under "Fetch at once when". Turn one off and repeat
+   its step: nothing is fetched. On a phone: Settings → Panes → Character
+   fetching.
+
+Feedback wanted: is 20 s right; does any trigger fire too often or not at
+all (a line we do not know); does a fetch ever show text in the game.
 
 ### Part E2, the card's sex (the test server, MUME up)
 

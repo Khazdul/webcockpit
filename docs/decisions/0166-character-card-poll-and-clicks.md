@@ -635,3 +635,72 @@ own addendum when it is built.
     poll waits for the fight's end, as before.
 101. **Cost:** one anchored test on each game line beginning `You `, and
     the trackers' own start/end events. No matching on input.
+
+## Addendum 19 (2026-11-24): F1 as built
+
+The technical choices made when building addendum 18 (stage 77, "Part
+F1: what was built").
+
+102. **Which commands are read.** The first word `stat` (alone), `info`
+    or `inf`, any case, after aliases. No other abbreviation: `sta` is
+    `stand`, and nothing else is known safe. A replay, a secret and a
+    command sent in a replay connection arm nothing.
+103. **Tying the answer.** A command arms a reader for 10 s (it can wait
+    behind a cast); at most 4 wait. The answer is a paragraph: the lines
+    up to an empty line or a prompt, joined with spaces (the wrap), read
+    from the line where it starts (`OB: `, `You are a male|female …`), so
+    a line from someone else before it does no harm. Each paragraph
+    answers at most one reader, in the order sent. This is point 96's
+    "what comes before the next game prompt" with MUME's queue in mind: a
+    queued command's answer comes after other prompts, and several `info`
+    answers share one prompt.
+104. **The plain `info`.** Read: level, age, height and weight, the
+    senses, the alignment (the sentence after the perception's, never one
+    beginning `You are welcome`), the pounds carried and the load
+    sentence, the abilities (`Str:18(16)` is current 18, unaffected 16,
+    as part A's table says), OB, DB, PB, armour, wimpy and the purse. Not
+    read: the citizen (`You are welcome in Goblin-town.` against `%c`'s
+    `GoblinTown`) and the war fame (a sentence against `%K`'s word): the
+    card would show another form than the poll's.
+105. **A format.** `%%` is `%`, `%.` a space (the line break), `%(`, `%)`
+    and `%,` nothing; an unknown code is matched and ignored. A format
+    with no code the card uses, or two codes with nothing between them,
+    arms nothing. The match is anchored on the whole answer (after any
+    lines before it); one unreadable value reads nothing.
+106. **A merge.** Only what was read changes; each merge is a new answer
+    object (the card compares by identity). `stat`'s gold needs a known
+    purse: with none it is not shown. A read moves `game.info.at`, so the
+    repeat and an event wait from it (an event is served by data strictly
+    newer than it). An opened view still polls while no poll has answered
+    (`InfoModel.complete`): a `stat` alone leaves Lore empty.
+107. **Events need a shown card.** An event polls only while a view is
+    open (the card is shown); with the card hidden, opening it polls when
+    the data is older than 30 s, as before.
+108. **One poll for what came before it.** A poll sent clears the event
+    window, and an answer that arrives after an event's line serves it:
+    MUME answers in order, so the answer behind that line has the change.
+    An event while a poll is outstanding thus gives no second poll.
+109. **The burst** is two commands less than 2 s apart, whoever sent them:
+    the login's width commands count, so the first repeat or event after
+    a login waits 10 s from it. The quiet is not per command kind.
+110. **A pending cast** is any command `parseCast` takes (`c`…`cast` and a
+    quoted spell), from its sending, restarted by `You start to
+    concentrate...`, and over at a shared failure line, `Nobody here by
+    that name.`, an empty Enter, an affect landing or refreshed, or 8 s
+    (`CAST_PENDING_MS`) with no end seen (a spell with no affect on you,
+    say). The cast queue for blindness and charm is unchanged.
+111. **The trackers' events.** `TrackerHost.effect` (optional): the
+    affects tracker on a start, a refresh, a drop and an expiry it
+    announces; the herblore tracker when one is added (not its phases).
+    Restores and the `stat`/`info` reconcile are silent. A refresh polls
+    nothing (no change), but ends a pending cast.
+112. **Equipment lines.** `isEquipmentLine`: a lookup on the second word,
+    then one anchored regex: `stop using`, `wield`, `awkwardly wield`,
+    `wear`, `put … on|over|around …` with no ` in `/` into ` before it,
+    `fasten … on …`, `cover`, `hold`. `You remove …` (seen for a sheathed
+    weapon and keys) is not one: the remove of a worn thing is `You stop
+    using …`.
+113. **Settings.** `character.pollEvery` (seconds: 10, 20, 30, 60, 300)
+    and `character.pollOn` (`mood`, `equipment`, `affects`, `herblore`),
+    additive like `fetchInfo` (point 30). On a phone they are a sub-page,
+    "Character fetching", from the Panes group, beside the poll switch.
