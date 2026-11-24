@@ -1114,3 +1114,31 @@ untapped × goes after 3 s. The mouse is unchanged.
      forgotten, its group off), `blank`, inactivity and a log player
      clear the arming.
 167. **Log player**: read-only, no × at all, nothing to arm (unchanged).
+
+## Addendum 28 (2026-11-24): part H, the owner's picks
+
+From the H list (stage 77, "H. Polish"). The owner: 1A, 2A, 3A, 4A, 5A,
+6B, 7A, and stone icons (8).
+
+168. **Stats and the stones.** Stats shows the stones row only where its
+     own content fits above it; else the row goes from Stats (the stones
+     are always in Status). Replaces round 14's "Stats shows the stones
+     row too" where it does not fit.
+169. **One scale.** The modes' scales meet: no smaller words as a pane
+     grows past Medium's 106 px (closes point 157).
+170. **Tab icons.** Where the tab words would be under a readable size, the
+     tabs show icons (Status a shield, Stats a die, Lore a scroll), the
+     word in the tooltip and the accessible name.
+171. **Short forms everywhere.** The status cells use the compact card's
+     hand-made short forms (point 126) instead of `fitWord`'s `…`
+     (replaces point 156's "the steps' cells keep `fitWord`"). Point 127's
+     forms are kept (7A).
+172. **Timers is Spells** (6B). The pane's title, its settings page and the
+     phone strip's label say Spells; the pane's id stays `timers` (stored
+     layouts, sync, scripts). Herblores, Buffs and Debuffs stay in it,
+     off by default: the Character card shows them. The groups' switch is
+     display only; the card's stones do not depend on it. Existing
+     settings: switched off once (a settings version step) where the
+     Character pane is on, so nobody loses them from view; a player who
+     turns them on again keeps them on. The main session's pick.
+173. **Cells and icons** (5A, 8) are mockups first; their decisions follow.

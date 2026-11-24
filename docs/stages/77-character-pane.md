@@ -471,6 +471,28 @@ The owner looks closely and decides first. Named so far:
 
 Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
 
+**The owner's picks (2026-11-24, from the H list,
+<https://claude.ai/artifact/WmKtRLqTJ4pw8Lu32wKFgm>; ADR 0166 addendum 28):**
+
+- [ ] H1 (1A). Stats drops the stones row where it does not fit; the
+      stones stay in Status.
+- [ ] H2 (2A). One smooth scale: Medium starts where Small ends, so the
+      words only grow as the pane grows (point 157).
+- [ ] H3 (3A). Small icons in the tabs where the words get too small
+      (shield, die, scroll), the word in the tooltip.
+- [ ] H4 (4A). The hand-made short forms (`brav`, `norm`, `rhvy`) in every
+      status cell instead of `…`.
+- [ ] H5 (5A). A mockup round (round 16) of the Mood, Casts, Alertness and
+      Weight cells: 3–4 variants at Medium, docked and on the phone.
+      Nothing built before the owner picks.
+- [ ] H6 (6B). Timers is renamed Spells. Herblores, Buffs and Debuffs stay
+      in it but are off by default.
+- [x] H7 (7A). `trtr`, `pnts`, `vigl` kept (point 127 closed).
+- [ ] H8. Stone icons: five proposals for each stone the card shows
+      (buffs, debuffs, herblores, your flags, your sanctuary), found from
+      every log at hand (`~/Downloads` and others); a generic stone for the
+      rest. The research and a mockup first; the owner picks.
+
 ## Direction pass: Group, Character and the fight card (2026-11-23)
 
 What the code showed first (the stage's decision 21 had it wrong):
