@@ -1806,3 +1806,9 @@ answer: type it again for the new one. At most one poll in 10 s.
 Steps 1–5 work on the phone; 3 s feels right. The Timers pane's herblore ×
 and charm × get the same: a first tap shows ×, a tap on it removes, an
 untapped × goes after 3 s (G7c).
+
+### G7c (2026-11-24)
+
+Steps 1–5 of the test guide "Part G7c" work on the phone. Not yet
+answered: whether it feels like the card's stones, and whether the charm ×
+hidden on a phone until a tap is right.
