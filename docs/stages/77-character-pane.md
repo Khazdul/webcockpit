@@ -1945,3 +1945,30 @@ corner mark on the clickable cells. To build after H1–H4, H6.
   into the `+` menu with the guide's times, without lines.
 - Next: measure `info %f`'s answer live (none, one, several affects, a
   herblore running), then a pass of its own.
+
+**`info [%f]` live (the owner, 2026-11-24):**
+
+    info [%f]          none:      []
+                       one:       [Affected by:
+                                  - armour
+                                  ]
+                       several:   [Affected by:
+                                  - potion
+                                  - detect magic
+                                  - shield
+                                  - armour
+                                  ]
+                                  [Affected by:
+                                  - hunger
+                                  - thirst
+                                  ]
+
+- Nothing at all when unaffected (the brackets touch); otherwise a line
+  `Affected by:`, one `- <name>` line per affect, and the closing
+  delimiter on a line of its own (so the answer ends with a newline).
+- The same names as `stat`'s list: spells too (armour, shield, detect
+  magic: the Timers' Spells group), the twins of the flags (hunger,
+  thirst), and a herblore as `- potion` (which herblore is not said: the
+  herblores stay by hand).
+- So `%f` goes last in the poll's format (its answer spans lines), or in
+  its own `info` of the same poll.
