@@ -242,20 +242,24 @@ Each part ends with a stop: the owner looks and says go before the next.
 - [x] E. Portraits (built; the portrait pass on main 2026-11-23, approved
       by the owner)
 - [x] E2. The card's sex (built and tested live by the owner 2026-11-23)
-- [ ] F0. Round 13 mockup: only the chosen combination (round 12
+- [x] F0. Round 13 mockup: only the chosen combination (round 12
       decisions) at Medium, Large, tall and phone, with 3, 8 and 16
       stones; the stones at the bottom beside the shields have not been
       seen. Owner's go before F1.
-- [ ] F1. Model and poll: your own GMCP flags kept from `type: "you"`
+- [x] F1. Model and poll: your own GMCP flags kept from `type: "you"`
       (check live first that MUME sends them), the stone view (herb, buff,
       debuff, flags, your sanctuary), the poll round 2 (read typed
       `stat`/`info`, `change` triggers, the interval and event settings,
-      the poll on Status).
+      the poll on Status). Done 2026-11-24 (F1, F1b, F1c; the owner's
+      live test passed). The stone view moves to F2.
 - [ ] F2. The card: round 12 decisions 1–9 (iron square portrait, ring
       bottom right, name band, cells with the step meter, D&D shields,
       stones with `+n`, parchment vitals, swords only); Stats without
       shields; the gear (stone groups, the poll settings); the phone's
-      strip page the same.
+      strip page the same. Also rounds 14–15: the purse in the stones'
+      last row, the stones in Stats, War fame and War points in Lore, the
+      portrait steps and the compact card; and the stone view (herb, buff,
+      debuff, your flags, your sanctuary) from F1.
 - [ ] G. Tests: unit (flags from `you`, the stone view and order, the
       layout's shield size, stone rows and `+n`, the poll triggers and
       interval) and e2e (the card from a GMCP fixture, stones and `+n`,
@@ -384,7 +388,7 @@ effect.
       position event, the gear fits its popup.
 - [x] F1c (ADR 0166 addendum 21): a burst needs two commands with no game
       prompt between them; the owner's session as regression tests.
-- [ ] The owner's look at F1b and F1c (test guides "Part F1b", "Part F1c").
+- [x] The owner's look at F1b and F1c (2026-11-24: "Ser bra ut.") (test guides "Part F1b", "Part F1c").
 
 ### G. Tests
 

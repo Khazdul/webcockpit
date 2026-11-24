@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 built and on main (the poll's triggers and your flags, ADR 0166 addenda 18–19), waiting for the owner's live test; then F2 (the card), G, H | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); next F2 (the card in the round 12–15 look), G, H | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -173,8 +173,8 @@ with no stage of their own. Remove a line when it is done.
   18–19.
 - **Tested:** typecheck; unit 6002 passed; full e2e at 5 workers 2080
   passed, 1 failed (`phone-community-page.spec.ts:139`, passes alone).
-- **Next:** the owner's live test (Part F1 in the test guide), then F2,
-  the card in the round 12–15 look.
+- **Next:** F2, the card in the round 12–15 look (the owner tested F1
+  live: "Ser bra ut.").
 - **Open:** the 8 s pending-cast limit; equipment wordings not yet seen.
 - **F1b** (after the owner's live test, all 7 steps worked): poll quiet 1 s,
   coalesce 0.5 s, gap 2 s, repeat 10 s default (10 s/30 s/1/5 min), a
