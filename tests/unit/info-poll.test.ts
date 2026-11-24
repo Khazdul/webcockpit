@@ -62,7 +62,9 @@ function setup(
     ...(o.every === null ? {} : { everyMs: () => o.every ?? EVERY_MS }),
     events: () => ({ mood: true, position: true, equipment: true, affects: true, herblore: true, ...o.events }),
     castPendingUntil: o.cast ?? (() => game.timers.castPendingUntil()),
-    apply: (a) => game.applyInfo(a),
+    apply: (a, mark) => game.applyPoll(a, mark),
+    mark: () => game.char.vitalsMark(),
+    affectCount: () => game.timers.affectCount(),
     ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x), sexFailed: () => game.sexProbeFailed() } : {}),
     windowSize: () => size,
     nonce: () => `poll${String(n++).padStart(2, '0')}`,
@@ -794,9 +796,13 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
 
   it("a poll only when its answer fits the window: MUME's pager would take what follows", () => {
     expect(answerFits(null)).toBe(true);
-    expect(answerFits({ cols: 80, rows: 12 })).toBe(true);
-    expect(answerFits({ cols: 80, rows: 11 })).toBe(false);
-    expect(answerFits({ cols: 40, rows: 19 })).toBe(true);
+    // The fields' 8 rows at 80 columns, the affects' list (none known: 3 to spare and its 2), 4 spare.
+    expect(answerFits({ cols: 80, rows: 17 })).toBe(true);
+    expect(answerFits({ cols: 80, rows: 16 })).toBe(false);
+    expect(answerFits({ cols: 40, rows: 24 })).toBe(true);
+    // Each affect known to be on takes a row (stage 77 H9).
+    expect(answerFits({ cols: 80, rows: 17 }, 1)).toBe(false);
+    expect(answerFits({ cols: 80, rows: 22 }, 5)).toBe(true);
     const t = setup({ sex: true, rows: 8 });
     t.resize({ cols: 80, rows: 8 });
     t.login();
@@ -809,7 +815,7 @@ describe('InfoPoll: the sex probe (stage 77 part E2)', () => {
   });
 
   it(`only in a window of ${PROBE_MIN_ROWS} rows or more: MUME pages a plain info at the window's height`, () => {
-    for (const rows of [null, 12, PROBE_MIN_ROWS - 1]) {
+    for (const rows of [null, 17, PROBE_MIN_ROWS - 1]) {
       const t = setup({ sex: true, rows });
       t.login();
       t.wait(SETTLE_MS);

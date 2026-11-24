@@ -6,8 +6,11 @@
 //   bus gmcp        → char.apply, group.apply (Char.Vitals fight fields too),
 //                     clock.syncSun (Event.Sun), clock.noteMoon (Event.Moon
 //                     against the moon model; diagnostics only)
-//   info poll       → `applyInfo`: `game.info` (info-model.ts) and the
-//                     wimpy; reset with the character and on another name
+//   info poll       → `applyPoll`: `game.info` (info-model.ts) and the
+//                     wimpy, reset with the character and on another name;
+//                     the vitals into `char` (a newer Char.Vitals wins);
+//                     the affects to `timers.reconcileAffects` (stage 77
+//                     H9, ADR 0166 addendum 31)
 //   sex             → `game.sex` (sex.ts, stage 77 part E2): remembered per
 //                     name (`wc.charSex.v1`, the same storage), loaded at
 //                     Char.Name; set by the poll's probe (`applySex`) and
@@ -52,7 +55,7 @@ import { CharModel } from './char';
 import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
-import type { InfoAnswer } from './info-answer';
+import type { InfoAnswer, PollAnswer } from './info-answer';
 import { InfoModel } from './info-model';
 import { type InfoRead, TypedInfoReader } from './info-typed';
 import { SEX_LINE_START, type Sex, SexMemory, parseSexLine } from './sex';
@@ -221,7 +224,17 @@ export class GameState {
     if (infoGone) this.emit('info');
   }
 
-  /** The hidden poll's answer, received now. */
+  /**
+   * The hidden poll's whole answer, received now. `mark`: the vitals' mark
+   * when it was sent (`char.vitalsMark()`), null when none was taken.
+   */
+  applyPoll(answer: PollAnswer, mark: number | null): void {
+    this.applyInfo(answer.info);
+    if (this.char.applyPolled(answer.vitals, mark)) this.emit('char');
+    if (answer.affects !== null) this.timers.reconcileAffects(answer.affects);
+  }
+
+  /** The hidden poll's fields, received now. */
   applyInfo(answer: InfoAnswer): void {
     this.info.apply(answer, this.now());
     if (answer.wimpy !== null) this.setWimpy(answer.wimpy);

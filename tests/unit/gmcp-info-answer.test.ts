@@ -3,7 +3,7 @@
 // `%C` value of that run.
 import { describe, expect, it } from 'vitest';
 import { ABILITIES } from '../../src/gmcp/age';
-import { INFO_FIELDS, INFO_SEPARATOR, type InfoKey, parseInfoAnswer, wordsToNumber } from '../../src/gmcp/info-answer';
+import { INFO_FIELDS, INFO_SEPARATOR, type InfoKey, affectsOf, parseInfoAnswer, parsePollAnswer, pollFormat, wordsToNumber } from '../../src/gmcp/info-answer';
 
 const G = (n: number) => `\x1b[32m${n}\x1b[0m`;
 /** The WC1 answer of the stage file, as it wrapped: sent with a bare `|`. */
@@ -244,5 +244,64 @@ describe('the %C words', () => {
 
   it('what is not a number is null', () => {
     for (const s of ['', 'lots', 'hundred', 'two five', 'ten five', 'five fifteen', 'twenty thirty', 'two hundred hundred', 'and five', 'five and', 'two and five', 'two a', 'one zero', 'constructor']) expect(wordsToNumber(s), s).toBeNull();
+  });
+});
+
+describe('parsePollAnswer (stage 77 H9: the vitals and %f)', () => {
+  /** The lines between the sentinels: the fields, the vitals, then `%f` as measured live. */
+  const lines = (vitals: string, affects: readonly string[], cols = 97): string[] => {
+    const head = `${SPACED}${INFO_SEPARATOR}${vitals}${INFO_SEPARATOR}`;
+    if (affects.length === 0) return wrap(head, cols);
+    return [...wrap(`${head}Affected by:`, cols), ...affects.map((a) => `- ${a}`), ''];
+  };
+  const VITALS = '357 | 375 | 88 | 121 | 68 | 112';
+
+  it('the format: the fields, the vitals, %f last', () => {
+    expect(pollFormat()).toBe(`${INFO_FIELDS.map((f) => f.code).join(' | ')} | %z | %Z | %e | %E | %j | %J | %f`);
+  });
+
+  it('none: no affects, every field and the vitals read', () => {
+    for (const cols of [20, 40, 97]) {
+      const a = parsePollAnswer(lines(VITALS, [], cols))!;
+      expect(a.info.wimpy, `${cols}`).toBe(120);
+      expect(a.info.purse).toEqual({ gold: 380, silver: 5, copper: 49 });
+      expect(a.vitals).toEqual({ hp: 357, maxhp: 375, mana: 88, maxmana: 121, mp: 68, maxmp: 112 });
+      expect(a.affects).toEqual([]);
+    }
+  });
+
+  it('one and several, at every width: the names as listed', () => {
+    for (const cols of [20, 40, 97]) {
+      expect(parsePollAnswer(lines(VITALS, ['armour'], cols))!.affects).toEqual(['armour']);
+      const several = ['potion', 'detect magic', 'shield', 'armour'];
+      expect(parsePollAnswer(lines(VITALS, several, cols))!.affects).toEqual(several);
+      expect(parsePollAnswer(lines(VITALS, ['hunger', 'thirst'], cols))!.affects).toEqual(['hunger', 'thirst']);
+      expect(parsePollAnswer(lines(VITALS, ['hunger'], cols))!.info.wimpy).toBe(120);
+    }
+  });
+
+  it('a name wrapped at the width is one name; the header wrapped too', () => {
+    expect(affectsOf([' Affected', 'by:', '- a pitch-black robe (pale', 'tones)', '- armour', ''])).toEqual(['a pitch-black robe (pale tones)', 'armour']);
+  });
+
+  it('another shape of %f: the affects are null, the fields kept', () => {
+    const a = parsePollAnswer([...wrap(`${SPACED}${INFO_SEPARATOR}${VITALS}${INFO_SEPARATOR}You are affected:`, 97), '- armour'])!;
+    expect(a.affects).toBeNull();
+    expect(a.info.wimpy).toBe(120);
+    expect(a.vitals.hp).toBe(357);
+    expect(affectsOf(['- armour'])).toBeNull();
+    expect(affectsOf(['  ', ''])).toEqual([]);
+    expect(affectsOf(['Affected by:', ''])).toEqual([]);
+  });
+
+  it("a fight's xxx is no value; a troll's 0 0 mana is a value", () => {
+    expect(parsePollAnswer(lines('xxx | xxx | xxx | xxx | xxx | xxx', []))!.vitals).toEqual({ hp: null, maxhp: null, mana: null, maxmana: null, mp: null, maxmp: null });
+    expect(parsePollAnswer(lines('121 | 121 | 0 | 0 | 112 | 112', []))!.vitals).toEqual({ hp: 121, maxhp: 121, mana: 0, maxmana: 0, mp: 112, maxmp: 112 });
+  });
+
+  it('a field missing or one too many: no answer', () => {
+    expect(parsePollAnswer(lines('357 | 375 | 88 | 121 | 68', []))).toBeNull();
+    expect(parsePollAnswer(lines('357 | 375 | 88 | 121 | 68 | 112 | 1', []))).toBeNull();
+    expect(parsePollAnswer(['no bar at all'])).toBeNull();
   });
 });

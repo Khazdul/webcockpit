@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Line } from '../../src/core/types';
-import { INFO_FIELDS, type InfoAnswer } from '../../src/gmcp/info-answer';
+import { INFO_FIELDS, type PollAnswer } from '../../src/gmcp/info-answer';
 import { HOLD_MS, InfoFilter, MAX_LINES, OK_MS, infoCommand, isGamePrompt, sexProbeCommand } from '../../src/gmcp/info-filter';
 import { Telnet } from '../../src/net/telnet';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -34,7 +34,7 @@ function setup(o: { poll?: string | null; prompt?: string } = {}) {
   /** What the output pane would show as the partial. */
   let open = '';
   const events: string[] = [];
-  const found: { nonce: string; answer: InfoAnswer }[] = [];
+  const found: { nonce: string; answer: PollAnswer }[] = [];
   const failed: string[] = [];
   const sexes: string[] = [];
   const filter = new InfoFilter({
@@ -74,13 +74,13 @@ function setup(o: { poll?: string | null; prompt?: string } = {}) {
   return { filter, sched, frame, clear, raw, lines, partials, events, found, failed, sexes, open: () => open, texts: () => lines.map((l) => l.text) };
 }
 
-const wimpy = (t: ReturnType<typeof setup>): (number | null)[] => t.found.map((f) => f.answer.wimpy);
+const wimpy = (t: ReturnType<typeof setup>): (number | null)[] => t.found.map((f) => f.answer.info.wimpy);
 
 describe('infoCommand', () => {
-  it('is one ASCII line with the sentinels, every field and " | " between', () => {
+  it('is one ASCII line with the sentinels, every field, the vitals and the affects last, " | " between', () => {
     const c = infoCommand(N);
     expect(c).toBe(
-      'info WCk3m9qz[%l | %O | %D | %k | %A | %S | %i | %w | %d | %o | %I | %p | %G | %a | %N | %n | %h | %W | %C | %F | %q | %c | %r | %K | %v | %H | %s | %y]WCk3m9qz',
+      'info WCk3m9qz[%l | %O | %D | %k | %A | %S | %i | %w | %d | %o | %I | %p | %G | %a | %N | %n | %h | %W | %C | %F | %q | %c | %r | %K | %v | %H | %s | %y | %z | %Z | %e | %E | %j | %J | %f]WCk3m9qz',
     );
     expect(c).toMatch(/^[\x20-\x7e]+$/);
     expect(ANSWER_FIELDS).toHaveLength(INFO_FIELDS.length);
@@ -133,7 +133,10 @@ describe('InfoFilter: the answer is hidden', () => {
   it('is read whole: the first and the last field without the sentinels', () => {
     const t = setup();
     t.frame(answerPulse(N, { cols: 19 }));
-    expect(t.found[0]).toMatchObject({ nonce: N, answer: { level: 74, smell: 20, wimpy: 120, purse: { gold: 380, silver: 5, copper: 49 } } });
+    expect(t.found[0]).toMatchObject({
+      nonce: N,
+      answer: { info: { level: 74, smell: 20, wimpy: 120, purse: { gold: 380, silver: 5, copper: 49 } }, vitals: { hp: 357, maxmp: 112 }, affects: [] },
+    });
   });
 
   it('the end cut by the wrap at each of its positions', () => {
@@ -178,6 +181,91 @@ describe('InfoFilter: the answer is hidden', () => {
     t.frame(`\r\n${PROMPT}`);
     expect(t.texts()).toEqual([]);
     expect(t.open()).toBe('');
+  });
+});
+
+describe('InfoFilter: the affects, %f (stage 77 H9)', () => {
+  const shapes: Array<[string, string[]]> = [
+    ['none', []],
+    ['one', ['armour']],
+    ['several', ['potion', 'detect magic', 'shield', 'armour']],
+    ['the flags’ twins', ['hunger', 'thirst']],
+  ];
+  for (const [name, affects] of shapes) {
+    for (const cols of [20, 98]) {
+      for (const queued of [false, true]) {
+        it(`${name}, ${cols} columns${queued ? ', queued' : ''}: hidden whole at every chunk boundary, the list read`, () => {
+          const bytes = wire(answerPulse(N, { cols: cols - 1, queued, affects }));
+          for (let cut = 0; cut <= bytes.length; cut++) {
+            const t = setup();
+            t.frame(bytes.slice(0, cut), bytes.slice(cut));
+            expect(t.texts(), `cut ${cut}`).toEqual([]);
+            expect(t.partials, `cut ${cut}`).toEqual([]);
+            expect(t.found.map((f) => f.answer.affects), `cut ${cut}`).toEqual([affects]);
+            expect(t.failed).toEqual([]);
+            expect(t.sched.pending).toBe(0);
+          }
+        });
+      }
+    }
+  }
+
+  const around = (affects: string[]): Array<[string, string, string[]]> => [
+    ['before', `A troll arrives.\r\n${answerText(N, { affects })}${PROMPT}`, ['A troll arrives.', 'o>']],
+    ['after', `${answerText(N, { affects })}- armour\r\nYou feel protected.\r\n\r\n${PROMPT}`, ['- armour', 'You feel protected.', '', 'o>']],
+    ['both', `One.\r\n${answerText(N, { affects, queued: true })}\r\nAffected by:\r\n- shield\r\n\r\n${PROMPT}`, ['One.', '', '', 'Affected by:', '- shield', '', 'o>']],
+  ];
+  for (const affects of [[], ['potion'], ['potion', 'hunger', 'thirst', 'armour']]) {
+    for (const [name, text, want] of around(affects)) {
+      it(`${affects.length} listed, game text ${name}: untouched, in order, at every chunk boundary`, () => {
+        const bytes = wire(text);
+        for (let cut = 0; cut <= bytes.length; cut++) {
+          const t = setup();
+          t.frame(bytes.slice(0, cut), bytes.slice(cut));
+          expect(t.texts(), `cut ${cut}`).toEqual(want);
+          for (const l of t.lines) expect(t.raw).toContain(l);
+          expect(t.found.map((f) => f.answer.affects), `cut ${cut}`).toEqual([affects]);
+        }
+      });
+    }
+  }
+
+  it('one line at a time, in frames of their own: hidden, the list read', () => {
+    const t = setup();
+    const lines = answerLines(N, 39, undefined, { affects: ['potion', 'unable to quit'] });
+    for (const l of lines) t.frame(`${l}\r\n`);
+    t.frame(`\r\n${PROMPT}`);
+    expect(t.texts()).toEqual([]);
+    expect(t.found[0]!.answer.affects).toEqual(['potion', 'unable to quit']);
+  });
+
+  it('a list with no end: the held lines go out as they came at HOLD_MS', () => {
+    const t = setup();
+    t.frame(answerLines(N, 97, undefined, { affects: ['armour'] }).slice(0, -1).join('\r\n') + '\r\n');
+    expect(t.texts()).toEqual([]);
+    t.sched.advance(HOLD_MS);
+    expect(t.lines).toEqual(t.raw);
+    expect(t.texts().at(-1)).toBe('- armour');
+    expect(t.failed).toEqual([N]);
+  });
+
+  it('a prompt inside the list ends the hiding: the lines and the prompt shown', () => {
+    const t = setup();
+    const lines = answerLines(N, 97, undefined, { affects: ['armour', 'shield'] });
+    t.frame(`${lines.slice(0, -2).join('\r\n')}\r\n${PROMPT}`);
+    expect(t.lines).toEqual(t.raw);
+    expect(t.texts().at(-1)).toBe('o>');
+    expect(t.failed).toEqual([N]);
+  });
+
+  it('many affects at a narrow width stay under MAX_LINES', () => {
+    const many = Array.from({ length: 30 }, (_, i) => `affect number ${i}`);
+    const lines = answerLines(N, 19, undefined, { affects: many });
+    expect(lines.length).toBeLessThan(MAX_LINES);
+    const t = setup();
+    t.frame(answerPulse(N, { cols: 19, affects: many }));
+    expect(t.texts()).toEqual([]);
+    expect(t.found[0]!.answer.affects).toEqual(many);
   });
 });
 

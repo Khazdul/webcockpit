@@ -209,6 +209,50 @@ describe('the info poll in the App', () => {
     t.login();
     expect(t.sent()).not.toContain('info WC');
   });
+
+  it('%f (stage 77 H9): no trace of the list, the affects reconciled, the vitals taken', async () => {
+    const t = setup();
+    t.login();
+    const n = pollNonce(t.sent())!;
+    t.frame(answerPulse(n, { queued: true, affects: ['potion', 'unable to quit', 'armour', 'hunger', 'thirst'] }));
+    t.frame(`A troll arrives.\r\n\r\n${PROMPT}`);
+    const view = t.app.game.timers.view();
+    expect(view.cells.debuff.map((c) => c.name).sort()).toEqual(['hunger', 'thirst', 'unable to quit']);
+    expect(view.cells.buff.map((c) => c.name)).toEqual(['potion']);
+    expect(view.cells.spell.map((c) => c.name)).toEqual(['armour']);
+    expect(view.cells.buff[0]).toMatchObject({ tracked: false, expiresAt: null });
+    // The vitals: Char.Vitals said 100/200 before the poll was sent; the poll's numbers are newer.
+    expect(t.app.game.char.view().vitals.hp).toMatchObject({ value: 357, max: 375, exact: true });
+    expect(t.app.game.char.view().vitals.mana).toMatchObject({ value: 88, max: 121, exact: true });
+    for (const trace of [n, 'Affected by', '- potion', 'unable to quit']) {
+      expect(t.heard.join('\n')).not.toContain(trace);
+      expect(t.rows()).not.toContain(trace);
+    }
+    expect(t.rows()).toContain('A troll arrives.');
+    await t.app.recorder.idle();
+    await t.app.recorder.flush();
+    const store = (await t.app.recorder.getStore())!;
+    const log = (await store.getChunks(t.app.recorder.runId!)).map((c) => c.text).join('');
+    for (const trace of [n, 'Affected by', 'unable to quit']) expect(log).not.toContain(trace);
+  });
+
+  it('%f: an affect gone from the next answer is gone; a Char.Vitals after the poll was sent wins', () => {
+    const t = setup();
+    t.login();
+    const n = pollNonce(t.sent())!;
+    t.frame(answerPulse(n, { queued: true, affects: ['panic'] }));
+    expect(t.app.game.timers.view().cells.debuff.map((c) => c.name)).toEqual(['panic']);
+    t.app.infoPoll!.open();
+    t.sched.advance(60_000);
+    const m = pollNonce(t.sent())!;
+    expect(m).not.toBe(n);
+    t.frame(gmcp('Char.Vitals', { hp: 50, maxhp: 375 }));
+    t.frame(answerPulse(m, { queued: true }));
+    expect(t.app.game.timers.view().cells.debuff).toEqual([]);
+    // HP from GMCP (newer than the poll's send), mana and moves from the poll.
+    expect(t.app.game.char.view().vitals.hp).toMatchObject({ value: 50, max: 375 });
+    expect(t.app.game.char.view().vitals.mp).toMatchObject({ value: 68, max: 112 });
+  });
 });
 
 describe('the info poll in the App: the owner’s live session after F1b (regression)', () => {

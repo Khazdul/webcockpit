@@ -20,6 +20,19 @@
 //   and its flip is a change. Excluded state folding keeps it
 //   (src/share/fold.ts).
 //
+// The info poll's vitals (stage 77 H9, ADR 0166 addendum 31): `%z %Z %e
+// %E %j %J` merged into the same map (`applyPolled`), so every reader of
+// the vitals (the card, the phone, the scripts' `state.char`, the weather)
+// moves with them while GMCP is silent (standing still, regenerating). A
+// bar is taken only with both numbers (a fight's `xxx` is none) and only
+// when no `Char.Vitals` touched that bar after the poll was sent
+// (`vitalsMark`): the newer message wins. It is exact.
+//
+// No mana (a troll, stage 77 H9): the race is Troll, or no mana key
+// (`mana`, `maxmana`, `mana-string`) has come in `Char.Vitals` for this
+// character and the poll's `%E` was 0. A troll's GMCP has no mana keys at
+// all, also in the first full message, and no `spell-effort`.
+//
 // Session anchors: the first `xp` / `tp` seen after `reset()` or a new
 // character is the session start; the bars split there (levels.ts).
 // `reset()` (a new connection, a live disconnect) clears everything, so the
@@ -27,6 +40,7 @@
 
 import { type VitalKind, VITAL_KINDS } from './bands';
 import { type SessionBar, levelFromXp, tpBar, xpBar, xpToNextLevel } from './levels';
+import type { PolledVitals } from './info-answer';
 import { raceLine } from './race';
 
 export type Toggle = 'sneak' | 'ride' | 'climb' | 'swim';
@@ -87,7 +101,12 @@ export interface CharView {
   /** What the card writes as the race (decision 18, race.ts), or null. */
   raceLine: string | null;
   vitals: Record<VitalKind, CharVital>;
+  /** The character has mana (false: a troll; see the file header). */
+  mana: boolean;
 }
+
+/** The `Char.Vitals` keys that say a character has mana. */
+const MANA_KEYS = ['mana', 'maxmana', 'mana-string'] as const;
 
 type Obj = Record<string, unknown>;
 
@@ -132,6 +151,13 @@ export class CharModel {
   anchorTp: number | null = null;
   /** Per bar: the last update was a number (see the file header). */
   readonly exact: Record<VitalKind, boolean> = { hp: false, mana: false, mp: false };
+  /** `Char.Vitals` messages seen, and per bar the one that last touched it (`vitalsMark`). */
+  private seq = 0;
+  private readonly barSeq: Record<VitalKind, number> = { hp: 0, mana: 0, mp: 0 };
+  /** A mana key came in `Char.Vitals` for this character. */
+  private manaSeen = false;
+  /** The poll's last `%E`, or null. */
+  private polledMaxMana: number | null = null;
   /** The race line, worked out when StatusVars change: `view` runs each frame. */
   private line: string | null = null;
   /** Bumped on every change (renderers may compare). */
@@ -152,6 +178,7 @@ export class CharModel {
       }
       case 'char.vitals': {
         const wasBerserk = this.berserk();
+        this.noteSeq(data);
         const changed = this.merge(this.vitals, data);
         if (!wasBerserk && this.berserk()) this.setWimpy(0);
         const flipped = this.noteExact(data);
@@ -187,6 +214,62 @@ export class CharModel {
     }
     if (changed) this.version++;
     return changed;
+  }
+
+  /** Which bars a `Char.Vitals` message touched, and whether it has mana. */
+  private noteSeq(data: unknown): void {
+    if (!isObj(data)) return;
+    const seq = ++this.seq;
+    for (const k of VITAL_KINDS) {
+      const keys = VITAL_KEYS[k];
+      if (Object.hasOwn(data, k) || Object.hasOwn(data, keys.word) || Object.hasOwn(data, keys.max)) this.barSeq[k] = seq;
+    }
+    if (MANA_KEYS.some((k) => Object.hasOwn(data, k))) this.manaSeen = true;
+  }
+
+  /** What a poll takes when it is sent: a later `Char.Vitals` wins over its vitals. */
+  vitalsMark(): number {
+    return this.seq;
+  }
+
+  /**
+   * The poll's vitals (see the file header). `mark`: `vitalsMark()` when the
+   * poll was sent (null: none taken, every bar is applied). True when the
+   * state changed.
+   */
+  applyPolled(p: PolledVitals, mark: number | null): boolean {
+    let changed = false;
+    if (p.maxmana !== null && p.maxmana !== this.polledMaxMana) {
+      this.polledMaxMana = p.maxmana;
+      changed = true;
+    }
+    for (const k of VITAL_KINDS) {
+      const keys = VITAL_KEYS[k];
+      const value = p[k];
+      const max = p[keys.max as keyof PolledVitals];
+      if (value === null || max === null) continue;
+      if (mark !== null && this.barSeq[k] > mark) continue;
+      if (this.vitals.get(k) !== value) {
+        this.vitals.set(k, value);
+        changed = true;
+      }
+      if (this.vitals.get(keys.max) !== max) {
+        this.vitals.set(keys.max, max);
+        changed = true;
+      }
+      if (!this.exact[k]) {
+        this.exact[k] = true;
+        changed = true;
+      }
+    }
+    if (changed) this.version++;
+    return changed;
+  }
+
+  /** The character has mana (see the file header). */
+  hasMana(): boolean {
+    if (lower(this.statusVars.get('race')) === 'troll') return false;
+    return this.manaSeen || this.polledMaxMana !== 0;
   }
 
   private berserk(): boolean {
@@ -236,7 +319,13 @@ export class CharModel {
     this.vitals.clear();
     this.anchorXp = null;
     this.anchorTp = null;
-    for (const k of VITAL_KINDS) this.exact[k] = false;
+    for (const k of VITAL_KINDS) {
+      this.exact[k] = false;
+      this.barSeq[k] = 0;
+    }
+    this.seq = 0;
+    this.manaSeen = false;
+    this.polledMaxMana = null;
     this.line = null;
   }
 
@@ -276,6 +365,7 @@ export class CharModel {
       subrace: sent(this.statusVars.get('subrace')),
       raceLine: this.line,
       vitals: { hp: this.vitalView('hp'), mana: this.vitalView('mana'), mp: this.vitalView('mp') },
+      mana: this.hasMana(),
     };
   }
 }

@@ -4,7 +4,10 @@
 //
 //   ␍␊                                  hidden: the answer was queued
 //   WC<nonce>[74 | 81 | … wrapped       held, from a known start at a line's start
-//   … | 20 | 40]WC<nonce>               the end: dropped and parsed
+//   … | 68 | 112 | ]WC<nonce>           the end: dropped and parsed
+//   … | 68 | 112 | Affected by:         or with affects (`%f`, last): held
+//   - armour                            one line per affect, held
+//   ]WC<nonce>                          the end on a line of its own
 //   ␍␊                                  hidden: the blank line after
 //   <prompt>o&gt;</prompt> GA           hidden: the pulse showed nothing else
 //
@@ -50,13 +53,16 @@
 
 import type { Line } from '../core/types';
 import type { Scheduler } from '../script/engine/timers';
-import { INFO_FIELDS, INFO_SEPARATOR, type InfoAnswer, parseInfoAnswer } from './info-answer';
+import { type PollAnswer, parsePollAnswer, pollFormat } from './info-answer';
 import { type Sex, parseSexLine } from './sex';
 
 /** How long lines are held after a start sentinel. */
 export const HOLD_MS = 2000;
-/** The most lines held. A whole answer at 20 columns is about 30. */
-export const MAX_LINES = 80;
+/**
+ * The most lines held. A whole answer at 20 columns is about 30, and the
+ * affects take a line each (stage 77 H9).
+ */
+export const MAX_LINES = 120;
 /** The most unanswered polls that are still recognised. */
 export const MAX_KNOWN = 8;
 
@@ -79,7 +85,7 @@ export const endSentinel = (nonce: string, kind: PollKind = 'fields'): string =>
 
 /** The poll's command. ASCII (ADR 0166 point 1). */
 export function infoCommand(nonce: string): string {
-  return `info ${startSentinel(nonce)}${INFO_FIELDS.map((f) => f.code).join(INFO_SEPARATOR)}${endSentinel(nonce)}`;
+  return `info ${startSentinel(nonce)}${pollFormat()}${endSentinel(nonce)}`;
 }
 
 /** The sex probe's command: a plain `info` between two sentinel `info`s, three lines. ASCII. */
@@ -114,7 +120,7 @@ export interface InfoFilterOptions {
   line(l: Line): void;
   partial(l: Line): void;
   /** An answer was taken out. */
-  found(nonce: string, answer: InfoAnswer): void;
+  found(nonce: string, answer: PollAnswer): void;
   /** A sex probe's answer was taken out. */
   foundSex(nonce: string, sex: Sex): void;
   /** Hiding ended without an answer. The held lines go out after this. */
@@ -325,7 +331,7 @@ export class InfoFilter {
       const sex = firstSex(body);
       if (sex !== null) done = () => this.o.foundSex(h.nonce, sex);
     } else {
-      const answer = parseInfoAnswer(body);
+      const answer = parsePollAnswer(body);
       if (answer) done = () => this.o.found(h.nonce, answer);
     }
     if (!done) return this.fail();

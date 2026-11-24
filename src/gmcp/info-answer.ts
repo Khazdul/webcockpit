@@ -15,6 +15,21 @@
 //   hyphen does no harm.
 // - The text fields (%F, %q, %c) are kept as sent, but %q without "You
 //   are " and its final "!" or ".".
+//
+// The poll asks more than the card's fields (stage 77 H9, ADR 0166
+// addendum 31): `POLL_VITALS` (hp, mana, moves and their maxima) after
+// them, and `%f` (the affects) last. `%f` is nothing when no affect is on,
+// else `Affected by:`, one `- <name>` line per affect, and a line break,
+// so the closing sentinel stands on a line of its own:
+//
+//   WC<nonce>[74 | … | 120 | 357 | 375 | 88 | 121 | 68 | 112 | ]WC<nonce>
+//   WC<nonce>[74 | … | 112 | Affected by:
+//   - armour
+//   ]WC<nonce>
+//
+// `parsePollAnswer` splits at the last `|`: before it the fields (as
+// `parseInfoAnswer` reads them), after it the affects. A vital in a fight
+// is `xxx`: no value (null). Unreadable affects are null, the rest kept.
 
 import { ABILITIES, type Ability } from './age';
 import { stripAnsi } from './comm';
@@ -52,6 +67,38 @@ export const INFO_FIELDS = [
 ] as const;
 
 export type InfoKey = (typeof INFO_FIELDS)[number]['key'];
+
+/** The vitals the poll asks after `INFO_FIELDS`: hp, max hp, mana, max mana, moves, max moves. */
+export const POLL_VITALS = [
+  { key: 'hp', code: '%z' },
+  { key: 'maxhp', code: '%Z' },
+  { key: 'mana', code: '%e' },
+  { key: 'maxmana', code: '%E' },
+  { key: 'mp', code: '%j' },
+  { key: 'maxmp', code: '%J' },
+] as const;
+
+export type PolledVitalKey = (typeof POLL_VITALS)[number]['key'];
+/** The polled vitals by their `Char.Vitals` key; null: no value (`xxx` in a fight, or unreadable). */
+export type PolledVitals = Record<PolledVitalKey, number | null>;
+
+/** The affects, last in the poll's format (its answer spans lines). */
+export const AFFECTS_CODE = '%f';
+/** `%f`'s header when an affect is on. */
+export const AFFECTS_HEADER = 'Affected by:';
+
+/** The poll's format between its sentinels. */
+export function pollFormat(): string {
+  return [...INFO_FIELDS, ...POLL_VITALS].map((f) => f.code).join(INFO_SEPARATOR) + INFO_SEPARATOR + AFFECTS_CODE;
+}
+
+/** A poll's answer, read. */
+export interface PollAnswer {
+  info: InfoAnswer;
+  vitals: PolledVitals;
+  /** The affects' names as listed (none: empty), or null when the list could not be read. */
+  affects: string[] | null;
+}
 
 /** Between the fields. The answer wraps at its spaces, so it is split at `|` alone. */
 export const INFO_SEPARATOR = ' | ';
@@ -133,6 +180,47 @@ export function parseInfoAnswer(lines: readonly string[]): InfoAnswer | null {
     smell: numberOf(f.smell),
     wimpy: numberOf(f.wimpy),
   };
+}
+
+/**
+ * Reads a poll's answer from the lines between the sentinels (see the file
+ * header), or null when the fields before the affects are not all there.
+ */
+export function parsePollAnswer(lines: readonly string[]): PollAnswer | null {
+  const plain = lines.map((l) => stripAnsi(l));
+  let at = plain.length - 1;
+  while (at >= 0 && !plain[at]!.includes('|')) at--;
+  if (at < 0) return null;
+  const cut = plain[at]!.lastIndexOf('|');
+  const head = [...plain.slice(0, at), plain[at]!.slice(0, cut)];
+  const tail = [plain[at]!.slice(cut + 1), ...plain.slice(at + 1)];
+  const parts = head.join(' ').replace(/\s+/g, ' ').split('|');
+  if (parts.length !== INFO_FIELDS.length + POLL_VITALS.length) return null;
+  const info = parseInfoAnswer([parts.slice(0, INFO_FIELDS.length).join('|')]);
+  if (!info) return null;
+  const vitals = {} as PolledVitals;
+  POLL_VITALS.forEach(({ key }, i) => (vitals[key] = numberOf(parts[INFO_FIELDS.length + i]!.trim())));
+  return { info, vitals, affects: affectsOf(tail) };
+}
+
+/**
+ * `%f`'s lines: none, or the header and one `- <name>` line per affect. A
+ * line that does not start with `- ` after an item is that item wrapped at
+ * the window's width. Null: another shape.
+ */
+export function affectsOf(lines: readonly string[]): string[] | null {
+  let header = '';
+  const items: string[] = [];
+  for (const raw of lines) {
+    const t = raw.replace(/\s+/g, ' ').trim();
+    if (t === '') continue;
+    if (t.startsWith('- ')) items.push(t.slice(2).trim());
+    else if (items.length > 0) items[items.length - 1] += ` ${t}`;
+    else header += ` ${t}`;
+  }
+  header = header.trim();
+  if (header === '') return items.length === 0 ? [] : null;
+  return header === AFFECTS_HEADER ? items.filter((n) => n !== '') : null;
 }
 
 /** An answer with nothing known: what a partial read (info-typed.ts) fills when no poll has answered. */

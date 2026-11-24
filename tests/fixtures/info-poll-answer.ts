@@ -22,6 +22,18 @@ export const ANSWER_FIELDS: readonly string[] = [
   '120',
 ];
 
+/** `%z %Z %e %E %j %J` (stage 77 H9): the owner's live sample's numbers, in the poll's order. */
+export const ANSWER_VITALS: readonly string[] = ['357', '375', '88', '121', '68', '112'];
+/** The same in a fight: no value. */
+export const FIGHT_VITALS: readonly string[] = ['xxx', 'xxx', 'xxx', 'xxx', 'xxx', 'xxx'];
+
+/** What an answer carries beside the card's fields: the vitals and the affects (`%f`, last). */
+export interface AnswerExtras {
+  vitals?: readonly string[];
+  /** The affects listed; none (the default): `%f` prints nothing. */
+  affects?: readonly string[];
+}
+
 export const XML_PROMPT = '<prompt>o&gt;</prompt>';
 /** Stands for IAC GA in the texts below (`wire`). */
 export const GA = '\x07';
@@ -42,18 +54,27 @@ export function wrapAnswer(text: string, cols: number): string[] {
   return out;
 }
 
-/** The answer's lines for a poll with `nonce`. */
-export function answerLines(nonce: string, cols = 97, fields: readonly string[] = ANSWER_FIELDS): string[] {
-  return wrapAnswer(`WC${nonce}[${fields.join(' | ')}]WC${nonce}`, cols);
+/**
+ * The answer's lines for a poll with `nonce`: the fields, the vitals and
+ * `%f` (stage 77 H9, the owner's live form): nothing when no affect is on,
+ * else `Affected by:`, a `- <name>` line each and the end on its own line.
+ */
+export function answerLines(nonce: string, cols = 97, fields: readonly string[] = ANSWER_FIELDS, x: AnswerExtras = {}): string[] {
+  const head = `WC${nonce}[${[...fields, ...(x.vitals ?? ANSWER_VITALS)].join(' | ')} | `;
+  const affects = x.affects ?? [];
+  if (affects.length === 0) return wrapAnswer(`${head}]WC${nonce}`, cols);
+  return [...wrapAnswer(`${head}Affected by:`, cols), ...affects.map((a) => `- ${a}`), `]WC${nonce}`];
 }
 
+type AnswerOptions = { cols?: number; queued?: boolean; fields?: readonly string[] } & AnswerExtras;
+
 /** An answer with its blank line after, and before when `queued`. No prompt. */
-export function answerText(nonce: string, o: { cols?: number; queued?: boolean; fields?: readonly string[] } = {}): string {
-  return `${o.queued ? '\r\n' : ''}${answerLines(nonce, o.cols, o.fields).join('\r\n')}\r\n\r\n`;
+export function answerText(nonce: string, o: AnswerOptions = {}): string {
+  return `${o.queued ? '\r\n' : ''}${answerLines(nonce, o.cols, o.fields, o).join('\r\n')}\r\n\r\n`;
 }
 
 /** An answer that is all its pulse shows. */
-export function answerPulse(nonce: string, o: { cols?: number; queued?: boolean; fields?: readonly string[] } = {}): string {
+export function answerPulse(nonce: string, o: AnswerOptions = {}): string {
   return answerText(nonce, o) + XML_PROMPT + GA;
 }
 

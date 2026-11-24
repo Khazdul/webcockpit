@@ -63,8 +63,8 @@ import { type Line, gmcpKey } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
 import type { Scheduler } from '../script/engine/timers';
 import type { EffectEvent } from '../timers/tracker';
-import type { InfoAnswer } from './info-answer';
-import { InfoFilter, infoCommand, isGamePrompt, sexProbeCommand } from './info-filter';
+import type { PollAnswer } from './info-answer';
+import { InfoFilter, MAX_KNOWN, infoCommand, isGamePrompt, sexProbeCommand } from './info-filter';
 import type { Sex } from './sex';
 
 /** Opening a view polls when the data is older. */
@@ -135,15 +135,28 @@ export const MAX_FAILURES = 2;
  *   width, fits with room to spare; an unknown size: allowed.
  */
 export const PROBE_MIN_ROWS = 30;
-/** More than an answer's length (the sample is about 420 characters). */
+/**
+ * More than the fields' length: the sample is about 420 characters, the
+ * vitals add about 40 (stage 77 H9).
+ */
 export const ANSWER_CHARS = 600;
 /** Rows beside the answer: the blank lines and the prompt, and a margin. */
 export const ANSWER_SPARE_ROWS = 4;
+/**
+ * The affects (`%f`) take a row each whatever the width, and two more
+ * (`Affected by:` and the end sentinel's): rows kept for this many more
+ * affects than are known to be on.
+ */
+export const ANSWER_AFFECT_MARGIN = 3;
 
-/** The answer of a poll fits a window of this size without MUME's pager. */
-export function answerFits(size: { cols: number; rows: number } | null): boolean {
+/**
+ * The answer of a poll fits a window of this size without MUME's pager,
+ * with `affects` affects known to be on (stage 77 H9: each a row of its own).
+ */
+export function answerFits(size: { cols: number; rows: number } | null, affects = 0): boolean {
   if (size === null) return true;
-  return Math.ceil(ANSWER_CHARS / Math.max(1, size.cols)) + ANSWER_SPARE_ROWS <= size.rows;
+  const list = affects + ANSWER_AFFECT_MARGIN + 2;
+  return Math.ceil(ANSWER_CHARS / Math.max(1, size.cols)) + list + ANSWER_SPARE_ROWS <= size.rows;
 }
 
 export interface InfoPollOptions {
@@ -169,7 +182,15 @@ export interface InfoPollOptions {
   events?(): InfoPollEvents;
   /** Until when a cast sent is pending, or null. None: never. */
   castPendingUntil?(): number | null;
-  apply(answer: InfoAnswer): void;
+  /**
+   * The answer, with what `mark` gave when the poll was sent (null: no
+   * `mark`): a `Char.Vitals` after it wins over the polled vitals.
+   */
+  apply(answer: PollAnswer, mark: number | null): void;
+  /** Taken when a poll is sent and handed to `apply` with its answer. None: null. */
+  mark?(): number;
+  /** The affects known to be on (the last answer's, or the trackers'): rows the answer takes. None: 0. */
+  affectCount?(): number;
   /** The character is named and its sex is not known: the login poll brings the probe. None: never. */
   needSex?(): boolean;
   /** The probe's answer. */
@@ -204,6 +225,8 @@ export class InfoPoll {
   private outstanding: string | null = null;
   /** The polls of this character: only their answers are applied. */
   private own = new Set<string>();
+  /** Each poll's `mark` when it was sent. */
+  private marks = new Map<string, number>();
   private failureCount = 0;
   /** The characters probed for their sex on this connection. */
   private probed = new Set<string>();
@@ -397,6 +420,7 @@ export class InfoPoll {
     this.vitals = this.loginDue = this.openDue = this.sentInFrame = false;
     this.sentPollAt = this.outstanding = this.lineAtSend = this.eventAt = this.mood = this.position = null;
     this.own.clear();
+    this.marks.clear();
     this.probed.clear();
     this.probes.clear();
     this.failureCount = 0;
@@ -434,15 +458,18 @@ export class InfoPoll {
     this.character = n;
   }
 
-  private found(nonce: string, answer: InfoAnswer): void {
+  private found(nonce: string, answer: PollAnswer): void {
     if (this.outstanding === nonce) this.outstanding = null;
+    const mark = this.marks.get(nonce) ?? null;
+    this.marks.delete(nonce);
     if (!this.own.delete(nonce)) return;
     this.loginDue = this.openDue = false;
-    this.o.apply(answer);
+    this.o.apply(answer, mark);
   }
 
   private failed(nonce: string): void {
     if (this.outstanding === nonce) this.outstanding = null;
+    this.marks.delete(nonce);
     const own = this.own.delete(nonce);
     if (this.probes.delete(nonce) && own) this.o.sexFailed?.();
     if (++this.failureCount >= MAX_FAILURES) this.clearTimer();
@@ -479,7 +506,7 @@ export class InfoPoll {
   private blocked(): string | null {
     if (this.o.passwordMode()) return 'password mode';
     if (this.o.fighting()) return 'fighting';
-    if (!answerFits(this.o.windowSize?.() ?? null)) return "the answer would not fit the window: MUME's pager";
+    if (!answerFits(this.o.windowSize?.() ?? null, this.o.affectCount?.() ?? 0)) return "the answer would not fit the window: MUME's pager";
     return this.gate();
   }
 
@@ -511,6 +538,12 @@ export class InfoPoll {
       this.probes.add(probeNonce);
     }
     this.own.add(nonce);
+    const mark = this.o.mark?.();
+    if (mark !== undefined) {
+      this.marks.set(nonce, mark);
+      // As many as the filter still knows (`MAX_KNOWN`): the oldest go.
+      if (this.marks.size > MAX_KNOWN) this.marks.delete(this.marks.keys().next().value!);
+    }
     this.outstanding = nonce;
     this.sentPollAt = now;
     this.loginDue = this.openDue = false;
