@@ -117,7 +117,7 @@ test('the Character gear has the switch', async ({ page }) => {
   await expect.poll(on).toBe(false);
 });
 
-test('the Character gear has the repeat and the event switches (stage 77 F1)', async ({ page }) => {
+test('the Character gear has the repeat and the event switches (stage 77 F1, F1b)', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/?replay');
   await expect(field(page)).toBeFocused();
@@ -127,14 +127,14 @@ test('the Character gear has the repeat and the event switches (stage 77 F1)', a
   await pane.locator('> .wc-pane-btn-gear').click();
   const pop = page.locator('.wc-sp-gear-character');
   const character = () => page.evaluate(() => window.__wc!.settings.get().character);
-  expect((await character()).pollEvery).toBe(20);
+  expect((await character()).pollEvery).toBe(10);
   await pop.locator('[aria-label="Fetch every"] [data-value="30"]').click();
   await expect.poll(async () => (await character()).pollEvery).toBe(30);
-  for (const label of ['Mood changes', 'Wear or remove', 'Affects start or end', 'Herblore started']) {
+  for (const label of ['Mood changes', 'Position changes', 'Wear or remove', 'Affects start or end', 'Herblore started']) {
     await expect(pop.locator(`[aria-label="${label}"]`)).toBeVisible();
   }
   await pop.locator('[aria-label="Wear or remove"]').click();
-  await expect.poll(async () => (await character()).pollOn).toEqual({ mood: true, equipment: false, affects: true, herblore: true });
+  await expect.poll(async () => (await character()).pollOn).toEqual({ mood: true, position: true, equipment: false, affects: true, herblore: true });
 });
 
 test("a typed stat updates the card's shields and shows; a wear line polls", async ({ page }) => {
