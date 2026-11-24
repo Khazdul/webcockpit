@@ -1278,6 +1278,38 @@ Parked:
 
 ## Test guide (for the owner)
 
+### Part F2b, the card's new look (the test server, MUME up)
+
+Open `http://localhost:5173/` (reload), log in, Character pane on Status,
+at a normal size (not very low; the low panes are F2c). Screenshots to
+compare with: `notes/research/character-pane-mockups/f2b/`.
+
+1. The portrait: square, iron frame, the name in the band at the top, the
+   level ring bottom right, the five icons under it. Rest or sleep: the
+   portrait does not change.
+2. Mood, Casts, Alertness, Weight in four cells; the meter lights only
+   the current step. A click on Mood/Casts/Alertness works as before.
+3. The shields OB, DB, PB, ABS: `⋯` right after login, then the values.
+   Make the pane taller: they grow (2×2 when that gives larger shields).
+4. The stones at the bottom: cast a buff, get a debuff, start a
+   herblore with the `+`; each a small stone with a time bar. Hungry or
+   thirsty shows too. A herblore stone: × stops it (hover; on the phone,
+   tap twice). Many stones: more rows when tall, else `+n`; click it for
+   the list.
+5. The purse right of the stones (all three coins, then fewer as the
+   stones need room; tooltip the whole purse).
+6. A fight: only the position icon turns to red swords; nothing else
+   changes.
+7. Stats: no shields, the same stones row at the bottom. Lore: War fame
+   and War points in a box each.
+8. The phone: the strip's Character page looks the same.
+9. The gear: "Stones" switches (buffs, debuffs, herblores, flags,
+   sanctuary) hide those stones.
+
+Feedback wanted: the look against the mockups (round 12–14); the sizes
+(cells, shields, stones); the values cut as `nor…` in a Medium pane; what
+the `+n` list should show. Known: Medium's Stats is cramped (H).
+
 ### Part F1c, position changes in a row (the test server, MUME up)
 
 1. Character pane on Stats. Type `sit`, `rest`, `stand`, `sleep`, `wake`,
