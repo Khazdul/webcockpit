@@ -1930,3 +1930,18 @@ corner mark on the clickable cells. To build after H1–H4, H6.
 - The affects the app does not recognise get the generic icon until the
   owner has confirmed them in the game; their picks are kept
   (`picks.md`) so they can be brought in later.
+
+### Affects from the poll (the owner, 2026-11-24)
+
+- The owner: `info %f` gives all affects; take it into the hidden poll.
+  An affect that shows in the answer has started, one that is gone has
+  ended. For the affects with no lines of their own (bloodlust, some
+  pipe-weed, potion, panic, sunlight, unable to quit / void / sneak): no
+  time bar ("får vi leva med") and a delay of up to a poll ("bättre än
+  ingenting").
+- Herblores stay the exception: started by hand (the `+`), never from the
+  poll, as MUME's affect list does not name the herblore (sometimes only
+  `- potion`). So the six herblores missing from the catalogue can go
+  into the `+` menu with the guide's times, without lines.
+- Next: measure `info %f`'s answer live (none, one, several affects, a
+  herblore running), then a pass of its own.
