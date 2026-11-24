@@ -352,6 +352,7 @@ export function migrateCharacter(raw: unknown): CharacterSettings {
   const on = isObj(c.pollOn) ? c.pollOn : {};
   const pollOn = {
     mood: bool(on.mood, d.pollOn.mood),
+    position: bool(on.position, d.pollOn.position),
     equipment: bool(on.equipment, d.pollOn.equipment),
     affects: bool(on.affects, d.pollOn.affects),
     herblore: bool(on.herblore, d.pollOn.herblore),

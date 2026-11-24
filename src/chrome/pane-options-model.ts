@@ -180,7 +180,6 @@ export const CHARACTER_HEIGHT_CHOICES: readonly { value: CharacterHeight; label:
 /** The info poll's repeat (`character.pollEvery`, seconds) as the gear's choices. */
 export const CHARACTER_POLL_EVERY_CHOICES: readonly { value: string; label: string }[] = [
   { value: '10', label: '10 s' },
-  { value: '20', label: '20 s' },
   { value: '30', label: '30 s' },
   { value: '60', label: '1 min' },
   { value: '300', label: '5 min' },
@@ -189,6 +188,7 @@ export const CHARACTER_POLL_EVERY_CHOICES: readonly { value: string; label: stri
 /** The info poll's events (`character.pollOn`), each a switch. */
 export const CHARACTER_POLL_ON_ROWS: readonly { key: keyof CharacterPollOn; label: string }[] = [
   { key: 'mood', label: 'Mood changes' },
+  { key: 'position', label: 'Position changes' },
   { key: 'equipment', label: 'Wear or remove' },
   { key: 'affects', label: 'Affects start or end' },
   { key: 'herblore', label: 'Herblore started' },

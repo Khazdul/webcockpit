@@ -332,7 +332,7 @@ describe('migrateSettings', () => {
   });
 
   it("adds the Character gear's switch, on (stage 77; older stored data)", () => {
-    const poll = { pollEvery: 20, pollOn: { mood: true, equipment: true, affects: true, herblore: true } };
+    const poll = { pollEvery: 10, pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true } };
     expect(migrateSettings({ version: 7 }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
     expect(migrateSettings({ character: { fetchInfo: 'no', height: 'compact' } }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
     const off = migrateSettings({ character: { fetchInfo: false, height: 'medium', gone: 1 } });
@@ -343,9 +343,14 @@ describe('migrateSettings', () => {
   it("the poll's repeat and event switches (stage 77 F1): checked, additive", () => {
     const c = migrateSettings({ character: { pollEvery: 60, pollOn: { mood: false, equipment: 'x', herblore: false } } }).character;
     expect(c.pollEvery).toBe(60);
-    expect(c.pollOn).toEqual({ mood: false, equipment: true, affects: true, herblore: false });
-    expect(migrateSettings({ character: { pollEvery: 15 } }).character.pollEvery).toBe(20);
-    expect(migrateSettings({ character: { pollEvery: '60' } }).character.pollEvery).toBe(20);
+    expect(c.pollOn).toEqual({ mood: false, position: true, equipment: true, affects: true, herblore: false });
+    expect(migrateSettings({ character: { pollEvery: 15 } }).character.pollEvery).toBe(10);
+    expect(migrateSettings({ character: { pollEvery: '60' } }).character.pollEvery).toBe(10);
+    // 20 s was the default before addendum 20: such stored settings load, with the new default.
+    expect(migrateSettings({ character: { pollEvery: 20, pollOn: { mood: false } } }).character).toMatchObject({
+      pollEvery: 10,
+      pollOn: { mood: false, position: true },
+    });
     expect(migrateSettings({ character: { pollOn: [] } }).character.pollOn.mood).toBe(true);
   });
 

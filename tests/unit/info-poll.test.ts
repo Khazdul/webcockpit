@@ -60,7 +60,7 @@ function setup(
     dataAt: () => game.info.at,
     complete: () => game.info.complete,
     ...(o.every === null ? {} : { everyMs: () => o.every ?? EVERY_MS }),
-    events: () => ({ mood: true, equipment: true, affects: true, herblore: true, ...o.events }),
+    events: () => ({ mood: true, position: true, equipment: true, affects: true, herblore: true, ...o.events }),
     castPendingUntil: o.cast ?? (() => game.timers.castPendingUntil()),
     apply: (a) => game.applyInfo(a),
     ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x), sexFailed: () => game.sexProbeFailed() } : {}),
@@ -434,7 +434,7 @@ describe('InfoPoll: an open view', () => {
     expect(t.polls()).toHaveLength(3);
   });
 
-  it('the repeat waits for 3 s of quiet after the last command, opening a tab 2 s (point 34, addendum 18)', () => {
+  it('the repeat waits for its quiet after the last command, opening a tab for SETTLE_MS (point 34, addenda 18, 20)', () => {
     const t = setup();
     t.ready();
     const release = t.poll.open();
@@ -498,17 +498,17 @@ describe('InfoPoll: an open view', () => {
     expect(t.polls()).toHaveLength(1);
   });
 
-  it('never more often than 3 s', () => {
+  it('never more often than MIN_GAP_MS', () => {
     const t = setup();
     t.ready();
     t.wait(MIN_GAP_MS - 1);
-    expect(t.poll.request()).toMatch(/3 s/);
+    expect(t.poll.request()).toMatch(/2 s/);
     t.wait(1);
     expect(t.poll.request()).toBeNull();
     expect(t.polls()).toHaveLength(2);
   });
 
-  it('3 s also after a failed one', () => {
+  it('MIN_GAP_MS also after a failed one', () => {
     const t = setup();
     t.login();
     t.poll.open();
@@ -903,7 +903,7 @@ describe("InfoPoll: the width commands' Ok. at login", () => {
   });
 });
 
-describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 18)', () => {
+describe("InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addenda 18, 20)", () => {
   /** Logged in, the login poll answered, a view open; the clock just after the answer. */
   const opened = (o: Parameters<typeof setup>[0] = {}) => {
     const t = setup({ every: null, ...o });
@@ -968,6 +968,28 @@ describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 1
     expect(t.polls()).toHaveLength(1);
   });
 
+  for (const [key, first, next] of [
+    ['position', 'standing', 'sitting'],
+    ['position', 'sitting', 'sleeping'],
+  ] as const) {
+    it(`the ${key} changing (${first} → ${next}): a poll once the cluster is over; its switch`, () => {
+      for (const on of [true, false]) {
+        const t = setup({ every: EVERY_MS, events: { [key]: on } });
+        t.login();
+        t.frame(vitals({ [key]: first }), PROMPT);
+        t.wait(SETTLE_MS);
+        t.answer();
+        t.poll.open();
+        t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+        t.frame(vitals({ [key]: next }), PROMPT);
+        t.wait(COALESCE_MS - 1);
+        expect(t.polls()).toHaveLength(1);
+        t.wait(1);
+        expect(t.polls()).toHaveLength(on ? 2 : 1);
+      }
+    });
+  }
+
   it('the mood changing: a poll once the cluster is over, not the first mood seen', () => {
     const t = setup({ every: EVERY_MS });
     t.login();
@@ -988,13 +1010,15 @@ describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 1
     expect(t.polls()).toHaveLength(2);
   });
 
-  it('events within 1.5 s are one poll; at least 3 s between polls; one outstanding', () => {
+  it(`events within ${COALESCE_MS} ms are one poll; at least ${MIN_GAP_MS / 1000} s between polls; one outstanding`, () => {
     const t = opened({ every: EVERY_MS });
     t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
     t.frame(`You stop using a bejewelled oak staff.\r\n${PROMPT}`);
-    t.wait(1000);
+    t.wait(COALESCE_MS - 100);
     t.frame(`You awkwardly wield a bejewelled oak staff, ready to strike your foes.\r\n${PROMPT}`);
-    t.wait(COALESCE_MS - 1000);
+    t.wait(99);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
     expect(t.polls()).toHaveLength(2);
     // While it waits for its answer: MUME answers in order, so the answer
     // that comes after the line has it.
@@ -1004,7 +1028,7 @@ describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 1
     t.answer();
     t.wait(10_000);
     expect(t.polls()).toHaveLength(2);
-    // After the answer: 1.5 s after the event, but 3 s from the last poll.
+    // After the answer: COALESCE_MS after the event, but MIN_GAP_MS from the last poll.
     t.frame(`You put a crossbow over your shoulder.\r\n${PROMPT}`);
     t.wait(COALESCE_MS);
     expect(t.polls()).toHaveLength(3);
@@ -1075,7 +1099,8 @@ describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 1
   });
 
   it("the player's own stat is read, shown, and serves the event and the repeat", () => {
-    const t = opened();
+    const every = 30_000;
+    const t = opened({ every });
     t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
     t.poll.effect('affect-up');
     t.session.sendCommand('stat');
@@ -1090,7 +1115,7 @@ describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 1
     const readAt = t.game.info.at!;
     t.wait(REPEAT_SETTLE_MS);
     expect(t.polls()).toHaveLength(1);
-    t.active(readAt + DEFAULT_EVERY_MS - (T0 + t.sched.now()) - 1);
+    t.active(readAt + every - (T0 + t.sched.now()) - 1);
     expect(t.polls()).toHaveLength(1);
     t.wait(1);
     expect(t.polls()).toHaveLength(2);

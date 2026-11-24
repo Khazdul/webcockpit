@@ -184,13 +184,15 @@ export type CharacterHeight = 'auto' | 'large' | 'medium';
 export const CHARACTER_HEIGHTS: readonly CharacterHeight[] = ['auto', 'large', 'medium'];
 
 /** The info poll's repeat while the card shows, in seconds (ADR 0166 addendum 18 point 97). */
-export type CharacterPollEvery = 10 | 20 | 30 | 60 | 300;
-export const CHARACTER_POLL_EVERY: readonly CharacterPollEvery[] = [10, 20, 30, 60, 300];
+export type CharacterPollEvery = 10 | 30 | 60 | 300;
+export const CHARACTER_POLL_EVERY: readonly CharacterPollEvery[] = [10, 30, 60, 300];
 
 /** What fetches the card's values at once (ADR 0166 addendum 18 point 99), each a switch. */
 export interface CharacterPollOn {
   /** The mood changed (GMCP). */
   mood: boolean;
+  /** Your position changed (GMCP: standing, sitting, sleeping …). */
+  position: boolean;
   /** MUME's line for wearing, wielding or removing something. */
   equipment: boolean;
   /** An affect on you started or ended (the Timers trackers). */
@@ -775,7 +777,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    character: { fetchInfo: true, height: 'auto', pollEvery: 20, pollOn: { mood: true, equipment: true, affects: true, herblore: true } },
+    character: { fetchInfo: true, height: 'auto', pollEvery: 10, pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true } },
     comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), npcs: false, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },

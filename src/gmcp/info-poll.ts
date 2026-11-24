@@ -6,17 +6,18 @@
 // - Login: once per connection and character, for the wimpy.
 // - `open()`, the card shows Status, Stats or Lore: at once when the data
 //   is older than 30 s or no poll has answered yet, then every `everyMs()`
-//   (a setting, 20 s by default; ADR 0166 addendum 18 point 97) while one
+//   (a setting, 10 s by default; ADR 0166 addenda 18 and 20) while one
 //   is open. The data's time counts: a read of the player's own `stat` or
 //   `info` (info-typed.ts) is a poll.
 // - An event while a view is open (point 99), each a switch (`events()`):
-//   the mood changed (GMCP `Char.Vitals`), MUME's line for wearing,
+//   the mood or the position changed (GMCP `Char.Vitals`; sitting and
+//   sleeping change the bonuses, addendum 20), MUME's line for wearing,
 //   wielding or removing something (`isEquipmentLine`), an affect on you
 //   starting or ending or a herblore started (`effect`, from the Timers
 //   hub). Events within `COALESCE_MS` of the first are one poll (point
 //   100); data newer than the event serves it.
 //
-// When: never more often than 3 s, one outstanding (2 min at most), none
+// When: never more often than 2 s, one outstanding (2 min at most), none
 // while idle (no key or pointer press in 5 min; entering the game counts),
 // not fighting, not while a cast is pending (`castPendingUntil`), after
 // the character's Char.Vitals, two failures stop it for the connection,
@@ -27,13 +28,13 @@
 // - no command was sent since that prompt. A command sent while a frame is
 //   read (an action) is later than all of that frame: MUME printed the
 //   frame before it could see the command;
-// - no command was sent in the last 2 s. MUME answers queued commands one
+// - no command was sent in the last 1 s. MUME answers queued commands one
 //   pulse at a time, so the first one's prompt does not say that the last
 //   one (`write`, say) has been read, and a prompt can have been on its way
-//   when the command went. The repeat and the events wait for 3 s of quiet,
+//   when the command went. The repeat and the events wait for 1 s of quiet,
 //   10 s after a burst (a command less than 2 s after the one before it;
 //   point 98), as a command can be held behind a cast. The login poll and
-//   an opened view keep the 2 s: there the player waits for the value.
+//   an opened view keep the 1 s: there the player waits for the value.
 //
 // A command sent into the pager or the line editor is read by them: when in
 // doubt, no poll.
@@ -68,19 +69,19 @@ import type { Sex } from './sex';
 /** Opening a view polls when the data is older. */
 export const FRESH_MS = 30_000;
 /** Between the polls while a view is open, unless `everyMs` says otherwise. */
-export const DEFAULT_EVERY_MS = 20_000;
+export const DEFAULT_EVERY_MS = 10_000;
 /** Never more often. */
-export const MIN_GAP_MS = 3000;
+export const MIN_GAP_MS = 2000;
 /** Events this close to the first of them are one poll. */
-export const COALESCE_MS = 1500;
+export const COALESCE_MS = 500;
 /** No poll without a press in this long. */
 export const IDLE_MS = 5 * 60_000;
 /** An unanswered poll blocks the next for this long. */
 export const UNANSWERED_MS = 2 * 60_000;
 /** After the last command sent. */
-export const SETTLE_MS = 2000;
+export const SETTLE_MS = 1000;
 /** The same for the repeat and the events, which are in no hurry. */
-export const REPEAT_SETTLE_MS = 3000;
+export const REPEAT_SETTLE_MS = 1000;
 /** A command this soon after the one before it is a burst... */
 export const BURST_MS = 2000;
 /** ...and the repeat and the events then wait this long after it. */
@@ -89,12 +90,13 @@ export const BURST_SETTLE_MS = 10_000;
 /** The events that poll, each a switch. */
 export interface InfoPollEvents {
   mood: boolean;
+  position: boolean;
   equipment: boolean;
   affects: boolean;
   herblore: boolean;
 }
 
-const ALL_EVENTS: InfoPollEvents = { mood: true, equipment: true, affects: true, herblore: true };
+const ALL_EVENTS: InfoPollEvents = { mood: true, position: true, equipment: true, affects: true, herblore: true };
 
 /**
  * MUME's line for putting on, wielding or taking off a thing (point 99):
@@ -191,8 +193,9 @@ export class InfoPoll {
   private views = 0;
   /** The first event not yet served by a poll or newer data. */
   private eventAt: number | null = null;
-  /** The mood last seen in Char.Vitals. */
+  /** The mood and the position last seen in Char.Vitals. */
   private mood: string | null = null;
+  private position: string | null = null;
   /** A view was opened on old data. */
   private openDue = false;
   private sentPollAt: number | null = null;
@@ -257,11 +260,18 @@ export class InfoPoll {
         const key = gmcpKey(m);
         if (key === 'char.vitals') {
           this.vitals = true;
-          const mood = (m.data as { mood?: unknown } | null | undefined)?.mood;
+          const data = m.data as { mood?: unknown; position?: unknown } | null | undefined;
+          const mood = data?.mood;
           if (typeof mood === 'string') {
             const was = this.mood;
             this.mood = mood;
             if (was !== null && was !== mood && this.events().mood) this.event();
+          }
+          const position = data?.position;
+          if (typeof position === 'string') {
+            const was = this.position;
+            this.position = position;
+            if (was !== null && was !== position && this.events().position) this.event();
           }
         } else if (key === 'char.name') this.named((m.data as { name?: unknown } | null | undefined)?.name);
       }),
@@ -341,7 +351,7 @@ export class InfoPoll {
     if (!last || !isGamePrompt(last)) return 'the last output is not a game prompt';
     if (this.filter.partialOpen) return 'there is text after the last prompt';
     if (last === this.lineAtSend) return 'a command was sent after the last prompt';
-    if (this.o.now() < this.commandAt + SETTLE_MS) return 'a command was sent less than 2 s ago';
+    if (this.o.now() < this.commandAt + SETTLE_MS) return 'a command was sent less than 1 s ago';
     return null;
   }
 
@@ -352,7 +362,7 @@ export class InfoPoll {
     if (!this.o.enabled()) return 'the setting is off';
     if (this.failureCount >= MAX_FAILURES) return 'two answers failed on this connection';
     if (!this.vitals) return 'no Char.Vitals yet';
-    if (this.sentPollAt !== null && now < this.sentPollAt + MIN_GAP_MS) return 'the last poll was less than 3 s ago';
+    if (this.sentPollAt !== null && now < this.sentPollAt + MIN_GAP_MS) return 'the last poll was less than 2 s ago';
     if (this.outstanding !== null && this.sentPollAt !== null && now < this.sentPollAt + UNANSWERED_MS) return 'a poll waits for its answer';
     const why = this.blocked();
     if (why !== null) return why;
@@ -371,7 +381,7 @@ export class InfoPoll {
     this.clearTimer();
     this.character = null;
     this.vitals = this.loginDue = this.openDue = this.sentInFrame = false;
-    this.sentPollAt = this.outstanding = this.lineAtSend = this.eventAt = this.mood = null;
+    this.sentPollAt = this.outstanding = this.lineAtSend = this.eventAt = this.mood = this.position = null;
     this.own.clear();
     this.probed.clear();
     this.probes.clear();
@@ -401,7 +411,7 @@ export class InfoPoll {
     const n = name.toLowerCase();
     if (this.character !== null && this.character !== n) {
       this.vitals = false;
-      this.outstanding = this.eventAt = this.mood = null;
+      this.outstanding = this.eventAt = this.mood = this.position = null;
       this.own.clear();
       if (this.o.live()) this.enterGame();
     }

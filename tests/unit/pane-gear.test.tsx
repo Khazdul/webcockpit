@@ -367,16 +367,16 @@ describe('gear popup contents', () => {
     expect(t.s().character.fetchInfo).toBe(true);
   });
 
-  it('Character: the repeat and the four event switches (stage 77 F1)', () => {
+  it('Character: the repeat and the five event switches (stage 77 F1)', () => {
     const t = mountWith(<CharacterSettings />);
-    expect(t.s().character.pollEvery).toBe(20);
+    expect(t.s().character.pollEvery).toBe(10);
     click(t.host.querySelector('[aria-label="Fetch every"] [data-value="60"]'));
     expect(t.s().character.pollEvery).toBe(60);
-    for (const label of ['Mood changes', 'Wear or remove', 'Affects start or end', 'Herblore started']) {
+    for (const label of ['Mood changes', 'Position changes', 'Wear or remove', 'Affects start or end', 'Herblore started']) {
       expect(t.host.querySelector(`[aria-label="${label}"]`), label).not.toBeNull();
     }
     click(t.host.querySelector('[aria-label="Affects start or end"]'));
-    expect(t.s().character.pollOn).toEqual({ mood: true, equipment: true, affects: false, herblore: true });
+    expect(t.s().character.pollOn).toEqual({ mood: true, position: true, equipment: true, affects: false, herblore: true });
     click(t.host.querySelector('[aria-label="Affects start or end"]'));
     expect(t.s().character.pollOn.affects).toBe(true);
   });

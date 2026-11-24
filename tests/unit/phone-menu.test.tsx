@@ -653,13 +653,14 @@ describe('the Character fetching sub-page (stage 77 F1)', () => {
     expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual([
       'seg:character-every',
       'toggle:character-on-mood',
+      'toggle:character-on-position',
       'toggle:character-on-equipment',
       'toggle:character-on-affects',
       'toggle:character-on-herblore',
     ]);
     const [every, mood] = rows;
     if (every?.kind !== 'seg' || mood?.kind !== 'toggle') throw new Error('row kinds');
-    expect(every.get(d)).toBe('20');
+    expect(every.get(d)).toBe('10');
     expect(every.set('60', d)).toEqual({ character: { pollEvery: 60 } });
     expect(mood.get(d)).toBe(true);
     expect(mood.set(false, d)).toEqual({ character: { pollOn: { mood: false } } });
@@ -673,7 +674,7 @@ describe('the Character fetching sub-page (stage 77 F1)', () => {
     expect(page()).toBe('sub:character');
     expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Character fetching');
     tap(menu.host.querySelector('[data-row="character-on-equipment"] [role="switch"]'));
-    expect(settings.get().character.pollOn).toEqual({ mood: true, equipment: false, affects: true, herblore: true });
+    expect(settings.get().character.pollOn).toEqual({ mood: true, position: true, equipment: false, affects: true, herblore: true });
   });
 });
 
