@@ -2223,3 +2223,14 @@ shows the mana bar at all.
   the poll pass takes it if the data allows, else it waits.
 - The owner: a troll's card hides the **Casts** cell too (no
   `spell-effort`); the other three cells take its room.
+
+### H9 test (the owner, 2026-11-25)
+
+Test guide "Part H9" on Gittan: 1 ok (`unable to quit` came from the
+poll), 2 and 3 work; 4 and 5 not tested (no troll logged in, no group
+with a troll soon). The owner asked why `unable to quit` and the
+herblores show the generic icons: the icons picked in
+`notes/research/stone-icons/picks.md` are not built yet (that is H8, the
+third pass). `unable to quit` was one of the "not recognised yet"
+stones, which keep the generic icon until the owner has seen them in the
+game: he has now, so H8 gives it its pick (unable to quit 4).
