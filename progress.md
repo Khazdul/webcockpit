@@ -175,7 +175,10 @@ with no stage of their own. Remove a line when it is done.
   passed, 1 failed (`phone-community-page.spec.ts:139`, passes alone).
 - **Next:** F2, the card in the round 12–15 look (the owner tested F1
   live: "Ser bra ut.").
-- **Open:** the 8 s pending-cast limit; equipment wordings not yet seen.
+- **Open:** the 8 s pending-cast limit; equipment wordings not yet seen;
+  the short forms `trtr`, `pnts`, `vigl` (unconfirmed); Medium's Stats is
+  cramped with the stones row (H). The rounds 13–15 look is ADR 0166
+  addendum 22, F2's source with addendum 16.
 - **F1b** (after the owner's live test, all 7 steps worked): poll quiet 1 s,
   coalesce 0.5 s, gap 2 s, repeat 10 s default (10 s/30 s/1/5 min), a
   position event, the gear fits (ADR 0166 addendum 20). Unit 6004 passed;

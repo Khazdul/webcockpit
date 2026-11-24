@@ -762,3 +762,56 @@ session"):
     each answered and more than 2 s apart; the likeliest cause of what the
     owner saw is point 118 (an alias typed within 2 s of another command
     waited 10 s).
+
+## Addendum 22 (2026-11-24): the rounds 13–15 look, decided (for F2)
+
+The owner's decisions after rounds 13–15 (stage 77, "Round 13 feedback →
+round 14" and the answers after it). They add to addendum 16 (round 12)
+and are what F2 builds. The numbers are the mockups' (`round14.html`,
+`round15.html`, functions `solve`, `stonesFit`, `purseFit`, `compact`,
+`cutV`); they are starting values, to be checked in the real pane.
+
+120. **The stones** sit at the bottom of the status area, left-aligned,
+     the herblore `+` first. More rows while the shields stay at least
+     30 px; then `+n` (a click lists the rest; the most urgent stay:
+     ending soon, flags, debuffs, herblores, buffs).
+121. **The purse** comes back, right-aligned in the stones' last row, in
+     the room the stones leave: gold, silver and copper, then gold and
+     silver, then gold only, then none. The stones always win; the purse
+     never gets a row of its own. The tooltip gives the whole purse.
+     Purse stays in Lore.
+122. **Stats** shows the same stones row at the bottom, with as many rows
+     as Status (no jump on a tab switch), never the purse.
+123. **Lore:** War fame (the word) and War points (the number) get a box
+     each (`info %K`, `warlord (19)`).
+124. **Low panes, with the portrait:** the first step that fits: 0 whole;
+     1 the stones on one row and the shields down to 22 px (no icon under
+     30 px); 2 the status cells on one line (label beside the value when
+     the cell is at least 64 px, else the value only); 3 the shields as
+     small chips (shape, label, value); 4 the status values without
+     cells, stones 11 px. The portrait stays while it is at least 44 px.
+     The vitals bars are 14 px under a 150 px pane, 12 px under 110 px,
+     10 px under 90 px.
+125. **The tabs** show only when the content is at least 80 px high. Below
+     that only Status; to reach Stats or Lore the player drags the pane
+     taller (the owner: no other way).
+126. **The compact card**, when the portrait would be under 44 px: no
+     portrait, no level ring, no name, no tabs; the full width.
+     - Line 1: Mood, Casts, Alertness, Weight on the left 55 %, the
+       shields on the right as icon + value (the label in the tooltip).
+       The status cells have no step meter; the letter (M, C, A, W) is
+       in the shields' icon colour (`--lamp`), then the value: the whole
+       word when it fits, else a hand-made short form of at most four
+       characters (wimpy `wmpy`, prudent `prud`, normal `norm`, brave
+       `brav`, aggressive `aggr`, berserk `bsrk`; quick `qck`, careful
+       `care`, thorough `thor`; attentive `attn`, vigilant `vigl`,
+       paranoid `para`; peanuts `pnts`, uncomfortable `unc` / `uncomf`,
+       heavy `hvy`, really heavy `rhvy` / `r.hvy` / `r.heavy`, painful
+       `pain`, torture `trtr`). The tooltip gives the whole word.
+     - Line 2: the five icons (sneak, ride, climb, swim, position) first
+       (the owner: they stay), then the stones (more rows if they fit),
+       the purse right-aligned.
+     - Cells 18 px while line 1 + line 2 fit, else flat 13 px rows and
+       10 px stones. It fits down to about a 72 px pane.
+127. **Open:** the owner has not confirmed `trtr`, `pnts` and `vigl`.
+     Medium's Stats is cramped with the stones row (labels overlap): H.
