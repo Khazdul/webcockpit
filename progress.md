@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), G7b approved on the phone; G7c the Timers pane's herblore and charm × on touch (addendum 27), approved; H in progress: H1–H4, H6 and heat cells built (addenda 28–30), the tabs in mockup (rounds 17–18), stone icons picked (rounds 1–2); next the poll pass (`%f`, vitals), the tabs, the icons | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), G7b approved on the phone; G7c the Timers pane's herblore and charm × on touch (addendum 27), approved; H in progress: H1–H4, H6 and heat cells built (addenda 28–30), the tabs in mockup (rounds 17–18), stone icons picked (rounds 1–2); H9 the poll pass built (`%f`, vitals, six herblores, trolls without mana; addendum 31), waiting on the owner's test; next H10 the tabs (G8), then H8 the icons | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -156,6 +156,26 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-25 — Stage 77 H9
+
+- **Built** (agent, fast-forwarded, `230720d0`…`67e93556`): H9, the poll
+  pass. `%z %Z %e %E %j %J %f` in the one hidden `info` (`%f` last); the
+  list goes through the `stat` reconcile; affects with no lines are
+  untimed stones, unknown ones a generic Debuffs stone, no `potion` while a
+  herblore runs; polled vitals into the one vitals store, a newer
+  `Char.Vitals` wins by message order; the six herblores in the `+` menu; a
+  troll's card without mana bar and Casts; a troll member in Group without
+  mana bar (run exports: `"mana-string": 0`, no mana keys). ADR 0166
+  addendum 31 (points 188–200).
+- **Tested:** unit 6166 passed; full e2e at 5 workers 2125 passed, 5
+  failed, all pass alone (`phone-timers-touch:81` again the known flake,
+  4/4 on repeat).
+- **Open:** a poll now needs 17 rows at 80 columns (was 12); NPCs in Group
+  also send `mana-string: 0` and keep three bars (the owner's call); not
+  measured live: `%f` and stored spells, wrapping of long names.
+- **Next:** the owner's test of H9 (stage file, "Part H9, the poll pass"),
+  then H10 (tabs G8), then H8 (stone icons).
 
 ### 2026-11-24 — Stage 77 H
 
