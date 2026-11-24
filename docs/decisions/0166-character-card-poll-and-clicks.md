@@ -590,3 +590,48 @@ round 2"):
     Decision 6 (no poll without input in the last 5 minutes) stays.
 94. Event triggers, each a switch: equipment commands, and an affect
     starting or ending.
+
+## Addendum 18 (2026-11-24): F1, the poll's triggers and your flags
+
+The owner's choices after the live findings (stage 77, "Part F1: live
+findings") and rounds 13–15. This revises points 92–94 and the repeat
+rules of points 6, 34 and the 10 s minimum gap. Rounds 14–15 (the purse
+in the stones row, the compact card) are part F2's look and get their
+own addendum when it is built.
+
+95. **Your flags.** The group model keeps your own entry's status flags
+    (`STATUS_FLAGS`, from `type: "you"`), not only `bashed`. MUME sends
+    them at login in `Group.Set` and changes in `Group.Update`.
+96. **Reading what the player sees.** The answer to a typed `stat`,
+    `info`/`inf`, or `info <own format>` updates the card with no extra
+    command. `stat` gives OB, DB, PB, armour and the gold coins only
+    (silver and copper stay). A format is matched against its literal
+    text, and only the codes the card uses are read. A read counts as a
+    poll: the repeat waits from it.
+97. **The repeat** is a setting: 10 s, 20 s (default), 30 s, 1 min,
+    5 min. It runs while the card shows Status, Stats or Lore. Decision
+    6 (no poll without a key or click in 5 minutes) stays.
+98. **Quiet before a poll:** 3 s after the last command, 10 s after a
+    burst (a command sent less than 2 s after the one before it), and no
+    poll while a cast is pending. The gate of points 22–25, 32 and 35
+    stays: a game prompt with nothing after it and no command since.
+    A command held by a delay (a cast, a stun, a door) prints no prompt
+    until MUME runs it, so the gate stays shut. A poll that does go
+    behind a held command answers late, never wrong: one is outstanding
+    at a time and the sentinels mark its answer.
+99. **Events**, each a switch in the gear, all on by default:
+    - the mood changes (GMCP `Char.Vitals` `mood`; this covers a click,
+      `change mood`, `cha mood` and aliases, with no input matching);
+    - equipment: MUME's own lines (`You stop using …`, `You wield …`,
+      `You awkwardly wield …`, `You wear …`, `You put … on/over/around
+      …`, `You fasten … on …`, `You cover …`, `You hold …`; not `You
+      light …` and not `You put … in …`), so `wear all` and aliases
+      count;
+    - any affect the Timers trackers know starting or ending (the
+      owner: all of them, not a short list);
+    - a herblore started.
+100. **One poll for a cluster:** events within 1.5 s give one poll. At
+    least 3 s between polls (was 10 s), one outstanding. In a fight the
+    poll waits for the fight's end, as before.
+101. **Cost:** one anchored test on each game line beginning `You `, and
+    the trackers' own start/end events. No matching on input.

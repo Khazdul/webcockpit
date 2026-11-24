@@ -359,6 +359,26 @@ the client does not know the player's. The dev-only `?sex=female`
   F is re-planned after the round 11 mockups (Timers into Character,
   "Direction pass").
 
+### F1. The model and the poll (decided 2026-11-24, ADR 0166 addendum 18)
+
+Built on a branch by a building agent, then the owner's live test. No
+card look changes (that is F2); the shields in today's Stats show the
+effect.
+
+- [ ] Your flags kept from `type: "you"` (`selfFlags`), with unit tests.
+- [ ] Read a typed `stat` (OB, DB, PB, armour, gold coins), `info`/`inf`
+      and `info <format>`; the reads count as a poll. Unit tests from the
+      logged lines.
+- [ ] The repeat as a setting (10 s, 20 s default, 30 s, 1 min, 5 min),
+      while Status, Stats or Lore is shown.
+- [ ] Quiet: 3 s, 10 s after a burst, none while a cast is pending.
+- [ ] Events (switches, all on): mood, equipment lines, affect start/end,
+      herblore started; coalesced 1.5 s, 3 s between polls.
+- [ ] The gear: interval and the four switches (desktop and the phone's
+      settings page).
+- [ ] Unit tests for the scheduling; e2e for the gear; full e2e at 5
+      workers.
+
 ### G. Tests
 
 - Unit: age, the poll parser, exact-or-band, the click → command table
