@@ -2073,3 +2073,10 @@ unretire. A field width may follow the `%` (`%3e`, `%-15M`).
 
 In a fight the vitals answer `xxx`: no value, never written over the bars.
 A `Char.Vitals` newer than the poll's answer wins.
+
+### Round 18, the tabs (the owner, 2026-11-24)
+
+G (folder tabs) feels best but does not fit the theme, above all on the
+dark (Lykta) theme; on the light it is ok. Round 19: G in several colours;
+G sunken ("insjunken"), several variations; and some wholly new ideas of
+where the tab buttons can sit, discreet but one with the whole.
