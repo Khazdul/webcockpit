@@ -459,10 +459,25 @@ function stonesEl(doc: Document, clock: StoneClock) {
       s.stone = null;
       setHidden(s.el, true);
       setTip(s.el, null);
-      for (const a of ['data-k', 'data-id', 'data-tone', 'data-state', 'data-act', 'data-end']) setAttr(s.el, a, null);
+      for (const a of ['data-k', 'data-id', 'data-tone', 'data-state', 'data-act', 'data-end', 'data-armed']) setAttr(s.el, a, null);
     }
     used = rows.entries.length;
     return true;
+  };
+
+  /**
+   * The herblore stone whose × a tap has shown (touch, ADR 0166 point 158),
+   * or none. False when no shown stone has `id`.
+   */
+  const setArmed = (id: string | null): boolean => {
+    let found = false;
+    for (let i = 0; i < used; i++) {
+      const s = slots[i]!;
+      const on = id !== null && s.stone?.id === id && s.stone.herbKey !== null;
+      if (on) found = true;
+      setAttr(s.el, 'data-armed', on ? '' : null);
+    }
+    return found;
   };
 
   /** The bars and the ending-soon marks at `now`. True: a stone counts down. */
@@ -496,7 +511,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
     setTip(purse, t.tip, t.title, 'cc:purse');
   };
 
-  return { box, set, tick, setPurse };
+  return { box, set, tick, setPurse, setArmed };
 }
 
 /**
@@ -767,6 +782,8 @@ export interface CardHandlers {
   more(anchor: HTMLElement): void;
   /** A herblore stone's ×. */
   stop(herbKey: string): void;
+  /** On touch: a tap showed this herblore stone's × (its id), or a tap elsewhere hid it (null). */
+  arm(id: string | null): void;
 }
 
 export class CardDom {
@@ -801,10 +818,34 @@ export class CardDom {
     this.age = el(doc, 'div', 'wc-cc-data-age');
     this.stones = stonesEl(doc, clock);
     this.main.append(this.status.box, this.scroll, this.age, this.stones.box);
-    this.stones.box.addEventListener('click', (e) => {
+    // Touch or mouse, by the pointer (ADR 0166 point 158): on touch the ×
+    // shows on a first tap (`data-armed`), not on the tap's :hover
+    // (`data-touch` turns the hover rule off), and a second tap stops.
+    const stonesBox = this.stones.box;
+    let down = '';
+    const pointer = (e: PointerEvent): void => {
+      down = e.pointerType;
+      setAttr(stonesBox, 'data-touch', e.pointerType === 'mouse' ? null : '');
+    };
+    stonesBox.addEventListener('pointerover', pointer);
+    stonesBox.addEventListener('pointerdown', pointer);
+    stonesBox.addEventListener('click', (e) => {
+      const type = down || (e as Partial<PointerEvent>).pointerType || '';
+      down = '';
       const t = e.target as HTMLElement | null;
+      if (type !== '' && type !== 'mouse') {
+        const st = typeof t?.closest === 'function' ? t.closest<HTMLElement>('.wc-cc-st') : null;
+        const x = st?.dataset.k === 'stone' ? st.querySelector<HTMLElement>('.wc-cc-stx') : null;
+        if (st && x && !x.hidden && x.dataset.key) {
+          e.stopPropagation();
+          if (st.hasAttribute('data-armed')) on.stop(x.dataset.key);
+          else if (st.dataset.id) on.arm(st.dataset.id);
+          return;
+        }
+        if (stonesBox.querySelector('[data-armed]')) on.arm(null);
+      }
       const act = typeof t?.closest === 'function' ? t.closest<HTMLElement>('[data-act]') : null;
-      if (!act || !this.stones.box.contains(act)) return;
+      if (!act || !stonesBox.contains(act)) return;
       if (act.dataset.act === 'herbx') {
         e.stopPropagation();
         if (act.dataset.key) on.stop(act.dataset.key);

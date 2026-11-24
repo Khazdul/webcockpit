@@ -81,13 +81,9 @@ test('a low strip: the steps and the compact card as on the desktop, no tabs (F2
   await sameCard(page);
 });
 
-// Stage 77 G7, as approved: the first tap shows the ×, the second stops the
-// herblore. Today the first tap stops it: the touch's pointerdown lands on
-// the stone, the tap's :hover then shows the × (`display: grid` only on
-// hover, character.css) and the click that follows hits the ×. Marked as
-// failing until the owner decides; Playwright reports it when it passes.
+// Stage 77 G7 and G7b (ADR 0166 point 158): on touch the first tap shows the
+// ×, a tap on it stops the herblore; an untapped × goes after 3 s.
 test('G7 (stage 77): a herblore stone on touch: the first tap shows its ×, the second stops it', async ({ page }) => {
-  test.fail(true, 'the first tap already stops the herblore (stage 77 part G)');
   await open(page);
   await pane(page).locator('.wc-cc-st[data-k="add"]').tap();
   const menu = page.locator('.wc-tm-menu[aria-label="Herblores"]');
@@ -103,6 +99,15 @@ test('G7 (stage 77): a herblore stone on touch: the first tap shows its ×, the 
   const active = (): Promise<boolean | undefined> => page.evaluate((k) => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === k)?.active, key);
   expect(await active()).toBe(true);
   // The first tap: the × shows, nothing stops.
+  await herb.tap();
+  await expect(x).toBeVisible();
+  expect(await active()).toBe(true);
+  // Untapped, it goes by itself after 3 s (and the herblore runs on).
+  const shown = Date.now();
+  await expect(x).toBeHidden({ timeout: 6000 });
+  expect(Date.now() - shown).toBeGreaterThanOrEqual(2000);
+  expect(await active()).toBe(true);
+  // A tap shows it again.
   await herb.tap();
   await expect(x).toBeVisible();
   expect(await active()).toBe(true);

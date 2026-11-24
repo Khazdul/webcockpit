@@ -905,7 +905,10 @@
   color: var(--text);
 }
 
-.wc-cc-st[data-k="stone"]:hover > .wc-cc-stx:not([hidden]) {
+/* On touch (`data-touch`, the last pointer) a tap's :hover does not show it:
+ * the first tap arms the stone (`data-armed`, ADR 0166 point 158). */
+.wc-cc-stones:not([data-touch]) > .wc-cc-st[data-k="stone"]:hover > .wc-cc-stx:not([hidden]),
+.wc-cc-st[data-k="stone"][data-armed] > .wc-cc-stx:not([hidden]) {
   display: grid;
 }
 

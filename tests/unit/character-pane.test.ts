@@ -533,4 +533,91 @@ describe('the stones (stage 77 F2a, drawn since F2b)', () => {
     expect(kinds(t)).toEqual(['herb:Healing']);
     expect(t.q('.wc-cc-st .wc-cc-stx').hidden).toBe(true);
   });
+
+  describe('the herblore × on touch (G7b, ADR 0166 point 158)', () => {
+    /** A tap or a click: the pointer's events, then the click. */
+    const press = (t: ReturnType<typeof setup>, e: HTMLElement, pointerType: 'touch' | 'mouse'): void => {
+      for (const type of ['pointerover', 'pointerdown', 'pointerup']) e.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType }));
+      e.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      t.flush();
+    };
+    const herbSetup = () => {
+      const t = setup();
+      t.game.timers.addHerb('Healing');
+      t.flush();
+      const stone = (): HTMLElement => t.q('.wc-cc-st[data-id^="herb:"]');
+      const active = (): boolean | undefined => t.game.timers.view(Date.now()).herbs.find((h) => h.key === 'Healing')?.active;
+      expect(active()).toBe(true);
+      return { t, stone, active };
+    };
+
+    it('the first tap shows the × and stops nothing; a tap on it stops', () => {
+      const { t, stone, active } = herbSetup();
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-sti')!, 'touch');
+      expect(active()).toBe(true);
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+      expect(t.q('.wc-cc-stones').hasAttribute('data-touch')).toBe(true);
+      // Even when the first tap lands on the (hover-shown) × itself.
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-stx')!, 'touch');
+      expect(active()).toBe(false);
+      expect(t.q('.wc-cc-stones [data-armed]')).toBeNull();
+    });
+
+    it('a first tap on the × itself arms, it does not stop', () => {
+      const { t, stone, active } = herbSetup();
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-stx')!, 'touch');
+      expect(active()).toBe(true);
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+    });
+
+    it('the × goes by itself after 3 s, on the card\'s one timer', () => {
+      const { t, stone, active } = herbSetup();
+      press(t, stone(), 'touch');
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+      t.wait(2900);
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+      t.wait(200);
+      expect(stone().hasAttribute('data-armed')).toBe(false);
+      expect(active()).toBe(true);
+      // The herblore counts down: the one timer stays (the next second), no more.
+      expect(t.timers()).toBe(1);
+      // A tap now arms again, it does not stop.
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-stx')!, 'touch');
+      expect(active()).toBe(true);
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+    });
+
+    it('a tap on another stone of the row hides it', () => {
+      const { t, stone } = herbSetup();
+      t.game.timers.debugAdd(cell('b1', 'buff', 60_000, 120_000));
+      t.flush();
+      press(t, stone(), 'touch');
+      expect(stone().hasAttribute('data-armed')).toBe(true);
+      press(t, t.q('.wc-cc-st[data-id="b1"]'), 'touch');
+      expect(t.q('.wc-cc-stones [data-armed]')).toBeNull();
+    });
+
+    it('the mouse is unchanged: one click on the × stops, no arming', () => {
+      const { t, stone, active } = herbSetup();
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-stx')!, 'mouse');
+      expect(active()).toBe(false);
+      expect(t.q('.wc-cc-stones').hasAttribute('data-touch')).toBe(false);
+    });
+
+    it('a mouse after a touch: the hover rule is back, a click stops', () => {
+      const { t, stone, active } = herbSetup();
+      press(t, stone(), 'touch');
+      press(t, stone().querySelector<HTMLElement>('.wc-cc-stx')!, 'mouse');
+      expect(t.q('.wc-cc-stones').hasAttribute('data-touch')).toBe(false);
+      expect(active()).toBe(false);
+    });
+
+    it('none in a log player', () => {
+      const t = setup({ player: true });
+      t.game.timers.debugAdd(cell('herb:Healing', 'herb', 60_000, 120_000, { herbKey: 'Healing' }));
+      t.flush();
+      press(t, t.q('.wc-cc-st[data-id="herb:Healing"]'), 'touch');
+      expect(t.q('.wc-cc-stones [data-armed]')).toBeNull();
+    });
+  });
 });

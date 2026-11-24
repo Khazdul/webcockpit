@@ -30,7 +30,9 @@
 //   moves a stone up. While a shown stone counts down the card's one timer
 //   wakes on the wall-clock second, and a tick writes only the bars.
 // - The herblore `+` opens the Timers pane's menu, a herblore's × stops it,
-//   the `+n` lists the rest (none in a log player: read-only).
+//   the `+n` lists the rest (none in a log player: read-only). On touch
+//   (the pointer's type) a first tap shows the ×, a tap on it stops; an
+//   untapped × goes after `ARMED_MS`, woken by the same one timer.
 
 import './character.css';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
@@ -78,8 +80,11 @@ const MORE_ARROW_CHARS = 2;
 /** After the moment a timer waits for. */
 const WAKE_LAG_MS = 5;
 
+/** How long a tapped herblore stone's × stays, untapped (touch, ADR 0166 point 158). */
+export const ARMED_MS = 3000;
+
 /** The parts that are written one by one. */
-type Part = 'layout' | 'theme' | 'tones' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'shields' | 'stones' | 'purse' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;
+type Part = 'layout' | 'theme' | 'tones' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'shields' | 'stones' | 'armed' | 'purse' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;
 
 const STONE_TONES: readonly StoneTone[] = ['buff', 'debuff', 'herb', 'sanct'];
 /** No places: the compact card's icons with no stones beside them. */
@@ -116,6 +121,8 @@ export class CharacterPane extends PaneShell {
   /** The stones beside the `+n` at the last render (its list). */
   private hiddenStones: StoneView['stones'] = [];
   private stoneColors: Record<StoneTone, string> = { buff: '', debuff: '', herb: '', sanct: '' };
+  /** On touch, the herblore stone whose × a tap has shown, and until when. */
+  private armed: { id: string; until: number } | null = null;
   private readonly herbMenu: HerbMenu;
   private readonly stoneMenu: StoneList;
 
@@ -129,6 +136,7 @@ export class CharacterPane extends PaneShell {
         add: (anchor) => this.openHerbs(anchor),
         more: (anchor) => this.openMore(anchor),
         stop: (key) => this.stopHerb(key),
+        arm: (id) => this.arm(id),
       },
       { now: () => ctx.now(), warnAt: () => ctx.settings.get().timers.warnAt },
     );
@@ -219,6 +227,7 @@ export class CharacterPane extends PaneShell {
 
   protected override blank(): void {
     this.stopTimer();
+    this.armed = null;
     this.closeMenus();
     this.drawn.clear();
     this.statsFrom = this.loreFrom = null;
@@ -290,8 +299,16 @@ export class CharacterPane extends PaneShell {
   }
 
   private stopHerb(key: string): void {
+    this.armed = null;
     if (this.ctx.player) return;
     this.ctx.game.timers.removeHerb(key);
+    this.markDirty();
+  }
+
+  /** A tap showed a herblore stone's × (`id`), or hid it (null). */
+  private arm(id: string | null): void {
+    if (this.ctx.player && id !== null) return;
+    this.armed = id === null ? null : { id, until: this.ctx.now() + ARMED_MS };
     this.markDirty();
   }
 
@@ -397,7 +414,7 @@ export class CharacterPane extends PaneShell {
 
     if (this.wrote) this.tip.refresh();
     let wake: number | null = null;
-    for (const at of [this.pending.nextAt(), changesAt, tick]) if (at !== null) wake = wake === null ? at : Math.min(wake, at);
+    for (const at of [this.pending.nextAt(), changesAt, tick, this.armed?.until ?? null]) if (at !== null) wake = wake === null ? at : Math.min(wake, at);
     if (wake === null) this.stopTimer();
     else this.armTimer(wake, now);
   }
@@ -410,6 +427,8 @@ export class CharacterPane extends PaneShell {
     const { card } = this;
     const tab = this.tabs.shown;
     const st = layout.area.stones;
+    // A tapped herblore's × goes after `ARMED_MS` (the card's one timer wakes for it).
+    if (this.armed !== null && now >= this.armed.until) this.armed = null;
     if (tab === 'lore' || st.rows === 0) {
       this.hiddenStones = [];
       this.stoneMenu.hide();
@@ -422,7 +441,12 @@ export class CharacterPane extends PaneShell {
       return null;
     }
     const rows = stoneRows(view.stones, { width: st.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: view.canStartHerb }, now, warnAt);
-    if (card.stones.set(rows, st.size, st.gap, st.bar, st.x)) this.wrote = true;
+    const placed = card.stones.set(rows, st.size, st.gap, st.bar, st.x);
+    if (placed) this.wrote = true;
+    // The armed ×: written only when it or the slots change; gone with its stone.
+    const armed = this.armed?.id ?? null;
+    const armedNew = this.changed('armed', armed ?? '-');
+    if ((placed || armedNew) && !card.stones.setArmed(armed)) this.armed = null;
     this.hiddenStones = rows.hidden;
     if (rows.hidden.length === 0) this.stoneMenu.hide();
     else this.stoneMenu.update(rows.hidden, this.stoneColors, now, warnAt);
