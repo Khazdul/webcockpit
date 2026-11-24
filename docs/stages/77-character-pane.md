@@ -2118,3 +2118,8 @@ shows the mana bar at all.
   the race is Troll (or, safer, while no mana key has come and the poll's
   `%E` is 0). Casts (spell-effort) is absent too: what the Casts cell shows
   for a troll is to decide in the pass (hide it, or `—`).
+- The owner: the same should hold for a troll you are grouped with in the
+  Group pane. Possible from the data if MUME leaves a troll member's mana
+  keys out as it does for you (to check in a group run log with a troll):
+  a member with no mana numbers or word shows no mana bar. Not urgent:
+  the poll pass takes it if the data allows, else it waits.
