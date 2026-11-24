@@ -180,8 +180,13 @@ with no stage of their own. Remove a line when it is done.
   coalesce 0.5 s, gap 2 s, repeat 10 s default (10 s/30 s/1/5 min), a
   position event, the gear fits (ADR 0166 addendum 20). Unit 6004 passed;
   9 related e2e files 107 passed.
+- **F1c:** the shields missed positions: the burst rule took normal typing
+  for a burst. Now a burst needs two commands < 2 s apart with no game
+  prompt between (ADR 0166 addendum 21, the owner's ok). A MUME alias for
+  the mood not reproduced (likely the same rule); the owner retests. Unit
+  6011 passed; 5 related e2e files 69 passed.
 - **Commits:** `dc79aa45` … `03194e57`, `bf03a9bd` … `ad97b0d6`,
-  `5828f321` … `25dd7437`, and the docs commits.
+  `5828f321` … `25dd7437`, `f0a3de3d` … `7089cf0d`, and the docs commits.
 
 ### 2026-11-23 … 24 — Stage 77, the direction pass for Group and Character
 
