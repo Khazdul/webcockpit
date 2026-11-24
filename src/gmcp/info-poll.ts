@@ -4,13 +4,23 @@
 //
 // Why a poll is sent:
 // - Login: once per connection and character, for the wimpy.
-// - `open()`, a Stats or Lore view is open: at once when the data is older
-//   than 30 s, then every 5 min while one is.
+// - `open()`, the card shows Status, Stats or Lore: at once when the data
+//   is older than 30 s or no poll has answered yet, then every `everyMs()`
+//   (a setting, 20 s by default; ADR 0166 addendum 18 point 97) while one
+//   is open. The data's time counts: a read of the player's own `stat` or
+//   `info` (info-typed.ts) is a poll.
+// - An event while a view is open (point 99), each a switch (`events()`):
+//   the mood changed (GMCP `Char.Vitals`), MUME's line for wearing,
+//   wielding or removing something (`isEquipmentLine`), an affect on you
+//   starting or ending or a herblore started (`effect`, from the Timers
+//   hub). Events within `COALESCE_MS` of the first are one poll (point
+//   100); data newer than the event serves it.
 //
-// When: never more often than 10 s, one outstanding (2 min at most), none
+// When: never more often than 3 s, one outstanding (2 min at most), none
 // while idle (no key or pointer press in 5 min; entering the game counts),
-// not fighting, after the character's Char.Vitals, two failures stop it
-// for the connection, and only when the gate is open:
+// not fighting, not while a cast is pending (`castPendingUntil`), after
+// the character's Char.Vitals, two failures stop it for the connection,
+// and only when the gate is open:
 //
 // - the last thing MUME printed is an XML game prompt ending in `>`, with
 //   nothing after it (not the pager, the line editor or a question);
@@ -20,8 +30,10 @@
 // - no command was sent in the last 2 s. MUME answers queued commands one
 //   pulse at a time, so the first one's prompt does not say that the last
 //   one (`write`, say) has been read, and a prompt can have been on its way
-//   when the command went. The 5 min repeat waits for 10 s of quiet, as a
-//   command can be held behind a cast.
+//   when the command went. The repeat and the events wait for 3 s of quiet,
+//   10 s after a burst (a command less than 2 s after the one before it;
+//   point 98), as a command can be held behind a cast. The login poll and
+//   an opened view keep the 2 s: there the player waits for the value.
 //
 // A command sent into the pager or the line editor is read by them: when in
 // doubt, no poll.
@@ -48,24 +60,63 @@ import type { Bus } from '../core/bus';
 import { type Line, gmcpKey } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
 import type { Scheduler } from '../script/engine/timers';
+import type { EffectEvent } from '../timers/tracker';
 import type { InfoAnswer } from './info-answer';
 import { InfoFilter, infoCommand, isGamePrompt, sexProbeCommand } from './info-filter';
 import type { Sex } from './sex';
 
 /** Opening a view polls when the data is older. */
 export const FRESH_MS = 30_000;
-/** Between the polls while a view is open. */
-export const EVERY_MS = 5 * 60_000;
+/** Between the polls while a view is open, unless `everyMs` says otherwise. */
+export const DEFAULT_EVERY_MS = 20_000;
 /** Never more often. */
-export const MIN_GAP_MS = 10_000;
+export const MIN_GAP_MS = 3000;
+/** Events this close to the first of them are one poll. */
+export const COALESCE_MS = 1500;
 /** No poll without a press in this long. */
 export const IDLE_MS = 5 * 60_000;
 /** An unanswered poll blocks the next for this long. */
 export const UNANSWERED_MS = 2 * 60_000;
 /** After the last command sent. */
 export const SETTLE_MS = 2000;
-/** The same for the repeated poll, which is in no hurry. */
-export const REPEAT_SETTLE_MS = 10_000;
+/** The same for the repeat and the events, which are in no hurry. */
+export const REPEAT_SETTLE_MS = 3000;
+/** A command this soon after the one before it is a burst... */
+export const BURST_MS = 2000;
+/** ...and the repeat and the events then wait this long after it. */
+export const BURST_SETTLE_MS = 10_000;
+
+/** The events that poll, each a switch. */
+export interface InfoPollEvents {
+  mood: boolean;
+  equipment: boolean;
+  affects: boolean;
+  herblore: boolean;
+}
+
+const ALL_EVENTS: InfoPollEvents = { mood: true, equipment: true, affects: true, herblore: true };
+
+/**
+ * MUME's line for putting on, wielding or taking off a thing (point 99):
+ * one anchored test by the line's second word. Not `You light …`, not
+ * `You put … in …`. `text` begins `You `.
+ */
+export function isEquipmentLine(text: string): boolean {
+  const sp = text.indexOf(' ', 4);
+  const re = EQUIPMENT.get(sp < 0 ? text.slice(4) : text.slice(4, sp));
+  return re !== undefined && re.test(text);
+}
+
+const EQUIPMENT: ReadonlyMap<string, RegExp> = new Map([
+  ['stop', /^You stop using .+\.$/],
+  ['wield', /^You wield .+\.$/],
+  ['awkwardly', /^You awkwardly wield .+\.$/],
+  ['wear', /^You wear .+\.$/],
+  ['put', /^You put (?!.* in(?:to)? ).+ (?:on|over|around) .+\.$/],
+  ['fasten', /^You fasten .+ on .+\.$/],
+  ['cover', /^You cover .+\.$/],
+  ['hold', /^You hold .+\.$/],
+]);
 /** Failures that stop the polls for the connection. */
 export const MAX_FAILURES = 2;
 /**
@@ -107,6 +158,14 @@ export interface InfoPollOptions {
   fighting(): boolean;
   /** When the model's data was received, or null. */
   dataAt(): number | null;
+  /** A poll has answered (a partial read alone is not enough for an opened view). None: any data is. */
+  complete?(): boolean;
+  /** The repeat, ms. None: `DEFAULT_EVERY_MS`. */
+  everyMs?(): number;
+  /** The events that poll. None: all. */
+  events?(): InfoPollEvents;
+  /** Until when a cast sent is pending, or null. None: never. */
+  castPendingUntil?(): number | null;
   apply(answer: InfoAnswer): void;
   /** The character is named and its sex is not known: the login poll brings the probe. None: never. */
   needSex?(): boolean;
@@ -128,8 +187,12 @@ export class InfoPoll {
   private character: string | null = null;
   private vitals = false;
   private loginDue = false;
-  /** Open Stats and Lore views. */
+  /** Open views (Status, Stats or Lore). */
   private views = 0;
+  /** The first event not yet served by a poll or newer data. */
+  private eventAt: number | null = null;
+  /** The mood last seen in Char.Vitals. */
+  private mood: string | null = null;
   /** A view was opened on old data. */
   private openDue = false;
   private sentPollAt: number | null = null;
@@ -150,6 +213,8 @@ export class InfoPoll {
   private lineAtSend: Line | null = null;
   private sentInFrame = false;
   private commandAt = Number.NEGATIVE_INFINITY;
+  /** The command before that one. */
+  private prevCommandAt = Number.NEGATIVE_INFINITY;
 
   private timer: unknown = null;
   private timerAt: number | null = null;
@@ -171,6 +236,7 @@ export class InfoPoll {
       bus.on('net.bytesIn', () => (this.inFrame = true)),
       bus.on('cmd.sent', (c) => {
         if (c.replay) return;
+        this.prevCommandAt = this.commandAt;
         this.commandAt = o.now();
         this.lineAtSend = this.filter.last;
         if (this.inFrame) this.sentInFrame = true;
@@ -189,8 +255,18 @@ export class InfoPoll {
       }),
       bus.on('gmcp', (m) => {
         const key = gmcpKey(m);
-        if (key === 'char.vitals') this.vitals = true;
-        else if (key === 'char.name') this.named((m.data as { name?: unknown } | null | undefined)?.name);
+        if (key === 'char.vitals') {
+          this.vitals = true;
+          const mood = (m.data as { mood?: unknown } | null | undefined)?.mood;
+          if (typeof mood === 'string') {
+            const was = this.mood;
+            this.mood = mood;
+            if (was !== null && was !== mood && this.events().mood) this.event();
+          }
+        } else if (key === 'char.name') this.named((m.data as { name?: unknown } | null | undefined)?.name);
+      }),
+      bus.on('text.line', (l) => {
+        if (l.text.startsWith('You ') && isEquipmentLine(l.text) && this.events().equipment) this.event();
       }),
     );
   }
@@ -225,17 +301,26 @@ export class InfoPoll {
     this.check();
   }
 
-  /** A Stats or Lore view is open. Call the returned function when it closes. */
+  /** An affect on you started or ended, or a herblore was started (the Timers hub). */
+  effect(e: EffectEvent): void {
+    const on = this.events();
+    if (e === 'affect-up' || e === 'affect-down' ? on.affects : e === 'herb-up' && on.herblore) this.event();
+  }
+
+  /** A view (Status, Stats or Lore) is open. Call the returned function when it closes. */
   open(): () => void {
     this.views++;
     const at = this.o.dataAt();
-    if (at === null || this.o.now() - at > FRESH_MS) this.openDue = true;
+    if (at === null || this.o.now() - at > FRESH_MS || this.o.complete?.() === false) this.openDue = true;
     this.check();
     let released = false;
     return () => {
       if (released) return;
       released = true;
-      if (--this.views === 0) this.openDue = false;
+      if (--this.views === 0) {
+        this.openDue = false;
+        this.eventAt = null;
+      }
       this.check();
     };
   }
@@ -267,7 +352,7 @@ export class InfoPoll {
     if (!this.o.enabled()) return 'the setting is off';
     if (this.failureCount >= MAX_FAILURES) return 'two answers failed on this connection';
     if (!this.vitals) return 'no Char.Vitals yet';
-    if (this.sentPollAt !== null && now < this.sentPollAt + MIN_GAP_MS) return 'the last poll was less than 10 s ago';
+    if (this.sentPollAt !== null && now < this.sentPollAt + MIN_GAP_MS) return 'the last poll was less than 3 s ago';
     if (this.outstanding !== null && this.sentPollAt !== null && now < this.sentPollAt + UNANSWERED_MS) return 'a poll waits for its answer';
     const why = this.blocked();
     if (why !== null) return why;
@@ -286,12 +371,23 @@ export class InfoPoll {
     this.clearTimer();
     this.character = null;
     this.vitals = this.loginDue = this.openDue = this.sentInFrame = false;
-    this.sentPollAt = this.outstanding = this.lineAtSend = null;
+    this.sentPollAt = this.outstanding = this.lineAtSend = this.eventAt = this.mood = null;
     this.own.clear();
     this.probed.clear();
     this.probes.clear();
     this.failureCount = 0;
-    this.commandAt = Number.NEGATIVE_INFINITY;
+    this.commandAt = this.prevCommandAt = Number.NEGATIVE_INFINITY;
+  }
+
+  private events(): InfoPollEvents {
+    return this.o.events?.() ?? ALL_EVENTS;
+  }
+
+  /** An event: a poll once the cluster is over (point 100). */
+  private event(): void {
+    if (!this.o.live()) return;
+    if (this.eventAt === null) this.eventAt = this.o.now();
+    this.check();
   }
 
   private enterGame(): void {
@@ -305,7 +401,7 @@ export class InfoPoll {
     const n = name.toLowerCase();
     if (this.character !== null && this.character !== n) {
       this.vitals = false;
-      this.outstanding = null;
+      this.outstanding = this.eventAt = this.mood = null;
       this.own.clear();
       if (this.o.live()) this.enterGame();
     }
@@ -332,15 +428,25 @@ export class InfoPoll {
     if (!this.vitals || this.failureCount >= MAX_FAILURES || now - this.pressedAt > IDLE_MS) return null;
     if (!this.o.live() || !this.o.enabled()) return null;
     const sent = this.sentPollAt;
+    const data = this.o.dataAt();
+    // Newer data (an answer, or a read of what the player saw) serves an event.
+    if (this.eventAt !== null && data !== null && data > this.eventAt) this.eventAt = null;
     let at = now;
     const repeat = !this.loginDue && !this.openDue;
     if (repeat) {
-      const data = this.o.dataAt();
       const base = data === null ? sent : sent === null ? data : Math.max(data, sent);
-      if (base !== null) at = base + EVERY_MS;
+      if (base !== null) at = base + (this.o.everyMs?.() ?? DEFAULT_EVERY_MS);
+      if (this.eventAt !== null) at = Math.min(at, this.eventAt + COALESCE_MS);
     }
     if (sent !== null) at = Math.max(at, sent + (this.outstanding === null ? MIN_GAP_MS : UNANSWERED_MS));
-    return Math.max(at, this.commandAt + (repeat ? REPEAT_SETTLE_MS : SETTLE_MS));
+    const cast = this.o.castPendingUntil?.() ?? null;
+    if (cast !== null) at = Math.max(at, cast);
+    return Math.max(at, this.commandAt + (repeat ? this.quiet() : SETTLE_MS));
+  }
+
+  /** The repeat's and the events' quiet after the last command (point 98). */
+  private quiet(): number {
+    return this.commandAt - this.prevCommandAt < BURST_MS ? BURST_SETTLE_MS : REPEAT_SETTLE_MS;
   }
 
   /** What time does not decide. */
@@ -382,6 +488,8 @@ export class InfoPoll {
     this.outstanding = nonce;
     this.sentPollAt = now;
     this.loginDue = this.openDue = false;
+    // What happened before it is in its answer: MUME answers in order.
+    this.eventAt = null;
     return true;
   }
 

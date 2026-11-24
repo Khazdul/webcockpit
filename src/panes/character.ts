@@ -16,8 +16,9 @@
 // - Char.Vitals comes with every prompt: at most one render a frame, and
 //   each part is written only when something it draws changed (`changed`).
 //   Nothing is built or removed for a value.
-// - The poll (`ctx.openInfo`) is held while the pane is visible, active
-//   and shows Stats or Lore. The fight mode shows Status, so it lets go.
+// - The poll (`ctx.openInfo`) is held while the pane is visible and active,
+//   whichever tab it shows (Status counts too, ADR 0166 addenda 16 and 18:
+//   the shields will be there). In a fight the poll itself waits.
 // - One timer at most, and only for what shows: a pending mark's end and
 //   the next change of "info 12 s ago". None while hidden.
 // - A click sends with `sendCommand` (no alias, echoed as typed) and
@@ -184,7 +185,7 @@ export class CharacterPane extends PaneShell {
 
   /** Holds the poll open exactly while it should be. */
   private syncInfo(): void {
-    const want = !this.closed && this.visible && this.active && this.tabs.shown !== 'status';
+    const want = !this.closed && this.visible && this.active;
     if (want === (this.releaseInfo !== null)) return;
     if (want) this.releaseInfo = this.ctx.openInfo?.() ?? null;
     else {

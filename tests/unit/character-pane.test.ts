@@ -103,16 +103,14 @@ function setup(o: Opts = {}) {
 }
 
 describe('the poll (ctx.openInfo)', () => {
-  it('held while Stats or Lore shows, once, released on Status', () => {
+  it('held while shown, whichever tab (Status too, ADR 0166 addendum 18), once', () => {
     const t = setup();
-    expect(t.info.open).toBe(0);
+    expect(t.info).toEqual({ open: 1, opened: 1, released: 0 });
     t.tab('stats');
-    expect(t.info.open).toBe(1);
     t.tab('stats');
     t.tab('lore');
-    expect(t.info).toEqual({ open: 1, opened: 1, released: 0 });
     t.tab('status');
-    expect(t.info).toEqual({ open: 0, opened: 1, released: 1 });
+    expect(t.info).toEqual({ open: 1, opened: 1, released: 0 });
   });
 
   it('released when hidden and held again when shown', () => {
@@ -127,14 +125,14 @@ describe('the poll (ctx.openInfo)', () => {
     expect(t.info).toEqual({ open: 1, opened: 2, released: 1 });
   });
 
-  it('released in a fight, held when the tab comes back', () => {
+  it('held through a fight (the poll itself waits for its end), the tab comes back', () => {
     const t = setup();
     t.tab('stats');
     t.gmcp('Char.Vitals', { opponent: 'a troll' });
-    expect(t.info.open).toBe(0);
+    expect(t.info.open).toBe(1);
     expect(t.selected()).toBe('status');
     t.gmcp('Char.Vitals', { opponent: null });
-    expect(t.info.open).toBe(1);
+    expect(t.info).toEqual({ open: 1, opened: 1, released: 0 });
     expect(t.selected()).toBe('stats');
   });
 
@@ -279,12 +277,11 @@ describe('clicks', () => {
 });
 
 describe('what is shown', () => {
-  it('Status from GMCP, and no poll for it', () => {
+  it('Status from GMCP', () => {
     const t = setup();
     expect(t.q('.wc-cc-name').textContent).toBe('Rasta');
     expect([...t.pane.content.querySelectorAll('.wc-cc-word')].map((e) => e.textContent)).toEqual(['brave', 'normal', 'normal', 'heavy']);
     expect([...t.pane.content.querySelectorAll('.wc-cc-vn')].map((e) => e.textContent)).toEqual(['187', '93', '98']);
-    expect(t.info.opened).toBe(0);
   });
 
   it('a band shows the span and no number, and no band word', () => {

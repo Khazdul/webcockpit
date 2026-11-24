@@ -143,6 +143,7 @@ describe('the info poll in the App', () => {
 
   it('keys and presses on the page are activity', () => {
     const t = setup();
+    (t.app as unknown as { settings: { update(p: object): void } }).settings.update({ character: { pollEvery: 300 } });
     t.login();
     t.frame(answerPulse(pollNonce(t.sent())!));
     t.app.infoPoll!.open();

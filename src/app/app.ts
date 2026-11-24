@@ -418,6 +418,10 @@ export class App {
           enabled: () => this.settings.get().character.fetchInfo,
           fighting: () => this.game.fighting(),
           dataAt: () => this.game.info.at,
+          complete: () => this.game.info.complete,
+          everyMs: () => this.settings.get().character.pollEvery * 1000,
+          events: () => this.settings.get().character.pollOn,
+          castPendingUntil: () => this.game.timers.castPendingUntil(),
           apply: (answer) => this.game.applyInfo(answer),
           needSex: () => this.game.sexNeeded(),
           applySex: (sex) => this.game.applySex(sex),
@@ -488,8 +492,12 @@ export class App {
     if (poll) {
       this.unsubs.push(
         this.settings.subscribe((next, prev) => {
-          if (next.character.fetchInfo !== prev.character.fetchInfo) poll.changed();
+          const n = next.character;
+          const p = prev.character;
+          if (n.fetchInfo !== p.fetchInfo || n.pollEvery !== p.pollEvery) poll.changed();
         }),
+        // The Timers trackers' events: an affect on you, a herblore started (ADR 0166 addendum 18).
+        this.game.timers.onEffect((e) => poll.effect(e)),
       );
       const page = doc.defaultView;
       if (page) {

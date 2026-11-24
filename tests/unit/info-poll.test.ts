@@ -2,7 +2,22 @@
 // 19, 22–25): a real session, line layer and game state, a fake clock.
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { InfoPoll, EVERY_MS, IDLE_MS, MAX_FAILURES, MIN_GAP_MS, PROBE_MIN_ROWS, answerFits, REPEAT_SETTLE_MS, SETTLE_MS, UNANSWERED_MS } from '../../src/gmcp/info-poll';
+import {
+  BURST_SETTLE_MS,
+  COALESCE_MS,
+  DEFAULT_EVERY_MS,
+  IDLE_MS,
+  InfoPoll,
+  type InfoPollEvents,
+  MAX_FAILURES,
+  MIN_GAP_MS,
+  PROBE_MIN_ROWS,
+  REPEAT_SETTLE_MS,
+  SETTLE_MS,
+  UNANSWERED_MS,
+  answerFits,
+  isEquipmentLine,
+} from '../../src/gmcp/info-poll';
 import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -11,6 +26,8 @@ import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeTe
 import { FakeSocket, sb, utf8 } from './net-helpers';
 
 const PROMPT = XML_PROMPT + GA;
+/** The repeat most tests run with (part C's fixed 5 min); the F1 tests set their own. */
+const EVERY_MS = 5 * 60_000;
 const T0 = 1_790_000_000_000;
 const gmcp = (pkg: string, data: unknown): number[] => sb(201, utf8(`${pkg} ${JSON.stringify(data)}`));
 
@@ -19,7 +36,9 @@ afterEach(() => {
   for (const c of cleanup.splice(0)) c();
 });
 
-function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; rows?: number | null } = {}) {
+function setup(
+  o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; rows?: number | null; every?: number | null; events?: Partial<InfoPollEvents>; cast?: () => number | null } = {},
+) {
   const sched = new FakeScheduler();
   const now = (): number => T0 + sched.now();
   const bus = new Bus();
@@ -39,6 +58,10 @@ function setup(o: { enabled?: boolean; sex?: boolean; storage?: Storage | null; 
     enabled: () => enabled,
     fighting: () => game.fighting(),
     dataAt: () => game.info.at,
+    complete: () => game.info.complete,
+    ...(o.every === null ? {} : { everyMs: () => o.every ?? EVERY_MS }),
+    events: () => ({ mood: true, equipment: true, affects: true, herblore: true, ...o.events }),
+    castPendingUntil: o.cast ?? (() => game.timers.castPendingUntil()),
     apply: (a) => game.applyInfo(a),
     ...(o.sex ? { needSex: () => game.sexNeeded(), applySex: (x: 'male' | 'female') => game.applySex(x), sexFailed: () => game.sexProbeFailed() } : {}),
     windowSize: () => size,
@@ -411,7 +434,7 @@ describe('InfoPoll: an open view', () => {
     expect(t.polls()).toHaveLength(3);
   });
 
-  it('the repeat waits for 10 s of quiet after the last command, opening a tab 2 s (point 34)', () => {
+  it('the repeat waits for 3 s of quiet after the last command, opening a tab 2 s (point 34, addendum 18)', () => {
     const t = setup();
     t.ready();
     const release = t.poll.open();
@@ -475,17 +498,17 @@ describe('InfoPoll: an open view', () => {
     expect(t.polls()).toHaveLength(1);
   });
 
-  it('never more often than 10 s', () => {
+  it('never more often than 3 s', () => {
     const t = setup();
     t.ready();
     t.wait(MIN_GAP_MS - 1);
-    expect(t.poll.request()).toMatch(/10 s/);
+    expect(t.poll.request()).toMatch(/3 s/);
     t.wait(1);
     expect(t.poll.request()).toBeNull();
     expect(t.polls()).toHaveLength(2);
   });
 
-  it('10 s also after a failed one', () => {
+  it('3 s also after a failed one', () => {
     const t = setup();
     t.login();
     t.poll.open();
@@ -877,5 +900,247 @@ describe("InfoPoll: the width commands' Ok. at login", () => {
     t.connect();
     t.frame(OKS + PROMPT);
     expect(t.shown).toEqual(['Ok.', '', 'Ok.', '', 'o>']);
+  });
+});
+
+describe('InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addendum 18)', () => {
+  /** Logged in, the login poll answered, a view open; the clock just after the answer. */
+  const opened = (o: Parameters<typeof setup>[0] = {}) => {
+    const t = setup({ every: null, ...o });
+    t.ready();
+    t.poll.open();
+    return t;
+  };
+  const vitals = (data: unknown): number[] => gmcp('Char.Vitals', data);
+
+  it(`repeats every ${DEFAULT_EVERY_MS / 1000} s by default, or as the setting says`, () => {
+    const t = opened();
+    t.active(DEFAULT_EVERY_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    const u = opened({ every: 10_000 });
+    u.active(10_000);
+    expect(u.polls()).toHaveLength(2);
+  });
+
+  it(`waits ${REPEAT_SETTLE_MS / 1000} s after a command, ${BURST_SETTLE_MS / 1000} s after a burst`, () => {
+    const t = opened();
+    t.active(DEFAULT_EVERY_MS - 1000);
+    t.session.sendCommand('look');
+    t.frame(`A room.\r\n${PROMPT}`);
+    t.wait(REPEAT_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    t.active(DEFAULT_EVERY_MS - 2000);
+    t.session.sendCommand('n');
+    t.wait(1000);
+    t.session.sendCommand('n');
+    t.frame(`A road.\r\n${PROMPT}`);
+    t.wait(BURST_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(2);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(3);
+  });
+
+  it('none while a cast is pending', () => {
+    let until: number | null = null;
+    const t = opened({ cast: () => until });
+    t.active(DEFAULT_EVERY_MS - 5000);
+    until = T0 + t.sched.now() + 10_000;
+    t.frame(PROMPT);
+    t.wait(9999);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('a cast sent through the session is pending in the Timers hub', () => {
+    const t = opened();
+    t.active(DEFAULT_EVERY_MS - 5000);
+    t.session.sendCommand("cast 'armour'");
+    expect(t.game.timers.castPendingUntil()).not.toBeNull();
+    t.frame(`You start to concentrate...\r\n${PROMPT}`);
+    t.wait(REPEAT_SETTLE_MS + 1000);
+    expect(t.polls()).toHaveLength(1);
+  });
+
+  it('the mood changing: a poll once the cluster is over, not the first mood seen', () => {
+    const t = setup({ every: EVERY_MS });
+    t.login();
+    t.frame(vitals({ mood: 'wimpy' }), PROMPT);
+    t.wait(SETTLE_MS);
+    t.answer();
+    t.poll.open();
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    expect(t.polls()).toHaveLength(1);
+    t.frame(vitals({ mood: 'brave' }), PROMPT);
+    t.wait(COALESCE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    t.frame(vitals({ mood: 'brave', hp: 90 }), PROMPT);
+    t.wait(10_000);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('events within 1.5 s are one poll; at least 3 s between polls; one outstanding', () => {
+    const t = opened({ every: EVERY_MS });
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.frame(`You stop using a bejewelled oak staff.\r\n${PROMPT}`);
+    t.wait(1000);
+    t.frame(`You awkwardly wield a bejewelled oak staff, ready to strike your foes.\r\n${PROMPT}`);
+    t.wait(COALESCE_MS - 1000);
+    expect(t.polls()).toHaveLength(2);
+    // While it waits for its answer: MUME answers in order, so the answer
+    // that comes after the line has it.
+    t.frame(`You put a crossbow over your shoulder.\r\n${PROMPT}`);
+    t.wait(5000);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    t.wait(10_000);
+    expect(t.polls()).toHaveLength(2);
+    // After the answer: 1.5 s after the event, but 3 s from the last poll.
+    t.frame(`You put a crossbow over your shoulder.\r\n${PROMPT}`);
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(3);
+    const sentAt = t.sched.now();
+    t.answer();
+    t.frame(`You wear a cloak about your body.\r\n${PROMPT}`);
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(3);
+    t.wait(MIN_GAP_MS - COALESCE_MS - 1);
+    expect(t.polls()).toHaveLength(3);
+    t.wait(1);
+    expect(t.sched.now()).toBe(sentAt + MIN_GAP_MS);
+    expect(t.polls()).toHaveLength(4);
+  });
+
+  it('the event polls after the player’s command has had its quiet', () => {
+    const t = opened({ every: EVERY_MS });
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.session.sendCommand('wear boots');
+    t.frame(`You wear a black pair of padded boots on your feet.\r\n${PROMPT}`);
+    t.wait(REPEAT_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('affects and herblores from the hub; a refresh is none; each switch', () => {
+    const t = opened({ every: EVERY_MS, events: { herblore: false } });
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.poll.effect('affect-refreshed');
+    t.poll.effect('herb-up');
+    t.wait(10_000);
+    expect(t.polls()).toHaveLength(1);
+    t.poll.effect('affect-down');
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(2);
+    const u = opened({ every: EVERY_MS, events: { mood: false, equipment: false, affects: false } });
+    u.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    u.poll.effect('affect-up');
+    u.frame(`You wear a cloak about your body.\r\n${PROMPT}`);
+    u.wait(10_000);
+    expect(u.polls()).toHaveLength(1);
+    u.poll.effect('herb-up');
+    u.wait(COALESCE_MS);
+    expect(u.polls()).toHaveLength(2);
+  });
+
+  it('an event in a fight waits for its end', () => {
+    const t = opened({ every: EVERY_MS });
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.frame(vitals({ opponent: 'a troll' }), PROMPT);
+    t.poll.effect('affect-up');
+    t.wait(30_000);
+    t.frame(PROMPT);
+    expect(t.polls()).toHaveLength(1);
+    t.frame(vitals({ opponent: null }), PROMPT);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('no view open: an event polls nothing', () => {
+    const t = setup({ every: null });
+    t.ready();
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.poll.effect('affect-up');
+    t.frame(`You wear a cloak about your body.\r\n${PROMPT}`);
+    t.wait(60_000);
+    expect(t.polls()).toHaveLength(1);
+  });
+
+  it("the player's own stat is read, shown, and serves the event and the repeat", () => {
+    const t = opened();
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    t.poll.effect('affect-up');
+    t.session.sendCommand('stat');
+    t.wait(100);
+    t.frame(
+      `OB: \x1b[32m50\x1b[0m%, DB: 18%, PB: 60%, Armour: 38%. Wimpy: 204. Mood: wimpy.\r\nNeeded: 159,510 xp, 0 tp. Gold: 82. Alert: normal.\r\n\r\n${PROMPT}`,
+    );
+    expect(t.shown).toContain('Needed: 159,510 xp, 0 tp. Gold: 82. Alert: normal.');
+    expect(t.game.info.answer).toMatchObject({ ob: 50, db: 18, pb: 60, abs: 38, wimpy: 204 });
+    expect(t.game.info.answer!.purse!.gold).toBe(82);
+    expect(t.game.char.view().wimpy).toBe(204);
+    const readAt = t.game.info.at!;
+    t.wait(REPEAT_SETTLE_MS);
+    expect(t.polls()).toHaveLength(1);
+    t.active(readAt + DEFAULT_EVERY_MS - (T0 + t.sched.now()) - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('an opened view polls while only a partial read is known', () => {
+    const t = setup({ every: EVERY_MS, enabled: false });
+    t.login();
+    t.session.sendCommand('info OB=%O');
+    t.frame(`OB=73\r\n\r\n${PROMPT}`);
+    expect(t.game.info.answer?.ob).toBe(73);
+    expect(t.game.info.complete).toBe(false);
+    t.turn(true);
+    t.wait(SETTLE_MS);
+    expect(t.polls()).toHaveLength(1);
+    t.answer();
+    t.poll.open();
+    expect(t.polls()).toHaveLength(1);
+  });
+});
+
+describe('isEquipmentLine', () => {
+  it('the lines seen live, one test each', () => {
+    for (const l of [
+      'You stop using a bejewelled oak staff.',
+      'You awkwardly wield a bejewelled oak staff, ready to strike your foes.',
+      'You wield a steel claymore.',
+      'You put a crossbow over your shoulder.',
+      'You wear a black pair of padded boots on your feet.',
+      'You cover your arms with a fine pair of rigid leather sleeves.',
+      'You fasten a sable pouch on your belt.',
+      'You put a golden ruby ring on your right finger.',
+      'You put a mithril circlet on your head.',
+      'You put an old length of iron chain around your neck.',
+      'You hold a fine elven pipe.',
+    ])
+      expect(isEquipmentLine(l), l).toBe(true);
+  });
+  it('not a light, a put in, or other lines beginning You', () => {
+    for (const l of [
+      'You light a hooded brass lantern.',
+      'You put a bread in a sable pouch.',
+      'You put a golden ring into a chest on the table.',
+      'You put all your weight against the rock, trying to open it.',
+      'You stop.',
+      'You wear',
+      'You say, I wear a hat.',
+      'You remove a strange set of lock picks from your keyring.',
+      'You fasten your belt.',
+    ])
+      expect(isEquipmentLine(l), l).toBe(false);
   });
 });

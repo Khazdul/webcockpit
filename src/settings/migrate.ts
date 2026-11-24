@@ -46,6 +46,8 @@ import {
   type CommSettings,
   CURSOR_STYLES,
   CHARACTER_HEIGHTS,
+  CHARACTER_POLL_EVERY,
+  type CharacterPollEvery,
   type CharacterHeight,
   type CharacterSettings,
   type ColorSetting,
@@ -346,7 +348,15 @@ export function migrateCharacter(raw: unknown): CharacterSettings {
   const c = isObj(raw) ? raw : {};
   const d = defaultSettings().character;
   const height = CHARACTER_HEIGHTS.includes(c.height as CharacterHeight) ? (c.height as CharacterHeight) : d.height;
-  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height };
+  const pollEvery = CHARACTER_POLL_EVERY.includes(c.pollEvery as CharacterPollEvery) ? (c.pollEvery as CharacterPollEvery) : d.pollEvery;
+  const on = isObj(c.pollOn) ? c.pollOn : {};
+  const pollOn = {
+    mood: bool(on.mood, d.pollOn.mood),
+    equipment: bool(on.equipment, d.pollOn.equipment),
+    affects: bool(on.affects, d.pollOn.affects),
+    herblore: bool(on.herblore, d.pollOn.herblore),
+  };
+  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height, pollEvery, pollOn };
 }
 
 /**
