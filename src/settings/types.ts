@@ -318,6 +318,14 @@ export interface TimersSettings {
   warnAt: TimerWarnAt;
   /** Each group sorted by time left. */
   soonestFirst: boolean;
+  /**
+   * The one-time switch of ADR 0166 point 172 (addendum 30) has run:
+   * Herblores, Buffs and Debuffs were turned off once because the Character
+   * card shows them as stones. Absent in settings from before it (false);
+   * true for new settings and recordings. Set the first time the settings
+   * are migrated with the Character pane on (settings version 9).
+   */
+  stonesOff: boolean;
 }
 
 /** How far back the Spotlights reel and the Diary (Credits until stage 67) reach (ADR 0110): a rolling window back from now. */
@@ -741,7 +749,12 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 //    turns the three groups off once where the Character pane is on (on a
 //    phone: on in the strip); elsewhere they stay as stored (absent: on, the
 //    old default).
-export const SETTINGS_VERSION = 8;
+// 9: the switch of 8 keyed by its own mark (ADR 0166 addendum 30,
+//    `timers.stonesOff`), not by the version: a stored v8 or older without
+//    the mark has not had it, and gets it the first time it is migrated
+//    with Character on (also a v8 record written while Character was off,
+//    or by a page that never ran the step). A v9 record has the mark.
+export const SETTINGS_VERSION = 9;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
@@ -875,6 +888,8 @@ export function defaultTimersSettings(): TimersSettings {
     signal: 'text',
     warnAt: 20,
     soonestFirst: true,
+    // A new player's three groups are already off: nothing to switch.
+    stonesOff: true,
   };
 }
 

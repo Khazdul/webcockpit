@@ -8,8 +8,9 @@
 //   order is changed: an order the player made is theirs.
 // 3 (stage 77 H6): Timers became Spells; Herblores, Buffs and Debuffs go off
 //   in it where Character is on in the strip (after set 2), as the card
-//   shows them as stones (ADR 0166 point 172). Settings version 8 does the
-//   same at the load, but before set 2 could turn Character on.
+//   shows them as stones (ADR 0166 point 172). The settings' own one-time
+//   switch (`timers.stonesOff`, addendum 30) does the same at the change
+//   where set 2 turns Character on; set 3 is kept as a second hand.
 // A new
 // phone starts with them (`phoneDefaultSettings()`, which also sets the
 // mark). A phone with stored settings from before gets them ONCE: when the

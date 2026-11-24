@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CaptureStore } from '../../src/capture/store';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
 import { DEFAULT_SHARE, PANE_IDS, defaultMapFloat, defaultStatsFloat, dockPanes } from '../../src/layout/types';
-import { legacyLayout } from './legacy-defaults';
+import { legacyLayout, legacySettings } from './legacy-defaults';
 import { INPUT_COLOR_IDS } from '../../src/theme/presets';
 import {
   DEFAULT_SETTINGS,
@@ -92,6 +92,8 @@ describe('migrateSettings', () => {
     d.mapper = { ...d.mapper, tileset: 'default', background: '#2e3436' };
     // And from before version 8, with Character off: Herblores, Buffs and Debuffs as they were, on (ADR 0166 point 172).
     for (const g of ['herb', 'buff', 'debuff'] as const) d.timers.groups[g].enabled = true;
+    // Their one-time switch not had yet (Character is off): it waits for Character (ADR 0166 addendum 30).
+    d.timers.stonesOff = false;
     for (const raw of [undefined, null, 42, 'x', [], {}]) {
       expect(migrateSettings(raw)).toEqual(d);
     }
@@ -432,6 +434,7 @@ describe('migrateSettings', () => {
     // A record from before version 8 with Character off: Herblores, Buffs and Debuffs on, their old default.
     const d = defaultTimersSettings();
     for (const g of ['herb', 'buff', 'debuff'] as const) d.groups[g].enabled = true;
+    d.stonesOff = false;
     expect(s.timers).toEqual(d);
     expect(migrateSettings({ version: SETTINGS_VERSION }).timers).toEqual(defaultTimersSettings());
     expect(Object.keys(s.timers.groups)).toEqual(['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
@@ -491,6 +494,8 @@ describe('migrateSettings', () => {
       s.version = 7;
       s.panes.character.on = characterOn;
       for (const g of Object.values(s.timers.groups)) g.enabled = on;
+      // A v7 record has no mark (ADR 0166 addendum 30).
+      delete (s.timers as { stonesOff?: boolean }).stonesOff;
       return s;
     };
     const three = (s: { timers: { groups: Record<string, { enabled: boolean }> } }) => ['herb', 'buff', 'debuff', 'spell', 'sanct', 'stored', 'blind', 'charm'].map((g) => s.timers.groups[g]!.enabled);
@@ -500,7 +505,7 @@ describe('migrateSettings', () => {
       const s = migrateSettings(raw);
       expect(s.version).toBe(SETTINGS_VERSION);
       expect(three(s)).toEqual([false, false, false, true, true, true, true, true]);
-      expect({ ...s.timers, groups: null }).toEqual({ ...(raw.timers as object), groups: null });
+      expect({ ...s.timers, groups: null }).toEqual({ ...(raw.timers as object), groups: null, stonesOff: true });
     });
 
     it('a v7 record with Character off: nothing changes, on or off', () => {
@@ -1244,5 +1249,97 @@ describe('SettingsStore.reload (ADR 0152)', () => {
     await s.flush();
     off();
     expect(kinds).toEqual(['settings']);
+  });
+});
+
+describe('the Spells groups\' one-time switch keyed by its mark (ADR 0166 addendum 30, settings version 9)', () => {
+  type Rec = ReturnType<typeof defaultSettings>;
+  /** A stored record of `version` without the mark, every group on, Character as given. */
+  const stored = (version: number, characterOn: boolean): Rec => {
+    const s = JSON.parse(JSON.stringify(legacySettings())) as Rec;
+    s.version = version;
+    s.panes.character.on = characterOn;
+    for (const g of Object.values(s.timers.groups)) g.enabled = true;
+    delete (s.timers as { stonesOff?: boolean }).stonesOff;
+    return s;
+  };
+  const three = (s: { timers: { groups: Record<string, { enabled: boolean }> } }) => ['herb', 'buff', 'debuff'].map((g) => s.timers.groups[g]!.enabled);
+  async function putMain(factory: IDBFactory, value: unknown): Promise<void> {
+    const db = await openWebcockpitDb(factory);
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      tx.objectStore('settings').put(value, 'main');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }
+
+  it('a v8 record that never had the switch (Character off then, or a page that skipped it) gets it with Character on', () => {
+    const s = migrateSettings(stored(8, true));
+    expect(three(s)).toEqual([false, false, false]);
+    expect(s.timers.stonesOff).toBe(true);
+    expect(s.timers.groups.spell.enabled).toBe(true);
+    // Character off: as stored, not marked.
+    const off = migrateSettings(stored(8, false));
+    expect(three(off)).toEqual([true, true, true]);
+    expect(off.timers.stonesOff).toBe(false);
+  });
+
+  it('a marked record keeps what it stores, at any version; a v9 record without the mark counts as marked', () => {
+    const r = stored(8, true);
+    r.timers.stonesOff = true;
+    expect(three(migrateSettings(r))).toEqual([true, true, true]);
+    expect(three(migrateSettings(stored(SETTINGS_VERSION, true)))).toEqual([true, true, true]);
+  });
+
+  it('Character turned on later: the three go off at that change, once; a group turned on again stays on', () => {
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update(() => migrateSettings(stored(7, false)));
+    expect(three(store.get())).toEqual([true, true, true]);
+    store.update({ panes: { character: { on: true } } });
+    expect(three(store.get())).toEqual([false, false, false]);
+    store.update({ timers: { groups: { buff: { enabled: true } } } });
+    store.update({ panes: { character: { on: false } } });
+    store.update({ panes: { character: { on: true } } });
+    expect(three(store.get())).toEqual([false, true, false]);
+    expect(three(migrateSettings(JSON.parse(JSON.stringify(store.get()))))).toEqual([false, true, false]);
+  });
+
+  it('through IndexedDB: a stored v7 and a v8 without the mark load off; a pulled v7 (the sync) reloads off; the turn-on survives', async () => {
+    for (const version of [7, 8]) {
+      const factory = new IDBFactory();
+      await putMain(factory, stored(version, true));
+      const s = make({ factory });
+      await s.load();
+      expect(three(s.get())).toEqual([false, false, false]);
+      s.update({ timers: { groups: { herb: { enabled: true } } } });
+      await s.flush();
+      await s.dispose();
+      const again = make({ factory });
+      await again.load();
+      expect(three(again.get())).toEqual([true, false, false]);
+      expect(again.get().version).toBe(SETTINGS_VERSION);
+      // The sync writes the account's older record (another browser on the old client) and reloads.
+      await putMain(factory, stored(7, true));
+      expect(await again.reload()).toBe('applied');
+      expect(three(again.get())).toEqual([false, false, false]);
+      await again.dispose();
+    }
+  });
+
+  it('a recording keeps its groups and is marked, so the player\'s later changes do not switch them', () => {
+    const rec = migrateSettings(stored(8, true), { recorded: true });
+    expect(three(rec)).toEqual([true, true, true]);
+    expect(rec.timers.stonesOff).toBe(true);
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update(() => JSON.parse(JSON.stringify(rec)) as Rec);
+    store.update({ appearance: { size: 16 } });
+    expect(three(store.get())).toEqual([true, true, true]);
+  });
+
+  it('new settings carry the mark', () => {
+    expect(defaultSettings().timers.stonesOff).toBe(true);
+    expect(migrateSettings(defaultSettings()).timers.stonesOff).toBe(true);
   });
 });

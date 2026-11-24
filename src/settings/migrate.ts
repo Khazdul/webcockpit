@@ -432,27 +432,40 @@ function timerCols(v: unknown, d: TimerCols): TimerCols {
 
 /** The settings version that turned Herblores, Buffs and Debuffs off where Character shows them (ADR 0166 point 172). */
 const TIMERS_CARD_OFF_VERSION = 8;
+/** The settings version whose records always carry `timers.stonesOff` (ADR 0166 addendum 30). */
+const TIMERS_MARK_VERSION = 9;
 
 /**
  * Timers (Spells) options from anything (ADR 0122): every key falls back to
  * its default; the old per-group `cols`, `clock`, `bar` and the global
  * `compact` are dropped; a stored swatch name migrates by value
  * (`timerColor`), so it works from any version and in old VIEW records.
- * Settings from before version 8 (`fromVersion`) turn Herblores, Buffs and
- * Debuffs off once where `card` (the Character pane shows them as stones);
- * elsewhere those keep what is stored, absent their old default (on).
+ * Settings from before version 8 (`fromVersion`) read an absent switch of
+ * Herblores, Buffs and Debuffs as their old default (on).
+ *
+ * The one-time switch (ADR 0166 point 172, addendum 30): where `card` (the
+ * Character pane shows the three as stones) and the mark `stonesOff` is not
+ * set, the three go off and the mark is set. It is keyed by the mark, not by
+ * the version, so a record that already says version 8 without having had
+ * it (written while Character was off, or by a page that did not run the
+ * step) gets it the first time Character is on; after that a group turned
+ * on again stays on. Where Character is off nothing changes and the mark
+ * stays unset. `recorded` (a recording's look): kept as recorded, marked.
  */
-export function migrateTimers(raw: unknown, fromVersion = SETTINGS_VERSION, card = false): TimersSettings {
+export function migrateTimers(raw: unknown, fromVersion = SETTINGS_VERSION, card = false, recorded = false): TimersSettings {
   const d = defaultTimersSettings();
   const t = isObj(raw) ? raw : {};
   const groups = isObj(t.groups) ? t.groups : {};
   const before = fromVersion < TIMERS_CARD_OFF_VERSION;
+  // Absent: not had yet in a record from before version 9 (ADR 0166 addendum 30); a recording is as recorded.
+  const had = recorded || bool(t.stonesOff, fromVersion >= TIMERS_MARK_VERSION);
+  const switchNow = card && !had;
   for (const id of TIMER_GROUPS) {
     const x = isObj(groups[id]) ? (groups[id] as Obj) : {};
     const dg = d.groups[id];
     const onCard = (TIMER_GROUPS_ON_CARD as readonly TimerGroup[]).includes(id);
     d.groups[id] = {
-      enabled: before && onCard ? !card && bool(x.enabled, true) : bool(x.enabled, dg.enabled),
+      enabled: onCard && switchNow ? false : bool(x.enabled, before && onCard ? true : dg.enabled),
       color: timerColor(id, x.color),
       layout: oneOf(x.layout, TIMER_GROUP_LAYOUTS, dg.layout),
     };
@@ -467,6 +480,7 @@ export function migrateTimers(raw: unknown, fromVersion = SETTINGS_VERSION, card
     signal: oneOf(t.signal, TIMER_SIGNALS, d.signal),
     warnAt: oneOf(t.warnAt, TIMER_WARN_CHOICES, d.warnAt),
     soonestFirst: bool(t.soonestFirst, d.soonestFirst),
+    stonesOff: had || switchNow,
   };
 }
 
@@ -759,7 +773,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     character: migrateCharacter(s.character),
     comm: migrateComm(s.comm, fromVersion),
     // A recording keeps the look it was made with: its groups as recorded, absent ones the default of its version.
-    timers: migrateTimers(s.timers, fromVersion, !opts.recorded && characterShown(panes, phone, opts.phone ?? false)),
+    timers: migrateTimers(s.timers, fromVersion, !opts.recorded && characterShown(panes, phone, opts.phone ?? false), opts.recorded ?? false),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
