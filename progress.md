@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), the owner's phone test of G7b pending; next H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), G7b approved on the phone; G7c the Timers pane's herblore and charm × on touch (addendum 27), the owner's phone test pending; next H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -175,6 +175,12 @@ with no stage of their own. Remove a line when it is done.
   touch: asked the owner whether they get the same two taps.
 - **Next:** H. Commits `7a55fc95`, `c6d14510`, `7aaadcb1`, `cfef0b81`,
   `643296f9`.
+- **Later:** the owner tested G7b on the phone (steps 1–5 ok, 3 s right)
+  and wanted the same in Timers: G7c (`06fa605f`, `66f36f4e`, ADR 0166
+  addendum 27), the herblore and the charm × (the charm × hidden on touch
+  until a tap). Unit 6077 passed; full e2e at 5 workers 2110 passed,
+  3 failed (`script-code-editor:312`, `phone-community-page:139`,
+  `phone-share-link:68`), all pass alone. Owner's test of G7c pending.
 
 ### 2026-11-24 — Stage 77 F2
 
