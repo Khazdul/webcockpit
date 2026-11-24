@@ -381,6 +381,19 @@ describe('gear popup contents', () => {
     expect(t.s().character.pollOn.affects).toBe(true);
   });
 
+  it('Character: the five stone switches (stage 77 F2a)', () => {
+    const t = mountWith(<CharacterSettings />);
+    expect(t.host.textContent).toContain('Stones');
+    for (const label of ['Buffs', 'Debuffs', 'Herblores', 'Flags', 'Your sanctuary']) {
+      expect(t.host.querySelector(`[aria-label="${label}"]`), label).not.toBeNull();
+    }
+    expect(t.host.textContent).toContain('Poisoned, blind, snared');
+    click(t.host.querySelector('[aria-label="Herblores"]'));
+    expect(t.s().character.stones).toEqual({ buffs: true, debuffs: true, herblores: false, flags: true, sanctuary: true });
+    click(t.host.querySelector('[aria-label="Herblores"]'));
+    expect(t.s().character.stones.herblores).toBe(true);
+  });
+
   it('Character: Fetch Stats and Lore from the game', () => {
     const t = mountWith(<CharacterSettings />);
     expect(t.s().character.fetchInfo).toBe(true);

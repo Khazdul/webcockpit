@@ -35,6 +35,7 @@ import { okbLayout } from './keyboard-model';
 import type {
   CharacterPollEvery,
   CharacterPollOn,
+  CharacterStones,
   FontId,
   GroupAwayMode,
   GroupNpcMode,
@@ -284,7 +285,7 @@ export const PANES_GROUP: SettingsGroup = {
       get: (s) => s.character.fetchInfo,
       set: (fetchInfo) => ({ character: { fetchInfo } }),
     },
-    { kind: 'link', id: 'character-fetch', label: 'Character fetching', page: 'character' },
+    { kind: 'link', id: 'character-fetch', label: 'Character', page: 'character' },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
   caption: 'Swipe the strip to change pane',
@@ -623,6 +624,31 @@ export const CHARACTER_FETCH_GROUP: SettingsGroup = {
   caption: 'At once when: the switches. Only while the card shows.',
 };
 
+/** The Character gear's stone switches (src/chrome/pane-options-model.ts, held equal by a unit test). */
+export const CHARACTER_STONE_NAMES: readonly { key: keyof CharacterStones; label: string }[] = [
+  { key: 'buffs', label: 'Buffs' },
+  { key: 'debuffs', label: 'Debuffs' },
+  { key: 'herblores', label: 'Herblores' },
+  { key: 'flags', label: 'Flags' },
+  { key: 'sanctuary', label: 'Your sanctuary' },
+];
+
+/** Character: the stone groups the card shows (stage 77 F2a). */
+export const CHARACTER_STONES_GROUP: SettingsGroup = {
+  id: 'character-stones',
+  title: 'Stones',
+  rows: CHARACTER_STONE_NAMES.map(
+    (r): SettingsRow => ({
+      kind: 'toggle',
+      id: `character-stone-${r.key}`,
+      label: r.label,
+      get: (s) => s.character.stones[r.key],
+      set: (on) => ({ character: { stones: { [r.key]: on } } }),
+    }),
+  ),
+  caption: 'Flags: poisoned, blind, snared, wounded, hungry, thirsty.',
+};
+
 export interface SettingsSubPage {
   id: string;
   title: string;
@@ -632,7 +658,7 @@ export interface SettingsSubPage {
 /** The sub-pages a `link` row opens, by id. */
 export const SETTINGS_PAGES: Readonly<Record<string, SettingsSubPage>> = {
   'timers-group': { id: 'timers-group', title: 'Timers and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
-  character: { id: 'character', title: 'Character fetching', groups: [CHARACTER_FETCH_GROUP] },
+  character: { id: 'character', title: 'Character', groups: [CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP] },
 };
 
 /** The rows of a group that are there on this device. */

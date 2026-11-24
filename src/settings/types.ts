@@ -201,6 +201,20 @@ export interface CharacterPollOn {
   herblore: boolean;
 }
 
+/** The stone groups the card shows (stage 77 F2a, ADR 0166 addendum 23), each a switch. */
+export interface CharacterStones {
+  /** Buffs (the Timers' Buffs group). */
+  buffs: boolean;
+  /** Debuffs (the Timers' Debuffs group). */
+  debuffs: boolean;
+  /** Herblores, and the `+` that starts one. */
+  herblores: boolean;
+  /** Your GMCP flags: poisoned, blind, snared, wounded, hungry, thirsty. */
+  flags: boolean;
+  /** Your own sanctuary. */
+  sanctuary: boolean;
+}
+
 /** The Character gear (stage 77, ADR 0166). */
 export interface CharacterSettings {
   /** The hidden `info` poll for Stats, Lore and the wimpy at login. Off: no hidden command at all. */
@@ -209,6 +223,8 @@ export interface CharacterSettings {
   /** The repeat, in seconds. */
   pollEvery: CharacterPollEvery;
   pollOn: CharacterPollOn;
+  /** The stones shown at the bottom of Status and Stats. */
+  stones: CharacterStones;
 }
 
 /** Options → Panes → Communication and the Comm gear (ADR 0134). */
@@ -777,7 +793,13 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    character: { fetchInfo: true, height: 'auto', pollEvery: 10, pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true } },
+    character: {
+      fetchInfo: true,
+      height: 'auto',
+      pollEvery: 10,
+      pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true },
+      stones: { buffs: true, debuffs: true, herblores: true, flags: true, sanctuary: true },
+    },
     comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), npcs: false, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },

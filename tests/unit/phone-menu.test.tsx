@@ -17,6 +17,8 @@ import {
   CHARACTER_EVERY_OPTIONS,
   CHARACTER_FETCH_GROUP,
   CHARACTER_POLL_ON_NAMES,
+  CHARACTER_STONES_GROUP,
+  CHARACTER_STONE_NAMES,
   GROUP_AWAY_OPTIONS,
   GROUP_GROUP,
   GROUP_NPC_OPTIONS,
@@ -38,6 +40,7 @@ import {
   AWAY_MODE_CHOICES,
   CHARACTER_POLL_EVERY_CHOICES,
   CHARACTER_POLL_ON_ROWS,
+  CHARACTER_STONE_ROWS,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
   TIMER_LAYOUT_CHOICES,
@@ -640,11 +643,12 @@ describe('the settings page as data', () => {
   });
 });
 
-describe('the Character fetching sub-page (stage 77 F1)', () => {
+describe('the Character sub-page (stage 77 F1, F2a)', () => {
   it("its choices and names are the desktop gear's", () => {
     expect(CHARACTER_EVERY_OPTIONS).toEqual(CHARACTER_POLL_EVERY_CHOICES);
     expect(CHARACTER_POLL_ON_NAMES).toEqual(CHARACTER_POLL_ON_ROWS);
-    expect(SETTINGS_PAGES.character!.groups).toEqual([CHARACTER_FETCH_GROUP]);
+    expect(CHARACTER_STONE_NAMES).toEqual(CHARACTER_STONE_ROWS.map(({ key, label }) => ({ key, label })));
+    expect(SETTINGS_PAGES.character!.groups).toEqual([CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP]);
   });
 
   it('its rows read and patch character.pollEvery and character.pollOn', () => {
@@ -666,15 +670,33 @@ describe('the Character fetching sub-page (stage 77 F1)', () => {
     expect(mood.set(false, d)).toEqual({ character: { pollOn: { mood: false } } });
   });
 
+  it('its stone rows read and patch character.stones', () => {
+    const d = defaultSettings();
+    const rows = CHARACTER_STONES_GROUP.rows;
+    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual([
+      'toggle:character-stone-buffs',
+      'toggle:character-stone-debuffs',
+      'toggle:character-stone-herblores',
+      'toggle:character-stone-flags',
+      'toggle:character-stone-sanctuary',
+    ]);
+    const flags = rows[3];
+    if (flags?.kind !== 'toggle') throw new Error('row kind');
+    expect(flags.get(d)).toBe(true);
+    expect(flags.set(false, d)).toEqual({ character: { stones: { flags: false } } });
+  });
+
   it('opens from the Panes group; a switch writes the shared key', () => {
     const { menu, settings } = setup();
     act(() => menu.openSettings('sheet'));
     const page = (): string | undefined => (menu.host.querySelector('.wc-ph-page') as HTMLElement).dataset.page;
     tap(menu.host.querySelector('[data-group="panes"] [data-row="character-fetch"]'));
     expect(page()).toBe('sub:character');
-    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Character fetching');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Character');
     tap(menu.host.querySelector('[data-row="character-on-equipment"] [role="switch"]'));
     expect(settings.get().character.pollOn).toEqual({ mood: true, position: true, equipment: false, affects: true, herblore: true });
+    tap(menu.host.querySelector('[data-row="character-stone-buffs"] [role="switch"]'));
+    expect(settings.get().character.stones).toEqual({ buffs: false, debuffs: true, herblores: true, flags: true, sanctuary: true });
   });
 });
 

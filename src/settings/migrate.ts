@@ -357,7 +357,15 @@ export function migrateCharacter(raw: unknown): CharacterSettings {
     affects: bool(on.affects, d.pollOn.affects),
     herblore: bool(on.herblore, d.pollOn.herblore),
   };
-  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height, pollEvery, pollOn };
+  const so = isObj(c.stones) ? c.stones : {};
+  const stones = {
+    buffs: bool(so.buffs, d.stones.buffs),
+    debuffs: bool(so.debuffs, d.stones.debuffs),
+    herblores: bool(so.herblores, d.stones.herblores),
+    flags: bool(so.flags, d.stones.flags),
+    sanctuary: bool(so.sanctuary, d.stones.sanctuary),
+  };
+  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height, pollEvery, pollOn, stones };
 }
 
 /**

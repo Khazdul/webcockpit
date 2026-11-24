@@ -332,7 +332,11 @@ describe('migrateSettings', () => {
   });
 
   it("adds the Character gear's switch, on (stage 77; older stored data)", () => {
-    const poll = { pollEvery: 10, pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true } };
+    const poll = {
+      pollEvery: 10,
+      pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true },
+      stones: { buffs: true, debuffs: true, herblores: true, flags: true, sanctuary: true },
+    };
     expect(migrateSettings({ version: 7 }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
     expect(migrateSettings({ character: { fetchInfo: 'no', height: 'compact' } }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
     const off = migrateSettings({ character: { fetchInfo: false, height: 'medium', gone: 1 } });
@@ -352,6 +356,15 @@ describe('migrateSettings', () => {
       pollOn: { mood: false, position: true },
     });
     expect(migrateSettings({ character: { pollOn: [] } }).character.pollOn.mood).toBe(true);
+  });
+
+  it('the stone switches (stage 77 F2a): all on, checked, additive', () => {
+    const all = { buffs: true, debuffs: true, herblores: true, flags: true, sanctuary: true };
+    expect(migrateSettings({ character: { fetchInfo: false } }).character.stones).toEqual(all);
+    expect(migrateSettings({ character: { stones: 'x' } }).character.stones).toEqual(all);
+    const c = migrateSettings({ character: { stones: { buffs: false, flags: 'no', sanctuary: false, gone: false } } }).character;
+    expect(c.stones).toEqual({ ...all, buffs: false, sanctuary: false });
+    expect(migrateSettings(JSON.parse(JSON.stringify({ character: c }))).character.stones).toEqual(c.stones);
   });
 
   it('checks group and comm values; comm filters keep only disabled channels', () => {

@@ -34,6 +34,7 @@ import {
   CHARACTER_HEIGHT_CHOICES,
   CHARACTER_POLL_EVERY_CHOICES,
   CHARACTER_POLL_ON_ROWS,
+  CHARACTER_STONE_ROWS,
   COMM_CHAT_WINDOW_CHOICES,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
@@ -254,6 +255,13 @@ export function CharacterSettings(): VNode {
       {CHARACTER_POLL_ON_ROWS.map((r) => (
         <Row key={r.key} label={r.label}>
           <Toggle label={r.label} on={s.character.pollOn[r.key]} onChange={(on) => setCharacter(settings, { pollOn: { ...s.character.pollOn, [r.key]: on } })} />
+        </Row>
+      ))}
+      <div class="wc-ck-sep" />
+      <div class="wc-ck-sub">Stones</div>
+      {CHARACTER_STONE_ROWS.map((r) => (
+        <Row key={r.key} label={r.label} help={r.help}>
+          <Toggle label={r.label} on={s.character.stones[r.key]} onChange={(on) => setCharacter(settings, { stones: { ...s.character.stones, [r.key]: on } })} />
         </Row>
       ))}
     </div>

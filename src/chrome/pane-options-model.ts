@@ -41,7 +41,7 @@ import {
   type TimersSettings,
 } from '../settings';
 import { PICKER_COLORS } from '../panes/palette';
-import type { CharacterHeight, CharacterPollOn, CharacterSettings, GroupSettings } from '../settings/types';
+import type { CharacterHeight, CharacterPollOn, CharacterSettings, CharacterStones, GroupSettings } from '../settings/types';
 import type { TimerGroup } from '../timers/entry';
 
 // ------------------------------------------------------------------ comm
@@ -192,6 +192,15 @@ export const CHARACTER_POLL_ON_ROWS: readonly { key: keyof CharacterPollOn; labe
   { key: 'equipment', label: 'Wear or remove' },
   { key: 'affects', label: 'Affects start or end' },
   { key: 'herblore', label: 'Herblore started' },
+];
+
+/** The card's stone groups (`character.stones`, stage 77 F2a), each a switch. */
+export const CHARACTER_STONE_ROWS: readonly { key: keyof CharacterStones; label: string; help?: string }[] = [
+  { key: 'buffs', label: 'Buffs' },
+  { key: 'debuffs', label: 'Debuffs' },
+  { key: 'herblores', label: 'Herblores', help: 'And the + that starts one' },
+  { key: 'flags', label: 'Flags', help: 'Poisoned, blind, snared, wounded, hungry, thirsty' },
+  { key: 'sanctuary', label: 'Your sanctuary' },
 ];
 
 /** Writes `patch` into the Character settings. */
