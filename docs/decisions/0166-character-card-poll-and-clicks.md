@@ -1249,7 +1249,8 @@ round 16 variant C, his pick ("Part H2: what was built").
      and Firefox share the desktop record), where Character was off. His
      IndexedDB is not at hand, so which of these it was is not known; all
      three end in a v8 record with the three on and Character on, which the
-     code of part H never switched (an e2e with such a record fails on it).
+     code of part H never switched (for a v8 record its `before` is false,
+     so the stored `enabled: true` stood).
      The Panes menu, the dock, a float and the gear all read and write
      `panes.character.on` and `groups[id].enabled`; the mirror holds only
      the appearance; `reload` and `takeRecord` migrate what they read.
