@@ -157,6 +157,25 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-24 — Stage 77 H
+
+- **G7c approved** by the owner (steps 1–5, the charm × hidden on touch).
+- **H list** compiled with screenshots (artifact); the owner picked 1A–5A,
+  6B, 7A and stone icons (ADR 0166 addendum 28).
+- **Built** (building agent, `stage77-h`, fast-forwarded): H1 Stats drops
+  the stones row where it does not fit, H2 one scale, H3 tab icons under
+  8 px, H4 short forms everywhere, H6 Timers is Spells with Herblores,
+  Buffs, Debuffs off by default (settings v8, phone defaults mark 3).
+  Addendum 29. Unit 6089 passed; full e2e at 5 workers 2114 passed,
+  1 failed (`phone-community-page:139`, passes alone).
+- **Mockups:** round 16 (the owner picked C, heat); stone icons round 1
+  (62 stones found, 14 not recognised by the app; picks in
+  `notes/research/stone-icons/picks.md`), round 2 (the five new asks).
+- **Open:** a new desktop user (Character off) sees no buffs anywhere
+  (point 181); whether the 14 unknown affects get recognised; the owner's
+  round 2 picks; the owner's test of H (guide "Part H").
+- **Next:** build round 16 C, then the stone icons.
+
 ### 2026-11-24 — Stage 77 G
 
 - **Reconciled** both G lists with the tests: every unit item already
