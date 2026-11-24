@@ -23,6 +23,9 @@
 //   the next change of "info 12 s ago". None while hidden.
 // - A click sends with `sendCommand` (no alias, echoed as typed) and
 //   never takes the focus from the input.
+// - The stones (character-stones.ts, F2a): the list is rebuilt only after
+//   a Timers or a group change (or the stone switches), when read; nothing
+//   draws it yet (F2b), so no render and no tick follow from it.
 
 import './character.css';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
@@ -49,6 +52,7 @@ import {
   wimpyAt,
 } from './character-model';
 import { CardDom } from './character-dom';
+import { type StoneView, stoneView } from './character-stones';
 import type { PaneContext } from './context';
 import { groupVitals } from './group-model';
 import { signalColors } from './palette';
@@ -93,6 +97,9 @@ export class CharacterPane extends PaneShell {
   /** Where the phone shows the pane (the cockpit's attributes, set before it places it). */
   private phone: CardBox['phone'];
   private framed = false;
+  /** The stones, and whether a Timers or a group change has made them old. */
+  private stoneList: StoneView | null = null;
+  private stonesStale = true;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'character');
@@ -108,12 +115,16 @@ export class CharacterPane extends PaneShell {
           if (this.pending.size > 0) this.pending.settle(ctx.game.char.view());
           this.followFight();
           this.markDirty();
-        } else if (part === 'group') this.followFight();
+        } else if (part === 'group') {
+          this.stonesStale = true;
+          this.followFight();
+        } else if (part === 'timers') this.stonesStale = true;
         else if (part === 'info' && this.tabs.shown !== 'status') this.markDirty();
       }),
     );
     this.own(
       ctx.settings.subscribe((next, prev) => {
+        if (next.character.stones !== prev.character.stones) this.stonesStale = true;
         if (next.character !== prev.character || next.group.colors !== prev.group.colors) this.markDirty();
       }),
     );
@@ -170,6 +181,26 @@ export class CharacterPane extends PaneShell {
   }
 
   // ------------------------------------------------------------------- state
+
+  /**
+   * The stones (buffs, debuffs, herblores, your flags and sanctuary), in
+   * the display order: rebuilt only when the Timers, the group or the
+   * stone switches changed since the last read. Their times are read at
+   * the moment of drawing (`stoneTime`).
+   */
+  get stones(): StoneView {
+    if (this.stonesStale || this.stoneList === null) {
+      const { ctx } = this;
+      this.stoneList = stoneView({
+        view: ctx.game.timers.view(ctx.now()),
+        flags: ctx.game.group.selfFlags,
+        show: ctx.settings.get().character.stones,
+        player: ctx.player === true,
+      });
+      this.stonesStale = false;
+    }
+    return this.stoneList;
+  }
 
   private followFight(): void {
     if (!this.tabs.setFight(this.ctx.game.fighting())) return;

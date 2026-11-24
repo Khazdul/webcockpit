@@ -402,3 +402,32 @@ describe('cost', () => {
     expect(t.timers()).toBe(0);
   });
 });
+
+describe('the stones (stage 77 F2a)', () => {
+  it('rebuilt after a Timers, a group or a switch change; nothing drawn yet', () => {
+    const t = setup();
+    const empty = t.pane.stones;
+    expect(empty.stones).toEqual([]);
+    expect(empty.canStartHerb).toBe(true);
+    expect(t.pane.stones).toBe(empty);
+    const html = t.pane.content.innerHTML;
+    t.gmcp('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', poison: true }]);
+    expect(t.pane.stones.stones.map((s) => s.id)).toEqual(['flag:poison']);
+    t.game.timers.addHerb('Healing');
+    t.flush();
+    const v = t.pane.stones;
+    expect(v.stones.map((s) => s.kind)).toEqual(['herb', 'flag']);
+    expect(v.stones[0]!.herbKey).toBe('Healing');
+    expect(t.pane.stones).toBe(v);
+    t.settings.update({ character: { stones: { flags: false } } });
+    t.flush();
+    expect(t.pane.stones.stones.map((s) => s.kind)).toEqual(['herb']);
+    // F2a draws nothing: the card is as it was.
+    expect(t.pane.content.innerHTML).toBe(html);
+  });
+
+  it('read-only in a log player', () => {
+    const t = setup({ player: true });
+    expect(t.pane.stones.canStartHerb).toBe(false);
+  });
+});
