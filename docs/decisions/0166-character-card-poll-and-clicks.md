@@ -1142,3 +1142,85 @@ From the H list (stage 77, "H. Polish"). The owner: 1A, 2A, 3A, 4A, 5A,
      Character pane is on, so nobody loses them from view; a player who
      turns them on again keeps them on. The main session's pick.
 173. **Cells and icons** (5A, 8) are mockups first; their decisions follow.
+
+## Addendum 29 (2026-11-24): part H as built
+
+H1–H4 and H6 of addendum 28 (stage 77, "Part H: what was built"). H5,
+H7 (decided, nothing to build) and H8 are not in it.
+
+174. **Stats' stones row (H1, point 168)** is decided in the DOM, not in
+     the pure layout: Stats' height follows its text (wrapping, the age
+     box's table), which the layout does not model. After a change of the
+     layout, the tab or the data (the moments `markMore` already reads the
+     scroll box) `CardDom.fitStats` shows the row, and where Stats' scroll
+     box then overflows the row goes from Stats (`data-stats-stones="off"`
+     on the area) and the scroll box takes its room. The choice holds
+     until the next such change, so the age line's ticks do not bring the
+     row back. The compact card's line 2 is not dropped: it holds the five
+     icons. At the default font Stats keeps the row at 62 × 11, drops it
+     at 62 × 7.
+175. **One scale (H2, points 157 and 169).** Every mode is drawn for one box,
+     170 × 64 (Small's): the scale is the font's (`px / 15`, 0.8–1.8),
+     limited by `w / 170` and `max(h / 64, 0.85)` (`cardScale`). So it
+     never gets smaller in a larger box, in either direction, and at a
+     mode's least box it is what the mode below had. Medium (270 × 124)
+     and Large (420 × 164) had their own boxes: Medium from 106 px fell
+     from about 1.0 to 0.855, and the same happened at 210 px wide
+     (Small → Medium) and at Large's 400 × 160. The modes keep their own
+     sizes (values, icons, stones, shields, the portrait's least status
+     width). What this costs: a narrow pane no longer shrinks the chrome
+     to keep a portrait, so a Medium pane under about 235 px wide (255 at a
+     16.6 px font) is the compact card, and a Large lock in a 330 px pane
+     is too.
+176. **The bars' caps grow in (H2).** `barCap`'s steps (10, 12, 14, then
+     34 px) now rise by half a px per px from each threshold (62, 82,
+     122), floored to whole px: at 122 px the bars grew by 6 px at once,
+     which took a growing pane's content back down a step. Still at most
+     14 px under 122, 12 under 82, 10 under 62. Unit tests: the scale is
+     non-decreasing over a height sweep (21–300 px) and a width sweep,
+     every lock and seven fonts; Medium at 106 px keeps Small's scale at
+     105; the steps never go back up as a pane grows (now also across
+     Medium's least box).
+177. **Tab icons (H3, point 170).** The words stand where they are at least
+     `TAB_WORD_MIN` (8 px; they were down to 5.4) and the pane is 120 px
+     wide; else the tabs are `icons`: a shield with a chevron (Status), a
+     die with three pips (Stats), a scroll with two rolls (Lore), new
+     paths in `icons.ts` (`tabStatus`, `tabStats`, `tabLore`) in the set's
+     style (24 × 24, stroke 2). The icon is at most 11 × k px, the tab
+     `min(16 × k, 0.14 × w)` wide (the 5.5 px words' width was 15). The
+     word is the tooltip (`data-tip`) in the icon form only, and always
+     the accessible name. The old `marks` form (empty tabs) is gone. At
+     the default font the words come from about 110 px of content (62 × 9
+     and up); 62 × 7 has icons.
+178. **Short forms everywhere (H4, point 171).** `statusView` always uses
+     `shortForm` (`brav`, `norm`, `rhvy`, `aggr`, `vigl`), at every step
+     and in the compact card; `fitWord` and its list (`agg.`, `nor…`) are
+     removed. The whole word is the tooltip and the name, as before.
+179. **Spells (H6, point 172).** The user-facing name is Spells: the frame
+     label (`PANE_LABELS`, so the Panes menu, the close cross's "Hide
+     Spells", the gear's "Spells settings" and `getPanes()`' `title`), the
+     gear popup, the phone strip's label and its Settings page ("Spells and
+     Group"), the privacy text and the Mudlet import note. The id stays
+     `timers`, and so do `getPanes()`' `short` (`TIME`, the script API),
+     the settings key and the code's names. "Timer groups" stays (one of
+     them is called Spells). The script manual's "Timers" is about Lua
+     timers, not the pane.
+180. **The groups off (H6).** `defaultTimersSettings` has Herblores, Buffs
+     and Debuffs off (`TIMER_GROUPS_ON_CARD`). The card's stones read
+     `game.timers.view()` and `character.stones`, never the groups'
+     `enabled` (only `timersModel` does), so nothing was decoupled.
+     **Settings version 8**: a stored v7 or older turns the three off
+     once where the Character pane shows (a computer: `panes.character.on`;
+     a phone: Character on in `phone.strip`); elsewhere they keep what is
+     stored, an absent switch its old default (on). A recording
+     (`recorded`) keeps its groups as recorded, an absent one the default
+     of its version. **The phone's one-time defaults set 3**
+     (`PHONE_DEFAULTS_MARK` 3): the same three off where Character is on in
+     the strip after set 2 (which can turn it on after the load's
+     migration has run). Both run once; a later turn-on stays. A record
+     synced from a device still on an old client (v7) would take the step
+     again, as with the earlier version steps.
+181. **New desktop users** have Character off by default (ADR 0092), so a
+     new desktop user sees no herblores, buffs or debuffs anywhere until
+     Character or the groups are turned on. Left as decided; for the
+     owner.

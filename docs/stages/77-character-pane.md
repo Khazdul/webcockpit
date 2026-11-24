@@ -474,18 +474,18 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
 **The owner's picks (2026-11-24, from the H list,
 <https://claude.ai/artifact/WmKtRLqTJ4pw8Lu32wKFgm>; ADR 0166 addendum 28):**
 
-- [ ] H1 (1A). Stats drops the stones row where it does not fit; the
+- [x] H1 (1A). Stats drops the stones row where it does not fit; the
       stones stay in Status.
-- [ ] H2 (2A). One smooth scale: Medium starts where Small ends, so the
+- [x] H2 (2A). One smooth scale: Medium starts where Small ends, so the
       words only grow as the pane grows (point 157).
-- [ ] H3 (3A). Small icons in the tabs where the words get too small
+- [x] H3 (3A). Small icons in the tabs where the words get too small
       (shield, die, scroll), the word in the tooltip.
-- [ ] H4 (4A). The hand-made short forms (`brav`, `norm`, `rhvy`) in every
+- [x] H4 (4A). The hand-made short forms (`brav`, `norm`, `rhvy`) in every
       status cell instead of `…`.
 - [ ] H5 (5A). A mockup round (round 16) of the Mood, Casts, Alertness and
       Weight cells: 3–4 variants at Medium, docked and on the phone.
       Nothing built before the owner picks.
-- [ ] H6 (6B). Timers is renamed Spells. Herblores, Buffs and Debuffs stay
+- [x] H6 (6B). Timers is renamed Spells. Herblores, Buffs and Debuffs stay
       in it but are off by default.
 - [x] H7 (7A). `trtr`, `pnts`, `vigl` kept (point 127 closed).
 - [ ] H8. Stone icons: five proposals for each stone the card shows
@@ -1438,6 +1438,55 @@ points 163–167), as the owner asked after G7b.
   `phone-character-card` 3 × on their projects (213 passed),
   `phone-game-panes` 3 × (93 passed), typecheck, vitest (6077 passed).
 
+## Part H: what was built (2026-11-24)
+
+H1–H4 and H6 of the owner's picks (ADR 0166 addendum 28); the choices
+are addendum 29 (points 174–181). H5 and H8 are mockups first; H7 needed
+nothing.
+
+- **H1, Stats and the stones.** Stats keeps the stones' row only where
+  its own content fits above it (measured after a change of the layout,
+  the tab or the data, `CardDom.fitStats`); else the row goes from Stats
+  and the scroll box takes its room. Status always has it. At the default
+  font: off at 62 × 7, on at 62 × 11. The compact card keeps its line 2
+  (the five icons are in it).
+- **H2, one scale.** Every mode is drawn for one box (170 × 64,
+  `cardScale`), so the scale never falls as a pane grows, in height or
+  width (it fell at Medium's 106 px, at 210 px wide and at Large's 400 ×
+  160). The modes keep their sizes. The bars' caps grow in by half a px
+  per px from 62, 82 and 122 px instead of at once. A narrow pane no
+  longer shrinks the chrome to keep a portrait: Medium under about 235 px
+  wide is the compact card.
+- **H3, tab icons.** Under 8 px (`TAB_WORD_MIN`) the tabs show a shield,
+  a die and a scroll (`tabStatus`, `tabStats`, `tabLore` in `icons.ts`);
+  the word is the tooltip and the accessible name. At the default font
+  the words come from 62 × 9.
+- **H4, short forms.** Every status cell uses `shortForm` (`brav`, `norm`,
+  `rhvy`, `vigl`); `fitWord` (`nor…`, `agg.`) is gone.
+- **H6, Spells.** The pane's title, its gear popup, the Panes menu, the
+  phone strip's label and Settings page ("Spells and Group"), the privacy
+  text and the Mudlet note say Spells; the id stays `timers` (and
+  `getPanes()`' short name `TIME`). Herblores, Buffs and Debuffs are off
+  by default. Settings version 8 turns them off once where Character is
+  on (a phone: on in the strip); the phone's one-time defaults set 3 does
+  the same after set 2. A recording keeps its groups. The card's stones
+  never read the groups' switches.
+- **Not done here:** a new desktop user has Character off (ADR 0092), so
+  sees no herblores, buffs or debuffs anywhere by default (point 181,
+  for the owner).
+- Screenshots: `notes/research/character-pane-mockups/h/` (Stats at
+  62 × 7 and 62 × 11, Status at 62 × 6 and 62 × 7, the tab icons at
+  44 × 7, docked in a 33-column right dock at 1500 × 960 with Spells
+  under it).
+- Tests: unit `character-layout` (the scale over height and width sweeps,
+  Medium at 106 px, the bars' ramps, the tab icons from 8 px), `character-
+  model` (the short forms at every room), `character-pane` (the icons'
+  tooltips and names), `settings` (version 8: Character on and off, once,
+  a phone, a recording, new settings), `phone-settings` (set 3), and the
+  renamed strings; e2e `character-card.spec.ts` (a new part H test), the
+  timers and phone specs with the three groups turned on in their setup
+  or the mark 3.
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1465,6 +1514,26 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part H, polish (the test server, MUME up)
+
+1. Float Character about 62 × 7 and press Stats: the abilities, age and
+   senses have the area; no stones' row, no "info … ago" over it. Status
+   keeps the row. Taller (62 × 11): Stats has the row again.
+2. Make the pane grow slowly from very low to tall: the words never get
+   smaller on the way (Medium from 106 px used to shrink them).
+3. In a low pane (62 × 7) the tabs are a shield, a die and a scroll; hover
+   one for its name. From about 62 × 9 the words come back.
+4. Dock Character in a narrow right dock: the cells say `brav`, `norm`,
+   `rhvy`, never `bra…` or `nor…`; hover for the whole word.
+5. The Timers pane is called Spells (title, gear, Panes menu, phone strip
+   and Settings). With Character on, Herblores, Buffs and Debuffs are off
+   in it (they are the card's stones); turn one on in its gear and reload:
+   it stays on.
+
+Feedback wanted: whether 8 px is the right point for the icons, whether
+the icons read as Status, Stats and Lore, and whether a new desktop user
+(Character off) should see buffs somewhere (point 181).
 
 ### Part G7c, the Timers pane's × on a phone (the test server)
 
