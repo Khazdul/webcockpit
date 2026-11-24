@@ -55,6 +55,24 @@ test('the strip: the same card; the tabs take a finger', async ({ page }) => {
   expect((await tab(page, 'status').boundingBox())!.width).toBeGreaterThanOrEqual(24);
 });
 
+test('H2: the strip’s cells in heat (round 16 C): the value in its step’s colour, the track, the corner mark', async ({ page }) => {
+  await open(page);
+  const f = (k: string) => pane(page).locator(`.wc-cc-f[data-key="${k}"]`);
+  // The demo ends aggressive (Mood's fifth), normal, careful, peanuts.
+  await expect(f('mood')).toHaveAttribute('data-heat', '4');
+  expect(await f('mood').locator('.wc-cc-word').evaluate((e) => getComputedStyle(e).color)).toBe('rgb(242, 135, 74)');
+  await expect(f('weight')).toHaveAttribute('data-heat', '0');
+  expect(await f('weight').locator('.wc-cc-word').evaluate((e) => getComputedStyle(e).color)).toBe('rgb(111, 211, 138)');
+  await expect(f('mood').locator('.wc-cc-ht')).toBeVisible();
+  await expect(f('mood').locator('.wc-cc-hs')).toHaveCount(6);
+  await expect(f('mood').locator('.wc-cc-cm')).toBeVisible();
+  await expect(f('weight').locator('.wc-cc-cm')).toHaveCount(0);
+  // The low strip's flat compact rows: the value keeps its colour, no track.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 3 } }));
+  await expect(pane(page).locator('.wc-cc')).toHaveAttribute('data-step', 'compact');
+  expect(await f('mood').locator('.wc-cc-word').evaluate((e) => getComputedStyle(e).color)).toBe('rgb(242, 135, 74)');
+});
+
 test('a low strip: the steps and the compact card as on the desktop, no tabs (F2c)', async ({ page }) => {
   await open(page);
   const inside = async (): Promise<void> => {

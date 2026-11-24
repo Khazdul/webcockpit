@@ -322,10 +322,11 @@ test('Status: the cells, the shields `⋯` until the poll answers, the purse in 
   await expect(card(page).locator('.wc-cc-status')).toHaveAttribute('data-form', 'cells');
   await expect(sv).toHaveText(['⋯', '⋯', '⋯', '⋯']);
   await expect(card(page).locator('.wc-cc-purse')).toBeHidden();
-  // The step meter lights only the current step: brave is mood's fourth.
-  const lamps = card(page).locator('.wc-cc-f[data-key="mood"] .wc-cc-lamp');
-  await expect(lamps).toHaveCount(6);
-  expect(await lamps.evaluateAll((ls) => ls.map((l) => l.hasAttribute('data-on')))).toEqual([false, false, false, true, false, false]);
+  // The heat track (round 16 C) fills to the current step: brave is mood's fourth, the three below at half.
+  const segs = card(page).locator('.wc-cc-f[data-key="mood"] .wc-cc-ht > .wc-cc-hs');
+  await expect(segs).toHaveCount(6);
+  expect(await segs.evaluateAll((ls) => ls.map((l) => (l.hasAttribute('data-on') ? 'on' : l.hasAttribute('data-past') ? 'past' : '')))).toEqual(['past', 'past', 'past', 'on', '', '']);
+  await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('data-heat', '3');
   const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
   await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
   game.play(answerPulse(pollNonce(polls()[0]!)!));
@@ -343,6 +344,79 @@ test('Status: the cells, the shields `⋯` until the poll answers, the purse in 
   await expect(card(page).locator('.wc-cc-stones')).toBeVisible();
   await expect(purse).toBeHidden();
   expect((await card(page).locator('.wc-cc-stones').boundingBox())!.height).toBeCloseTo(row.height, 0);
+});
+
+/** A computed colour as `#rrggbb` (an opaque `rgb()`). */
+const hexOf = (rgb: string): string => `#${(rgb.match(/\d+/g) ?? []).slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
+const heat = (page: Page, key: string) => card(page).locator(`.wc-cc-f[data-key="${key}"]`);
+
+test('H2: heat, the cells coloured by step on the Lykta and on Paper, in every form; the corner mark on the clickable three (round 16 C)', async ({ page }) => {
+  const game = await play(page, { rows: 11 });
+  const colors = async (): Promise<string[]> =>
+    Promise.all(['mood', 'casts', 'alertness', 'weight'].map(async (k) => hexOf(await word(page, k).evaluate((e) => getComputedStyle(e).color))));
+  // brave, normal, normal, really heavy: Mood's fourth, Casts' parchment middle, Alertness' calm grey (normal
+  // is its first step), Weight today's orange signal.
+  await expect.poll(colors).toEqual(['#eab35e', '#d9cfb4', '#a9a491', '#ff8c2a']);
+  await expect(heat(page, 'weight')).toHaveAttribute('data-signal', 'low');
+  // The corner mark on Mood, Casts and Alertness, not on Weight.
+  for (const k of ['mood', 'casts', 'alertness']) await expect(heat(page, k).locator('.wc-cc-cm')).toBeVisible();
+  await expect(heat(page, 'weight').locator('.wc-cc-cm')).toHaveCount(0);
+  // The ground warms with the step: its foot is not the plain cell's.
+  const foot = await heat(page, 'mood').evaluate((e) => getComputedStyle(e).backgroundImage);
+  expect(foot).toMatch(/linear-gradient/);
+  // Hot: berserk, thorough, paranoid, torture; written once per change, the track full to the end.
+  game.play(gmcp('Char.Vitals', { mood: 'berserk', 'spell-effort': 'thorough', alertness: 'paranoid', carrying: 'torture' }));
+  await expect.poll(colors).toEqual(['#ff4d4d', '#7db7da', '#ee7d5c', '#ff4d4d']);
+  const last = card(page).locator('.wc-cc-f[data-key="casts"] .wc-cc-hs');
+  expect(await last.evaluateAll((ls) => ls.map((l) => (l.hasAttribute('data-on') ? 'on' : l.hasAttribute('data-past') ? 'past' : '')))).toEqual(['past', 'past', 'past', 'past', 'on']);
+  expect(hexOf(await last.last().evaluate((e) => getComputedStyle(e).backgroundColor))).toBe('#7db7da');
+  // An unknown word: no heat, the plain colour, no step lit.
+  game.play(gmcp('Char.Vitals', { alertness: 'sleepy' }));
+  await expect(heat(page, 'alertness')).not.toHaveAttribute('data-heat', /./);
+  expect(await card(page).locator('.wc-cc-f[data-key="alertness"] .wc-cc-hs[data-on]').count()).toBe(0);
+  // Every form keeps the value's colour: the line (62 × 6), the plain values and the compact card (62 × 4).
+  for (const rows of [6, 5, 4]) {
+    await place(page, 62, rows);
+    expect(hexOf(await word(page, 'mood').evaluate((e) => getComputedStyle(e).color))).toBe('#ff4d4d');
+  }
+  await expect(card(page)).toHaveAttribute('data-step', 'compact');
+  // Paper: its own table, 4.5 : 1 against the cell's warmed ground.
+  await place(page, 62, 11);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
+  await expect(card(page)).toHaveAttribute('data-light', '');
+  game.play(gmcp('Char.Vitals', { alertness: 'paranoid', carrying: 'really heavy' }));
+  await expect.poll(colors).toEqual(['#b3261e', '#25608a', '#a84716', '#a04a00']);
+  const ratio = (a: string, b: string): number => {
+    const lum = (h: string): number => {
+      const [r, g, bl] = [1, 3, 5].map((i) => {
+        const x = parseInt(h.slice(i, i + 2), 16) / 255;
+        return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      }) as [number, number, number];
+      return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+    };
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number];
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  for (const k of ['mood', 'casts', 'alertness', 'weight']) {
+    // The ground's foot as drawn: the gradient's last stop, resolved by the browser.
+    const ground = await heat(page, k).evaluate((e) => {
+      const img = getComputedStyle(e).backgroundImage;
+      const stops = img.match(/(?:rgba?|color)\([^()]*(?:\([^()]*\)[^()]*)*\)/g) ?? [];
+      if (stops.length < 2) return `no stops: ${img}`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 1;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, 1, 1);
+      g.fillStyle = stops[stops.length - 1]!;
+      g.fillRect(0, 0, 1, 1);
+      const d = g.getImageData(0, 0, 1, 1).data;
+      return `#${[d[0]!, d[1]!, d[2]!].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+    });
+    expect(ground).toMatch(/^#[0-9a-f]{6}$/);
+    const value = hexOf(await word(page, k).evaluate((e) => getComputedStyle(e).color));
+    expect(ratio(value, ground), `${k} ${value} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test('H: the tabs’ icons in a low pane, the short forms, and Stats’ stones only where Stats fits (ADR 0166 points 168–171)', async ({ page }) => {
