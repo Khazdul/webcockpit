@@ -936,3 +936,99 @@ card are F2c.
      band (its blur would repaint with the card); `nor…` where the mockup
      cut `nor.` (part D's `fitWord`); the stones' tooltips are F2a's
      `stoneTip`; the Status cells keep part D's tooltips.
+
+## Addendum 25 (2026-11-24): F2c as built
+
+The low panes: the portrait steps 1–4, the tabs from 80 px, the vitals'
+heights and the compact card (stage 77, "Part F2c: what was built"). It
+closes the starting values of points 124–126 with what is used.
+`src/panes/character-layout.ts` (pure), `character-dom.ts`, `character.css`.
+
+146. **The measures.** The mockups' pane is the window with 28 px of
+     padding (20 above, 8 below) around the content; the real one is the
+     card's content box (`CardBox.h`). So a mockup pane of `h` is a real
+     box of `h − 28`; the content above the vitals (the mockups' `cwH`) is
+     the card's `body`, and the portrait's side is the same in both.
+147. **The vitals** (point 124): at most 14 px under a 122 px box, 12 under
+     82, 10 under 62 (`barCap`; the mockups' 150, 110 and 90), not scaled;
+     above 122 F2b's bars. The bars' words follow as before (`footLayout`).
+148. **The tabs** (point 125) show where `body` is at least `TAB_MIN` (80 px,
+     not scaled). Below that the area takes their room and Status shows;
+     `TabState` keeps the chosen tab (`choice`) and shows it again when the
+     pane is tall (`setLow`); the open menus close. No other way to them.
+     Their words stand vertically down to 5.4 px (5.5 px at 80 px of
+     content); the `stacked` form (the words across, about 40 px wide) is
+     gone, as its width took a low portrait's room (a taller pane lost its
+     portrait). The tabs' `row` form and the tabs beside the bars are gone
+     with them (no tabs that low).
+149. **The steps** (point 124, `areaLayout`), the first that fits, the
+     portrait while it is at least `PORTRAIT_MIN` (44 px): 0 as F2b (the
+     rows the stones need while the shields stay 30 px); 1 one row, the
+     shields down to `SHIELD_LOW` (22 px; the icon only from 30 px); 2 the
+     cells on one line (`value + 8.5 × k` high, the meter kept, the label
+     beside the value where a cell is at least 64 × k px and four
+     characters stay, the long label, else the short); 3 the shields as
+     chips 15 × k high, 4 × k gaps, the rows sharing what is left
+     (`space-evenly`); the chips' form by their width: shape, label and
+     value, else label and value, else the value; 4 the values without
+     cells (`value + 4.5 × k`, at least 7 px), the chips, stones of 11 × k,
+     2 × k gaps; where not even that fits its stones go, then its chips.
+     Status' forms are now `cells`, `line`, `plain` and `compact`.
+150. **The compact card** (point 126, `compactLayout`) where the portrait
+     would be under 44 px: no portrait, ring, name; the full width. Sized
+     by the font alone (`px / 15`, 0.8–1.8), as the box's limit is its low
+     form. Line 1 18 px, line 2 after 3 px, the mode's stones, the value
+     at most 10 px, while both lines fit; else flat 13 px rows (no cell
+     ground, thin dividers), 2 px, 10 px stones, 9 px values; where not
+     even that fits line 2 goes, and line 1 takes the height there is. The
+     two lines stand in the middle of the area.
+     - Line 1: the status on 55 % (less 8 px between), wider where the
+       letter and four characters need it at 0.8 of the size and the
+       shields still fit, else where three do, else the shields go and the
+       status takes the line. The value is `shortForm` (F2a) in the
+       characters there are, four a little smaller rather than three; none
+       where not even one fits (the letter stays). The letter in `--lamp`.
+       The shields as icon (11/10 px) and value, else the value; the label
+       and the whole word in the tooltips; `⋯` until the poll.
+     - Line 2: the five icons (the mode's size, at most 60 % of the width)
+       with their clicks, 6 px, then the stones in the rows that fit (at
+       least one, at least two places), `+n`, the herblore `+`, the purse
+       in the last row. Where two stones do not fit beside the icons the
+       icons get smaller, else they stand alone.
+     - The icons' row is moved into the stones' box (reparented only on a
+       layout change); Weight stays a `div` (no click).
+151. **Small** (Auto below Medium's box) has no forms of its own any more:
+     it tries the portrait (Medium's sizes, its own scale box), so it is
+     mostly the compact card; a wide pane about 95–105 px high gets steps
+     2–3. Part D's ring column and row and its Status forms (`full`,
+     `text`, `inline`, `value`) are removed.
+152. **The locks** (point 144) keep picking the mode, which means its sizes;
+     the steps and the compact card follow the box as in Auto. A low box
+     scales the chrome down only to `LOW_SCALE` (0.85; before, a lock in a
+     low pane went to 0.6 and 5.7 px values); no normal size changes
+     (Medium from 106 px gives 0.855). The margin over the area grows in
+     between 86 and 94 px (it was 3 px at once from 90, which made a low
+     portrait come and go).
+153. **A narrow pane** (the portrait has no width, at any height) is the
+     compact card too, and keeps the tabs where the content is 80 px: a
+     taller pane would not bring the portrait, so point 126's "no tabs" is
+     read as "no tabs in a low pane".
+154. **The phone**: the same rules. The strip can be one row high
+     (`phone.stripRows`), so a low strip steps down and becomes the
+     compact card; the landscape column is tall.
+155. **When.** The layout is recomputed only when the box or the stone
+     count changes (the `layout` key, F2b), never per tick; the compact
+     values' key includes the form.
+156. **Deviations from round 15.** The portrait's own height (44 px, the
+     ring's overhang and the icons: about 68 px of content) leaves room for
+     step 3, so step 4 shows only where the one-line cells do not fit
+     sideways (a narrow locked pane, a large font), and with the default
+     font's 18 px rows steps 1–3 fall between two row counts (a Height
+     lock or another font size shows them). The steps' cells keep F2b's
+     `fitWord` (`agg.`, `nor…`); the hand-made short forms are the compact
+     card's. Four characters a little smaller instead of three (the
+     mockup's 0.6 advance gave four; Chrome's hinting rounds wider).
+157. **Open.** Medium's scale at its least box (106 px: 0.855, F2b's design
+     box) is smaller than Small's just below it (up to 1.1), so the words
+     get a little smaller as a pane grows past 106 px. Point 127's `trtr`,
+     `pnts` and `vigl` are still unconfirmed.

@@ -409,7 +409,7 @@ the main session. The owner looks after F2b, before the low panes.
       the last row; parchment vitals; swords only; Stats without shields
       with the stones row; Lore with War fame and War points; the phone
       strip the same. Related e2e. **The owner looked (2026-11-24): all 8 test steps good.**
-- [ ] F2c. Low panes: the portrait steps 0–4, tabs only at ≥ 80 px, the
+- [x] F2c. Low panes: the portrait steps 0–4, tabs only at ≥ 80 px, the
       vitals' heights, the compact card down to about 72 px. Unit tests.
 - [ ] The full e2e at 5 workers alone; an ADR 0166 addendum (as built);
       the test guide "Part F2".
@@ -1249,6 +1249,50 @@ points 85–89 and 120–123); the choices beyond them are addendum 24
   e2e `character-card.spec.ts` (new tests and the size sweep with
   stones), `phone-character-card.spec.ts`; `character-gear-fit`,
   `info-poll`, `timers` and the other files that show the pane rerun.
+
+## Part F2c: what was built (2026-11-24)
+
+The low panes of ADR 0166 points 124–126; the choices beyond them are
+addendum 25 (points 146–157). The normal-size look (F2b) is unchanged.
+
+- **The measures.** The mockups' pane heights are the window with 28 px of
+  padding: a mockup pane of `h` is a real content box of `h − 28`. So the
+  vitals are at most 14 px under a 122 px box, 12 under 82, 10 under 62
+  (`barCap`), and "about 72 px" is a 44 px box.
+- **The steps** with the portrait (`areaLayout`), the first that fits: 0
+  as F2b; 1 one row, shields down to 22 px; 2 the cells on one line (the
+  label beside the value where a cell is ≥ 64 px); 3 the shields as chips
+  (shape, label, value; less where narrow); 4 the values without cells,
+  11 px stones. The portrait while it is ≥ 44 px.
+- **The tabs** only where the content above the vitals is ≥ 80 px; below,
+  Status shows and the chosen tab comes back when tall (`TabState.setLow`).
+  The vertical words go down to 5.5 px; the wide `stacked` form is gone
+  (it took a low portrait's room).
+- **The compact card** under a 44 px portrait: line 1 M/C/A/W in the
+  lamp colour with `shortForm` values (the whole word in the tooltip) on
+  55 % (wider for four characters), the shields as icon and value; line 2
+  the five icons, then the stones (more rows if they fit), `+n`, the
+  herblore `+`, the purse. 18 px cells while both lines fit, else flat
+  13 px rows and 10 px stones, else line 1 alone. Sideways: the shields'
+  icons go, then the shields, then the values (the letters stay).
+- **Small** tries the portrait too and is mostly the compact card; part
+  D's ring column/row and its Status forms are gone. A lock's low box
+  scales down only to 0.85. A narrow pane is the compact card and keeps
+  the tabs where it is ≥ 80 px high.
+- **The phone**: the same; a low strip (`phone.stripRows`) steps down.
+- Screenshots: `notes/research/character-pane-mockups/f2c/` (real content
+  boxes; 8 stones unless named): `step1` (Large lock, 520 × 108), `step2`
+  (Medium lock, 330 × 90), `step3` (font 16, 330 × 95), `step4` (Medium
+  lock, font 18, 187 × 105), `compact-72` (330 × 72, the mockup's 100),
+  `compact-54` (the mockup's ~85), `compact-45` (font 13, the mockup's 72,
+  the flat form), `compact-72-16` (16 stones, `+3`).
+- Tests: unit `character-layout` (each step, the portrait threshold, the
+  tabs at 80 px, the bars, the compact card's lines and forms, sideways,
+  more rows, a lower pane never steps back up, the size sweep down to
+  21 px with the new forms), `character-model` (`TabState.setLow`, the
+  compact short forms); e2e `character-card.spec.ts` (a new low-pane test;
+  the sweep and the cross test know the low panes),
+  `phone-character-card.spec.ts` (a low strip).
 
 ## Open points
 
