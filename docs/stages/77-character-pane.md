@@ -390,6 +390,30 @@ effect.
       prompt between them; the owner's session as regression tests.
 - [x] The owner's look at F1b and F1c (2026-11-24: "Ser bra ut.") (test guides "Part F1b", "Part F1c").
 
+### F2. The card (decided 2026-11-24, ADR 0166 addenda 16 and 22)
+
+Three building parts, one at a time (they share the card's files), each
+on a branch by a building agent, verified and fast-forwarded to main by
+the main session. The owner looks after F2b, before the low panes.
+
+- [ ] F2a. The stones' data, no look change: the stone view (buffs,
+      debuffs, herblores from Timers; your flags; your sanctuary) with
+      icon, time bar and tooltip; the `+n` priority (ending soon, flags,
+      debuffs, herblores, buffs); the compact short forms and the purse
+      steps as pure functions; a setting for the shown stone groups (the
+      gear and the phone's sub-page). Unit tests.
+- [ ] F2b. The card in the round 12–14 look at normal sizes: iron
+      portrait, ring, name band, icons under it, no state; status cells
+      with the step meter; D&D shields 1×4/2×2, `⋯` until the poll; the
+      stones, `+n` and its list, the herblore `+` menu and ×; the purse in
+      the last row; parchment vitals; swords only; Stats without shields
+      with the stones row; Lore with War fame and War points; the phone
+      strip the same. Related e2e. **The owner looks.**
+- [ ] F2c. Low panes: the portrait steps 0–4, tabs only at ≥ 80 px, the
+      vitals' heights, the compact card down to about 72 px. Unit tests.
+- [ ] The full e2e at 5 workers alone; an ADR 0166 addendum (as built);
+      the test guide "Part F2".
+
 ### G. Tests
 
 - Unit: age, the poll parser, exact-or-band, the click → command table
