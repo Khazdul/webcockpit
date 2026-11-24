@@ -58,6 +58,7 @@ export function buildTrackers(host: TrackerHost): TimersTrackers {
     serialize: () => undefined,
     restore: () => {},
     reset: () => reconcile.reset(),
+    reconcileList: (names) => reconcile.apply(names, { poll: true }),
     installRules: (system) => router.install(system),
   };
   return {

@@ -21,6 +21,8 @@
 //   tick             one scheduler timer, every second: `tracker.tick(now)`
 //   noteGroup        GameState hands over the group members after every
 //                    Group.* change: `tracker.onGroup` (ADR 0122)
+//   reconcileAffects the info poll's `%f` list (stage 77 H9):
+//                    `tracker.reconcileList`, the stat reconcile's
 //
 // Saving: after each change, coalesced (one write at most `saveDelayMs`
 // after the first unsaved change) and at once on `pagehide`. One record per
@@ -426,6 +428,21 @@ export class TimersHub {
   noteGroup(members: readonly SanctMember[]): void {
     const now = this.now();
     for (const t of this.trackers) t.onGroup?.(members, now);
+  }
+
+  /**
+   * The info poll's affects (`%f`, stage 77 H9): the same reconcile as a
+   * `stat` block's list. Never a herblore. Silent.
+   */
+  reconcileAffects(names: readonly string[]): void {
+    const now = this.now();
+    for (const t of this.trackers) t.reconcileList?.(names, now);
+  }
+
+  /** The affects and stored spells on you: what `%f` would list (the poll's rows). */
+  affectCount(now: number = this.now()): number {
+    const c = this.view(now).cells;
+    return c.spell.length + c.buff.length + c.debuff.length + c.stored.length + c.sanct.filter((x) => x.target === undefined).length;
   }
 
   /** Forgets a charm by its cell id (nothing is sent to the game). */

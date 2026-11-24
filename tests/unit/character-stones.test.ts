@@ -42,6 +42,39 @@ function viewWith(cells: TimerCell[]) {
   return v;
 }
 
+describe('stoneView: the poll’s affects (stage 77 H9)', () => {
+  const untimed = (id: string, name: string, group: TimerCell['group']): TimerCell => cell({ id, name, group, startedAt: null, tracked: false });
+
+  it('`potion` is no stone while a herblore runs; a stone again when none does', () => {
+    const potion = untimed('affect:potion', 'potion', 'buff');
+    const herb = timed('herb:Healing', 'Healing', 'herb', 200, 3600, { herbKey: 'Healing', phase: 'buff' });
+    const off = stoneView({ view: viewWith([potion]), flags: noFlags(), show: ALL, player: false });
+    expect(off.stones.map((s) => s.id)).toEqual(['affect:potion']);
+    expect(stoneTime(off.stones[0]!, NOW, 20)).toMatchObject({ state: 'untimed', fill: 0, text: null });
+    const on = stoneView({ view: viewWith([potion, herb]), flags: noFlags(), show: ALL, player: false });
+    expect(on.stones.map((s) => s.id)).toEqual(['herb:Healing']);
+    // Off in the card's Herblores the herblore still runs: no potion either.
+    const hidden = stoneView({ view: viewWith([potion, herb]), flags: noFlags(), show: { ...ALL, herblores: false }, player: false });
+    expect(hidden.stones).toEqual([]);
+  });
+
+  it("an affect the app does not know: a stone with its group's generic icon; spells are none", () => {
+    const view = viewWith([untimed('affect:?a strange curse', 'a strange curse', 'debuff'), untimed('affect:armour', 'armour', 'spell'), untimed('affect:bloodlust', 'bloodlust', 'buff')]);
+    const v = stoneView({ view, flags: noFlags(), show: ALL, player: false });
+    expect(v.stones.map((s) => [s.label, s.kind, s.icon])).toEqual([
+      ['Bloodlust', 'buff', 'buff'],
+      ['A strange curse', 'debuff', 'debuff'],
+    ]);
+    expect(stoneTip(v.stones[1]!, NOW, 20).tip).toBe('Seen in stat, info or the poll only, no time.\nDebuff');
+  });
+
+  it("the flags' twins from the poll are one stone with the flag", () => {
+    const view = viewWith([untimed('affect:hunger', 'hunger', 'debuff'), untimed('affect:thirst', 'thirst', 'debuff')]);
+    const v = stoneView({ view, flags: { ...noFlags(), hungry: true, thirsty: true }, show: ALL, player: false });
+    expect(v.stones.map((s) => s.id)).toEqual(['affect:hunger', 'affect:thirst']);
+  });
+});
+
 describe('stoneView', () => {
   it('takes buffs, debuffs, herblores, your sanctuary and your flags, in the display order', () => {
     const view = viewWith([
@@ -160,7 +193,7 @@ describe('stoneTime and stoneTip', () => {
     expect(stoneTime(seen, NOW, 20)).toEqual({ state: 'untimed', remaining: null, fill: 0, text: null, ending: false });
     expect(stoneTime(flag, NOW, 20).state).toBe('untimed');
     expect(stoneTip(still, NOW, 20).tip).toBe('No end time.\nDebuff');
-    expect(stoneTip(seen, NOW, 20).tip).toBe('Seen in stat or info only, no time.\nDebuff');
+    expect(stoneTip(seen, NOW, 20).tip).toBe('Seen in stat, info or the poll only, no time.\nDebuff');
     expect(stoneTip(flag, NOW, 20)).toEqual({ title: 'Poisoned', tip: 'On while GMCP says so (no time).\nLoses HP over time.\nGMCP flag' });
   });
 

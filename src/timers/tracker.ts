@@ -96,6 +96,8 @@ export interface Tracker {
   dropCharm?(id: string, now: number): void;
   /** The group members after a Group.* change (GameState → `TimersHub.noteGroup`). */
   onGroup?(members: readonly SanctMember[], now: number): void;
+  /** The info poll's affects (`%f`), the truth now (`TimersHub.reconcileAffects`). Silent. */
+  reconcileList?(names: readonly string[], now: number): void;
 }
 
 /** Builds the trackers for a hub (TimersHubOptions.trackers). */

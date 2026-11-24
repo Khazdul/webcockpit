@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { AFFECTS, affectName } from '../../src/timers/data/affects';
+import { AFFECTS, affectName, hasLines } from '../../src/timers/data/affects';
 import { T0, bench } from './timers-helpers';
 
 describe('affect data', () => {
-  it('has the 47 affects of the inventory with their types and durations', () => {
+  it('has the 47 affects of the inventory with their types and durations, and the 8 seen only in lists', () => {
     const all = Object.values(AFFECTS);
-    expect(all).toHaveLength(47);
+    expect(all).toHaveLength(55);
     expect(all.filter((a) => a.type === 'spell')).toHaveLength(12);
-    expect(all.filter((a) => a.type === 'buff')).toHaveLength(19);
-    expect(all.filter((a) => a.type === 'debuff')).toHaveLength(16);
+    expect(all.filter((a) => a.type === 'buff')).toHaveLength(22);
+    expect(all.filter((a) => a.type === 'debuff')).toHaveLength(21);
+    // Stage 77 H9: no lines of their own.
+    const listed = ['bloodlust', 'some pipe-weed', 'potion', 'panic', 'sunlight', 'unable to quit', 'unable to void', 'unable to sneak'];
+    for (const n of listed) expect(hasLines(AFFECTS[n]!), n).toBe(false);
     expect(all.filter((a) => a.duration !== undefined)).toHaveLength(37);
     expect(Object.entries(AFFECTS).filter(([, a]) => a.damageDroppable).map(([n]) => n).sort()).toEqual(['armour', 'shroud']);
     expect(AFFECTS.sanctuary!.duration).toBe(270);
     expect(affectName('orkish DRAUGHT')).toBe('Orkish draught');
-    expect(affectName('unable to quit')).toBeUndefined();
+    expect(affectName('Unable to Quit')).toBe('unable to quit');
+    expect(affectName('detect invisibility')).toBeUndefined();
   });
 });
 
@@ -164,18 +168,72 @@ describe('affects tracker', () => {
   });
 });
 
+describe("the info poll's %f (stage 77 H9)", () => {
+  const poll = (b: ReturnType<typeof bench>, names: string[]): void => {
+    for (const x of b.tr.list) x.reconcileList?.(names, b.now());
+  };
+
+  it('the same reconcile as a stat block: listed is on, gone is off, silent, no effect events', () => {
+    const b = bench();
+    poll(b, ['potion', 'armour', 'unable to quit', 'hunger']);
+    expect(b.names().sort()).toEqual(['armour', 'hunger', 'potion', 'unable to quit']);
+    expect(b.cell('potion')).toMatchObject({ group: 'buff', tracked: false, expiresAt: null });
+    expect(b.cell('armour')).toMatchObject({ group: 'spell', tracked: false });
+    poll(b, ['armour']);
+    expect(b.names()).toEqual(['armour']);
+    expect(b.take()).toEqual([]);
+    expect(b.effects).toEqual([]);
+  });
+
+  it('lines still lead: a start line times it, the poll keeps the timer; a drop line ends it', () => {
+    const b = bench();
+    b.line('You feel protected.');
+    b.take();
+    b.advance(30);
+    poll(b, ['shield']);
+    expect(b.cell('shield')).toMatchObject({ tracked: true, startedAt: T0, expected: 1_560_000 });
+    b.line('Your magical shield wears off.');
+    expect(b.take()).toEqual(['◆ SPELL: shield down.']);
+    poll(b, []);
+    expect(b.names()).toEqual([]);
+  });
+
+  it('an affect not in the table: kept as listed, untimed, a debuff; the flags’ stat forms are none', () => {
+    const b = bench();
+    poll(b, ['a strange curse', 'poison (type: poison)', 'a light wound at the right arm (clean)']);
+    expect(b.cells().map((c) => [c.name, c.group, c.tracked])).toEqual([['a strange curse', 'debuff', false]]);
+    expect(b.tr.affects.has('A Strange Curse')).toBe(true);
+    poll(b, []);
+    expect(b.cells()).toEqual([]);
+  });
+
+  it('stored spells: only when the list names one (that %f lists them is not measured)', () => {
+    const b = bench();
+    b.line('Affected by:', '- stored spell fireball', '*=>');
+    expect(b.names('stored')).toEqual(['fireball']);
+    poll(b, ['armour']);
+    expect(b.names('stored')).toEqual(['fireball']);
+    poll(b, ['stored spell fireball', 'stored spell fireball']);
+    expect(b.names('stored')).toEqual(['fireball', 'fireball']);
+  });
+});
+
 describe('stat / info reconcile', () => {
   it('adds seen affects (timed ones untracked), removes unseen silently, keeps running timers', () => {
     const b = bench();
     b.line('You feel protected.', 'You are hungry.', 'You start glowing.');
     b.take();
     b.advance(30);
-    b.line('Affected by:', '- shield', '- detect magic', '- growth', '- unable to quit', '- stored spell fireball', '', '*=>');
+    b.line('Affected by:', '- shield', '- detect magic', '- growth', '- unable to quit', '- stored spell fireball', '- hunger', '', '*=>');
     expect(b.take()).toEqual([]);
-    expect(b.names().sort()).toEqual(['detect magic', 'fireball', 'growth', 'shield']);
+    expect(b.names().sort()).toEqual(['detect magic', 'fireball', 'growth', 'hunger', 'shield', 'unable to quit']);
     expect(b.cell('shield')!.startedAt).toBe(T0);
     expect(b.cell('detect magic')).toMatchObject({ tracked: false, startedAt: null, expiresAt: null });
-    expect(b.cell('growth')).toMatchObject({ tracked: true, expiresAt: null, group: 'buff' });
+    // No lines of its own: untimed (no time bar), stage 77 H9.
+    expect(b.cell('growth')).toMatchObject({ tracked: false, expiresAt: null, group: 'buff' });
+    expect(b.cell('unable to quit')).toMatchObject({ tracked: false, expiresAt: null, group: 'debuff' });
+    // Indefinite with lines: no end (a full bar), from now.
+    expect(b.cell('hunger')).toMatchObject({ tracked: true, expiresAt: null, group: 'debuff' });
     expect(b.cell('fireball')).toMatchObject({ group: 'stored', tracked: false });
     // Graduation: the next start line makes it tracked.
     b.line('Your awareness of magical auras is renewed.');

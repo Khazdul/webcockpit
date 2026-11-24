@@ -21,6 +21,8 @@
 //   `stoneTime` of each stone.
 // - A flag whose twin affect is timed in Debuffs (blind → blindness,
 //   hungry → hunger, thirsty → thirst) is one stone: the affect's.
+// - `potion` (MUME's name for a herblore's draught, stage 77 H9) is no
+//   stone while a herblore runs: the herblore's stone is the same thing.
 
 import type { MemberFlags } from '../gmcp/group';
 import type { CharacterStones } from '../settings/types';
@@ -61,6 +63,9 @@ export const FLAG_TWIN: Readonly<Partial<Record<StoneFlag, string>>> = {
   hungry: 'hunger',
   thirsty: 'thirst',
 };
+
+/** The affect MUME lists for a herblore's draught: no stone while a herblore runs. */
+export const HERB_POTION = 'potion';
 
 /** Your sanctuary from the GMCP flag alone (no cell of yours in the Sanctuary group). */
 export const SANCT_FLAG_ID = 'flag:sanctuary';
@@ -182,8 +187,10 @@ export function stoneView(inp: StoneViewInput): StoneView {
   const { view, flags, show, player } = inp;
   const by: Record<StoneKind, Stone[]> = { herb: [], buff: [], debuff: [], sanct: [], flag: [] };
   if (show.herblores) for (const c of view.cells.herb) by.herb.push(fromCell(c, 'herb', player));
-  if (show.buffs) for (const c of view.cells.buff) by.buff.push(fromCell(c, 'buff', player));
-  if (show.debuffs) for (const c of view.cells.debuff) by.debuff.push(fromCell(c, 'debuff', player));
+  const herbing = view.cells.herb.length > 0;
+  const keep = (c: TimerCell): boolean => !(herbing && c.name.toLowerCase() === HERB_POTION);
+  if (show.buffs) for (const c of view.cells.buff) if (keep(c)) by.buff.push(fromCell(c, 'buff', player));
+  if (show.debuffs) for (const c of view.cells.debuff) if (keep(c)) by.debuff.push(fromCell(c, 'debuff', player));
   if (show.sanctuary) {
     // Yours only: a member's carries its name in `target`.
     const own = view.cells.sanct.find((c) => c.target === undefined);
@@ -262,7 +269,7 @@ export function stoneTip(s: Stone, now: number, warnAt: number): { title: string
     lines.push(`${exactText(t.remaining! / 1000)} left${of}.`);
   } else if (t.state === 'still') lines.push('No end time.');
   else if (s.kind === 'flag' || s.id === SANCT_FLAG_ID) lines.push('On while GMCP says so (no time).');
-  else lines.push('Seen in stat or info only, no time.');
+  else lines.push('Seen in stat, info or the poll only, no time.');
   if (s.about) lines.push(s.about);
   lines.push(s.herbDebuff ? `${KIND_LABEL[s.kind]} · a debuff phase` : KIND_LABEL[s.kind]);
   if (s.herbKey !== null) lines.push('Hover: × stops it.');

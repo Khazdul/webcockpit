@@ -13,14 +13,19 @@
 //                        line; a safety net removes it silently at 2.5 ×
 //                        expected without a sample. Affects without a drop
 //                        line end at `expiresAt` (down). Checked every 10 s.
-//   reconcile            `stat`/`info` lists (reconcile.ts): seen but not
-//                        active → added (timed ones untracked); active but
-//                        not seen → removed silently
+//   reconcile            `stat`/`info` lists and the info poll's `%f`
+//                        (reconcile.ts): seen but not active → added (timed
+//                        ones and those with no lines of their own
+//                        untracked: no time bar); active but not seen →
+//                        removed silently. A name not in the table is kept
+//                        as listed, untracked, in `UNLISTED_TYPE`'s group;
+//                        a GMCP flag's `stat` form (`isFlagForm`) is not
+//                        an affect (stage 77 H9)
 //
 // Saved: the timed entries and the learned samples (indefinite and
 // untracked entries are re-seen in game, Inv §2.6.5).
 
-import { AFFECTS, type AffectDef, type GameLine, affectName, hasDropLine } from './data/affects';
+import { AFFECTS, type AffectDef, type GameLine, UNLISTED_TYPE, affectName, hasDropLine, hasLines, isFlagForm } from './data/affects';
 import type { TimerCell } from './entry';
 import type { LineRouter } from './lines';
 import type { StateTag, Tracker, TrackerHost } from './tracker';
@@ -33,7 +38,10 @@ export const LEARN_SAMPLES = 3;
 export const OVERRUN_LIMIT = 2.5;
 
 interface Active {
+  /** The table's name, or an unlisted one as listed. */
   name: string;
+  /** Not in the table (seen in a list only). */
+  unlisted?: boolean;
   /** ms; null = untracked (seen in stat only). */
   startedAt: number | null;
   /** ms; null = indefinite or untracked. */
@@ -53,6 +61,9 @@ const TAG: Record<AffectDef['type'], StateTag> = { spell: 'SPELL', buff: 'BUFF',
 export const SANCTUARY = 'sanctuary';
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** An unlisted affect's key: apart from the table's names. */
+const unlistedKey = (listed: string): string => `?${listed.trim().toLowerCase()}`;
 
 export class AffectsTracker implements Tracker {
   readonly key = 'affects';
@@ -145,6 +156,11 @@ export class AffectsTracker implements Tracker {
     this.host.effect?.('affect-down');
   }
 
+  /** Whether an affect is on, by its table name or an unlisted one as listed (tests). */
+  has(name: string): boolean {
+    return this.active.has(affectName(name) ?? unlistedKey(name));
+  }
+
   private learn(name: string, secs: number): void {
     const s = this.learned.get(name) ?? [];
     s.push(secs);
@@ -157,25 +173,30 @@ export class AffectsTracker implements Tracker {
    * ones are ignored). Silent.
    */
   reconcile(observed: readonly string[], now: number): void {
-    const seen = new Set<string>();
+    /** Key → the name shown: the table's, or an unlisted one as listed. */
+    const seen = new Map<string, string>();
     for (const o of observed) {
-      const name = affectName(o);
-      if (name) seen.add(name);
+      const listed = o.trim();
+      if (listed === '' || isFlagForm(listed)) continue;
+      const name = affectName(listed);
+      if (name) seen.set(name, name);
+      else seen.set(unlistedKey(listed), listed);
     }
     let changed = false;
-    for (const name of [...this.active.keys()]) {
-      if (!seen.has(name)) {
-        this.active.delete(name);
+    for (const key of [...this.active.keys()]) {
+      if (!seen.has(key)) {
+        this.active.delete(key);
         changed = true;
       }
     }
-    for (const name of seen) {
-      if (this.active.has(name)) continue;
-      const def = AFFECTS[name]!;
+    for (const [key, name] of seen) {
+      if (this.active.has(key)) continue;
+      const def = AFFECTS[key];
+      const untimed = !def || def.duration !== undefined || !hasLines(def);
       this.active.set(
-        name,
-        def.duration !== undefined
-          ? { name, startedAt: null, expected: null, expiresAt: null, tracked: false }
+        key,
+        untimed
+          ? { name, unlisted: !def, startedAt: null, expected: null, expiresAt: null, tracked: false }
           : { name, startedAt: now, expected: null, expiresAt: null, tracked: true },
       );
       changed = true;
@@ -212,14 +233,14 @@ export class AffectsTracker implements Tracker {
 
   cells(): TimerCell[] {
     const out: TimerCell[] = [];
-    for (const e of this.active.values()) {
-      const def = AFFECTS[e.name];
-      if (!def) continue;
+    for (const [key, e] of this.active) {
+      const def = AFFECTS[key];
+      if (!def && !e.unlisted) continue;
       out.push({
-        id: `affect:${e.name}`,
+        id: `affect:${key}`,
         name: e.name,
         // Your sanctuary has a group of its own (ADR 0122).
-        group: e.name === SANCTUARY ? 'sanct' : def.type,
+        group: key === SANCTUARY ? 'sanct' : (def?.type ?? UNLISTED_TYPE),
         startedAt: e.startedAt,
         expiresAt: e.expiresAt,
         expected: e.expected,

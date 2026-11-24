@@ -234,6 +234,13 @@ export const AFFECTS: Readonly<Record<string, AffectDef>> = {
     start: ['As you drink the tea, your muscles begin to quiver and twitch.'],
     drop: ['You feel less hasty.'],
   },
+  // Seen only in `stat` and the info poll's `%f` (no lines of their own,
+  // stage 77 H9; notes/research/stone-icons/inventory.md): untimed.
+  bloodlust: { type: 'buff' },
+  'some pipe-weed': { type: 'buff' },
+  // A herblore's draught as MUME lists it (which one is not said); no stone
+  // while a herblore runs (character-stones.ts).
+  potion: { type: 'buff' },
 
   // ----------------------------------------------------------- debuffs
   winded: {
@@ -335,7 +342,31 @@ export const AFFECTS: Readonly<Record<string, AffectDef>> = {
     start: ['You feel less hasty.'],
     drop: ['Your muscles feel normal again.'],
   },
+  // Seen only in `stat` and `%f` (stage 77 H9): untimed. Panic and sunlight
+  // have candidate lines in the inventory, not yet confirmed in the game.
+  panic: { type: 'debuff' },
+  sunlight: { type: 'debuff' },
+  'unable to quit': { type: 'debuff' },
+  'unable to void': { type: 'debuff' },
+  'unable to sneak': { type: 'debuff' },
 };
+
+/**
+ * The group of an affect a list names that is not in the table: a stone
+ * with the group's generic icon (stage 77 H9, ADR 0166 addendum 31). A
+ * debuff: what is on you and not known is worth seeing, and the debuffs
+ * stay before the buffs when the stones overflow.
+ */
+export const UNLISTED_TYPE: AffectType = 'debuff';
+
+/**
+ * A list's lines that are not affects of their own: a GMCP flag's `stat`
+ * form (`poison (type: poison)`, `a light wound at the right arm (clean)`),
+ * which the flag's stone already shows.
+ */
+export function isFlagForm(name: string): boolean {
+  return /^poison\b/i.test(name) || / wound at /i.test(name);
+}
 
 /** An affect name as `stat` might print it → the table's name (case-insensitive). */
 const BY_LOWER: ReadonlyMap<string, string> = new Map(Object.keys(AFFECTS).map((n) => [n.toLowerCase(), n]));
@@ -343,6 +374,11 @@ const BY_LOWER: ReadonlyMap<string, string> = new Map(Object.keys(AFFECTS).map((
 /** The table name of an affect, or undefined when unknown. */
 export function affectName(name: string): string | undefined {
   return BY_LOWER.get(name.trim().toLowerCase());
+}
+
+/** True when the affect has a game line of its own (a start, refresh or drop). */
+export function hasLines(def: AffectDef): boolean {
+  return (def.start?.length ?? 0) + (def.refresh?.length ?? 0) + (def.drop?.length ?? 0) > 0;
 }
 
 /** True when the affect has at least one drop line (the drop line is the normal expiry). */

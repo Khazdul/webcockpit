@@ -231,7 +231,7 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
       ? 'Glowing (GMCP). Not cast by you, so no time.'
       : c.group === 'stored'
         ? 'Stored, time unknown.'
-        : 'Seen in stat or info only, no time.';
+        : 'Seen in stat, info or the poll only, no time.';
   return { ...base, kind: 'untimed', name: full, full, time: s.timeText ? '?' : null, pct: 0, remaining: null, tip: `${who ? `${who} ` : ''}${why}` };
 }
 
