@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); next G, H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), the owner's phone test of G7b pending; next H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -156,6 +156,25 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-24 — Stage 77 G
+
+- **Reconciled** both G lists with the tests: every unit item already
+  covered; seven e2e added (G1–G7: your flags as stones, stones from game
+  lines, the Stones switches, the whole click list, the poll's events,
+  Group without you, the herblore × on touch). Approved by the owner.
+- **G7 found** that one tap stopped a herblore on touch. The owner: a
+  first tap shows ×, a tap on it stops, an untapped × goes after 3 s.
+  Built as G7b (ADR 0166 addendum 26).
+- **Tested:** unit 6071 passed; full e2e at 5 workers after G 2111
+  passed; after G7b 2107 passed, 4 failed (`group-pane:105`,
+  `popup-focus:102` firefox, `watch-page:386`, `phone-community-page:139`),
+  all pass alone.
+- **Open:** the owner's phone test of G7b (test guide "Part G7b"); the
+  Timers pane's herblore × and charm × have the same one-tap problem on
+  touch: asked the owner whether they get the same two taps.
+- **Next:** H. Commits `7a55fc95`, `c6d14510`, `7aaadcb1`, `cfef0b81`,
+  `643296f9`.
 
 ### 2026-11-24 — Stage 77 F2
 
