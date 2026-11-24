@@ -557,7 +557,19 @@ Round 13 (`round13.html`) showed the chosen combination. The owner:
   level/XP ring with the icons under it; the right side needs compressed
   forms, in steps, of its three rows (status, shields, stones + purse).
 
-Round 14 (`round14.html`) mocks this. Waiting for the owner's look.
+Round 14 (`round14.html`) mocks this. The owner's answers:
+
+1. A little lower than round 14's ~80–92 px.
+2. No other way to the tabs: drag the pane taller to get them.
+3. No name in a very low pane.
+4. When the portrait is hidden, the level/XP/TP ring goes too (it is
+   only shown with the portrait). Mood, Casts, Alertness and Weight share
+   the shields' line, filling the left half, shorter (`M: A` or
+   `M: agg.`); the shields as icon + value on the right half.
+
+Round 15 (`round15.html`) mocks this. The icons and stones (with the purse)
+form line 2; the portrait steps go down to a 44 px portrait, then the
+compact card, down to about 72 px. Waiting for the owner's look.
 
 ## Part A: findings
 
