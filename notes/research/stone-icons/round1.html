@@ -1,0 +1,716 @@
+<title>Stone Icons Round 1</title>
+<meta name="description" content="Five icon proposals for every stone on the Character card (buffs, debuffs, herblores, your flags, your sanctuary) and for a generic stone per group.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Stage 77 H8: stone icons, round 1. The look of the character-pane mockups
+   (round 15) and the card's own stones (src/panes/character.css .wc-cc-st*). */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e; --crit: #ff4d4d;
+  --g-herb: #a6c95a; --g-sanct: #f0b6e4; --g-buff: #4cc96a; --g-debuff: #c8504f;
+  --display: "Cinzel", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding: 40px 16px 80px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .05em; color: var(--ink); }
+p { margin: 0; max-width: 78ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 56px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px; margin-top: 18px; }
+.notes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.notes b { color: var(--ink); font-weight: 600; }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin-top: 18px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); }
+
+/* ------------------------------------------------ the pane frame (Lykta) */
+.pane { position: relative; padding: 5px; border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 10px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  background: radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.paper { --iron: #cbbd9c; --iron-hi: #efe6d1; --iron-lo: #8c7b58; --pane-bg: #f1e8d4;
+  --text: #2d2619; --dim: #6e634d; --faint: #b3a78d; --lamp: #6e5220; --lamp-hot: #3b2b10; --crit: #c42f26;
+  --g-herb: #5c7a12; --g-sanct: #a956b5; --g-buff: #2a6e1a; --g-debuff: #98332f; }
+.pane.paper { box-shadow: inset 1px 1px 0 #f5eedd, inset -1px -1px 0 #8c7b58, 0 0 0 1px #3a3020; }
+.pane.paper > .win { border-color: #6e6048; background: #f1e8d4; box-shadow: inset 0 0 0 1px rgba(60,40,10,.12); }
+
+/* ------------------------------------------------ a stone (the card's .wc-cc-st) */
+.st { position: relative; display: inline-block; flex: none; width: var(--s); height: calc(var(--s) + 3px); --c: var(--g-buff); }
+.st[data-t="debuff"] { --c: var(--g-debuff); } .st[data-t="herb"] { --c: var(--g-herb); } .st[data-t="sanct"] { --c: var(--g-sanct); }
+.st .ib { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); border-radius: calc(var(--s) * .23); display: grid; place-items: center;
+  background: color-mix(in srgb, var(--c) 22%, rgb(0 0 0 / .5));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 60%, transparent), 0 0 0 1px rgb(0 0 0 / .6); }
+.st .ib svg { width: 74%; height: 74%; stroke: var(--c); fill: none; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.st .tb { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 1px; background: rgb(0 0 0 / .6); overflow: hidden; }
+.st .tb i { display: block; height: 100%; width: 100%; background: var(--c); transform: scaleX(var(--f, .6)); transform-origin: left; }
+.st.untimed .ib { box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--c) 70%, transparent); outline-offset: -1px; }
+.st.untimed .tb { display: none; }
+.st.end .ib { box-shadow: 0 0 0 1px var(--crit), 0 0 5px rgba(255,77,77,.7); }
+.paper .st .ib { background: color-mix(in srgb, var(--c) 16%, #fffdf8); box-shadow: inset 0 1px 0 var(--c), 0 0 0 1px rgba(60,40,10,.25); }
+.paper .st.untimed .ib { box-shadow: none; }
+.paper .st .tb { background: rgba(60,40,10,.15); }
+/* the enlarged one: same stone ×4, bar ×4 */
+.st.big { --s: 52px; height: 64px; }
+.st.big .tb { height: 6px; border-radius: 2px; }
+.st.big .ib { border-radius: 10px; }
+
+/* ------------------------------------------------ the stone cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr)); gap: 14px; }
+.card { background: var(--wall2); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.card .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.card .hd h3 { font-family: var(--mono); letter-spacing: 0; font-size: 15px; font-weight: 700; }
+.chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c); align-self: center; }
+.tag { font: 600 11px/1.6 var(--mono); padding: 0 6px; border-radius: 4px; border: 1px solid #3a3f49; color: var(--ink-dim); }
+.tag.new { border-color: #7a5a2a; color: #f0c27a; }
+.tag.share { border-color: #2f5a63; color: #8fd0dc; }
+.card .why { font-size: 13.5px; color: var(--ink-dim); }
+.props { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .props { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.prop { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px 6px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,.02); }
+.prop:hover { border-color: #3a3f49; }
+.prop:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
+.prop.pick { border-color: var(--lamp); background: rgba(233,207,159,.07); }
+.prop .real { display: flex; align-items: flex-end; gap: 6px; height: 18px; }
+.prop .real .st:first-child { --s: 13px; } .prop .real .st:nth-child(2) { --s: 10px; }
+.prop .id { font: 700 11.5px/1.2 var(--mono); color: var(--lamp); }
+.prop .lb { font: 12px/1.25 var(--body); color: var(--ink-dim); text-align: center; min-height: 2.5em; }
+.realbg { padding: 4px 6px; border-radius: 4px; background: var(--pane-bg); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); }
+
+/* ------------------------------------------------ the sample row */
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.rows { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.strip { display: flex; flex-direction: column; gap: 6px; }
+.strip .row { display: flex; gap: 3px; align-items: flex-start; }
+.strip .row.s10 { gap: 2px; }
+.strip .row.s13 .st { --s: 13px; } .strip .row.s10 .st { --s: 10px; }
+.strip .row.s52 { gap: 10px; } .strip .row.s52 .st { --s: 26px; height: 30px; } .strip .row.s52 .st .tb { height: 3px; }
+.lbl { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .04em; }
+.picks { font: 12.5px/1.5 var(--mono); color: var(--ink-dim); }
+.picks b { color: var(--lamp); font-weight: 700; }
+.answer { margin-top: 10px; font: 13px/1.5 var(--mono); color: var(--ink); background: #0d1015; border: 1px dashed #4a4436; border-radius: 6px; padding: 8px 12px; word-break: break-word; }
+.sub { margin-top: 26px; }
+.sub > h3 { margin-bottom: 10px; color: var(--lamp); }
+</style>
+
+<div class="page">
+  <div class="eyebrow">Stage 77 · H8 · stone icons · round 1</div>
+  <h1>Stone icons</h1>
+  <p class="lede">Five proposals for every stone the Character card can show, and for a generic stone per group.
+    Each is drawn as the card draws it: one colour, a line icon on the stone, the time bar under it.
+    Shown at the card's sizes (13 px; 10 px in low panes) and enlarged four times.</p>
+  <div class="notes">
+    <div><b>How to answer.</b> Name a stone and a number, e.g. <code>blindness 3</code>, or click proposals: your picks collect in the box at the bottom and in the sample row.</div>
+    <div><b>Colours</b> are the Timers groups' own: buffs green, debuffs red, herblores leaf green, sanctuary pink; flags take the debuffs' red (ADR 0166 point 130).</div>
+    <div><b>Pairs.</b> Stones that belong together use the same number for the same idea (comfortable 2 and very comfortable 2; dark aura and dark aura (faded); heightened senses and its faded form), so one answer can cover both.</div>
+    <div><b>Flags and twins.</b> blind, hungry and thirsty are one stone with blindness, hunger and thirst (point 128); they are drawn once, under Flags. Proposal 1 of each flag and of sanctuary is today's icon.</div>
+    <div><b>New</b> marks a stone the app does not recognise yet (see <code>inventory.md</code>): its icon is for when the stone is added.</div>
+    <div><b>Dashed</b> stones are untimed (no end known), as on the card; the others show a part-drained bar.</div>
+  </div>
+  <div class="ctlrow">
+    <div class="ctl">Ground <span class="seg" id="theme"><button class="on" data-v="dark">Dark</button><button data-v="paper">Paper</button></span></div>
+  </div>
+
+  <section id="sample">
+    <div class="sec-head"><h2>Together: a card row of 8</h2>
+      <p>Eight stones as the bottom of the Status area shows them, one proposal each (proposal 1 until you pick). Click another proposal below to swap it in here.</p></div>
+    <div class="bench">
+      <div class="rows">
+        <div class="pane"><div class="win"><div class="strip">
+          <div class="lbl">13 px (Medium)</div><div class="row s13" id="row13"></div>
+          <div class="lbl">10 px (low panes)</div><div class="row s10" id="row10"></div>
+          <div class="lbl">×2</div><div class="row s52" id="row26"></div>
+        </div></div></div>
+        <div class="pane paper"><div class="win"><div class="strip">
+          <div class="lbl">13 px</div><div class="row s13" id="prow13"></div>
+          <div class="lbl">10 px</div><div class="row s10" id="prow10"></div>
+          <div class="lbl">×2</div><div class="row s52" id="prow26"></div>
+        </div></div></div>
+      </div>
+      <div class="picks" id="rowpicks"></div>
+      <div>
+        <div class="lbl">Your picks so far (copy this as the answer)</div>
+        <div class="answer" id="answer">(none yet)</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="buff"><div class="sec-head"><h2>Buffs</h2><p>19 the app knows, 3 new from <code>stat</code> in the logs.</p></div><div class="grid" data-g="buff"></div></section>
+  <section id="debuff"><div class="sec-head"><h2>Debuffs</h2><p>13 the app knows here (blindness, hunger and thirst are under Flags), 5 new from <code>stat</code> in the logs.</p></div><div class="grid" data-g="debuff"></div></section>
+  <section id="herb"><div class="sec-head"><h2>Herblores</h2>
+    <p>One icon for all of a herblore's phases. In a debuff phase the stone turns red (the small stone at the right of each proposal shows it); today it switches to the debuff arrow instead.</p></div>
+    <div class="grid" data-g="herb"></div>
+    <div class="sub"><h3>In MUME, not in the catalogue yet</h3><p class="why" style="color:var(--ink-dim);font-size:14px;margin-bottom:12px">From the player guide <code>herblore.txt</code>; for when the <code>+</code> menu grows.</p><div class="grid" data-g="herbx"></div></div>
+  </section>
+  <section id="flag"><div class="sec-head"><h2>Flags</h2><p>Your GMCP flags. Proposal 1 is today's icon (the Group pane's).</p></div><div class="grid" data-g="flag"></div></section>
+  <section id="sanct"><div class="sec-head"><h2>Sanctuary</h2><p>Your own sanctuary, the one spell that is a stone. Proposal 1 is today's.</p></div><div class="grid" data-g="sanct"></div></section>
+  <section id="generic"><div class="sec-head"><h2>The generic stone</h2>
+    <p>For anything the card cannot name an icon for: a new affect seen in <code>stat</code>, a herblore added later, a future flag. Proposal 1 of buff, debuff and herblore is today's group icon.</p></div>
+    <div class="grid" data-g="gen"></div></section>
+</div>
+
+<script>
+// ----------------------------------------------------------- shape helpers (24 × 24 view box)
+const C = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
+const E = (x, y, rx, ry) => `M${x - rx} ${y}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0`;
+const D = (x, y) => `M${x} ${y}h.01`;
+const EYE = 'M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z';
+const HEART = 'M12 20s-8-5-8-11a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 6-8 11-8 11z';
+const CLOUD = 'M7 18h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7 9.3 4.4 4.4 0 0 0 7 18z';
+const SLASH = 'M3 3l18 18';
+const ROBE = 'M9 3h6l1.5 4L20 21H4L7.5 7z M9 3c0 2 1.3 3 3 3s3-1 3-3';
+const HOOD = 'M4 21c0-9 3-17 8-17s8 8 8 17';
+const SUNR = (x, y, r, a) => { const o = []; for (let i = 0; i < 8; i++) { const t = i * Math.PI / 4; o.push(`M${(x + Math.cos(t) * r).toFixed(1)} ${(y + Math.sin(t) * r).toFixed(1)}L${(x + Math.cos(t) * (r + a)).toFixed(1)} ${(y + Math.sin(t) * (r + a)).toFixed(1)}`); } return o.join(' '); };
+const FIG = 'M12 6.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M7 20c0-3.3 2.2-5.5 5-5.5s5 2.2 5 5.5';
+const CUP = 'M5 10h12v4a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z M17 11h1.5a2 2 0 0 1 0 4H17';
+const RFLASK = 'M10 2.5h4 M10.5 2.5v5a7 7 0 1 0 3 0v-5';
+const LEAF = 'M4 20c0-9 5-15 16-16 0 10-6 16-16 16z';
+const SPIRAL = 'M12 11.5a1 1 0 0 1 1 1 2 2 0 0 1-2 2 3 3 0 0 1-3-3 4 4 0 0 1 4-4 5 5 0 0 1 5 5 6 6 0 0 1-6 6';
+const BOOT = 'M7 3h5v9l6.5 2.5a2 2 0 0 1 1.5 2V20H4v-5l3-2z';
+const SKULL = 'M12 3a7 7 0 0 0-7 7c0 2.5 1 4 3 5v4h8v-4c2-1 3-2.5 3-5a7 7 0 0 0-7-7z M9 11h.01 M15 11h.01 M10.5 19v-2 M13.5 19v-2';
+const BAR = 'M5 21h14';
+const today = {
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  poison: 'M9.5 3h5 M10.5 3v5.5L6 17a2.4 2.4 0 0 0 2.1 3.5h7.8A2.4 2.4 0 0 0 18 17l-4.5-8.5V3 M7.6 14h8.8 M11 17.2h.01 M13.5 16h.01',
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M9.8 14.2a2.2 2.2 0 0 0 2.2 2.2',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+};
+
+// ----------------------------------------------------------- the stones
+// [id, name, group, app ('known' | 'new' | 'missing'), timed, note, [[label, d] × 5]]
+const S = [];
+const add = (g, id, name, app, timed, note, props, tone) => S.push({ g, id, name, app, timed, note, props, tone });
+
+// ---------------------------------------------------------------- buffs
+add('buff', 'second-wind', 'second wind', 'known', true, '60 s, then winded.', [
+  ['gust of wind', 'M3 8h11a3 3 0 1 0-3-3 M3 12h16a3 3 0 1 1-3 3 M3 16h7'],
+  ['a deep breath out', C(7, 12, 3) + ' M13 9h8 M13 12h10 M13 15h7'],
+  ['a 2 with speed', 'M4 8a4 4 0 0 1 8 0c0 3-8 5-8 10h8 M15 10h6 M15 14h5 M15 18h3'],
+  ['runner', D(15, 4.5) + ' M14 8l-3 5 4 3v5 M11 13l-4 2 M14 8l4 3 M3 9h4 M2 13h3'],
+  ['rising on the wind', 'M12 21V9 M8 13l4-4 4 4 M4 5c3-2 5 2 8 0s5-2 8 0'],
+]);
+add('buff', 'orkish-draught', 'Orkish draught', 'known', true, '120 s; seen with Rasta.', [
+  ['tankard', 'M5 7h10v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z M15 10h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2 M8 4c0-1 1-1 2-1s1 1 2 1 2-1 2 0'],
+  ['fire in a cup', 'M5 12h14l-2 9H7z M12 3c2 2 3 3 3 5a3 3 0 0 1-6 0c0-1 .5-2 1-3 .8 1 1.6 1 2-2z'],
+  ['hip flask, flame', 'M10 2h4v3 M7 5h10v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z M12 10c1.5 1.5 2 2.5 2 3.5a2 2 0 0 1-4 0c0-1 .5-1.5 1-2'],
+  ['fiery limbs (arm)', 'M4 19c0-6 3-11 6-14h3v3l-3 2c4-1 9 1 9 5 0 3-3 4-6 4z'],
+  ['drinking horn', 'M4 6c2 8 6 12 12 14l3-3C14 14 9 9 8 4z M8 4L4 6'],
+]);
+add('buff', 'battle-glory', 'battle glory', 'known', true, '170 s, a horn blown.', [
+  ['war horn', 'M3 19c6-1 10-5 12-15 M3 19c7 0 13-4 17-12 M15 4l5 3'],
+  ['horn with sound', 'M3 10h3l8-5v14l-8-5H3z M17 9a4 4 0 0 1 0 6 M19.5 6.5a8 8 0 0 1 0 11'],
+  ['banner', 'M5 21V3 M5 4h13l-3 4 3 4H5'],
+  ['star of glory', 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4l-5.3 3 1.2-6-4.5-4.1 6-.7z'],
+  ['raised sword', 'M12 3v12 M9 15h6 M12 15v5 M6 6l2 2 M18 6l-2 2 M4 12h2 M18 12h2'],
+]);
+add('buff', 'miruvor', 'miruvor', 'known', true, '180 s, the cordial.', [
+  ['cordial bottle, star', 'M10 3h4 M11 3v4c-3 1-5 3-5 7v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5c0-4-2-6-5-7V3 M12 12v5 M9.5 14.5h5'],
+  ['chalice', 'M7 3h10v4a5 5 0 0 1-10 0z M12 12v6 M8 21h8'],
+  ['warmth rising', 'M8 20c-2-3 2-5 0-8s2-5 0-8 M12 20c-2-3 2-5 0-8s2-5 0-8 M16 20c-2-3 2-5 0-8s2-5 0-8'],
+  ['elven star', 'M12 2l2 8 8 2-8 2-2 8-2-8-8-2 8-2z'],
+  ['mallorn bud', 'M12 21v-6 M12 15c-5 0-7-4-7-10 5 0 7 3 7 7 0-4 2-7 7-7 0 6-2 10-7 10'],
+]);
+add('buff', 'growth', 'growth', 'known', false, 'Seen only in stat/info.', [
+  ['sprout', 'M12 21v-9 M12 12c0-4-3-6-7-6 0 4 3 6 7 6z M12 14c0-3 2-5 6-5 0 3-2 5-6 5z'],
+  ['tree', 'M12 21v-5 M12 3l6 8h-3l4 5H5l4-5H6z'],
+  ['expand', 'M4 10V4h6 M20 14v6h-6 M4 4l6 6 M20 20l-6-6'],
+  ['small to tall', C(6, 12, 1.5) + ' M6 15v5 M4 17h4 ' + C(16, 6, 2.5) + ' M16 10v10 M12 14h8'],
+  ['rising bars', 'M4 20h16 M7 20v-4 M12 20v-8 M17 20V6'],
+]);
+add('buff', 'comfortable', 'comfortable', 'known', false, 'Resting by a fire; often.', [
+  ['campfire', 'M5 20l14-3 M5 17l14 3 M12 15c-3 0-4-2-4-4 0-3 4-4 4-8 2 2 4 4 4 8 0 2-1 4-4 4z'],
+  ['armchair', 'M6 11V6h12v5 M3 11h3v4h12v-4h3v7H3z M5 18v3 M19 18v3'],
+  ['home', 'M4 11l8-7 8 7 M6 9v11h12V9 M10 20v-5h4v5'],
+  ['bed', 'M3 19v-8 M3 15h18v4 M21 19v-4 ' + C(7.5, 11.5, 2)],
+  ['smile', C(12, 12, 9) + ' M8 14c2 2 6 2 8 0 M9 9.5h.01 M15 9.5h.01'],
+]);
+add('buff', 'very-comfortable', 'very comfortable', 'known', false, 'Pairs with comfortable: same number, same idea.', [
+  ['two flames', 'M5 21l14-3 M5 18l14 3 M9 16c-2 0-3-1-3-3 0-2 2-3 3-6 1 2 3 3 3 6 0 2-1 3-3 3z M15 16c-2 0-3-1-3-3 0-2 2-3 3-6 1 2 3 3 3 6 0 2-1 3-3 3z'],
+  ['armchair, star', 'M6 12V8h8 M3 12h3v4h12v-4h3v7H3z M5 19v2 M19 19v2 M19 2.5v5 M16.5 5h5'],
+  ['home, heart', 'M4 11l8-7 8 7 M6 9v11h12V9 M12 18c-2.5-1.6-3.5-2.7-3.5-4a1.7 1.7 0 0 1 3.5-.5 1.7 1.7 0 0 1 3.5.5c0 1.3-1 2.4-3.5 4z'],
+  ['bed, plus', 'M3 19v-8 M3 15h14v4 M17 19v-4 ' + C(7, 11.5, 2) + ' M20 4v6 M17 7h6'],
+  ['big grin', C(12, 12, 9) + ' M7 13c2 4 8 4 10 0z M8 9.5l1.5-1.5L11 9.5 M13 9.5l1.5-1.5L16 9.5'],
+]);
+add('buff', 'anger', 'anger', 'known', true, '30 s.', [
+  ['angry face', C(12, 12, 9) + ' M7 8l3 2 M17 8l-3 2 M8.5 16c2-2 5-2 7 0'],
+  ['flame', 'M12 2c3 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-5 1-8z'],
+  ['lightning', 'M13 2L5 13h6l-1 9 8-11h-6z'],
+  ['anger mark', 'M9 3v4a2 2 0 0 1-2 2H3 M15 3v4a2 2 0 0 0 2 2h4 M9 21v-4a2 2 0 0 0-2-2H3 M15 21v-4a2 2 0 0 1 2-2h4'],
+  ['outburst', 'M12 7v7 M12 18h.01 M4 4l3 3 M20 4l-3 3 M4 20l3-3 M20 20l-3-3'],
+]);
+add('buff', 'shadow-link', 'shadow-link', 'known', false, 'Sharing a shadow or a warg; Rasta.', [
+  ['ghost', 'M6 20V10a6 6 0 0 1 12 0v10l-2-2-2 2-2-2-2 2-2-2z M10 10h.01 M14 10h.01'],
+  ['wraith hood', HOOD + ' M9 13h.01 M15 13h.01'],
+  ['two linked minds', C(6, 7, 3) + ' ' + C(18, 17, 3) + ' M8.5 9c2 4 5 2 7 6'],
+  ['the wraith-world (crescent)', 'M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z'],
+  ['Nazgûl helm', 'M5 21V11l2-6 3 4 2-6 2 6 3-4 2 6v10 M9 15h6'],
+]);
+add('buff', 'antidote', 'antidote', 'known', true, '540 s.', [
+  ['bottle, cross', 'M10 2h4 M10 2v4H8a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2V2 M12 10v6 M9 13h6'],
+  ['shield, cross', 'M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z M12 9v6 M9 12h6'],
+  ['cross', 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z'],
+  ['mortar and pestle', 'M4 11h16a8 8 0 0 1-16 0z M14 11l6-8 M8 21h8'],
+  ['leaf, cross', LEAF + ' M10 11v6 M7 14h6'],
+]);
+add('buff', 'spectral-health', 'spectral health', 'known', false, 'From draining corpses; Rasta.', [
+  ['heart, wisp', 'M12 17s-7-4-7-9a3.5 3.5 0 0 1 7-1 3.5 3.5 0 0 1 7 1c0 5-7 9-7 9z M7 21c2-1 8-1 10 0'],
+  ['drawn into the heart', 'M15 19s-6-3.5-6-8a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 4.5-6 8-6 8z M2 12h5 M5 9l3 3-3 3'],
+  ['skull', SKULL],
+  ['spectral rings', C(12, 12, 9) + ' ' + C(12, 12, 5) + ' M12 12h.01'],
+  ['pulse', 'M2 12h4l2-5 4 10 2-5h8'],
+]);
+add('buff', 'blood-of-sauron', 'Blood of Sauron', 'known', true, '660 s.', [
+  ['the lidless eye', EYE + ' M12 8c-1 2-1 6 0 8 1-2 1-6 0-8z'],
+  ['blood, surge', 'M9 4c-3 4-5 7-5 10a5 5 0 0 0 10 0c0-3-2-6-5-10z M19 21V9 M16 12l3-3 3 3'],
+  ['eye in flame', 'M12 2c4 4 7 7 7 12a7 7 0 0 1-14 0c0-5 3-8 7-12z M12 10c-1 1.5-1 5 0 7 1-2 1-5.5 0-7z'],
+  ['goblet of blood', 'M7 3h10l-1 6a4 4 0 0 1-8 0z M12 13v5 M8 21h8 M12 6.5h.01'],
+  ['the dark tower', 'M8 21l1-12-2-3 2-3h6l2 3-2 3 1 12z M12 6h.01'],
+]);
+add('buff', 'robe-black', 'a pitch-black robe (pale tones)', 'known', true, '30 s. Pairs with the white robe.', [
+  ['robe', ROBE],
+  ['robe, spark', ROBE + ' M12 10l-1.5 4h3L12 18'],
+  ['hooded cloak', 'M12 3c-4 0-6 4-6 8v10h12V11c0-4-2-8-6-8z M9 12c1 1 5 1 6 0'],
+  ['robe, moon', 'M7 3h5l1 4 3 14H3l3-14z M20 3a3 3 0 1 0 2 5 2.5 2.5 0 0 1-2-5z'],
+  ['energy gathering', C(12, 12, 3) + ' M3 12h4 M17 12h4 M12 3v4 M12 17v4'],
+]);
+add('buff', 'robe-white', 'a pure white robe (pale tones)', 'known', true, '30 s. Pairs with the black robe.', [
+  ['robe, halo', ROBE + ' ' + E(12, 1.8, 3, 1)],
+  ['robe, star', ROBE + ' M12 10v6 M9 13h6'],
+  ['hooded cloak, star', 'M12 3c-4 0-6 4-6 8v10h12V11c0-4-2-8-6-8z M12 11v6 M9 14h6'],
+  ['robe, sun', 'M7 3h5l1 4 3 14H3l3-14z ' + C(19.5, 5, 1.5) + ' M19.5 1v.5 M19.5 9v.5 M23 5h.5 M16 5h-.5'],
+  ['light gathering', C(12, 12, 3) + ' ' + SUNR(12, 12, 5.5, 3)],
+]);
+add('buff', 'heightened-senses', 'heightened senses', 'known', true, '270 s. Pairs with its faded form.', [
+  ['ear', 'M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-6 0 M10 9a2 2 0 0 1 4 0'],
+  ['eye with rays', 'M3 14c2-3 5-5 9-5s7 2 9 5c-2 3-5 5-9 5s-7-2-9-5z M12 12a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M12 2v3 M5 4l2 2.5 M19 4l-2 2.5'],
+  ['sound waves', 'M12 12h.01 M8.5 8.5a5 5 0 0 0 0 7 M15.5 8.5a5 5 0 0 1 0 7 M5.5 5.5a9 9 0 0 0 0 13 M18.5 5.5a9 9 0 0 1 0 13'],
+  ['focus', 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 ' + C(12, 12, 4)],
+  ['magnifier', C(10, 10, 6) + ' M14.5 14.5L21 21'],
+]);
+add('buff', 'dark-aura', 'dark aura', 'known', true, '390 s, the dark-draught. Pairs with its faded form.', [
+  ['eclipse', C(12, 12, 8) + ' M12 4a5 8 0 0 1 0 16'],
+  ['murky cloud', CLOUD],
+  ['figure in a ring of dark', FIG + ' M3 12h.01 M21 12h.01 M12 2.5h.01 M5.3 5.3h.01 M18.7 5.3h.01'],
+  ['no sun', C(12, 12, 4) + ' M12 2v2 M12 20v2 M2 12h2 M20 12h2 ' + SLASH],
+  ['cowl of shadow', HOOD + 'z M9 13c1 .7 5 .7 6 0'],
+]);
+add('buff', 'smothered', 'smothered', 'known', true, '600 s. A buff in the table, though it reads as a debuff.', [
+  ['lungs', 'M12 4v7 M12 11c-1-1-2-1-3 0-2 1-4 4-4 7v1a2 2 0 0 0 3 1l4-2z M12 11c1-1 2-1 3 0 2 1 4 4 4 7v1a2 2 0 0 1-3 1l-4-2z'],
+  ['sealed mouth', C(12, 12, 9) + ' M7 14h10 M9 9h.01 M15 9h.01'],
+  ['bubbles', C(8, 18, 3) + ' ' + C(15, 12, 4) + ' ' + C(9, 5, 2)],
+  ['pressing in', 'M2 12h6 M5 9l3 3-3 3 M22 12h-6 M19 9l-3 3 3 3 M12 7v10'],
+  ['haze', 'M3 8c3-2 6 2 9 0s6-2 9 0 M3 13c3-2 6 2 9 0s6-2 9 0 M3 18c3-2 6 2 9 0s6-2 9 0'],
+]);
+add('buff', 'shadow-veil', 'shadow-veil', 'known', true, "5700 s, your Master's strength.", [
+  ['veil', 'M4 4h16 M5 4c0 6 2 12 7 16 5-4 7-10 7-16 M9 9h.01 M15 9h.01'],
+  ['crown of the Master', 'M3 18l2-11 5 5 2-7 2 7 5-5 2 11z'],
+  ['half in shadow', 'M12 3a9 9 0 1 0 0 18 M12 3a9 9 0 0 1 0 18 M12 3v18 M16 10h.01'],
+  ['hood with eyes', HOOD + ' M9 12h.01 M15 12h.01 M8 21h8'],
+  ['shadow behind you', C(9, 9, 2) + ' M5 20c0-4 2-6 4-6s4 2 4 6 M15 4a3 3 0 1 1 0 6 M19 20c0-5-1-8-4-9'],
+]);
+add('buff', 'haste-active', 'haste (active)', 'known', true, '360 s, thistle tea (also the Haste herblore).', [
+  ['lightning', 'M13 2L4 14h7l-1 8 9-12h-7z'],
+  ['runner', D(14, 4) + ' M13 8l-3 5h4l2 7 M10 13l-4 2 M13 8l4 3h3 M3 6h4 M2 10h3'],
+  ['double chevron', 'M5 6l6 6-6 6 M13 6l6 6-6 6'],
+  ['tea, steam', CUP + ' M9 3c-1 2 1 3 0 5 M13 3c-1 2 1 3 0 5'],
+  ['quick stopwatch', C(13, 14, 7) + ' M11 3h4 M13 10v4l2 2 M3 9h3 M2 13h2'],
+]);
+add('buff', 'bloodlust', 'bloodlust', 'new', false, 'In stat after fights (Rasta); no line known.', [
+  ['fangs', 'M4 7c2 6 14 6 16 0 M8 9.5l1 4 1-3.5 M14 10.5l1 3.5 1-4'],
+  ['claws and a drop', 'M5 4l-1 7 M9 3l-1 9 M13 4l-1 7 M18 13c-2 3-3 4.5-3 6a3 3 0 0 0 6 0c0-1.5-1-3-3-6z'],
+  ['claw marks', 'M6 3c-1 6 0 12 2 18 M11 3c-1 6 0 12 2 18 M16 3c-1 6 0 12 2 18'],
+  ['narrowed eye', 'M3 13c3-4 6-5 9-5s6 1 9 5c-3 3-6 4-9 4s-6-1-9-4z M3 7l7 3 M21 7l-7 3 M12 12.5h.01'],
+  ['axe', 'M5 21L16 7 M12 4c4-1 8 2 8 7l-5-1-3-3z'],
+]);
+add('buff', 'pipe-weed', 'some pipe-weed', 'new', false, '"You feel focused." after smoke; no end line known.', [
+  ['pipe and smoke', 'M3 14h8v3a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z M11 15l9-3 M6 11c-1-2 1-3 0-5 M9 9c-1-1.5.5-2.5 0-4'],
+  ['smoke rings', E(9, 18, 4, 2.5) + ' ' + E(14, 10, 4, 2.5) + ' ' + E(17, 3.5, 2, 1)],
+  ['wisps', 'M7 21c0-3 3-4 3-7s-3-4-3-7 2-3 2-4 M14 21c0-3 3-4 3-7s-3-4-3-7 2-3 2-4'],
+  ['focused mind', C(12, 12, 9) + ' ' + C(12, 12, 4.5) + ' M12 12h.01'],
+  ['long hobbit pipe', 'M2 9c3 3 7 5 12 5 M14 9h5v4a3 3 0 0 1-3 3 2 2 0 0 1-2-2z M17 6c-1-1.5 1-2.5 0-4'],
+]);
+add('buff', 'potion', 'potion', 'new', false, 'A potion in effect (stat, Rasta); lines unknown.', [
+  ['round flask', RFLASK + ' M6 15h12'],
+  ['vial', 'M9 3h6 M10 3v15a2 2 0 0 0 4 0V3 M10 12h4'],
+  ['flask, bubbles', RFLASK + ' M11 15h.01 M13.5 17h.01 M12 12h.01'],
+  ['bottle, star', 'M10 2h4v4 M10 6c-3 0-4 2-4 4v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-9c0-2-1-4-4-4 M12 11l1 2.5 2.5.5-2 1.5.5 2.5-2-1.5-2 1.5.5-2.5-2-1.5 2.5-.5z'],
+  ['cauldron', 'M4 9h16 M5 9v4a7 7 0 0 0 14 0V9 M7 21l1-2 M17 21l-1-2 M9 5h.01 M14 3h.01'],
+]);
+
+// ---------------------------------------------------------------- debuffs
+add('debuff', 'winded', 'winded', 'known', true, '1380 s, after second wind. Pairs with it.', [
+  ['broken gust', 'M3 8h11a3 3 0 1 0-3-3 M3 12h6 M3 16h4 M17 11v10 M14 18l3 3 3-3'],
+  ['tongue out', C(12, 12, 9) + ' M8 9h.01 M16 9h.01 M8 14h8 M11 14v3a1.5 1.5 0 0 0 3 0v-3'],
+  ['low battery', 'M3 8h16v8H3z M21 11v2 M6 11v2'],
+  ['spent runner', D(9, 5) + ' M10 9c3 0 5 2 6 5 M16 14v7 M10 9l-1 6-3 6 M10 12l-4 1'],
+  ['wind, slashed', 'M3 8h11a3 3 0 1 0-3-3 M3 12h16a3 3 0 1 1-3 3 M3 16h7 M4 21L20 3'],
+]);
+add('debuff', 'lethargy', 'lethargy', 'known', true, '330 s, golden topaz ring off. Often.', [
+  ['spark falling', 'M10 3l1.8 4.2 4.2 1.8-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z M18 12v9 M15 18l3 3 3-3'],
+  ['broken wand', 'M4 20l8-8 M14 10l2-2 M17 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z'],
+  ['empty orb', C(12, 12, 9) + ' M5 16h14'],
+  ['sparks, slashed', 'M8 4v4 M6 6h4 M16 10v4 M14 12h4 M10 16v4 M8 18h4 ' + SLASH],
+  ['magic draining', 'M12 3v3 M8 7l2 2 M16 7l-2 2 M12 12v9 M9 18l3 3 3-3'],
+]);
+add('debuff', 'tiredness', 'tiredness', 'known', true, '330 s, golden ruby ring off. Often.', [
+  ['Zz', 'M4 6h6l-6 7h6 M14 12h5l-5 6h5'],
+  ['yawn', C(12, 12, 9) + ' M8.5 10h.01 M15.5 10h.01 ' + E(12, 15, 2, 2.5)],
+  ['dumbbell, down', 'M3 6v6 M6 4v10 M18 4v10 M21 6v6 M6 9h12 M12 15v6 M9 18l3 3 3-3'],
+  ['slow pulse', 'M2 12h7l1.5-3 2 6 1.5-3H22'],
+  ['snail', 'M3 19h17 M17 19v-7a5 5 0 1 0-10 0 3 3 0 0 0 6 0 1 1 0 0 0-2 0 M17 13l2-3 M19.5 9.5h.01'],
+]);
+add('debuff', 'depression', 'depression', 'known', false, 'The lost knowledge of Númenor.', [
+  ['rain cloud', CLOUD.replace('M7 18', 'M7 15').replace('4.4 4.4 0 0 0 7 18z', '4.4 4.4 0 0 0 7 15z').replace('h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7 9.3', 'h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7 6.3') + ' M8 18l-1 3 M12 18l-1 3 M16 18l-1 3'],
+  ['sad face', C(12, 12, 9) + ' M8 16c2-2 6-2 8 0 M9 9.5h.01 M15 9.5h.01'],
+  ['broken heart', HEART + ' M12 8l-2 4 3 2-1 4'],
+  ['a tear', 'M3 8c3 3 6 4 9 4s6-1 9-4 M15 13c-1.5 2.5-2.5 4-2.5 5a2.5 2.5 0 0 0 5 0c0-1-1-2.5-2.5-5z'],
+  ['drowned (waves)', 'M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M2 19c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M12 3v8 M9 8l3 3 3-3'],
+]);
+add('debuff', 'haggardness', 'haggardness', 'known', true, '330 s, golden garnet ring off.', [
+  ['dizzy spiral', SPIRAL],
+  ['broken compass', C(12, 12, 9) + ' M15 8l-2 5-4 3 2-5z'],
+  ['stars round the head', 'M4 7c2-3 14-3 16 0 M6 4.5h.01 M12 3.5h.01 M18 4.5h.01 ' + C(12, 15, 5)],
+  ['spinning', 'M20 12a8 8 0 1 1-3-6.2 M20 4v5h-5'],
+  ['lost signpost', 'M12 21V3 M12 5h7l2 2-2 2h-7 M12 12H5l-2 2 2 2h7'],
+]);
+add('debuff', 'heavy-burden', 'heavy burden', 'known', false, 'Your load; Rasta and Gittan.', [
+  ['weight', 'M9 7a3 3 0 0 1 6 0 M6 9h12l2 11H4z'],
+  ['backpack', 'M8 6V5a4 4 0 0 1 8 0v1 M5 9a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v11H5z M9 13h6'],
+  ['anvil', 'M3 7h13c0 3 2 4 5 4v1h-6v3l3 4H6l3-4v-3H8C5 12 3 10 3 7z'],
+  ['sack', 'M9 5h6 M10 5L8 3 M14 5l2-2 M9 5c-4 3-5 7-5 10a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5c0-3-1-7-5-10'],
+  ['stacked crates', 'M4 14h8v7H4z M12 14h8v7h-8z M8 7h8v7H8z'],
+]);
+add('debuff', 'chill-touch', 'chill touch', 'known', false, 'An icy gust.', [
+  ['snowflake', 'M12 2v20 M3.3 7l17.4 10 M3.3 17L20.7 7 M9 4l3 2 3-2 M9 20l3-2 3 2'],
+  ['cold thermometer', 'M8 4a2 2 0 0 1 4 0v10a4 4 0 1 1-4 0z M10 16h.01 M18 6v10 M15 13l3 3 3-3'],
+  ['icicles', 'M3 4h18 M5 4l2 8 2-8 M11 4l1 13 1-13 M15 4l2 7 2-7'],
+  ['icy gust', 'M3 9h12a3 3 0 1 0-3-3 M3 14h8 M18 13v8 M14.5 15l7 4 M14.5 19l7-4'],
+  ['shivering', D(12, 5) + ' M12 9v6 M9 21l3-6 3 6 M6 8l-2 2.5 2 2.5 M18 8l2 2.5-2 2.5'],
+]);
+add('debuff', 'torpor', 'torpor', 'known', true, '780 s, an amulet taken off.', [
+  ['cloud over the mind', 'M6 10a3 3 0 0 1 1.5-5.6 4.5 4.5 0 0 1 8.5.6A2.5 2.5 0 0 1 18 10z ' + C(12, 15, 3) + ' M7 22a5 5 0 0 1 10 0'],
+  ['fog', 'M3 8h12 M7 12h14 M3 16h12 M9 20h8'],
+  ['amulet', 'M5 3c0 6 3 9 7 9s7-3 7-9 ' + C(12, 16, 4)],
+  ['half-closed eye', 'M2 12h20 M2 12c3 4 6 6 10 6s7-2 10-6 M9 12a3 3 0 0 0 6 0'],
+  ['lids pulled down', 'M3 14c3 3 6 4 9 4s6-1 9-4 M8 3v6 M5.5 6.5L8 9l2.5-2.5 M16 3v6 M13.5 6.5L16 9l2.5-2.5'],
+]);
+add('debuff', 'heightened-senses-faded', 'heightened senses (faded)', 'known', true, '1470 s. Same number as heightened senses = the same idea, faded.', [
+  ['ear, slashed', 'M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-6 0 M10 9a2 2 0 0 1 4 0 ' + SLASH],
+  ['eye, dimmed', 'M3 14c2-3 5-5 9-5s7 2 9 5c-2 3-5 5-9 5s-7-2-9-5z M12 12a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M12 3h.01 M6 5h.01 M18 5h.01'],
+  ['waves, slashed', 'M12 12h.01 M8.5 8.5a5 5 0 0 0 0 7 M15.5 8.5a5 5 0 0 1 0 7 M5.5 5.5a9 9 0 0 0 0 13 M18.5 5.5a9 9 0 0 1 0 13 ' + SLASH],
+  ['headache', C(12, 12, 9) + ' M10 5l3 4-3 3 3 4'],
+  ['magnifier, slashed', C(10, 10, 6) + ' M14.5 14.5L21 21 M6 6l8 8'],
+]);
+add('debuff', 'dark-aura-faded', 'dark aura (faded)', 'known', true, '1560 s. Same number as dark aura.', [
+  ['broken eclipse', 'M12 4a8 8 0 0 1 8 8 M12 20a8 8 0 0 1-8-8 M12 4a5 8 0 0 1 0 16'],
+  ['cloud, slashed', CLOUD + ' ' + SLASH],
+  ['figure, ring fading', FIG + ' M3 12h.01 M21 12h.01 M12 2.5h.01'],
+  ['the sun returns', C(12, 13, 4) + ' M12 3v2 M4 13h2 M18 13h2 M6 7l1.5 1.5 M18 7l-1.5 1.5 M12 21v.01'],
+  ['cowl, slashed', HOOD + 'z ' + SLASH],
+]);
+add('debuff', 'dreaming', 'dreaming', 'known', true, '1260 s, the murky river.', [
+  ['moon and star', 'M15 4a7 7 0 1 0 5 12 6 6 0 0 1-5-12z M6 3v4 M4 5h4'],
+  ['cloud, z', CLOUD + ' M10 12h4l-4 3h4'],
+  ['closed eye', 'M3 11c3 4 6 5 9 5s6-1 9-5 M6 15l-1 2 M12 16v3 M18 15l1 2'],
+  ['dream bubble', E(13, 8, 8, 5.5) + ' ' + C(5.5, 17, 1.5) + ' M3 21h.01'],
+  ['river and z', 'M2 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M7 5h5l-5 5h5 M15 3h4l-4 4h4'],
+]);
+add('debuff', 'blindfolded', 'blindfolded', 'known', true, "300 s, Tethel's ferry.", [
+  ['band over the eyes', C(12, 12, 9) + ' M3 10h18v4H3z'],
+  ['band and knot', 'M2 10h15v4H2z M17 12l4-3 M17 12l4 3'],
+  ['mask', 'M2 9c3-1 6-1 10 1 4-2 7-2 10-1 0 4-2 6-4 6s-3-2-6-2-4 2-6 2-4-2-4-6z'],
+  ['eye under a band', EYE + ' M2 10h20 M2 14h20'],
+  ['ferry', 'M3 15h18l-3 5H6z M12 15V4l6 9h-6'],
+]);
+add('debuff', 'haste-recovery', 'haste (recovery)', 'known', true, '1080 s. Same number as haste (active).', [
+  ['broken lightning', 'M13 2L6 12h5 M13 13h5l-8 9 1-6'],
+  ['tired legs', D(10, 4) + ' M11 8l-1 5 3 3v5 M10 13l-3 8'],
+  ['slow chevrons', 'M19 6l-6 6 6 6 M11 6l-6 6 6 6'],
+  ['tea, spent', CUP + ' M4 4l14 14'],
+  ['hourglass', 'M6 3h12 M6 21h12 M7 3c0 6 10 6 10 9s-10 3-10 9 M17 3c0 6-10 6-10 9s10 3 10 9'],
+]);
+add('debuff', 'panic', 'panic', 'new', false, 'After a failed flee; ends with "You feel bolder."', [
+  ['warning', 'M12 3l10 18H2z M12 10v5 M12 18h.01'],
+  ['fleeing', D(10, 4) + ' M11 8l3 5h-4l-2 7 M14 13l4 2 M11 8l-4 3H4 M19 5l1-2 M21 8h1'],
+  ['scream', C(12, 12, 9) + ' ' + E(12, 15, 1.6, 2.5) + ' M8 8l2 1 M16 8l-2 1'],
+  ['racing heart', 'M15 19s-6-3.5-6-8a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 4.5-6 8-6 8z M2 9h4 M3 13h3'],
+  ['double !', 'M8 4v10 M8 19h.01 M16 4v10 M16 19h.01'],
+]);
+add('debuff', 'sunlight', 'sunlight', 'new', false, 'Orcs and trolls under the sun; Rasta, often.', [
+  ['sun', C(12, 12, 4.5) + ' ' + SUNR(12, 12, 7, 2.5)],
+  ['sun, down', C(8, 8, 3) + ' M8 2v1.5 M8 12.5V14 M2 8h1.5 M12.5 8H14 M18 10v11 M15 18l3 3 3-3'],
+  ['squinting', 'M3 16c3-3 6-4 9-4s6 1 9 4 M12 3v4 M5 6l2 3 M19 6l-2 3 M7 16h10'],
+  ['sunrise', 'M3 18h18 M7 18a5 5 0 0 1 10 0 M12 7v3 M5 11l2 2 M19 11l-2 2'],
+  ['rays beating down', 'M5 3l2 6 M12 2v7 M19 3l-2 6 M3 14h18 M7 18h10 M10 22h4'],
+]);
+add('debuff', 'unable-to-quit', 'unable to quit', 'new', false, 'After a fight; in stat, no lines.', [
+  ['door, slashed', 'M6 3h12v18H6z M14 12h.01 ' + SLASH],
+  ['padlock', 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4 M12 15v2'],
+  ['exit blocked', 'M3 12h10 M9 8l4 4-4 4 M18 4v16'],
+  ['power off, slashed', 'M12 3v8 M7 6a8 8 0 1 0 10 0 ' + SLASH],
+  ['crossed swords', 'M4 4l12 12 M20 4L8 16 M14 18l4-4 M10 18l-4-4 M17 17l3 3 M7 17l-3 3'],
+]);
+add('debuff', 'unable-to-void', 'unable to void', 'new', false, 'After a fight; in stat, no lines.', [
+  ['vortex, slashed', SPIRAL + ' ' + SLASH],
+  ['circle, cross', C(12, 12, 9) + ' M9 9l6 6 M15 9l-6 6'],
+  ['barred portal', E(12, 12, 6, 9) + ' M6 12h12 M7.5 7h9 M7.5 17h9'],
+  ['the void', C(12, 12, 3) + ' ' + E(12, 12, 10, 4)],
+  ['idle clock, slashed', C(12, 12, 9) + ' M12 7v5l3 2 ' + SLASH],
+]);
+add('debuff', 'unable-to-sneak', 'unable to sneak', 'new', false, 'After a failed flee; maybe ends with "You feel stealthy again."', [
+  ['footprints', 'M8 4c2 0 3 2 3 5s-1 4-3 4-3-1-3-4 1-5 3-5z M6.5 16h3 M16 8c2 0 3 2 3 5s-1 4-3 4-3-1-3-4 1-5 3-5z M14.5 20h3'],
+  ['footprint, slashed', 'M11 4c2.5 0 4 2.5 4 6s-1.5 5-4 5-4-1.5-4-5 1.5-6 4-6z M9 19h4 ' + SLASH],
+  ['seen (open eye)', EYE + ' ' + C(12, 12, 3)],
+  ['boot, cross', 'M7 3v11l-4 4v3h14l3-3-6-3V3z M14 6l5 5 M19 6l-5 5'],
+  ['cloak, slashed', 'M12 3c-4 0-6 4-6 8v10h12V11c0-4-2-8-6-8z ' + SLASH],
+]);
+
+// ---------------------------------------------------------------- herblores (the catalogue)
+add('herb', 'healing', 'Healing', 'known', true, 'Healing → Healing (low).', [
+  ['leaf, cross', LEAF + ' M12 9v6 M9 12h6'],
+  ['heart and leaf', HEART + ' M12 8c0 3 1 5 3 6'],
+  ['philtre, cross', RFLASK + ' M12 12.5v5 M9.5 15h5'],
+  ['kingsfoil sprig', 'M12 21V5 M12 9c-3 0-5-2-5-5 3 0 5 2 5 5z M12 14c3 0 5-2 5-5-3 0-5 2-5 5z M12 18c-3 0-5-2-5-5 3 0 5 2 5 5z'],
+  ['cross in a circle', C(12, 12, 9) + ' M12 8v8 M8 12h8'],
+]);
+add('herb', 'travelling', 'Travelling', 'known', true, 'Travelling → (med) → (min).', [
+  ['boot', BOOT + ' M4 17h16'],
+  ['the road', 'M8 21l3-18 M16 21l-3-18 M12 7v2 M12 12v3 M12 18v2'],
+  ['compass', C(12, 12, 9) + ' M12 6l2.5 6-2.5 6-2.5-6z'],
+  ['winged boot', BOOT + ' M14 6h7 M14 9h5'],
+  ['over the hills', 'M2 20l7-11 4 6 3-4 6 9z'],
+]);
+add('herb', 'clearthought', 'Clearthought', 'known', true, 'Clearthought → (low) → (neg), a debuff.', [
+  ['lamp of thought', 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c1 1 1 2 1 3h6c0-1 0-2 1-3A6 6 0 0 0 12 3z'],
+  ['sparkle', 'M12 3l2 7 7 2-7 2-2 7-2-7-7-2 7-2z'],
+  ['clear crystal', 'M6 3h12l4 6-10 12L2 9z M2 9h20 M9 3l3 6 3-6'],
+  ['mind\'s eye', EYE + ' M12 9v6 M9 12h6'],
+  ['brew bowl', 'M3 11h18a9 9 0 0 1-18 0z M9 7c0-2 3-2 3-4 M15 7c0-1-1-2-1-3'],
+]);
+add('herb', 'walking', 'Walking', 'known', true, 'Walking → (med) → (min).', [
+  ['walker', D(13, 4) + ' M12 8l-2 6 3 2v5 M10 14l-3 7 M12 8l4 3 M12 8l-4 2v3'],
+  ['staff', 'M7 21l9-18 M16 3c2 1 3 3 2 5-2 0-3-2-2-5z'],
+  ['boot, arrow', BOOT + ' M14 4h7 M18 1.5L21 4l-3 2.5'],
+  ['milestone', 'M7 21V8a5 5 0 0 1 10 0v13 M5 21h14 M10 11h4'],
+  ['winding path', 'M6 21c0-4 12-4 12-8S6 9 6 5 M10 3h.01'],
+]);
+add('herb', 'haste', 'Haste', 'known', true, 'Haste → Haste (recovery), a debuff. The game also shows haste (active).', [
+  ['tea, steam', CUP + ' M9 3c-1 2 1 3 0 5 M13 3c-1 2 1 3 0 5'],
+  ['thistle', 'M8 12h8l-1 3H9z M9 12l-2-5 M11 12l-.5-7 M13 12l.5-7 M15 12l2-5 M12 15v6'],
+  ['leaf, lightning', LEAF + ' M13 7l-4 6h4l-2 5'],
+  ['leaf with speed', 'M8 18c0-7 4-12 13-13 0 8-5 13-13 13z M2 9h4 M2 13h3'],
+  ['fast clock', C(12, 12, 8) + ' M12 7v5l3-2 M3 3l2 2'],
+]);
+add('herb', 'dark-aura-herb', 'Dark aura', 'known', true, 'Dark aura → Dark aura (faded), a debuff. The game also shows dark aura.', [
+  ['scorched flask', 'M10 2h4v3 M7 5h10v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z M10 11c1 1 3 1 4 0 M10 15c1 1 3 1 4 0'],
+  ['bat', 'M12 9l-1.5-3v4C7 9 4 10 2 13c3 0 4 1 5 3 1-1 3-1 5 1 2-2 4-2 5-1 1-2 2-3 5-3-2-3-5-4-8-3V6z'],
+  ['black flower', C(12, 12, 2) + ' ' + E(12, 6, 2, 3) + ' ' + E(12, 18, 2, 3) + ' ' + E(6, 12, 3, 2) + ' ' + E(18, 12, 3, 2)],
+  ['leaf and moon', LEAF + ' M18 13a3 3 0 1 0 3 4 2.5 2.5 0 0 1-3-4z'],
+  ['eclipse leaf', C(12, 12, 8) + ' M12 4a5 8 0 0 1 0 16 M8 16l8-8'],
+]);
+// herblores not in the catalogue
+add('herbx', 'seeing', 'Seeing', 'missing', true, 'Night vision, perception; 3 phases.', [
+  ['eye, glow', EYE + ' ' + C(12, 12, 3) + ' M12 1v2 M5 3l1.5 1.5 M19 3l-1.5 1.5'],
+  ['glowing moss', 'M3 20h18 M6 20c0-3 2-4 2-6 M12 20c0-4 2-5 2-8 M18 20c0-3-2-4-2-6 M8 9h.01 M15 6h.01 M18 10h.01'],
+  ['phosphor bottle', RFLASK + ' M9 15h.01 M12 17h.01 M15 14h.01'],
+  ['night eye', 'M2 14c3-4 6-5 10-5s7 1 10 5c-3 4-6 5-10 5s-7-1-10-5z M12 12a2 2 0 1 0 0 4 M18 2a3 3 0 1 0 2 5 2.5 2.5 0 0 1-2-5z'],
+  ['lantern', 'M9 4h6 M12 2v2 M8 7h8l-1 12H9z M10 21h4 M12 11v4'],
+]);
+add('herbx', 'shadows', 'Shadows', 'missing', true, 'Shroud; perception down, then DB up.', [
+  ['ghostly bottle', RFLASK + ' M10 15h.01 M14 15h.01 M10 18c1 .7 3 .7 4 0'],
+  ['rib bone', 'M12 3v18 M12 7c-3 0-6 1-7 3 M12 7c3 0 6 1 7 3 M12 12c-3 0-5 1-6 3 M12 12c3 0 5 1 6 3'],
+  ['mist', 'M4 9h10 M6 13h14 M4 17h10 M18 9h2'],
+  ['ghost', 'M6 20V10a6 6 0 0 1 12 0v10l-2-2-2 2-2-2-2 2-2-2z M10 10h.01 M14 10h.01'],
+  ['gate to the shadows', 'M5 21V10a7 7 0 0 1 14 0v11 M9 21v-9a3 3 0 0 1 6 0v9'],
+]);
+add('herbx', 'skillful-oil', 'Skillful-oil', 'missing', true, 'OB/DB up, then down (a debuff).', [
+  ['oil vial', 'M9 3h6 M10 3v15a2 2 0 0 0 4 0V3 M10 12h4'],
+  ['sword and drop', 'M4 20l11-11 M13 7l4 4 M18 2c-1.5 2-2 3-2 4a2 2 0 0 0 4 0c0-1-.5-2-2-4z'],
+  ['limber figure', D(12, 4) + ' M12 7v7 M7 9l5 2 5-2 M8 21l4-7 4 7'],
+  ['oil drop, up', 'M9 4c-3 4-5 7-5 10a5 5 0 0 0 10 0c0-3-2-6-5-10z M19 20V8 M16 11l3-3 3 3'],
+  ['shield and sword', 'M8 3l5 2v5c0 4-3 6-5 7-2-1-5-3-5-7V5z M14 21l7-7 M17 13l4 4'],
+]);
+add('herbx', 'soothing-draught', 'Soothing-draught', 'missing', true, 'HP regen up, then DEX down.', [
+  ['honey pot', 'M6 9h12v9a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z M5 6h14v3H5z M12 2v4'],
+  ['honeycomb', 'M8 4l4-2 4 2v4l-4 2-4-2z M4 12l4-2 4 2v4l-4 2-4-2z M12 12l4-2 4 2v4l-4 2-4-2z'],
+  ['soothed wound', 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M10 10h.01 M14 14h.01'],
+  ['draught, cross', 'M9 3h6 M10 3v3l-4 3v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9l-4-3V3 M12 11v6 M9 14h6'],
+  ['dwarf hammer', 'M14 4l6 6-3 3-6-6z M11 7l-8 8 3 3 8-8'],
+]);
+add('herbx', 'strength-herb', 'Strength', 'missing', true, 'STR +2, one long phase.', [
+  ['flexed arm', 'M4 19c0-6 3-11 6-14h3v3l-3 2c4-1 9 1 9 5 0 3-3 4-6 4z'],
+  ['maroon bottle', 'M10 2h4v4 M10 6c-3 0-4 2-4 4v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-9c0-2-1-4-4-4 M9 14l3-3 3 3'],
+  ['dumbbell', 'M3 9v6 M6 6v12 M18 6v12 M21 9v6 M6 12h12'],
+  ['comfrey root', 'M12 3v7 M12 10c-3 2-5 6-5 11 M12 10c0 4 0 7 1 11 M12 10c3 2 5 6 5 11'],
+  ['clover', C(12, 7, 3) + ' ' + C(7.5, 12, 3) + ' ' + C(16.5, 12, 3) + ' M12 13v8'],
+]);
+add('herbx', 'orc-balm', 'Orc-balm', 'missing', true, 'HP regen up, mana regen down; 3 phases.', [
+  ['balm jar', 'M5 8h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z M4 5h16v3H4z M9 13h6'],
+  ['salamander tail', 'M4 18c4 0 6-4 9-7s6-5 9-5 M13 11c1 2 1 4 0 6'],
+  ['bandaged claw', 'M6 3c-1 6 0 12 2 18 M12 3c-1 6 0 12 2 18 M4 12h12'],
+  ['putrid bubbles', 'M3 11h18a9 9 0 0 1-18 0z M8 7h.01 M12 5h.01 M16 7h.01'],
+  ['tusked jar', 'M6 9h12v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z M8 9V6 M16 9V6 M9 14c1 1.5 5 1.5 6 0'],
+]);
+
+// ---------------------------------------------------------------- flags
+add('flag', 'poison', 'poison', 'known', false, 'GMCP flag; stat says poison (type: …).', [
+  ['flask (today)', today.poison],
+  ['skull', SKULL],
+  ['drop and bubbles', 'M10 21a5 5 0 0 1-5-5c0-3 2-6 5-10 3 4 5 7 5 10a5 5 0 0 1-5 5z M17 5h.01 M19.5 9h.01 M16.5 11h.01'],
+  ['toadstool', 'M3 12a9 7 0 0 1 18 0z M9 12v6a3 3 0 0 0 6 0v-6 M9 8h.01 M14 6.5h.01'],
+  ['fangs', 'M5 4c2 4 4 6 7 6s5-2 7-6 M9 9l1 5 1-4 M13 10l1 4 1-5'],
+]);
+add('flag', 'blind', 'blind · blindness', 'known', true, 'The flag and the affect are one stone (90 s when timed).', [
+  ['eye, slashed (today)', today.blind],
+  ['eye, cross', EYE + ' M9 9l6 6 M15 9l-6 6'],
+  ['dark glasses', 'M2 10h20 M4 10a4 4 0 0 0 7 2 M13 12a4 4 0 0 0 7-2'],
+  ['closed eye', 'M3 11c3 4 6 5 9 5s6-1 9-5 M6 15l-1 2 M12 16v3 M18 15l1 2'],
+  ['sightless face', C(12, 12, 9) + ' M7 8l3 3 M10 8l-3 3 M14 8l3 3 M17 8l-3 3 M9 16h6'],
+]);
+add('flag', 'snared', 'snared', 'known', false, 'GMCP only; cannot leave the room.', [
+  ['link (today)', today.snared],
+  ['web', 'M12 2v20 M2 12h20 M5 5l14 14 M19 5L5 19 M8 12a4 4 0 0 1 4-4 4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4z'],
+  ['trap jaws', 'M3 13a9 6 0 0 0 18 0 M3 13l2-3 2 3 2-3 2 3 2-3 2 3 2-3 2 3 M12 19v3'],
+  ['lasso', E(12, 8, 8, 4) + ' M8 11c-1 3-3 6-5 9'],
+  ['anchor', C(12, 4.5, 2) + ' M12 6.5V21 M8 10h8 M4 13c0 5 4 8 8 8s8-3 8-8'],
+]);
+add('flag', 'wound', 'wound', 'known', false, 'GMCP flag; stat lists each wound (degree, body part, clean or dirty).', [
+  ['bandage (today)', today.wound],
+  ['two drops', 'M8 3c-2 4-3 5-3 7a3 3 0 0 0 6 0c0-2-1-3-3-7z M16 11c-2 4-3 5-3 7a3 3 0 0 0 6 0c0-2-1-3-3-7z'],
+  ['gash', 'M4 18l4-4 2 2 4-4 2 2 4-4'],
+  ['cut and a drop', 'M3 9l8-6 M12 12c-2.5 3.5-4 5.5-4 7a4 4 0 0 0 8 0c0-1.5-1.5-3.5-4-7z'],
+  ['bone', 'M8 8l8 8 ' + C(5.5, 7.5, 2) + ' ' + C(7.5, 5.5, 2) + ' ' + C(16.5, 18.5, 2) + ' ' + C(18.5, 16.5, 2)],
+]);
+add('flag', 'hungry', 'hungry · hunger', 'known', false, 'The flag and the affect are one stone.', [
+  ['fork and knife (today)', today.hungry],
+  ['bowl', 'M3 11h18a9 9 0 0 1-18 0z M8 21h8 M9 7c0-2 2-2 2-4 M14 7c0-2 2-2 2-4'],
+  ['loaf', 'M4 11a4 4 0 0 1 2-7h12a4 4 0 0 1 2 7v9H4z M9 9h.01 M15 9h.01'],
+  ['apple', 'M12 7c-3-2-8-1-8 5 0 5 4 9 6 9 1 0 1-1 2-1s1 1 2 1c2 0 6-4 6-9 0-6-5-7-8-5z M12 7c0-2 1-4 3-4'],
+  ['empty plate', C(12, 12, 7) + ' ' + C(12, 12, 3) + ' M2 4v6 M22 4v16'],
+]);
+add('flag', 'thirsty', 'thirsty · thirst', 'known', false, 'The flag and the affect are one stone.', [
+  ['drop (today)', today.thirsty],
+  ['low cup', 'M6 4h12l-2 16H8z M8 16h8'],
+  ['waterskin', 'M9 3h6 M10 3v3c-4 1-6 4-6 8a7 7 0 0 0 14 0c0-4-2-7-6-8V3'],
+  ['drop, slashed', 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z ' + SLASH],
+  ['parched ground', 'M3 20h18 M6 20l3-4 M12 20l1-3 3-1 M18 20l-2-3 ' + C(12, 7, 3)],
+]);
+
+// ---------------------------------------------------------------- sanctuary
+add('sanct', 'sanctuary', 'sanctuary', 'known', true, '270 s, the white aura (yours only).', [
+  ['figure with rays (today)', today.sanct],
+  ['halo', E(12, 3.5, 4, 1.5) + ' ' + C(12, 10, 2.5) + ' M6.5 21c0-3.5 2.5-6 5.5-6s5.5 2.5 5.5 6'],
+  ['aura around a figure', E(12, 12, 8, 10) + ' M12 8h.01 M9 18v-4l3-2 3 2v4'],
+  ['radiance', C(12, 12, 3) + ' M12 2v4 M12 18v4 M2 12h4 M18 12h4 M5 5l3 3 M16 16l3 3 M5 19l3-3 M16 8l3-3'],
+  ['figure in a ring', C(12, 12, 10) + ' ' + C(12, 9, 2) + ' M8 18c0-3 1.8-5 4-5s4 2 4 5'],
+]);
+
+// ---------------------------------------------------------------- generic
+add('gen', 'generic-buff', 'a buff (generic)', 'known', true, 'Any buff without its own icon.', [
+  ['up arrow (today)', today.buff],
+  ['plus', 'M12 5v14 M5 12h14'],
+  ['chevron up', 'M5 15l7-7 7 7'],
+  ['circle, up', C(12, 12, 9) + ' M12 16V8 M8 12l4-4 4 4'],
+  ['sparkle', 'M12 3l2 7 7 2-7 2-2 7-2-7-7-2 7-2z'],
+], 'buff');
+add('gen', 'generic-debuff', 'a debuff (generic)', 'known', true, 'Any debuff without its own icon.', [
+  ['down arrow (today)', today.debuff],
+  ['minus', 'M5 12h14'],
+  ['chevron down', 'M5 9l7 7 7-7'],
+  ['circle, down', C(12, 12, 9) + ' M12 8v8 M8 12l4 4 4-4'],
+  ['broken ring', 'M12 3a9 9 0 0 1 9 9 M12 21a9 9 0 0 1-9-9 M8 8l8 8'],
+], 'debuff');
+add('gen', 'generic-herb', 'a herblore (generic)', 'known', true, 'A herblore without its own icon.', [
+  ['leaf (today)', today.herb],
+  ['sprig', 'M12 21V8 M12 12c-3 0-5-2-5-5 3 0 5 2 5 5z M12 8c2.5 0 4-2 4-5-2.5 0-4 2-4 5z'],
+  ['mortar', 'M4 11h16a8 8 0 0 1-16 0z M14 11l6-8 M8 21h8'],
+  ['flask and leaf', RFLASK + ' M9 16c0-2 2-4 6-4 0 3-2 4-6 4z'],
+  ['three leaves', C(12, 6, 3) + ' ' + C(7, 13, 3) + ' ' + C(17, 13, 3) + ' M12 15v7'],
+], 'herb');
+add('gen', 'generic-flag', 'a flag (generic)', 'known', false, 'A GMCP flag the card does not know yet.', [
+  ['dot in a ring', C(12, 12, 8) + ' M12 12h.01'],
+  ['exclamation', 'M12 4v11 M12 20h.01'],
+  ['pennant', 'M6 21V3 M6 4l12 4-12 4'],
+  ['question', 'M9 9a3 3 0 1 1 4 2.8c-1 .5-1 1.2-1 2.2 M12 18h.01'],
+  ['diamond', 'M12 3l9 9-9 9-9-9z'],
+], 'debuff');
+
+// ----------------------------------------------------------- rendering
+const SAMPLE = ['tiredness', 'lethargy', 'comfortable', 'hungry', 'blind', 'healing', 'sanctuary', 'sunlight'];
+const FILLS = [0.82, 0.55, 0.3, 0.68, 0.12];
+const tone = (s) => s.tone || (s.g === 'herbx' ? 'herb' : s.g === 'flag' ? 'debuff' : s.g === 'gen' ? 'buff' : s.g);
+const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+function stone(d, t, timed, f, cls = '') {
+  return `<span class="st ${timed ? '' : 'untimed'} ${cls}" data-t="${t}" style="--f:${f}"><span class="ib">${svg(d)}</span><span class="tb"><i></i></span></span>`;
+}
+const picks = {};
+const byId = Object.fromEntries(S.map((s) => [s.id, s]));
+const DEBUFF_PHASE = { clearthought: 1, haste: 1, 'dark-aura-herb': 1, 'skillful-oil': 1, shadows: 1 };
+for (const s of S) {
+  const host = document.querySelector(`.grid[data-g="${s.g}"]`);
+  const t = tone(s);
+  const tag = s.app === 'new' ? '<span class="tag new">new: not recognised yet</span>' : s.app === 'missing' ? '<span class="tag new">not in the catalogue</span>' : '';
+  const share = s.g === 'flag' && s.name.includes('·') ? '<span class="tag share">one stone with its twin</span>' : '';
+  const props = s.props.map(([lb, d], i) => {
+    const n = i + 1, f = FILLS[i];
+    const phase = DEBUFF_PHASE[s.id] ? stone(d, 'debuff', true, 0.4) : '';
+    return `<button class="prop" data-s="${s.id}" data-n="${n}" title="${s.name} ${n}: ${lb}">
+      <span class="real realbg">${stone(d, t, s.timed, f)}${stone(d, t, s.timed, f)}${phase}</span>
+      ${stone(d, t, s.timed, f, 'big')}
+      <span class="id">${s.id}-${n}</span><span class="lb">${lb}</span></button>`;
+  }).join('');
+  host.insertAdjacentHTML('beforeend', `<div class="card" style="--c:var(--g-${t})">
+    <div class="hd"><span class="chip"></span><h3>${s.name}</h3>${tag}${share}</div>
+    <div class="why">${s.note}</div><div class="props">${props}</div></div>`);
+}
+function drawRow() {
+  const ent = SAMPLE.map((id) => { const s = byId[id]; const n = picks[id] || 1; return { s, n, d: s.props[n - 1][1] }; });
+  const html = (cls) => ent.map((e, i) => stone(e.d, tone(e.s), e.s.timed, [0.9, 0.35, 1, 1, 0.6, 0.75, 0.15, 1][i], (i === 6 ? 'end ' : '') + cls)).join('');
+  for (const p of ['', 'p']) for (const z of ['13', '10', '26']) document.getElementById(`${p}row${z}`).innerHTML = html('');
+  document.getElementById('rowpicks').innerHTML = ent.map((e) => `<b>${e.s.id}-${e.n}</b>`).join(' · ') + ' (sanctuary ending soon: red ring)';
+  const ans = Object.entries(picks).map(([id, n]) => `${byId[id].name} ${n}`);
+  document.getElementById('answer').textContent = ans.length ? ans.join(', ') : '(none yet)';
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('.prop'); if (!b) return;
+  const id = b.dataset.s, n = +b.dataset.n;
+  if (picks[id] === n) delete picks[id]; else picks[id] = n;
+  document.querySelectorAll(`.prop[data-s="${id}"]`).forEach((x) => x.classList.toggle('pick', picks[id] === +x.dataset.n));
+  if (!SAMPLE.includes(id) && picks[id]) { SAMPLE.shift(); SAMPLE.push(id); }
+  drawRow();
+});
+document.getElementById('theme').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#theme button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.card, .realbg').forEach((x) => x.classList.toggle('paper', b.dataset.v === 'paper'));
+  document.querySelectorAll('.card').forEach((x) => { x.style.background = b.dataset.v === 'paper' ? '#f1e8d4' : ''; x.style.color = b.dataset.v === 'paper' ? '#2d2619' : ''; });
+});
+drawRow();
+</script>
