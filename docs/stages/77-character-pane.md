@@ -573,7 +573,9 @@ compact card, down to about 72 px. The owner after round 15: the icons
 stay in the compact card; the letters M, C, A, W in the shields' icon
 colour; no step meter in the compact card, so the value gets a character
 more (`aggr`, `norm`). Round 15 version 2 does this: the status takes 55 %
-of line 1, the whole word when it fits, else four characters.
+of line 1, the whole word when it fits, else four characters. Then (the
+owner): readable short forms, `heavy` → `hvy` and the like; version 3
+uses a hand-made table (`aggr`, `norm`, `hvy`, `attn`, `bsrk`, `r.hvy` …).
 
 ## Part A: findings
 

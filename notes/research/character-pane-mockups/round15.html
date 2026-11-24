@@ -478,7 +478,7 @@ details.more summary { cursor: pointer; color: var(--lamp); font-weight: 600; }
   <section>
     <div class="sec-head"><span class="eyebrow">3 · Låga fönster</span><h2>Steg för steg, sedan kompakt</h2>
       <p>Så länge porträttet blir minst 44 px används stegen med porträtt, och det första steget som får plats väljs. <b>0 hel</b>: som ovan. <b>1 mindre sköldar</b>: stenarna på en rad, och sköldarna ner till 22 px (ikonen faller bort under 30 px). <b>2 status på en rad</b>: etiketten bredvid värdet om den ryms, annars bara värdet. <b>3 sköldbrickor</b>: sköldarna blir små brickor. <b>4 minimal</b>: statusvärdena utan celler.</p>
-      <p><b>Kompakt</b> (nytt): när porträttet skulle bli mindre än 44 px försvinner det, och ringen och namnet försvinner med det. Hela bredden används. Den översta raden har Mood, Casts, Alertness och Weight på vänstra delen (55 %), utan stegmätare, med bokstaven i sköldikonernas färg och värdet kortat efter platsen (hela ordet om det ryms, annars fyra tecken: <code>M aggressive</code> → <code>M aggr</code>, <code>C norm</code>), och sköldarna som ikon och värde på högra delen. Den andra raden har de fem ikonerna, stenarna och börsen till höger. Är det trångt blir cellerna platta och stenarna mindre (”minst”). Flikarna finns bara när panen är minst 80 px hög inuti. Dra panen högre för att få dem. Staplarna blir 10 px under 90 px.</p></div>
+      <p><b>Kompakt</b> (nytt): när porträttet skulle bli mindre än 44 px försvinner det, och ringen och namnet försvinner med det. Hela bredden används. Den översta raden har Mood, Casts, Alertness och Weight på vänstra delen (55 %), utan stegmätare, med bokstaven i sköldikonernas färg och värdet kortat efter platsen (hela ordet om det ryms, annars en handgjord kortform på högst fyra tecken: <code>aggr</code>, <code>norm</code>, <code>hvy</code>, <code>attn</code>, <code>bsrk</code>, <code>r.hvy</code>; tooltipen visar hela ordet), och sköldarna som ikon och värde på högra delen. Den andra raden har de fem ikonerna, stenarna och börsen till höger. Är det trångt blir cellerna platta och stenarna mindre (”minst”). Flikarna finns bara när panen är minst 80 px hög inuti. Dra panen högre för att få dem. Staplarna blir 10 px under 90 px.</p></div>
     <div class="ctlbar">
       <div class="ctl">Ikonerna i kompakt <span class="seg" data-ctl="cicons"><button data-v="on">först i stenraden</button><button data-v="off">dolda</button></span></div>
     </div>
@@ -1052,10 +1052,15 @@ const LET = { mood: 'M', casts: 'C', alert: 'A', weight: 'W' };
 const CODE = { wimpy: 'W', prudent: 'P', normal: 'N', brave: 'B', aggressive: 'A', berserk: 'Bz', quick: 'Q', fast: 'F', careful: 'C', thorough: 'T',
   attentive: 'At', vigilant: 'V', paranoid: 'P', peanuts: 'P', uncomfortable: 'U', heavy: 'H', 'really heavy': 'RH', painful: 'Pa', torture: 'T' };
 // The value cut without a dot: aggressive -> aggr, normal -> norm; the letter in the shields' icon colour.
+// Hand-made short forms, at most four characters, picked to read as the word (heavy -> hvy).
+const ABBR = { wimpy: 'wmpy', prudent: 'prud', normal: 'norm', brave: 'brav', aggressive: 'aggr', berserk: 'bsrk',
+  quick: 'qck', fast: 'fast', careful: 'care', thorough: 'thor', attentive: 'attn', vigilant: 'vigl', paranoid: 'para',
+  peanuts: 'pnts', uncomfortable: 'unc', heavy: 'hvy', 'really heavy': 'rhvy', painful: 'pain', torture: 'trtr' };
 function cutV(w, n) {
   if (w.length <= n) return w;
-  if (w === 'really heavy') return n >= 8 ? 'r. heavy' : n >= 4 ? 'r.hv' : 'RH';
-  return n >= 4 ? w.slice(0, 4) : n >= 2 ? w.slice(0, n) : CODE[w];
+  if (w === 'really heavy') { if (n >= 7) return 'r.heavy'; if (n >= 5) return 'r.hvy'; }
+  if (w === 'uncomfortable' && n >= 6) return 'uncomf';
+  return ABBR[w].length <= n ? ABBR[w] : CODE[w];
 }
 function compact(o, W, H, z, F) {
   const big = H >= 18 + 3 + z.s + 3, s = big ? z.s : 10, g = big ? 3 : 2, h1 = big ? 18 : 13;
