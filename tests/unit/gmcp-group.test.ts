@@ -250,6 +250,8 @@ describe('GroupModel selfBashed', () => {
     g.apply('Group.Set', [you, npc(2, 'a troll', 'T', { bashed: true })]);
     expect(g.selfBashed).toBe(false);
     expect(ids(g)).toEqual([2]);
+    expect(g.apply('Group.Update', { id: 1, waiting: true })).toBe(true);
+    expect(g.selfBashed).toBe(false);
     expect(g.apply('Group.Update', { id: 1, waiting: true })).toBe(false);
     expect(g.apply('Group.Update', { bashed: true, id: 1 })).toBe(true);
     expect(g.selfBashed).toBe(true);
@@ -269,6 +271,66 @@ describe('GroupModel selfBashed', () => {
     g.apply('Group.Set', [{ ...you, bashed: true }]);
     g.reset();
     expect(g.selfBashed).toBe(false);
+  });
+});
+
+describe('GroupModel selfFlags (ADR 0166 addendum 18 point 95)', () => {
+  // As MUME sent them at login and later (Gittan, 2026-11-24).
+  const login = {
+    bashed: false,
+    blind: false,
+    hungry: false,
+    id: 1,
+    poison: false,
+    sanctuary: false,
+    slept: false,
+    snared: false,
+    thirsty: true,
+    type: 'you',
+    waiting: false,
+    wound: false,
+  };
+  it('keeps every flag of your own entry from Group.Set, and the changes from Group.Update', () => {
+    const g = new GroupModel();
+    expect(g.selfFlags.thirsty).toBe(false);
+    expect(g.apply('Group.Set', [login])).toBe(true);
+    expect(ids(g)).toEqual([]);
+    expect({ ...g.selfFlags }).toEqual({
+      sanctuary: false,
+      poison: false,
+      slept: false,
+      blind: false,
+      bashed: false,
+      snared: false,
+      wound: false,
+      hungry: false,
+      thirsty: true,
+      waiting: false,
+    });
+    expect(g.apply('Group.Update', { id: 1, thirsty: false })).toBe(true);
+    expect(g.selfFlags.thirsty).toBe(false);
+    expect(g.apply('Group.Update', { id: 1, thirsty: false })).toBe(false);
+    expect(g.apply('Group.Update', { id: 1, sanctuary: true, poison: true })).toBe(true);
+    expect(g.selfFlags.sanctuary && g.selfFlags.poison).toBe(true);
+    expect(g.selfBashed).toBe(false);
+  });
+  it('a member with the same flags does not touch yours', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [login, ally(2, 'Bob')]);
+    g.apply('Group.Update', { id: 2, poison: true });
+    expect(g.selfFlags.poison).toBe(false);
+  });
+  it('a Group.Set without you, a remove and a reset clear them', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [login]);
+    expect(g.apply('Group.Set', [])).toBe(true);
+    expect(g.selfFlags.thirsty).toBe(false);
+    g.apply('Group.Set', [login]);
+    expect(g.apply('Group.Remove', 1)).toBe(true);
+    expect(g.selfFlags.thirsty).toBe(false);
+    g.apply('Group.Add', login);
+    g.reset();
+    expect(g.selfFlags.thirsty).toBe(false);
   });
 });
 

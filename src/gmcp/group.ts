@@ -19,8 +19,10 @@
 //   and the tank (the buffer identity, and the member it names, if any),
 //   from `Char.Vitals`. An `opponent` of null or "" ends the fight.
 // - `type: "you"` is never kept as a member (the Character pane covers it);
-//   only its id and its `bashed` flag (`selfBashed`, for the weather
-//   effects' stun, owner item 116) are.
+//   only its id and its status flags are (`selfFlags`, ADR 0166 addendum
+//   18 point 95: MUME sends them all in `Group.Set` at login and the
+//   changes in `Group.Update`). `selfBashed` is its `bashed`, for the
+//   weather effects' stun (owner item 116).
 // - An NPC is a member only with a non-empty string `label` (MUME sends
 //   `label: 0` when unlabeled). Unlabeled NPCs are kept on the side
 //   (`unlabeled()`, shown in npcMode `all`). A `Group.Update` that sets a
@@ -181,16 +183,26 @@ function mergeFields(m: Member, o: Obj, full: boolean): boolean {
       changed = true;
     }
   }
+  if (mergeFlags(m.flags, o, full)) changed = true;
+  return changed;
+}
+
+/** The status flags of `o` into `flags`: all (`full`, absent is false) or those it carries. True when one changed. */
+function mergeFlags(flags: MemberFlags, o: Obj, full: boolean): boolean {
+  let changed = false;
   for (const f of STATUS_FLAGS) {
     if (!full && !has(o, f)) continue;
     const v = o[f] === true;
-    if (m.flags[f] !== v) {
-      m.flags[f] = v;
+    if (flags[f] !== v) {
+      flags[f] = v;
       changed = true;
     }
   }
   return changed;
 }
+
+/** The flags as a short key, to compare. */
+const flagsKey = (flags: MemberFlags): string => STATUS_FLAGS.map((f) => (flags[f] ? 1 : 0)).join('');
 
 /** Fill of one vital (Inv §2.3): value / max, else band midpoint, else null. */
 export function vitalPct(kind: VitalKind, v: Vital): VitalPct {
@@ -250,13 +262,18 @@ export class GroupModel {
   private opponentWord: string | null = null;
   /** Your room (`Room.Info` `id`), or null. */
   private room: number | null = null;
-  /** Your own entry's id (`type: "you"`), and whether you are bashed. */
+  /** Your own entry's id (`type: "you"`), and its status flags. */
   private selfId: number | null = null;
-  private bashed = false;
+  private self: MemberFlags = noFlags();
 
   /** You are bashed (a bash or a trip: no prompt until "Your head stops stinging."). */
   get selfBashed(): boolean {
-    return this.bashed;
+    return this.self.bashed;
+  }
+
+  /** Your own entry's status flags (all false without one). Read-only. */
+  get selfFlags(): Readonly<MemberFlags> {
+    return this.self;
   }
   /** Bumped on every change. */
   version = 0;
@@ -323,7 +340,7 @@ export class GroupModel {
     this.opponentWord = null;
     this.room = null;
     this.selfId = null;
-    this.bashed = false;
+    this.self = noFlags();
     this.version++;
   }
 
@@ -361,13 +378,13 @@ export class GroupModel {
 
   private set(data: unknown): boolean {
     const had = this.members.size + this.side.size;
-    const wasBashed = this.bashed;
+    const wasFlags = flagsKey(this.self);
     this.members.clear();
     this.side.clear();
     this.selfId = null;
-    this.bashed = false;
+    this.self = noFlags();
     if (Array.isArray(data)) for (const m of data) this.add(m);
-    return had > 0 || this.members.size + this.side.size > 0 || this.bashed !== wasBashed;
+    return had > 0 || this.members.size + this.side.size > 0 || flagsKey(this.self) !== wasFlags;
   }
 
   private add(data: unknown): boolean {
@@ -379,7 +396,8 @@ export class GroupModel {
     this.side.delete(id);
     if (type === 'you') {
       this.selfId = id;
-      this.bashed = data.bashed === true;
+      this.self = noFlags();
+      mergeFlags(this.self, data, true);
       return true;
     }
     if (id === this.selfId) this.selfId = null;
@@ -413,11 +431,7 @@ export class GroupModel {
     if (!isObj(data)) return false;
     const id = num(data.id);
     if (id === null) return false;
-    if (id === this.selfId) {
-      if (typeof data.bashed !== 'boolean' || data.bashed === this.bashed) return false;
-      this.bashed = data.bashed;
-      return true;
-    }
+    if (id === this.selfId) return mergeFlags(this.self, data, false);
     const m = this.get(id);
     if (!m) {
       // An update for an id we never saw: take it as an add when it says
@@ -430,7 +444,8 @@ export class GroupModel {
         this.members.delete(id);
         this.side.delete(id);
         this.selfId = id;
-        this.bashed = data.bashed === true;
+        this.self = noFlags();
+        mergeFlags(this.self, data, true);
         return true;
       }
       m.type = data.type;
@@ -466,9 +481,9 @@ export class GroupModel {
     if (id === null && isObj(data)) id = num(data.id);
     if (id === null) return false;
     if (id === this.selfId) {
-      const was = this.bashed;
+      const was = flagsKey(this.self) !== flagsKey(noFlags());
       this.selfId = null;
-      this.bashed = false;
+      this.self = noFlags();
       return was;
     }
     const a = this.members.delete(id);
