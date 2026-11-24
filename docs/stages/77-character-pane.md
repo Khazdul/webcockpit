@@ -2085,3 +2085,8 @@ where the tab buttons can sit, discreet but one with the whole.
 
 Test guide "Part H2", steps 1–5 all ok: "Ser bra ut." The Spells fix and
 the heat cells approved.
+
+### Round 19, the tabs (the owner, 2026-11-24)
+
+G1 (iron sheet) looks best in general, but G3's (dark slate) borders are
+better: sharper and thinner. Round 20: a version that mixes the two.
