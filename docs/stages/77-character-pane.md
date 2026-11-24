@@ -436,21 +436,21 @@ the fight (swords only), a click and GMCP, the hidden answer, `⋯`, `+n`
 and its list, the herblore `+` and ×, the low panes, the phone strip.
 To add (e2e), on a branch by a building agent:
 
-- [ ] G1. Your flags as stones from GMCP: `you` with `poison` gives a
+- [x] G1. Your flags as stones from GMCP: `you` with `poison` gives a
       stone, a `Group.Update` clears it, a member's poison gives none,
       `blind` with the blindness debuff is one stone.
-- [ ] G2. Stones from real game lines (not `debugAdd`): an affect's start
+- [x] G2. Stones from real game lines (not `debugAdd`): an affect's start
       line shows its stone, its end line takes it away.
-- [ ] G3. The Stones switches in the Character gear: Buffs off hides the
+- [x] G3. The Stones switches in the Character gear: Buffs off hides the
       buff stones live, Flags off the flag stone.
-- [ ] G4. The whole click list: each clickable element sends its exact
+- [x] G4. The whole click list: each clickable element sends its exact
       command; berserk has no click.
-- [ ] G5. The poll's events in the browser: a mood change by GMCP and an
+- [x] G5. The poll's events in the browser: a mood change by GMCP and an
       affect line each give a hidden poll after the quiet.
-- [ ] G6. Group without you: `Group.Set` with you and two allies shows
+- [x] G6. Group without you: `Group.Set` with you and two allies shows
       two rows, not you.
-- [ ] G7. The herblore × on touch (phone): the first tap shows ×, the
-      second stops it.
+- [x] G7. The herblore × on touch (phone): the first tap shows ×, the
+      second stops it. **Written as `test.fail`: the first tap stops it today (Part G).**
 - [ ] The full e2e at 5 workers, alone on the machine.
 
 Not added: the 10 s repeat in a browser (slow; unit tests with fake timers
@@ -1327,6 +1327,43 @@ addendum 25 (points 146–157). The normal-size look (F2b) is unchanged.
   compact short forms); e2e `character-card.spec.ts` (a new low-pane test;
   the sweep and the cross test know the low panes),
   `phone-character-card.spec.ts` (a low strip).
+
+## Part G: what was built (2026-11-24)
+
+The e2e of the reconciled G list; tests only, no app change.
+
+- `character-card.spec.ts` (the mocked socket):
+  - **G1** your `poison` from `Group.Set` is one untimed debuff-tone stone
+    (`flag:poison`), a member's poison and blind give none, `Group.Update`
+    clears it; `blind` is `flag:blind` until MUME's `You have been
+    blinded!`, then one timed stone, `affect:blindness`.
+  - **G2** the Orkish draught's start line gives a timed buff stone, its
+    end line takes it away. (A `spell` affect, such as strength, is no
+    stone: only Buffs, Debuffs, Herblores and your sanctuary are.)
+  - **G3** the gear (opened by its button): Buffs off hides the two buff
+    stones live and on shows them, Flags off hides the poison stone.
+  - **G4** each click and its command: mood, casts and alertness one step
+    and around their cycles, sneak, climb, swim, ride then lead, position
+    rest/stand/wake/stand; berserk and a fight send nothing.
+  - **G5** after the login poll's answer, a mood change in `Char.Vitals`
+    and the draught's start line each give one hidden poll after the
+    quiet, and no second one.
+- `group-pane.spec.ts` **G6**: `Group.Set` with you and two allies, two
+  rows (Gibur, Taube), no Rasta.
+- `phone-character-card.spec.ts` **G7**, written as approved and marked
+  `test.fail`: on touch **the first tap already stops the herblore**.
+  The tap's pointerdown lands on the stone's face; the tap gives the
+  stone `:hover`, which shows the × (`display: grid` only on hover), and
+  the click that follows hits the ×. In Playwright's Pixel 7 (Chromium);
+  a real phone is likely the same. For the owner: a two-tap × needs app
+  code (e.g. a tapped stone that arms its × on touch).
+- Found on the way: the width commands sent on entering the game count
+  as a burst, so until the player's first command the events' polls wait
+  10 s after login rather than 1 s (ADR 0166 addendum 21). Harmless; G5
+  sends a typed `look` first.
+- Runs: the three files 3 × on their projects (chromium and Firefox 198,
+  phone 15, G7 the expected failure each time), typecheck, vitest
+  (6064 passed).
 
 ## Open points
 
