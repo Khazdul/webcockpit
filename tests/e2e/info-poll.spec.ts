@@ -116,3 +116,53 @@ test('the Character gear has the switch', async ({ page }) => {
   await pop.locator('[aria-label="Fetch Stats and Lore from the game"]').click();
   await expect.poll(on).toBe(false);
 });
+
+test('the Character gear has the repeat and the event switches (stage 77 F1)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?replay');
+  await expect(field(page)).toBeFocused();
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { character: { on: true } } }));
+  const pane = page.locator('.wc-pane-character');
+  await pane.hover();
+  await pane.locator('> .wc-pane-btn-gear').click();
+  const pop = page.locator('.wc-sp-gear-character');
+  const character = () => page.evaluate(() => window.__wc!.settings.get().character);
+  expect((await character()).pollEvery).toBe(20);
+  await pop.locator('[aria-label="Fetch every"] [data-value="30"]').click();
+  await expect.poll(async () => (await character()).pollEvery).toBe(30);
+  for (const label of ['Mood changes', 'Wear or remove', 'Affects start or end', 'Herblore started']) {
+    await expect(pop.locator(`[aria-label="${label}"]`)).toBeVisible();
+  }
+  await pop.locator('[aria-label="Wear or remove"]').click();
+  await expect.poll(async () => (await character()).pollOn).toEqual({ mood: true, equipment: false, affects: true, herblore: true });
+});
+
+test("a typed stat updates the card's shields and shows; a wear line polls", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const m = await login(page);
+  await expect.poll(() => polls(m).length, { timeout: 10_000 }).toBe(1);
+  play(m, answerPulse(pollNonce(polls(m)[0]!)!));
+  await expectWimpy(page, 120);
+  const card = page.locator('.wc-pane-character .wc-cc');
+  await card.locator('.wc-cc-tab[data-tab="stats"]').click();
+  const shield = (key: string) => card.locator(`.wc-cc-shield[data-key="${key}"] .wc-cc-sv`);
+  await expect(shield('ob')).toHaveText('81');
+  await field(page).focus();
+  await page.keyboard.type('stat');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => m.sent[0]).toContain('stat');
+  const G = (n: number): string => `\x1b[32m${n}\x1b[0m`;
+  play(
+    m,
+    `OB: ${G(50)}%, DB: ${G(18)}%, PB: ${G(60)}%, Armour: ${G(38)}%. Wimpy: ${G(204)}. Mood: wimpy.\r\n` +
+      `Needed: ${G(159510)} xp, ${G(0)} tp. Gold: ${G(82)}. Alert: normal.\r\n\r\n${PROMPT}`,
+  );
+  await expect(rows(page).filter({ hasText: 'Alert: normal.' })).toHaveCount(1);
+  await expect(shield('ob')).toHaveText('50');
+  await expect(shield('pb')).toHaveText('60');
+  await expectWimpy(page, 204);
+  expect(polls(m)).toHaveLength(1);
+  // MUME's own line for a wear: a poll once the quiet after the command is over.
+  play(m, `You wear a black pair of padded boots on your feet.\r\n\r\n${PROMPT}`);
+  await expect.poll(() => polls(m).length, { timeout: 15_000 }).toBe(2);
+});
