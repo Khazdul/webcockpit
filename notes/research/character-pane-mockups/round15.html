@@ -393,6 +393,8 @@ details.more summary { cursor: pointer; color: var(--lamp); font-weight: 600; }
 .cmp .l2 { display: flex; gap: 6px; align-items: flex-start; }
 .cmp .l2 .icrow { position: static; display: flex; gap: 3px; flex: none; }
 .cmp .srow .sr b { font-size: var(--vf); }
+.cmp .srow .sr { padding: 0 2px; }
+.cmp .lt { font-style: normal; color: var(--lamp); margin-right: 3px; }
 .chip .ti { flex: none; stroke: var(--lamp); }
 .vit3.tiny .b > .lab { font-size: 9.5px; padding: 0 5px; } .vit3.tiny .b > .lab .k2 { font-size: 7.5px; }
 /* round 14 */
@@ -476,7 +478,7 @@ details.more summary { cursor: pointer; color: var(--lamp); font-weight: 600; }
   <section>
     <div class="sec-head"><span class="eyebrow">3 · Låga fönster</span><h2>Steg för steg, sedan kompakt</h2>
       <p>Så länge porträttet blir minst 44 px används stegen med porträtt, och det första steget som får plats väljs. <b>0 hel</b>: som ovan. <b>1 mindre sköldar</b>: stenarna på en rad, och sköldarna ner till 22 px (ikonen faller bort under 30 px). <b>2 status på en rad</b>: etiketten bredvid värdet om den ryms, annars bara värdet. <b>3 sköldbrickor</b>: sköldarna blir små brickor. <b>4 minimal</b>: statusvärdena utan celler.</p>
-      <p><b>Kompakt</b> (nytt): när porträttet skulle bli mindre än 44 px försvinner det, och ringen och namnet försvinner med det. Hela bredden används. Den översta raden har Mood, Casts, Alertness och Weight på vänstra halvan, kortat efter platsen (<code>M: agg.</code>, <code>M:agg</code>, <code>M:A</code>), och sköldarna som ikon och värde på högra halvan. Den andra raden har de fem ikonerna, stenarna och börsen till höger. Är det trångt blir cellerna platta och stenarna mindre (”minst”). Flikarna finns bara när panen är minst 80 px hög inuti. Dra panen högre för att få dem. Staplarna blir 10 px under 90 px.</p></div>
+      <p><b>Kompakt</b> (nytt): när porträttet skulle bli mindre än 44 px försvinner det, och ringen och namnet försvinner med det. Hela bredden används. Den översta raden har Mood, Casts, Alertness och Weight på vänstra delen (55 %), utan stegmätare, med bokstaven i sköldikonernas färg och värdet kortat efter platsen (hela ordet om det ryms, annars fyra tecken: <code>M aggressive</code> → <code>M aggr</code>, <code>C norm</code>), och sköldarna som ikon och värde på högra delen. Den andra raden har de fem ikonerna, stenarna och börsen till höger. Är det trångt blir cellerna platta och stenarna mindre (”minst”). Flikarna finns bara när panen är minst 80 px hög inuti. Dra panen högre för att få dem. Staplarna blir 10 px under 90 px.</p></div>
     <div class="ctlbar">
       <div class="ctl">Ikonerna i kompakt <span class="seg" data-ctl="cicons"><button data-v="on">först i stenraden</button><button data-v="off">dolda</button></span></div>
     </div>
@@ -1049,22 +1051,22 @@ function ringHtml(o, L, z, F) {
 const LET = { mood: 'M', casts: 'C', alert: 'A', weight: 'W' };
 const CODE = { wimpy: 'W', prudent: 'P', normal: 'N', brave: 'B', aggressive: 'A', berserk: 'Bz', quick: 'Q', fast: 'F', careful: 'C', thorough: 'T',
   attentive: 'At', vigilant: 'V', paranoid: 'P', peanuts: 'P', uncomfortable: 'U', heavy: 'H', 'really heavy': 'RH', painful: 'Pa', torture: 'T' };
-function shortStat(k, cur, n) {
-  if (n - 3 >= 3) return `${LET[k]}: ${shortV(cur, n - 3)}`;
-  if (n - 2 >= 3) return `${LET[k]}:${shortV(cur, n - 2)}`;
-  return `${LET[k]}:${CODE[cur]}`;
+// The value cut without a dot: aggressive -> aggr, normal -> norm; the letter in the shields' icon colour.
+function cutV(w, n) {
+  if (w.length <= n) return w;
+  if (w === 'really heavy') return n >= 8 ? 'r. heavy' : n >= 4 ? 'r.hv' : 'RH';
+  return n >= 4 ? w.slice(0, 4) : n >= 2 ? w.slice(0, n) : CODE[w];
 }
 function compact(o, W, H, z, F) {
   const big = H >= 18 + 3 + z.s + 3, s = big ? z.s : 10, g = big ? 3 : 2, h1 = big ? 18 : 13;
   const vf = big ? Math.min(z.vf, 10) : 9, chw = vf * 0.6;
-  const wl = Math.floor((W - 8) / 2), wr = W - 8 - wl, gap = 3, cw = (wl - 3 * gap) / 4;
-  const n = Math.floor((cw - 4 - 5) / chw);
+  const wl = Math.floor((W - 8) * 0.55), wr = W - 8 - wl, gap = 2, cw = (wl - 3 * gap) / 4;
+  const n = Math.floor((cw - 4 - chw - 2) / chw);
   const cells = ['mood', 'casts', 'alert', 'weight'].map((k) => {
-    const S = STEPS[k], cur = o[k], idx = S.steps.indexOf(cur), ro = k === 'weight';
-    const mt = `<span class="mt">${S.steps.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</span>`;
-    return `<button class="sr${ro ? ' ro' : ''}"${ro ? '' : ` data-step="${k}"`} data-tip="${esc(stepTip(k, cur))}"><b>${shortStat(k, cur, n)}</b>${mt}</button>`;
+    const cur = o[k], ro = k === 'weight';
+    return `<button class="sr${ro ? ' ro' : ''}"${ro ? '' : ` data-step="${k}"`} data-tip="${esc(stepTip(k, cur))}"><b><i class="lt">${LET[k]}</i>${cutV(cur, n)}</b></button>`;
   }).join('');
-  const sr = `<div class="srow ${big ? 'sv-cells' : 'sv-plain'} one nolab hasm" data-flip="srow" style="height:${h1}px;gap:${gap}px;--vf:${vf}px;width:${wl}px">${cells}</div>`;
+  const sr = `<div class="srow ${big ? 'sv-cells' : 'sv-plain'} one nolab" data-flip="srow" style="height:${h1}px;gap:${gap}px;--vf:${vf}px;width:${wl}px">${cells}</div>`;
   const is = big ? 11 : 10;
   const sh = SHL.map(([k, l, t]) => `<div class="chip" data-tip="${esc(`${l} ${D.sh[k]}\n${t}\nFrom the info poll.`)}">${svg(k, 'ti', `width:${is}px;height:${is}px`)}<b style="font-size:${vf}px">${D.sh[k]}</b></div>`).join('');
   const ch = `<div class="chips${big ? ' c-chips' : ''}" data-flip="chips" style="height:${h1}px;width:${wr}px">${sh}</div>`;

@@ -569,7 +569,11 @@ Round 14 (`round14.html`) mocks this. The owner's answers:
 
 Round 15 (`round15.html`) mocks this. The icons and stones (with the purse)
 form line 2; the portrait steps go down to a 44 px portrait, then the
-compact card, down to about 72 px. Waiting for the owner's look.
+compact card, down to about 72 px. The owner after round 15: the icons
+stay in the compact card; the letters M, C, A, W in the shields' icon
+colour; no step meter in the compact card, so the value gets a character
+more (`aggr`, `norm`). Round 15 version 2 does this: the status takes 55 %
+of line 1, the whole word when it fits, else four characters.
 
 ## Part A: findings
 
