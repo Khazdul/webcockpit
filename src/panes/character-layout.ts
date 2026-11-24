@@ -78,9 +78,26 @@ const BAR_CAPS: readonly (readonly [number, number])[] = [
   [122, 14],
 ];
 
-/** The vitals' bar height at most for a content box `h` px high. */
+/** From each of `BAR_CAPS`' heights the cap grows by this per px (ADR 0166 addendum 29). */
+const BAR_RAMP = 0.5;
+
+/**
+ * The vitals' bar height at most for a content box `h` px high. From each
+ * threshold the cap grows in (half a px per px) instead of at once, so a
+ * growing pane never loses content height to its bars (a 6 px step at 122
+ * px cost a step of the status area).
+ */
 export function barCap(h: number): number {
-  for (const [below, cap] of BAR_CAPS) if (h < below) return cap;
+  const [first, ...rest] = BAR_CAPS;
+  if (h < first![0]) return first![1];
+  let at = first![0];
+  let cap = first![1];
+  for (const [below, next] of [...rest, [Infinity, 34] as const]) {
+    // Between `at` and `below` the cap grows from the one under `at` to this one's.
+    if (h < below) return Math.min(next, Math.floor(cap + (h - at) * BAR_RAMP));
+    at = below;
+    cap = next;
+  }
   return 34;
 }
 
@@ -330,12 +347,23 @@ export function cardMode(w: number, h: number, lock: CharacterHeight): CardMode 
 /** The least scale a low box gives (ADR 0166 addendum 25): below it the steps simplify instead. */
 const LOW_SCALE = 0.85;
 
-/** The box each mode's chrome is drawn for at scale 1. */
-const DRAWN_FOR: Readonly<Record<CardMode, { w: number; h: number }>> = {
-  large: { w: 420, h: 164 },
-  medium: { w: 270, h: 124 },
-  small: { w: 170, h: 64 },
-};
+/**
+ * The box the chrome is drawn for at scale 1, for every mode (ADR 0166
+ * addendum 29): one scale, so a growing pane never gets smaller words. Each
+ * mode had its own before (Medium 270 × 124, Large 420 × 164), and the
+ * scale fell where a pane grew into the next mode (Medium from 106 px high
+ * at 0.855 after Small's 1.0 and more). The modes keep their own sizes.
+ */
+const DRAWN_FOR = { w: 170, h: 64 } as const;
+
+/**
+ * The chrome's scale for the box: the player's font, limited by the box,
+ * a low one only down to `LOW_SCALE` (the steps and the compact card take
+ * the height). Never smaller in a larger box, whatever the mode.
+ */
+export function cardScale(w: number, h: number, px: number): number {
+  return clamp(Math.min(clamp(px / 15, 0.8, 1.8), w / DRAWN_FOR.w, Math.max(h / DRAWN_FOR.h, LOW_SCALE)), 0.6, 1.8);
+}
 
 /**
  * Each mode's sizes at scale 1 (the mockups' `SZ`): the five icons, a stone,
@@ -356,10 +384,7 @@ const iconFor = (wide: number, gap: number): number => (wide - 5 * gap - 1) / 5 
 export function cardLayout(b: CardBox): CardLayout {
   const { w, h } = b;
   const mode = cardMode(w, h, b.lock);
-  const design = DRAWN_FOR[mode];
-  // The player's font sets the scale, the box limits it; a low box only down
-  // to `LOW_SCALE`, as the steps and the compact card take the height.
-  const k = clamp(Math.min(clamp(b.px / 15, 0.8, 1.8), w / design.w, Math.max(h / design.h, LOW_SCALE)), 0.6, 1.8);
+  const k = cardScale(w, h, b.px);
   const cellW = b.px * b.adv;
   const pad = Math.min(cellW * 0.4, w * 0.03);
 

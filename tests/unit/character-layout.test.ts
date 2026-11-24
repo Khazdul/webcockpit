@@ -18,6 +18,7 @@ import {
   barCap,
   cardLayout,
   cardMode,
+  cardScale,
   crossDepth,
   shieldSize,
 } from '../../src/panes/character-layout';
@@ -208,14 +209,60 @@ describe('the status area, step 0 (ADR 0166 points 86, 120–122)', () => {
         let last = 5;
         for (let h = 30; h <= 220; h++) {
           const l = cardLayout(box({ w, h, px: 16.61, lock, stones: 8, add: true, cross: 8 }));
-          // The box's scale changes at Medium's and Large's least boxes (cardMode).
-          if (lock === 'auto' && (h === MEDIUM_MIN.h || h === LARGE_MIN.h)) last = 5;
+          // Large's own sizes come at its least box (cardMode); the scale is one (H2).
+          if (lock === 'auto' && h === LARGE_MIN.h) last = 5;
           expect(order(l.step), `${lock} ${w}x${h}`).toBeLessThanOrEqual(last);
           last = order(l.step);
         }
-        expect(last, `${lock} ${w}`).toBe(0);
+        // Large's sizes at the font's scale leave a 330 px pane no portrait (one scale, ADR 0166 addendum 29).
+        expect(last, `${lock} ${w}`).toBe(lock === 'large' && w === 330 ? 5 : 0);
       }
     }
+  });
+});
+
+describe('one scale (H2, ADR 0166 points 157 and 169)', () => {
+  const fonts = [9, 12, 14.95, 16.61, 20, 24, 32];
+  it('a taller pane never has a smaller scale: across Small, Medium and Large', () => {
+    for (const lock of ['auto', 'medium', 'large'] as const) {
+      for (const px of fonts) {
+        for (const w of [120, 200, 230, 279, 330, 420, 520, 900]) {
+          let last = cardLayout(box({ w, h: 20, px, lock }));
+          for (let h = 21; h <= 300; h++) {
+            const l = cardLayout(box({ w, h, px, lock }));
+            expect(l.scale, `${lock} ${px} ${w}x${h}`).toBeGreaterThanOrEqual(last.scale);
+            last = l;
+          }
+        }
+      }
+    }
+  });
+
+  it('a wider pane never has a smaller scale', () => {
+    for (const lock of ['auto', 'medium', 'large'] as const) {
+      for (const px of fonts) {
+        for (const h of [40, 80, 105, 106, 120, 159, 160, 200]) {
+          let last = 0;
+          for (let w = 60; w <= 900; w += 3) {
+            const k = cardLayout(box({ w, h, px, lock })).scale;
+            expect(k, `${lock} ${px} ${w}x${h}`).toBeGreaterThanOrEqual(last);
+            last = k;
+          }
+        }
+      }
+    }
+  });
+
+  it('Medium at its least box keeps the scale Small had just below it (point 157)', () => {
+    for (const px of fonts) {
+      for (const w of [230, 330, 520]) {
+        const small = cardLayout(box({ w, h: MEDIUM_MIN.h - 1, px }));
+        const medium = cardLayout(box({ w, h: MEDIUM_MIN.h, px }));
+        expect([small.mode, medium.mode]).toEqual(['small', 'medium']);
+        expect(medium.scale, `${px} ${w}`).toBeGreaterThanOrEqual(small.scale);
+      }
+    }
+    expect(cardScale(330, MEDIUM_MIN.h, 15)).toBe(1);
   });
 });
 
@@ -237,7 +284,9 @@ describe('low panes (F2c, ADR 0166 points 124–126)', () => {
   });
 
   it('the vitals: 14 px under a 122 px box, 12 under 82, 10 under 62 (the mockups’ 150, 110, 90 less their padding)', () => {
-    expect([200, 122, 121, 82, 81, 62, 61, 40].map(barCap)).toEqual([34, 34, 14, 14, 12, 12, 10, 10]);
+    expect([200, 122, 121, 82, 81, 62, 61, 40].map(barCap)).toEqual([34, 14, 14, 12, 12, 10, 10, 10]);
+    // From each height the cap grows in, half a px per px: a growing pane never loses height to its bars.
+    expect([62, 63, 64, 66, 82, 84, 122, 126, 162].map(barCap)).toEqual([10, 10, 11, 12, 12, 13, 14, 16, 34]);
     const bar = (h: number): number => cardLayout(box({ w: 330, h, px: 16.61 })).foot.bar;
     expect(bar(162)).toBe(20);
     expect(bar(108)).toBe(14);
@@ -259,7 +308,7 @@ describe('low panes (F2c, ADR 0166 points 124–126)', () => {
       }
       if (order.at(-1) !== l.step) order.push(l.step);
     }
-    expect(order).toEqual(['compact', 2, 1, 0]);
+    expect(order).toEqual(['compact', 3, 2, 1, 0]);
   });
 
   it('the compact card: line 1 the status and the shields, line 2 the icons and the stones (18 px cells while both fit)', () => {
