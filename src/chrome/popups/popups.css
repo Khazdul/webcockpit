@@ -42,6 +42,25 @@
   width: 25em;
 }
 
+/* The Character gear's rows wrap: a control that does not fit beside its
+ * label goes under it, at the right, so nothing scrolls sideways (a short
+ * window's scroll bar takes width too; stage 77 F1b). */
+.wc-sp-character > .wc-ck-row {
+  flex-wrap: wrap;
+  row-gap: 0.3em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
+}
+
+.wc-sp-character > .wc-ck-row > .wc-ck-l {
+  flex: 1 1 9em;
+}
+
+.wc-sp-character > .wc-ck-row > .wc-ck-ctl {
+  margin-left: auto;
+  max-width: 100%;
+}
+
 .wc-sp-gear-timers {
   width: 34em;
 }
