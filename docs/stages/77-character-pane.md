@@ -1834,3 +1834,13 @@ untapped × goes after 3 s (G7c).
 Steps 1–5 of the test guide "Part G7c" work on the phone. It feels like
 the card's stones, and the charm × hidden on a phone until a tap is right
 ("ja på båda"). G7c approved.
+
+### H (2026-11-24)
+
+The H list: 1A, 2A, 3A, 4A, 5A, 6B ("Byt namn till Spells. Herblores,
+buffs och debuffs finns kvar men blir togglade off som default"), 7A, and
+8: five icon proposals for each stone, from every log at hand, a generic
+stone for the rest. Round 16 (`round16.html`): **variant C, heat** ("C
+värme är bra"): colour by step from calm to hot on the value, a fill
+track at the cell's foot and a slight warming of the ground; a small
+corner mark on the clickable cells. To build after H1–H4, H6.
