@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { GameState } from '../../src/gmcp/state';
 import { CharacterPane } from '../../src/panes/character';
@@ -298,6 +298,124 @@ describe('panes on the context', () => {
     expect(p.content.querySelector<HTMLElement>('.wc-tm-add')!.hidden).toBe(true);
     expect(p.content.querySelector('.wc-tm-x')).toBeNull();
     p.dispose();
+  });
+
+  describe('Timers: the herblore and charm × on touch (G7c, ADR 0166 point 163)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      document.body.innerHTML = '';
+    });
+    /** A tap or a mouse press: the pointer's events, then the (emulated) mousedown. */
+    const press = (t: ReturnType<typeof setup>, e: Element, pointerType: 'touch' | 'mouse' | 'pen'): void => {
+      for (const type of ['pointerover', 'pointerdown', 'pointerup']) e.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType }));
+      e.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+      t.flush();
+    };
+    const touchSetup = () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1_790_000_000_000);
+      const t = setup();
+      const p = new TimersPane(t.ctx);
+      document.body.append(p.el);
+      place(p, 40, 8);
+      const now = Date.now();
+      t.game.timers.debugAdd({ id: 'troll', name: 'troll', group: 'charm', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true });
+      t.game.timers.debugAdd({ id: 'armour', name: 'armour', group: 'spell', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true });
+      t.game.timers.addHerb('Healing');
+      t.flush();
+      const row = (sel: string): HTMLElement => p.content.querySelector<HTMLElement>(`.wc-tm-items > ${sel}`)!;
+      const herb = (): HTMLElement => row('.has-herbx');
+      const charm = (): HTMLElement | null => p.content.querySelector<HTMLElement>('.wc-tm-items > [data-id="troll"]');
+      const herbOn = (): boolean | undefined => t.game.timers.view(Date.now()).herbs.find((h) => h.key === 'Healing')?.active;
+      const wait = (ms: number): void => {
+        vi.advanceTimersByTime(ms);
+        t.flush();
+      };
+      expect(herbOn()).toBe(true);
+      expect(charm()).not.toBeNull();
+      return { t, p, herb, charm, herbOn, wait };
+    };
+
+    it('herblore: the first tap shows the × and stops nothing, even on the ×; a tap on the shown row stops', () => {
+      const { t, p, herb, herbOn } = touchSetup();
+      press(t, herb().querySelector('.wc-tm-x')!, 'touch');
+      expect(herbOn()).toBe(true);
+      expect(herb().hasAttribute('data-armed')).toBe(true);
+      expect(p.content.querySelector('.wc-tm')!.hasAttribute('data-touch')).toBe(true);
+      press(t, herb().querySelector('.wc-tm-x')!, 'touch');
+      expect(herbOn()).toBe(false);
+      expect(p.armedId).toBeNull();
+      p.dispose();
+    });
+
+    it('charm: the first tap shows the ×, the second forgets the charmie; a pen counts as touch', () => {
+      const { t, p, charm } = touchSetup();
+      press(t, charm()!.querySelector('.wc-tm-n')!, 'pen');
+      expect(charm()!.hasAttribute('data-armed')).toBe(true);
+      expect(t.game.timers.view(Date.now()).cells.charm).toHaveLength(1);
+      press(t, charm()!.querySelector('.wc-tm-x')!, 'pen');
+      expect(charm()).toBeNull();
+      expect(t.game.timers.view(Date.now()).cells.charm).toHaveLength(0);
+      p.dispose();
+    });
+
+    it('an untapped × goes after 3 s, on the pane\'s own tick; then a tap arms again', () => {
+      const { t, p, herb, charm, herbOn, wait } = touchSetup();
+      // The tooltip's show delay starts on the pointer's over: counted first.
+      charm()!.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'touch' }));
+      const timers = vi.getTimerCount();
+      press(t, charm()!, 'touch');
+      expect(p.armedId).toBe('troll');
+      // No timer of its own: the pane's one tick is all there is.
+      expect(vi.getTimerCount()).toBe(timers);
+      wait(2900);
+      expect(charm()!.hasAttribute('data-armed')).toBe(true);
+      wait(1200);
+      expect(charm()!.hasAttribute('data-armed')).toBe(false);
+      expect(p.armedId).toBeNull();
+      expect(charm()).not.toBeNull();
+      press(t, charm()!.querySelector('.wc-tm-x')!, 'touch');
+      expect(charm()!.hasAttribute('data-armed')).toBe(true);
+      // Another row's tap moves the arming; a tap elsewhere hides it.
+      press(t, herb(), 'touch');
+      expect(p.armedId).toBe(herb().dataset.id);
+      expect(charm()!.hasAttribute('data-armed')).toBe(false);
+      press(t, p.content.querySelector('.wc-tm-items > [data-id="armour"]')!, 'touch');
+      expect(p.armedId).toBeNull();
+      expect(herbOn()).toBe(true);
+      expect(charm()).not.toBeNull();
+      p.dispose();
+    });
+
+    it('the mouse is unchanged: one press on the × removes, no arming', () => {
+      const { t, p, herb, charm, herbOn } = touchSetup();
+      press(t, charm()!.querySelector('.wc-tm-x')!, 'mouse');
+      expect(charm()).toBeNull();
+      expect(p.content.querySelector('.wc-tm')!.hasAttribute('data-touch')).toBe(false);
+      press(t, herb().querySelector('.wc-tm-x')!, 'mouse');
+      expect(herbOn()).toBe(false);
+      expect(p.armedId).toBeNull();
+      p.dispose();
+    });
+
+    it('a mouse after a touch: the mouse\'s press removes at once', () => {
+      const { t, p, herb, herbOn } = touchSetup();
+      press(t, herb(), 'touch');
+      expect(p.armedId).not.toBeNull();
+      const x = herb().querySelector('.wc-tm-x')!;
+      press(t, x, 'mouse');
+      expect(herbOn()).toBe(false);
+      p.dispose();
+    });
+
+    it('a row that goes takes the arming with it', () => {
+      const { t, p, charm } = touchSetup();
+      press(t, charm()!, 'touch');
+      t.game.timers.dropCharm('troll');
+      t.flush();
+      expect(p.armedId).toBeNull();
+      p.dispose();
+    });
   });
 
   it('keeps the last picture after a replay ends until the next connection', () => {

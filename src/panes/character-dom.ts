@@ -26,7 +26,7 @@ import {
   type VitalView,
 } from './character-model';
 import { type Purse, type Stone, type StoneRows, type StoneTone, purseTip, stoneTime, stoneTip } from './character-stones';
-import { el, setAttr, setHidden, setProp, setText } from './dom';
+import { el, isTouchType, setAttr, setHidden, setProp, setText } from './dom';
 import { type IconName, SVG_NS, iconSvg, setIconSvg } from './icons';
 import { setLiveTip, setTip } from './pane-tooltip';
 import { PopupMenu } from './popup-menu';
@@ -833,7 +833,7 @@ export class CardDom {
       const type = down || (e as Partial<PointerEvent>).pointerType || '';
       down = '';
       const t = e.target as HTMLElement | null;
-      if (type !== '' && type !== 'mouse') {
+      if (isTouchType(type)) {
         const st = typeof t?.closest === 'function' ? t.closest<HTMLElement>('.wc-cc-st') : null;
         const x = st?.dataset.k === 'stone' ? st.querySelector<HTMLElement>('.wc-cc-stx') : null;
         if (st && x && !x.hidden && x.dataset.key) {

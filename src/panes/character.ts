@@ -63,6 +63,7 @@ import {
 import { CardDom, StoneList } from './character-dom';
 import { type StoneView, stoneView } from './character-stones';
 import type { PaneContext } from './context';
+import { ARMED_MS } from './dom';
 import { groupVitals } from './group-model';
 import { signalColors } from './palette';
 import { type PaneCell, type PanePlacement, PaneShell } from './pane';
@@ -80,8 +81,8 @@ const MORE_ARROW_CHARS = 2;
 /** After the moment a timer waits for. */
 const WAKE_LAG_MS = 5;
 
-/** How long a tapped herblore stone's × stays, untapped (touch, ADR 0166 point 158). */
-export const ARMED_MS = 3000;
+/** How long a tapped herblore stone's × stays, untapped (touch, ADR 0166 point 158; in dom.ts, shared with Timers). */
+export { ARMED_MS };
 
 /** The parts that are written one by one. */
 type Part = 'layout' | 'theme' | 'tones' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'shields' | 'stones' | 'armed' | 'purse' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;

@@ -37,6 +37,14 @@
 //   on hover (in place of its time) that stops it. In a log player
 //   (`ctx.player`, ADR 0021) the pane is read-only: no `+`, no herb ×, no
 //   charm ×.
+// - Touch (ADR 0166 addendum 27, by the pointer's type; a pen is touch):
+//   the herblore × and the charm × are not shown on a tap's :hover
+//   (`data-touch` on the root); the first tap on such a row shows its ×
+//   (`data-armed`) and removes nothing, a tap on the armed row removes, an
+//   untapped × goes after `ARMED_MS` on the pane's own 1 Hz tick. The
+//   removals stay on `mousedown` (a tap's emulated one), which reads the
+//   pointer type recorded on the `pointerdown` before it. The mouse is
+//   unchanged.
 // - The list scrolls natively by pixels (wheel, touchpad; ADR 0052). When it
 //   overflows, the last pane row is an indicator: `↑ N timers above` once
 //   scrolled at all (timers partly above count; click → top), else
@@ -49,7 +57,7 @@ import type { TimersSettings } from '../settings/types';
 import type { HerbEntry } from '../timers/entry';
 import { forwardWheel } from './anchored-list';
 import type { PaneContext } from './context';
-import { SecondTick, setAttr, setClass, setHidden, setProp, setText } from './dom';
+import { ARMED_MS, SecondTick, isTouchType, setAttr, setClass, setHidden, setProp, setText } from './dom';
 import { iconSvg, ringDash, ringSvg, setIconSvg } from './icons';
 import { signalColors } from './palette';
 import { PaneShell } from './pane';
@@ -125,7 +133,9 @@ class ItemEl {
     }
   }
 
-  update(t: TimerItem): void {
+  update(t: TimerItem, armed: string | null): void {
+    // A tapped row shows its × (touch; never in a player: no × there).
+    if (this.xEl) setAttr(this.el, 'data-armed', armed === this.id ? '' : null);
     const base = this.style === 'bars' ? 'wc-tm-chip' : 'wc-tm-rc';
     setClass(this.el, `${base} is-${t.kind}${t.ending ? ` is-${t.ending}` : ''}${this.remove === 'herb' ? ' has-herbx' : ''}`);
     if (this.xEl && t.herbKey) setAttr(this.xEl, 'data-key', t.herbKey);
@@ -204,7 +214,9 @@ class GroupEl {
     return this.addEl;
   }
 
-  update(g: TimerGroupView, s: TimersSettings, first: boolean, readOnly: boolean, menuOpen: boolean): void {
+  /** Updates the group; true when the armed id (touch) is one of its rows with an ×. */
+  update(g: TimerGroupView, s: TimersSettings, first: boolean, readOnly: boolean, menuOpen: boolean, armed: string | null): boolean {
+    let armedHere = false;
     setClass(this.el, `wc-tm-g${first ? ' is-first' : ''}`);
     setProp(this.el, '--c', g.color);
     setHidden(this.head, !s.headers && !g.pinnedHeader);
@@ -229,7 +241,8 @@ class GroupEl {
         it = new ItemEl(this.doc, s.style, t.id, remove);
         this.items.set(t.id, it);
       }
-      it.update(t);
+      it.update(t, armed);
+      if (remove && t.id === armed) armedHere = true;
       if (this.itemsEl.children[i] !== it.el) this.itemsEl.insertBefore(it.el, this.itemsEl.children[i] ?? null);
     });
     for (const [id, it] of this.items) {
@@ -237,6 +250,7 @@ class GroupEl {
       it.el.remove();
       this.items.delete(id);
     }
+    return armedHere;
   }
 }
 
@@ -327,6 +341,10 @@ export class TimersPane extends PaneShell {
   private moreKey = '';
   /** A scroll's indicator update, once a frame. */
   private scrollFrame: number | null = null;
+  /** The row whose × a tap showed (touch), and when it goes by itself. */
+  private armed: { id: string; until: number } | null = null;
+  /** The pointer type of the press under way ('' without one: a script). */
+  private down = '';
 
   constructor(ctx: PaneContext) {
     super(ctx, 'timers');
@@ -363,10 +381,17 @@ export class TimersPane extends PaneShell {
         (next, prev) => (next.timers !== prev.timers || next.appearance !== prev.appearance || next.panes !== prev.panes) && this.markDirty(),
       ),
     );
+    // A device without hover (a phone) starts as touch, so the charm × is
+    // not shown before the first tap; the pointer corrects it from then on.
+    if (doc.defaultView?.matchMedia?.('(hover: none)').matches) this.root.setAttribute('data-touch', '');
+    this.root.addEventListener('pointerover', this.onPointer);
+    this.root.addEventListener('pointerdown', this.onPointer);
     this.root.addEventListener('mousedown', this.onDown);
     this.scroller.addEventListener('scroll', this.onScroll, { passive: true });
     this.own(forwardWheel(this.el, () => this.scroller, () => ctx.cells.get().h));
     this.own(() => {
+      this.root.removeEventListener('pointerover', this.onPointer);
+      this.root.removeEventListener('pointerdown', this.onPointer);
       this.root.removeEventListener('mousedown', this.onDown);
       this.scroller.removeEventListener('scroll', this.onScroll);
       this.tick.stop();
@@ -385,6 +410,11 @@ export class TimersPane extends PaneShell {
     return this.menu.el;
   }
 
+  /** The id of the row whose × a tap showed, or null (tests). */
+  get armedId(): string | null {
+    return this.armed?.id ?? null;
+  }
+
   /** The scroller (tests). */
   get scrollEl(): HTMLDivElement {
     return this.scroller;
@@ -393,12 +423,14 @@ export class TimersPane extends PaneShell {
   protected override onActiveChange(active: boolean): void {
     if (active) return;
     this.menu.hide();
+    this.armed = null;
     this.toTop = true;
     this.tick.stop();
   }
 
   protected override blank(): void {
     this.menu.hide();
+    this.armed = null;
     this.content.replaceChildren();
     this.listEl.replaceChildren();
     this.groups.clear();
@@ -438,7 +470,11 @@ export class TimersPane extends PaneShell {
       charW,
     });
     const timed = timersTimed(groups);
-    this.renderGroups(groups, s.timers, ro);
+    // A tapped row's × goes after `ARMED_MS`, on this tick (no timer of its own).
+    if (this.armed && (ro || now >= this.armed.until)) this.armed = null;
+    // A row that went (stopped, forgotten, its group off) takes the arming
+    // with it (no row is marked for an id that has none).
+    if (!this.renderGroups(groups, s.timers, ro)) this.armed = null;
     // The menu goes with its `+` (Herblore off, a player) and follows the catalogue.
     const herbGroup = this.groups.get('herb');
     if (this.menu.open && (ro || !herbGroup?.addButton || herbGroup.addButton.hidden)) this.menu.hide();
@@ -459,7 +495,7 @@ export class TimersPane extends PaneShell {
       this.updateMore();
     }
     this.tip.refresh();
-    if (timed) this.tick.arm(now);
+    if (timed || this.armed) this.tick.arm(now);
     else this.tick.stop();
   }
 
@@ -474,7 +510,10 @@ export class TimersPane extends PaneShell {
     return m;
   }
 
-  private renderGroups(groups: TimerGroupView[], s: TimersSettings, ro: boolean): void {
+  /** Draws the groups; false when the armed id (touch) has no row with an × any more. */
+  private renderGroups(groups: TimerGroupView[], s: TimersSettings, ro: boolean): boolean {
+    const armed = this.armed?.id ?? null;
+    let found = armed === null;
     const seen = new Set<string>();
     groups.forEach((g, i) => {
       seen.add(g.group);
@@ -483,7 +522,7 @@ export class TimersPane extends PaneShell {
         ge = new GroupEl(this.ctx.doc, g.group);
         this.groups.set(g.group, ge);
       }
-      ge.update(g, s, i === 0, ro, this.menu.open);
+      if (ge.update(g, s, i === 0, ro, this.menu.open, armed)) found = true;
       if (this.listEl.children[i] !== ge.el) this.listEl.insertBefore(ge.el, this.listEl.children[i] ?? null);
     });
     for (const [k, ge] of this.groups) {
@@ -491,6 +530,7 @@ export class TimersPane extends PaneShell {
       ge.el.remove();
       this.groups.delete(k);
     }
+    return found;
   }
 
   /** The indicator row from the scroll position. */
@@ -527,7 +567,22 @@ export class TimersPane extends PaneShell {
     });
   };
 
+  /** Touch or mouse, by the pointer (ADR 0166 points 158, 163): `data-touch` turns the hover rules off. */
+  private readonly onPointer = (e: PointerEvent): void => {
+    if (e.type === 'pointerdown') this.down = e.pointerType;
+    setAttr(this.root, 'data-touch', isTouchType(e.pointerType) ? '' : null);
+  };
+
+  /** A tap shows row `id`'s × (touch), or hides the shown one (null). */
+  private arm(id: string | null): void {
+    this.armed = id === null ? null : { id, until: this.ctx.now() + ARMED_MS };
+    this.markDirty();
+  }
+
   private readonly onDown = (e: MouseEvent): void => {
+    // The press's pointer type (a tap's emulated mousedown follows its pointerdown).
+    const type = this.down;
+    this.down = '';
     if (e.button !== 0 || !this.active) return;
     // The `↑ N timers above` indicator scrolls to the top (also in a player).
     if (this.moreEl.hasAttribute('data-up') && this.moreEl.contains(e.target as Node)) {
@@ -537,19 +592,33 @@ export class TimersPane extends PaneShell {
       this.updateMore();
       return;
     }
-    const z = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-act]') ?? null;
+    const target = e.target as HTMLElement | null;
     // Read-only in a player.
-    if (this.ctx.player || !z || !this.root.contains(z)) return;
+    if (this.ctx.player) return;
+    if (isTouchType(type)) {
+      // Touch (ADR 0166 point 163): a tap anywhere on a row with an × (on
+      // the × too, where a tap's :hover may have drawn it) shows the ×; a
+      // tap on the shown row removes. A tap elsewhere hides it first.
+      const row = target?.closest?.<HTMLElement>('.wc-tm-items > [data-id]') ?? null;
+      const x = row?.querySelector<HTMLElement>(':scope > .wc-tm-x') ?? null;
+      if (row && x && this.root.contains(row)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.armed?.id === row.dataset.id) this.removeBy(x);
+        else this.arm(row.dataset.id!);
+        return;
+      }
+      if (this.armed) this.arm(null);
+    }
+    const z = target?.closest?.<HTMLElement>('[data-act]') ?? null;
+    if (!z || !this.root.contains(z)) return;
     e.preventDefault();
     e.stopPropagation();
-    const timers = this.ctx.game.timers;
     switch (z.dataset.act) {
       case 'charm':
-        timers.dropCharm(z.dataset.id!);
-        break;
       case 'herbx':
-        if (z.dataset.key) timers.removeHerb(z.dataset.key);
-        break;
+        this.removeBy(z);
+        return;
       case 'herbadd':
         if (this.menu.open) this.menu.hide();
         else {
@@ -560,4 +629,13 @@ export class TimersPane extends PaneShell {
     }
     this.markDirty();
   };
+
+  /** A row's × (`x`): forgets the charmie or stops the herblore. */
+  private removeBy(x: HTMLElement): void {
+    this.armed = null;
+    const timers = this.ctx.game.timers;
+    if (x.dataset.act === 'charm') timers.dropCharm(x.dataset.id!);
+    else if (x.dataset.act === 'herbx' && x.dataset.key) timers.removeHerb(x.dataset.key);
+    this.markDirty();
+  }
 }

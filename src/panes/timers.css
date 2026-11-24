@@ -378,12 +378,26 @@
   visibility: hidden;
 }
 
-.has-herbx:hover > .wc-tm-x.is-herb {
+/* On touch (`data-touch`, the last pointer) a tap's :hover does not show
+ * it: the first tap arms the row (`data-armed`, ADR 0166 point 163). */
+.wc-tm:not([data-touch]) .has-herbx:hover > .wc-tm-x.is-herb,
+.wc-tm .has-herbx[data-armed] > .wc-tm-x.is-herb {
   visibility: visible;
 }
 
-.has-herbx:hover > .wc-tm-t {
+.wc-tm:not([data-touch]) .has-herbx:hover > .wc-tm-t,
+.wc-tm .has-herbx[data-armed] > .wc-tm-t {
   visibility: hidden;
+}
+
+/* The charm ×, always shown to a mouse: on touch only on an armed row (its
+ * room kept, so nothing moves). */
+.wc-tm[data-touch] .wc-tm-x:not(.is-herb) {
+  visibility: hidden;
+}
+
+.wc-tm[data-touch] [data-armed] > .wc-tm-x:not(.is-herb) {
+  visibility: visible;
 }
 
 /* The Herblore + menu (timers.ts HerbMenu): a small card in the menu

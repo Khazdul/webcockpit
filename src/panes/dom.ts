@@ -34,6 +34,16 @@ export const setHidden = (e: HTMLElement, h: boolean): void => {
   if (e.hidden !== h) e.hidden = h;
 };
 
+/**
+ * How long a tapped row's × stays, untapped (touch): the Character card's
+ * herblore stones and the Timers pane's herblore and charm rows (ADR 0166
+ * points 158 and 163).
+ */
+export const ARMED_MS = 3000;
+
+/** True for a pointer type that is not the mouse (touch, a pen; ADR 0166 point 158). */
+export const isTouchType = (type: string): boolean => type !== '' && type !== 'mouse';
+
 /** ms after a wall-clock second boundary at which a tick runs. */
 export const TICK_LAG_MS = 5;
 
