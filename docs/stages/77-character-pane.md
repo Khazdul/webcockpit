@@ -1749,3 +1749,9 @@ answer: type it again for the new one. At most one poll in 10 s.
   låter okej" (point 127 closed). Later, a pass of its own: unique icons
   for buffs, debuffs and herblores, found from the run logs in
   `~/Downloads`, a generic icon for the rest.
+
+### G7b (2026-11-24)
+
+Steps 1–5 work on the phone; 3 s feels right. The Timers pane's herblore ×
+and charm × get the same: a first tap shows ×, a tap on it removes, an
+untapped × goes after 3 s (G7c).
