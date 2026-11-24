@@ -2090,3 +2090,15 @@ the heat cells approved.
 
 G1 (iron sheet) looks best in general, but G3's (dark slate) borders are
 better: sharper and thinner. Round 20: a version that mixes the two.
+
+### Trolls have no mana (the owner, 2026-11-24)
+
+    as a troll:  info [%e %E %z %Z %j %J]  →  [0 0 121 121 112 112]
+
+For the poll pass: `0 0` is a value (not `xxx`) and must not break
+anything. Checked in the code: the card's bars guard `max > 0`
+(`character-model.ts`), so a 0 / 0 mana bar is empty, with no division by
+zero. Still to check in that pass: what GMCP sends for a troll's mana
+(0, or no keys), the Group pane and the phone's fight card with a 0 max,
+and a unit test for a troll; and ask the owner whether a troll's card
+shows the mana bar at all.
