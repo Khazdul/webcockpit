@@ -803,6 +803,8 @@ export class CardDom {
   private tab: CardTab | null = null;
   private stoneRows = 0;
   private line2 = false;
+  /** Stats has no room for the stones' row (`fitStats`). */
+  private statsOff = false;
 
   constructor(doc: Document, on: CardHandlers, clock: StoneClock) {
     this.root = el(doc, 'div', 'wc-cc');
@@ -892,9 +894,29 @@ export class CardDom {
     this.scroll.scrollTop = 0;
   }
 
-  /** The stones show on Status and Stats, in the rows the layout gives (ADR 0166 point 122). */
+  /** The stones show on Status and Stats, in the rows the layout gives (ADR 0166 point 122), on Stats where it has room (point 168). */
   private showStones(tab: CardTab | null): void {
-    setHidden(this.stones.box, tab === 'lore' || tab === null || (this.stoneRows === 0 && !this.line2));
+    setHidden(this.stones.box, tab === 'lore' || tab === null || (this.stoneRows === 0 && !this.line2) || (tab === 'stats' && this.statsOff));
+  }
+
+  /**
+   * Stats keeps the stones' row only where its own content fits above it,
+   * else the row goes from Stats (ADR 0166 point 168; Status always has
+   * it). Measured, as `markMore` is, after a change of the layout, the tab
+   * or the data: the row shown, Stats overflowing its room means no row.
+   * The compact card's line 2 holds the five icons, so it stays. Then
+   * `markMore`.
+   */
+  fitStats(): void {
+    this.statsOff = false;
+    if (this.tab === 'stats' && this.stoneRows > 0 && !this.line2) {
+      const s = this.scroll;
+      setHidden(this.stones.box, false);
+      this.statsOff = !s.hidden && s.scrollHeight - s.clientHeight > 1;
+      this.showStones(this.tab);
+    }
+    setAttr(this.main, 'data-stats-stones', this.statsOff ? 'off' : null);
+    this.markMore();
   }
 
   /** Whether Stats or Lore goes on below what shows (reads the layout: only after a change of either). */

@@ -521,8 +521,8 @@ export class CharacterPane extends PaneShell {
     }
     const moreWord = age.length + MORE_CHARS <= this.layout!.info.ageChars;
     if (this.changed('tab', `${tab}|${quiet}|${age}|${moreWord}`)) card.setTab(tab, quiet, age, moreWord);
-    // The layout too: what fits is another then.
-    if (this.changed('more', `${tab}|${this.infoWrites}|${quiet}|${age === ''}|${this.drawn.get('layout')}`)) card.markMore();
+    // The layout too: what fits is another then. Stats' stones' row first (point 168).
+    if (this.changed('more', `${tab}|${this.infoWrites}|${quiet}|${age === ''}|${this.drawn.get('layout')}`)) card.fitStats();
     return changesAt;
   }
 
