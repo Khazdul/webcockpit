@@ -1224,3 +1224,92 @@ H7 (decided, nothing to build) and H8 are not in it.
      new desktop user sees no herblores, buffs or debuffs anywhere until
      Character or the groups are turned on. Left as decided; for the
      owner.
+
+## Addendum 30 (2026-11-24): H2, the Spells groups' switch by its mark; the status cells in heat
+
+The owner's test of part H (stage 77, "H test and round 2", point 5) and
+round 16 variant C, his pick ("Part H2: what was built").
+
+182. **Why Herblores, Buffs and Debuffs stayed SHOWN (the bug).** The
+     straight path worked: an e2e that seeds a stored v7 record the way the
+     app stores it (IndexedDB `webcockpit` / `settings` / `main` and the
+     appearance mirror, Character docked, Spells on) had the three off with
+     the code of part H. The flaw was what the step was keyed by: point
+     180's switch ran only where the stored `version` was below 8, judged on
+     the Character pane as it was at that load. The migrated record is not
+     written back until the next change, but any change writes it as
+     version 8, and from then on the step never runs again. So every v8
+     record that had the three on stayed so, though Character was on later:
+     one written while Character was off at the first load of the new code
+     (the rule "elsewhere they keep what is stored"), one written by a page
+     of the origin that did not run the step (the merge of 19:54 changed the
+     main checkout's files under the owner's open tabs on the test server,
+     which reload one by one as Vite sees them), and one pulled by the sync
+     (ADR 0152) from his other browser of the same device type (Chromium
+     and Firefox share the desktop record), where Character was off. His
+     IndexedDB is not at hand, so which of these it was is not known; all
+     three end in a v8 record with the three on and Character on, which the
+     code of part H never switched (an e2e with such a record fails on it).
+     The Panes menu, the dock, a float and the gear all read and write
+     `panes.character.on` and `groups[id].enabled`; the mirror holds only
+     the appearance; `reload` and `takeRecord` migrate what they read.
+183. **The fix: a mark of its own, settings version 9.** `timers.stonesOff`
+     says the switch has run. `migrateTimers` turns the three off and sets
+     the mark wherever Character shows (a computer: `panes.character.on`; a
+     phone: on in the strip) and the mark is not set, whatever the version;
+     where Character is off nothing changes and the mark stays unset. As
+     every update goes through `migrateSettings`, Character turned on later
+     takes the three off at that change, once; a group turned on again
+     after that stays on. A record from before version 9 without the mark
+     has not had it (so the owner's v8 record gets it; any group he had
+     turned on again on the test server goes off once more, as only the
+     test server ever wrote v8); a v9 record without it (a damaged one)
+     counts as marked. New settings have the mark (their three are off
+     already). A recording (`recorded`) keeps its groups as recorded and is
+     marked, so the player's own updates over it (the player host's
+     `compose`) never switch them. The phone's one-time defaults set 3 stays
+     as a second hand (the mark does the same when set 2 turns Character
+     on). Tests: unit `settings` (v7 and v8 without the mark, Character
+     turned on later, the store through IndexedDB with a pulled v7 and
+     `reload`, a recording), e2e `spells-groups-off.spec.ts` (a seeded v7
+     and v8 record and the gear's Shown switches, Character off then on,
+     the sync's path: a v7 record written and `reload`).
+184. **Heat (round 16 C).** The Mood, Casts, Alertness and Weight cells are
+     coloured by step from calm to hot (`character-heat.ts`, one table per
+     side): Mood blue (wimpy) to red (berserk), Casts warm (quick) to cool
+     (thorough), Alertness grey (normal, its first step) to hot (paranoid),
+     Weight green (peanuts) to red. The middle of each is the card's
+     parchment (`#d9cfb4`; Paper `#6e5220`). The value, a fill track at the
+     cell's foot (every step in its own colour, those below the current at
+     55 %, the current full with a glow on the Lykta) and the cell's ground
+     (a gradient to 13 % of the colour at the foot; Paper 9 % on its
+     `#fffdf8`) take the step's colour; the hovered clickable cell's frame
+     takes it too. A small corner mark (a 6 px triangle, the lamp at 55 %,
+     hot on hover) is on Mood, Casts and Alertness, not on Weight. No step
+     (an unknown word, no value): the plain colour, no warming, no step lit.
+     It replaces the vertical step meter (`.wc-cc-lamp`).
+185. **Weight keeps today's signal.** Really heavy is the vitals' low
+     orange, painful and torture their critical red (`DARK_SIGNALS`), so the
+     hot end means what it meant; `data-signal` stays as the state. On Paper
+     the low orange is a deeper `#a04a00`: the vitals' `#b85400` reads at
+     4.3 : 1 on the warmed ground. Every value of both tables reads at 4.5 : 1
+     or more on its cell's warmed foot, over every dark pane tint and
+     terminal background (the Lykta table) and on Paper's cell ground (unit
+     `character-heat`; e2e checks the drawn colours on Paper).
+186. **Every step of the layout.** The cells and the line: the value, the
+     track (2 px at scale 1, in the cell's foot padding, so no row grows),
+     the warming and the corner mark. The plain values (step 4): the value
+     and a thin 1.2 px track, no ground and no mark (they have no cells).
+     The compact card: the letters M/C/A/W stay the lamp's (they are
+     labels), the value takes its colour; its cells (the 18 px form) have
+     the thin track, the warming and a 4 px mark; its flat 13 px rows only
+     the value's colour. The phone strip is the same card. The meter's 7 px
+     of room beside the value went (`CELL_METER` is now `CELL_MARK`, 3 px
+     kept clear of the corner mark), so the values have more room: "really
+     heavy" whole at 62 × 7.
+187. **Cost.** The track's steps are built once with their two colours
+     (`--sd`, `--sl`); a field gets its step's two colours (`--hd`, `--hl`)
+     and `data-heat` only through `setProp` / `setAttr`, which write on a
+     change only, at the moments the status cells were already set. The
+     side (Lykta or Paper) is chosen in the CSS by `data-light`, so a theme
+     change writes nothing per cell. No per-tick work.

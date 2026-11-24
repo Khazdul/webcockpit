@@ -482,9 +482,10 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       (shield, die, scroll), the word in the tooltip.
 - [x] H4 (4A). The hand-made short forms (`brav`, `norm`, `rhvy`) in every
       status cell instead of `…`.
-- [ ] H5 (5A). A mockup round (round 16) of the Mood, Casts, Alertness and
+- [x] H5 (5A). A mockup round (round 16) of the Mood, Casts, Alertness and
       Weight cells: 3–4 variants at Medium, docked and on the phone.
-      Nothing built before the owner picks.
+      Nothing built before the owner picks. (The owner picked C, heat;
+      built in H2, ADR 0166 addendum 30.)
 - [x] H6 (6B). Timers is renamed Spells. Herblores, Buffs and Debuffs stay
       in it but are off by default.
 - [x] H7 (7A). `trtr`, `pnts`, `vigl` kept (point 127 closed).
@@ -1487,6 +1488,48 @@ nothing.
   timers and phone specs with the three groups turned on in their setup
   or the mark 3.
 
+## Part H2: what was built (2026-11-24)
+
+The bug of the owner's H test (point 5) and round 16 variant C, heat (H5,
+the owner's pick). ADR 0166 addendum 30 (points 182–187).
+
+- **The bug.** Settings version 8's one-time switch of Herblores, Buffs and
+  Debuffs was keyed by the stored version and judged on Character at that
+  load: a record once written as v8 with the three on (Character off at the
+  first load of the new code, a tab that reloaded during the merge, or the
+  sync bringing the other browser's v8 record) never had it, so they stayed
+  SHOWN with Character on. Now a mark of its own (`timers.stonesOff`,
+  settings version 9): the three go off once wherever Character shows and
+  the mark is unset, whatever the version, also when Character is turned on
+  later; a group turned on again stays on; Character off keeps what is
+  stored; recordings keep theirs. The owner's v8 record gets it at the next
+  load.
+- **Heat.** The Mood, Casts, Alertness and Weight values take their step's
+  colour, calm to hot (Mood blue → red, Casts warm → cool, Alertness grey →
+  hot, Weight green → red, its hot end today's orange and red); a track at
+  the cell's foot fills to the step in the steps' colours; the ground warms
+  a little toward its foot; a small corner mark on Mood, Casts and
+  Alertness. The vertical step meter is gone, so the values have more room
+  ("really heavy" whole at 62 × 7). Cells, line, plain values (a thin
+  track), the compact card (the letters stay, the values take the colour,
+  its cells the thin track) and the phone strip; the Lykta and Paper have
+  their own tables, each at 4.5 : 1 on its ground.
+- Screenshots: `notes/research/character-pane-mockups/h2/` (`c-62x7`,
+  `c-62x11` and its `-hot` and `-calm`, `c-62x6` (the line), `c-compact-
+  62x4`, `c-docked-1500x960` and `c-docked-pane` (a 33-column right dock,
+  Spells under it), `c-paper-62x11`, `-hot`, `c-paper-62x7`, `c-phone-strip`
+  and `-compact`; all at 2× pixels).
+- Tests: unit `settings` (the mark: v7 and v8 records, Character turned on
+  later, IndexedDB with a pulled v7 and `reload`, a recording), `character-
+  heat` (the tables against the real cycles, calm → hot, Weight's signal,
+  4.5 : 1 over every dark pane tint and background and on Paper),
+  `character-layout` (the value's room without the meter); e2e `spells-
+  groups-off.spec.ts` (new: seeded v7 and v8 records and the gear's Shown
+  switches, Character off then on, the sync's reload), `character-card`
+  (the track instead of the lamps; a new H2 test: colours on the Lykta and
+  Paper, every form, the corner marks, contrast as drawn), `phone-character-
+  card` (the strip's heat).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1514,6 +1557,31 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part H2, the Spells bug and heat (the test server, MUME up)
+
+1. Reload with the Character pane on and open the Spells gear: Herblores,
+   Buffs and Debuffs are off (not SHOWN). Turn Buffs on and reload: it
+   stays on. (Your stored settings get the switch once at this load, also
+   if you had turned one on again since part H.)
+2. Turn Character off and on again (Panes menu): Buffs stays as you left
+   it; the switch is once. (A player whose Character was off at the switch
+   gets it the first time Character is turned on.)
+3. Character at about 62 × 11: Mood, Casts, Alertness and Weight have their
+   step's colour, a thin track at the foot filled to the step, a slightly
+   warmer ground, and a small corner mark on the three you can click. Click
+   Mood and Casts through their steps: the colour moves from calm to hot
+   (Casts from warm quick to cool thorough).
+4. Make it low (62 × 7, 62 × 6, 62 × 4 the compact card), dock it in a
+   narrow right dock, and try Paper (Options → Appearance): the colours
+   stay readable everywhere; in the compact card the letters stay gold, the
+   values are coloured.
+5. On the phone: the strip's cells the same; a low strip's flat rows keep
+   the values' colours.
+
+Feedback wanted: the colours of each step (too strong, too weak, a step
+that reads wrong), whether the corner mark is enough to tell what can be
+clicked, and the track's thickness.
 
 ### Part H, polish (the test server, MUME up)
 
