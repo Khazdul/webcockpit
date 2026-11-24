@@ -378,7 +378,11 @@ effect.
       settings page).
 - [x] Unit tests for the scheduling; e2e for the gear; full e2e at 5
       workers.
-- [ ] The owner's live test (test guide "Part F1").
+- [x] The owner's live test (test guide "Part F1"): steps 1–7 work
+      (2026-11-24).
+- [x] F1b (ADR 0166 addendum 20): quicker timings, 10 s default, the
+      position event, the gear fits its popup.
+- [ ] The owner's look at F1b (test guide "Part F1b").
 
 ### G. Tests
 
@@ -1118,28 +1122,30 @@ the card's look: today's Stats shields show the effect.
   `game.info` (`InfoModel.merge`, only what was read; `stat`'s `Gold:`
   changes the gold coins only), and the read counts as a poll. Nothing is
   hidden.
-- **The repeat** is `character.pollEvery` (10, 20, 30, 60 or 300 s;
-  20 s by default) and runs while the card is shown, Status included
+- **The repeat** is `character.pollEvery` (10, 30, 60 or 300 s; 10 s by
+  default since F1b) and runs while the card is shown, Status included
   (`src/panes/character.ts` holds the poll on every tab).
 - **The quiet** (`src/gmcp/info-poll.ts`): the repeat and the events wait
-  3 s after the last command, 10 s after a burst, and not while a cast is
+  1 s after the last command, 10 s after a burst, and not while a cast is
   pending (`TimersHub.castPendingUntil`, from `src/timers/castq.ts`). The
-  login poll and an opened view keep 2 s. The gate is unchanged.
-- **The events**, each a switch in `character.pollOn` (all on): a mood
-  change in `Char.Vitals`, MUME's equipment lines (`isEquipmentLine`, one
-  anchored test per verb), an affect on you up or down and a herblore
-  started (`TrackerHost.effect` → `TimersHub.onEffect` → `InfoPoll.effect`).
-  Events within 1.5 s are one poll, at least 3 s between polls, one
-  outstanding, none in a fight; data newer than the event serves it.
-- **The gear**: "Fetch every" and four switches under "Fetch at once
-  when" in the Character gear (`src/chrome/popups/pane-settings.tsx`), and
-  a "Character fetching" sub-page from the phone's Panes group
-  (`src/phone/settings-page.tsx`).
+  login poll and an opened view wait 1 s too. The gate is unchanged.
+- **The events**, each a switch in `character.pollOn` (all on): a mood or
+  a position change in `Char.Vitals` (the position since F1b), MUME's
+  equipment lines (`isEquipmentLine`, one anchored test per verb), an
+  affect on you up or down and a herblore started (`TrackerHost.effect` →
+  `TimersHub.onEffect` → `InfoPoll.effect`). Events within 0.5 s are one
+  poll, at least 2 s between polls, one outstanding, none in a fight;
+  data newer than the event serves it.
+- **The gear**: "Fetch every" and five switches under "Fetch at once
+  when" in the Character gear (`src/chrome/popups/pane-settings.tsx`; its
+  rows wrap so nothing scrolls sideways, F1b), and a "Character fetching"
+  sub-page from the phone's Panes group (`src/phone/settings-page.tsx`).
 - Tests: unit `gmcp-group`, `gmcp-info-typed`, `info-poll` (the F1 block
   and `isEquipmentLine`), `timers-effects`, `settings`, `pane-gear`,
   `phone-menu`, `character-pane`; e2e `info-poll.spec.ts` (the gear's
   repeat and switches; a typed `stat` sets the shields and shows; a wear
-  line polls).
+  line polls) and `character-gear-fit.spec.ts` (F1b: no sideways
+  overflow, short and narrow windows, a large font).
 
 ## Open points
 
@@ -1168,6 +1174,23 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part F1b, quicker and the position (the test server, MUME up)
+
+As Part F1 below, with these differences:
+
+1. The card is now fetched every 10 s by default; "Fetch every" offers
+   10 s, 30 s, 1 min and 5 min.
+2. After `cha mood brave`, `remove`/`wield` or a spell landing, the
+   shields change about 1 s after your last command (was about 3 s).
+3. New: `sit`, `sleep`, `wake` and `stand` each update the shields (the
+   switch "Position changes").
+4. The gear (the cog on the Character pane): nothing scrolls sideways,
+   also in a small window. The phone's Settings → Panes → Character
+   fetching has the new switch.
+
+Feedback wanted: does it now feel quick enough; does anything fetch too
+often (watch "info N s ago" on Stats).
 
 ### Part F1, the poll's triggers (the test server, MUME up)
 

@@ -704,3 +704,32 @@ F1: what was built").
     and `character.pollOn` (`mood`, `equipment`, `affects`, `herblore`),
     additive like `fetchInfo` (point 30). On a phone they are a sub-page,
     "Character fetching", from the Panes group, beside the poll switch.
+
+## Addendum 20 (2026-11-24): F1b, quicker, and the position
+
+After the owner's live test of F1 (all of its test guide worked): it is
+to feel as responsive as possible. This replaces the numbers of points
+97, 98 and 100, of point 34's 2 s, and of points 109 and 113 where they
+differ.
+
+114. **The timings.** The quiet after a lone command (the repeat and the
+    events) is 1 s (was 3 s). The login poll and an opened view also wait
+    1 s (was 2 s): the gate already needs a game prompt after the last
+    command, so the quiet only covers a prompt that was on its way when
+    the command went, which 1 s far exceeds. Events within 0.5 s are one
+    poll (was 1.5 s); at least 2 s between polls (was 3 s). The burst
+    (2 s, then 10 s of quiet) and no poll while a cast is pending are
+    unchanged.
+115. **The repeat** offers 10 s, 30 s, 1 min and 5 min; 10 s is the
+    default. A stored value not in the list (20 s, F1's default) loads as
+    the default, 10 s.
+116. **The position** is the fifth event, a switch on by default
+    (`character.pollOn.position`, "Position changes"): your `position`
+    changing in GMCP `Char.Vitals` (seen: `standing`, `sitting`,
+    `sleeping`; sitting and sleeping change the bonuses, the owner). It
+    takes the mood's path: the first value seen is no event, and it is
+    coalesced like the others.
+117. **The gear fits.** The Character gear's rows wrap: a control that
+    does not fit beside its label goes under it, at the right. The
+    owner's sideways scroll came from a short window, whose vertical
+    scroll bar left the repeat's five segments too little room.
