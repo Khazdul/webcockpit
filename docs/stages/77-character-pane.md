@@ -402,7 +402,7 @@ the main session. The owner looks after F2b, before the low panes.
       debuffs, herblores, buffs); the compact short forms and the purse
       steps as pure functions; a setting for the shown stone groups (the
       gear and the phone's sub-page). Unit tests.
-- [ ] F2b. The card in the round 12–14 look at normal sizes: iron
+- [x] F2b. The card in the round 12–14 look at normal sizes: iron
       portrait, ring, name band, icons under it, no state; status cells
       with the step meter; D&D shields 1×4/2×2, `⋯` until the poll; the
       stones, `+n` and its list, the herblore `+` menu and ×; the purse in
@@ -1205,6 +1205,50 @@ them are addendum 23 (points 128–136). No change to the card's look.
 - Tests: unit `character-stones` (new), `character-pane` (the stones
   block), `settings`, `pane-gear`, `phone-menu`; e2e
   `character-gear-fit.spec.ts` and `info-poll.spec.ts` rerun.
+
+## Part F2b: what was built (2026-11-24)
+
+The round 12–14 look at normal pane sizes, the mockups' step 0 (ADR 0166
+points 85–89 and 120–123); the choices beyond them are addendum 24
+(points 137–145). The low panes are F2c.
+
+- **The portrait** (`character-layout.ts` `leftLayout`, the mockups'
+  `attempt`): square, rounded, the iron frame; the name in a glass band
+  inside its top edge; the level/XP/TP ring on its bottom right corner;
+  the five icons under it. No state on it. The portrait choice (subrace,
+  sex) is as before. Under 44 px part D's ring column stays.
+- **Status**: four cells (Mood, Casts, Alertness, Weight), a step meter
+  with only the current lamp lit (`StatusFieldView.steps`/`step`); the
+  D&D shields OB, DB, PB, ABS under them, 1 × 4 or 2 × 2, `⋯` until the
+  info poll answers (`shieldsView`); the stones at the bottom with the
+  herblore `+` (the Timers pane's menu), a herblore's × on hover, `+n`
+  and its list (`StoneList`, in the menu colours; Esc and a press outside
+  close it); the purse right-aligned in the stones' last row.
+- **The area** (`areaLayout`): the stones' rows while the shields stay
+  ≥ 30 px, the shields the rest; one timer for the card, a tick writes
+  only the bars. The stone count is in the layout's box.
+- **Stats**: the abilities first, no shields; the same stones rows,
+  never the purse; it still scrolls. **Lore**: a War fame box and a War
+  points box; the purse stays (CSS coins, as on Status).
+- **Vitals**: the parchment track, the wimpy arrow. **Fight**: only the
+  swords; no tab switch, no dimmed tabs, no bigger bars.
+- **The phone strip and column** show the same card. Both the dark panes
+  and Paper (a light background) are drawn.
+- `src/panes/popup-menu.ts`: the herblore menu's popup, shared with the
+  `+n` list.
+- Below step 0: one stones row, smaller shields, none under 16 px; where
+  the cells do not fit, part D's Status forms and nothing else.
+- Screenshots: `notes/research/character-pane-mockups/f2b/` (Medium with
+  3, 8 and 16 stones, Large with 8 and 16 in a fight, a tall pane with
+  16, Stats, Lore, Paper, the phone's strip with 16).
+- Tests: unit `character-layout` (the portrait, shield size and grid,
+  rows vs. shields ≥ 30 px, the purse in the last row, below step 0, the
+  size sweep with stones), `character-model` (the meter, the shields,
+  the fight keeps the tab), `character-pane` (the stones drawn, Stats'
+  rows, the tick, `+n` and its list, the `+` menu, ×, read-only);
+  e2e `character-card.spec.ts` (new tests and the size sweep with
+  stones), `phone-character-card.spec.ts`; `character-gear-fit`,
+  `info-poll`, `timers` and the other files that show the pane rerun.
 
 ## Open points
 

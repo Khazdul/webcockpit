@@ -873,3 +873,66 @@ was built"). `src/panes/character-stones.ts`, pure.
      read after a change); nothing is drawn and no timer runs for it
      until F2b. War fame and War points already have `loreView`'s
      `warFame`/`warPoints`.
+
+## Addendum 24 (2026-11-24): F2b as built
+
+The round 12–14 look at normal pane sizes (stage 77, "Part F2b: what was
+built"), the mockups' step 0. The low panes' steps 1–4 and the compact
+card are F2c.
+
+137. **The portrait** (point 85) is the mockups' `attempt`, pure in
+     `character-layout.ts` `leftLayout`: its side follows the room the
+     mode's least status width leaves (Medium 150, Large 250, × the
+     scale), at most 150; the ring is 0.3 of it (20–34), 0.72 of it on
+     the frame; the iron 2–3 px, the corners 0.11, the name band 0.15
+     (12–19) inside the top edge. The image inside the iron is what is
+     baked. Under `PORTRAIT_MIN` (44 px) part D's ring column or row
+     stays until F2c's compact card. Nothing on it shows a state.
+138. **The status cells** (point 86): four in a row, else two, the value
+     at the mode's size (Medium 9.5, Large 11.5, × the scale) and at
+     least four characters (`fitWord`: `agg.`, `nor…`); `Alert.` where
+     `ALERTNESS` does not fit. The meter has one lamp per step of the
+     field (`StatusFieldView.steps`, `step`). Part D's forms (full, text,
+     inline, value) fill the area only where the cells do not fit, and
+     then nothing else shows.
+139. **The area** (`areaLayout`, the mockups' `solve` step 0): the stone
+     count and the `+` are in `CardBox`, so the layout is recomputed when
+     they change, never per tick. The stones get the rows they need while
+     the shields stay at least `SHIELD_MIN` (30), else fewer; the shields'
+     cap grows in a tall pane (0.3 of the area's height, 54 or 64 up to
+     72, the mockups' `shMax`). Below step 0: one row and the shields as
+     they come, none under 16 px, no stones where a row does not fit. A
+     row is always kept while it fits, empty or not: the purse may stand
+     in it, and the first stone moves nothing. Stats' room is the area
+     less the stones; Lore has none. F2c's steps go in `areaLayout`.
+140. **The stones' DOM** is a pool that only grows, each placed by a
+     transform. Which stay beside the `+n` is read at each render
+     (ending soon moves a stone up); the slots are rewritten only when the
+     entries change. A tick writes each bar's `scaleX` in half-percent
+     steps and the ending-soon mark, nothing else. The card has one timer:
+     the next wall-clock second while a shown stone counts down, merged
+     with the pending mark's and the data age's. The colours are the
+     Timers groups' (`timerGroupColor`), as CSS variables; the tooltips
+     are live (read when shown).
+141. **The menus.** The herblore menu's popup logic is `PopupMenu`
+     (`src/panes/popup-menu.ts`), shared by the Timers pane's `HerbMenu`
+     (which the card's `+` opens) and the card's `StoneList` (the `+n`'s
+     rows: icon, name, time, a herblore's ×). A tab change, hiding and
+     inactivity close them. A herblore stone's × shows on hover, as in
+     Timers; none in a log player.
+142. **The purse** (point 121): `purseFit` with sizes from the stone's
+     (coin 0.92, digits 0.8 in the terminal font). The coins are CSS (a
+     rim, a highlight ring), not the mockups' SVG gradients, whose ids
+     could clash between two cards in one document; Lore uses the same.
+143. **The fight** (round 12 decision 8): `TabState` no longer changes the
+     tab; the fight bar height is gone; only the position icon's swords.
+144. **The size modes.** Auto and the Height lock keep choosing the mode
+     (Large from 400 × 160, Medium from 210 × 106, as before); a mode now
+     means its sizes (icons 14/12, stones 13/12, values, the shields' cap,
+     the least status width) and its scale's design box. Small has no
+     portrait. Stats' dense form starts lower (170/250 × the scale, was
+     226/310), as the shields left it.
+145. **Deviations from the mockups.** No `backdrop-filter` on the name
+     band (its blur would repaint with the card); `nor…` where the mockup
+     cut `nor.` (part D's `fitWord`); the stones' tooltips are F2a's
+     `stoneTip`; the Status cells keep part D's tooltips.
