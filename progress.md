@@ -176,7 +176,12 @@ with no stage of their own. Remove a line when it is done.
 - **Next:** the owner's live test (Part F1 in the test guide), then F2,
   the card in the round 12–15 look.
 - **Open:** the 8 s pending-cast limit; equipment wordings not yet seen.
-- **Commits:** `dc79aa45` … `03194e57`, `bf03a9bd` … `ad97b0d6`, and this one.
+- **F1b** (after the owner's live test, all 7 steps worked): poll quiet 1 s,
+  coalesce 0.5 s, gap 2 s, repeat 10 s default (10 s/30 s/1/5 min), a
+  position event, the gear fits (ADR 0166 addendum 20). Unit 6004 passed;
+  9 related e2e files 107 passed.
+- **Commits:** `dc79aa45` … `03194e57`, `bf03a9bd` … `ad97b0d6`,
+  `5828f321` … `25dd7437`, and the docs commits.
 
 ### 2026-11-23 … 24 — Stage 77, the direction pass for Group and Character
 
