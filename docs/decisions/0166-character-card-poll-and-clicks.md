@@ -1076,3 +1076,41 @@ unchanged.
      the herblore at once (checked with a Pixel 7 tap in Playwright). A
      tap elsewhere on the row only shows it. Not changed here (other code,
      other CSS); left for a decision.
+
+## Addendum 27 (2026-11-24): G7c, the Timers pane's × on touch
+
+Decided by the owner after G7b (point 162): the Timers pane's herblore ×
+and charm × work as the card's stones do on touch. The first tap on such
+a row shows its × and removes nothing, a tap on the shown × removes, an
+untapped × goes after 3 s. The mouse is unchanged.
+
+163. **Touch or mouse** as in point 158: the pane's root records the
+     pointer's type on `pointerover` and `pointerdown` and is marked
+     `data-touch` for anything but `mouse` (a pen is touch). A device
+     without hover (`(hover: none)`) starts marked, so a phone hides the
+     charm × before its first tap; the pointer corrects it from then on.
+     `ARMED_MS` (3000) and `isTouchType` live in `src/panes/dom.ts`,
+     shared with the card.
+164. **The press stays on `mousedown`** (ADR 0017: the pane keeps the
+     focus in the input). A tap's emulated `mousedown` follows its
+     `pointerdown`, so it reads the recorded type and clears it; a
+     `mousedown` with none (a script) takes the mouse's path. On touch, a
+     press anywhere on a row with an × (on the × too: the tap's :hover
+     may have drawn it) arms the row if it is not armed and removes if it
+     is (`removeHerb` / `dropCharm`, as the × did). A touch press elsewhere
+     in the pane disarms, then does its own thing (the `+`); the
+     indicator row's scroll leaves the arming alone.
+165. **The CSS.** The herblore hover rule holds only without `data-touch`;
+     an armed row (`data-armed`) shows its × in place of its time
+     whatever the hover. The charm ×, always shown to a mouse, is
+     `visibility: hidden` under `data-touch` (its room kept, so nothing
+     moves) and shown on an armed row.
+166. **The cost** (ADR 0122). The armed row is the pane's
+     `{ id, until }`; no timer of its own: the render drops it at the
+     first tick at or after `until`, and the pane's 1 Hz tick is kept
+     armed while a row is (a charm counts anyway). So an untapped × goes
+     after 3–4 s. `data-armed` is written by the item's update through
+     `setAttr` (no write when unchanged). A row that goes (stopped,
+     forgotten, its group off), `blank`, inactivity and a log player
+     clear the arming.
+167. **Log player**: read-only, no × at all, nothing to arm (unchanged).

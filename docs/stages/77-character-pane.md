@@ -451,6 +451,8 @@ To add (e2e), on a branch by a building agent:
       two rows, not you.
 - [x] G7. The herblore × on touch (phone): the first tap shows ×, the
       second stops it; an untapped × goes after 3 s (built in G7b).
+- [x] G7c. The Timers pane's herblore × and charm × on touch, the same
+      way (the owner's feedback on G7b): `phone-timers-touch.spec.ts`.
 - [ ] The full e2e at 5 workers, alone on the machine.
 
 Not added: the 10 s repeat in a browser (slow; unit tests with fake timers
@@ -1387,6 +1389,33 @@ The herblore stone's × on touch (ADR 0166 addendum 26, points 158–162).
   Runs: `character-card.spec.ts` and `phone-character-card.spec.ts` 3 ×
   (chromium, Firefox, phone: 171 passed), typecheck, vitest (6071 passed).
 
+## Part G7c: what was built (2026-11-24)
+
+The Timers pane's herblore × and charm × on touch (ADR 0166 addendum 27,
+points 163–167), as the owner asked after G7b.
+
+- On touch (the pointer's type; a pen counts) the first tap on a herblore
+  row or a charm row shows its × and removes nothing, also where the ×
+  stands; a tap on the shown row (its ×) stops the herblore / forgets the
+  charmie; an untapped × goes after 3 s (up to 4 s: on the pane's own 1 Hz
+  tick, no timer of its own). A tap on another row or the `+` hides it.
+  The mouse is unchanged: herblore × on hover, charm × always shown, one
+  press removes. None in a log player.
+- On touch the charm × is hidden until a tap shows it (its room kept); a
+  phone (no hover) starts that way before the first tap.
+- The removals stay on `mousedown` (a tap's emulated one reads the type
+  recorded on the `pointerdown` before it). `ARMED_MS` and `isTouchType`
+  moved to `dom.ts`, shared with the Character card.
+- `timers.ts`, `timers.css`, `dom.ts` (the Character card imports from it).
+- Tests: 6 unit tests in `panes-gmcp.test.ts` (herblore and charm: a tap
+  arms, a second removes, a pen; the 3 s with fake timers and no extra
+  timer; another row moves the arming; the mouse unchanged; a mouse after
+  a touch; a row that goes); new `phone-timers-touch.spec.ts` (a herblore
+  and a charm row, the tap where the × stands, the 3 s). Runs:
+  `phone-timers-touch`, `timers`, `timers-trackers`, `character-card`,
+  `phone-character-card` 3 × on their projects (213 passed),
+  `phone-game-panes` 3 × (93 passed), typecheck, vitest (6077 passed).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1414,6 +1443,28 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part G7c, the Timers pane's × on a phone (the test server)
+
+Open the test server on the phone with the offline timers demo, which
+leaves a charmed troll and an enslaved shadow (no MUME needed):
+the test server's address with `/?fixture=timers-demo.log&speed=0`
+(port 5173). Tap the panes key and swipe to Timers. Herblores are off by
+default on a phone: turn them on in the settings' "Timers and Group"
+page.
+
+1. A charmie's row (Charmies) shows no ×. Tap the row once: the × shows,
+   the charmie stays.
+2. Leave it: after about 3 s the × goes by itself.
+3. Tap the row, then tap the ×: the charmie is forgotten.
+4. Herblores: tap `+`, pick one. Tap its row once (also right where the ×
+   would stand): the × shows in place of the time, the herblore runs on.
+   Tap the ×: it stops.
+5. On the desktop with a mouse: the charm × is always there and one click
+   forgets; a herblore's × shows on hover and one click stops, as before.
+
+Feedback wanted: whether it feels the same as the Character card's
+stones; whether the charm × being hidden on a phone until a tap is right.
 
 ### Part G7b, the herblore × on a phone (the test server)
 
