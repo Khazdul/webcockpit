@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); next the owner's test of F2c, then G, H | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); next G, H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -172,8 +172,10 @@ with no stage of their own. Remove a line when it is done.
 - **Tested:** typecheck; unit 6064 passed; full e2e at 5 workers 2096
   passed, 2 failed (`profile-place.spec.ts:444`,
   `phone-community-page.spec.ts:139`), both pass alone.
-- **Next:** the owner's test of F2c (test guide "Part F2c"), then G, H.
-- **Open:** `trtr`, `pnts`, `vigl`; Medium's Stats cramped (H); text a
+- **Owner:** F2c steps 1–5 ok; the short forms and Small as compact ok.
+- **Next:** G, H. Later a pass of its own: unique stone icons from the
+  run logs in `~/Downloads`, a generic icon for the rest.
+- **Open:** Medium's Stats cramped (H); text a
   little smaller just above Medium's 106 px; tiny tab words at 80–92 px;
   the herblore × on touch (two taps) not tried on a phone.
 

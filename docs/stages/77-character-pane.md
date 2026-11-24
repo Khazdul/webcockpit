@@ -252,7 +252,7 @@ Each part ends with a stop: the owner looks and says go before the next.
       `stat`/`info`, `change` triggers, the interval and event settings,
       the poll on Status). Done 2026-11-24 (F1, F1b, F1c; the owner's
       live test passed). The stone view moves to F2.
-- [ ] F2. The card: round 12 decisions 1–9 (iron square portrait, ring
+- [x] F2. The card: round 12 decisions 1–9 (iron square portrait, ring
       bottom right, name band, cells with the step meter, D&D shields,
       stones with `+n`, parchment vitals, swords only); Stats without
       shields; the gear (stone groups, the poll settings); the phone's
@@ -265,6 +265,10 @@ Each part ends with a stop: the owner looks and says go before the next.
       interval) and e2e (the card from a GMCP fixture, stones and `+n`,
       the click list, herb `+` and ×, swords only, `⋯` until the poll),
       then the full e2e at 5 workers alone on the machine.
+- [ ] Stone icons (a pass of its own, later; the owner 2026-11-24): a
+      unique icon for each buff, debuff and herblore found, a generic icon
+      for the rest. Starts with research: go through the owner's run logs
+      in `~/Downloads` for every affect and herblore seen.
 - [ ] H. Polish: the owner's list from D and what F shows live; whether
       Timers becomes Spells.
 
@@ -411,8 +415,9 @@ the main session. The owner looks after F2b, before the low panes.
       strip the same. Related e2e. **The owner looked (2026-11-24): all 8 test steps good.**
 - [x] F2c. Low panes: the portrait steps 0–4, tabs only at ≥ 80 px, the
       vitals' heights, the compact card down to about 72 px. Unit tests.
-- [ ] The full e2e at 5 workers alone; an ADR 0166 addendum (as built);
-      the test guide "Part F2".
+- [x] The full e2e at 5 workers alone; an ADR 0166 addendum (as built);
+      the test guide "Part F2". **The owner tested F2c (2026-11-24): steps
+      1–5 ok.**
 
 ### G. Tests
 
@@ -1635,3 +1640,8 @@ answer: type it again for the new one. At most one poll in 10 s.
 
 - 2026-11-24, F2b (test guide "Part F2b", steps 1–8): every step "bra";
   the phone "ser bra ut". No changes asked; F2c goes ahead.
+- 2026-11-24, F2c (test guide "Part F2c", steps 1–5): all ok. The short
+  forms (`trtr`, `pnts`, `vigl`) and Small as the compact card: "Allt
+  låter okej" (point 127 closed). Later, a pass of its own: unique icons
+  for buffs, debuffs and herblores, found from the run logs in
+  `~/Downloads`, a generic icon for the rest.
