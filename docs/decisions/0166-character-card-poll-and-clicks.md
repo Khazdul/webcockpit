@@ -1032,3 +1032,47 @@ closes the starting values of points 124–126 with what is used.
      box) is smaller than Small's just below it (up to 1.1), so the words
      get a little smaller as a pane grows past 106 px. Point 127's `trtr`,
      `pnts` and `vigl` are still unconfirmed.
+
+## Addendum 26 (2026-11-24): G7b, the herblore × on touch
+
+Found by the G7 e2e (stage 77 part G): on touch the first tap on a
+herblore stone stopped the herblore. The tap gave the stone `:hover`,
+which showed the × (`display: grid` only on hover), and the tap's click
+then landed on the ×. Decided by the owner: on touch the first tap shows
+the × and stops nothing, a tap on the × stops the herblore, and an
+untapped × goes by itself (3 s, the main session's pick). The mouse is
+unchanged.
+
+158. **Touch or mouse** is the pointer's type (`pointerType`), not the
+     phone layout, so a touch-screen laptop's tap is a tap and its mouse
+     is a mouse. The stones box records the type on `pointerover` and
+     `pointerdown` (a tap fires both before its click) and marks the box
+     `data-touch` for anything but `mouse` (a pen counts as touch). The
+     click reads the recorded type, else its own `pointerType`; a click
+     with neither (the keyboard, a script) is the mouse's path.
+159. **The ×'s CSS.** The hover rule holds only while the box has no
+     `data-touch`; an armed stone (`data-armed`) shows its × whatever the
+     hover. A mouse's `pointerover` takes `data-touch` away again, so a
+     touch-screen laptop goes back to hover as soon as the mouse moves in.
+160. **The taps.** A touch click on a herblore stone (one whose × is
+     shown for it, so never in a log player) arms it if it is not armed,
+     wherever on the stone it lands (on the × too: hover may have drawn it
+     a moment earlier); on an armed stone it stops the herblore. A touch
+     click elsewhere in the stones box (another stone, the `+`, the `+n`)
+     disarms and then does its own thing. A tap outside the stones leaves
+     the × to its 3 s (kept simple). The `+n` list's rows need nothing:
+     their × is a button that is always shown.
+161. **The cost** (point 140). The armed stone is the pane's
+     `{ id, until }`, `ARMED_MS` (3000) after the tap. `until` joins the
+     card's one timer's wake (with the pending mark, the data age and the
+     countdown second); no timer of its own. The slots' `data-armed` is
+     written by `setArmed(id)` only when the armed id or the slots changed
+     (`changed('armed')` or a `set` that wrote), never by the tick. A
+     stone that is no longer shown (stopped, gone, moved behind the `+n`)
+     takes the arming with it; a stop, `blank` and the expiry clear it.
+162. **The Timers pane's own herblore ×** has the same problem on touch,
+     by another path: the × (`visibility: hidden` until the row's
+     `:hover`) is taken on `mousedown`, and a tap where the × stands stops
+     the herblore at once (checked with a Pixel 7 tap in Playwright). A
+     tap elsewhere on the row only shows it. Not changed here (other code,
+     other CSS); left for a decision.

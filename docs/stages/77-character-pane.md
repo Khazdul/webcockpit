@@ -450,7 +450,7 @@ To add (e2e), on a branch by a building agent:
 - [x] G6. Group without you: `Group.Set` with you and two allies shows
       two rows, not you.
 - [x] G7. The herblore × on touch (phone): the first tap shows ×, the
-      second stops it. **Written as `test.fail`: the first tap stops it today (Part G).**
+      second stops it; an untapped × goes after 3 s (built in G7b).
 - [ ] The full e2e at 5 workers, alone on the machine.
 
 Not added: the 10 s repeat in a browser (slow; unit tests with fake timers
@@ -1365,6 +1365,28 @@ The e2e of the reconciled G list; tests only, no app change.
   phone 15, G7 the expected failure each time), typecheck, vitest
   (6064 passed).
 
+## Part G7b: what was built (2026-11-24)
+
+The herblore stone's × on touch (ADR 0166 addendum 26, points 158–162).
+
+- On touch (the pointer's type, so a touch-screen laptop too) the first
+  tap on a herblore stone shows its × and stops nothing; a tap on the ×
+  stops the herblore; an untapped × goes after 3 s, on the card's one
+  timer. A tap on another stone, the `+` or the `+n` hides it. The mouse
+  is unchanged: × on hover, one click stops. None in a log player.
+- `character-dom.ts` (the pointer type, `data-touch`, `setArmed`),
+  `character.css` (the hover rule only without `data-touch`, an armed
+  stone's ×), `character.ts` (the armed stone and its 3 s in the wake).
+- The `+n` list needs nothing: its × is always shown.
+- Found: the Timers pane's own herblore × stops at the first tap on touch
+  too when the tap lands where the × stands (another path: `mousedown`,
+  `visibility` on hover). Not changed; for the owner.
+- Tests: 7 unit tests (touch arms, a tap on × stops, the 3 s with fake
+  timers, another stone disarms, the mouse unchanged, a mouse after a
+  touch, a log player); G7 passes (no `test.fail`) and checks the 3 s.
+  Runs: `character-card.spec.ts` and `phone-character-card.spec.ts` 3 ×
+  (chromium, Firefox, phone: 171 passed), typecheck, vitest (6071 passed).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1392,6 +1414,22 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part G7b, the herblore × on a phone (the test server)
+
+Open the test server on the phone (reload), log in, Character in the
+strip, on Status.
+
+1. Tap the `+` among the stones and pick a herblore: its stone shows.
+2. Tap the stone once: the × shows, the herblore keeps running.
+3. Leave it: after about 3 s the × goes by itself.
+4. Tap the stone, then tap the ×: the herblore stops and its stone goes.
+5. On the desktop with a mouse: hover a herblore stone, click the ×: it
+   stops at once, as before.
+
+Feedback wanted: whether 3 s feels right; whether the Timers pane's own
+herblore × should work the same way (today a tap where its × stands
+stops the herblore at once).
 
 ### Part F2c, low panes and the compact card (the test server, MUME up)
 
