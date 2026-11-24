@@ -2040,3 +2040,14 @@ corner mark on the clickable cells. To build after H1–H4, H6.
   herblores stay by hand).
 - So `%f` goes last in the poll's format (its answer spans lines), or in
   its own `info` of the same poll.
+
+### Round 17, the tabs (the owner, 2026-11-24)
+
+A, D and E are liked (E's red marks feel a little off and likely too
+small to work). None feels quite right. Chapter heads under the hood are
+not a bad thought, but round 17's F did not look right. Round 18: more
+variants both under the hood and on the right; make it clearer that a tab
+belongs to its content (the status area to the right, without the
+stones): e.g. the area holding Mood/Casts… and the shields lies on a
+paper or in a frame that is one with the tabs, so the active tab seems to
+share its ground with what is shown. And more creative proposals.
