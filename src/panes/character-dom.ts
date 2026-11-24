@@ -229,7 +229,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
       setTip(b, v.tip, v.name, `cc:${v.id}`);
     });
   };
-  return { box, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons };
+  return { box, icons: row, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons };
 }
 
 // ------------------------------------------------------------------- Status
@@ -239,11 +239,12 @@ const SHIELD_OUTER = 'M20 2L36 7V22C36 33 29 40 20 46C11 40 4 33 4 22V7Z';
 const SHIELD_INNER = 'M20 5.2L33 9.3V22C33 31.4 27.2 37.2 20 42.4C12.8 37.2 7 31.4 7 22V9.3Z';
 const SHIELD_GEM = 'M20 .8l1.8 1.8-1.8 1.8-1.8-1.8z';
 
+/** The key, the label, the short label and the compact card's letter (ADR 0166 point 126). */
 const STATUS_LABELS = [
-  ['mood', 'Mood', 'Mood'],
-  ['casts', 'Casts', 'Casts'],
-  ['alertness', 'Alertness', 'Alert.'],
-  ['weight', 'Weight', 'Weight'],
+  ['mood', 'Mood', 'Mood', 'M'],
+  ['casts', 'Casts', 'Casts', 'C'],
+  ['alertness', 'Alertness', 'Alert.', 'A'],
+  ['weight', 'Weight', 'Weight', 'W'],
 ] as const;
 
 /**
@@ -253,7 +254,7 @@ const STATUS_LABELS = [
 function statusEl(doc: Document, click: (id: ClickId) => void) {
   const box = el(doc, 'div', 'wc-cc-panel wc-cc-status');
   const cells = el(doc, 'div', 'wc-cc-cells');
-  const fields = STATUS_LABELS.map(([key, label, short]) => {
+  const fields = STATUS_LABELS.map(([key, label, short, letter]) => {
     const f = key === 'weight' ? el(doc, 'div', 'wc-cc-f') : button(doc, 'wc-cc-f');
     f.dataset.key = key;
     if (key !== 'weight') {
@@ -265,7 +266,7 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
     small.append(iconSvg(doc, key, 'wc-cc-i'), text);
     const line = el(doc, 'span', 'wc-cc-v');
     const value = el(doc, 'span', 'wc-cc-word');
-    line.append(iconSvg(doc, key, 'wc-cc-i'), value);
+    line.append(iconSvg(doc, key, 'wc-cc-i'), el(doc, 'i', 'wc-cc-lt', letter), value);
     const meter = el(doc, 'span', 'wc-cc-mt');
     f.append(small, line, meter);
     cells.append(f);
@@ -395,18 +396,19 @@ function stonesEl(doc: Document, clock: StoneClock) {
   };
 
   /**
-   * The rows' places; false when they are what was drawn. `size`, `gap`
-   * and `bar` are the layout's (`area.stones`).
+   * The rows' places; false when they are what was drawn. `size`, `gap`,
+   * `bar` and `x0` (where the first place begins) are the layout's
+   * (`area.stones`).
    */
-  const set = (rows: StoneRows, size: number, gap: number, bar: number): boolean => {
-    let k = `${rows.per}|${size}|${gap}|${bar}`;
+  const set = (rows: StoneRows, size: number, gap: number, bar: number, x0 = 0): boolean => {
+    let k = `${rows.per}|${size}|${gap}|${bar}|${x0}`;
     for (const e of rows.entries) k += e.k === 'stone' ? `|${e.stone.id}:${e.stone.icon}:${e.stone.tone}:${e.stone.herbKey ?? ''}:${e.stone.expiresAt}` : e.k === 'more' ? `|+${e.rest.length}` : '|+';
     if (k === key) return false;
     key = k;
     const warnAt = (): number => clock.warnAt();
     rows.entries.forEach((e, i) => {
       const s = slot(i);
-      const x = (i % rows.per) * (size + gap);
+      const x = x0 + (i % rows.per) * (size + gap);
       const y = Math.floor(i / rows.per) * (size + bar + gap);
       setProp(s.el, 'transform', `translate(${x}px, ${y}px)`);
       setHidden(s.el, false);
@@ -783,6 +785,7 @@ export class CardDom {
   private readonly tabEls: { id: CardTab; b: HTMLButtonElement }[];
   private tab: CardTab | null = null;
   private stoneRows = 0;
+  private line2 = false;
 
   constructor(doc: Document, on: CardHandlers, clock: StoneClock) {
     this.root = el(doc, 'div', 'wc-cc');
@@ -848,7 +851,7 @@ export class CardDom {
 
   /** The stones show on Status and Stats, in the rows the layout gives (ADR 0166 point 122). */
   private showStones(tab: CardTab | null): void {
-    setHidden(this.stones.box, tab === 'lore' || tab === null || this.stoneRows === 0);
+    setHidden(this.stones.box, tab === 'lore' || tab === null || (this.stoneRows === 0 && !this.line2));
   }
 
   /** Whether Stats or Lore goes on below what shows (reads the layout: only after a change of either). */
@@ -872,8 +875,14 @@ export class CardDom {
     place(this.vitals.box, l.foot);
     setHidden(this.left.box, left.form === 'none');
     setHidden(this.main, l.main.w < 8 || l.main.h < 6);
-    setHidden(this.tabs, l.tabs.h < 6);
+    setHidden(this.tabs, !l.tabs.on || l.tabs.h < 6);
     setAttr(root, 'data-mode', l.mode);
+    setAttr(root, 'data-step', String(l.step));
+    // The compact card's icons stand first in its line 2, the stones' box (ADR 0166 point 126).
+    const icons = this.left.icons;
+    if (l.compact) {
+      if (icons.parentNode !== this.stones.box) this.stones.box.prepend(icons);
+    } else if (icons.parentNode !== this.left.box) this.left.box.append(icons);
     setAttr(root, 'data-portrait', left.form === 'portrait' ? '' : null);
     // The image inside the iron is what is baked.
     this.left.setDisc(left.disc > 0 ? Math.max(0, left.disc - 2 * left.frame) : 0);
@@ -882,11 +891,16 @@ export class CardDom {
     const sb = this.status.box;
     setAttr(sb, 'data-form', status.form);
     setAttr(sb, 'data-cols', String(status.cols));
-    setAttr(sb, 'data-tight', status.tight ? '' : null);
+    setAttr(sb, 'data-label', status.label ? '' : null);
     setAttr(sb, 'data-shields', area.shield > 0 ? String(area.shieldCols) : null);
     setAttr(sb, 'data-shield-icon', area.shield >= 30 ? '' : null);
+    setAttr(sb, 'data-chips', area.chips?.form ?? null);
+    setAttr(sb, 'data-flat', l.compact?.flat ? '' : null);
+    setAttr(this.main, 'data-even', area.even ? '' : null);
+    setAttr(this.main, 'data-compact', l.compact ? '' : null);
     this.status.setShort(status.short);
     this.stoneRows = area.stones.rows;
+    this.line2 = area.line2;
     this.showStones(this.tab);
     setAttr(this.stats.box, 'data-dense', l.info.dense ? '' : null);
     setAttr(this.lore.box, 'data-dense', l.info.dense ? '' : null);
@@ -928,6 +942,16 @@ export class CardDom {
       '--stone': px(st.size),
       '--stone-bar': px(st.bar),
       '--stones-h': px(st.height),
+      '--stones-x': px(st.x),
+      '--chip-h': px(area.chips?.h ?? 0),
+      '--chip-px': px(area.chips?.px ?? 0),
+      '--chip-room': px(area.chips?.room ?? 0),
+      '--chip-label': px(area.chips?.labelPx ?? 0),
+      '--chip-icon': px(area.chips?.icon ?? 0),
+      '--chip-gap': px(area.chips?.gap ?? 0),
+      '--cells-w': px(l.compact?.cellsW ?? l.main.w),
+      '--mid': px(l.compact?.mid ?? 0),
+      '--lt-gap': px(l.compact?.letterGap ?? 0),
       '--coin': px(area.purse.coin),
       '--purse-px': px(area.purse.font),
       '--purse-gap': px(area.purse.gap),

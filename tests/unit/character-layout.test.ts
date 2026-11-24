@@ -1,6 +1,7 @@
 // The Character card's sizes (stage 77 part D, ADR 0166 point 38; the
-// round 12–15 look, F2b): the modes, the status area's step 0 (shields,
-// stones, purse), and that nothing overlaps or leaves the box at any size.
+// round 12–15 look, F2b and F2c): the modes, the status area's steps 0–4
+// (shields, stones, purse), the compact card, the tabs and the vitals in a
+// low pane, and that nothing overlaps or leaves the box at any size.
 import { describe, expect, it } from 'vitest';
 import {
   type CardBox,
@@ -10,8 +11,11 @@ import {
   PHONE_GRIP,
   PORTRAIT_MIN,
   type Rect,
+  SHIELD_LOW,
   SHIELD_MIN,
+  TAB_MIN,
   areaLayout,
+  barCap,
   cardLayout,
   cardMode,
   crossDepth,
@@ -51,14 +55,17 @@ describe('height modes', () => {
     expect(lane.foot.form).toBe('tight');
   });
 
-  it('below Medium the portrait is hidden, ring and icons stay', () => {
+  it('below Medium (Small): the portrait while it is at least 44 px, else the compact card (F2c)', () => {
+    const steps = cardLayout(box({ w: 330, h: 100, px: 16.61 }));
+    expect(steps.mode).toBe('small');
+    expect(steps.left.form).toBe('portrait');
+    expect(steps.left.disc).toBeGreaterThanOrEqual(PORTRAIT_MIN);
     for (const [w, h] of [[300, 85], [200, 120], [279, 51]] as const) {
       const l = cardLayout(box({ w, h }));
       expect(l.mode).toBe('small');
-      expect(l.left.disc).toBe(0);
-      expect(l.left.form).not.toBe('portrait');
-      expect(l.left.ring).toBeGreaterThanOrEqual(14);
-      expect(l.left.icon).toBeGreaterThanOrEqual(6);
+      expect(l.left.form).toBe('none');
+      expect(l.step).toBe('compact');
+      expect(l.left.icon).toBeGreaterThanOrEqual(8);
     }
   });
 
@@ -112,7 +119,7 @@ describe('the status area, step 0 (ADR 0166 points 86, 120–122)', () => {
   });
 
   it('the stones take more rows while the shields stay at least 30 px, then `+n`', () => {
-    const at = (stones: number, h = 123) => areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w: 150, h }, status: 26, stones, add: true });
+    const at = (stones: number, h = 123) => areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w: 150, h }, heights: { cells: 26, line: 18, plain: 14 }, stones, add: true });
     expect(at(3).stones.rows).toBe(1);
     expect(at(16).stones.rows).toBe(2);
     const many = at(60);
@@ -134,7 +141,7 @@ describe('the status area, step 0 (ADR 0166 points 86, 120–122)', () => {
   });
 
   it('always a row while it fits, with no stones and no `+` too (the purse may stand in it)', () => {
-    const none = areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w: 150, h: 123 }, status: 26, stones: 0, add: false });
+    const none = areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w: 150, h: 123 }, heights: { cells: 26, line: 18, plain: 14 }, stones: 0, add: false });
     expect(none.stones.rows).toBe(1);
   });
 
@@ -158,14 +165,162 @@ describe('the status area, step 0 (ADR 0166 points 86, 120–122)', () => {
     expect(two.area.stones.rows).toBe(one.area.stones.rows + 1);
   });
 
-  it('below step 0: one row, then no shields, then part D’s Status forms with nothing else', () => {
-    const low = areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w: 150, h: 60 }, status: 26, stones: 30, add: true });
-    expect(low.stones.rows).toBe(1);
-    expect(low.shield).toBe(0);
-    const tiny = cardLayout(box({ w: 300, h: 60 }));
-    expect(tiny.status.form).not.toBe('cells');
-    expect(tiny.area.stones.rows).toBe(0);
-    expect(tiny.area.shield).toBe(0);
+  it('below step 0 (point 124): the first of steps 1–4 that fits', () => {
+    const at = (h: number, heights = { cells: 27, line: 18, plain: 14 }, w = 220) =>
+      areaLayout({ mode: 'medium', k: 1, adv: 0.6, main: { x: 0, y: 0, w, h }, heights, stones: 30, add: true });
+    // 0: the shields at least 30 px, the stones in the rows they need while they stay so.
+    const s0 = at(100);
+    expect(s0).toMatchObject({ step: 0, chips: null, even: false });
+    expect(s0.shield).toBeGreaterThanOrEqual(SHIELD_MIN);
+    // 1: one row, the shields down to 22 px (no icon under 30, character-dom.ts).
+    const s1 = at(84);
+    expect(s1).toMatchObject({ step: 1 });
+    expect(s1.stones.rows).toBe(1);
+    expect(s1.shield).toBeGreaterThanOrEqual(SHIELD_LOW);
+    expect(s1.shield).toBeLessThan(SHIELD_MIN);
+    // 2: the cells on one line, the same shields.
+    const s2 = at(74);
+    expect(s2).toMatchObject({ step: 2 });
+    expect(s2.shield).toBeGreaterThanOrEqual(SHIELD_LOW);
+    // 3: the shields as chips (shape, label, value where there is room), one row of stones.
+    const s3 = at(62);
+    expect(s3).toMatchObject({ step: 3, shield: 0, even: true });
+    expect(s3.chips?.form).toBe('shape');
+    expect(s3.stones).toMatchObject({ rows: 1, size: 12 });
+    expect(at(62, undefined, 150).chips?.form).toBe('value');
+    // 4: the values without cells, stones of 11 px; then the stones go, then the chips.
+    const s4 = at(50);
+    expect(s4).toMatchObject({ step: 4, even: true });
+    expect(s4.stones).toMatchObject({ rows: 1, size: 11 });
+    expect(at(34)).toMatchObject({ step: 4, stones: { rows: 0 } });
+    expect(at(34).chips).not.toBeNull();
+    expect(at(20).chips).toBeNull();
+    // No one-line cells (too narrow for four characters): straight to step 4.
+    expect(at(62, { cells: null as unknown as number, line: null as unknown as number, plain: 14 }).step).toBe(4);
+    // Each step's parts fit the height.
+    for (const a of [s1, s2]) expect(a.shieldsH + a.gapTop + a.gapBottom + a.stones.height).toBeLessThanOrEqual(84);
+  });
+
+  it('the steps in a real pane: a lower pane never takes a step back up (Medium and Large widths)', () => {
+    const order = (s: CardLayout['step']): number => (s === 'compact' ? 5 : s);
+    for (const lock of ['auto', 'medium', 'large'] as const) {
+      for (const w of [330, 420, 520]) {
+        let last = 5;
+        for (let h = 30; h <= 220; h++) {
+          const l = cardLayout(box({ w, h, px: 16.61, lock, stones: 8, add: true, cross: 8 }));
+          // The box's scale changes at Medium's and Large's least boxes (cardMode).
+          if (lock === 'auto' && (h === MEDIUM_MIN.h || h === LARGE_MIN.h)) last = 5;
+          expect(order(l.step), `${lock} ${w}x${h}`).toBeLessThanOrEqual(last);
+          last = order(l.step);
+        }
+        expect(last, `${lock} ${w}`).toBe(0);
+      }
+    }
+  });
+});
+
+describe('low panes (F2c, ADR 0166 points 124–126)', () => {
+  /** The content above the vitals: from the area's top margin to the vitals. */
+  const body = (l: CardLayout): number => l.main.y + l.main.h - l.left.y;
+
+  it('the tabs only where the content is at least 80 px high; below that the area takes their room', () => {
+    for (const w of [330, 520]) {
+      for (let h = 60; h <= 160; h++) {
+        const l = cardLayout(box({ w, h, px: 16.61, cross: 8 }));
+        expect(l.tabs.on, `${w}x${h}`).toBe(body(l) >= TAB_MIN);
+        if (!l.tabs.on) {
+          expect(l.tabs.w).toBe(0);
+          expect(l.main.x + l.main.w).toBeGreaterThan(w - 12);
+        }
+      }
+    }
+  });
+
+  it('the vitals: 14 px under a 122 px box, 12 under 82, 10 under 62 (the mockups’ 150, 110, 90 less their padding)', () => {
+    expect([200, 122, 121, 82, 81, 62, 61, 40].map(barCap)).toEqual([34, 34, 14, 14, 12, 12, 10, 10]);
+    const bar = (h: number): number => cardLayout(box({ w: 330, h, px: 16.61 })).foot.bar;
+    expect(bar(162)).toBe(20);
+    expect(bar(108)).toBe(14);
+    expect(bar(72)).toBe(12);
+    expect(bar(54)).toBe(10);
+    // Normal sizes keep F2b's bars.
+    expect(cardLayout(box()).foot.bar).toBeGreaterThan(14);
+  });
+
+  it('the portrait stays while it is at least 44 px; then the compact card, full width, no tabs', () => {
+    const order: (number | string)[] = [];
+    for (let h = 40; h <= 120; h++) {
+      const l = cardLayout(box({ w: 330, h, px: 16.61, lock: 'medium', cross: 8 }));
+      if (l.left.form === 'portrait') expect(l.left.disc).toBeGreaterThanOrEqual(PORTRAIT_MIN);
+      else {
+        expect(l.step).toBe('compact');
+        expect(l.main.x).toBeLessThan(8);
+        expect(l.tabs.on).toBe(false);
+      }
+      if (order.at(-1) !== l.step) order.push(l.step);
+    }
+    expect(order).toEqual(['compact', 2, 1, 0]);
+  });
+
+  it('the compact card: line 1 the status and the shields, line 2 the icons and the stones (18 px cells while both fit)', () => {
+    const l = cardLayout(box({ w: 330, h: 72, px: 16.61, stones: 8, add: true }));
+    expect(l.step).toBe('compact');
+    expect(l.left.form).toBe('none');
+    expect(l.compact).toMatchObject({ flat: false });
+    expect(l.status).toMatchObject({ form: 'compact', cols: 4, label: false });
+    expect(l.status.h).toBe(Math.round(18 * (16.61 / 15)));
+    // The status on the left 55 %, four characters (`aggr`), the shields as icon and value on the rest.
+    expect(l.compact!.cellsW).toBe(Math.floor((l.main.w - l.compact!.mid) * 0.55));
+    expect(l.status.chars).toBeGreaterThanOrEqual(4);
+    expect(l.area.chips?.form).toBe('icon');
+    // Line 2: the icons first, then the stones, the purse in their last row.
+    expect(l.area.line2).toBe(true);
+    const icons = 5 * (l.left.icon + 2) + 5 * l.left.iconGap + 1;
+    expect(l.area.stones.x).toBeGreaterThan(icons);
+    expect(l.area.stones.w).toBe(l.main.w - l.area.stones.x);
+    expect(l.area.stones.rows).toBe(1);
+    const st = l.area.stones;
+    const rows = stoneRows(someStones(8), { width: st.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: true }, 0, 20);
+    expect(rows.hidden).toEqual([]);
+    expect(purseFit(rows.free, { gold: 380, silver: 5, copper: 49 }, l.area.purse)).toBeGreaterThan(0);
+    expect(l.status.h + l.area.gapBottom + st.height).toBeLessThanOrEqual(l.main.h);
+  });
+
+  it('the compact card: flat 13 px rows and 10 px stones where 18 px does not fit, then line 2 goes', () => {
+    const low = cardLayout(box({ w: 330, h: 46, px: 15, adv: 0.6 }));
+    expect(low.step).toBe('compact');
+    expect(low.compact!.flat).toBe(true);
+    expect(low.status.h).toBe(13);
+    expect(low.area.stones.size).toBe(10);
+    expect(low.area.line2).toBe(true);
+    const lower = cardLayout(box({ w: 330, h: 30, px: 15, adv: 0.6 }));
+    expect(lower.area.line2).toBe(false);
+    expect(lower.area.stones.rows).toBe(0);
+    expect(lower.status.h).toBeLessThanOrEqual(lower.main.h);
+  });
+
+  it('the compact card: more rows of stones where there is height, `+n` where not', () => {
+    const one = cardLayout(box({ w: 330, h: 72, px: 16.61, stones: 40, add: true }));
+    expect(one.area.stones.rows).toBe(1);
+    const st = one.area.stones;
+    const rows = stoneRows(someStones(40), { width: st.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: true }, 0, 20);
+    expect(rows.entries.at(-1)!.k).toBe('more');
+    // A narrow, tall pane (the portrait has no width): the compact card with the tabs, and rows.
+    const tall = cardLayout(box({ w: 180, h: 200, px: 16.61, stones: 40, add: true }));
+    expect(tall.step).toBe('compact');
+    expect(tall.tabs.on).toBe(true);
+    expect(tall.area.stones.rows).toBeGreaterThan(1);
+  });
+
+  it('the compact card sideways: the shields’ icons go, then the shields, then the values; the letters stay', () => {
+    const at = (w: number) => cardLayout(box({ w, h: 72, px: 16.61 }));
+    expect(at(330).area.chips?.form).toBe('icon');
+    expect(at(240).area.chips?.form).toBe('value');
+    expect(at(240).status.chars).toBe(4);
+    expect(at(150).area.chips).toBeNull();
+    expect(at(150).compact!.cellsW).toBe(at(150).main.w);
+    expect(at(72).status.chars).toBe(0);
+    expect(at(72).status.valuePx).toBeGreaterThan(5);
   });
 });
 
@@ -174,9 +329,15 @@ const glyph = (px: number, adv: number): number => Math.max(px * adv, Math.round
 const overlap = (a: Rect, b: Rect): boolean =>
   Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.01 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.01;
 
+/** `ALERTNESS`, `WEIGHT` and `ABS` in Cinzel Bold (character-layout.ts). */
+const LABEL_EM = 7.1;
+const SHORT_EM = 5.1;
+const CHIP_EM = 2.6;
+
 function problems(b: CardBox, l: CardLayout): string[] {
   const out: string[] = [];
-  const parts: [string, Rect][] = [['main', l.main], ['tabs', l.tabs], ['foot', l.foot]];
+  const parts: [string, Rect][] = [['main', l.main], ['foot', l.foot]];
+  if (l.tabs.on) parts.push(['tabs', l.tabs]);
   if (l.left.form !== 'none') parts.push(['left', l.left]);
   for (const [name, r] of parts) {
     if (![r.x, r.y, r.w, r.h].every(Number.isFinite)) out.push(`${name} is no number`);
@@ -187,45 +348,72 @@ function problems(b: CardBox, l: CardLayout): string[] {
     for (let j = i + 1; j < parts.length; j++) if (overlap(parts[i]![1], parts[j]![1])) out.push(`${parts[i]![0]} on ${parts[j]![0]}`);
   }
   const { left, status, foot, area, main } = l;
-  if (b.cross && l.tabs.h >= 6 && l.tabs.y < b.cross) out.push('a tab is under the cross');
+  const k = l.scale;
+  if (b.cross && l.tabs.on && l.tabs.h >= 6 && l.tabs.y < b.cross) out.push('a tab is under the cross');
+  // Point 125: the tabs only where the content above the vitals is TAB_MIN high.
+  if (l.tabs.on && l.tabs.y + l.tabs.h < TAB_MIN - 0.5) out.push('tabs in a low pane');
+  if ((l.step === 'compact') !== (left.form === 'none')) out.push('the compact card with a portrait');
   if (left.form === 'portrait') {
+    if (left.disc < PORTRAIT_MIN) out.push('the portrait is under 44 px');
     if (left.discX < -0.01 || left.discX + left.disc > left.w + 0.01) out.push('the portrait is wider than the column');
     if (left.ringX + left.ring > left.w + 0.01) out.push('the ring is outside the column');
     const icons = 5 * (left.icon + 2) + 5 * left.iconGap + 1;
     if (left.iconsX < -0.01 || left.iconsX + icons > left.w + 0.01) out.push('the icons are wider than the column');
     if (left.iconsY + left.icon + 4 > left.h + 0.01) out.push('the column is too high');
   }
-  if (status.form === 'cells') {
-    const below = area.shield > 0 ? area.gapTop + area.shield + 9 * l.scale : 0;
-    const stones = area.stones.rows > 0 ? area.gapBottom + area.stones.height : 0;
-    if (status.h + below + stones > main.h + 0.5) out.push('the status area is too high');
+  if (main.w < 8 || main.h < 6) return out;
+  const g = glyph(status.valuePx, b.adv);
+  const stones = area.stones.rows > 0 ? area.gapBottom + area.stones.height : 0;
+  const chips = area.chips;
+  if (l.step !== 'compact') {
+    // The status' height with what is under it.
+    const below = area.shield > 0 ? area.gapTop + area.shield + 9 * k : chips ? area.gapTop + chips.h : 0;
+    if (status.h + below + stones > main.h + 0.5) out.push(`the status area is too high (step ${l.step})`);
     if (area.shield > 0) {
       const cols = area.shieldCols;
-      if (cols * ((area.shield * 40) / 48) + (cols - 1) * 3 * l.scale > main.w + 0.5) out.push('the shields are wider than the area');
-      if (area.shieldsH < (4 / cols) * (area.shield + 9 * l.scale) - 0.5) out.push('the shields are higher than their room');
+      if (cols * ((area.shield * 40) / 48) + (cols - 1) * 3 * k > main.w + 0.5) out.push('the shields are wider than the area');
+      if (area.shieldsH < (4 / cols) * (area.shield + 9 * k) - 0.5) out.push('the shields are higher than their room');
     }
-    if (area.stones.rows > 0 && 2 * area.stones.size + area.stones.gap > main.w + 0.5) out.push('two stones are wider than the area');
+    // What a cell's value is promised fits it.
+    const cw = (main.w - (status.cols - 1) * status.gap) / status.cols;
+    let room = cw - 4 - (status.form === 'plain' ? 0 : 7 * k);
+    if (status.form === 'line' && status.label) room -= status.labelPx * (status.short ? SHORT_EM : LABEL_EM) + 4 * k;
+    if (status.form === 'cells' && status.labelPx * (status.short ? SHORT_EM : LABEL_EM) > cw - 4 + 0.01) out.push('a Status label is too long');
+    if (status.chars * g > room + 0.01) out.push(`Status words are too long (${status.form})`);
+    if (status.valuePx < 6.5) out.push(`Status words are too small (${status.form})`);
+  } else {
+    // Line 1, then line 2 (the icons, the stones) under it.
+    if (status.h > main.h + 0.01) out.push('line 1 is too high');
+    if (area.line2 && status.h + area.gapBottom + area.stones.height > main.h + 0.5) out.push('line 2 is outside');
+    if (area.line2) {
+      const icons = 5 * (left.icon + 2) + 5 * left.iconGap + 1;
+      if (icons > area.stones.x + 0.01) out.push('the icons run into the stones');
+      if (area.stones.x + area.stones.w > main.w + 0.01) out.push('the stones are wider than the line');
+      if (area.stones.rows > 0 && 2 * area.stones.size + area.stones.gap > area.stones.w + 0.5) out.push('two stones are wider than their room');
+    }
+    const cellsW = l.compact!.cellsW;
+    const inner = (cellsW - 3 * status.gap) / 4 - 2 * Math.round(2 * Math.min(1.8, Math.max(0.8, b.px / 15)));
+    if (status.chars > 0 && g + l.compact!.letterGap + status.chars * g > inner + 0.01) out.push('a compact value is too long');
+    if (g > inner + 0.01) out.push('a compact letter does not fit');
+    if (chips && cellsW + l.compact!.mid > main.w) out.push('the shields have no room');
   }
-  if (left.form === 'column') {
-    const icons = 5 * (left.icon + 2) + 5 * left.iconGap + 1;
-    if (icons > left.w + 0.01) out.push('the icons are wider than the column');
-    if (left.disc > left.w) out.push('the portrait is wider than the column');
-    const high = left.namePx * 1.15 + (left.disc ? left.disc + left.ring * 0.375 : left.ring) + left.icon + 4;
-    if (high > left.h + 0.01) out.push('the column is too high');
+  if (chips) {
+    const cw = (main.w - (l.compact ? l.compact.cellsW + l.compact.mid : 0) - 3 * chips.gap) / 4;
+    if (3 * glyph(chips.px, b.adv) > chips.room + 0.01) out.push('a chip value is too long');
+    const extra = chips.form === 'shape' ? 10 * k + chips.labelPx * CHIP_EM + 6 * k : chips.form === 'label' ? chips.labelPx * CHIP_EM + 3 * k : chips.form === 'icon' ? chips.icon + 3 : 0;
+    if (chips.room + extra > cw + 0.5) out.push(`a chip is wider than its room (${chips.form})`);
+    if (chips.h > main.h + 0.01) out.push('the chips are too high');
   }
-  // A cell of Status holds what it was promised.
-  if (status.form !== 'cells' && status.chars > 0 && l.main.w >= 8) {
-    const room = l.main.w / status.cols - 6 - (status.form === 'inline' ? status.valuePx * 1.3 : 0);
-    if (status.chars * glyph(status.valuePx, b.adv) > room + 0.01) out.push('Status words are too long');
-  }
+  if (area.stones.rows > 0 && area.stones.per * (area.stones.size + area.stones.gap) - area.stones.gap > area.stones.w + 0.5) out.push('a row of stones is wider than the area');
   const col = (b.w - 2 * foot.pad - 2 * foot.gap) / 3 - 2 * foot.inset;
   if (b.digits * glyph(foot.numberPx, b.adv) > col + 0.2) out.push('the number is wider than its bar');
+  if (foot.bar > barCap(b.h)) out.push('the bars are higher than a low pane allows');
   return out;
 }
 
 describe('no overlap and nothing outside', () => {
   const widths = [72, 90, 110, 120, 150, 176, 200, 230, 260, 279, 300, 340, 392, 420, 480, 520, 560, 640, 760, 900, 1200, 1800];
-  const heights = [21, 30, 40, 51, 60, 70, 85, 100, 107, 120, 140, 153, 160, 171, 190, 230, 300, 400, 800];
+  const heights = [21, 30, 36, 40, 44, 51, 54, 60, 62, 66, 70, 72, 78, 80, 85, 90, 95, 100, 104, 107, 115, 120, 140, 153, 160, 171, 190, 230, 300, 400, 800];
   for (const lock of ['auto', 'large', 'medium'] as const) {
     it(`every size, font and phone place (${lock})`, () => {
       const bad: string[] = [];
@@ -245,7 +433,7 @@ describe('no overlap and nothing outside', () => {
           }
         }
       }
-      expect(bad.slice(0, 20)).toEqual([]);
+      expect(bad.slice(0, 30)).toEqual([]);
     });
   }
 

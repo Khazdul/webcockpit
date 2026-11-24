@@ -37,7 +37,7 @@ import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import type { CharView } from '../gmcp/char';
 import type { InfoAnswer } from '../gmcp/info-answer';
 import { type CardBox, type CardLayout, cardLayout, crossDepth } from './character-layout';
-import { type StoneTone, purseFit, stoneRows } from './character-stones';
+import { type StoneRows, type StoneTone, purseFit, stoneRows } from './character-stones';
 import {
   type CardEnv,
   type CardTab,
@@ -82,6 +82,8 @@ const WAKE_LAG_MS = 5;
 type Part = 'layout' | 'theme' | 'tones' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'shields' | 'stones' | 'purse' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;
 
 const STONE_TONES: readonly StoneTone[] = ['buff', 'debuff', 'herb', 'sanct'];
+/** No places: the compact card's icons with no stones beside them. */
+const NO_ROWS: StoneRows = { entries: [], hidden: [], per: 2, rows: 0, rowsNeed: 0, stoneH: 0, height: 0, free: 0 };
 
 export class CharacterPane extends PaneShell {
   private readonly tip: PaneTooltip;
@@ -353,6 +355,8 @@ export class CharacterPane extends PaneShell {
     if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}|${box.stones}|${box.add}`)) {
       this.layout = cardLayout(box);
       card.setLayout(this.layout);
+      // Too low for the tabs: Status shows, and the chosen tab when it is tall again (point 125).
+      if (this.tabs.setLow(!this.layout.tabs.on)) this.closeMenus();
     }
     const layout = this.layout!;
     if (this.changed('theme', `${ramp.vtext}${ramp.label}${ramp.track}${light}${box.adv}`)) {
@@ -380,8 +384,9 @@ export class CharacterPane extends PaneShell {
       card.left.setIcons(iconsView(v, env), fighting);
     }
     const chars = layout.status.chars;
-    if (this.changed('status', `${clickKey}|${chars}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}|${v.carrying?.step}`)) {
-      card.status.set(statusView(v, env, chars));
+    const compact = layout.status.form === 'compact';
+    if (this.changed('status', `${clickKey}|${chars}|${compact}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}|${v.carrying?.step}`)) {
+      card.status.set(statusView(v, env, chars, compact));
     }
     const answer = ctx.game.info.answer;
     if (this.changed('shields', answer ? `${answer.ob}|${answer.db}|${answer.pb}|${answer.abs}` : '-')) card.status.setShields(shieldsView(answer));
@@ -408,10 +413,16 @@ export class CharacterPane extends PaneShell {
     if (tab === 'lore' || st.rows === 0) {
       this.hiddenStones = [];
       this.stoneMenu.hide();
+      // The compact card's line 2 with no room for stones: its icons alone.
+      if (st.rows === 0 && layout.area.line2 && card.stones.set(NO_ROWS, st.size, st.gap, st.bar, st.x)) {
+        card.stones.setPurse(null, 0, 0);
+        this.drawn.delete('purse');
+        this.wrote = true;
+      }
       return null;
     }
-    const rows = stoneRows(view.stones, { width: layout.main.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: view.canStartHerb }, now, warnAt);
-    if (card.stones.set(rows, st.size, st.gap, st.bar)) this.wrote = true;
+    const rows = stoneRows(view.stones, { width: st.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: view.canStartHerb }, now, warnAt);
+    if (card.stones.set(rows, st.size, st.gap, st.bar, st.x)) this.wrote = true;
     this.hiddenStones = rows.hidden;
     if (rows.hidden.length === 0) this.stoneMenu.hide();
     else this.stoneMenu.update(rows.hidden, this.stoneColors, now, warnAt);

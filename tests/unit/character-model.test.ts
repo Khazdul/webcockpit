@@ -184,6 +184,19 @@ describe('the tabs and the fight (round 12 decision 8: only the swords)', () => 
     expect(t.shown).toBe('stats');
   });
 
+  it('a pane too low for the tabs shows Status, and the chosen tab when tall again (point 125)', () => {
+    const t = new TabState();
+    t.select('lore');
+    expect(t.setLow(true)).toBe(true);
+    expect(t.shown).toBe('status');
+    expect(t.choice).toBe('lore');
+    expect(t.setLow(true)).toBe(false);
+    expect(t.setLow(false)).toBe(true);
+    expect(t.shown).toBe('lore');
+    t.select('status');
+    expect(t.setLow(true)).toBe(false);
+  });
+
   it('the position is the crossed swords, with no click', () => {
     const pos = iconsView(viewOf({ position: 'standing' }), env({ fighting: true }))[4]!;
     expect(pos).toMatchObject({ icon: 'fighting', name: 'Fighting', command: null });
@@ -222,6 +235,19 @@ describe('weight (decision 9)', () => {
     const light = statusView(viewOf({ carrying: 'peanuts' }), env(), 20)[3]!;
     expect(light).toMatchObject({ value: 'peanuts', tip: 'Peanuts.', signal: null });
     expect(statusView(viewOf({ carrying: 'Odd' }), env(), 20)[3]).toMatchObject({ value: 'Odd', tip: 'Odd', signal: null });
+  });
+
+  it('the compact card: the whole word where it fits, else the hand-made short form (point 126)', () => {
+    const v = viewOf({ mood: 'aggressive', 'spell-effort': 'normal', alertness: 'attentive', carrying: 'really heavy' });
+    expect(statusView(v, env(), 4, true).map((f) => f.value)).toEqual(['aggr', 'norm', 'attn', 'rhvy']);
+    expect(statusView(v, env(), 6, true).map((f) => f.value)).toEqual(['aggr', 'normal', 'attn', 'r.hvy']);
+    expect(statusView(v, env(), 20, true).map((f) => f.value)).toEqual(['aggressive', 'normal', 'attentive', 'really heavy']);
+    // Elsewhere the cut with a dot, as before.
+    expect(statusView(v, env(), 4).map((f) => f.value)).toEqual(['agg.', 'nor…', 'att.', 'rea…']);
+    // The tooltip and the name keep the whole word; no room: no value (the letter stays, CSS).
+    expect(statusView(v, env(), 4, true)[0]).toMatchObject({ name: 'Mood: aggressive' });
+    expect(statusView(v, env(), 0, true).map((f) => f.value)).toEqual(['', '', '', '']);
+    expect(statusView(viewOf({}), env(), 4, true)[0]!.value).toBe('—');
   });
 
   it('the step meter: every step of each field, the current one (round 12 decision 3)', () => {

@@ -114,19 +114,6 @@
   justify-content: space-between;
 }
 
-.wc-cc-left[data-form="row"] {
-  display: grid;
-  grid-template-columns: var(--ring) var(--name-w);
-  align-content: center;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* No portrait and room to spare: the three stay together. */
-.wc-cc:not([data-portrait]) .wc-cc-left[data-form="column"] {
-  justify-content: space-evenly;
-}
-
 .wc-cc-name {
   box-sizing: border-box;
   max-width: var(--name-w);
@@ -141,21 +128,11 @@
   text-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 30%, transparent);
 }
 
-.wc-cc-left[data-form="row"] .wc-cc-name {
-  grid-column: 2;
-  grid-row: 1;
-}
-
 .wc-cc-medal {
   position: relative;
   flex: none;
   width: var(--ring);
   height: var(--ring);
-}
-
-.wc-cc-left[data-form="row"] .wc-cc-medal {
-  grid-column: 1;
-  grid-row: 1 / 3;
 }
 
 /* The portrait form (round 12 decisions 1 and 2): the square frame at the
@@ -338,12 +315,6 @@
   height: calc(var(--ico) + 4px);
 }
 
-.wc-cc-left[data-form="row"] .wc-cc-icons {
-  grid-column: 2;
-  grid-row: 2;
-  height: calc(var(--ico) + 2px);
-}
-
 .wc-cc-ib {
   position: relative;
   display: flex;
@@ -406,30 +377,23 @@
   font: 700 calc(var(--ico) * 0.95) / 1 var(--font-mono, monospace);
 }
 
-/* After the label; where that has no room, under the value, and where
- * there is no label over it, on the value. */
-.wc-cc-status:not([data-tight]) .wc-cc-f[data-pending] .wc-cc-k::after,
-.wc-cc-status[data-tight] .wc-cc-f[data-pending] .wc-cc-v::after,
-.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f[data-pending] .wc-cc-v::after {
+/* After the label over the value (the cells); in the other forms on the value. */
+.wc-cc-status[data-form="cells"] .wc-cc-f[data-pending] .wc-cc-k::after,
+.wc-cc-status:not([data-form="cells"]) .wc-cc-f[data-pending] .wc-cc-v::after {
   content: "⋯";
   position: absolute;
   color: var(--pend);
   font: 700 max(11px, calc(var(--st-label) * 1.35)) / 1 var(--font-mono, monospace);
 }
 
-.wc-cc-status:not([data-tight]) .wc-cc-f[data-pending] .wc-cc-k::after {
+.wc-cc-status[data-form="cells"] .wc-cc-f[data-pending] .wc-cc-k::after {
   left: calc(100% + 2px);
 }
 
-.wc-cc-status[data-tight] .wc-cc-f[data-pending] .wc-cc-v::after {
-  top: calc(100% - 0.35em);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f[data-pending] .wc-cc-v::after {
+.wc-cc-status:not([data-form="cells"]) .wc-cc-f[data-pending] .wc-cc-v::after {
   top: 50%;
   left: 50%;
+  font-size: max(11px, calc(var(--st-value) * 1.2));
   transform: translate(-50%, -50%);
 }
 
@@ -441,6 +405,17 @@
   flex-direction: column;
 }
 
+/* Steps 3–4 (ADR 0166 point 124): the cells, the chips and the stones
+ * share what is left of the height. */
+.wc-cc-main[data-even] {
+  justify-content: space-evenly;
+}
+
+/* The compact card (point 126): its two lines in the middle of the area. */
+.wc-cc-main[data-compact] {
+  justify-content: center;
+}
+
 /* Status: the cells, the shields under them (the stones are main's last child). */
 .wc-cc-status {
   flex: 1 1 0;
@@ -449,18 +424,29 @@
   min-height: 0;
 }
 
+.wc-cc-main[data-even] > .wc-cc-status {
+  display: contents;
+}
+
+/* Line 1: the status on the left, the shields on the rest. */
+.wc-cc-status[data-form="compact"] {
+  flex: none;
+  flex-direction: row;
+  height: var(--cells-h);
+}
+
 .wc-cc-cells {
-  flex: 1 1 0;
+  flex: none;
   display: grid;
   grid-template-columns: repeat(var(--st-cols, 4), minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
+  gap: var(--cell-gap);
+  height: var(--cells-h);
   min-height: 0;
 }
 
-.wc-cc-status[data-form="cells"] > .wc-cc-cells {
-  flex: none;
-  gap: var(--cell-gap);
-  height: var(--cells-h);
+.wc-cc-status[data-form="compact"] > .wc-cc-cells {
+  width: var(--cells-w);
 }
 
 .wc-cc-f {
@@ -470,69 +456,74 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: calc(var(--st-label) * 0.35);
+  gap: calc(3px * var(--k));
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 0 3px;
+  padding: 0 2px;
   text-align: center;
 }
 
-/* Thin dividers, no boxes. */
-.wc-cc-f::before {
+/* The cells (round 12 decision 3): a thin frame, a slightly darker ground,
+ * small labels, clearer values; on one line and in the compact card too. */
+.wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f {
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 17%, transparent);
+}
+
+/* The values without cells (step 4, the low compact card): thin dividers. */
+.wc-cc-status:is([data-form="plain"], [data-form="compact"][data-flat]) .wc-cc-f:not(:first-child)::before {
   content: "";
   position: absolute;
-  top: 3%;
-  bottom: 3%;
+  top: 3px;
+  bottom: 3px;
   left: 0;
   width: 1px;
-  background: var(--rule);
+  background: color-mix(in srgb, var(--lamp) 16%, transparent);
 }
 
-.wc-cc-status[data-cols="4"] .wc-cc-f:first-child::before,
-.wc-cc-status[data-cols="2"] .wc-cc-f:nth-child(odd)::before,
-.wc-cc-status[data-cols="1"] .wc-cc-f::before {
-  display: none;
+.wc-cc-status:is([data-form="line"], [data-form="compact"]) .wc-cc-f {
+  flex-direction: row;
 }
 
-.wc-cc-status[data-cols="2"] .wc-cc-f:nth-child(n + 3),
-.wc-cc-status[data-cols="1"] .wc-cc-f:nth-child(n + 2) {
-  border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+.wc-cc-status[data-form="line"] .wc-cc-f {
+  gap: calc(4px * var(--k));
+  padding-right: calc(7px * var(--k));
 }
 
 .wc-cc-f .wc-cc-k {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.45em;
   color: var(--dim);
   font-size: var(--st-label);
-  line-height: 1.2;
+  letter-spacing: 0.12em;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-.wc-cc-f .wc-cc-k > svg {
-  width: 1.45em;
-  height: 1.45em;
-  color: var(--lamp);
+.wc-cc-f .wc-cc-k > svg,
+.wc-cc-f .wc-cc-v > svg,
+.wc-cc-status:not([data-form="cells"], [data-label]) .wc-cc-k {
+  display: none;
 }
 
 .wc-cc-f .wc-cc-v {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.3em;
   max-width: 100%;
+  color: var(--text);
   font-size: var(--st-value);
   font-weight: bold;
   line-height: 1.2;
 }
 
-.wc-cc-f .wc-cc-v > svg {
-  display: none;
-  width: 1em;
-  height: 1em;
-  color: var(--lamp);
+/* The value keeps clear of the meter at the right. */
+.wc-cc-status[data-form="cells"] .wc-cc-v {
+  max-width: calc(100% - var(--k) * 7px);
+  line-height: 1;
 }
 
 .wc-cc-word {
@@ -541,17 +532,17 @@
   text-overflow: ellipsis;
 }
 
-.wc-cc-status:not([data-form="full"]) .wc-cc-k > svg,
-.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-k {
+/* The compact card's letter, in the shields' icon colour. */
+.wc-cc-lt {
   display: none;
+  flex: none;
+  margin-right: var(--lt-gap);
+  color: var(--lamp);
+  font-style: normal;
 }
 
-.wc-cc-status:is([data-form="inline"], [data-form="value"]) .wc-cc-f {
-  gap: 0;
-}
-
-.wc-cc-status[data-form="inline"] .wc-cc-v > svg {
-  display: block;
+.wc-cc-status[data-form="compact"] .wc-cc-lt {
+  display: inline;
 }
 
 .wc-cc-f[data-signal="low"] :is(.wc-cc-word, svg) {
@@ -562,46 +553,12 @@
   color: var(--cc-critical);
 }
 
-/* The cells (round 12 decision 3): a thin frame, a slightly darker ground,
- * small labels, clearer values, the step meter at the right. */
+/* The step meter, only the current lamp lit: in the cells and on one line. */
 .wc-cc-mt {
   display: none;
 }
 
-.wc-cc-status[data-form="cells"] .wc-cc-f {
-  gap: calc(3px * var(--k));
-  padding: 0 2px;
-  border-radius: 3px;
-  background: rgb(0 0 0 / 0.2);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 17%, transparent);
-}
-
-.wc-cc-status[data-form="cells"] .wc-cc-f::before {
-  display: none;
-}
-
-.wc-cc-status[data-form="cells"] .wc-cc-f:nth-child(n) {
-  border-top: 0;
-}
-
-.wc-cc-status[data-form="cells"] .wc-cc-k {
-  gap: 0;
-  letter-spacing: 0.12em;
-  line-height: 1;
-}
-
-.wc-cc-status[data-form="cells"] .wc-cc-k > svg {
-  display: none;
-}
-
-/* The value keeps clear of the meter at the right. */
-.wc-cc-status[data-form="cells"] .wc-cc-v {
-  max-width: calc(100% - var(--k) * 7px);
-  color: var(--text);
-  line-height: 1;
-}
-
-.wc-cc-status[data-form="cells"] .wc-cc-mt {
+.wc-cc-status:is([data-form="cells"], [data-form="line"]) .wc-cc-mt {
   position: absolute;
   top: 50%;
   right: calc(3px * var(--k));
@@ -609,6 +566,10 @@
   flex-direction: column-reverse;
   gap: 1px;
   transform: translateY(-50%);
+}
+
+.wc-cc-status[data-form="line"] .wc-cc-lamp {
+  height: max(1px, calc(1.5px * var(--k)));
 }
 
 .wc-cc-lamp {
@@ -720,6 +681,89 @@
   letter-spacing: 0.12em;
 }
 
+/* The shields as chips (steps 3–4: shape, label, value; the compact card:
+ * icon and value, the label in the tooltip). */
+.wc-cc-status[data-chips] > .wc-cc-shields {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--chip-gap);
+  height: var(--chip-h);
+  margin-top: var(--gap-top);
+}
+
+.wc-cc-status[data-form="compact"] > .wc-cc-shields {
+  flex: 1 1 0;
+  height: 100%;
+  margin: 0 0 0 var(--mid);
+}
+
+.wc-cc-status[data-chips] .wc-cc-shield {
+  flex-direction: row;
+  justify-content: center;
+  gap: calc(3px * var(--k));
+  height: 100%;
+  overflow: hidden;
+  padding: 0 2px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.wc-cc-status:is([data-chips="icon"], [data-chips="value"]) .wc-cc-shield {
+  padding: 0 1px;
+}
+
+.wc-cc-status[data-chips]:not([data-flat]) .wc-cc-shield {
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 13%, transparent);
+}
+
+.wc-cc-status[data-chips] .wc-cc-sb {
+  display: contents;
+}
+
+.wc-cc-status[data-chips] .wc-cc-sp {
+  position: static;
+  display: none;
+  flex: none;
+  width: calc(10px * var(--k));
+  height: calc(12px * var(--k));
+}
+
+.wc-cc-status[data-chips="shape"] .wc-cc-sp {
+  display: block;
+}
+
+.wc-cc-status[data-chips] .wc-cc-sb > .wc-cc-i {
+  position: static;
+  display: none;
+  width: var(--chip-icon);
+  height: var(--chip-icon);
+  transform: none;
+}
+
+.wc-cc-status[data-chips="icon"] .wc-cc-sb > .wc-cc-i {
+  display: block;
+}
+
+.wc-cc-status[data-chips] .wc-cc-sv {
+  position: static;
+  order: 2;
+  color: var(--text);
+  font-size: min(var(--chip-px), calc(var(--chip-room) / (var(--n, 3) * var(--adv, 0.6))));
+}
+
+.wc-cc-status[data-chips] .wc-cc-sk {
+  display: none;
+  order: 1;
+  font-size: var(--chip-label);
+  letter-spacing: 0.08em;
+}
+
+.wc-cc-status:is([data-chips="shape"], [data-chips="label"]) .wc-cc-sk {
+  display: block;
+}
+
 /* --------------------------------------------------------------- stones */
 
 /* At the bottom of Status and Stats, left-aligned, in the layout's rows
@@ -729,6 +773,13 @@
   flex: none;
   height: var(--stones-h);
   margin-top: var(--gap-bottom);
+}
+
+/* The compact card's line 2: the five icons first, the stones after them. */
+.wc-cc-stones > .wc-cc-icons {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .wc-cc-st {
@@ -1265,17 +1316,9 @@
   flex-basis: 0;
 }
 
-.wc-cc-tabs[data-form="stacked"] .wc-cc-tab {
-  letter-spacing: 0.08em;
-}
-
 /* Too little for words: three marks, named for a screen reader. */
-.wc-cc-tabs:is([data-form="marks"], [data-form="row"]) .wc-cc-tab-t {
+.wc-cc-tabs[data-form="marks"] .wc-cc-tab-t {
   display: none;
-}
-
-.wc-cc-tabs[data-form="row"] {
-  flex-direction: row;
 }
 
 .wc-cc-tab[aria-selected="true"] {
@@ -1457,7 +1500,12 @@
   box-shadow: 0 0 0 1px var(--engrave), inset 0 1px 0 rgb(255 255 255 / 0.6), 0 1px 4px rgb(50 35 10 / 0.25);
 }
 
-.wc-cc[data-light] .wc-cc-status[data-form="cells"] .wc-cc-f {
+.wc-cc[data-light] .wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f,
+.wc-cc[data-light] .wc-cc-status:is([data-chips="icon"], [data-chips="value"]) .wc-cc-shield {
+  padding: 0 1px;
+}
+
+.wc-cc-status[data-chips]:not([data-flat]) .wc-cc-shield {
   background: #fffdf8;
   box-shadow: inset 0 0 0 1px rgb(60 40 10 / 0.2);
 }

@@ -27,6 +27,7 @@ import {
 import type { InfoAnswer } from '../gmcp/info-answer';
 import { ageFactor } from '../gmcp/race';
 import { vitalColor } from './group-model';
+import { shortForm } from './character-stones';
 import { type IconName, positionIcon } from './icons';
 
 // --------------------------------------------------------------------- tabs
@@ -39,13 +40,31 @@ export const CARD_TABS: readonly { id: CardTab; label: string }[] = [
   { id: 'lore', label: 'LORE' },
 ];
 
-/** Which tab shows, and whether a fight is on (it changes no tab, round 12 decision 8). */
+/**
+ * Which tab shows, and whether a fight is on (it changes no tab, round 12
+ * decision 8). In a pane too low for the tabs only Status shows; the chosen
+ * tab comes back when it is tall again (ADR 0166 point 125).
+ */
 export class TabState {
   private chosen: CardTab = 'status';
   private fight = false;
+  private short = false;
 
   get shown(): CardTab {
+    return this.short ? 'status' : this.chosen;
+  }
+
+  /** The chosen tab, also while it is not shown. */
+  get choice(): CardTab {
     return this.chosen;
+  }
+
+  /** The pane has no room for the tabs. True: what shows changed. */
+  setLow(low: boolean): boolean {
+    if (low === this.short) return false;
+    const before = this.shown;
+    this.short = low;
+    return this.shown !== before;
   }
 
   get fighting(): boolean {
@@ -348,15 +367,22 @@ const stepOf = (steps: readonly string[], word: string | null): number | null =>
   return i < 0 ? null : i;
 };
 
+/**
+ * The four Status fields, each value in `chars` characters: cut with a dot
+ * or `…` (`fitWord`), or in the compact card the hand-made short forms
+ * (`shortForm`, ADR 0166 point 126).
+ */
 export function statusView(
   v: ClickValues & Pick<CharView, 'carrying'>,
   e: CardEnv,
   chars: number,
+  compact = false,
 ): StatusFieldView[] {
+  const fit = (word: string | null): string => (word === null ? (chars > 0 ? NONE : '') : compact ? shortForm(word, chars) : fitWord(word, chars));
   const field = (id: 'mood' | 'casts' | 'alertness', icon: IconName, label: string, word: string | null, steps: readonly string[]): StatusFieldView => {
     const name = `${label}: ${word ?? 'unknown'}`;
     const click = clickView(id, icon, name, v, e);
-    return { key: id, icon, label, value: fitWord(word ?? NONE, chars), name, signal: null, steps: steps.length, step: stepOf(steps, word), click, tip: click.tip };
+    return { key: id, icon, label, value: fit(word), name, signal: null, steps: steps.length, step: stepOf(steps, word), click, tip: click.tip };
   };
   const load = v.carrying;
   return [
@@ -367,7 +393,7 @@ export function statusView(
       key: 'weight',
       icon: 'weight',
       label: 'Weight',
-      value: fitWord(load?.word ?? NONE, chars),
+      value: fit(load?.word ?? null),
       name: `Weight: ${load?.word ?? 'unknown'}`,
       signal: loadSignal(load?.step ?? null),
       steps: CARRYING_STEPS.length,
