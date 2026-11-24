@@ -260,7 +260,7 @@ Each part ends with a stop: the owner looks and says go before the next.
       last row, the stones in Stats, War fame and War points in Lore, the
       portrait steps and the compact card; and the stone view (herb, buff,
       debuff, your flags, your sanctuary) from F1.
-- [ ] G. Tests: unit (flags from `you`, the stone view and order, the
+- [x] G. Tests: unit (flags from `you`, the stone view and order, the
       layout's shield size, stone rows and `+n`, the poll triggers and
       interval) and e2e (the card from a GMCP fixture, stones and `+n`,
       the click list, herb `+` and ×, swords only, `⋯` until the poll),
@@ -453,7 +453,7 @@ To add (e2e), on a branch by a building agent:
       second stops it; an untapped × goes after 3 s (built in G7b).
 - [x] G7c. The Timers pane's herblore × and charm × on touch, the same
       way (the owner's feedback on G7b): `phone-timers-touch.spec.ts`.
-- [ ] The full e2e at 5 workers, alone on the machine.
+- [x] The full e2e at 5 workers, alone on the machine (after G, G7b and G7c; the few failures pass alone).
 
 Not added: the 10 s repeat in a browser (slow; unit tests with fake timers
 cover it).
