@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); next F2 (the card in the round 12–15 look), G, H | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); next the owner's test of F2c, then G, H | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -156,6 +156,26 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-24 — Stage 77 F2
+
+- **Split** into F2a, F2b, F2c, one building agent each on a branch,
+  fast-forwarded to main after the main session's check.
+- **F2a:** the stones as data (`src/panes/character-stones.ts`), `+n`
+  priority, purse steps, short forms; `character.stones` switches in the
+  gear and on the phone (sub-page now "Character"). ADR 0166 addendum 23.
+- **F2b:** the round 12–14 look at normal sizes, the phone strip the same;
+  a shared `PopupMenu`. ADR 0166 addendum 24. **The owner tested: all 8
+  steps good, no changes.**
+- **F2c:** the steps 1–4, tabs only at ≥ 80 px, the vitals' heights, the
+  compact card down to ~72 px; Small is now the compact card. Addendum 25.
+- **Tested:** typecheck; unit 6064 passed; full e2e at 5 workers 2096
+  passed, 2 failed (`profile-place.spec.ts:444`,
+  `phone-community-page.spec.ts:139`), both pass alone.
+- **Next:** the owner's test of F2c (test guide "Part F2c"), then G, H.
+- **Open:** `trtr`, `pnts`, `vigl`; Medium's Stats cramped (H); text a
+  little smaller just above Medium's 106 px; tiny tab words at 80–92 px;
+  the herblore × on touch (two taps) not tried on a phone.
 
 ### 2026-11-24 — Stage 77 F0 and F1
 

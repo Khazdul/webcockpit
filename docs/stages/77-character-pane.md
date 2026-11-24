@@ -1322,6 +1322,27 @@ Parked:
 
 ## Test guide (for the owner)
 
+### Part F2c, low panes and the compact card (the test server, MUME up)
+
+Reload `http://localhost:5173/`, log in, Character pane on Status.
+Screenshots: `notes/research/character-pane-mockups/f2c/`.
+
+1. Drag the pane lower, bit by bit. The shields and stones shrink first,
+   then the portrait gets smaller; nothing spills outside the pane.
+2. Lower still: the tabs go. Drag it taller again: they come back, on the
+   tab you had.
+3. Lowest: the compact card. No portrait or name. Line 1 is `M aggr`,
+   `C norm`, `A norm`, `W hvy` and the shields as icon + number. Line 2 is
+   the five icons, the stones and the purse.
+4. In the compact card, click M: the mood changes. Hover a short form:
+   the whole word.
+5. The phone, with the strip one row high: the compact card there too.
+
+Feedback wanted: whether the steps feel right; the short forms
+(`trtr` for torture, `pnts` for peanuts, `vigl` for vigilant are still
+unconfirmed); whether the text shrinking slightly in a Medium pane just
+above 106 px matters.
+
 ### Part F2b, the card's new look (the test server, MUME up)
 
 Open `http://localhost:5173/` (reload), log in, Character pane on Status,
