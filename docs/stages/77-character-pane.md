@@ -2051,3 +2051,25 @@ belongs to its content (the status area to the right, without the
 stones): e.g. the area holding Mood/Casts… and the shields lies on a
 paper or in a frame that is one with the tabs, so the active tab seems to
 share its ground with what is shown. And more creative proposals.
+
+### Vitals from the poll (the owner, 2026-11-24)
+
+The owner: when standing still and regenerating no GMCP comes, so the bars
+stand still; take hp, mana and moves in the poll too. Checked in the run
+exports (2026-11-08): while acting `Char.Vitals` carries the numbers about
+every 2 s; standing still only a band change sends one (mana 27 → 49 → 81
+over ~130 s, each with a new `mana-string`).
+
+`help info_format` (the owner, live): `%z` hit points, `%Z` maximum hit
+points, `%e` mana, `%E` maximum mana, `%j` movement points, `%J` maximum
+movement points; also `%f` affects, `%x`/`%X` experience / to level,
+`%t`/`%T` travel points / to level, `%R` alertness, `%Y` mood, `%m` spell
+casting speed, `%g` gold coins, `%P` playtime (hours), `%L` session time
+(minutes), `%B`/`%b`/`%G` the ability variants, `%M` the name, `%u`
+unretire. A field width may follow the `%` (`%3e`, `%-15M`).
+
+    info [%Z %z %E %J %j]   →   [375 357 88 121 68]
+    in a fight              →   [xxx xxx xxx xxx xxx]
+
+In a fight the vitals answer `xxx`: no value, never written over the bars.
+A `Char.Vitals` newer than the poll's answer wins.
