@@ -426,11 +426,94 @@ test('the gear locks the height', async ({ page }) => {
   await expect(card(page)).toHaveAttribute('data-mode', 'medium');
 });
 
+// ---------------------------------------------------------- low panes (F2c)
+
+test('a low pane steps down; no tabs under 80 px; the compact card (ADR 0166 points 124–126)', async ({ page }) => {
+  const game = await play(page, { fetchInfo: true });
+  await place(page, 33, 9);
+  const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
+  await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
+  game.play(answerPulse(pollNonce(polls()[0]!)!));
+  await expect(card(page).locator('.wc-cc-status .wc-cc-sv')).toHaveText(['81', '13', '85', '70']);
+  await buffs(page, 8);
+  await tab(page, 'lore').click();
+  await expect(card(page)).toHaveAttribute('data-tab', 'lore');
+  await expect(card(page)).toHaveAttribute('data-step', '0');
+
+  // Medium's height lock a little lower: the portrait stays, a step down (the cells on one line), no tabs, Status shows.
+  await page.evaluate(() => window.__wc!.settings.update({ character: { height: 'medium' } }));
+  let step = '';
+  for (const rows of [6, 5]) {
+    await place(page, 33, rows);
+    step = (await card(page).getAttribute('data-step'))!;
+    if (['1', '2', '3', '4'].includes(step)) break;
+  }
+  expect(['1', '2', '3', '4']).toContain(step);
+  await expect(card(page).locator('.wc-cc-left')).toHaveAttribute('data-form', 'portrait');
+  await expect(card(page).locator('.wc-cc-status')).toHaveAttribute('data-form', step === '1' ? 'cells' : step === '4' ? 'plain' : 'line');
+  await expect(card(page).locator('.wc-cc-tabs')).toBeHidden();
+  await expect(card(page)).toHaveAttribute('data-tab', 'status');
+  expect(await faults(page)).toEqual([]);
+
+  // Auto at 4 rows: the compact card.
+  await page.evaluate(() => window.__wc!.settings.update({ character: { height: 'auto' } }));
+  await place(page, 33, 4);
+  await expect(card(page)).toHaveAttribute('data-step', 'compact');
+  await expect(card(page).locator('.wc-cc-left')).toBeHidden();
+  await expect(card(page).locator('.wc-cc-tabs')).toBeHidden();
+  const status = card(page).locator('.wc-cc-status');
+  await expect(status).toHaveAttribute('data-form', 'compact');
+  // Line 1: M, C, A, W and the short forms, the whole word in the tooltip; the shields as icon and value.
+  await expect(status.locator('.wc-cc-lt')).toHaveText(['M', 'C', 'A', 'W']);
+  await expect(word(page, 'mood')).toHaveText(/^(brave|brav)$/);
+  await expect(word(page, 'weight')).toHaveText(/^(rhvy|r\.hvy|r\.heavy)$/);
+  await expect(card(page).locator('.wc-cc-f[data-key="weight"]')).toHaveAttribute('data-tip-title', 'Weight: really heavy');
+  await expect(status).toHaveAttribute('data-chips', 'icon');
+  await expect(status.locator('.wc-cc-sv')).toHaveText(['81', '13', '85', '70']);
+  await expect(status.locator('.wc-cc-shield .wc-cc-i').first()).toBeVisible();
+  await expect(status.locator('.wc-cc-sk').first()).toBeHidden();
+  // Line 2: the five icons first, then the stones and the purse.
+  const line2 = card(page).locator('.wc-cc-stones');
+  await expect(line2.locator('.wc-cc-icons .wc-cc-ib')).toHaveCount(5);
+  await expect.poll(() => shown(page).count()).toBeGreaterThan(5);
+  const icons = (await line2.locator('.wc-cc-icons').boundingBox())!;
+  const first = (await shown(page).first().boundingBox())!;
+  expect(first.x).toBeGreaterThan(icons.x + icons.width);
+  const line1 = (await status.boundingBox())!;
+  expect(icons.y).toBeGreaterThanOrEqual(line1.y + line1.height - 0.5);
+  await expect(card(page).locator('.wc-cc-purse')).toBeVisible();
+  expect(await faults(page)).toEqual([]);
+
+  // A click on Mood works as on the full card.
+  await card(page).locator('.wc-cc-f[data-click="mood"]').click();
+  await expect.poll(() => game.sent.at(-1)).toBe('change mood aggressive');
+  game.play(gmcp('Char.Vitals', { mood: 'aggressive' }));
+  await expect(word(page, 'mood')).toHaveText('aggr');
+  await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('data-tip-title', 'Mood: aggressive');
+
+  // Many stones: `+n` and its list.
+  await buffs(page, 40);
+  const more = card(page).locator('.wc-cc-st[data-k="more"]');
+  await expect(more).toBeVisible();
+  await more.click();
+  const list = page.locator('.wc-cc-list');
+  await expect(list).toBeVisible();
+  await expect(list.locator('.wc-cc-lr')).toHaveCount(Number((await more.textContent())!.slice(1)));
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  expect(await faults(page)).toEqual([]);
+
+  // Tall again: the tabs and the chosen tab come back.
+  await place(page, 33, 9);
+  await expect(card(page).locator('.wc-cc-tabs')).toBeVisible();
+  await expect(card(page)).toHaveAttribute('data-tab', 'lore');
+});
+
 // --------------------------------------------------------------- the sizes
 
 /** Content boxes in cells: the minimum, a lane, the new player's, the phone's strip, wide and tall. */
 const SIZES: readonly (readonly [number, number])[] = [
-  [8, 3], [8, 18], [14, 5], [18, 3], [22, 20], [26, 10], [31, 3], [31, 9], [31, 26], [34, 5], [45, 9], [48, 9], [52, 3], [62, 11], [80, 4], [84, 22], [110, 14],
+  [8, 3], [8, 18], [14, 5], [18, 3], [18, 4], [22, 20], [26, 10], [31, 3], [31, 9], [31, 26], [33, 4], [33, 5], [34, 5], [34, 6], [45, 9], [48, 9], [52, 3], [52, 5], [62, 11], [80, 4], [84, 22], [110, 14],
 ];
 
 /** Whatever of the card is outside its box, over another part, or cut through. */
@@ -498,7 +581,9 @@ for (const [font, size] of [
     const bad: string[] = [];
     for (const [cols, rows] of SIZES) {
       await place(page, cols, rows);
-      for (const id of ['status', 'stats', 'lore'] as const) {
+      // A low pane has no tabs (point 125): Status only.
+      const low = await card(page).locator('.wc-cc-tabs').isHidden();
+      for (const id of low ? (['status'] as const) : (['status', 'stats', 'lore'] as const)) {
         // Through the element: a mark of a few px is no target for the mouse.
         await tab(page, id).evaluate((b) => (b as HTMLButtonElement).click());
         await expect(card(page)).toHaveAttribute('data-tab', id);
@@ -524,8 +609,13 @@ for (const border of [true, false]) {
     ] as const) {
       await page.evaluate(({ font, size, border }) => window.__wc!.settings.update({ appearance: { font, size }, panes: { character: { border } } }), { font, size, border });
       await page.evaluate(() => document.fonts.ready);
-      for (const [cols, rows] of [[18, 3], [31, 3], [31, 9], [48, 9], [80, 4]] as const) {
+      for (const [cols, rows] of [[18, 7], [31, 7], [31, 9], [48, 9], [80, 7], [80, 12]] as const) {
         await place(page, cols, rows);
+        // A low pane has no tabs (point 125).
+        if (await card(page).locator('.wc-cc-tabs').isHidden()) {
+          expect((await card(page).boundingBox())!.height, `${font}${size} ${cols}x${rows}`).toBeLessThan(120);
+          continue;
+        }
         for (const id of ['stats', 'lore', 'status'] as const) {
           const b = (await tab(page, id).boundingBox())!;
           for (const dy of [1.5, b.height / 2]) {

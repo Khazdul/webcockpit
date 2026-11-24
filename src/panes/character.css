@@ -1501,11 +1501,7 @@
 }
 
 .wc-cc[data-light] .wc-cc-status:is([data-form="cells"], [data-form="line"], [data-form="compact"]:not([data-flat])) .wc-cc-f,
-.wc-cc[data-light] .wc-cc-status:is([data-chips="icon"], [data-chips="value"]) .wc-cc-shield {
-  padding: 0 1px;
-}
-
-.wc-cc-status[data-chips]:not([data-flat]) .wc-cc-shield {
+.wc-cc[data-light] .wc-cc-status[data-chips]:not([data-flat]) .wc-cc-shield {
   background: #fffdf8;
   box-shadow: inset 0 0 0 1px rgb(60 40 10 / 0.2);
 }

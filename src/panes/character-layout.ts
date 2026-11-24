@@ -780,13 +780,15 @@ function compactLayout(
   // The letter and its gap (the mockups' 3 px), then the value.
   const letterGap = Math.round(3 * kc);
   const least = Math.max(7, vf * 0.8);
-  /** What the cells need for four characters at `px`. */
+  /** What the cells need for the letter and four characters at `px`. */
   const forFour = (px: number): number => Math.ceil(4 * (glyphW(px, adv) * 5 + letterGap + 2 * cellPad) + 3 * cellGap);
   const shieldIcon = Math.round((big ? 11 : 10) * kc);
   let cellsW = W;
   let chips: ChipLayout | null = null;
   const share = Math.floor((W - mid) * 0.55);
-  for (const want of [Math.max(share, forFour(least)), share]) {
+  // Four characters with the shields, else three (`agg`), else the status takes the line.
+  const forThree = Math.ceil(4 * (glyphW(least, adv) * 4 + letterGap + 2 * cellPad) + 3 * cellGap);
+  for (const want of [Math.max(share, forFour(least)), Math.max(share, forThree)]) {
     chips = chipLayout(W - mid - want, h1, kc, adv, vf, ['icon', 'value'], shieldIcon);
     if (chips) {
       cellsW = want;

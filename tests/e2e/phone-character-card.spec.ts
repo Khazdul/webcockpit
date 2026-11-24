@@ -55,6 +55,32 @@ test('the strip: the same card; the tabs take a finger', async ({ page }) => {
   expect((await tab(page, 'status').boundingBox())!.width).toBeGreaterThanOrEqual(24);
 });
 
+test('a low strip: the steps and the compact card as on the desktop, no tabs (F2c)', async ({ page }) => {
+  await open(page);
+  const inside = async (): Promise<void> => {
+    const card = (await pane(page).locator('.wc-cc').boundingBox())!;
+    for (const sel of ['.wc-cc-main', '.wc-cc-stones', '.wc-cc-status', '.wc-cc-foot']) {
+      const e = pane(page).locator(sel);
+      if (!(await e.isVisible())) continue;
+      const b = (await e.boundingBox())!;
+      expect(b.x + b.width, sel).toBeLessThanOrEqual(card.x + card.width + 0.5);
+      expect(b.y + b.height, sel).toBeLessThanOrEqual(card.y + card.height + 0.5);
+    }
+  };
+  for (const rows of [5, 4, 3]) {
+    await page.evaluate((rows) => window.__wc!.settings.update({ phone: { stripRows: rows } }), rows);
+    await expect(pane(page).locator('.wc-cc-tabs')).toBeHidden();
+    await inside();
+  }
+  await expect(pane(page).locator('.wc-cc')).toHaveAttribute('data-step', 'compact');
+  await expect(pane(page).locator('.wc-cc-status .wc-cc-lt')).toHaveText(['M', 'C', 'A', 'W']);
+  await expect(pane(page).locator('.wc-cc-stones .wc-cc-icons')).toBeVisible();
+  // Tall again: the tabs come back.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: null } }));
+  await expect(pane(page).locator('.wc-cc-tabs')).toBeVisible();
+  await sameCard(page);
+});
+
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 }, contextOptions: { screen: { width: 844, height: 390 } } });
 
