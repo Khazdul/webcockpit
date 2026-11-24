@@ -146,8 +146,8 @@ test('the panes key opens the strip from the top edge: one pane, its name on the
   // The chrome: the pane's name on the band's plate (round 53j: no hood), four dots with the first lit; no tabs, no handle.
   await expect(strip(page)).toBeVisible();
   await expect(page.locator('.wc-ph-strip-hood')).toHaveCount(0);
-  await expect(plate(page)).toHaveText('Timers');
-  await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Timers, 1 of 4');
+  await expect(plate(page)).toHaveText('Spells');
+  await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Spells, 1 of 4');
   await expect(dots(page)).toHaveCount(4);
   await expect(page.locator('.wc-ph-strip-dots > i.is-on')).toHaveAttribute('data-page', 'timers');
   const s = await box(strip(page));
@@ -311,14 +311,14 @@ test('the Panes settings: off removes a page, the order moves, both kept over a 
     for (const k of await item(id).locator('.wc-ph-move').all()) expect((await box(k)).height).toBeGreaterThanOrEqual(44);
   }
   // The ends cannot move past the list.
-  await expect(item('timers').getByRole('button', { name: 'Move Timers up' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(item('timers').getByRole('button', { name: 'Move Spells up' })).toHaveAttribute('aria-disabled', 'true');
   await expect(item('statistics').getByRole('button', { name: 'Move Statistics down' })).toHaveAttribute('aria-disabled', 'true');
   // Statistics first, Group off.
   for (let i = 0; i < 3; i++) await item('statistics').getByRole('button', { name: 'Move Statistics up' }).tap();
   expect(await items()).toEqual(['statistics', 'timers', 'group', 'character']);
   await item('group').getByRole('switch', { name: 'Group' }).tap();
   await expect(item('group').getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-  await item('timers').getByRole('button', { name: 'Move Timers down' }).tap();
+  await item('timers').getByRole('button', { name: 'Move Spells down' }).tap();
   expect(await items()).toEqual(['statistics', 'group', 'timers', 'character']);
   expect((await phone(page)).strip.panes).toEqual([
     { id: 'statistics', on: true },
@@ -594,16 +594,16 @@ test('Settings → Panes → Timers and Group: the two panes\' settings, written
   const pg = page.locator('.wc-ph-page');
   const col = pg.locator('.wc-ph-col');
   const link = pg.locator('[data-group="panes"] [data-row="timers-group"]');
-  await expect(link).toHaveText('Timers and Group');
+  await expect(link).toHaveText('Spells and Group');
   await expect(link.locator('.wc-ph-chev')).toBeVisible();
   expect((await box(link)).height).toBeGreaterThanOrEqual(44);
   const scrolled = await col.evaluate((el) => el.scrollTop);
   expect(scrolled).toBeGreaterThan(0);
   await link.tap();
   await expect(pg).toHaveAttribute('data-page', 'sub:timers-group');
-  await expect(pg.locator('.wc-ph-hood')).toHaveText('Timers and Group');
+  await expect(pg.locator('.wc-ph-hood')).toHaveText('Spells and Group');
   expect(await col.evaluate((el) => el.scrollTop)).toBe(0);
-  expect(await pg.locator('[data-group] .wc-ph-grp-t').allTextContents()).toEqual(['Timers', 'Timer groups', 'Group']);
+  expect(await pg.locator('[data-group] .wc-ph-grp-t').allTextContents()).toEqual(['Spells', 'Timer groups', 'Group']);
   // Every row is a thumb-size target inside the screen; nothing overflows sideways.
   for (const r of await pg.locator('.wc-ph-srow').all()) {
     const b = await box(r);

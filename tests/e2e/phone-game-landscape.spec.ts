@@ -275,7 +275,7 @@ for (const viewport of SCREENS) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await cdp.detach();
       await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-      await expect(plate).toHaveText('Timers');
+      await expect(plate).toHaveText('Spells');
       // Closed again: everything back at the left edge.
       await page.waitForTimeout(450);
       await sat(page, 'panes').tap();

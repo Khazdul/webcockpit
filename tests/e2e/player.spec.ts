@@ -545,7 +545,7 @@ test('the box: ±10 s by buttons and keys, To the start, speed steps, Panes and 
   await expect(panes).toBeVisible();
   const [pb, bb] = await Promise.all([panes.boundingBox(), box.boundingBox()]);
   expect(pb!.y + pb!.height).toBeLessThanOrEqual(bb!.y + 0.5);
-  await expect(panes.locator('[data-pane]')).toHaveText(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map']);
+  await expect(panes.locator('[data-pane]')).toHaveText(['Character', 'Spells', 'Group', 'Comm', 'UI', 'Map']);
   await expect(panes.locator('[data-set="reset"]')).toHaveText('Reset layout');
   // Display replaces it.
   const display = box.locator('.wc-pc-pop[data-pop="display"]');

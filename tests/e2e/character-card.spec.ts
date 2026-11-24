@@ -110,7 +110,7 @@ test('the card from the GMCP demo; a replay sends nothing', async ({ page }) => 
   await expect(card(page).locator('.wc-cc-disc')).toHaveAttribute('data-art', 'drawn');
   await expect(card(page).locator('[data-click="climb"]')).toHaveAttribute('data-on', '');
   await expect(card(page).locator('.wc-cc-vital[data-kind="mp"] .wc-cc-vn')).toHaveText('131');
-  await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggres\.|agg\.)$/);
+  await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggr)$/);
   await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('aria-disabled', 'true');
   await page.evaluate(() => {
     const w = window as unknown as { sentCmds: string[] };
@@ -165,7 +165,7 @@ test('a click sends as typed; the value changes only on GMCP', async ({ page }) 
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('180');
   await expect(mood).toHaveAttribute('data-pending', '');
   game.play(gmcp('Char.Vitals', { mood: 'aggressive' }));
-  await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggres\.|agg\.)$/);
+  await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggr)$/);
   await expect(mood).not.toHaveAttribute('data-pending', '');
   expect(game.sent).toEqual(['change mood aggressive']);
 
@@ -343,6 +343,47 @@ test('Status: the cells, the shields `⋯` until the poll answers, the purse in 
   await expect(card(page).locator('.wc-cc-stones')).toBeVisible();
   await expect(purse).toBeHidden();
   expect((await card(page).locator('.wc-cc-stones').boundingBox())!.height).toBeCloseTo(row.height, 0);
+});
+
+test('H: the tabs’ icons in a low pane, the short forms, and Stats’ stones only where Stats fits (ADR 0166 points 168–171)', async ({ page }) => {
+  const game = await play(page, { rows: 7, fetchInfo: true });
+  await buffs(page, 3);
+  const tabs = card(page).locator('.wc-cc-tabs');
+  const stones = card(page).locator('.wc-cc-stones');
+  // H3: under 8 px the words go, the icons come; the word is the tooltip and the name.
+  await expect(tabs).toHaveAttribute('data-form', 'icons');
+  for (const [id, name] of [['status', 'Status'], ['stats', 'Stats'], ['lore', 'Lore']] as const) {
+    await expect(tab(page, id)).toHaveAttribute('data-tip', name);
+    await expect(tab(page, id)).toHaveAccessibleName(name);
+    await expect(tab(page, id).locator('svg.wc-cc-tab-i')).toBeVisible();
+    await expect(tab(page, id).locator('.wc-cc-tab-t')).toBeHidden();
+  }
+  // H4: the hand-made short forms, never `…`.
+  game.play(gmcp('Char.Vitals', { mood: 'aggressive', alertness: 'vigilant' }));
+  await expect(word(page, 'mood')).toHaveText(/^(aggressive|aggr)$/);
+  for (const key of ['mood', 'casts', 'alertness', 'weight']) await expect(word(page, key)).not.toHaveText(/…/);
+  // H1: at 62 × 7 Stats does not fit above the stones' row, so the row goes from Stats; Status keeps it.
+  const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
+  await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
+  game.play(answerPulse(pollNonce(polls()[0]!)!));
+  await expect(stones).toBeVisible();
+  await tab(page, 'stats').click();
+  await expect(card(page).locator('.wc-cc-ab .wc-cc-bv')).toHaveText(['16', '16', '16', '11', '12', '16', '8']);
+  await expect(stones).toBeHidden();
+  await expect(card(page).locator('.wc-cc-main')).toHaveAttribute('data-stats-stones', 'off');
+  // The age line stays clear of where the row was: the last thing in the area.
+  const main = (await card(page).locator('.wc-cc-main').boundingBox())!;
+  const age = (await card(page).locator('.wc-cc-data-age').boundingBox())!;
+  expect(age.y + age.height).toBeLessThanOrEqual(main.y + main.height + 0.5);
+  await tab(page, 'status').click();
+  await expect(stones).toBeVisible();
+  // Tall: Stats fits, the row stays; the tabs are words again.
+  await place(page, 62, 22);
+  await tab(page, 'stats').click();
+  await expect(stones).toBeVisible();
+  await expect(card(page).locator('.wc-cc-main')).not.toHaveAttribute('data-stats-stones', 'off');
+  await expect(tabs).toHaveAttribute('data-form', 'vertical');
+  await expect(tab(page, 'stats')).not.toHaveAttribute('data-tip', /./);
 });
 
 test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ page }) => {

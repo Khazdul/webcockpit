@@ -299,7 +299,8 @@ test.describe('a tablet: the flags and the stored settings', () => {
       const s = window.__wc!.settings.get();
       return { mark: s.phone.defaults, herb: s.timers.groups.herb.enabled, timeText: s.timers.timeText, signal: s.timers.signal };
     });
-    expect(got).toEqual({ mark: 0, herb: true, timeText: true, signal: 'text' });
+    // (Herblores is off as stored: off by default since the pane is Spells, ADR 0166 point 172.)
+    expect(got).toEqual({ mark: 0, herb: false, timeText: true, signal: 'text' });
   });
 });
 
@@ -318,7 +319,7 @@ test.describe('a phone (the control: the same checks at a phone\'s size)', () =>
     expect(rowOf(b.height, 4)).toBeGreaterThanOrEqual(44);
     expect(rowOf(b.height, 4)).toBeLessThanOrEqual(49);
     expect((await box(key(okb(page), 'k'))).width).toBeCloseTo(356 / 11, 0);
-    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(2);
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(3);
     expect(await page.evaluate(() => window.__wc!.settings.get().timers.groups.herb.enabled)).toBe(false);
   });
 });
@@ -373,7 +374,7 @@ test.describe('a phone in Desktop-site mode: its screen, a window that is not a 
     await expect(html(page)).toHaveClass(/\bwc-phone-game\b/);
     await expect(page.locator('.wc-mb-bar')).toHaveCount(0);
     // A phone, not a tablet: the phone's one-time defaults are applied.
-    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(2);
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(3);
     expect(errors).toEqual([]);
   });
 });

@@ -19,10 +19,12 @@ async function demoDone(page: Page): Promise<void> {
   await page.goto(DEMO);
   await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(page.locator('.wc-pane[data-pane="timers"]')).toHaveAttribute('data-active', '');
-  // The Timers pane tall enough for everything below.
+  // The Timers pane tall enough for everything below; Herblores, Buffs and Debuffs on
+  // (off by default since the pane is Spells, ADR 0166 point 172).
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
       for (const p of d.layout.docks.right.lanes[0]!.panes) if (p.id === 'timers') p.desired = 24;
+      for (const g of ['herb', 'buff', 'debuff'] as const) d.timers.groups[g].enabled = true;
     }),
   );
 }
