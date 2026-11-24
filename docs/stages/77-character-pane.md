@@ -493,7 +493,7 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       (buffs, debuffs, herblores, your flags, your sanctuary), found from
       every log at hand (`~/Downloads` and others); a generic stone for the
       rest. The research and a mockup first; the owner picks.
-- [ ] H9. The poll pass: `info %f` (affects: an untimed stone while
+- [x] H9. The poll pass: `info %f` (affects: an untimed stone while
       listed, for the affects with no lines of their own; lines still lead
       where they exist; no stone for `potion` while a herblore runs) and
       `%z %Z %e %E %j %J` (vitals; `xxx` in a fight is no value; a newer
@@ -502,7 +502,8 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       cell (its GMCP has no mana keys and no `spell-effort`); troll members
       in Group the same if the data allows. See "Affects from the poll",
       "Vitals from the poll", "Trolls have no mana" and "Round 20 and the
-      troll's mana" under Owner feedback.
+      troll's mana" under Owner feedback. Built: "Part H9: what was
+      built", ADR 0166 addendum 31.
 - [ ] H10. The tabs as round 20's **G8**: folder tabs under the hood, on
       the right edge below 110 px of content, the active tab one sheet
       with its content (G1's iron, G3's edge); replaces H3's icons.
@@ -1545,6 +1546,64 @@ the owner's pick). ADR 0166 addendum 30 (points 182–187).
   Paper, every form, the corner marks, contrast as drawn), `phone-character-
   card` (the strip's heat).
 
+## Part H9: what was built (2026-11-24)
+
+The poll pass (H9): the owner's "Affects from the poll", "Vitals from the
+poll", "Trolls have no mana" and "Round 20 and the troll's mana". ADR 0166
+addendum 31 (points 188–200).
+
+- **`%f` and the vitals in the poll.** One `info`, the card's fields, then
+  `%z %Z %e %E %j %J`, then `%f` last (its answer spans lines: `Affected
+  by:`, a `- <name>` line each, the end sentinel on a line of its own;
+  nothing when unaffected). The filter holds the whole answer as before;
+  `MAX_LINES` 120. The answer's fit counts a row per known affect (80
+  columns: 17 rows with none known, 12 before).
+- **Affects.** The poll's list goes through the `stat` reconcile: listed is
+  on, gone is off, one poll's delay at most; start and drop lines still
+  lead. The eight affects with no lines of their own (bloodlust, some
+  pipe-weed, potion, panic, sunlight, unable to quit / void / sneak) are in
+  the table and get an untimed stone (dashed, no time bar) while listed. An
+  affect the table does not know gets a debuff stone with the group's
+  generic icon; `poison (type: …)` and the wound lines are the flags' and no
+  stones; spells and the flags' twins are no extra stones. No `potion`
+  stone while a herblore runs. Stored spells are reconciled from the poll
+  only when it lists one (not measured that `%f` lists them). Herblores are
+  never started or ended from the poll.
+- **Vitals.** Into the character's vitals store, so the card, the phone,
+  the scripts' `state.char` and the weather move while you stand still;
+  not into the scripts' `gmcp` table or the run log. A fight's `xxx` writes
+  nothing; a `Char.Vitals` after the poll was sent wins, per bar.
+- **The six herblores** in the `+` menu (card and Spells): Seeing, Shadows,
+  Skillful oil, Soothing draught, Strength, Orc balm, with the guide's
+  phases (a MUME hour a real minute). Manual only.
+- **A troll.** No mana when the race is Troll, or no mana key came in
+  `Char.Vitals` and the poll's `%E` is 0. The card then has HP and moves in
+  the foot (each half the width) and Mood, Alertness and Weight in the
+  status (each a third), at every step, the compact card and the phone
+  strip.
+- **Group, troll members: built.** The run exports have four troll allies
+  (Grugg, Burpy, Dig, Soug): each `Group.Add` sends `"mana-string": 0` and
+  no mana numbers, and none of their 4 624 updates has a mana key; every
+  other ally sends a word or a maximum. Such a player member shows HP and
+  moves only. NPCs send the same `0` and keep their three bars (not asked
+  for).
+- Tests: unit `gmcp-info-answer` (the format; none, one, several, the
+  twins, a wrapped name, another shape, `xxx`, a troll's `0 0`),
+  `info-filter` (the four shapes at 20 and 98 columns, queued or not, cut
+  at every byte; game text before, after and both, `- armour` and
+  `Affected by:` in the game's own text shown; a line per frame; no end;
+  a prompt inside; 30 affects at 19 columns), `info-poll` (the fit),
+  `info-poll-app` (no trace on the bus, the screen or the run log; the
+  stones' cells; a Char.Vitals after the send wins), `char-poll-vitals`
+  (new: the marks, `xxx`, a troll by race and by data), `timers-affects`
+  (the poll's list, lines lead, an unknown affect, the flags' forms, stored
+  spells), `timers-casts` (the six herblores), `character-stones` (potion,
+  the generic stone, the twins), `character-layout` (a troll: three cells,
+  two bars, the compact card, no overlap at any size), `character-pane` (a
+  troll's card), `group-no-mana` (new: the model, the rows, the fight card);
+  e2e `poll-affects.spec.ts` (new: `%f` hidden and giving stones, the
+  polled vitals, a troll's card), `timers.spec.ts` (the `+` menu's twelve).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1572,6 +1631,30 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part H9, the poll pass (the test server, MUME up)
+
+1. Log in with Character open (Status). Cast or drink something with a
+   lasting effect, or get `unable to quit` from a fight, and stand still:
+   within a poll (10 s) its stone shows; an affect the app has no lines
+   for (bloodlust, panic, sunlight, unable to quit / void / sneak, some
+   pipe-weed) is a dashed stone with no time bar. When it ends, it goes
+   within a poll. Nothing of the poll shows in the output (no `Affected
+   by:`), and your own `stat` still shows its list.
+2. Start a herblore with the `+` (the menu now also has Seeing, Shadows,
+   Skillful oil, Soothing draught, Strength and Orc balm) and drink it: no
+   `Potion` stone beside the herblore's own.
+3. Rest or stand still after losing HP, mana or moves: the bars and
+   numbers move every poll, though MUME sends no GMCP then.
+4. Log in Stewash (the troll): no mana bar (HP and moves take the width)
+   and no Casts cell (Mood, Alertness and Weight take its room), in a
+   tall pane, a low one, the compact card and on the phone strip.
+5. In a group with a troll: its row in Group shows HP and moves only.
+
+Feedback wanted: stones that appear for something that is not on you (or
+one missing), how a list-only stone without a time bar reads, whether the
+six herblores' phases match what you see in the game, and the troll's card
+and Group row.
 
 ### Part H2, the Spells bug and heat (the test server, MUME up)
 

@@ -1314,3 +1314,122 @@ round 16 variant C, his pick ("Part H2: what was built").
      change only, at the moments the status cells were already set. The
      side (Lykta or Paper) is chosen in the CSS by `data-light`, so a theme
      change writes nothing per cell. No per-tick work.
+
+## Addendum 31 (2026-11-24): H9, the poll pass
+
+Stage 77 H9 ("Part H9: what was built"): the owner's "Affects from the
+poll", "Vitals from the poll", "Trolls have no mana" and "Round 20 and the
+troll's mana" (stage file, Owner feedback).
+
+188. **One format, `%f` last.** The poll's format is the card's fields,
+     then `%z | %Z | %e | %E | %j | %J`, then `%f` (`pollFormat`), in one
+     `info`. Not a second `info` in the same write: one sentinel pair, one
+     outstanding poll, one failure count and one fit check, and the filter
+     needed nothing new: it already held every line from the start sentinel
+     to the end one (the answer wraps), and the end on a line of its own is
+     the same end. `%f` prints nothing when no affect is on; else `Affected
+     by:` right after the separator, a `- <name>` line each and a line
+     break before the end sentinel (the owner's live measure).
+     `parsePollAnswer` splits at the last `|`: the fields before it as
+     before, the affects after it (`affectsOf`): none, or the header and
+     its items, a line not starting `- ` after an item being that item
+     wrapped. Another shape is an unreadable list (null): the fields and
+     vitals are kept, no reconcile. `MAX_LINES` 80 → 120.
+189. **The fit.** The affects take a row each whatever the width, so
+     `answerFits` counts the fields' wrapped rows (`ANSWER_CHARS` stays 600:
+     the sample is about 420 characters, the vitals add about 40), the
+     affects known to be on (`TimersHub.affectCount`: spells, buffs,
+     debuffs, stored spells and your own sanctuary) plus 3 to spare and the
+     list's 2 lines, and the 4 spare rows. At 80 columns a poll needs 17
+     rows with no affect known (12 before). A window too low waits, as
+     before; a list longer than counted at worst meets MUME's pager, which
+     ends the hiding and counts as a failure (two stop the polls).
+190. **Affects from the list.** The poll's list goes through the same
+     reconcile as a `stat` block's (`StatReconcile.apply`, through
+     `TimersHub.reconcileAffects` and the trackers' `reconcileList`): seen
+     and not on → added (timed ones untracked), on and not seen → removed,
+     silent, no effect event (so it starts no poll). Lines still lead: a
+     start line times an affect, the list keeps the timer; a drop line ends
+     it at once. The delay is one poll at most, as the owner accepted.
+     Herblores are never touched.
+191. **Stored spells only when listed.** That `%f` lists `stored spell <x>`
+     as `stat` does is not measured. The poll reconciles the stored spells
+     only when its list names one; else a poll that does not list them
+     would forget every stored spell each time it answers.
+192. **The affects with no lines** (bloodlust, some pipe-weed, potion,
+     panic, sunlight, unable to quit, unable to void, unable to sneak; the
+     inventory's "not yet") join the table with their group and nothing
+     else. An affect with no line of its own (these, and `growth`) is
+     added **untracked** by a list: an untimed stone, dashed, no time bar
+     ("Seen in stat, info or the poll only"). An indefinite affect with
+     lines (hunger, comfortable) stays as before: no end, a full bar. Panic
+     and sunlight have candidate lines in the inventory; not taken until
+     confirmed in the game.
+193. **An affect the table does not know** is kept as listed, untracked, in
+     the Debuffs group (`UNLISTED_TYPE`): a stone with the group's generic
+     icon. A debuff, not a buff: what is on you and not known is worth
+     seeing, and debuffs stay before buffs when the stones overflow. Its key
+     is apart from the table's names (`affect:?<name>`). A GMCP flag's
+     `stat` form (`poison (type: …)`, `a … wound at the …`) is none
+     (`isFlagForm`): the flag's stone shows it. Spells stay in the Spells
+     group (no stone), and the flags' twins (blindness, hunger, thirst)
+     stay one stone with their flag (`FLAG_TWIN`), as before.
+194. **`potion` while a herblore runs.** MUME lists a herblore's draught as
+     `- potion` (which one is not said). The card shows no `potion` stone
+     while any herblore cell exists (`stoneView`), whether the card shows
+     Herblores or not; the Spells pane's Buffs group still lists it.
+195. **Vitals into the one store.** The poll's vitals are merged into the
+     character's `Char.Vitals` map (`CharModel.applyPolled`), not a store of
+     their own, so every reader moves with them while GMCP is silent: the
+     card's bars and numbers, the phone's HP hotkeys and fight card (`You`'s
+     HP), the scripts' `state.char.vitals`, the weather's signals. The
+     scripts' `gmcp` table (`GmcpCache`) stays what MUME sent, and the run
+     log records no polled value (the poll is not in it). A bar is taken
+     only with both its numbers (`xxx` in a fight is no value) and is then
+     exact (the number drawn; a later band word makes it a band again, as
+     ever). A troll's `0 0` is a value.
+196. **A newer `Char.Vitals` wins.** `CharModel` counts its `Char.Vitals`
+     messages and notes per bar the last that touched it (its number, its
+     word or its maximum); the poll takes the count when it is sent
+     (`vitalsMark`) and a bar touched after that keeps GMCP's value. By
+     message order, not the clock, so two in one millisecond are told
+     apart. A new character starts the count over.
+197. **No mana.** `CharModel.hasMana` is false when the race (`Char.
+     StatusVars`) is Troll, or when no mana key (`mana`, `maxmana`,
+     `mana-string`) has come in `Char.Vitals` for this character and the
+     poll's `%E` was 0. `CharView.mana` carries it. The card (`CardBox.mana`
+     → `CardLayout.mana`) then has two bars in the foot (`data-bars="2"`,
+     each column `(w − 2 pad − gap) / 2`) and three status cells (Mood,
+     Alertness, Weight): the cells, the line and the plain values divide
+     their width by three, the compact card's line 1 too, at every step and
+     on the phone strip (the same card). The Casts cell and the mana bar are
+     `hidden`; `data-mana="none"` on the card. The Stats tab's modifiers
+     keep their mana column.
+198. **Group: a troll member.** The run exports (2026-09-28 to 11-17): four
+     troll allies (Grugg, Burpy, Dig, Soug, each "… the Troll" in the room
+     text) came in 8 `Group.Add`s with `"mana-string": 0` (a number, not a
+     word) and no `mana` or `maxmana`, and none of their 4 624
+     `Group.Update`s carried a mana key. Every other ally carried a word or
+     a `maxmana` (Arvegil and Murkla out of the room: a word and a maximum,
+     no number), so absence of the number alone is not "no mana". The
+     rule: a Set/Add with a `mana-string` that is not a string and no mana
+     number is `noMana`; a later mana number or word clears it. A player
+     member so has no mana bar (HP and moves take the width, both row
+     forms); `memberSig` includes the bars, so the row is rebuilt when it
+     changes. NPCs come the same way (`0`) and keep their three bars: not
+     asked for, left to the owner.
+199. **The six herblores** of the player's guide in the catalogue, after the
+     six there: Seeing (600, 900, 2400 s, buffs), Shadows (600 s debuff,
+     3600 and 1800 s buffs), Skillful oil (480 s buff, 240 s debuff),
+     Soothing draught (240 and 300 s buffs), Strength (7200 s buff), Orc
+     balm (180, 360, 180 s buffs). The guide's times are MUME hours, a real
+     minute each (Clearthought's 2, 4 and 6 hours are the catalogue's 120,
+     240 and 360 s). Names in the catalogue's style (`Dark aura`): words
+     with spaces, phases `(med)`/`(min)`, `(low)`, `(neg)` for a debuff
+     phase. Keys `Seeing`, `Shadows`, `SkillfulOil`, `SoothingDraught`,
+     `Strength`, `OrcBalm`. Manual only (no lines known).
+200. **Cost.** The poll's answer adds one split and a short loop; the
+     reconcile runs once a poll (10 s by default). `affectCount` builds the
+     timers' view only when a poll is due and time allows it. The card's
+     layout key gains `mana`; hiding writes only on a change (`setHidden`,
+     `setAttr`). No per-tick work.
