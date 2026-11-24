@@ -369,8 +369,8 @@ export class CharacterPane extends PaneShell {
     const { ramp, light } = paneShade(s, 'character');
     const stones = this.stones;
 
-    const box = this.box(name, vitalDigits(v.vitals), s.character.height, stones);
-    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}|${box.stones}|${box.add}`)) {
+    const box = this.box(name, vitalDigits(v.vitals), s.character.height, stones, v.mana);
+    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}|${box.stones}|${box.add}|${box.mana}`)) {
       this.layout = cardLayout(box);
       card.setLayout(this.layout);
       // Too low for the tabs: Status shows, and the chosen tab when it is tall again (point 125).
@@ -461,7 +461,7 @@ export class CharacterPane extends PaneShell {
     return timed ? now - (now % 1000) + 1000 : null;
   }
 
-  private box(name: string, digits: number, lock: CardBox['lock'], stones: StoneView): CardBox {
+  private box(name: string, digits: number, lock: CardBox['lock'], stones: StoneView, mana: boolean): CardBox {
     const { doc } = this.ctx;
     const cell = this.ctx.cells.get();
     // A plain source (tests) says no font size.
@@ -479,6 +479,7 @@ export class CharacterPane extends PaneShell {
       cross: crossDepth({ phone: this.phone !== undefined, framed: this.framed, rowH: cell.h }),
       stones: stones.stones.length,
       add: stones.canStartHerb,
+      mana,
     };
   }
 

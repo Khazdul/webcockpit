@@ -638,3 +638,38 @@ describe('the stones (stage 77 F2a, drawn since F2b)', () => {
     });
   });
 });
+
+describe('a troll (stage 77 H9): no mana bar, no Casts cell', () => {
+  it('by the race: hidden at once, HP and moves take the width; back for another character', () => {
+    const t = setup();
+    expect(t.q('.wc-cc-vital[data-kind="mana"]').hidden).toBe(false);
+    expect(t.q('.wc-cc-f[data-key="casts"]').hidden).toBe(false);
+    t.gmcp('Char.Name', { name: 'Stewash' });
+    t.gmcp('Char.StatusVars', { race: 'Troll', subrace: 'Hill Troll' });
+    t.gmcp('Char.Vitals', { hp: 121, maxhp: 121, mp: 112, maxmp: 112, mood: 'normal', position: 'standing' });
+    expect(t.q('.wc-cc-vital[data-kind="mana"]').hidden).toBe(true);
+    expect(t.q('.wc-cc-f[data-key="casts"]').hidden).toBe(true);
+    expect(t.q('.wc-cc-foot').dataset.bars).toBe('2');
+    expect(t.q('.wc-cc').dataset.mana).toBe('none');
+    expect(t.q('.wc-cc').style.getPropertyValue('--st-cols')).toBe('3');
+    t.gmcp('Char.Name', { name: 'Rasta' });
+    t.gmcp('Char.StatusVars', { race: 'Orc' });
+    expect(t.q('.wc-cc-vital[data-kind="mana"]').hidden).toBe(false);
+    expect(t.q('.wc-cc-f[data-key="casts"]').hidden).toBe(false);
+    expect(t.q('.wc-cc-foot').dataset.bars).toBeUndefined();
+  });
+
+  it('by the data: no mana key in GMCP and the poll answers 0 0 for mana', () => {
+    const t = setup();
+    t.gmcp('Char.Name', { name: 'Stewash' });
+    t.gmcp('Char.Vitals', { hp: 121, maxhp: 121, mp: 112, maxmp: 112 });
+    expect(t.q('.wc-cc-vital[data-kind="mana"]').hidden).toBe(false);
+    const info = parseInfoAnswer([ANSWER_FIELDS.join(' | ')])!;
+    t.game.applyPoll({ info, vitals: { hp: 121, maxhp: 121, mana: 0, maxmana: 0, mp: 100, maxmp: 112 }, affects: [] }, t.game.char.vitalsMark());
+    t.flush();
+    expect(t.q('.wc-cc-vital[data-kind="mana"]').hidden).toBe(true);
+    expect(t.q('.wc-cc-f[data-key="casts"]').hidden).toBe(true);
+    // The polled moves are drawn.
+    expect(t.q('.wc-cc-vital[data-kind="mp"] .wc-cc-vn').textContent).toBe('100');
+  });
+});

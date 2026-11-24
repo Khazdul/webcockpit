@@ -327,6 +327,10 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
   const setShort = (short: boolean): void => {
     for (const f of fields) setText(f.text, short ? f.short : f.label);
   };
+  /** No mana (a troll): no Casts cell, the other three take its room (stage 77 H9). */
+  const setMana = (on: boolean): void => {
+    for (const f of fields) if (f.key === 'casts') setHidden(f.f, !on);
+  };
   const setShields = (views: readonly ShieldView[]): void => {
     views.forEach((v, i) => {
       const { s, value } = shields[i]!;
@@ -335,7 +339,7 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
       setTip(s, v.tip, v.title, `cc:${v.key}`);
     });
   };
-  return { box, set, setShort, setShields };
+  return { box, set, setShort, setShields, setMana };
 }
 
 // ------------------------------------------------------------------- stones
@@ -737,11 +741,13 @@ function loreEl(doc: Document) {
 function vitalsEl(doc: Document) {
   const box = el(doc, 'div', 'wc-cc-foot');
   const bars = {} as Record<VitalKind, (v: VitalView) => void>;
+  const boxes = {} as Record<VitalKind, HTMLElement>;
   let hpBox!: HTMLElement;
   let wimpy!: HTMLElement;
   for (const kind of VITAL_KINDS) {
     const vital = el(doc, 'div', 'wc-cc-vital');
     vital.dataset.kind = kind;
+    boxes[kind] = vital;
     const trk = el(doc, 'div', 'wc-cc-trk');
     const fill = el(doc, 'span', 'wc-cc-fill');
     // The span is a window from `lo`, what is inside it ends at `hi`: two transforms, the hatch is not stretched.
@@ -782,7 +788,12 @@ function vitalsEl(doc: Document) {
     if (at !== null) setProp(wimpy, '--p', String(at));
   };
   const setHpTip = (t: { title: string; tip: string }): void => setTip(hpBox, t.tip, t.title, 'cc:hp');
-  return { box, bars, setWimpy, setHpTip };
+  /** No mana (a troll): no mana bar, HP and moves take the width (stage 77 H9). */
+  const setMana = (on: boolean): void => {
+    setHidden(boxes.mana, !on);
+    setAttr(box, 'data-bars', on ? null : '2');
+  };
+  return { box, bars, setWimpy, setHpTip, setMana };
 }
 
 // ---------------------------------------------------------------------- card
@@ -980,6 +991,9 @@ export class CardDom {
     setAttr(this.main, 'data-even', area.even ? '' : null);
     setAttr(this.main, 'data-compact', l.compact ? '' : null);
     this.status.setShort(status.short);
+    this.status.setMana(l.mana);
+    this.vitals.setMana(l.mana);
+    setAttr(root, 'data-mana', l.mana ? null : 'none');
     this.stoneRows = area.stones.rows;
     this.line2 = area.line2;
     this.showStones(this.tab);

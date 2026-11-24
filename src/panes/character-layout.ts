@@ -45,6 +45,9 @@
 // - On a phone the tabs are wide enough for a finger, and in the landscape
 //   column they stand clear of the resize band's grip.
 // - The vitals' columns are Group's: 0.4 cell of padding, 0.7 of gap.
+// - No mana (a troll, `CardBox.mana` false; stage 77 H9): no mana bar (HP
+//   and moves take the width) and no Casts cell (Mood, Alertness and
+//   Weight take its room), at every step and in the compact card.
 // - An advance is counted as the widest of the exact one (Firefox) and the
 //   whole px that Chrome's hinting rounds it to, also from a whole px size
 //   (src/theme/fonts.ts `wholePx`).
@@ -163,6 +166,8 @@ export interface CardBox {
   stones?: number;
   /** The herblore `+` is drawn (`StoneView.canStartHerb`). Default false. */
   add?: boolean;
+  /** The character has mana (`CharView.mana`): false hides the mana bar and the Casts cell. Default true. */
+  mana?: boolean;
 }
 
 export interface Rect {
@@ -189,6 +194,8 @@ export type ChipForm = 'shape' | 'label' | 'value' | 'icon';
 
 export interface CardLayout {
   mode: CardMode;
+  /** The mana bar and the Casts cell are drawn (`CardBox.mana`). */
+  mana: boolean;
   /** The chrome's scale: 1 at a 15 px font. */
   scale: number;
   step: CardStep;
@@ -262,7 +269,8 @@ export interface CardLayout {
 
 export interface StatusLayout {
   form: StatusForm;
-  cols: 4 | 2;
+  /** Cells a row: all of them (4, or 3 without Casts) or 2. */
+  cols: number;
   /** The label's size, px (0: no label). */
   labelPx: number;
   valuePx: number;
@@ -394,7 +402,10 @@ export function cardLayout(b: CardBox): CardLayout {
   const cellW = b.px * b.adv;
   const pad = Math.min(cellW * 0.4, w * 0.03);
 
-  const foot = footLayout(b, k, cellW, pad);
+  const mana = b.mana ?? true;
+  /** The status cells: Mood, Casts, Alertness, Weight; no Casts without mana. */
+  const n = mana ? 4 : 3;
+  const foot = footLayout(b, k, cellW, pad, mana ? 3 : 2);
   // A margin over the area from about 90 px, growing in (a step at once would cost a low portrait its room).
   const top = Math.round(clamp((h - 86) / 8, 0, 1) * 3 * k);
   const body = Math.max(0, Math.floor(foot.y - Math.min(5 * k, h * 0.04) - top));
@@ -422,30 +433,30 @@ export function cardLayout(b: CardBox): CardLayout {
   let area: AreaLayout;
   let line1: CardLayout['compact'] = null;
   if (compact) {
-    const c = compactLayout(b, mode, main, stones, add);
+    const c = compactLayout(b, mode, main, stones, add, n);
     status = c.status;
     area = c.area;
     line1 = { cellsW: c.cellsW, mid: c.mid, letterGap: c.letterGap, flat: c.flat };
     left.icon = c.icon;
     left.iconGap = c.iconGap;
   } else {
-    const cells = cellsLayout(b, mode, k, main);
-    const line = lineLayout(b, mode, k, main);
-    const plain = plainLayout(b, mode, k, main);
+    const cells = cellsLayout(b, mode, k, main, n);
+    const line = lineLayout(b, mode, k, main, n);
+    const plain = plainLayout(b, mode, k, main, n);
     area = areaLayout({ mode, k, adv: b.adv, main, heights: { cells: cells?.h ?? null, line: line?.h ?? null, plain: plain.h }, stones, add });
     status = area.step === 0 || area.step === 1 ? cells! : area.step === 2 || area.step === 3 ? line! : plain;
   }
   const infoH = Math.max(0, main.h - (area.stones.rows > 0 || area.line2 ? area.stones.height + area.gapBottom : 0));
-  return { mode, scale: k, step: area.step, left, main, tabs, status, area, compact: line1, info: infoLayout(b, k, { ...main, h: infoH }), foot };
+  return { mode, mana, scale: k, step: area.step, left, main, tabs, status, area, compact: line1, info: infoLayout(b, k, { ...main, h: infoH }), foot };
 }
 
-function footLayout(b: CardBox, k: number, cellW: number, pad: number): CardLayout['foot'] {
+function footLayout(b: CardBox, k: number, cellW: number, pad: number, bars: number): CardLayout['foot'] {
   const { w, h, adv } = b;
   const bar = Math.round(clamp(Math.min(18 * k, h * 0.2, barCap(h)), Math.min(5, h), 34));
   const arrow = h >= 24 ? Math.round(Math.min(4.5 * k, h * 0.07)) : 0;
   const high = Math.min(h, bar + arrow);
   const gap = Math.min(cellW * 0.7, w * 0.04);
-  const col = Math.max(0, (w - 2 * pad - 2 * gap) / 3);
+  const col = Math.max(0, (w - 2 * pad - (bars - 1) * gap) / bars);
   const inset = Math.min(6 * k, col * 0.05, bar * 0.4);
   const inner = col - 2 * inset;
 
@@ -570,11 +581,11 @@ export const CELL_MARK = 3;
  * else two; small labels over the value, the heat track at the foot. Null:
  * they do not fit.
  */
-function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLayout | null {
+function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect, n: number): StatusLayout | null {
   const { adv } = b;
   const gap = Math.max(2, Math.round(3 * k));
   const want = SIZES[mode].value * k;
-  for (const cols of [4, 2] as const) {
+  for (const cols of [n, 2]) {
     const cw = (main.w - (cols - 1) * gap) / cols;
     const room = cw - 2 * CELL_PAD - CELL_MARK * k;
     let valuePx = down(want);
@@ -590,7 +601,7 @@ function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusL
     const short = labelPx * STATUS_LABEL_EM > inner;
     if (short) labelPx = down(Math.min(labelPx, inner / STATUS_SHORT_EM));
     if (labelPx < 5.5) continue;
-    const rows = 4 / cols;
+    const rows = Math.ceil(n / cols);
     // The label, its gap, the value, 3.5 px above and below.
     const cellH = Math.ceil(labelPx + valuePx + 10 * k);
     const h = rows * cellH + (rows - 1) * gap;
@@ -606,10 +617,10 @@ function cellsLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusL
  * least 64 px and four characters stay, else the value only. Null: not
  * even four characters fit.
  */
-function lineLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLayout | null {
+function lineLayout(b: CardBox, mode: CardMode, k: number, main: Rect, n: number): StatusLayout | null {
   const { adv } = b;
   const gap = Math.max(2, Math.round(3 * k));
-  const cw = (main.w - 3 * gap) / 4;
+  const cw = (main.w - (n - 1) * gap) / n;
   const room = cw - 2 * CELL_PAD - CELL_MARK * k;
   let valuePx = down(SIZES[mode].value * k);
   if (glyphW(valuePx, adv) * 4 > room) valuePx = pxFor(room, 4, adv);
@@ -633,18 +644,18 @@ function lineLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLa
       }
     }
   }
-  return { form: 'line', cols: 4, labelPx: label ? labelPx : 0, valuePx, chars, short, label, h: Math.ceil(valuePx + 8.5 * k), gap };
+  return { form: 'line', cols: n, labelPx: label ? labelPx : 0, valuePx, chars, short, label, h: Math.ceil(valuePx + 8.5 * k), gap };
 }
 
 /** Step 4: the values without cells (the mockups' `statusRow` `mini`). */
-function plainLayout(b: CardBox, mode: CardMode, k: number, main: Rect): StatusLayout {
+function plainLayout(b: CardBox, mode: CardMode, k: number, main: Rect, n: number): StatusLayout {
   const { adv } = b;
   const gap = Math.max(2, Math.round(2 * k));
-  const room = Math.max(0, (main.w - 3 * gap) / 4 - 2 * CELL_PAD);
+  const room = Math.max(0, (main.w - (n - 1) * gap) / n - 2 * CELL_PAD);
   let valuePx = Math.max(7, down(Math.min(SIZES[mode].value, 9.5) * k));
   if (glyphW(valuePx, adv) * 4 > room) valuePx = Math.max(6.5, pxFor(room, 4, adv));
   const chars = Math.max(0, Math.floor(room / glyphW(valuePx, adv) + 1e-3));
-  return { form: 'plain', cols: 4, labelPx: 0, valuePx, chars, short: false, label: false, h: Math.ceil(valuePx + 4.5 * k), gap };
+  return { form: 'plain', cols: n, labelPx: 0, valuePx, chars, short: false, label: false, h: Math.ceil(valuePx + 4.5 * k), gap };
 }
 
 /**
@@ -787,6 +798,7 @@ function compactLayout(
   main: Rect,
   stones: number,
   add: boolean,
+  n: number,
 ): { status: StatusLayout; area: AreaLayout; cellsW: number; mid: number; letterGap: number; flat: boolean; icon: number; iconGap: number } {
   const { adv } = b;
   const kc = clamp(b.px / 15, 0.8, 1.8);
@@ -823,13 +835,13 @@ function compactLayout(
   const letterGap = Math.round(3 * kc);
   const least = Math.max(7, vf * 0.8);
   /** What the cells need for the letter and four characters at `px`. */
-  const forFour = (px: number): number => Math.ceil(4 * (glyphW(px, adv) * 5 + letterGap + 2 * cellPad) + 3 * cellGap);
+  const forFour = (px: number): number => Math.ceil(n * (glyphW(px, adv) * 5 + letterGap + 2 * cellPad) + (n - 1) * cellGap);
   const shieldIcon = Math.round((big ? 11 : 10) * kc);
   let cellsW = W;
   let chips: ChipLayout | null = null;
   const share = Math.floor((W - mid) * 0.55);
   // Four characters with the shields, else three (`agg`), else the status takes the line.
-  const forThree = Math.ceil(4 * (glyphW(least, adv) * 4 + letterGap + 2 * cellPad) + 3 * cellGap);
+  const forThree = Math.ceil(n * (glyphW(least, adv) * 4 + letterGap + 2 * cellPad) + (n - 1) * cellGap);
   for (const want of [Math.max(share, forFour(least)), Math.max(share, forThree)]) {
     chips = chipLayout(W - mid - want, h1, kc, adv, vf, ['icon', 'value'], shieldIcon);
     if (chips) {
@@ -837,7 +849,7 @@ function compactLayout(
       break;
     }
   }
-  const inner = (cellsW - 3 * cellGap) / 4 - 2 * cellPad;
+  const inner = (cellsW - (n - 1) * cellGap) / n - 2 * cellPad;
   let valuePx = vf;
   const letter = (px: number): number => glyphW(px, adv) + letterGap;
   const fit = (px: number): number => Math.max(0, Math.floor((inner - letter(px)) / glyphW(px, adv) + 1e-3));
@@ -846,7 +858,7 @@ function compactLayout(
   if (fit(valuePx) < 4 && four >= least) valuePx = Math.min(valuePx, four);
   if (glyphW(valuePx, adv) > inner) valuePx = pxFor(inner, 1, adv);
   const chars = fit(valuePx);
-  const status: StatusLayout = { form: 'compact', cols: 4, labelPx: 0, valuePx, chars, short: false, label: false, h: h1, gap: cellGap };
+  const status: StatusLayout = { form: 'compact', cols: n, labelPx: 0, valuePx, chars, short: false, label: false, h: h1, gap: cellGap };
 
   // Line 2: the icons, then the stones (at least two places beside them).
   let line2 = h1 + g + Math.max(icon + 4, size + bar) <= H;

@@ -1392,6 +1392,16 @@
   padding: 0 var(--foot-pad);
 }
 
+/* No mana (a troll, stage 77 H9): HP and moves take the width. */
+.wc-cc-foot[data-bars="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wc-cc-foot > .wc-cc-vital[hidden],
+.wc-cc-cells > .wc-cc-f[hidden] {
+  display: none;
+}
+
 .wc-cc-vital {
   position: relative;
   contain: strict;

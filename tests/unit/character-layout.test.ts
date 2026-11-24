@@ -466,7 +466,7 @@ function problems(b: CardBox, l: CardLayout): string[] {
       if (area.stones.rows > 0 && 2 * area.stones.size + area.stones.gap > area.stones.w + 0.5) out.push('two stones are wider than their room');
     }
     const cellsW = l.compact!.cellsW;
-    const inner = (cellsW - 3 * status.gap) / 4 - 2 * Math.round(2 * Math.min(1.8, Math.max(0.8, b.px / 15)));
+    const inner = (cellsW - (status.cols - 1) * status.gap) / status.cols - 2 * Math.round(2 * Math.min(1.8, Math.max(0.8, b.px / 15)));
     if (status.chars > 0 && g + l.compact!.letterGap + status.chars * g > inner + 0.01) out.push('a compact value is too long');
     if (g > inner + 0.01) out.push('a compact letter does not fit');
     if (chips && cellsW + l.compact!.mid > main.w) out.push('the shields have no room');
@@ -479,7 +479,8 @@ function problems(b: CardBox, l: CardLayout): string[] {
     if (chips.h > main.h + 0.01) out.push('the chips are too high');
   }
   if (area.stones.rows > 0 && area.stones.per * (area.stones.size + area.stones.gap) - area.stones.gap > area.stones.w + 0.5) out.push('a row of stones is wider than the area');
-  const col = (b.w - 2 * foot.pad - 2 * foot.gap) / 3 - 2 * foot.inset;
+  const bars = l.mana ? 3 : 2;
+  const col = (b.w - 2 * foot.pad - (bars - 1) * foot.gap) / bars - 2 * foot.inset;
   if (b.digits * glyph(foot.numberPx, b.adv) > col + 0.2) out.push('the number is wider than its bar');
   if (foot.bar > barCap(b.h)) out.push('the bars are higher than a low pane allows');
   return out;
@@ -522,5 +523,54 @@ describe('no overlap and nothing outside', () => {
     const l = cardLayout(box({ w: 480, px: 15, adv: 0.6 }));
     expect(l.foot.pad).toBeCloseTo(0.4 * 9);
     expect(l.foot.gap).toBeCloseTo(0.7 * 9);
+  });
+});
+
+describe('a troll: no mana bar, no Casts cell (stage 77 H9)', () => {
+  it('three cells a row where four were, and at least as much room for each value', () => {
+    for (const [w, h] of [[480, 171], [279, 153], [230, 107], [300, 70], [200, 44], [150, 36]] as const) {
+      const four = cardLayout(box({ w, h }));
+      const three = cardLayout(box({ w, h, mana: false }));
+      expect(three.mana).toBe(false);
+      expect(four.mana).toBe(true);
+      if (four.status.cols === 4) expect(three.status.cols, `${w}x${h}`).toBe(3);
+      expect(three.status.chars, `${w}x${h}`).toBeGreaterThanOrEqual(four.status.chars);
+      // More characters, or as many at least as large.
+      if (three.status.chars === four.status.chars) expect(three.status.valuePx, `${w}x${h}`).toBeGreaterThanOrEqual(four.status.valuePx);
+    }
+  });
+
+  it('the compact card and the phone strip: three cells in line 1', () => {
+    const l = cardLayout(box({ w: 300, h: 40, mana: false, phone: 'strip' }));
+    expect(l.step).toBe('compact');
+    expect(l.status).toMatchObject({ form: 'compact', cols: 3 });
+    const four = cardLayout(box({ w: 300, h: 40, phone: 'strip' }));
+    expect(l.status.chars).toBeGreaterThanOrEqual(four.status.chars);
+  });
+
+  it('two bars take the foot: wider columns, so the numbers never get a smaller form', () => {
+    const order = ['full', 'tight', 'value', 'number'];
+    for (const w of [120, 176, 230, 279, 480]) {
+      const three = cardLayout(box({ w, h: 120 }));
+      const two = cardLayout(box({ w, h: 120, mana: false }));
+      expect(two.foot.y).toBe(three.foot.y);
+      expect(order.indexOf(two.foot.form), `${w}`).toBeLessThanOrEqual(order.indexOf(three.foot.form));
+    }
+  });
+
+  it('nothing overlaps or leaves the box at any size', () => {
+    const bad: string[] = [];
+    for (const [px, adv] of [[9, 0.602], [14.95, 0.602], [16.61, 0.602], [24, 0.58]] as const) {
+      for (const phone of [undefined, 'strip'] as const) {
+        for (const w of [72, 120, 176, 230, 279, 340, 480, 900]) {
+          for (const h of [21, 36, 44, 54, 62, 72, 85, 100, 107, 120, 153, 171, 300]) {
+            const b = box({ w, h, px, adv, phone, stones: 3, add: true, mana: false });
+            const p = problems(b, cardLayout(b));
+            if (p.length) bad.push(`${w}x${h} at ${px} ${phone ?? ''}: ${p.join(', ')}`);
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 30)).toEqual([]);
   });
 });
