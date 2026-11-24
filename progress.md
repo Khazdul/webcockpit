@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); the direction pass held (2026-11-23…24, mockup rounds 10–12, ADR 0166 addenda 14–17): Timers' buffs/debuffs/herblores into Character, the round 12 look and the info poll round 2 decided; next F0 (round 13 mockup), then F1, F2, G, H | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 built and on main (the poll's triggers and your flags, ADR 0166 addenda 18–19), waiting for the owner's live test; then F2 (the card), G, H | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -156,6 +156,27 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-24 — Stage 77 F0 and F1
+
+- **F0:** mockup rounds 13–15 (`notes/research/character-pane-mockups/`,
+  published). The owner added the purse in the stones row (g+s+c → g+s →
+  g), the stones in Stats, War fame and War points in Lore, and a compact
+  card for low panes (no portrait, ring, name or tabs; status with
+  hand-made short forms + shields on one line). Feedback in the stage file.
+- **F1 live:** from the owner's run logs your flags come in `type: "you"`;
+  `stat`, `info`, `inf`, `info <format>` measured (stage file, "Part F1:
+  live findings").
+- **F1 built** (by a building agent, branch `stage77-f1`, fast-forwarded to
+  main): selfFlags, typed stat/info read, the repeat setting (20 s
+  default), quiet rules, four event triggers, the gear. ADR 0166 addenda
+  18–19.
+- **Tested:** typecheck; unit 6002 passed; full e2e at 5 workers 2080
+  passed, 1 failed (`phone-community-page.spec.ts:139`, passes alone).
+- **Next:** the owner's live test (Part F1 in the test guide), then F2,
+  the card in the round 12–15 look.
+- **Open:** the 8 s pending-cast limit; equipment wordings not yet seen.
+- **Commits:** `dc79aa45` … `03194e57`, `bf03a9bd` … `ad97b0d6`, and this one.
 
 ### 2026-11-23 … 24 — Stage 77, the direction pass for Group and Character
 
