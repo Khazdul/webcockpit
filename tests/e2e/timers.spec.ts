@@ -115,7 +115,7 @@ test('Herblore: + opens the menu, a pick starts the herb; × on hover stops it; 
   await add.click();
   const menu = page.locator('.wc-tm-menu');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.wc-tm-mi')).toHaveText(['+Healing', '+Travelling', '+Clearthought', '+Walking', '+Haste', '+Dark aura']);
+  await expect(menu.locator('.wc-tm-mi')).toHaveText(['+Healing', '+Travelling', '+Clearthought', '+Walking', '+Haste', '+Dark aura', '+Seeing', '+Shadows', '+Skillful oil', '+Soothing draught', '+Strength', '+Orc balm']);
   await menu.locator('.wc-tm-mi[data-key="Healing"]').click();
   await expect(menu).toBeHidden();
   expect(await page.evaluate(() => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === 'Healing')?.active)).toBe(true);
