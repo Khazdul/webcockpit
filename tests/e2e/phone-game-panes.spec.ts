@@ -61,7 +61,7 @@ function watchErrors(page: Page): string[] {
 /** All four built-in panes in the strip and the Herblores timers on, as before stage 52's phone defaults. */
 async function fullStrip(page: Page, order: readonly string[] = ['timers', 'group', 'character', 'statistics']): Promise<void> {
   // The layer's one-time defaults first, so they do not land on what is set here.
-  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
+  await expect.poll(async () => (await phone(page)).defaults).toBe(3);
   await page.evaluate((order) => {
     const s = window.__wc!.settings;
     s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: order.map((id) => ({ id: id as 'timers', on: true })) } } });
@@ -517,7 +517,7 @@ test('a new phone: Character is the first page of the strip and the Herblores ti
   const first = ['character', 'timers', 'group', 'statistics'];
   expect(await stripOn(page)).toEqual(first);
   expect(await herbOn(page)).toBe(false);
-  expect((await phone(page)).defaults).toBe(2);
+  expect((await phone(page)).defaults).toBe(3);
   await sat(page, 'panes').tap();
   await expect(dots(page)).toHaveCount(4);
   expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(first);
@@ -550,7 +550,7 @@ test('a phone that had Character off from the old defaults gets it first and on,
   });
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
-  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
+  await expect.poll(async () => (await phone(page)).defaults).toBe(3);
   expect(await stripOn(page)).toEqual(['character', 'timers', 'group', 'statistics']);
   await sat(page, 'panes').tap();
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'character');
@@ -568,7 +568,7 @@ test('settings stored by 0.5.0 (no mark): Herblores is switched off once at the 
   });
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
-  await expect.poll(async () => (await phone(page)).defaults).toBe(2);
+  await expect.poll(async () => (await phone(page)).defaults).toBe(3);
   expect(await herbOn(page)).toBe(false);
   // The order and the switches are the player's.
   expect((await phone(page)).strip.panes.map((e) => `${e.id}:${e.on}`)).toEqual(['statistics:true', 'character:true', 'timers:true', 'group:true']);
@@ -580,7 +580,7 @@ test('settings stored by 0.5.0 (no mark): Herblores is switched off once at the 
   await page.waitForTimeout(300);
   expect(await herbOn(page)).toBe(true);
   expect(await stripOn(page)).toEqual(['statistics', 'character', 'timers', 'group']);
-  expect((await phone(page)).defaults).toBe(2);
+  expect((await phone(page)).defaults).toBe(3);
   expect(errors).toEqual([]);
 });
 

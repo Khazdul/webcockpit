@@ -15,7 +15,7 @@ async function open(page: Page): Promise<void> {
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   // The layer's one-time phone defaults first, so they do not land on what is set here.
-  await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(3);
   await page.evaluate(() => {
     const s = window.__wc!.settings;
     s.update({
