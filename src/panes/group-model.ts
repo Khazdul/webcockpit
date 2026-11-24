@@ -261,7 +261,8 @@ export function memberView(m: Member, env: MemberEnv): MemberView {
     tank,
     statuses,
     position: positionView(m.position, m.ride, c),
-    bars: VITAL_KINDS.map((k) => barView(k, m[k], env.vitals[k], env.light)),
+    // A player MUME sends no mana for (a troll, stage 77 H9): no mana bar, HP and moves take the width.
+    bars: VITAL_KINDS.filter((k) => k !== 'mana' || npc || !m.noMana).map((k) => barView(k, m[k], env.vitals[k], env.light)),
   };
 }
 
@@ -332,6 +333,7 @@ export function memberSig(v: MemberView, lines: 1 | 2, gold: string): string {
     v.tank ? 't' : '',
     v.statuses.map(iconSig).join(','),
     v.position ? iconSig(v.position) : '',
+    v.bars.map((b) => b.kind).join(','),
   ].join('|');
 }
 

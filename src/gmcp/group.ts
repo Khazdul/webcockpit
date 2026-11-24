@@ -43,6 +43,13 @@
 //   above). The identity is matched against labels (first) and names by
 //   tokens (whole string, inside and before parentheses), lower case and
 //   accent-folded. Only HP: there is no `buffer-mana`.
+// - No mana (`noMana`, stage 77 H9, ADR 0166 addendum 31): a member whose
+//   Set/Add carries `mana-string` that is not a word (MUME sends `0`) and
+//   no `mana` or `maxmana` number. The run exports (2026-09-28 to 11-17):
+//   every troll ally (Grugg, Burpy, Dig, Soug; 8 adds) came so, and not one
+//   of their 4 624 updates had a mana key; every other ally carried a word
+//   or a `maxmana`. NPCs come the same way (`"mana-string": 0`). A later
+//   mana number or word clears it.
 
 import { type VitalKind, VITAL_KINDS, bandMidpoint, inBand } from './bands';
 
@@ -79,6 +86,8 @@ export interface Member {
   hp: Vital;
   mana: Vital;
   mp: Vital;
+  /** MUME sends no mana for it (a troll; see the file header). Absent: false. */
+  noMana?: boolean;
   /** GMCP `position` (`standing`, `fighting`, `resting`, `sleeping` …), or null. */
   position: string | null;
   /** Mounted (`ride`). */
@@ -203,6 +212,16 @@ function mergeFlags(flags: MemberFlags, o: Obj, full: boolean): boolean {
 
 /** The flags as a short key, to compare. */
 const flagsKey = (flags: MemberFlags): string => STATUS_FLAGS.map((f) => (flags[f] ? 1 : 0)).join('');
+
+/** A full member's payload (Set/Add) says it has no mana: `mana-string` not a word, no mana number. */
+function noManaOf(o: Obj): boolean {
+  return has(o, 'mana-string') && typeof o['mana-string'] !== 'string' && num(o.mana) === null && num(o.maxmana) === null;
+}
+
+/** An update brings mana: a number or a word. */
+function bringsMana(o: Obj): boolean {
+  return num(o.mana) !== null || num(o.maxmana) !== null || typeof o['mana-string'] === 'string';
+}
 
 /** Fill of one vital (Inv §2.3): value / max, else band midpoint, else null. */
 export function vitalPct(kind: VitalKind, v: Vital): VitalPct {
@@ -409,6 +428,7 @@ export class GroupModel {
       hp: emptyVital(),
       mana: emptyVital(),
       mp: emptyVital(),
+      noMana: noManaOf(data),
       position: null,
       ride: false,
       room: null,
@@ -463,6 +483,10 @@ export class GroupModel {
       }
     }
     let placed = changed;
+    if (m.noMana && bringsMana(data)) {
+      m.noMana = false;
+      changed = true;
+    }
     for (const k of VITAL_KINDS) if (mergeVital(k, m[k], data, false)) changed = true;
     if (mergeFields(m, data, false)) changed = true;
     placed ||= changed;

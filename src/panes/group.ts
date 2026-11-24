@@ -140,6 +140,8 @@ function rowEl(doc: Document, v: MemberView, cls: string): HTMLElement {
 
 /** A member's three bars (into `box`), their values set by `upd`. */
 function memberBars(doc: Document, box: HTMLElement, v: MemberView, upd: Upd<MemberView>): void {
+  // Two (no mana, a troll): HP and moves take the width (stage 77 H9).
+  if (v.bars.length !== 3) box.dataset.bars = String(v.bars.length);
   for (const b of v.bars) {
     const kind = b.kind;
     box.append(barEl(doc, 'wc-gp-bar', `${v.key}:${kind}`, kind, upd, (mv) => mv.bars.find((x) => x.kind === kind) ?? null));
