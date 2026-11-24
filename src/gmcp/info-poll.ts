@@ -32,8 +32,9 @@
 //   pulse at a time, so the first one's prompt does not say that the last
 //   one (`write`, say) has been read, and a prompt can have been on its way
 //   when the command went. The repeat and the events wait for 1 s of quiet,
-//   10 s after a burst (a command less than 2 s after the one before it;
-//   point 98), as a command can be held behind a cast. The login poll and
+//   10 s after a burst (a command less than 2 s after the one before it
+//   with no game prompt between them; points 98 and 118), as a command can
+//   be held behind a cast, a stun or a door. The login poll and
 //   an opened view keep the 1 s: there the player waits for the value.
 //
 // A command sent into the pager or the line editor is read by them: when in
@@ -216,8 +217,14 @@ export class InfoPoll {
   private lineAtSend: Line | null = null;
   private sentInFrame = false;
   private commandAt = Number.NEGATIVE_INFINITY;
-  /** The command before that one. */
-  private prevCommandAt = Number.NEGATIVE_INFINITY;
+  /**
+   * The last command was a burst: sent less than `BURST_MS` after the one
+   * before it, with no game prompt between them (MUME had not answered the
+   * first: it may hold it behind a delay). Addendum 21.
+   */
+  private burst = false;
+  /** A game prompt came after the last command (not in the frame it was sent in). */
+  private promptSinceCommand = true;
 
   private timer: unknown = null;
   private timerAt: number | null = null;
@@ -239,8 +246,10 @@ export class InfoPoll {
       bus.on('net.bytesIn', () => (this.inFrame = true)),
       bus.on('cmd.sent', (c) => {
         if (c.replay) return;
-        this.prevCommandAt = this.commandAt;
-        this.commandAt = o.now();
+        const now = o.now();
+        this.burst = now - this.commandAt < BURST_MS && !this.promptSinceCommand;
+        this.promptSinceCommand = false;
+        this.commandAt = now;
         this.lineAtSend = this.filter.last;
         if (this.inFrame) this.sentInFrame = true;
       }),
@@ -282,7 +291,12 @@ export class InfoPoll {
   }
 
   /** The assembler's lines. */
-  readonly line = (l: Line): void => this.filter.line(l);
+  readonly line = (l: Line): void => {
+    // MUME answered what was sent before this frame (a command sent while
+    // the frame is read is later than all of it).
+    if (!this.sentInFrame && isGamePrompt(l)) this.promptSinceCommand = true;
+    this.filter.line(l);
+  };
   /** The assembler's partials. */
   readonly partial = (l: Line): void => this.filter.partial(l);
 
@@ -386,7 +400,9 @@ export class InfoPoll {
     this.probed.clear();
     this.probes.clear();
     this.failureCount = 0;
-    this.commandAt = this.prevCommandAt = Number.NEGATIVE_INFINITY;
+    this.commandAt = Number.NEGATIVE_INFINITY;
+    this.burst = false;
+    this.promptSinceCommand = true;
   }
 
   private events(): InfoPollEvents {
@@ -456,7 +472,7 @@ export class InfoPoll {
 
   /** The repeat's and the events' quiet after the last command (point 98). */
   private quiet(): number {
-    return this.commandAt - this.prevCommandAt < BURST_MS ? BURST_SETTLE_MS : REPEAT_SETTLE_MS;
+    return this.burst ? BURST_SETTLE_MS : REPEAT_SETTLE_MS;
   }
 
   /** What time does not decide. */
