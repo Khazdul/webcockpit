@@ -2080,3 +2080,8 @@ G (folder tabs) feels best but does not fit the theme, above all on the
 dark (Lykta) theme; on the light it is ok. Round 19: G in several colours;
 G sunken ("insjunken"), several variations; and some wholly new ideas of
 where the tab buttons can sit, discreet but one with the whole.
+
+### H2 (2026-11-24)
+
+Test guide "Part H2", steps 1–5 all ok: "Ser bra ut." The Spells fix and
+the heat cells approved.

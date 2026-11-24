@@ -180,7 +180,7 @@ with no stage of their own. Remove a line when it is done.
   file, "Affects from the poll", "Vitals from the poll"); herblores stay by
   hand; the six missing herblores into the `+` menu with the guide's
   times; unconfirmed affects get the generic icon, picks kept.
-- **Waiting on the owner:** the H2 test (guide "Part H2"); a pick in
+- **Waiting on the owner:** (H2 approved, all 5 steps ok) a pick in
   round 18; confirm the round 2 icon numbers (read as 6, 8, 6, 6, 6).
 - **Next session:** the poll pass (%f + vitals + herblores), then the tabs
   (round 18 pick), then the stone icons build.
