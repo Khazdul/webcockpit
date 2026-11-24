@@ -2123,3 +2123,5 @@ shows the mana bar at all.
   keys out as it does for you (to check in a group run log with a troll):
   a member with no mana numbers or word shows no mana bar. Not urgent:
   the poll pass takes it if the data allows, else it waits.
+- The owner: a troll's card hides the **Casts** cell too (no
+  `spell-effort`); the other three cells take its room.

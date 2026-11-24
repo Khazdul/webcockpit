@@ -184,7 +184,7 @@ with no stage of their own. Remove a line when it is done.
   round 18; confirm the round 2 icon numbers (read as 6, 8, 6, 6, 6).
 - **Later the same day:** H2 approved by the owner; tab rounds 19–20, the
   owner picked **G8** (G1's iron sheet, G3's edge); a troll's card hides
-  the mana bar (no mana keys in its GMCP, `Stewash` run log), the Group
+  the mana bar and the Casts cell (no mana keys in its GMCP, `Stewash` run log), the Group
   pane the same for troll members if the data allows.
 - **Next session:** the poll pass (%f + vitals + herblores + the troll's
   mana), then the tabs (G8), then the stone icons build. Still to confirm:
