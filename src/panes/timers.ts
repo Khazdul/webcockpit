@@ -45,7 +45,6 @@
 //   while inactive; a disconnect resets the view.
 
 import './timers.css';
-import { isOwnKey } from '../core/own-keyboard';
 import type { TimersSettings } from '../settings/types';
 import type { HerbEntry } from '../timers/entry';
 import { forwardWheel } from './anchored-list';
@@ -54,6 +53,7 @@ import { SecondTick, setAttr, setClass, setHidden, setProp, setText } from './do
 import { iconSvg, ringDash, ringSvg, setIconSvg } from './icons';
 import { signalColors } from './palette';
 import { PaneShell } from './pane';
+import { PopupMenu } from './popup-menu';
 import { installPaneTooltip, type PaneTooltip, setLiveTip } from './pane-tooltip';
 import { paneShade } from './shade';
 import { type TimerGroupView, type TimerItem, timersModel, timersTimed } from './timers-model';
@@ -246,61 +246,27 @@ class GroupEl {
  * The Herblore `+` menu: a small card under the `+`, in the menu surface
  * colours (fixed, so a short pane does not clip it), one row per herb in
  * the catalogue; a running one is checked and cannot be picked again. A
- * pick, Esc or a press outside closes it. Pressing a row keeps the focus
- * in the game input (mousedown is prevented).
+ * pick, Esc or a press outside closes it (popup-menu.ts). The Character
+ * card's `+` opens one too.
  */
-export class HerbMenu {
-  readonly el: HTMLDivElement;
-  private anchor: HTMLElement | null = null;
-
+export class HerbMenu extends PopupMenu {
   constructor(
-    private readonly doc: Document,
+    doc: Document,
     private readonly onPick: (key: string) => void,
-    private readonly onClose: () => void,
+    onClose: () => void,
   ) {
-    this.el = doc.createElement('div');
-    this.el.className = 'wc-tm-menu';
-    this.el.setAttribute('role', 'menu');
-    this.el.setAttribute('aria-label', 'Herblores');
-    this.el.hidden = true;
-    this.el.addEventListener('mousedown', this.onMenuDown);
-  }
-
-  get open(): boolean {
-    return !this.el.hidden && this.el.isConnected;
+    super(doc, 'wc-tm-menu', 'Herblores', onClose);
   }
 
   /** Opens under `anchor` with `herbs`, or refreshes the rows when open. */
   show(anchor: HTMLElement, herbs: readonly HerbEntry[]): void {
-    this.anchor = anchor;
     this.fill(herbs);
-    if (!this.el.isConnected) this.doc.body.append(this.el);
-    if (this.el.hidden) {
-      this.el.hidden = false;
-      this.doc.addEventListener('keydown', this.onKey, true);
-      this.doc.addEventListener('pointerdown', this.onOutside, true);
-    }
-    this.place();
+    this.openAt(anchor);
   }
 
   /** New rows while open (a herblore started or ended meanwhile). */
   update(herbs: readonly HerbEntry[]): void {
     if (this.open) this.fill(herbs);
-  }
-
-  hide(): void {
-    if (this.el.hidden && !this.el.isConnected) return;
-    this.el.hidden = true;
-    this.el.remove();
-    this.anchor = null;
-    this.doc.removeEventListener('keydown', this.onKey, true);
-    this.doc.removeEventListener('pointerdown', this.onOutside, true);
-    this.onClose();
-  }
-
-  dispose(): void {
-    this.hide();
-    this.el.removeEventListener('mousedown', this.onMenuDown);
   }
 
   private fill(herbs: readonly HerbEntry[]): void {
@@ -330,48 +296,13 @@ export class HerbMenu {
     );
   }
 
-  private place(): void {
-    const a = this.anchor;
-    const win = this.doc.defaultView;
-    if (!a || !win) return;
-    const r = a.getBoundingClientRect();
-    const w = this.el.offsetWidth;
-    const h = this.el.offsetHeight;
-    const vw = win.innerWidth;
-    const vh = win.innerHeight;
-    let left = Math.min(r.left, vw - w - 4);
-    left = Math.max(4, left);
-    let top = r.bottom + 2;
-    if (top + h > vh - 4 && r.top - h - 2 >= 4) top = r.top - h - 2;
-    this.el.style.left = `${Math.round(left)}px`;
-    this.el.style.top = `${Math.round(Math.max(4, top))}px`;
-  }
-
-  private readonly onMenuDown = (e: MouseEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.button !== 0) return;
-    const b = (e.target as HTMLElement | null)?.closest?.<HTMLButtonElement>('.wc-tm-mi') ?? null;
+  protected pressed(target: HTMLElement): void {
+    const b = target.closest<HTMLButtonElement>('.wc-tm-mi');
     if (!b || b.disabled) return;
     const key = b.dataset.key!;
     this.hide();
     this.onPick(key);
-  };
-
-  private readonly onKey = (e: KeyboardEvent): void => {
-    if (e.key !== 'Escape') return;
-    // The Esc our keyboard sends on a page (ADR 0139 §4) acts on that page only.
-    if (isOwnKey(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    this.hide();
-  };
-
-  private readonly onOutside = (e: PointerEvent): void => {
-    const t = e.target as Node | null;
-    if (t && (this.el.contains(t) || this.anchor?.contains(t))) return;
-    this.hide();
-  };
+  }
 }
 
 // ------------------------------------------------------------------ pane
