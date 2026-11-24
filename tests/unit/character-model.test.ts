@@ -12,7 +12,6 @@ import {
   TabState,
   clickCommand,
   dataAge,
-  fitWord,
   hpTip,
   iconsView,
   loadSignal,
@@ -204,19 +203,11 @@ describe('the tabs and the fight (round 12 decision 8: only the swords)', () => 
 });
 
 describe('words', () => {
-  it('shortens by the list, then cuts whole glyphs', () => {
-    expect([10, 9, 7, 6, 5, 4, 3, 1].map((n) => fitWord('aggressive', n))).toEqual(['aggressive', 'aggres.', 'aggres.', 'agg.', 'agg.', 'agg.', 'ag…', '…']);
-    expect(fitWord('really heavy', 8)).toBe('r. heavy');
-    expect(fitWord('really heavy', 5)).toBe('r.hv.');
-    expect(fitWord('uncomfortable', 7)).toBe('uncomf.');
-    expect(fitWord('normal', 5)).toBe('norm.');
-    expect(fitWord('Númenórean', 4)).toBe('Núm…');
-    expect(fitWord('brave', 0)).toBe('');
-  });
-
-  it('never longer than the room, for every word there is', () => {
+  it('a Status value is never longer than the room, for every word there is', () => {
     const words = [...MOOD_CYCLE, 'berserk', 'quick', 'fast', 'careful', 'thorough', 'attentive', 'vigilant', 'paranoid', 'peanuts', 'uncomfortable', 'really heavy', 'painful', 'torture', 'a word as sent'];
-    for (const w of words) for (let n = 1; n < 15; n++) expect([...fitWord(w, n)].length, `${w} in ${n}`).toBeLessThanOrEqual(n);
+    for (const w of words) {
+      for (let n = 1; n < 15; n++) expect([...statusView(viewOf({ mood: w }), env(), n)[0]!.value].length, `${w} in ${n}`).toBeLessThanOrEqual(n);
+    }
   });
 
   it('signs: a true minus, and ±0', () => {
@@ -237,17 +228,19 @@ describe('weight (decision 9)', () => {
     expect(statusView(viewOf({ carrying: 'Odd' }), env(), 20)[3]).toMatchObject({ value: 'Odd', tip: 'Odd', signal: null });
   });
 
-  it('the compact card: the whole word where it fits, else the hand-made short form (point 126)', () => {
+  it('every Status form: the whole word where it fits, else the hand-made short form (points 126, 171)', () => {
     const v = viewOf({ mood: 'aggressive', 'spell-effort': 'normal', alertness: 'attentive', carrying: 'really heavy' });
-    expect(statusView(v, env(), 4, true).map((f) => f.value)).toEqual(['aggr', 'norm', 'attn', 'rhvy']);
-    expect(statusView(v, env(), 6, true).map((f) => f.value)).toEqual(['aggr', 'normal', 'attn', 'r.hvy']);
-    expect(statusView(v, env(), 20, true).map((f) => f.value)).toEqual(['aggressive', 'normal', 'attentive', 'really heavy']);
-    // Elsewhere the cut with a dot, as before.
-    expect(statusView(v, env(), 4).map((f) => f.value)).toEqual(['agg.', 'nor…', 'att.', 'rea…']);
+    expect(statusView(v, env(), 4).map((f) => f.value)).toEqual(['aggr', 'norm', 'attn', 'rhvy']);
+    expect(statusView(v, env(), 6).map((f) => f.value)).toEqual(['aggr', 'normal', 'attn', 'r.hvy']);
+    expect(statusView(v, env(), 20).map((f) => f.value)).toEqual(['aggressive', 'normal', 'attentive', 'really heavy']);
+    // No `…` and no dot cut (`nor…`, `agg.`), at any room.
+    const docked = viewOf({ mood: 'brave', 'spell-effort': 'normal', alertness: 'vigilant', carrying: 'really heavy' });
+    expect(statusView(docked, env(), 4).map((f) => f.value)).toEqual(['brav', 'norm', 'vigl', 'rhvy']);
+    for (let n = 1; n < 8; n++) for (const f of statusView(docked, env(), n)) expect(f.value, `${f.key} in ${n}`).not.toMatch(/…|[a-z]\.$/);
     // The tooltip and the name keep the whole word; no room: no value (the letter stays, CSS).
-    expect(statusView(v, env(), 4, true)[0]).toMatchObject({ name: 'Mood: aggressive' });
-    expect(statusView(v, env(), 0, true).map((f) => f.value)).toEqual(['', '', '', '']);
-    expect(statusView(viewOf({}), env(), 4, true)[0]!.value).toBe('—');
+    expect(statusView(v, env(), 4)[0]).toMatchObject({ name: 'Mood: aggressive' });
+    expect(statusView(v, env(), 0).map((f) => f.value)).toEqual(['', '', '', '']);
+    expect(statusView(viewOf({}), env(), 4)[0]!.value).toBe('—');
   });
 
   it('the step meter: every step of each field, the current one (round 12 decision 3)', () => {

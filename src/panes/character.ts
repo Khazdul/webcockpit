@@ -402,9 +402,8 @@ export class CharacterPane extends PaneShell {
       card.left.setIcons(iconsView(v, env), fighting);
     }
     const chars = layout.status.chars;
-    const compact = layout.status.form === 'compact';
-    if (this.changed('status', `${clickKey}|${chars}|${compact}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}|${v.carrying?.step}`)) {
-      card.status.set(statusView(v, env, chars, compact));
+    if (this.changed('status', `${clickKey}|${chars}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}|${v.carrying?.step}`)) {
+      card.status.set(statusView(v, env, chars));
     }
     const answer = ctx.game.info.answer;
     if (this.changed('shields', answer ? `${answer.ob}|${answer.db}|${answer.pb}|${answer.abs}` : '-')) card.status.setShields(shieldsView(answer));

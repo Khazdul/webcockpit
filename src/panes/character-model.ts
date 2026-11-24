@@ -204,34 +204,6 @@ export class Pending {
 
 // -------------------------------------------------------------------- words
 
-/** The shorter forms of the words, longest first. */
-const SHORTER: ReadonlyMap<string, readonly string[]> = new Map([
-  ['prudent', ['prud.']],
-  ['normal', ['norm.']],
-  ['aggressive', ['aggres.', 'agg.']],
-  ['berserk', ['bers.']],
-  ['careful', ['caref.', 'car.']],
-  ['thorough', ['thor.', 'th.']],
-  ['attentive', ['attent.', 'att.']],
-  ['vigilant', ['vigil.', 'vig.']],
-  ['paranoid', ['paran.', 'par.']],
-  ['peanuts', ['pean.']],
-  ['uncomfortable', ['uncomf.', 'unc.']],
-  ['really heavy', ['r. heavy', 'r.hv.']],
-  ['painful', ['painf.', 'pain.']],
-  ['torture', ['tort.']],
-]);
-
-/** `word` in at most `chars` characters. */
-export function fitWord(word: string, chars: number): string {
-  if (chars <= 0) return '';
-  const glyphs = [...word];
-  if (glyphs.length <= chars) return word;
-  const short = SHORTER.get(word.toLowerCase())?.find((s) => s.length <= chars);
-  if (short) return short;
-  return `${glyphs.slice(0, chars - 1).join('')}…`;
-}
-
 const MINUS = '−';
 const NBSP = ' ';
 const NONE = '—';
@@ -368,17 +340,13 @@ const stepOf = (steps: readonly string[], word: string | null): number | null =>
 };
 
 /**
- * The four Status fields, each value in `chars` characters: cut with a dot
- * or `…` (`fitWord`), or in the compact card the hand-made short forms
- * (`shortForm`, ADR 0166 point 126).
+ * The four Status fields, each value in `chars` characters: the whole word,
+ * else the hand-made short forms (`shortForm`: `aggr`, `norm`, `rhvy`) at
+ * every step and size (ADR 0166 points 126 and 171). The tooltip and the
+ * name keep the whole word.
  */
-export function statusView(
-  v: ClickValues & Pick<CharView, 'carrying'>,
-  e: CardEnv,
-  chars: number,
-  compact = false,
-): StatusFieldView[] {
-  const fit = (word: string | null): string => (word === null ? (chars > 0 ? NONE : '') : compact ? shortForm(word, chars) : fitWord(word, chars));
+export function statusView(v: ClickValues & Pick<CharView, 'carrying'>, e: CardEnv, chars: number): StatusFieldView[] {
+  const fit = (word: string | null): string => (word === null ? (chars > 0 ? NONE : '') : shortForm(word, chars));
   const field = (id: 'mood' | 'casts' | 'alertness', icon: IconName, label: string, word: string | null, steps: readonly string[]): StatusFieldView => {
     const name = `${label}: ${word ?? 'unknown'}`;
     const click = clickView(id, icon, name, v, e);
