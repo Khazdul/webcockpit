@@ -493,6 +493,21 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       (buffs, debuffs, herblores, your flags, your sanctuary), found from
       every log at hand (`~/Downloads` and others); a generic stone for the
       rest. The research and a mockup first; the owner picks.
+- [ ] H9. The poll pass: `info %f` (affects: an untimed stone while
+      listed, for the affects with no lines of their own; lines still lead
+      where they exist; no stone for `potion` while a herblore runs) and
+      `%z %Z %e %E %j %J` (vitals; `xxx` in a fight is no value; a newer
+      `Char.Vitals` wins); the six missing herblores in the `+` menu with
+      the guide's times; a troll's card without the mana bar and the Casts
+      cell (its GMCP has no mana keys and no `spell-effort`); troll members
+      in Group the same if the data allows. See "Affects from the poll",
+      "Vitals from the poll", "Trolls have no mana" and "Round 20 and the
+      troll's mana" under Owner feedback.
+- [ ] H10. The tabs as round 20's **G8**: folder tabs under the hood, on
+      the right edge below 110 px of content, the active tab one sheet
+      with its content (G1's iron, G3's edge); replaces H3's icons.
+- [ ] H8 build: the stone icons from `notes/research/stone-icons/picks.md`
+      (rounds 1–2), the generic stone per group for the rest.
 
 ## Direction pass: Group, Character and the fight card (2026-11-23)
 
