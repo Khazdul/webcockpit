@@ -408,7 +408,7 @@ the main session. The owner looks after F2b, before the low panes.
       stones, `+n` and its list, the herblore `+` menu and ×; the purse in
       the last row; parchment vitals; swords only; Stats without shields
       with the stones row; Lore with War fame and War points; the phone
-      strip the same. Related e2e. **The owner looks.**
+      strip the same. Related e2e. **The owner looked (2026-11-24): all 8 test steps good.**
 - [ ] F2c. Low panes: the portrait steps 0–4, tabs only at ≥ 80 px, the
       vitals' heights, the compact card down to about 72 px. Unit tests.
 - [ ] The full e2e at 5 workers alone; an ADR 0166 addendum (as built);
@@ -1568,3 +1568,5 @@ answer: type it again for the new one. At most one poll in 10 s.
   undantag". Answers: no effect when asleep either; more stone rows when
   tall; only red swords in a fight; the shields leave Stats.
 
+- 2026-11-24, F2b (test guide "Part F2b", steps 1–8): every step "bra";
+  the phone "ser bra ut". No changes asked; F2c goes ahead.
