@@ -210,3 +210,55 @@ describe('the info poll in the App', () => {
     expect(t.sent()).not.toContain('info WC');
   });
 });
+
+describe('the info poll in the App: the owner’s live session after F1b (regression)', () => {
+  const count = (t: ReturnType<typeof setup>): number => t.sent().match(/info WC[a-z0-9]{6}\[/g)?.length ?? 0;
+  const lastNonce = (t: ReturnType<typeof setup>): string => [...t.sent().matchAll(/info WC([a-z0-9]{6})\[/g)].at(-1)![1]!;
+  /** In the game, the login poll answered, the card's poll held, the login's burst over. */
+  const ready = (): ReturnType<typeof setup> => {
+    const t = setup();
+    t.login();
+    t.frame(answerPulse(lastNonce(t)));
+    t.frame(gmcp('Char.Vitals', { mood: 'brave', position: 'standing' }), PROMPT);
+    t.app.infoPoll!.open();
+    t.sched.advance(15_000);
+    t.frame(answerPulse(lastNonce(t)));
+    return t;
+  };
+
+  it("MUME's own aliases for the mood poll 1 s after the command, as a typed `cha mood` does", () => {
+    const t = ready();
+    for (const [cmd, echo, mood] of [
+      ['wi', '[cha mood wimpy]', 'wimpy'],
+      ['ag', '[cha mood ag]', 'aggressive'],
+      ['cha mood bra', null, 'brave'],
+      ['wi', '[cha mood wimpy]', 'wimpy'],
+    ] as const) {
+      const n = count(t);
+      t.sched.advance(3000);
+      window.dispatchEvent(new Event('keydown'));
+      t.type(cmd);
+      t.sched.advance(150);
+      t.frame(`${echo ? `${echo}\r\n` : ''}Ok.\r\n\r\n`, gmcp('Char.Vitals', { mood }), PROMPT);
+      t.sched.advance(849);
+      expect(count(t), cmd).toBe(n);
+      t.sched.advance(1);
+      expect(count(t), cmd).toBe(n + 1);
+      t.sched.advance(150);
+      t.frame(answerPulse(lastNonce(t)));
+    }
+  });
+
+  it('an alias typed just after a repeat poll went: one more poll after the gap', () => {
+    const t = ready();
+    const n = count(t);
+    while (count(t) === n) t.sched.advance(10);
+    window.dispatchEvent(new Event('keydown'));
+    t.type('wi');
+    t.sched.advance(150);
+    // The poll's answer and the alias's in one pulse, the answer first (MUME answers in order).
+    t.frame(answerPulse(lastNonce(t)).split(XML_PROMPT)[0]!, '[cha mood wimpy]\r\nOk.\r\n\r\n', gmcp('Char.Vitals', { mood: 'wimpy' }), PROMPT);
+    t.sched.advance(3000);
+    expect(count(t)).toBe(n + 2);
+  });
+});

@@ -1169,3 +1169,146 @@ describe('isEquipmentLine', () => {
       expect(isEquipmentLine(l), l).toBe(false);
   });
 });
+
+/**
+ * The owner's live session after F1b (Gittan, 2026-11-24 11:23, Stats
+ * shown): the commands and MUME's answers at their times, in ms from the
+ * first. Synthetic: only the timings, the commands and MUME's own lines.
+ * `[cha mood wimpy]` is MUME's echo of its own alias.
+ */
+const LIVE: { at: number; cmd: string; reply: number; lines: string[]; vitals: Record<string, string> }[] = [
+  { at: 0, cmd: 'wi', reply: 80, lines: ['[cha mood wimpy]', 'Ok.'], vitals: { mood: 'wimpy' } },
+  { at: 3633, cmd: 'ag', reply: 3795, lines: ['[cha mood ag]', 'Ok.'], vitals: { mood: 'aggressive' } },
+  { at: 6851, cmd: 'wi', reply: 7045, lines: ['[cha mood wimpy]', 'Ok.'], vitals: { mood: 'wimpy' } },
+  { at: 12836, cmd: 'cha mood bra', reply: 13046, lines: ['Ok.'], vitals: { mood: 'brave' } },
+  { at: 14927, cmd: 'wi', reply: 15046, lines: ['[cha mood wimpy]', 'Ok.'], vitals: { mood: 'wimpy' } },
+  { at: 20965, cmd: 'cha mood berserk', reply: 21048, lines: ['Ok.'], vitals: { mood: 'berserk' } },
+  { at: 23434, cmd: 'cha mood wi', reply: 23546, lines: ['Ok.'], vitals: { mood: 'wimpy' } },
+  { at: 28176, cmd: 'sit', reply: 28297, lines: ['You sit down.'], vitals: { position: 'sitting' } },
+  { at: 30080, cmd: 'r', reply: 30310, lines: ['You rest your tired bones.'], vitals: { position: 'resting' } },
+  { at: 32878, cmd: 'st', reply: 33047, lines: ['You stop resting and stand up.'], vitals: { position: 'standing' } },
+  { at: 34567, cmd: 'r', reply: 34796, lines: ['You sit down and rest your tired bones.'], vitals: { position: 'resting' } },
+  { at: 41448, cmd: 'st', reply: 41546, lines: ['You stop resting and stand up.'], vitals: { position: 'standing' } },
+  { at: 44424, cmd: 'sit', reply: 44548, lines: ['You sit down.'], vitals: { position: 'sitting' } },
+  { at: 46403, cmd: 'st', reply: 46545, lines: ['You stand up.'], vitals: { position: 'standing' } },
+  { at: 52450, cmd: 'sle', reply: 52545, lines: ['You go to sleep.'], vitals: { position: 'sleeping' } },
+  { at: 58637, cmd: 'wa', reply: 58797, lines: ['You wake, and sit up.'], vitals: { position: 'sitting' } },
+  { at: 58816, cmd: 'st', reply: 59045, lines: ['You stand up.'], vitals: { position: 'standing' } },
+  { at: 64033, cmd: 'sit', reply: 64298, lines: ['You sit down.'], vitals: { position: 'sitting' } },
+  { at: 66299, cmd: 'sle', reply: 66547, lines: ['You go to sleep.'], vitals: { position: 'sleeping' } },
+  { at: 68450, cmd: 'wa', reply: 68548, lines: ['You wake, and sit up.'], vitals: { position: 'sitting' } },
+  { at: 69672, cmd: 'st', reply: 69796, lines: ['You stand up.'], vitals: { position: 'standing' } },
+];
+
+describe('InfoPoll: the owner’s live session after F1b (regression)', () => {
+  /** Plays LIVE; each poll is answered 150 ms after it goes. Returns when each poll went (ms from the first command). */
+  function replay(o: { every?: number | null } = {}) {
+    const t = setup({ every: o.every === undefined ? EVERY_MS : o.every });
+    t.login();
+    t.frame(gmcp('Char.Vitals', { mood: 'brave', position: 'standing' }), PROMPT);
+    t.wait(SETTLE_MS);
+    t.answer();
+    t.poll.open();
+    // A minute at the keys before it, every poll answered.
+    for (let i = 0, n = t.polls().length; i < 60; i++) {
+      t.wait(1000);
+      if (t.polls().length > n) {
+        n = t.polls().length;
+        t.answer();
+      }
+    }
+    const start = t.sched.now();
+    const sent: number[] = [];
+    const pending: { at: number; run: () => void }[] = [];
+    for (const e of LIVE) {
+      pending.push({ at: e.at, run: () => t.session.sendCommand(e.cmd) });
+      pending.push({ at: e.reply, run: () => t.frame(`${e.lines.join('\r\n')}\r\n\r\n`, gmcp('Char.Vitals', e.vitals), PROMPT) });
+    }
+    const end = LIVE.at(-1)!.reply + 30_000;
+    let seen = t.polls().length;
+    for (let ms = 0; ms <= end; ms += 10) {
+      const due = pending.filter((p) => p.at >= ms - 10 && p.at < ms);
+      for (const p of due) p.run();
+      if (t.polls().length > seen) {
+        seen = t.polls().length;
+        sent.push(t.sched.now() - start);
+        const nonce = t.nonce();
+        pending.push({ at: ms + 150, run: () => t.frame(answerPulse(nonce)) });
+      }
+      if (ms < end) t.wait(10);
+    }
+    return { t, sent };
+  }
+
+  /** The entries whose state lasted: the next command came more than 2 s after. */
+  const lasting = LIVE.filter((e, i) => (LIVE[i + 1]?.at ?? Infinity) - e.at > 2100);
+  const late = (sent: number[], entries: typeof LIVE): string[] =>
+    entries.filter((e) => !sent.some((p) => p > e.reply && p <= e.at + 2100)).map((e) => `${e.cmd}@${e.at}`);
+
+  for (const every of [null, EVERY_MS]) {
+    it(`every mood and position that lasted is fetched within 2 s of its command (repeat ${every === null ? 'default' : '5 min'})`, () => {
+      const { sent } = replay({ every });
+      expect(late(sent, lasting)).toEqual([]);
+    });
+  }
+
+  it('a burst is two commands less than 2 s apart with no game prompt between them (addendum 21)', () => {
+    const t = setup({ every: EVERY_MS });
+    t.ready();
+    t.poll.open();
+    t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
+    // `wa` answered, then `st` 180 ms later (as live): no burst.
+    t.session.sendCommand('wa');
+    t.wait(160);
+    t.frame(`You wake, and sit up.\r\n\r\n`, gmcp('Char.Vitals', { position: 'sitting' }), PROMPT);
+    t.wait(20);
+    t.session.sendCommand('st');
+    t.wait(230);
+    t.frame(`You stand up.\r\n\r\n`, gmcp('Char.Vitals', { position: 'standing' }), PROMPT);
+    t.wait(REPEAT_SETTLE_MS - 231);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.answer();
+    // A command held (no prompt for it yet), then another: the burst's quiet.
+    t.wait(5000);
+    t.session.sendCommand('open door');
+    t.wait(500);
+    t.session.sendCommand('n');
+    t.frame(`The door opens.\r\n\r\n`, gmcp('Char.Vitals', { position: 'sitting' }), PROMPT);
+    t.wait(BURST_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(2);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(3);
+  });
+
+  it('a prompt in the frame a command was sent in does not answer it', () => {
+    const t = setup({ every: EVERY_MS });
+    t.ready();
+    t.poll.open();
+    t.frame(gmcp('Char.Vitals', { position: 'standing' }), PROMPT);
+    t.wait(BURST_SETTLE_MS);
+    t.session.sendCommand('look');
+    // An action's command, sent while the frame is read: MUME printed the frame's prompt before it saw it.
+    const off = t.bus.on('text.line', (l) => {
+      if (l.text === 'A goblin arrives.') t.session.sendCommand('kill goblin');
+    });
+    t.wait(3000);
+    t.frame(`A goblin arrives.\r\n\r\n`, gmcp('Char.Vitals', { position: 'sitting' }), PROMPT);
+    off();
+    // The next command, soon after: `kill goblin` has had no prompt of its own, so a burst.
+    t.wait(500);
+    t.session.sendCommand('n');
+    t.frame(PROMPT);
+    t.wait(BURST_SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it("a MUME alias's mood (`[cha mood wimpy]`) is fetched like a typed one", () => {
+    const { sent } = replay();
+    const moods = LIVE.filter((e) => 'mood' in e.vitals);
+    expect(late(sent, moods)).toEqual([]);
+  });
+});
