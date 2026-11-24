@@ -81,6 +81,37 @@ test('a low strip: the steps and the compact card as on the desktop, no tabs (F2
   await sameCard(page);
 });
 
+// Stage 77 G7, as approved: the first tap shows the ×, the second stops the
+// herblore. Today the first tap stops it: the touch's pointerdown lands on
+// the stone, the tap's :hover then shows the × (`display: grid` only on
+// hover, character.css) and the click that follows hits the ×. Marked as
+// failing until the owner decides; Playwright reports it when it passes.
+test('G7 (stage 77): a herblore stone on touch: the first tap shows its ×, the second stops it', async ({ page }) => {
+  test.fail(true, 'the first tap already stops the herblore (stage 77 part G)');
+  await open(page);
+  await pane(page).locator('.wc-cc-st[data-k="add"]').tap();
+  const menu = page.locator('.wc-tm-menu[aria-label="Herblores"]');
+  await expect(menu).toBeVisible();
+  const key = (await menu.locator('.wc-tm-mi').first().getAttribute('data-key'))!;
+  await menu.locator('.wc-tm-mi').first().tap();
+  await expect(menu).toHaveCount(0);
+  const herb = pane(page).locator('.wc-cc-st[data-k="stone"][data-tone="herb"]');
+  await expect(herb).toHaveCount(1);
+  const x = herb.locator('.wc-cc-stx');
+  await expect(x).toHaveAttribute('data-key', key);
+  await expect(x).toBeHidden();
+  const active = (): Promise<boolean | undefined> => page.evaluate((k) => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === k)?.active, key);
+  expect(await active()).toBe(true);
+  // The first tap: the × shows, nothing stops.
+  await herb.tap();
+  await expect(x).toBeVisible();
+  expect(await active()).toBe(true);
+  // The second, on the ×: the herblore stops.
+  await x.tap();
+  await expect(herb).toHaveCount(0);
+  expect(await active()).toBe(false);
+});
+
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 }, contextOptions: { screen: { width: 844, height: 390 } } });
 

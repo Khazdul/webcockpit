@@ -146,3 +146,18 @@ test('a bar colour from the gear applies live', async ({ page }) => {
   expect(before).not.toBe('rgb(224, 86, 106)');
   await page.evaluate(() => window.__wc!.settings.reset());
 });
+
+test('G6 (stage 77): Group.Set with you and two allies shows two rows, not you', async ({ page }) => {
+  await demoDone(page);
+  await tall(page);
+  await emit(page, 'Room.Info', { id: 100 });
+  await emit(page, 'Group.Set', [
+    { id: 1, type: 'you', name: 'Rasta', hp: 200, maxhp: 270, position: 'standing', mapid: 100 },
+    MEMBERS[0],
+    MEMBERS[1],
+  ]);
+  const rows = pane(page).locator('.wc-gp-row[data-name]');
+  await expect(rows).toHaveCount(2);
+  expect(await rows.evaluateAll((rs) => rs.map((r) => r.getAttribute('data-name')))).toEqual(['Gibur', 'Taube']);
+  await expect(pane(page)).not.toContainText('Rasta');
+});

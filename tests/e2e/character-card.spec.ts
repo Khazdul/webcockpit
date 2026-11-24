@@ -634,3 +634,155 @@ for (const border of [true, false]) {
     }
   });
 }
+
+// ------------------------------------------------------------ stage 77 G
+
+/** The shown stones (not the `+` or `+n`). */
+const stones = (page: Page) => card(page).locator('.wc-cc-st[data-k="stone"]:not([hidden])');
+const ids = (page: Page): Promise<string[]> => stones(page).evaluateAll((es) => es.map((e) => e.getAttribute('data-id')!));
+
+test('G1: your GMCP flags are stones; a member’s are not; blind and the blindness debuff are one stone', async ({ page }) => {
+  const game = await play(page);
+  await expect(stones(page)).toHaveCount(0);
+  game.play(
+    gmcp('Group.Set', [
+      { id: 1, type: 'you', name: 'Rasta', poison: true },
+      { id: 2, type: 'ally', name: 'Gibur', poison: true, blind: true },
+    ]),
+  );
+  await expect.poll(() => ids(page)).toEqual(['flag:poison']);
+  await expect(stones(page).first()).toHaveAttribute('data-tone', 'debuff');
+  await expect(stones(page).first()).toHaveAttribute('data-state', 'untimed');
+  game.play(gmcp('Group.Update', { id: 1, poison: false }));
+  await expect(stones(page)).toHaveCount(0);
+  // A member's change gives none either.
+  game.play(gmcp('Group.Update', { id: 2, snared: true }));
+  game.play(gmcp('Group.Update', { id: 1, blind: true }));
+  await expect.poll(() => ids(page)).toEqual(['flag:blind']);
+  // MUME's line for the blindness: the timed debuff takes the flag's place.
+  game.play(`You have been blinded!\r\n\r\n${PROMPT}`);
+  await expect.poll(() => ids(page)).toEqual(['affect:blindness']);
+  await expect(stones(page).first()).toHaveAttribute('data-tone', 'debuff');
+  await expect(stones(page).first()).toHaveAttribute('data-state', 'timed');
+});
+
+test('G2: an affect’s start line shows its stone, its end line takes it away', async ({ page }) => {
+  const game = await play(page);
+  await expect(stones(page)).toHaveCount(0);
+  game.play(`The draught burns down your throat, and a fiery feeling fills your limbs.\r\n\r\n${PROMPT}`);
+  await expect.poll(() => ids(page)).toEqual(['affect:Orkish draught']);
+  const st = stones(page).first();
+  await expect(st).toHaveAttribute('data-tone', 'buff');
+  await expect(st).toHaveAttribute('data-state', 'timed');
+  await expect(st).toHaveAttribute('data-tip-title', 'Orkish draught');
+  game.play(`As the warmth of the draught recedes from your limbs, you feel less energetic.\r\n\r\n${PROMPT}`);
+  await expect(stones(page)).toHaveCount(0);
+});
+
+test('G3: the gear’s Stones switches: Buffs off hides the buff stones live, Flags off the flag stone', async ({ page }) => {
+  const game = await play(page);
+  const [a, b] = await buffs(page, 2);
+  game.play(gmcp('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', poison: true }]));
+  await expect.poll(() => ids(page)).toEqual([a, b, 'flag:poison']);
+  // Over the title row: Playwright's Firefox drops :hover over the card's buttons.
+  await pane(page).hover({ position: { x: 16, y: 6 } });
+  await pane(page).locator('> .wc-pane-btn-gear').click();
+  const pop = page.locator('.wc-sp-gear-character');
+  await expect(pop.locator('.wc-pop-title')).toHaveText('Character');
+  const shownGroups = () => page.evaluate(() => window.__wc!.settings.get().character.stones);
+  await pop.locator('[aria-label="Buffs"]').click();
+  await expect.poll(async () => (await shownGroups()).buffs).toBe(false);
+  await expect.poll(() => ids(page)).toEqual(['flag:poison']);
+  await pop.locator('[aria-label="Buffs"]').click();
+  await expect.poll(() => ids(page)).toEqual([a, b, 'flag:poison']);
+  await pop.locator('[aria-label="Flags"]').click();
+  await expect.poll(async () => (await shownGroups()).flags).toBe(false);
+  await expect.poll(() => ids(page)).toEqual([a, b]);
+  await expect(pop).toBeVisible();
+});
+
+test('G4: every click sends its exact command; berserk and the fight have none', async ({ page }) => {
+  const game = await play(page);
+  const el = (id: string) => card(page).locator(`[data-click="${id}"]`);
+  const click = async (id: string, command: string): Promise<void> => {
+    const n = game.sent.length;
+    await el(id).click();
+    await expect.poll(() => game.sent.slice(n)).toEqual([command]);
+  };
+  // VITALS: brave, normal casts, normal alertness, sneaking, no ride, standing.
+  await click('mood', 'change mood aggressive');
+  await click('casts', 'change spellcasting careful');
+  await click('alertness', 'change alertness careful');
+  await click('sneak', 'sneak');
+  await click('climb', 'climb');
+  await click('swim', 'swim');
+  await click('ride', 'ride');
+  await click('position', 'rest');
+  // The game's answers end the pending marks.
+  game.play(gmcp('Char.Vitals', { mood: 'wimpy', 'spell-effort': 'thorough', alertness: 'paranoid', ride: 'a pony', position: 'resting' }), PROMPT);
+  for (const id of ['mood', 'casts', 'alertness', 'ride', 'position']) await expect(el(id)).not.toHaveAttribute('data-pending', '');
+  // The cycles wrap: wimpy → prudent, thorough → quick, paranoid → normal; a mount → lead.
+  await click('mood', 'change mood prudent');
+  await click('casts', 'change spellcasting quick');
+  await click('alertness', 'change alertness normal');
+  await click('ride', 'lead');
+  await click('position', 'stand');
+  game.play(gmcp('Char.Vitals', { position: 'sleeping' }), PROMPT);
+  await expect(el('position')).not.toHaveAttribute('data-pending', '');
+  await click('position', 'wake');
+  game.play(gmcp('Char.Vitals', { position: 'sitting' }), PROMPT);
+  await expect(el('position')).not.toHaveAttribute('data-pending', '');
+  await click('position', 'stand');
+
+  // Berserk: no click, nothing sent.
+  game.play(gmcp('Char.Vitals', { mood: 'berserk', position: 'standing' }), PROMPT);
+  await expect(word(page, 'mood')).toHaveText(/^(berserk|bers\.)$/);
+  await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('aria-disabled', 'true');
+  // A fight: the position is the swords, no click.
+  game.play(gmcp('Char.Vitals', { opponent: 'a troll' }), PROMPT);
+  await expect(el('position')).toHaveAttribute('data-fight', '');
+  const n = game.sent.length;
+  await card(page).locator('.wc-cc-f[data-key="mood"]').click({ force: true });
+  await el('position').click({ force: true });
+  await page.waitForTimeout(300);
+  expect(game.sent.slice(n)).toEqual([]);
+});
+
+test('G5: a mood change by GMCP and an affect line each give one hidden poll after the quiet', async ({ page }) => {
+  test.setTimeout(60_000);
+  const game = await play(page, { fetchInfo: true });
+  // The repeat out of the way: only the events poll here.
+  await page.evaluate(() => window.__wc!.settings.update({ character: { pollEvery: 300 } }));
+  const polls = (): string[] => game.sent.filter((l) => pollNonce(l) !== null);
+  await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
+  game.play(answerPulse(pollNonce(polls()[0]!)!));
+  await expect(card(page).locator('.wc-cc-status .wc-cc-sv')).toHaveText(['81', '13', '85', '70']);
+  // The width commands at login are a burst (10 s of quiet for the events,
+  // until the next command): a typed command, answered, ends it.
+  await page.evaluate(() => window.__wc!.app.input.focus());
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => game.sent.at(-1)).toBe('look');
+  game.play(`A dark room.\r\n\r\n${PROMPT}`);
+  // Past the 2 s gap, and nothing comes by itself.
+  await page.waitForTimeout(2500);
+  expect(polls()).toHaveLength(1);
+
+  // A mood change in Char.Vitals.
+  game.play(gmcp('Char.Vitals', { mood: 'aggressive' }), PROMPT);
+  await expect.poll(() => polls().length, { timeout: 6000 }).toBe(2);
+  game.play(answerPulse(pollNonce(polls()[1]!)!));
+  await page.waitForTimeout(2500);
+  expect(polls()).toHaveLength(2);
+
+  // An affect's start line (the Timers hub's effect).
+  game.play(`The draught burns down your throat, and a fiery feeling fills your limbs.\r\n\r\n${PROMPT}`);
+  await expect.poll(() => polls().length, { timeout: 6000 }).toBe(3);
+  game.play(answerPulse(pollNonce(polls()[2]!)!));
+  await page.waitForTimeout(2500);
+  expect(polls()).toHaveLength(3);
+  // Hidden: no answer and no poll command in the game pane.
+  await expect(page.locator('.wc-output')).not.toContainText('GoblinTown');
+  await expect(page.locator('.wc-output')).not.toContainText(pollNonce(polls()[2]!)!);
+  await expect(page.locator('.wc-output')).toContainText('The draught burns down your throat');
+});
