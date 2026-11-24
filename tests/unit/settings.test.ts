@@ -532,6 +532,12 @@ describe('migrateSettings', () => {
 
     it('a recording keeps the look it was made with', () => {
       expect(three(migrateSettings(v7(true), { recorded: true })).slice(0, 3)).toEqual([true, true, true]);
+      // Absent in an old recording: the default of its version (on); in a new one, today's (off).
+      const old = v7(true) as { timers: { groups: Record<string, unknown> }; version: number };
+      old.timers.groups = {};
+      expect(three(migrateSettings(old, { recorded: true })).slice(0, 3)).toEqual([true, true, true]);
+      old.version = SETTINGS_VERSION;
+      expect(three(migrateSettings(old, { recorded: true })).slice(0, 3)).toEqual([false, false, false]);
     });
 
     it('new settings: the three off, the rest on', () => {

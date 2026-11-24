@@ -758,7 +758,8 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     group: migrateGroup(s.group),
     character: migrateCharacter(s.character),
     comm: migrateComm(s.comm, fromVersion),
-    timers: migrateTimers(s.timers, opts.recorded ? SETTINGS_VERSION : fromVersion, characterShown(panes, phone, opts.phone ?? false)),
+    // A recording keeps the look it was made with: its groups as recorded, absent ones the default of its version.
+    timers: migrateTimers(s.timers, fromVersion, !opts.recorded && characterShown(panes, phone, opts.phone ?? false)),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
