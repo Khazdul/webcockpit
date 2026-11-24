@@ -80,7 +80,7 @@
 | 74 | Smooth transitions | Done, released 0.21.0 | `docs/stages/74-smooth-transitions.md` |
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's, the help text waits for the next release | `docs/stages/76-balloon-film.md` |
-| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), G7b approved on the phone; G7c the Timers pane's herblore and charm × on touch (addendum 27), the owner's phone test pending; next H; later a pass for unique stone icons | `docs/stages/77-character-pane.md` |
+| 77 | The Character pane as a card | A–E and E2 done (ADR 0166); direction pass held (rounds 10–12); F0 done (rounds 13–15: the chosen combination, the purse in the stones row, the compact card); F1 done (the poll's triggers and your flags, ADR 0166 addenda 18–21, the owner's live test passed); F2 built (F2a stones' data, F2b the round 12–14 look, approved by the owner, F2c low panes and the compact card; ADR 0166 addenda 23–25); the owner tested F2c (ok); G done (the e2e G1–G7; G7b the herblore × on touch, ADR 0166 addendum 26), G7b approved on the phone; G7c the Timers pane's herblore and charm × on touch (addendum 27), approved; H in progress: H1–H4, H6 and heat cells built (addenda 28–30), the tabs in mockup (rounds 17–18), stone icons picked (rounds 1–2); next the poll pass (`%f`, vitals), the tabs, the icons | `docs/stages/77-character-pane.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -159,22 +159,31 @@ with no stage of their own. Remove a line when it is done.
 
 ### 2026-11-24 — Stage 77 H
 
-- **G7c approved** by the owner (steps 1–5, the charm × hidden on touch).
-- **H list** compiled with screenshots (artifact); the owner picked 1A–5A,
-  6B, 7A and stone icons (ADR 0166 addendum 28).
-- **Built** (building agent, `stage77-h`, fast-forwarded): H1 Stats drops
-  the stones row where it does not fit, H2 one scale, H3 tab icons under
-  8 px, H4 short forms everywhere, H6 Timers is Spells with Herblores,
-  Buffs, Debuffs off by default (settings v8, phone defaults mark 3).
-  Addendum 29. Unit 6089 passed; full e2e at 5 workers 2114 passed,
-  1 failed (`phone-community-page:139`, passes alone).
-- **Mockups:** round 16 (the owner picked C, heat); stone icons round 1
-  (62 stones found, 14 not recognised by the app; picks in
-  `notes/research/stone-icons/picks.md`), round 2 (the five new asks).
-- **Open:** a new desktop user (Character off) sees no buffs anywhere
-  (point 181); whether the 14 unknown affects get recognised; the owner's
-  round 2 picks; the owner's test of H (guide "Part H").
-- **Next:** build round 16 C, then the stone icons.
+- **G7c approved.** H list compiled (artifact); the owner: 1A–5A, 6B, 7A,
+  stone icons (ADR 0166 addendum 28).
+- **Built** (agents, fast-forwarded): H1 Stats drops the stones row where
+  it does not fit, H2 one scale, H3 tab icons, H4 short forms, H6 Timers
+  is Spells (addendum 29); H2 pass: the Spells groups' switch by its own
+  mark (`timers.stonesOff`, settings v9; the v8 step missed records
+  already written as v8) and round 16 C, heat cells (addendum 30).
+  Owner tested H: 1, 2, 4 ok; 3 works but the tabs look "AI-generated"; 5
+  was the bug above.
+- **Tested:** unit 6100 passed; full e2e at 5 workers 2124 passed, 2
+  failed (`account-pages:739` chromium, `script-manual:47` firefox), both
+  pass alone. `phone-timers-touch:81` (G7c) flakes under parallel load,
+  also on main before H.
+- **Mockups:** round 16 (C chosen), round 17 and 18 (tabs; 18: shared
+  ground, top tabs that move right when low), stone icons rounds 1–2 (all
+  picks in `notes/research/stone-icons/picks.md`).
+- **Decided for next:** `info %f` (affects) and `%z %Z %e %E %j %J`
+  (vitals; `xxx` in a fight) into the hidden poll, measured live (stage
+  file, "Affects from the poll", "Vitals from the poll"); herblores stay by
+  hand; the six missing herblores into the `+` menu with the guide's
+  times; unconfirmed affects get the generic icon, picks kept.
+- **Waiting on the owner:** the H2 test (guide "Part H2"); a pick in
+  round 18; confirm the round 2 icon numbers (read as 6, 8, 6, 6, 6).
+- **Next session:** the poll pass (%f + vitals + herblores), then the tabs
+  (round 18 pick), then the stone icons build.
 
 ### 2026-11-24 — Stage 77 G
 
