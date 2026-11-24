@@ -396,7 +396,7 @@ Three building parts, one at a time (they share the card's files), each
 on a branch by a building agent, verified and fast-forwarded to main by
 the main session. The owner looks after F2b, before the low panes.
 
-- [ ] F2a. The stones' data, no look change: the stone view (buffs,
+- [x] F2a. The stones' data, no look change: the stone view (buffs,
       debuffs, herblores from Timers; your flags; your sanctuary) with
       icon, time bar and tooltip; the `+n` priority (ending soon, flags,
       debuffs, herblores, buffs); the compact short forms and the purse
@@ -1178,6 +1178,33 @@ the card's look: today's Stats shields show the effect.
   repeat and switches; a typed `stat` sets the shields and shows; a wear
   line polls) and `character-gear-fit.spec.ts` (F1b: no sideways
   overflow, short and narrow windows, a large font).
+
+## Part F2a: what was built (2026-11-24)
+
+The stones' data of ADR 0166 points 120, 121 and 126; the choices beyond
+them are addendum 23 (points 128–136). No change to the card's look.
+
+- **The stone view.** `src/panes/character-stones.ts` (pure): `stoneView`
+  builds the stones from the Timers view (Buffs, Debuffs, Herblores, your
+  own sanctuary) and your GMCP flags, in the display order, with icon,
+  tone, label, expiry and the herblore key; `stoneTime` (fill, countdown,
+  ending soon at `timers.warnAt`) and `stoneTip` at a given moment; the
+  herblore `+` (`canStartHerb`, none in a log player) and the catalogue.
+- **The `+n`.** `keepStones` (ending soon, flags, debuffs, herblores,
+  buffs; time left) and `stoneRows`, the mockups' `stonesFit` with pixel
+  sizes as inputs.
+- **The purse.** `purseFit` (3/2/1/0 coins), `purseWidth`, `purseMetrics`,
+  `purseTip`.
+- **The short forms.** `shortForm(word, n)` and `SHORT_FORMS`, every
+  mood, casts, alertness and weight word.
+- **The setting** `character.stones` (five switches, all on): a "Stones"
+  section in the Character gear, a "Stones" group on the phone's
+  sub-page, now called "Character".
+- **The pane** keeps the list as `CharacterPane.stones`, rebuilt after a
+  Timers, group or switch change; nothing drawn yet.
+- Tests: unit `character-stones` (new), `character-pane` (the stones
+  block), `settings`, `pane-gear`, `phone-menu`; e2e
+  `character-gear-fit.spec.ts` and `info-poll.spec.ts` rerun.
 
 ## Open points
 

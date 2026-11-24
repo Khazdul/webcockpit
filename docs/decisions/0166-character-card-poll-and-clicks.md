@@ -815,3 +815,61 @@ and are what F2 builds. The numbers are the mockups' (`round14.html`,
        10 px stones. It fits down to about a 72 px pane.
 127. **Open:** the owner has not confirmed `trtr`, `pnts` and `vigl`.
      Medium's Stats is cramped with the stones row (labels overlap): H.
+
+## Addendum 23 (2026-11-24): F2a as built
+
+The stones' data, no change to the card's look (stage 77, "Part F2a: what
+was built"). `src/panes/character-stones.ts`, pure.
+
+128. **What is a stone.** The Timers' Buffs, Debuffs and Herblores cells,
+     your own sanctuary (the Sanctuary cell with no `target`; a member's
+     is never one) and your GMCP flags poison, blind, snared, wound,
+     hungry and thirsty (`selfFlags`; not slept, bashed or waiting). With
+     no sanctuary cell of yours, the GMCP `sanctuary` flag alone is an
+     untimed stone (`flag:sanctuary`). A flag whose twin affect is in
+     Debuffs (blind → blindness, hungry → hunger, thirsty → thirst) is
+     one stone, the affect's (it may have a time); with Debuffs switched
+     off the flag shows. Spells, Stored, Blinds and Charmies are not
+     stones.
+129. **The order.** Herblores, buffs, debuffs, your sanctuary, the flags;
+     within each, timed by expiry (soonest first), then no end, then
+     untimed, name as tie-break. The order needs no clock, so the list is
+     rebuilt only after a Timers or a group change (or the switches), and
+     a tick reads only each stone's `stoneTime` (fill, countdown, ending
+     soon). Ending soon is the Timers' `timers.warnAt` (20 s by default,
+     the mockups' 20 s).
+130. **Icons and colour.** The Timers pane's: a herblore's leaf, in a
+     debuff phase the debuff arrow; buff and debuff arrows; the sanctuary
+     figure; a flag its Group icon (`STATUS_ICON`). The tone is the Timers
+     group's colour key; flags take the debuffs' (the mockups).
+131. **The `+n`** (point 120): rank ending soon 0, flags and your
+     sanctuary 1, debuffs 2, herblores 3, buffs 4; then time left
+     (untimed last), then the display order. What stays and what goes
+     into `+n` are both listed in the display order. `stoneRows` is the
+     mockups' `stonesFit` with the sizes as inputs (width, stone size,
+     gap, bar, rows allowed): the `+` first when herblores can be started,
+     at least two places a row, `+n` takes the last place, and the width
+     the last row leaves is the purse's room.
+132. **The herblore `+` and ×** follow the Timers pane: none in a log
+     player (`ctx.player`); the `+` needs the Herblores switch on. The
+     Timers pane's own group switches do not hide stones: the card has
+     its own.
+133. **The purse** (point 121): `purseFit` gives 3, 2, 1 or 0 coins for
+     the free width and `PurseMetrics` (coin, digit width, gaps, the
+     margin to the stones), `purseMetrics(size)` the mockups' numbers. No
+     known purse: 0. `purseTip` gives the whole purse.
+134. **The short forms** (point 126): `shortForm(word, n)` — the whole word
+     when it fits, `r.heavy`/`r.hvy` and `uncomf` when there is room for
+     them, the four-character table (with `fast` itself), else the start
+     of the form. It covers every word of `MOOD_STEPS`,
+     `SPELL_EFFORT_STEPS`, `ALERTNESS_STEPS` and `CARRYING_STEPS` (a unit
+     test). The mockups' one- and two-letter codes are not used.
+135. **The setting** `character.stones` (`buffs`, `debuffs`, `herblores`,
+     `flags`, `sanctuary`, all on), additive like `pollOn`. A "Stones"
+     section in the Character gear; on a phone a "Stones" group on the
+     Panes group's sub-page, which is now called "Character" (was
+     "Character fetching").
+136. **The pane** reads the list as `CharacterPane.stones` (rebuilt when
+     read after a change); nothing is drawn and no timer runs for it
+     until F2b. War fame and War points already have `loreView`'s
+     `warFame`/`warPoints`.
