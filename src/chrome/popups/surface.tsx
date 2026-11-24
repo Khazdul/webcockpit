@@ -68,7 +68,7 @@ export interface GearPopup {
 export const GEAR_POPUPS: Partial<Record<string, GearPopup>> = {
   map: { title: 'Map', body: () => <MapperSettings /> },
   comm: { title: 'Comm', body: () => <CommSettings /> },
-  timers: { title: 'Timers', body: () => <TimersSettings /> },
+  timers: { title: 'Spells', body: () => <TimersSettings /> },
   group: { title: 'Group', body: () => <GroupSettings /> },
   character: { title: 'Character', body: () => <CharacterSettings /> },
 };

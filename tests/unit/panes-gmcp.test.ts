@@ -114,6 +114,8 @@ describe('panes on the context', () => {
   function setup(state: 'playing' | 'idle' = 'playing') {
     const bus = new Bus();
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    // The Spells pane's Herblores, Buffs and Debuffs on, as before they were off by default (ADR 0166 point 172).
+    settings.update({ timers: { groups: { herb: { enabled: true }, buff: { enabled: true }, debuff: { enabled: true } } } });
     const game = new GameState().attach(bus);
     const frames: (() => void)[] = [];
     const ctx = createPaneContext({ doc: document, bus, settings, game, requestFrame: (cb) => frames.push(cb), connState: () => state });

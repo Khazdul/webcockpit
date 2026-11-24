@@ -579,8 +579,12 @@ export interface PhoneKeyboardSettings {
   layout: PhoneKeyboardLayout;
 }
 
-/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off and the Timers pane's time text off with the Pulse signal, 2 is Character first and on in the strip. */
-export const PHONE_DEFAULTS_MARK = 2;
+/**
+ * The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off and the Timers pane's
+ * time text off with the Pulse signal, 2 is Character first and on in the strip, 3 is Herblores, Buffs and Debuffs
+ * off in the Spells pane where Character is on in the strip (ADR 0166 point 172).
+ */
+export const PHONE_DEFAULTS_MARK = 3;
 
 /** How many hot key slots the phone stores (stage 52: two columns of three). */
 export const PHONE_HOTKEY_COUNT = 6;
@@ -732,7 +736,12 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 7: questions and socials on in Public by default (ADR 0134, addendum of
 //    2026-11-17): a stored v6 or older drops `questions: false` and
 //    `socials: false` from `comm.filters`, once.
-export const SETTINGS_VERSION = 7;
+// 8: Timers became Spells, Herblores, Buffs and Debuffs off by default (the
+//    Character card's stones, ADR 0166 point 172): a stored v7 or older
+//    turns the three groups off once where the Character pane is on (on a
+//    phone: on in the strip); elsewhere they stay as stored (absent: on, the
+//    old default).
+export const SETTINGS_VERSION = 8;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
@@ -829,7 +838,7 @@ export function phoneDefaultSettings(): Settings {
   s.weather.enabled = false;
   // The owner's phone defaults: no Herblores timers, no time text (stage 52); Character first in the strip
   // (stage 77, `defaultPhoneSettings`). A new phone has them from the start, so nothing is applied later.
-  s.timers.groups.herb.enabled = false;
+  // (Herblores, Buffs and Debuffs are off by default everywhere since settings version 8.)
   // The Timers pane's countdown text is off too: bars only, in the strip's few columns.
   s.timers.timeText = false;
   // Without the text the "Time text" signal would show nothing: ending soon pulses instead.
@@ -843,11 +852,21 @@ export function defaultGroupSettings(): GroupSettings {
   return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
 }
 
-/** Timers defaults (ADR 0122): every group on in Auto colour, bars, flow, headers, time text. */
+/**
+ * The Spells pane's groups that are off by default, as the Character card
+ * shows them as stones (ADR 0166 point 172): Herblores, Buffs and Debuffs.
+ */
+export const TIMER_GROUPS_ON_CARD = ['herb', 'buff', 'debuff'] as const;
+
+/**
+ * Spells pane (`timers`) defaults (ADR 0122): every group on in Auto colour,
+ * bars, flow, headers, time text; Herblores, Buffs and Debuffs off (they are
+ * the Character card's stones, ADR 0166 point 172).
+ */
 export function defaultTimersSettings(): TimersSettings {
-  const g = (): TimerGroupSettings => ({ enabled: true, color: 'auto', layout: 'default' });
+  const g = (enabled = true): TimerGroupSettings => ({ enabled, color: 'auto', layout: 'default' });
   return {
-    groups: { herb: g(), sanct: g(), spell: g(), buff: g(), debuff: g(), stored: g(), blind: g(), charm: g() },
+    groups: { herb: g(false), sanct: g(), spell: g(), buff: g(false), debuff: g(false), stored: g(), blind: g(), charm: g() },
     style: 'bars',
     layout: 'flow',
     cols: 'auto',

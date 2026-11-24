@@ -90,6 +90,8 @@ describe('migrateSettings', () => {
     // A stored record is an existing user's: no mapper section means the MMapper look.
     const d = defaultSettings();
     d.mapper = { ...d.mapper, tileset: 'default', background: '#2e3436' };
+    // And from before version 8, with Character off: Herblores, Buffs and Debuffs as they were, on (ADR 0166 point 172).
+    for (const g of ['herb', 'buff', 'debuff'] as const) d.timers.groups[g].enabled = true;
     for (const raw of [undefined, null, 42, 'x', [], {}]) {
       expect(migrateSettings(raw)).toEqual(d);
     }
@@ -427,7 +429,11 @@ describe('migrateSettings', () => {
 
   it('adds the timers options with defaults (ADR 0122)', () => {
     const s = migrateSettings({ appearance: {}, profile: 'pvp' });
-    expect(s.timers).toEqual(defaultTimersSettings());
+    // A record from before version 8 with Character off: Herblores, Buffs and Debuffs on, their old default.
+    const d = defaultTimersSettings();
+    for (const g of ['herb', 'buff', 'debuff'] as const) d.groups[g].enabled = true;
+    expect(s.timers).toEqual(d);
+    expect(migrateSettings({ version: SETTINGS_VERSION }).timers).toEqual(defaultTimersSettings());
     expect(Object.keys(s.timers.groups)).toEqual(['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
     expect(s.timers.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
     expect(s.timers).toMatchObject({
@@ -458,13 +464,14 @@ describe('migrateSettings', () => {
       compact: 'x',
     });
     expect(t.groups.spell).toEqual({ enabled: false, color: '#ff9933', layout: 'default' });
-    expect(t.groups.buff).toEqual({ enabled: true, color: 'auto', layout: 'default' }); // its old default swatch
-    expect(t.groups.debuff).toEqual({ enabled: true, color: '#aabbcc', layout: 'grid' });
+    // Its old default swatch; not a boolean: the default, off since version 8.
+    expect(t.groups.buff).toEqual({ enabled: false, color: 'auto', layout: 'default' });
+    expect(t.groups.debuff).toEqual({ enabled: false, color: '#aabbcc', layout: 'grid' });
     expect(t.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
     expect(t.groups.charm.color).toBe('auto');
     expect(t.groups.stored).toEqual(defaultTimersSettings().groups.stored);
     expect(t.groups.sanct).toEqual({ enabled: true, color: 'auto', layout: 'default' });
-    expect(t.groups.herb).toEqual({ enabled: true, color: 'auto', layout: 'default' });
+    expect(t.groups.herb).toEqual({ enabled: false, color: 'auto', layout: 'default' });
     expect(Object.keys(t.groups)).toEqual(['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
     expect(t.headers).toBe(false);
     expect('compact' in t).toBe(false);
@@ -475,7 +482,61 @@ describe('migrateSettings', () => {
     expect(migrateTimers({ cols: 'auto', warnAt: 60, style: 'circles', signal: 'pulse' })).toMatchObject({ cols: 'auto', warnAt: 60, style: 'circles', signal: 'pulse' });
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ timers: { groups: { debuff: { color: '#123456' } } } });
-    expect(store.get().timers.groups.debuff).toEqual({ enabled: true, color: '#123456', layout: 'default' });
+    expect(store.get().timers.groups.debuff).toEqual({ enabled: false, color: '#123456', layout: 'default' });
+  });
+
+  describe('version 8: Timers is Spells; Herblores, Buffs and Debuffs off where Character shows them (ADR 0166 point 172)', () => {
+    const v7 = (characterOn: boolean, on = true): Record<string, unknown> => {
+      const s = JSON.parse(JSON.stringify(defaultSettings())) as Record<string, unknown> & { panes: { character: { on: boolean } }; timers: { groups: Record<string, { enabled: boolean }> } };
+      s.version = 7;
+      s.panes.character.on = characterOn;
+      for (const g of Object.values(s.timers.groups)) g.enabled = on;
+      return s;
+    };
+    const three = (s: { timers: { groups: Record<string, { enabled: boolean }> } }) => ['herb', 'buff', 'debuff', 'spell', 'sanct', 'stored', 'blind', 'charm'].map((g) => s.timers.groups[g]!.enabled);
+
+    it('a v7 record with Character on: the three off once, the other groups and keys as stored', () => {
+      const raw = v7(true);
+      const s = migrateSettings(raw);
+      expect(s.version).toBe(SETTINGS_VERSION);
+      expect(three(s)).toEqual([false, false, false, true, true, true, true, true]);
+      expect({ ...s.timers, groups: null }).toEqual({ ...(raw.timers as object), groups: null });
+    });
+
+    it('a v7 record with Character off: nothing changes, on or off', () => {
+      expect(three(migrateSettings(v7(false)))).toEqual([true, true, true, true, true, true, true, true]);
+      expect(three(migrateSettings(v7(false, false)))).toEqual([false, false, false, false, false, false, false, false]);
+      // Absent switches take their old default (on).
+      const raw = v7(false) as { timers: { groups: Record<string, unknown> } };
+      raw.timers.groups = {};
+      expect(three(migrateSettings(raw)).slice(0, 3)).toEqual([true, true, true]);
+    });
+
+    it('once: a player who turns them on again keeps them, through a store and storage', () => {
+      const store = new SettingsStore({ factory: null, storage: null, win: null });
+      store.update(() => migrateSettings(v7(true)));
+      expect(three(store.get()).slice(0, 3)).toEqual([false, false, false]);
+      store.update({ timers: { groups: { herb: { enabled: true }, buff: { enabled: true } } } });
+      expect(three(store.get()).slice(0, 3)).toEqual([true, true, false]);
+      const again = migrateSettings(JSON.parse(JSON.stringify(store.get())));
+      expect(three(again).slice(0, 3)).toEqual([true, true, false]);
+    });
+
+    it('a phone: Character on in the strip is what counts', () => {
+      const raw = v7(false) as { phone: { strip: { panes: { id: string; on: boolean }[] } } };
+      raw.phone.strip.panes = raw.phone.strip.panes.map((e) => ({ ...e, on: true }));
+      expect(three(migrateSettings(raw, { phone: true })).slice(0, 3)).toEqual([false, false, false]);
+      raw.phone.strip.panes = raw.phone.strip.panes.map((e) => ({ ...e, on: e.id !== 'character' }));
+      expect(three(migrateSettings(raw, { phone: true })).slice(0, 3)).toEqual([true, true, true]);
+    });
+
+    it('a recording keeps the look it was made with', () => {
+      expect(three(migrateSettings(v7(true), { recorded: true })).slice(0, 3)).toEqual([true, true, true]);
+    });
+
+    it('new settings: the three off, the rest on', () => {
+      expect(three(defaultSettings())).toEqual([false, false, false, true, true, true, true, true]);
+    });
   });
 
   it('adds the group options (ADR 0122): away, the fight card and vital colours, checked', () => {

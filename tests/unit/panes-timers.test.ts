@@ -37,11 +37,16 @@ function cell(name: string, group: TimerGroup, secsLeft: number | null, o: Parti
   };
 }
 
-/** The model's input. Herblore (always shown while enabled) is off: `herbOn` turns it on. */
+/**
+ * The model's input. Herblore (always shown while enabled) is off: `herbOn` turns it on. Buffs and
+ * Debuffs are on, as before Spells made them off by default (ADR 0166 point 172).
+ */
 function input(cells: TimerCell[], s: Partial<TimersSettings> = {}, o: Partial<TimersModelInput> = {}, herbOn = false): TimersModelInput {
   const view = emptyView();
   for (const c of cells) view.cells[c.group].push(c);
-  const settings = { ...defaultTimersSettings(), ...s };
+  const d = defaultTimersSettings();
+  d.groups.buff.enabled = d.groups.debuff.enabled = true;
+  const settings = { ...d, ...s };
   settings.groups = { ...settings.groups, herb: { ...settings.groups.herb, enabled: herbOn } };
   return { view, settings, now: NOW, light: false, width: 400, charW: 8, ...o };
 }

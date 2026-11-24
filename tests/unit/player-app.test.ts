@@ -240,7 +240,7 @@ describe('PlayerHost', () => {
     wall.flush();
     const store = () => (host.app as unknown as { settings: SettingsStore }).settings;
     expect(store().get().panes.timers.on).toBe(true);
-    const cross = [...root.querySelectorAll<HTMLElement>('.wc-pane-close')].find((c) => c.title === 'Hide Timers')!;
+    const cross = [...root.querySelectorAll<HTMLElement>('.wc-pane-close')].find((c) => c.title === 'Hide Spells')!;
     cross.click();
     expect(host.viewerOverrides.panes).toEqual({ timers: false });
     eng.seek(3500); // past the second VIEW
@@ -266,7 +266,7 @@ describe('PlayerHost', () => {
     expect(pop('panes').hasAttribute('data-wc-own-keys')).toBe(true);
     expect(btn('panes').classList.contains('is-on')).toBe(true);
     const rows = [...pop('panes').querySelectorAll<HTMLElement>('[data-pane]')];
-    expect(rows.map((r) => r.textContent)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map']);
+    expect(rows.map((r) => r.textContent)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'UI', 'Map']);
     expect(rows[1]!.getAttribute('aria-checked')).toBe('true');
     rows[1]!.click();
     expect(host.viewerOverrides.panes).toEqual({ timers: false });

@@ -83,7 +83,7 @@ export function paneScript(id: ScriptPaneId): string {
 /** Frame labels (Inv §2.1 "Pane frame"). */
 export const PANE_LABELS: Readonly<Record<BuiltinPaneId, string>> = {
   character: 'Character',
-  timers: 'Timers',
+  timers: 'Spells',
   group: 'Group',
   comm: 'Comm',
   ui: 'UI',

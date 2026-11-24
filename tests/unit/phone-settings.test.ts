@@ -238,9 +238,9 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     expect(s.phone.strip.panes.filter((e) => e.on).map((e) => e.id)).toEqual(['character', 'timers', 'group', 'statistics']);
   });
 
-  it('a computer\'s defaults are not changed: Herblores on, and no mark', () => {
+  it('a computer\'s defaults are not changed: the time text on, and no mark (Herblores off everywhere since Spells, ADR 0166 point 172)', () => {
     const d = defaultSettings();
-    expect(d.timers.groups.herb.enabled).toBe(true);
+    expect(d.timers.groups.herb.enabled).toBe(false);
     expect(d.timers.timeText).toBe(true);
     expect(d.timers.signal).toBe('text');
     expect(d.phone.defaults).toBe(0);
@@ -254,7 +254,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
       expect(s.timers.timeText).toBe(true);
       expect(s.phone.strip.panes.every((e) => e.on)).toBe(true);
     }
-    expect([migratePhone({ defaults: 1 }).defaults, migratePhone({ defaults: 7 }).defaults, migratePhone({ defaults: -1 }).defaults, migratePhone({ defaults: 'x' }).defaults]).toEqual([1, 2, 0, 0]);
+    expect([migratePhone({ defaults: 1 }).defaults, migratePhone({ defaults: 7 }).defaults, migratePhone({ defaults: -1 }).defaults, migratePhone({ defaults: 'x' }).defaults]).toEqual([1, 3, 0, 0]);
   });
 
   it('applied once: Herblores off, the time text off, the mark; a strip in the player\'s order is kept', () => {
@@ -264,19 +264,21 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     store.update(() => migrateSettings(raw, { phone: true }));
     const before = store.get();
     const patch = phoneDefaultsPatch(before);
+    // Character is on in the strip: set 3 turns its stones' groups off in Spells too.
     expect(patch).toEqual({
-      timers: { groups: { herb: { enabled: false } }, timeText: false, signal: 'pulse' },
-      phone: { defaults: 2 },
+      timers: { groups: { herb: { enabled: false }, buff: { enabled: false }, debuff: { enabled: false } }, timeText: false, signal: 'pulse' },
+      phone: { defaults: 3 },
     });
     store.update(patch!);
     const after = store.get();
     expect(after.timers.groups.herb.enabled).toBe(false);
     expect(after.timers.timeText).toBe(false);
     expect(after.timers.signal).toBe('pulse');
-    expect(after.phone.defaults).toBe(2);
+    expect(after.phone.defaults).toBe(3);
     // Nothing else moved.
     expect({ ...after, timers: null, phone: null }).toEqual({ ...before, timers: null, phone: null });
-    expect({ ...after.timers, timeText: null, signal: null, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, timeText: null, signal: null, groups: { ...before.timers.groups, herb: null } });
+    const others = (t: typeof after.timers) => ({ ...t, timeText: null, signal: null, groups: { ...t.groups, herb: null, buff: null, debuff: null } });
+    expect(others(after.timers)).toEqual(others(before.timers));
     expect({ ...after.phone, strip: null, defaults: null }).toEqual({ ...before.phone, strip: null, defaults: null });
     // Marked: never again, so the player's own choice wins from here on.
     expect(phoneDefaultsPatch(after)).toBeNull();
@@ -297,13 +299,15 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     };
     const OLD = ['timers', 'group', 'character', 'statistics'];
 
-    it('a phone with the old default strip gets it, its other switches kept, and only the strip and the mark', () => {
+    it('a phone with the old default strip gets it, its other switches kept, and only the strip, the mark and set 3', () => {
       const s = marked(1, OLD, ['character', 'group']);
       const patch = phoneDefaultsPatch(s)!;
       expect(patch).toEqual({
+        // Set 3: Character is on now, so its stones' groups go from Spells.
+        timers: { groups: { herb: { enabled: false }, buff: { enabled: false }, debuff: { enabled: false } } },
         phone: {
           strip: { panes: [{ id: 'character', on: true }, { id: 'timers', on: true }, { id: 'group', on: false }, { id: 'statistics', on: true }] },
-          defaults: 2,
+          defaults: 3,
         },
       });
       const store = new SettingsStore({ factory: null, storage: null, win: null });
@@ -315,9 +319,13 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     });
 
     it('an order of the player\'s is theirs, Character on or off in it', () => {
-      for (const off of [[], ['character']]) {
-        expect(phoneDefaultsPatch(marked(1, ['group', 'timers', 'character', 'statistics'], off))).toEqual({ phone: { defaults: 2 } });
-      }
+      const order = ['group', 'timers', 'character', 'statistics'];
+      expect(phoneDefaultsPatch(marked(1, order, ['character']))).toEqual({ phone: { defaults: 3 } });
+      // Character on (the player's): set 3 alone.
+      expect(phoneDefaultsPatch(marked(1, order, []))).toEqual({
+        timers: { groups: { herb: { enabled: false }, buff: { enabled: false }, debuff: { enabled: false } } },
+        phone: { defaults: 3 },
+      });
     });
 
     it('no mark: both sets at once', () => {
@@ -330,6 +338,33 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
       expect(phoneDefaultsAtStart(marked(1, OLD, ['character']), false, true)).not.toBeNull();
       expect(phoneDefaultsAtStart(marked(1, OLD, ['character']), true, true)).toBeNull();
       expect(phoneDefaultsAtStart(marked(0, OLD, ['character']), false, true)).toBeNull();
+    });
+  });
+
+  describe('set 3 (stage 77 H6): Herblores, Buffs and Debuffs off in Spells where Character is on in the strip', () => {
+    const at2 = (characterOn: boolean) => {
+      const s = phoneDefaultSettings();
+      s.phone.defaults = 2;
+      for (const g of ['herb', 'buff', 'debuff'] as const) s.timers.groups[g].enabled = true;
+      s.phone.strip.panes = s.phone.strip.panes.map((e) => (e.id === 'character' ? { ...e, on: characterOn } : e));
+      return s;
+    };
+
+    it('Character on: the three off, once; a later turn-on stays', () => {
+      const store = new SettingsStore({ factory: null, storage: null, win: null });
+      store.update(() => at2(true));
+      const patch = phoneDefaultsPatch(store.get())!;
+      expect(patch).toEqual({ timers: { groups: { herb: { enabled: false }, buff: { enabled: false }, debuff: { enabled: false } } }, phone: { defaults: 3 } });
+      store.update(patch);
+      const g = store.get().timers.groups;
+      expect([g.herb.enabled, g.buff.enabled, g.debuff.enabled, g.spell.enabled, g.sanct.enabled]).toEqual([false, false, false, true, true]);
+      store.update({ timers: { groups: { buff: { enabled: true } } } });
+      expect(phoneDefaultsPatch(store.get())).toBeNull();
+      expect(store.get().timers.groups.buff.enabled).toBe(true);
+    });
+
+    it('Character off in the strip: they stay, only the mark', () => {
+      expect(phoneDefaultsPatch(at2(false))).toEqual({ phone: { defaults: 3 } });
     });
   });
 

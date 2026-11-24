@@ -143,7 +143,7 @@ describe('the Gear on the panes', () => {
     expect(t.gear('comm')!.title).toBe('Comm settings');
     expect(t.gear('comm')!.getAttribute('aria-label')).toBe('Comm settings');
     expect(t.gear('map')!.title).toBe('Map settings');
-    expect(t.gear('timers')!.title).toBe('Timers settings');
+    expect(t.gear('timers')!.title).toBe('Spells settings');
     expect(t.gear('group')!.title).toBe('Group settings');
     expect(t.gear('character')!.title).toBe('Character settings');
     expect(t.gear('ui')).toBeNull();
@@ -336,7 +336,10 @@ describe('gear popup contents', () => {
     expect([...t.host.querySelectorAll('.wc-sp-tg-l')].map((e) => e.textContent)).toEqual([
       'Herblores', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies',
     ]);
-    // Herblore turns on and off like any group (its `+` lives in its header).
+    // Herblore turns on and off like any group (its `+` lives in its header); off by default (Spells, ADR 0166 point 172).
+    expect(t.s().timers.groups.herb.enabled).toBe(false);
+    click(t.host.querySelector('[aria-label="Show Herblores"]'));
+    expect(t.s().timers.groups.herb.enabled).toBe(true);
     click(t.host.querySelector('[aria-label="Show Herblores"]'));
     expect(t.s().timers.groups.herb.enabled).toBe(false);
     click(t.host.querySelector('[aria-label="Show Spells"]'));

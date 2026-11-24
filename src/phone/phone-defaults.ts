@@ -6,6 +6,10 @@
 // 2 (stage 77): Character is the strip's first page and on. Set 1 had it
 //   off, so a phone has that stored. Only a strip still in the old default
 //   order is changed: an order the player made is theirs.
+// 3 (stage 77 H6): Timers became Spells; Herblores, Buffs and Debuffs go off
+//   in it where Character is on in the strip (after set 2), as the card
+//   shows them as stones (ADR 0166 point 172). Settings version 8 does the
+//   same at the load, but before set 2 could turn Character on.
 // A new
 // phone starts with them (`phoneDefaultSettings()`, which also sets the
 // mark). A phone with stored settings from before gets them ONCE: when the
@@ -28,7 +32,7 @@ import type { Settings, SettingsPatch } from '../settings/types';
 type Stored = Pick<Readonly<Settings>, 'phone'> & { timers?: Pick<Readonly<Settings>['timers'], 'signal'> };
 
 /** The newest set of one-time defaults. */
-export const DEFAULTS_MARK = 2;
+export const DEFAULTS_MARK = 3;
 /** The strip's default order before set 2. */
 const OLD_STRIP_ORDER = 'timers,group,character,statistics';
 
@@ -55,19 +59,20 @@ export function phoneDefaultsPatch(s: Stored): SettingsPatch | null {
   const had = s.phone.defaults;
   if (had >= DEFAULTS_MARK) return null;
   const { panes } = s.phone.strip;
-  // Arrays are replaced whole: Character first and on, the others as they are.
-  const strip =
-    panes.map((e) => e.id).join() === OLD_STRIP_ORDER
-      ? { strip: { panes: [{ id: 'character' as const, on: true }, ...panes.filter((e) => e.id !== 'character').map((e) => ({ ...e }))] } }
-      : {};
+  // Arrays are replaced whole: Character first and on, the others as they are (set 2).
+  const reorder = had < 2 && panes.map((e) => e.id).join() === OLD_STRIP_ORDER;
+  const strip = reorder ? { strip: { panes: [{ id: 'character' as const, on: true }, ...panes.filter((e) => e.id !== 'character').map((e) => ({ ...e }))] } } : {};
   const phone = { ...strip, defaults: DEFAULTS_MARK };
-  if (had >= 1) return { phone };
+  // Set 3: where Character is on in the strip (also by set 2), its stones' groups go from Spells.
+  const card = reorder || panes.some((e) => e.id === 'character' && e.on);
+  const groups = card ? { buff: { enabled: false }, debuff: { enabled: false }, herb: { enabled: false } } : {};
+  if (had >= 1) return card ? { timers: { groups }, phone } : { phone };
   return {
     // The Timers pane's Herblores group (the desktop gear's switch, the same key).
     // And its countdown text (the "Time text" switch): bars only. The "Time text" signal marks
     // an ending timer by its text and would then show nothing, so it becomes Pulse; a signal
     // the player chose (Pulse, None) is kept.
-    timers: { groups: { herb: { enabled: false } }, timeText: false, ...(s.timers?.signal === 'text' ? { signal: 'pulse' as const } : {}) },
+    timers: { groups: { herb: { enabled: false }, ...groups }, timeText: false, ...(s.timers?.signal === 'text' ? { signal: 'pulse' as const } : {}) },
     phone,
   };
 }

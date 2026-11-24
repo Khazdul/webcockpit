@@ -1964,7 +1964,7 @@ describe('pane list (ADR 0065)', () => {
     t.engine.input('dump');
     expect(t.sent).toEqual([
       'character|CHAR|true|false|right|-|false|Character',
-      'timers|TIME|true|false|right|-|false|Timers',
+      'timers|TIME|true|false|right|-|false|Spells',
       'group|GRP|true|false|right|-|false|Group',
       'comm|COMM|true|true|right|-|false|Comm',
       'ui|UI|true|false|right|-|false|UI',

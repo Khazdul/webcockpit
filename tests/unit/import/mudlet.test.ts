@@ -208,7 +208,7 @@ describe('Mudlet: translation', () => {
       'MumeSpellTimers.xml',
       pkg('<ScriptPackage>\n<ScriptGroup isActive="yes" isFolder="yes"><name>MumeSpellTimers</name><packageName>MumeSpellTimers</packageName><script></script>\n<Script isActive="yes" isFolder="no"><name>timers</name><packageName></packageName><script>x = 1</script></Script>\n</ScriptGroup>\n</ScriptPackage>'),
     );
-    expect(r.items.map((i) => [i.outcome, i.reason])).toEqual([['skipped', 'WebCockpit shows spell timers in the Timers pane (1 item)']]);
+    expect(r.items.map((i) => [i.outcome, i.reason])).toEqual([['skipped', 'WebCockpit shows spell timers in the Spells pane (1 item)']]);
   });
 
   it('decodes format 1.001 control pictures', () => {

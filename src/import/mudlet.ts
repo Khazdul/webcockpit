@@ -58,7 +58,7 @@ const SECTIONS: Record<string, Kind> = {
 /** Built-in replacements for well-known packages (ADR 0076 "Packages"). */
 const REPLACEMENTS: Array<[RegExp, string]> = [
   [/^port key library/i, 'WebCockpit has a built-in Key manager'],
-  [/^mumespelltimers/i, 'WebCockpit shows spell timers in the Timers pane'],
+  [/^mumespelltimers/i, 'WebCockpit shows spell timers in the Spells pane'],
   [/^comlibrary/i, 'WebCockpit has a Comm pane'],
   [/^xpcounter/i, 'WebCockpit shows XP in the Character pane and Statistics'],
   [/^qc\b/i, 'Not needed: WebCockpit profiles have #alias and #action'],

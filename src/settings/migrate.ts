@@ -90,6 +90,7 @@ import {
   SCRIPT_PANE_DEFAULTS,
   SCROLLBACK_CHOICES,
   SETTINGS_VERSION,
+  TIMER_GROUPS_ON_CARD,
   SPLIT_SHARE_MAX,
   SPLIT_SHARE_MIN,
   SPOTLIGHT_PERIODS,
@@ -429,21 +430,29 @@ function timerCols(v: unknown, d: TimerCols): TimerCols {
   return typeof v === 'number' && Number.isFinite(v) ? int(v, TIMER_COLS_MIN, TIMER_COLS_MAX, 1) : d;
 }
 
+/** The settings version that turned Herblores, Buffs and Debuffs off where Character shows them (ADR 0166 point 172). */
+const TIMERS_CARD_OFF_VERSION = 8;
+
 /**
- * Timers options from anything (ADR 0122): every key falls back to its
- * default; the old per-group `cols`, `clock`, `bar` and the global
+ * Timers (Spells) options from anything (ADR 0122): every key falls back to
+ * its default; the old per-group `cols`, `clock`, `bar` and the global
  * `compact` are dropped; a stored swatch name migrates by value
  * (`timerColor`), so it works from any version and in old VIEW records.
+ * Settings from before version 8 (`fromVersion`) turn Herblores, Buffs and
+ * Debuffs off once where `card` (the Character pane shows them as stones);
+ * elsewhere those keep what is stored, absent their old default (on).
  */
-export function migrateTimers(raw: unknown): TimersSettings {
+export function migrateTimers(raw: unknown, fromVersion = SETTINGS_VERSION, card = false): TimersSettings {
   const d = defaultTimersSettings();
   const t = isObj(raw) ? raw : {};
   const groups = isObj(t.groups) ? t.groups : {};
+  const before = fromVersion < TIMERS_CARD_OFF_VERSION;
   for (const id of TIMER_GROUPS) {
     const x = isObj(groups[id]) ? (groups[id] as Obj) : {};
     const dg = d.groups[id];
+    const onCard = (TIMER_GROUPS_ON_CARD as readonly TimerGroup[]).includes(id);
     d.groups[id] = {
-      enabled: bool(x.enabled, dg.enabled),
+      enabled: before && onCard ? !card && bool(x.enabled, true) : bool(x.enabled, dg.enabled),
       color: timerColor(id, x.color),
       layout: oneOf(x.layout, TIMER_GROUP_LAYOUTS, dg.layout),
     };
@@ -738,22 +747,29 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
   const profile = typeof s.profile === 'string' && s.profile !== '' ? s.profile : d.profile;
   const fromVersion = typeof s.version === 'number' ? s.version : 0;
   const retired = retiredPanes(fromVersion);
+  const panes = migratePanes(s.panes, retired);
+  const phone = migratePhone(s.phone);
   return {
     version: SETTINGS_VERSION,
     appearance: migrateAppearance(s.appearance, opts.recorded ? SETTINGS_VERSION : fromVersion),
-    panes: migratePanes(s.panes, retired),
+    panes,
     layout: migrateLayout(s.layout, retired),
     profile,
     group: migrateGroup(s.group),
     character: migrateCharacter(s.character),
     comm: migrateComm(s.comm, fromVersion),
-    timers: migrateTimers(s.timers),
+    timers: migrateTimers(s.timers, opts.recorded ? SETTINGS_VERSION : fromVersion, characterShown(panes, phone, opts.phone ?? false)),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
     mapper: migrateMapper(s.mapper, fromVersion),
     weather: migrateWeather(s.weather, opts.phone ?? false),
     windows: migrateWindows(s.windows),
-    phone: migratePhone(s.phone),
+    phone,
   };
+}
+
+/** The Character pane shows: on (a computer), on in the strip (a phone). */
+function characterShown(panes: PaneSettingsMap, phone: PhoneSettings, onPhone: boolean): boolean {
+  return onPhone ? phone.strip.panes.some((e) => e.id === 'character' && e.on) : panes.character.on;
 }

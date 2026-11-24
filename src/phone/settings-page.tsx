@@ -250,7 +250,7 @@ export const LENS_GROUP: SettingsGroup = {
 };
 
 /** The names of the strip's built-in panes (the panes' own labels). */
-const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Timers', group: 'Group', character: 'Character', statistics: 'Statistics' };
+const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Spells', group: 'Group', character: 'Character', statistics: 'Statistics' };
 
 /**
  * Panes: which built-in panes are pages of the strip, and their order
@@ -286,7 +286,7 @@ export const PANES_GROUP: SettingsGroup = {
       set: (fetchInfo) => ({ character: { fetchInfo } }),
     },
     { kind: 'link', id: 'character-fetch', label: 'Character', page: 'character' },
-    { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
+    { kind: 'link', id: 'timers-group', label: 'Spells and Group', page: 'timers-group' },
   ],
   caption: 'Swipe the strip to change pane',
 };
@@ -455,10 +455,10 @@ export const TIMER_COLS_OPTIONS: readonly { value: string; label: string }[] = [
 ];
 export const TIMER_WARN_OPTIONS: readonly { value: string; label: string }[] = [10, 20, 30, 60].map((n) => ({ value: String(n), label: `${n}s` }));
 
-/** Timers: how the pane draws (the desktop gear's `timers.*` keys). Colours are left to a computer. */
+/** Spells (the pane `timers`): how the pane draws (the desktop gear's `timers.*` keys). Colours are left to a computer. */
 export const TIMERS_GROUP: SettingsGroup = {
   id: 'timers',
-  title: 'Timers',
+  title: 'Spells',
   rows: [
     {
       kind: 'seg',
@@ -657,7 +657,7 @@ export interface SettingsSubPage {
 
 /** The sub-pages a `link` row opens, by id. */
 export const SETTINGS_PAGES: Readonly<Record<string, SettingsSubPage>> = {
-  'timers-group': { id: 'timers-group', title: 'Timers and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
+  'timers-group': { id: 'timers-group', title: 'Spells and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
   character: { id: 'character', title: 'Character', groups: [CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP] },
 };
 

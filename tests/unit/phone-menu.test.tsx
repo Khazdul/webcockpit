@@ -700,7 +700,7 @@ describe('the Character sub-page (stage 77 F1, F2a)', () => {
   });
 });
 
-describe('the Timers and Group sub-page (stage 52)', () => {
+describe('the Spells and Group sub-page (stage 52)', () => {
   it('its choices and names are the desktop gears\' (the phone chunk repeats them)', () => {
     expect(TIMER_STYLE_OPTIONS).toEqual(TIMER_STYLE_CHOICES);
     expect(TIMER_LAYOUT_OPTIONS).toEqual(TIMER_LAYOUT_CHOICES);
@@ -714,8 +714,8 @@ describe('the Timers and Group sub-page (stage 52)', () => {
 
   it('its groups and rows', () => {
     const page = SETTINGS_PAGES['timers-group']!;
-    expect(page.title).toBe('Timers and Group');
-    expect(page.groups.map((g) => g.title)).toEqual(['Timers', 'Timer groups', 'Group']);
+    expect(page.title).toBe('Spells and Group');
+    expect(page.groups.map((g) => g.title)).toEqual(['Spells', 'Timer groups', 'Group']);
     expect(TIMERS_GROUP.rows.map((r) => `${r.kind}:${r.label}`)).toEqual([
       'seg:Style',
       'seg:Layout',
@@ -792,18 +792,18 @@ describe('the Timers and Group sub-page (stage 52)', () => {
     col().scrollTop = 321;
     tap(link);
     expect(page()).toBe('sub:timers-group');
-    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Timers and Group');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Spells and Group');
     expect(menu.host.querySelector('.wc-ph-back')!.getAttribute('aria-label')).toBe('Back to settings');
     expect(col().scrollTop).toBe(0);
     expect([...menu.host.querySelectorAll('.wc-ph-grp')].map((g) => (g as HTMLElement).dataset.group)).toEqual(['timers', 'timer-groups', 'group']);
-    // A switch on the sub-page writes the shared key.
+    // A switch on the sub-page writes the shared key (Herblores off by default, ADR 0166 point 172).
     tap(menu.host.querySelector('[data-row="timers-group-herb"] [role="switch"]'));
-    expect(settings.get().timers.groups.herb.enabled).toBe(false);
+    expect(settings.get().timers.groups.herb.enabled).toBe(true);
     // A pick list on the sub-page: Back returns to the sub-page where it was.
     col().scrollTop = 77;
     tap(menu.host.querySelector('[data-row="timers-warn"]'));
     expect(page()).toBe('pick:timers-warn');
-    expect(menu.host.querySelector('.wc-ph-back')!.getAttribute('aria-label')).toBe('Back to Timers and Group');
+    expect(menu.host.querySelector('.wc-ph-back')!.getAttribute('aria-label')).toBe('Back to Spells and Group');
     tap(menu.host.querySelector('[data-opt="30"]'));
     expect(settings.get().timers.warnAt).toBe(30);
     expect(page()).toBe('sub:timers-group');
