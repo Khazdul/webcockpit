@@ -799,7 +799,7 @@ export class CardDom {
   private readonly quiet: HTMLDivElement;
   private readonly age: HTMLDivElement;
   private readonly tabs: HTMLDivElement;
-  private readonly tabEls: { id: CardTab; b: HTMLButtonElement }[];
+  private readonly tabEls: { id: CardTab; b: HTMLButtonElement; name: string }[];
   private tab: CardTab | null = null;
   private stoneRows = 0;
   private line2 = false;
@@ -855,15 +855,17 @@ export class CardDom {
     this.tabs = el(doc, 'div', 'wc-cc-tabs');
     this.tabs.setAttribute('role', 'tablist');
     this.tabs.setAttribute('aria-orientation', 'vertical');
-    this.tabEls = CARD_TABS.map(({ id, label }) => {
+    this.tabEls = CARD_TABS.map(({ id, label, icon }) => {
       const b = button(doc, 'wc-cc-tab');
       b.dataset.tab = id;
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-label', label.charAt(0) + label.slice(1).toLowerCase());
-      b.append(el(doc, 'span', 'wc-cc-tab-t', label));
+      const name = label.charAt(0) + label.slice(1).toLowerCase();
+      b.setAttribute('aria-label', name);
+      // The word, or the icon where it would be too small (CSS by the layout's form, point 170).
+      b.append(el(doc, 'span', 'wc-cc-tab-t', label), iconSvg(doc, icon, 'wc-cc-i wc-cc-tab-i'));
       b.addEventListener('click', () => on.tab(id));
       this.tabs.append(b);
-      return { id, b };
+      return { id, b, name };
     });
     this.vitals = vitalsEl(doc);
     this.root.append(this.left.box, this.main, this.tabs, this.vitals.box);
@@ -929,6 +931,8 @@ export class CardDom {
     this.left.setDisc(left.disc > 0 ? Math.max(0, left.disc - 2 * left.frame) : 0);
     setAttr(this.left.box, 'data-form', left.form);
     setAttr(this.tabs, 'data-form', l.tabs.form);
+    // The icons' word in the tooltip; the words need none.
+    for (const t of this.tabEls) setTip(t.b, l.tabs.form === 'icons' ? t.name : null);
     const sb = this.status.box;
     setAttr(sb, 'data-form', status.form);
     setAttr(sb, 'data-cols', String(status.cols));
@@ -969,6 +973,7 @@ export class CardDom {
       '--ico': px(left.icon),
       '--ico-gap': px(left.iconGap),
       '--tab-px': px(l.tabs.px),
+      '--tab-icon': px(l.tabs.icon),
       '--st-cols': String(status.cols),
       '--st-label': px(status.labelPx),
       '--st-value': px(status.valuePx),

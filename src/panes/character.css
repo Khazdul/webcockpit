@@ -1319,9 +1319,17 @@
   flex-basis: 0;
 }
 
-/* Too little for words: three marks, named for a screen reader. */
-.wc-cc-tabs[data-form="marks"] .wc-cc-tab-t {
+/* Too little for words (under 8 px, ADR 0166 point 170): a shield, a die and
+   a scroll; the word in the tooltip and the name. */
+.wc-cc-tabs[data-form="icons"] .wc-cc-tab-t,
+.wc-cc-tabs:not([data-form="icons"]) .wc-cc-tab-i {
   display: none;
+}
+
+.wc-cc-tab-i {
+  flex: none;
+  width: var(--tab-icon);
+  height: var(--tab-icon);
 }
 
 .wc-cc-tab[aria-selected="true"] {

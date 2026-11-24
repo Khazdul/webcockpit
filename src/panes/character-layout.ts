@@ -66,6 +66,8 @@ export const SHIELD_MIN = 30;
 export const SHIELD_LOW = 22;
 /** The least content above the vitals for the tabs, px (point 125). */
 export const TAB_MIN = 80;
+/** The tabs' words at least, px; below it the tabs show icons (point 170). */
+export const TAB_WORD_MIN = 8;
 
 /**
  * The vitals' bars at most, px, below a content box this high (point 124:
@@ -215,8 +217,12 @@ export interface CardLayout {
     iconGap: number;
   };
   main: Rect;
-  /** `on`: shown (point 125). `marks`: no words, under each other. */
-  tabs: Rect & { on: boolean; form: 'vertical' | 'marks'; px: number };
+  /**
+   * `on`: shown (point 125). `vertical`: the words standing; `icons`: a
+   * shield, a die and a scroll where the words would be under
+   * `TAB_WORD_MIN` (point 170), `icon` px; `px`: the words' size.
+   */
+  tabs: Rect & { on: boolean; form: 'vertical' | 'icons'; px: number; icon: number };
   status: StatusLayout;
   /** Status' shields and stones, and the stones Stats shares (`areaLayout`, `compactLayout`). */
   area: AreaLayout;
@@ -400,7 +406,7 @@ export function cardLayout(b: CardBox): CardLayout {
   const clear = b.phone === 'side' ? Math.min(PHONE_GRIP, w * 0.08) : 0;
   // Point 125: the tabs only where the content is at least TAB_MIN high.
   const tabs: CardLayout['tabs'] =
-    body >= TAB_MIN ? tabsLayout(w, bottom - tabsY, tabsY, k, b.phone) : { on: false, form: 'marks', px: 0, x: w - clear, y: tabsY, w: 0, h: 0 };
+    body >= TAB_MIN ? tabsLayout(w, bottom - tabsY, tabsY, k, b.phone) : { on: false, form: 'icons', px: 0, icon: 0, x: w - clear, y: tabsY, w: 0, h: 0 };
   const right = tabs.on ? tabs.x - gap : w - clear - pad;
   const left = leftLayout(b, mode, k, { x: pad, y: top, h: body, room: right - pad - gap });
   const compact = left.form === 'none';
@@ -470,19 +476,25 @@ function footLayout(b: CardBox, k: number, cellW: number, pad: number): CardLayo
 }
 
 function tabsLayout(w: number, body: number, top: number, k: number, phone: CardBox['phone']): CardLayout['tabs'] {
-  let form: CardLayout['tabs']['form'] = 'marks';
+  let form: CardLayout['tabs']['form'] = 'icons';
   let px = 0;
-  let wide = Math.round(Math.min(Math.max(9, 10 * k), w * 0.14));
-  // Narrow, so that a low pane's portrait keeps its room: from TAB_MIN the words are 5.5 px.
+  let icon = 0;
+  let wide: number;
+  // Narrow, so that a low pane's portrait keeps its room.
   const vertical = Math.min(9 * k, (body - 16 * k) / TABS_EM);
-  if (vertical >= 5.4 && w >= 120) {
+  if (vertical >= TAB_WORD_MIN && w >= 120) {
     form = 'vertical';
     px = down(vertical);
     wide = Math.ceil(px + 9 * k);
+  } else {
+    // The icons (point 170): about as wide as the smallest words were.
+    wide = Math.round(Math.min(16 * k, w * 0.14));
+    const each = (body - 4 * k) / 3;
+    icon = Math.max(0, Math.floor(Math.min(11 * k, wide - 4 * k, each - 4)));
   }
   if (phone) wide = Math.max(wide, Math.min(TOUCH_TAB, Math.round(w * 0.14)));
   const clear = phone === 'side' ? Math.min(PHONE_GRIP, w * 0.08) : 0;
-  return { on: true, form, px, x: w - clear - wide, y: top, w: wide, h: body };
+  return { on: true, form, px, icon, x: w - clear - wide, y: top, w: wide, h: body };
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   SHIELD_LOW,
   SHIELD_MIN,
   TAB_MIN,
+  TAB_WORD_MIN,
   areaLayout,
   barCap,
   cardLayout,
@@ -281,6 +282,29 @@ describe('low panes (F2c, ADR 0166 points 124–126)', () => {
         }
       }
     }
+  });
+
+  it('the tabs: the words standing from 8 px, else icons as narrow as the smallest words (H3, point 170)', () => {
+    let words = false;
+    for (let h = 90; h <= 200; h++) {
+      const l = cardLayout(box({ w: 520, h, px: 16.61, cross: 8 }));
+      if (!l.tabs.on) continue;
+      if (l.tabs.form === 'vertical') {
+        expect(l.tabs.px, `${h}`).toBeGreaterThanOrEqual(TAB_WORD_MIN);
+        words = true;
+      } else {
+        // Once the words come, a taller pane keeps them.
+        expect(words, `${h}`).toBe(false);
+        expect(l.tabs.icon, `${h}`).toBeGreaterThanOrEqual(9);
+        expect(l.tabs.icon).toBeLessThanOrEqual(l.tabs.w - 3);
+        expect(l.tabs.w).toBeLessThanOrEqual(18);
+      }
+    }
+    expect(words).toBe(true);
+    // Narrow: icons whatever the height.
+    const narrow = cardLayout(box({ w: 110, h: 300 }));
+    expect(narrow.tabs).toMatchObject({ on: true, form: 'icons' });
+    expect(narrow.tabs.icon).toBeGreaterThan(0);
   });
 
   it('the vitals: 14 px under a 122 px box, 12 under 82, 10 under 62 (the mockups’ 150, 110, 90 less their padding)', () => {

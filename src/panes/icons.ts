@@ -59,7 +59,10 @@ export type IconName =
   | 'mood'
   | 'casts'
   | 'alertness'
-  | 'weight';
+  | 'weight'
+  | 'tabStatus'
+  | 'tabStats'
+  | 'tabLore';
 
 /** Path data by name. */
 export const ICONS: Readonly<Record<IconName, string>> = {
@@ -158,6 +161,13 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   alertness: 'M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5',
   /** Character: weight, a weight. */
   weight: 'M6 8h12l2 12H4z M9 8V6a3 3 0 0 1 6 0v2',
+  /** Character's tabs where their words would be too small (ADR 0166 point 170): Status, a shield with a chevron. */
+  tabStatus: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z M8 10.5l4 3 4-3',
+  /** Stats, a die (three pips). */
+  tabStats:
+    'M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z M8.5 7.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2 M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2 M15.5 14.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2',
+  /** Lore, a scroll: two rolls and the sheet between them. */
+  tabLore: 'M6 3.5h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4z M6 16.5h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4z M6.5 7.5v9 M17.5 7.5v9 M10 11h4 M10 13.5h4',
 };
 
 /** The view box every icon is drawn in. */

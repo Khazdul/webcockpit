@@ -34,10 +34,11 @@ import { type IconName, positionIcon } from './icons';
 
 export type CardTab = 'status' | 'stats' | 'lore';
 
-export const CARD_TABS: readonly { id: CardTab; label: string }[] = [
-  { id: 'status', label: 'STATUS' },
-  { id: 'stats', label: 'STATS' },
-  { id: 'lore', label: 'LORE' },
+/** The tabs: the word, and the icon where the word would be too small (ADR 0166 point 170). */
+export const CARD_TABS: readonly { id: CardTab; label: string; icon: IconName }[] = [
+  { id: 'status', label: 'STATUS', icon: 'tabStatus' },
+  { id: 'stats', label: 'STATS', icon: 'tabStats' },
+  { id: 'lore', label: 'LORE', icon: 'tabLore' },
 ];
 
 /**

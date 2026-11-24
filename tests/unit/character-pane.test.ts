@@ -261,6 +261,23 @@ describe('clicks', () => {
     for (const b of named) expect(b.type).toBe('button');
   });
 
+  it('the tabs: words where they are 8 px or more, else a shield, a die and a scroll with the word as tooltip (H3)', () => {
+    const t = setup();
+    const tabs = t.q('.wc-cc-tabs');
+    const tips = (): (string | undefined)[] => [...tabs.querySelectorAll<HTMLElement>('.wc-cc-tab')].map((b) => b.dataset.tip);
+    expect(tabs.dataset.form).toBe('vertical');
+    expect(tips()).toEqual([undefined, undefined, undefined]);
+    t.show(62, 7);
+    t.flush();
+    expect(tabs.dataset.form).toBe('icons');
+    expect(tips()).toEqual(['Status', 'Stats', 'Lore']);
+    expect([...tabs.querySelectorAll('.wc-cc-tab')].map((b) => b.getAttribute('aria-label'))).toEqual(['Status', 'Stats', 'Lore']);
+    expect(tabs.querySelectorAll('.wc-cc-tab > svg.wc-cc-tab-i')).toHaveLength(3);
+    t.show();
+    t.flush();
+    expect(tips()).toEqual([undefined, undefined, undefined]);
+  });
+
   it('tooltips only where part D lists them', () => {
     const t = setup();
     t.answer();
