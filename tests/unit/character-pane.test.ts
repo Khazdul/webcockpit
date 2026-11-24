@@ -125,12 +125,12 @@ describe('the poll (ctx.openInfo)', () => {
     expect(t.info).toEqual({ open: 1, opened: 2, released: 1 });
   });
 
-  it('held through a fight (the poll itself waits for its end), the tab comes back', () => {
+  it('held through a fight (the poll itself waits for its end), the tab stays', () => {
     const t = setup();
     t.tab('stats');
     t.gmcp('Char.Vitals', { opponent: 'a troll' });
     expect(t.info.open).toBe(1);
-    expect(t.selected()).toBe('status');
+    expect(t.selected()).toBe('stats');
     t.gmcp('Char.Vitals', { opponent: null });
     expect(t.info).toEqual({ open: 1, opened: 1, released: 0 });
     expect(t.selected()).toBe('stats');
@@ -269,7 +269,7 @@ describe('clicks', () => {
     t.tab('status');
     const tipped = [...t.pane.content.querySelectorAll<HTMLElement>('[data-tip]')].map((e) => e.dataset.tipKey).sort();
     expect(tipped).toEqual(
-      ['ring', 'sneak', 'ride', 'climb', 'swim', 'position', 'mood', 'casts', 'alertness', 'weight', 'hp', 'str', 'int', 'wis', 'dex', 'con', 'wil', 'per']
+      ['ring', 'sneak', 'ride', 'climb', 'swim', 'position', 'mood', 'casts', 'alertness', 'weight', 'ob', 'db', 'pb', 'abs', 'st:add', 'purse', 'hp', 'str', 'int', 'wis', 'dex', 'con', 'wil', 'per']
         .map((k) => `cc:${k}`)
         .sort(),
     );
@@ -310,10 +310,15 @@ describe('what is shown', () => {
     expect(t.q('.wc-cc-quiet').textContent).toContain('No data yet');
     t.answer();
     expect(t.q('.wc-cc-quiet').hidden).toBe(true);
-    expect([...t.pane.content.querySelectorAll('.wc-cc-sv')].map((e) => e.textContent)).toEqual(['81', '13', '85', '70']);
+    // The shields left Stats (ADR 0166 point 87).
+    expect(t.q('.wc-cc-stats .wc-cc-sv')).toBeNull();
     t.tab('lore');
     expect(t.q('[data-key="race"] .wc-cc-bv').textContent).toBe('Tarkhnarb orc');
     expect(t.q('[data-key="citizen"] .wc-cc-bv').textContent).toBe('GoblinTown');
+    // War fame and War points, a box each (point 123).
+    expect(t.q('[data-key="warFame"] .wc-cc-bv').textContent).toBe('warlord');
+    expect(t.q('[data-key="warPoints"] .wc-cc-bv').textContent).toBe('19');
+    expect([...t.pane.content.querySelectorAll('.wc-cc-lore .wc-cc-coin')].map((e) => e.textContent)).toEqual(['380', '5', '49']);
   });
 
   it('off says so', () => {
@@ -324,20 +329,30 @@ describe('what is shown', () => {
     expect(t.q('.wc-cc-quiet').textContent).toContain('off');
   });
 
-  it('the fight: Status, the bars’ mode, the swords, and a tab that still works', () => {
+  it('the fight: only the swords; the tab stays (round 12 decision 8)', () => {
     const t = setup();
     t.answer();
     t.tab('lore');
     t.gmcp('Char.Vitals', { opponent: 'a troll' });
     expect(t.q('.wc-cc').hasAttribute('data-fight')).toBe(true);
     expect(t.q('[data-click="position"]').getAttribute('aria-label')).toBe('Fighting');
-    expect(t.selected()).toBe('status');
+    expect(t.q('[data-click="position"]').hasAttribute('data-fight')).toBe(true);
+    expect(t.selected()).toBe('lore');
     t.tab('stats');
     expect(t.selected()).toBe('stats');
     expect(t.info.open).toBe(1);
     t.gmcp('Char.Vitals', { opponent: null });
-    expect(t.selected()).toBe('lore');
+    expect(t.selected()).toBe('stats');
     expect(t.q('.wc-cc').hasAttribute('data-fight')).toBe(false);
+  });
+
+  it('the shields on Status: `⋯` until the poll answers, then the values (point 89)', () => {
+    const t = setup();
+    const shields = (): string[] => [...t.pane.content.querySelectorAll('.wc-cc-status .wc-cc-sv')].map((e) => e.textContent!);
+    expect(shields()).toEqual(['⋯', '⋯', '⋯', '⋯']);
+    t.answer();
+    expect(shields()).toEqual(['81', '13', '85', '70']);
+    expect(t.q('.wc-cc-shield[data-key="ob"]').dataset.tipTitle).toBe('OB 81');
   });
 
   it('a tab change and a fight move no box', () => {
@@ -403,31 +418,119 @@ describe('cost', () => {
   });
 });
 
-describe('the stones (stage 77 F2a)', () => {
-  it('rebuilt after a Timers, a group or a switch change; nothing drawn yet', () => {
+describe('the stones (stage 77 F2a, drawn since F2b)', () => {
+  const stones = (t: ReturnType<typeof setup>): HTMLElement[] => [...t.pane.content.querySelectorAll<HTMLElement>('.wc-cc-st')].filter((e) => !e.hidden);
+  const kinds = (t: ReturnType<typeof setup>): string[] => stones(t).map((e) => (e.dataset.k === 'stone' ? e.dataset.id! : e.dataset.k!));
+  const cell = (id: string, group: string, left: number | null, total: number | null, more: Record<string, unknown> = {}) => {
+    const now = Date.now();
+    return { id, name: id, group, startedAt: now, expiresAt: left === null ? null : now + left, expected: total, tracked: true, ...more } as never;
+  };
+
+  it('rebuilt after a Timers, a group or a switch change, and drawn: the `+` first', () => {
     const t = setup();
     const empty = t.pane.stones;
     expect(empty.stones).toEqual([]);
     expect(empty.canStartHerb).toBe(true);
     expect(t.pane.stones).toBe(empty);
-    const html = t.pane.content.innerHTML;
+    expect(kinds(t)).toEqual(['add']);
     t.gmcp('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', poison: true }]);
     expect(t.pane.stones.stones.map((s) => s.id)).toEqual(['flag:poison']);
+    expect(kinds(t)).toEqual(['add', 'flag:poison']);
     t.game.timers.addHerb('Healing');
     t.flush();
     const v = t.pane.stones;
     expect(v.stones.map((s) => s.kind)).toEqual(['herb', 'flag']);
     expect(v.stones[0]!.herbKey).toBe('Healing');
     expect(t.pane.stones).toBe(v);
+    expect(kinds(t)).toEqual(['add', v.stones[0]!.id, 'flag:poison']);
     t.settings.update({ character: { stones: { flags: false } } });
     t.flush();
     expect(t.pane.stones.stones.map((s) => s.kind)).toEqual(['herb']);
-    // F2a draws nothing: the card is as it was.
-    expect(t.pane.content.innerHTML).toBe(html);
+    expect(kinds(t)).toEqual(['add', v.stones[0]!.id]);
   });
 
-  it('read-only in a log player', () => {
+  it('Stats shows the same rows, Lore none, the purse only on Status', () => {
+    const t = setup();
+    t.answer();
+    t.game.timers.debugAdd(cell('b1', 'buff', 60_000, 120_000));
+    t.flush();
+    const before = kinds(t);
+    expect(before).toEqual(['add', 'b1']);
+    expect(t.q('.wc-cc-purse').hidden).toBe(false);
+    const height = t.q('.wc-cc').style.getPropertyValue('--stones-h');
+    t.tab('stats');
+    expect(t.q('.wc-cc-stones').hidden).toBe(false);
+    expect(kinds(t)).toEqual(before);
+    expect(t.q('.wc-cc').style.getPropertyValue('--stones-h')).toBe(height);
+    expect(t.q('.wc-cc-purse').hidden).toBe(true);
+    t.tab('lore');
+    expect(t.q('.wc-cc-stones').hidden).toBe(true);
+  });
+
+  it('the bars drain on the second, writing only the bars and no element', () => {
+    const t = setup();
+    t.game.timers.debugAdd(cell('b1', 'buff', 60_000, 120_000));
+    t.flush();
+    const bar = t.q('.wc-cc-st[data-id="b1"] .wc-cc-stf');
+    expect(bar.style.getPropertyValue('--f')).toBe('0.500');
+    expect(t.timers()).toBe(1);
+    const mo = new MutationObserver(() => {});
+    mo.observe(t.pane.content, { subtree: true, childList: true });
+    t.wait(30_000);
+    expect(bar.style.getPropertyValue('--f')).toBe('0.250');
+    expect(mo.takeRecords()).toEqual([]);
+    mo.disconnect();
+    // Ending soon at `timers.warnAt` (20 s).
+    t.wait(11_000);
+    expect(t.q('.wc-cc-st[data-id="b1"]').hasAttribute('data-end')).toBe(true);
+    // None while hidden, none on Lore.
+    t.tab('lore');
+    expect(t.timers()).toBe(0);
+  });
+
+  it('`+n` when they do not fit, and its list; a herblore × stops it', () => {
+    const t = setup({ cols: 34, rows: 9 });
+    for (let i = 0; i < 40; i++) t.game.timers.debugAdd(cell(`b${String(i).padStart(2, '0')}`, 'buff', null, null));
+    t.game.timers.addHerb('Healing');
+    t.flush();
+    const more = stones(t).at(-1)!;
+    expect(more.dataset.k).toBe('more');
+    const n = Number(more.textContent!.slice(1));
+    expect(n).toBeGreaterThan(0);
+    expect(stones(t).filter((e) => e.dataset.k === 'stone').length + n).toBe(41);
+    more.click();
+    const list = document.querySelector<HTMLElement>('.wc-cc-list')!;
+    expect(list.hidden).toBe(false);
+    expect(list.querySelectorAll('.wc-cc-lr')).toHaveLength(n);
+    // Esc closes it.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('.wc-cc-list')).toBeNull();
+    // The herblore is kept (a rank above buffs); its × stops it.
+    const herb = t.q('.wc-cc-st[data-id^="herb:"] .wc-cc-stx');
+    expect(herb.dataset.key).toBe('Healing');
+    herb.click();
+    t.flush();
+    expect(t.game.timers.view(Date.now()).herbs.find((h) => h.key === 'Healing')?.active).toBe(false);
+  });
+
+  it('the `+` opens the herblore menu; a pick starts it', () => {
+    const t = setup();
+    t.q('.wc-cc-st[data-k="add"]').click();
+    const menu = document.querySelector<HTMLElement>('.wc-tm-menu[aria-label="Herblores"]')!;
+    expect(menu.hidden).toBe(false);
+    const first = menu.querySelector<HTMLElement>('.wc-tm-mi')!;
+    first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    t.flush();
+    expect(document.querySelector('.wc-tm-menu[aria-label="Herblores"]')).toBeNull();
+    expect(t.pane.stones.stones.map((s) => s.herbKey)).toEqual([first.dataset.key]);
+  });
+
+  it('read-only in a log player: no `+`, no ×', () => {
     const t = setup({ player: true });
     expect(t.pane.stones.canStartHerb).toBe(false);
+    t.game.timers.debugAdd(cell('herb:Healing', 'herb', 60_000, 120_000, { herbKey: 'Healing' }));
+    t.flush();
+    expect(kinds(t)).toEqual(['herb:Healing']);
+    expect(t.q('.wc-cc-st .wc-cc-stx').hidden).toBe(true);
   });
 });

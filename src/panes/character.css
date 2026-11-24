@@ -1,9 +1,10 @@
-/* The Character card (src/panes/character.ts, stage 77 part D; the look is
- * notes/research/character-pane-mockups/round9.html, the quiet card B3: no
- * ornament, the frame is the shell's). Four absolute boxes whose sizes
- * character-layout.ts sets in px (`--k` is the chrome's scale), so nothing
- * here measures and nothing overlaps. Values are in the terminal's font,
- * the labels and the name in Cinzel, as Group.
+/* The Character card (src/panes/character.ts, stage 77 part D; since F2b the
+ * round 12–15 look of notes/research/character-pane-mockups/round12.html,
+ * round14.html and round15.html: the square iron portrait, the status
+ * cells, the D&D shields, the stones, the parchment vitals). Four absolute
+ * boxes whose sizes character-layout.ts sets in px (`--k` is the chrome's
+ * scale), so nothing here measures and nothing overlaps. Values are in the
+ * terminal's font, the labels and the name in Cinzel, as Group.
  *
  * Static paint: a value moves a transform or sets a text. The colours are
  * the pane's shade ramp (`--cc-*`) and its lamp and iron (layout.css), so
@@ -32,8 +33,9 @@
   --box: linear-gradient(rgb(0 0 0 / 0.24), rgb(0 0 0 / 0.24)), var(--card-back, transparent);
   --box-edge: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 9%, transparent);
   --rule: color-mix(in srgb, var(--lamp) 14%, transparent);
-  --trk-bg: rgb(0 0 0 / 0.55);
-  --trk-edge: inset 0 1px 1px rgb(0 0 0 / 0.7), 0 1px 0 color-mix(in srgb, var(--lamp) 12%, transparent);
+  /* The parchment track (round 12 `vv-parch`): fibres on a lamp tint. */
+  --trk-bg: repeating-linear-gradient(90deg, rgb(0 0 0 / 0.06) 0 1px, transparent 1px 5px), linear-gradient(180deg, color-mix(in srgb, var(--lamp) 22%, transparent), color-mix(in srgb, var(--lamp) 12%, transparent));
+  --trk-edge: 0 0 0 1px rgb(0 0 0 / 0.75), inset 0 1px 1px rgb(0 0 0 / 0.5);
   --gloss: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.15));
   --label-px: max(7px, calc(8.3px * var(--k, 1)));
   color: var(--text);
@@ -98,7 +100,7 @@
   pointer-events: none;
 }
 
-.wc-pane:not([data-framed]) .wc-cc :is(button, .wc-cc-ring, .wc-cc-scroll, .wc-cc-f, .wc-cc-vital) {
+.wc-pane:not([data-framed]) .wc-cc :is(button, .wc-cc-ring, .wc-cc-scroll, .wc-cc-f, .wc-cc-vital, .wc-cc-shield, .wc-cc-st, .wc-cc-purse) {
   pointer-events: auto;
 }
 
@@ -151,37 +153,70 @@
   height: var(--ring);
 }
 
-.wc-cc[data-portrait] .wc-cc-medal {
-  width: var(--disc);
-  height: calc(var(--disc) + var(--ring) * 0.375);
-}
-
 .wc-cc-left[data-form="row"] .wc-cc-medal {
   grid-column: 1;
   grid-row: 1 / 3;
 }
 
-/* The round frame: an iron ring between two black lines, the lamp round it. */
-.wc-cc-disc {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: none;
-  width: var(--disc);
-  height: var(--disc);
-  overflow: hidden;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 24%, #14110c), #14110c 72%);
-  box-shadow:
-    0 0 0 1px #000,
-    0 0 0 3px var(--iron-hi),
-    0 0 0 4px #000,
-    0 0 0 5px color-mix(in srgb, var(--lamp) 25%, transparent),
-    inset 0 0 16px rgb(0 0 0 / 0.9);
+/* The portrait form (round 12 decisions 1 and 2): the square frame at the
+ * top, the name in a glass band inside its top edge, the ring on its bottom
+ * right corner, the icons under it; every place from the layout. */
+.wc-cc-left[data-form="portrait"] {
+  display: block;
 }
 
-.wc-cc[data-portrait] .wc-cc-disc {
+.wc-cc-left[data-form="portrait"] > .wc-cc-medal {
+  position: absolute;
+  top: 0;
+  left: var(--disc-x);
+  width: var(--disc);
+  height: var(--disc);
+}
+
+.wc-cc-left[data-form="portrait"] > .wc-cc-name {
+  position: absolute;
+  z-index: 2;
+  top: var(--frame);
+  left: calc(var(--disc-x) + var(--frame));
+  width: var(--name-w);
+  max-width: none;
+  height: var(--name-h);
+  margin: 0;
+  padding: 0 0.3em;
+  border-radius: max(0px, calc(var(--radius) - var(--frame))) max(0px, calc(var(--radius) - var(--frame))) 0 0;
+  background: rgb(10 12 16 / 0.58);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--lamp) 35%, transparent);
+  font-size: var(--name-px);
+  line-height: var(--name-h);
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-shadow: 0 0 5px color-mix(in srgb, var(--lamp) 80%, transparent), 0 1px 1px #000;
+}
+
+.wc-cc-left[data-form="portrait"] > .wc-cc-icons {
+  position: absolute;
+  top: var(--icons-y);
+  left: var(--icons-x);
+}
+
+/* The iron frame (round 12 `f-iron`): smooth iron with a light top edge. */
+.wc-cc-left[data-form="portrait"] .wc-cc-disc {
+  position: absolute;
+  inset: var(--frame);
   display: block;
+  overflow: hidden;
+  border-radius: max(1px, calc(var(--radius) - var(--frame) + 1px));
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 24%, #14110c), #14110c 72%);
+  box-shadow: 0 0 0 1px #000;
+}
+
+.wc-cc-left[data-form="portrait"] > .wc-cc-medal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, #62666e, #2c2f35 42%, #17191c);
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgb(255 255 255 / 0.2), 0 2px 6px rgb(0 0 0 / 0.6);
 }
 
 /* The vignette lies over the figure. */
@@ -189,8 +224,12 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 14px rgb(0 0 0 / 0.65);
+  border-radius: inherit;
+  box-shadow: inset 0 0 14px rgb(0 0 0 / 0.85);
+}
+
+.wc-cc-left:not([data-form="portrait"]) .wc-cc-disc {
+  display: none;
 }
 
 .wc-cc-fig {
@@ -234,6 +273,15 @@
   margin-left: calc(var(--ring) / -2);
   border-radius: 50%;
   background: radial-gradient(circle closest-side, #15130f 94%, transparent 100%);
+}
+
+/* On the frame's bottom right corner (round 12 decision 1). */
+.wc-cc-left[data-form="portrait"] .wc-cc-ring {
+  z-index: 3;
+  top: var(--ring-y);
+  bottom: auto;
+  left: var(--ring-x);
+  margin-left: 0;
 }
 
 .wc-cc-ring > svg {
@@ -393,12 +441,26 @@
   flex-direction: column;
 }
 
+/* Status: the cells, the shields under them (the stones are main's last child). */
 .wc-cc-status {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-cc-cells {
   flex: 1 1 0;
   display: grid;
   grid-template-columns: repeat(var(--st-cols, 4), minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
   min-height: 0;
+}
+
+.wc-cc-status[data-form="cells"] > .wc-cc-cells {
+  flex: none;
+  gap: var(--cell-gap);
+  height: var(--cells-h);
 }
 
 .wc-cc-f {
@@ -498,6 +560,319 @@
 
 .wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
   color: var(--cc-critical);
+}
+
+/* The cells (round 12 decision 3): a thin frame, a slightly darker ground,
+ * small labels, clearer values, the step meter at the right. */
+.wc-cc-mt {
+  display: none;
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-f {
+  gap: calc(3px * var(--k));
+  padding: 0 2px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 17%, transparent);
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-f::before {
+  display: none;
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-f:nth-child(n) {
+  border-top: 0;
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-k {
+  gap: 0;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-k > svg {
+  display: none;
+}
+
+/* The value keeps clear of the meter at the right. */
+.wc-cc-status[data-form="cells"] .wc-cc-v {
+  max-width: calc(100% - var(--k) * 7px);
+  color: var(--text);
+  line-height: 1;
+}
+
+.wc-cc-status[data-form="cells"] .wc-cc-mt {
+  position: absolute;
+  top: 50%;
+  right: calc(3px * var(--k));
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+.wc-cc-lamp {
+  display: block;
+  width: calc(3px * var(--k));
+  height: max(1.5px, calc(2px * var(--k)));
+  border-radius: 0.5px;
+  background: color-mix(in srgb, var(--lamp) 20%, transparent);
+}
+
+/* Only the current step, one lamp colour. */
+.wc-cc-lamp[data-on] {
+  background: var(--hot);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--lamp) 75%, transparent);
+}
+
+/* The shields (round 12 decision 4, `SHAPES.dnd`): as large as the room
+ * allows, 1 × 4 or 2 × 2; `⋯` until the info poll answers. */
+.wc-cc-shields {
+  display: none;
+}
+
+.wc-cc-status[data-shields] > .wc-cc-shields {
+  flex: 1 1 0;
+  display: grid;
+  grid-template-columns: repeat(var(--shield-cols, 4), minmax(0, 1fr));
+  align-content: center;
+  align-items: center;
+  justify-items: center;
+  gap: calc(3px * var(--k));
+  min-height: 0;
+  margin-top: var(--gap-top);
+}
+
+.wc-cc-shield {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wc-cc-sb {
+  position: relative;
+  display: block;
+  width: calc(var(--shield) * 40 / 48);
+  height: var(--shield);
+}
+
+.wc-cc-sp {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.wc-cc-so {
+  fill: rgb(0 0 0 / 0.32);
+  stroke: color-mix(in srgb, var(--lamp) 70%, transparent);
+  stroke-width: 1.4;
+}
+
+.wc-cc-sn {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lamp) 22%, transparent);
+  stroke-width: 0.8;
+}
+
+.wc-cc-sg {
+  fill: var(--hot);
+}
+
+.wc-cc-sb > .wc-cc-i {
+  position: absolute;
+  top: 19%;
+  left: 50%;
+  display: none;
+  width: calc(var(--shield) * 0.27);
+  height: calc(var(--shield) * 0.27);
+  color: var(--lamp);
+  transform: translateX(-50%);
+}
+
+.wc-cc-status[data-shield-icon] .wc-cc-sb > .wc-cc-i {
+  display: block;
+}
+
+.wc-cc-sv {
+  position: absolute;
+  top: 37%;
+  right: 0;
+  left: 0;
+  color: var(--hot);
+  /* By the digits: four fit inside the shield as three do. */
+  font-size: min(var(--sv-px), calc(var(--shield) * 0.55 / (var(--n, 3) * var(--adv, 0.6))));
+  font-weight: bold;
+  line-height: 1;
+  text-align: center;
+}
+
+.wc-cc-status[data-shield-icon] .wc-cc-sv {
+  top: 51%;
+}
+
+.wc-cc-sk {
+  color: var(--dim);
+  font: 700 var(--shield-label) / 1 var(--display);
+  letter-spacing: 0.12em;
+}
+
+/* --------------------------------------------------------------- stones */
+
+/* At the bottom of Status and Stats, left-aligned, in the layout's rows
+ * (ADR 0166 points 120–122); a stone is placed by a transform. */
+.wc-cc-stones {
+  position: relative;
+  flex: none;
+  height: var(--stones-h);
+  margin-top: var(--gap-bottom);
+}
+
+.wc-cc-st {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--stone);
+  height: calc(var(--stone) + var(--stone-bar));
+  --c: var(--st-buff);
+}
+
+.wc-cc-st[data-tone="debuff"] {
+  --c: var(--st-debuff);
+}
+
+.wc-cc-st[data-tone="herb"] {
+  --c: var(--st-herb);
+}
+
+.wc-cc-st[data-tone="sanct"] {
+  --c: var(--st-sanct);
+}
+
+.wc-cc-sti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: var(--stone);
+  height: var(--stone);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--c) 22%, rgb(0 0 0 / 0.5));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 60%, transparent), 0 0 0 1px rgb(0 0 0 / 0.6);
+}
+
+.wc-cc-sti > .wc-cc-i {
+  width: 74%;
+  height: 74%;
+  color: var(--c);
+  stroke-width: 2.3;
+}
+
+.wc-cc-stt {
+  font: 800 calc(var(--stone) * 0.62) / 1 var(--font-mono, monospace);
+  letter-spacing: -0.04em;
+}
+
+.wc-cc-stb {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--stone-bar) - 1px);
+  overflow: hidden;
+  border-radius: 1px;
+  background: rgb(0 0 0 / 0.6);
+}
+
+/* The bar drains by a transform (no layout per tick). */
+.wc-cc-stf {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--c);
+  transform: scaleX(var(--f, 1));
+  transform-origin: left;
+}
+
+.wc-cc-st:is([data-state="untimed"], [data-k="add"], [data-k="more"]) > .wc-cc-stb {
+  display: none;
+}
+
+.wc-cc-st[data-state="untimed"] > .wc-cc-sti {
+  box-shadow: none;
+  outline: 1px dashed color-mix(in srgb, var(--c) 70%, transparent);
+  outline-offset: -1px;
+}
+
+.wc-cc-st[data-end] > .wc-cc-sti {
+  box-shadow: 0 0 0 1px var(--danger), 0 0 5px color-mix(in srgb, var(--danger) 70%, transparent);
+}
+
+.wc-cc-st[data-k="add"] > .wc-cc-sti {
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed color-mix(in srgb, var(--c) 75%, transparent);
+  outline-offset: -1px;
+  color: var(--c);
+}
+
+.wc-cc-st[data-k="more"] > .wc-cc-sti {
+  background: rgb(0 0 0 / 0.45);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 25%, transparent);
+  color: var(--text);
+}
+
+.wc-cc-st[data-k="more"] .wc-cc-stt {
+  font-size: calc(var(--stone) * 0.55);
+}
+
+.wc-cc-st:is([data-k="add"], [data-k="more"]) {
+  cursor: pointer;
+}
+
+/* A running herblore's ×, on hover (as the Timers pane's). */
+.wc-cc-stx {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  place-items: center;
+  width: var(--stone);
+  height: var(--stone);
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.78);
+  cursor: pointer;
+}
+
+.wc-cc-stx > .wc-cc-i {
+  width: 70%;
+  height: 70%;
+  color: var(--text);
+}
+
+.wc-cc-st[data-k="stone"]:hover > .wc-cc-stx:not([hidden]) {
+  display: grid;
+}
+
+/* The purse, right-aligned in the stones' last row (ADR 0166 point 121); only on Status. */
+.wc-cc-purse {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--purse-gap);
+  height: calc(var(--coin) + 2px);
+  color: var(--text);
+  font: 700 var(--purse-px) / 1 var(--font-mono, monospace);
+  --coin-size: var(--coin);
+}
+
+.wc-cc[data-tab="stats"] .wc-cc-purse {
+  display: none;
 }
 
 /* Stats and Lore fill the area, and scroll where they do not fit. */
@@ -610,57 +985,6 @@
 
 .wc-cc-stats[data-dense] {
   gap: calc(3px * var(--k));
-}
-
-.wc-cc-shields {
-  flex: none;
-  display: grid;
-  grid-template-columns: repeat(var(--shield-cols, 4), minmax(0, 1fr));
-}
-
-.wc-cc-shield {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-
-.wc-cc-plate {
-  position: relative;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: var(--shield);
-  height: var(--shield);
-  padding-bottom: calc(var(--shield) * 0.1);
-}
-
-.wc-cc-plate-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  fill: rgb(0 0 0 / 0.25);
-  stroke: color-mix(in srgb, var(--lamp) 26%, transparent);
-  stroke-width: 1;
-}
-
-.wc-cc-plate > .wc-cc-i {
-  position: relative;
-  width: calc(var(--shield) * 0.24);
-  height: calc(var(--shield) * 0.24);
-  color: var(--lamp);
-}
-
-.wc-cc-sv {
-  position: relative;
-  color: var(--hot);
-  /* By the digits: four fit inside the shield as three do. */
-  font-size: min(calc(var(--shield) * 0.31), calc(var(--shield) * 0.62 / (var(--n, 3) * var(--adv, 0.6))));
-  font-weight: bold;
-  line-height: 1.15;
 }
 
 .wc-cc-abilities {
@@ -851,43 +1175,51 @@
   grid-column: 1 / -1;
 }
 
-.wc-cc-points {
-  margin-left: 0.5em;
-  color: var(--dim);
-  font-size: 0.8em;
-  font-weight: normal;
-}
-
+/* A coin after its number (round 14 `coin`): struck metal with a rim and a
+ * star; Lore's purse and the stones' row. Drawn in CSS: no gradient ids. */
 .wc-cc-coin {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   margin-right: 0.35em;
   white-space: nowrap;
+  --coin-a: #fff3b8;
+  --coin-b: #e3b84a;
+  --coin-c: #8a5f12;
+  --coin-edge: #6a4c0e;
 }
 
-.wc-cc-coin:nth-child(3) {
+.wc-cc-coin:nth-child(3),
+.wc-cc-purse > .wc-cc-coin {
   margin-right: 0;
 }
 
-.wc-cc-coin::before {
+.wc-cc-coin::after {
   content: "";
-  display: inline-block;
-  width: 0.58em;
-  height: 0.58em;
-  margin-right: 0.2em;
+  flex: none;
+  width: var(--coin-size, 0.95em);
+  height: var(--coin-size, 0.95em);
+  box-sizing: border-box;
+  border: max(0.5px, calc(var(--coin-size, 0.95em) * 0.06)) solid var(--coin-edge);
   border-radius: 50%;
-  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.4);
+  background:
+    radial-gradient(circle, transparent 58%, rgb(255 255 255 / 0.38) 60%, rgb(255 255 255 / 0.38) 66%, transparent 68%),
+    radial-gradient(circle at 35% 30%, var(--coin-a), var(--coin-b) 45%, var(--coin-c));
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
 }
 
-.wc-cc-coin[data-metal="gold"]::before {
-  background: #e5c158;
+.wc-cc-coin[data-metal="silver"] {
+  --coin-a: #fff;
+  --coin-b: #c3c7cf;
+  --coin-c: #6a6e76;
+  --coin-edge: #4a4d54;
 }
 
-.wc-cc-coin[data-metal="silver"]::before {
-  background: #c9ccd1;
-}
-
-.wc-cc-coin[data-metal="copper"]::before {
-  background: #c07a46;
+.wc-cc-coin[data-metal="copper"] {
+  --coin-a: #ffd2a8;
+  --coin-b: #c27a45;
+  --coin-c: #6e3414;
+  --coin-edge: #5a2c12;
 }
 
 /* ---------------------------------------------------------------- tabs */
@@ -949,10 +1281,6 @@
   color: var(--hot);
 }
 
-.wc-cc[data-fight] .wc-cc-tab[aria-selected="false"] {
-  opacity: 0.4;
-}
-
 /* -------------------------------------------------------------- vitals */
 
 /* Group's columns (group.css .wc-gp-bars). */
@@ -967,21 +1295,18 @@
   position: relative;
   contain: strict;
   height: 100%;
-  --h: var(--bar);
 }
 
-.wc-cc[data-fight] .wc-cc-vital {
-  --h: var(--bar-fight);
-}
-
+/* The parchment track (round 12 decision 6, `vv-parch`): the empty part is
+ * tinted with fine fibres, so the bar's start shows. */
 .wc-cc-trk {
   position: absolute;
-  top: calc((var(--bar-fight) - var(--h)) / 2);
+  top: 0;
   right: 0;
   left: 0;
-  height: var(--h);
+  height: var(--bar);
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: 2px;
   background: var(--trk-bg);
   box-shadow: var(--trk-edge);
 }
@@ -994,7 +1319,7 @@
 }
 
 .wc-cc-fill {
-  border-radius: 5px;
+  border-radius: 2px;
   background: var(--gloss), var(--c);
   /* No transition: it would style and paint for frames after every prompt. */
   transform: translateX(calc((var(--p, 0) - 100) * 1%));
@@ -1006,7 +1331,7 @@
 }
 
 .wc-cc-hatch {
-  border-radius: 0 5px 5px 0;
+  border-radius: 0 2px 2px 0;
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px);
   transform: translateX(calc((var(--len, 0) - 100) * 1%));
 }
@@ -1053,7 +1378,7 @@
 /* The arrow under the bar: a full-width carrier that moves. */
 .wc-cc-wimpy {
   position: absolute;
-  top: calc((var(--bar-fight) + var(--h)) / 2);
+  top: var(--bar);
   left: 0;
   width: 100%;
   height: var(--arrow);
@@ -1103,7 +1428,7 @@
   --box-edge: inset 0 0 0 1px rgb(60 40 10 / 0.07), 0 1px 2px rgb(60 40 10 / 0.18);
   --rule: color-mix(in srgb, var(--iron-lo) 28%, transparent);
   /* Darker than Group's: white numbers stand on it. */
-  --trk-bg: color-mix(in srgb, var(--cc-track) 30%, var(--iron-lo));
+  --trk-bg: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 5px), color-mix(in srgb, var(--cc-track) 30%, var(--iron-lo));
   --trk-edge: inset 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 0 rgb(255 255 255 / 0.9);
   --gloss: linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.1));
 }
@@ -1112,13 +1437,74 @@
   text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
 }
 
+.wc-cc[data-light] .wc-cc-left[data-form="portrait"] > .wc-cc-name {
+  background: rgb(255 253 248 / 0.72);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--iron-lo) 45%, transparent);
+  text-shadow: none;
+}
+
 .wc-cc[data-light] .wc-cc-disc {
   background: radial-gradient(circle at 50% 40%, #f4e9d2, color-mix(in srgb, var(--iron) 75%, #fff) 78%);
-  box-shadow:
-    0 0 0 1px var(--engrave),
-    0 0 0 3px var(--iron-hi),
-    0 0 0 4px var(--engrave),
-    0 1px 4px 4px rgb(50 35 10 / 0.15);
+  box-shadow: 0 0 0 1px var(--engrave);
+}
+
+/* Paper's iron: the pane's own light iron. */
+.wc-cc[data-light] .wc-cc-left[data-form="portrait"] > .wc-cc-medal::before {
+  background: linear-gradient(160deg, var(--iron-hi), var(--iron) 42%, var(--iron-lo));
+  box-shadow: 0 0 0 1px var(--engrave), inset 0 1px 0 rgb(255 255 255 / 0.6), 0 1px 4px rgb(50 35 10 / 0.25);
+}
+
+.wc-cc[data-light] .wc-cc-status[data-form="cells"] .wc-cc-f {
+  background: #fffdf8;
+  box-shadow: inset 0 0 0 1px rgb(60 40 10 / 0.2);
+}
+
+.wc-cc[data-light] .wc-cc-lamp {
+  background: color-mix(in srgb, var(--iron-lo) 25%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-lamp[data-on] {
+  background: var(--ink, var(--cc-ink));
+  box-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-so {
+  fill: #fffdf8;
+  stroke: color-mix(in srgb, var(--iron-lo) 80%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-sn {
+  stroke: color-mix(in srgb, var(--iron-lo) 30%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-sg {
+  fill: var(--iron-lo);
+}
+
+.wc-cc[data-light] .wc-cc-sti {
+  background: color-mix(in srgb, var(--c) 16%, #fffdf8);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.wc-cc[data-light] .wc-cc-st[data-end] > .wc-cc-sti {
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.wc-cc[data-light] .wc-cc-st:is([data-state="untimed"], [data-k="add"]) > .wc-cc-sti {
+  box-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-stb {
+  background: rgb(60 40 10 / 0.18);
+}
+
+.wc-cc[data-light] .wc-cc-st[data-k="more"] > .wc-cc-sti {
+  background: #fffdf8;
+  box-shadow: inset 0 0 0 1px rgb(60 40 10 / 0.3);
+}
+
+.wc-cc[data-light] .wc-cc-stx {
+  background: rgb(255 253 248 / 0.9);
 }
 
 .wc-cc[data-light] .wc-cc-disc::after {
@@ -1161,7 +1547,8 @@
   filter: none;
 }
 
-.wc-cc[data-light] :is(.wc-cc-f, .wc-cc-plate) .wc-cc-i {
+.wc-cc[data-light] :is(.wc-cc-f, .wc-cc-sb) > .wc-cc-i,
+.wc-cc[data-light] .wc-cc-f .wc-cc-i {
   color: var(--ink, var(--cc-ink));
 }
 
@@ -1171,11 +1558,6 @@
 
 .wc-cc[data-light] .wc-cc-f[data-signal="critical"] :is(.wc-cc-word, svg) {
   color: var(--cc-critical);
-}
-
-.wc-cc[data-light] .wc-cc-plate-bg {
-  fill: #fffdf8;
-  stroke: color-mix(in srgb, var(--iron-lo) 45%, transparent);
 }
 
 .wc-cc[data-light] .wc-cc-vm {
@@ -1201,4 +1583,58 @@
 .wc-cc[data-light] .wc-cc-tab[aria-selected="true"] {
   background: #fffdf8;
   box-shadow: inset 2px 0 0 var(--iron-lo);
+}
+
+/* ------------------------------------------------------ the `+n` list */
+
+/* The stones without room (ADR 0166 point 120), in the menu surface
+ * colours of the Timers pane's herblore menu (.wc-tm-menu). */
+.wc-cc-list {
+  min-width: 13em;
+}
+
+.wc-cc-list .wc-cc-lh {
+  padding: 0.15em 0.5em 0.3em;
+  color: var(--sf-faint, #5b5b5b);
+  font-size: 0.9em;
+}
+
+.wc-cc-list .wc-cc-lr {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+.wc-cc-list .wc-cc-i {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wc-cc-list .wc-cc-ln {
+  flex: 1 1 auto;
+}
+
+.wc-cc-list .wc-cc-lt {
+  color: var(--sf-faint, #5b5b5b);
+}
+
+.wc-cc-list .wc-cc-lx {
+  all: unset;
+  padding: 0 0.35em;
+  border-radius: 3px;
+  color: var(--sf-fg, #c4c4c4);
+  cursor: pointer;
+}
+
+.wc-cc-list .wc-cc-lx:hover {
+  background: var(--sf-hover, #171717);
+  color: var(--sf-hot, #ebebeb);
 }

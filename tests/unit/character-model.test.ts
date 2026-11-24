@@ -20,6 +20,7 @@ import {
   quietText,
   ringView,
   signed,
+  shieldsView,
   statsView,
   statusView,
   vitalDigits,
@@ -167,30 +168,20 @@ describe('pending (point 8)', () => {
   });
 });
 
-describe('the tabs and the fight (decision 13)', () => {
-  it('a fight shows Status and gives the tab back', () => {
+describe('the tabs and the fight (round 12 decision 8: only the swords)', () => {
+  it('a fight changes no tab', () => {
     const t = new TabState();
     expect(t.shown).toBe('status');
     t.select('lore');
     expect(t.setFight(true)).toBe(true);
-    expect(t.shown).toBe('status');
+    expect(t.fighting).toBe(true);
+    expect(t.shown).toBe('lore');
     expect(t.setFight(true)).toBe(false);
-    t.setFight(false);
-    expect(t.shown).toBe('lore');
-  });
-
-  it('a tab clicked during the fight works, and the one from before it comes back', () => {
-    const t = new TabState();
     t.select('stats');
-    t.setFight(true);
-    t.select('lore');
-    expect(t.shown).toBe('lore');
-    t.setFight(true);
-    expect(t.shown).toBe('lore');
-    t.setFight(false);
     expect(t.shown).toBe('stats');
-    t.setFight(true);
-    expect(t.shown).toBe('status');
+    expect(t.setFight(false)).toBe(true);
+    expect(t.fighting).toBe(false);
+    expect(t.shown).toBe('stats');
   });
 
   it('the position is the crossed swords, with no click', () => {
@@ -231,6 +222,17 @@ describe('weight (decision 9)', () => {
     const light = statusView(viewOf({ carrying: 'peanuts' }), env(), 20)[3]!;
     expect(light).toMatchObject({ value: 'peanuts', tip: 'Peanuts.', signal: null });
     expect(statusView(viewOf({ carrying: 'Odd' }), env(), 20)[3]).toMatchObject({ value: 'Odd', tip: 'Odd', signal: null });
+  });
+
+  it('the step meter: every step of each field, the current one (round 12 decision 3)', () => {
+    const v = viewOf({ mood: 'aggressive', 'spell-effort': 'quick', alertness: 'paranoid', carrying: 'heavy' });
+    expect(statusView(v, env(), 20).map((f) => [f.steps, f.step])).toEqual([
+      [6, 4],
+      [5, 0],
+      [5, 4],
+      [6, 2],
+    ]);
+    expect(statusView(viewOf({ mood: 'calm', carrying: 'Odd' }), env(), 20).map((f) => f.step)).toEqual([null, null, null, null]);
   });
 });
 
@@ -321,7 +323,7 @@ describe('the level ring (decision 3)', () => {
 describe('Stats (decisions 14–17)', () => {
   it("Rasta's sample", () => {
     const s = statsView(answerWith(), 'Orc', 'Tarkhnarb Orc');
-    expect(s.shields).toEqual(['81', '13', '85', '70']);
+    expect(s).not.toHaveProperty('shields');
     expect(s.abilities.map((a) => [a.value, a.delta])).toEqual([['16', ''], ['16', ''], ['16', ''], ['11', ''], ['12', ''], ['16', ''], ['8', '']]);
     expect(s.age).toMatchObject({ years: '57', name: '2nd age', next: '3rd at 64' });
     expect(s.age.track!.index).toBe(1);
@@ -341,8 +343,13 @@ describe('Stats (decisions 14–17)', () => {
     expect(s.abilities[3]).toMatchObject({ value: '10', delta: '−1', dir: 'down' });
   });
 
-  it('a negative DB has a true minus', () => {
-    expect(statsView(answerWith({ db: -31 }), 'Orc', null).shields[1]).toBe('−31');
+  it('the shields (on Status since F2b): a true minus, a dash, and `⋯` until the poll answers', () => {
+    expect(shieldsView(answerWith()).map((s) => s.value)).toEqual(['81', '13', '85', '70']);
+    expect(shieldsView(answerWith({ db: -31 }))[1]).toMatchObject({ key: 'db', value: '−31', title: 'DB −31' });
+    expect(shieldsView(answerWith({ ob: null }))[0]!.value).toBe('—');
+    const wait = shieldsView(null);
+    expect(wait.map((s) => s.value)).toEqual(['⋯', '⋯', '⋯', '⋯']);
+    expect(wait[3]).toMatchObject({ title: 'ABS', tip: 'Armour absorption\nWaiting for the info poll.' });
   });
 
   it('an unknown race: no age track and no modifiers', () => {
@@ -356,7 +363,6 @@ describe('Stats (decisions 14–17)', () => {
 
   it('what could not be read is a dash', () => {
     const s = statsView(answerWith({ ob: null, years: null, carrying: null }), 'Orc', null);
-    expect(s.shields[0]).toBe('—');
     expect(s.age.years).toBe('—');
     expect(s.senses[3]).toBe('—');
   });

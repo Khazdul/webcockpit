@@ -5,9 +5,8 @@
 // - Clicks (decision 19, points 8 and 37): the next step of a cycle, never
 //   berserk, and none where the next value is not known. A clicked element
 //   is pending until GMCP changes its value or 3 s have passed.
-// - The fight mode (decision 13): an opponent switches to Status, a tab
-//   chosen during the fight holds for the fight, and after it the tab from
-//   before the fight is back.
+// - The fight (ADR 0166 addendum 16, round 12 decision 8): only the
+//   position icon's red swords. The tab stays as the player chose it.
 // - Words are shortened by a list, then cut with `…`: never mid-glyph.
 // - Bars (decision 11): a number only when the last update was one, else
 //   the band word's span. Band words are never written.
@@ -17,6 +16,7 @@ import { ABILITIES, AGE_NAMES, type Ability, ageAt, ageInYears, birthdayIn } fro
 import { type VitalKind, bandOf } from '../gmcp/bands';
 import {
   ALERTNESS_STEPS,
+  CARRYING_STEPS,
   type CharVital,
   type CharView,
   MOOD_STEPS,
@@ -39,30 +39,27 @@ export const CARD_TABS: readonly { id: CardTab; label: string }[] = [
   { id: 'lore', label: 'LORE' },
 ];
 
-/** Which tab shows, with the fight mode (see the file header). */
+/** Which tab shows, and whether a fight is on (it changes no tab, round 12 decision 8). */
 export class TabState {
-  /** The player's tab outside a fight. */
   private chosen: CardTab = 'status';
-  /** The tab during a fight, null outside one. */
-  private inFight: CardTab | null = null;
+  private fight = false;
 
   get shown(): CardTab {
-    return this.inFight ?? this.chosen;
+    return this.chosen;
   }
 
   get fighting(): boolean {
-    return this.inFight !== null;
+    return this.fight;
   }
 
   select(tab: CardTab): void {
-    if (this.inFight !== null) this.inFight = tab;
-    else this.chosen = tab;
+    this.chosen = tab;
   }
 
   /** The fight began or ended. False: it already was so. */
   setFight(on: boolean): boolean {
-    if (on === this.fighting) return false;
-    this.inFight = on ? 'status' : null;
+    if (on === this.fight) return false;
+    this.fight = on;
     return true;
   }
 }
@@ -337,26 +334,35 @@ export interface StatusFieldView {
   value: string;
   name: string;
   signal: 'low' | 'critical' | null;
+  /** The step meter: how many steps, and which is the current (null: not one of them). */
+  steps: number;
+  step: number | null;
   /** Null: Weight, which has no click. */
   click: ClickView | null;
   tip: string | null;
 }
+
+/** The index of `word` in `steps`, or null. */
+const stepOf = (steps: readonly string[], word: string | null): number | null => {
+  const i = word === null ? -1 : steps.indexOf(word);
+  return i < 0 ? null : i;
+};
 
 export function statusView(
   v: ClickValues & Pick<CharView, 'carrying'>,
   e: CardEnv,
   chars: number,
 ): StatusFieldView[] {
-  const field = (id: 'mood' | 'casts' | 'alertness', icon: IconName, label: string, word: string | null): StatusFieldView => {
+  const field = (id: 'mood' | 'casts' | 'alertness', icon: IconName, label: string, word: string | null, steps: readonly string[]): StatusFieldView => {
     const name = `${label}: ${word ?? 'unknown'}`;
     const click = clickView(id, icon, name, v, e);
-    return { key: id, icon, label, value: fitWord(word ?? NONE, chars), name, signal: null, click, tip: click.tip };
+    return { key: id, icon, label, value: fitWord(word ?? NONE, chars), name, signal: null, steps: steps.length, step: stepOf(steps, word), click, tip: click.tip };
   };
   const load = v.carrying;
   return [
-    field('mood', 'mood', 'Mood', v.mood),
-    field('casts', 'casts', 'Casts', v.spellEffort),
-    field('alertness', 'alertness', 'Alertness', v.alertness),
+    field('mood', 'mood', 'Mood', v.mood, MOOD_STEPS),
+    field('casts', 'casts', 'Casts', v.spellEffort, SPELL_EFFORT_STEPS),
+    field('alertness', 'alertness', 'Alertness', v.alertness, ALERTNESS_STEPS),
     {
       key: 'weight',
       icon: 'weight',
@@ -364,6 +370,8 @@ export function statusView(
       value: fitWord(load?.word ?? NONE, chars),
       name: `Weight: ${load?.word ?? 'unknown'}`,
       signal: loadSignal(load?.step ?? null),
+      steps: CARRYING_STEPS.length,
+      step: load?.step ?? null,
       click: null,
       tip: load ? (load.step === null ? load.word : LOAD_SENTENCES[load.step]!) : null,
     },
@@ -445,11 +453,30 @@ export type Dir = 'up' | 'down' | null;
 const dirOf = (n: number): Dir => (n > 0 ? 'up' : n < 0 ? 'down' : null);
 
 export const SHIELDS = [
-  { key: 'ob', label: 'OB', icon: 'ob' },
-  { key: 'db', label: 'DB', icon: 'db' },
-  { key: 'pb', label: 'PB', icon: 'pb' },
-  { key: 'abs', label: 'ABS', icon: 'abs' },
-] as const satisfies readonly { key: keyof InfoAnswer; label: string; icon: IconName }[];
+  { key: 'ob', label: 'OB', icon: 'ob', title: 'Offensive bonus' },
+  { key: 'db', label: 'DB', icon: 'db', title: 'Defensive bonus' },
+  { key: 'pb', label: 'PB', icon: 'pb', title: 'Parry bonus' },
+  { key: 'abs', label: 'ABS', icon: 'abs', title: 'Armour absorption' },
+] as const satisfies readonly { key: keyof InfoAnswer; label: string; icon: IconName; title: string }[];
+
+/** What the shields show before the info poll's first answer (ADR 0166 point 89). */
+export const SHIELD_WAIT = '⋯';
+
+export interface ShieldView {
+  key: (typeof SHIELDS)[number]['key'];
+  value: string;
+  title: string;
+  tip: string;
+}
+
+/** The Status shields OB, DB, PB, ABS from the info poll's answer; `⋯` until it answers. */
+export function shieldsView(a: InfoAnswer | null): ShieldView[] {
+  return SHIELDS.map(({ key, label, title }) => {
+    const value = a ? plain(a[key]) : SHIELD_WAIT;
+    const tip = a ? `${title}\nFrom the info poll (also while Status is shown).` : `${title}\nWaiting for the info poll.`;
+    return { key, value, title: a ? `${label} ${value}` : label, tip };
+  });
+}
 
 export const SENSES = [
   { key: 'vision', label: 'Vision' },
@@ -468,7 +495,6 @@ export interface AbilityView {
 }
 
 export interface StatsView {
-  shields: string[];
   abilities: AbilityView[];
   age: {
     years: string;
@@ -514,7 +540,6 @@ export function statsView(a: InfoAnswer, race: string | null, subrace: string | 
   }
 
   return {
-    shields: SHIELDS.map(({ key }) => plain(a[key])),
     abilities,
     age,
     senses: SENSES.map(({ key }) => (key === 'carrying' && a.carrying !== null ? `${a.carrying}${NBSP}lb` : plain(a[key]))),

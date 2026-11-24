@@ -23,15 +23,21 @@
 //   the next change of "info 12 s ago". None while hidden.
 // - A click sends with `sendCommand` (no alias, echoed as typed) and
 //   never takes the focus from the input.
-// - The stones (character-stones.ts, F2a): the list is rebuilt only after
-//   a Timers or a group change (or the stone switches), when read; nothing
-//   draws it yet (F2b), so no render and no tick follow from it.
+// - The stones (character-stones.ts, F2a; drawn since F2b): the list is
+//   rebuilt only after a Timers or a group change (or the stone switches).
+//   Their number is in the layout's box (the rows and the shields follow
+//   it); which stay beside a `+n` is read at each render, as ending soon
+//   moves a stone up. While a shown stone counts down the card's one timer
+//   wakes on the wall-clock second, and a tick writes only the bars.
+// - The herblore `+` opens the Timers pane's menu, a herblore's × stops it,
+//   the `+n` lists the rest (none in a log player: read-only).
 
 import './character.css';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import type { CharView } from '../gmcp/char';
 import type { InfoAnswer } from '../gmcp/info-answer';
 import { type CardBox, type CardLayout, cardLayout, crossDepth } from './character-layout';
+import { type StoneTone, purseFit, stoneRows } from './character-stones';
 import {
   type CardEnv,
   type CardTab,
@@ -45,13 +51,14 @@ import {
   loreView,
   quietText,
   ringView,
+  shieldsView,
   statsView,
   statusView,
   vitalDigits,
   vitalView,
   wimpyAt,
 } from './character-model';
-import { CardDom } from './character-dom';
+import { CardDom, StoneList } from './character-dom';
 import { type StoneView, stoneView } from './character-stones';
 import type { PaneContext } from './context';
 import { groupVitals } from './group-model';
@@ -60,6 +67,8 @@ import { type PaneCell, type PanePlacement, PaneShell } from './pane';
 import { type PaneTooltip, installPaneTooltip } from './pane-tooltip';
 import { PORTRAIT_SEX, portraitOf } from './portrait';
 import { paneShade } from './shade';
+import { HerbMenu } from './timers';
+import { timerGroupColor } from './timers-model';
 import { onTitleFont, titleWidth } from './title-font';
 
 /** What the `↓ more` beside the data's age takes, and its arrow alone. */
@@ -70,7 +79,9 @@ const MORE_ARROW_CHARS = 2;
 const WAKE_LAG_MS = 5;
 
 /** The parts that are written one by one. */
-type Part = 'layout' | 'theme' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;
+type Part = 'layout' | 'theme' | 'tones' | 'fight' | 'name' | 'portrait' | 'ring' | 'icons' | 'status' | 'shields' | 'stones' | 'purse' | 'tab' | 'more' | 'hp' | `bar-${VitalKind}`;
+
+const STONE_TONES: readonly StoneTone[] = ['buff', 'debuff', 'herb', 'sanct'];
 
 export class CharacterPane extends PaneShell {
   private readonly tip: PaneTooltip;
@@ -100,10 +111,33 @@ export class CharacterPane extends PaneShell {
   /** The stones, and whether a Timers or a group change has made them old. */
   private stoneList: StoneView | null = null;
   private stonesStale = true;
+  /** The stones beside the `+n` at the last render (its list). */
+  private hiddenStones: StoneView['stones'] = [];
+  private stoneColors: Record<StoneTone, string> = { buff: '', debuff: '', herb: '', sanct: '' };
+  private readonly herbMenu: HerbMenu;
+  private readonly stoneMenu: StoneList;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'character');
-    this.card = new CardDom(ctx.doc, { click: (id) => this.click(id), tab: (id) => this.selectTab(id) });
+    this.card = new CardDom(
+      ctx.doc,
+      {
+        click: (id) => this.click(id),
+        tab: (id) => this.selectTab(id),
+        add: (anchor) => this.openHerbs(anchor),
+        more: (anchor) => this.openMore(anchor),
+        stop: (key) => this.stopHerb(key),
+      },
+      { now: () => ctx.now(), warnAt: () => ctx.settings.get().timers.warnAt },
+    );
+    this.herbMenu = new HerbMenu(
+      ctx.doc,
+      (key) => {
+        if (!this.ctx.player) this.ctx.game.timers.addHerb(key);
+      },
+      () => {},
+    );
+    this.stoneMenu = new StoneList(ctx.doc, (key) => this.stopHerb(key), () => {});
     this.tip = installPaneTooltip(ctx.doc);
     // A press never takes the focus from the input (a phone's keyboard would go).
     this.content.addEventListener('mousedown', (e) => e.preventDefault());
@@ -118,8 +152,11 @@ export class CharacterPane extends PaneShell {
         } else if (part === 'group') {
           this.stonesStale = true;
           this.followFight();
-        } else if (part === 'timers') this.stonesStale = true;
-        else if (part === 'info' && this.tabs.shown !== 'status') this.markDirty();
+          this.markDirty();
+        } else if (part === 'timers') {
+          this.stonesStale = true;
+          this.markDirty();
+        } else if (part === 'info') this.markDirty();
       }),
     );
     this.own(
@@ -148,12 +185,17 @@ export class CharacterPane extends PaneShell {
       this.closed = true;
       this.syncInfo();
       this.stopTimer();
+      this.herbMenu.dispose();
+      this.stoneMenu.dispose();
     });
   }
 
   override place(p: PanePlacement | null, cell: PaneCell): void {
     super.place(p, cell);
-    if (!this.visible) this.stopTimer();
+    if (!this.visible) {
+      this.stopTimer();
+      this.closeMenus();
+    }
     const phone = this.el.hasAttribute('data-phone-side') ? 'side' : this.el.hasAttribute('data-phone-strip') ? 'strip' : undefined;
     const framed = p?.framed ?? false;
     if (phone !== this.phone || framed !== this.framed) {
@@ -168,12 +210,14 @@ export class CharacterPane extends PaneShell {
     if (!active) {
       this.pending.clear();
       this.stopTimer();
+      this.closeMenus();
     }
     this.syncInfo();
   }
 
   protected override blank(): void {
     this.stopTimer();
+    this.closeMenus();
     this.drawn.clear();
     this.statsFrom = this.loreFrom = null;
     super.blank();
@@ -202,15 +246,50 @@ export class CharacterPane extends PaneShell {
     return this.stoneList;
   }
 
+  /** A fight changes only the position icon (the swords). */
   private followFight(): void {
-    if (!this.tabs.setFight(this.ctx.game.fighting())) return;
-    this.syncInfo();
-    this.markDirty();
+    if (this.tabs.setFight(this.ctx.game.fighting())) this.markDirty();
   }
 
   private selectTab(tab: CardTab): void {
     this.tabs.select(tab);
+    this.closeMenus();
     this.syncInfo();
+    this.markDirty();
+  }
+
+  // ------------------------------------------------------------------ stones
+
+  private closeMenus(): void {
+    this.herbMenu.hide();
+    this.stoneMenu.hide();
+  }
+
+  /** The herblore `+`: the Timers pane's menu (none in a log player). */
+  private openHerbs(anchor: HTMLElement): void {
+    const { ctx } = this;
+    if (ctx.player || !this.stones.canStartHerb) return;
+    this.stoneMenu.hide();
+    if (this.herbMenu.open) this.herbMenu.hide();
+    else {
+      this.tip.hide();
+      this.herbMenu.show(anchor, ctx.game.timers.view(ctx.now()).herbs);
+    }
+  }
+
+  /** The `+n`: the list of what has no room. */
+  private openMore(anchor: HTMLElement): void {
+    this.herbMenu.hide();
+    if (this.stoneMenu.open) this.stoneMenu.hide();
+    else {
+      this.tip.hide();
+      this.stoneMenu.show(anchor, this.hiddenStones, this.stoneColors, this.ctx.now(), this.ctx.settings.get().timers.warnAt);
+    }
+  }
+
+  private stopHerb(key: string): void {
+    if (this.ctx.player) return;
+    this.ctx.game.timers.removeHerb(key);
     this.markDirty();
   }
 
@@ -268,9 +347,10 @@ export class CharacterPane extends PaneShell {
     const v = ctx.game.char.view();
     const name = v.name ?? '—';
     const { ramp, light } = paneShade(s, 'character');
+    const stones = this.stones;
 
-    const box = this.box(name, vitalDigits(v.vitals), s.character.height);
-    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}`)) {
+    const box = this.box(name, vitalDigits(v.vitals), s.character.height, stones);
+    if (this.changed('layout', `${box.w}|${box.h}|${box.px}|${box.adv}|${box.lock}|${box.nameEm}|${box.digits}|${box.phone}|${box.cross}|${box.stones}|${box.add}`)) {
       this.layout = cardLayout(box);
       card.setLayout(this.layout);
     }
@@ -278,6 +358,12 @@ export class CharacterPane extends PaneShell {
     if (this.changed('theme', `${ramp.vtext}${ramp.label}${ramp.track}${light}${box.adv}`)) {
       const sig = signalColors(light);
       card.setTheme(ramp, light, box.adv, { low: sig.vitalLow, critical: sig.vitalCritical });
+    }
+    const groups = s.timers.groups;
+    if (this.changed('tones', `${light}|${STONE_TONES.map((t) => groups[t].color).join('|')}`)) {
+      for (const t of STONE_TONES) this.stoneColors[t] = timerGroupColor(groups[t].color, t, light);
+      this.stoneColors = { ...this.stoneColors };
+      card.setStoneColors(this.stoneColors);
     }
 
     const fighting = this.tabs.fighting;
@@ -294,27 +380,71 @@ export class CharacterPane extends PaneShell {
       card.left.setIcons(iconsView(v, env), fighting);
     }
     const chars = layout.status.chars;
-    if (this.changed('status', `${clickKey}|${chars}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}`)) {
+    if (this.changed('status', `${clickKey}|${chars}|${v.mood}|${v.spellEffort}|${v.alertness}|${v.carrying?.word}|${v.carrying?.step}`)) {
       card.status.set(statusView(v, env, chars));
     }
+    const answer = ctx.game.info.answer;
+    if (this.changed('shields', answer ? `${answer.ob}|${answer.db}|${answer.pb}|${answer.abs}` : '-')) card.status.setShields(shieldsView(answer));
 
     this.renderVitals(v, layout, groupVitals(s, light), light);
     const changesAt = this.renderTab(v, now, s.character.fetchInfo);
+    const tick = this.renderStones(stones, layout, now, s.timers.warnAt);
 
     if (this.wrote) this.tip.refresh();
-    const pendingEnd = this.pending.nextAt();
-    const wake = pendingEnd === null ? changesAt : changesAt === null ? pendingEnd : Math.min(pendingEnd, changesAt);
+    let wake: number | null = null;
+    for (const at of [this.pending.nextAt(), changesAt, tick]) if (at !== null) wake = wake === null ? at : Math.min(wake, at);
     if (wake === null) this.stopTimer();
     else this.armTimer(wake, now);
   }
 
-  private box(name: string, digits: number, lock: CardBox['lock']): CardBox {
+  /**
+   * The stones and the purse on Status and Stats. Returns the next wall-clock
+   * second while a shown stone counts down, else null.
+   */
+  private renderStones(view: StoneView, layout: CardLayout, now: number, warnAt: number): number | null {
+    const { card } = this;
+    const tab = this.tabs.shown;
+    const st = layout.area.stones;
+    if (tab === 'lore' || st.rows === 0) {
+      this.hiddenStones = [];
+      this.stoneMenu.hide();
+      return null;
+    }
+    const rows = stoneRows(view.stones, { width: layout.main.w, size: st.size, gap: st.gap, bar: st.bar, rows: st.rows, add: view.canStartHerb }, now, warnAt);
+    if (card.stones.set(rows, st.size, st.gap, st.bar)) this.wrote = true;
+    this.hiddenStones = rows.hidden;
+    if (rows.hidden.length === 0) this.stoneMenu.hide();
+    else this.stoneMenu.update(rows.hidden, this.stoneColors, now, warnAt);
+    if (!view.canStartHerb) this.herbMenu.hide();
+    else if (this.herbMenu.open) this.herbMenu.update(this.ctx.game.timers.view(now).herbs);
+    // The purse only on Status, in the room the last row leaves (point 121).
+    const purse = tab === 'status' ? (this.ctx.game.info.answer?.purse ?? null) : null;
+    const n = purseFit(rows.free, purse, layout.area.purse);
+    const top = (rows.rows - 1) * (st.size + st.bar + st.gap) + Math.round((st.size - layout.area.purse.coin) / 2) - 1;
+    if (this.changed('purse', purse ? `${purse.gold}|${purse.silver}|${purse.copper}|${n}|${top}` : '-')) card.stones.setPurse(purse, n, top);
+    const timed = card.stones.tick(now, warnAt);
+    return timed ? now - (now % 1000) + 1000 : null;
+  }
+
+  private box(name: string, digits: number, lock: CardBox['lock'], stones: StoneView): CardBox {
     const { doc } = this.ctx;
     const cell = this.ctx.cells.get();
     // A plain source (tests) says no font size.
     const px = cell.px ?? cell.h * 0.85;
     if (this.nameEm.name !== name) this.nameEm = { name, em: Math.ceil((titleWidth(doc, name, 100) / 100 + 0.15) * 100) / 100 };
-    return { w: this.cols * cell.w, h: this.rows * cell.h, px, adv: cell.w / px, lock, nameEm: this.nameEm.em, digits, phone: this.phone, cross: crossDepth({ phone: this.phone !== undefined, framed: this.framed, rowH: cell.h }) };
+    return {
+      w: this.cols * cell.w,
+      h: this.rows * cell.h,
+      px,
+      adv: cell.w / px,
+      lock,
+      nameEm: this.nameEm.em,
+      digits,
+      phone: this.phone,
+      cross: crossDepth({ phone: this.phone !== undefined, framed: this.framed, rowH: cell.h }),
+      stones: stones.stones.length,
+      add: stones.canStartHerb,
+    };
   }
 
   private renderVitals(v: CharView, layout: CardLayout, colors: Record<VitalKind, string>, light: boolean): void {
