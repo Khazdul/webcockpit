@@ -39,3 +39,20 @@ sanctuary 1
 ## Generic
 
 buff 1 · debuff 1 · herblore 4 · flag 4
+
+## Round 2 (2026-11-24)
+
+The owner: orkish draught 1, antidote 3, clearthought 1, haste 1,
+shadows 1, second wind 7. Round 2 numbers the new proposals 6–10; the
+owner's 1 and 3 are read as their order on the page: orkish-draught-6,
+antidote-8 (the poison flag's flask struck through), clearthought-6,
+haste-6 (haste (recovery) 1's broken bolt), shadows-6 (the crescent);
+second-wind-7 (winded-1, the arrow up, longer and further out). To
+confirm with the owner.
+
+## Not recognised yet
+
+The stones the app does not recognise (see `inventory.md`, "not yet")
+keep their picks above. They get the generic icon of their group until
+the owner has confirmed them in the game; then their rules and these
+icons go in.

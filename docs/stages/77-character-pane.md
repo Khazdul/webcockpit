@@ -1913,3 +1913,20 @@ stone for the rest. Round 16 (`round16.html`): **variant C, heat** ("C
 värme är bra"): colour by step from calm to hot on the value, a fill
 track at the cell's foot and a slight warming of the ground; a small
 corner mark on the clickable cells. To build after H1–H4, H6.
+
+### H test and round 2 (2026-11-24)
+
+- Test guide "Part H": 1 ok ("stenraden ser OK ut"), 2 "ser bra ut", 4
+  ok. 3 works, but the tabs' look is "för moderna och ai-genererade": a
+  mockup round of other tab designs, several directions (round 17). 5: a
+  bug: Herblores, Buffs and Debuffs were SHOWN when the owner opened
+  Spells with the Character pane open; they should have SHOWN off.
+- A new desktop player (Character off) does **not** get the three groups
+  on in Spells: the owner will make a new default layout later, with
+  Character on (point 181 closed).
+- Stone icons round 2: orkish draught 1, antidote 3, clearthought 1,
+  haste 1, shadows 1, second wind 7 (`picks.md`; the round 2 page numbers
+  the new ones 6–10, read as their order: 6, 8, 6, 6, 6).
+- The affects the app does not recognise get the generic icon until the
+  owner has confirmed them in the game; their picks are kept
+  (`picks.md`) so they can be brought in later.
