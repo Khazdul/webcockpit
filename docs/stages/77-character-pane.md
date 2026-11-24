@@ -427,6 +427,35 @@ the main session. The owner looks after F2b, before the low panes.
   the command and the value changes only after the fixture's GMCP; the
   poll's answer is hidden from the game pane; Group without you.
 
+**Reconciled 2026-11-24 (approved by the owner).** Every unit item of
+both G lists already has tests (`gmcp-age`, `gmcp-info-answer`,
+`gmcp-info-typed`, `character-model`, `gmcp-group` selfFlags,
+`character-stones`, `character-layout`, `info-poll` F1, `timers-effects`);
+no new unit tests. Already in e2e: the card from the GMCP fixture, tabs,
+the fight (swords only), a click and GMCP, the hidden answer, `⋯`, `+n`
+and its list, the herblore `+` and ×, the low panes, the phone strip.
+To add (e2e), on a branch by a building agent:
+
+- [ ] G1. Your flags as stones from GMCP: `you` with `poison` gives a
+      stone, a `Group.Update` clears it, a member's poison gives none,
+      `blind` with the blindness debuff is one stone.
+- [ ] G2. Stones from real game lines (not `debugAdd`): an affect's start
+      line shows its stone, its end line takes it away.
+- [ ] G3. The Stones switches in the Character gear: Buffs off hides the
+      buff stones live, Flags off the flag stone.
+- [ ] G4. The whole click list: each clickable element sends its exact
+      command; berserk has no click.
+- [ ] G5. The poll's events in the browser: a mood change by GMCP and an
+      affect line each give a hidden poll after the quiet.
+- [ ] G6. Group without you: `Group.Set` with you and two allies shows
+      two rows, not you.
+- [ ] G7. The herblore × on touch (phone): the first tap shows ×, the
+      second stops it.
+- [ ] The full e2e at 5 workers, alone on the machine.
+
+Not added: the 10 s repeat in a browser (slow; unit tests with fake timers
+cover it).
+
 ### H. Polish (the owner, after D; a pass of its own)
 
 The owner looks closely and decides first. Named so far:
