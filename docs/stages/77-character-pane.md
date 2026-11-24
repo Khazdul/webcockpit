@@ -542,6 +542,23 @@ in F as **settings the owner can try while playing**, then narrowed:
    owner may add more later.
 5. The poll also runs while Status is shown (round 12, item 9).
 
+### Round 13 feedback → round 14 (the owner, 2026-11-24)
+
+Round 13 (`round13.html`) showed the chosen combination. The owner:
+
+- **The purse comes back**, bottom right, sharing the stones' last row,
+  right-aligned: gold, silver and copper if they fit, then gold and
+  silver, then gold only. The stones have priority; when they need the
+  whole row the purse goes. Purse stays in Lore.
+- **Lore:** a box for War points and one for War fame.
+- **Stats** shows the stones row at the bottom too, never the purse.
+- **Compact (low) panes:** some players want the pane very small. The
+  tabs may go when very compressed; the portrait is replaced by the
+  level/XP ring with the icons under it; the right side needs compressed
+  forms, in steps, of its three rows (status, shields, stones + purse).
+
+Round 14 (`round14.html`) mocks this. Waiting for the owner's look.
+
 ## Part A: findings
 
 ### Known before the live run (2026-11-22)

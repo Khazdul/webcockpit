@@ -19,7 +19,8 @@ page: open it from disk, or use the published artifact.
 | 10 | `round10.html` | <https://claude.ai/artifact/HqLErmKgiNZy1xiQCmuKko> | The fight card moves into Character (direction pass, 2026-11-23): placements A–J, fight modes a–e, your statuses in four places. Reversed by the owner: the fight card stays in Group. |
 | 11 | `round11.html` | <https://claude.ai/artifact/D8rFJqSrUSfHdAazqTMxvf> | Timers into Character: portrait part, letter step circles, name plates, six timer designs with automatic density, swords, portrait states, the gear. Owner's feedback in the stage file. |
 | 12 | `round12.html` | <https://claude.ai/artifact/HPRfa1wvpcnsBZBNopyjxc> | Square portrait frames, the glass name band high up, text status row with a step meter, shields under it, buffs/debuffs/herblores/flags round the portrait, ten vitals styles. The owner's picks: stage file, "Round 12 decisions". |
-| 13 | `round13.html` | <https://claude.ai/artifact/SbLxYTdBfupD2PLfx77AFz> | Only the chosen combination (round 12 decisions 1–9) in Medium, Large, tall and phone, with 3, 8 and 16 stones, in and out of a fight. The stones sit at the bottom of the status area. |
+| 13 | `round13.html` | <https://claude.ai/artifact/SbLxYTdBfupD2PLfx77AFz> | Only the chosen combination (round 12 decisions 1–9) in Medium, Large, tall and phone, with 3, 8 and 16 stones, in and out of a fight. The stones sit at the bottom of the status area. The owner: the purse back, compact panes. |
+| 14 | `round14.html` | <https://claude.ai/artifact/4fhnKBWgeQrNcfwi4L3DQe> | The purse right-aligned in the stones' last row (g+s+c, g+s, g, none; stones first), the stones row in Stats, War fame and War points in Lore, and steps 0–6 for low panes (ring instead of portrait, no tabs). |
 
 The race portraits are crude SVG placeholders (`<symbol id="r-…">` in each
 file, with transparent backgrounds from round 3 on). The chosen icon paths
