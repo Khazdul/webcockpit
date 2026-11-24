@@ -33,6 +33,8 @@ import { canWakeLock } from './wake-lock';
 import { canVibrate } from './haptics';
 import { okbLayout } from './keyboard-model';
 import type {
+  CharacterPollEvery,
+  CharacterPollOn,
   FontId,
   GroupAwayMode,
   GroupNpcMode,
@@ -282,6 +284,7 @@ export const PANES_GROUP: SettingsGroup = {
       get: (s) => s.character.fetchInfo,
       set: (fetchInfo) => ({ character: { fetchInfo } }),
     },
+    { kind: 'link', id: 'character-fetch', label: 'Character fetching', page: 'character' },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
   caption: 'Swipe the strip to change pane',
@@ -579,6 +582,47 @@ export const GROUP_GROUP: SettingsGroup = {
   ],
 };
 
+/** The Character gear's poll choices (src/chrome/pane-options-model.ts, held equal by a unit test). */
+export const CHARACTER_EVERY_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: '10', label: '10 s' },
+  { value: '20', label: '20 s' },
+  { value: '30', label: '30 s' },
+  { value: '60', label: '1 min' },
+  { value: '300', label: '5 min' },
+];
+export const CHARACTER_POLL_ON_NAMES: readonly { key: keyof CharacterPollOn; label: string }[] = [
+  { key: 'mood', label: 'Mood changes' },
+  { key: 'equipment', label: 'Wear or remove' },
+  { key: 'affects', label: 'Affects start or end' },
+  { key: 'herblore', label: 'Herblore started' },
+];
+
+/** Character: how often the card's values are fetched, and what fetches them at once (stage 77 F1). */
+export const CHARACTER_FETCH_GROUP: SettingsGroup = {
+  id: 'character-fetch',
+  title: 'Fetch Stats and Lore',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'character-every',
+      label: 'Fetch every',
+      options: CHARACTER_EVERY_OPTIONS,
+      get: (s) => String(s.character.pollEvery),
+      set: (v) => ({ character: { pollEvery: Number(v) as CharacterPollEvery } }),
+    },
+    ...CHARACTER_POLL_ON_NAMES.map(
+      (r): SettingsRow => ({
+        kind: 'toggle',
+        id: `character-on-${r.key}`,
+        label: r.label,
+        get: (s) => s.character.pollOn[r.key],
+        set: (on) => ({ character: { pollOn: { [r.key]: on } } }),
+      }),
+    ),
+  ],
+  caption: 'At once when: the switches. Only while the card shows.',
+};
+
 export interface SettingsSubPage {
   id: string;
   title: string;
@@ -588,6 +632,7 @@ export interface SettingsSubPage {
 /** The sub-pages a `link` row opens, by id. */
 export const SETTINGS_PAGES: Readonly<Record<string, SettingsSubPage>> = {
   'timers-group': { id: 'timers-group', title: 'Timers and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
+  character: { id: 'character', title: 'Character fetching', groups: [CHARACTER_FETCH_GROUP] },
 };
 
 /** The rows of a group that are there on this device. */

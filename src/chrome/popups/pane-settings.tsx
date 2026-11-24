@@ -32,6 +32,8 @@ import { paneShade } from '../../panes/shade';
 import {
   AWAY_MODE_CHOICES,
   CHARACTER_HEIGHT_CHOICES,
+  CHARACTER_POLL_EVERY_CHOICES,
+  CHARACTER_POLL_ON_ROWS,
   COMM_CHAT_WINDOW_CHOICES,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
@@ -56,6 +58,7 @@ import {
 } from '../pane-options-model';
 import { ColorPicker } from './color-picker';
 import { Dropdown, Row, Segmented, Toggle } from './controls';
+import type { CharacterPollEvery } from '../../settings/types';
 
 /** A channel's swatch while it is off. */
 const OFF_SWATCH = 'var(--sf-off)';
@@ -239,6 +242,20 @@ export function CharacterSettings(): VNode {
       <Row label="Fetch Stats and Lore from the game" help="Also fetches your wimpy at login">
         <Toggle label="Fetch Stats and Lore from the game" on={s.character.fetchInfo} onChange={(fetchInfo) => setCharacter(settings, { fetchInfo })} />
       </Row>
+      <Row label="Fetch every" help="While the card shows">
+        <Segmented
+          label="Fetch every"
+          value={String(s.character.pollEvery)}
+          options={CHARACTER_POLL_EVERY_CHOICES}
+          onChange={(v) => setCharacter(settings, { pollEvery: Number(v) as CharacterPollEvery })}
+        />
+      </Row>
+      <div class="wc-ck-sub">Fetch at once when</div>
+      {CHARACTER_POLL_ON_ROWS.map((r) => (
+        <Row key={r.key} label={r.label}>
+          <Toggle label={r.label} on={s.character.pollOn[r.key]} onChange={(on) => setCharacter(settings, { pollOn: { ...s.character.pollOn, [r.key]: on } })} />
+        </Row>
+      ))}
     </div>
   );
 }

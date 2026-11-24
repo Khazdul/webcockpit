@@ -41,7 +41,7 @@ import {
   type TimersSettings,
 } from '../settings';
 import { PICKER_COLORS } from '../panes/palette';
-import type { CharacterHeight, CharacterSettings, GroupSettings } from '../settings/types';
+import type { CharacterHeight, CharacterPollOn, CharacterSettings, GroupSettings } from '../settings/types';
 import type { TimerGroup } from '../timers/entry';
 
 // ------------------------------------------------------------------ comm
@@ -175,6 +175,23 @@ export const CHARACTER_HEIGHT_CHOICES: readonly { value: CharacterHeight; label:
   { value: 'auto', label: 'Auto' },
   { value: 'large', label: 'Large' },
   { value: 'medium', label: 'Medium' },
+];
+
+/** The info poll's repeat (`character.pollEvery`, seconds) as the gear's choices. */
+export const CHARACTER_POLL_EVERY_CHOICES: readonly { value: string; label: string }[] = [
+  { value: '10', label: '10 s' },
+  { value: '20', label: '20 s' },
+  { value: '30', label: '30 s' },
+  { value: '60', label: '1 min' },
+  { value: '300', label: '5 min' },
+];
+
+/** The info poll's events (`character.pollOn`), each a switch. */
+export const CHARACTER_POLL_ON_ROWS: readonly { key: keyof CharacterPollOn; label: string }[] = [
+  { key: 'mood', label: 'Mood changes' },
+  { key: 'equipment', label: 'Wear or remove' },
+  { key: 'affects', label: 'Affects start or end' },
+  { key: 'herblore', label: 'Herblore started' },
 ];
 
 /** Writes `patch` into the Character settings. */

@@ -14,6 +14,9 @@ import { setPhoneControls, setPhoneKit } from '../../src/phone/kit';
 import { Notices, noticeIndicators } from '../../src/app/notices';
 import { PhoneMenu, type PhoneMenuDeps, statusText } from '../../src/phone/menu-sheet';
 import {
+  CHARACTER_EVERY_OPTIONS,
+  CHARACTER_FETCH_GROUP,
+  CHARACTER_POLL_ON_NAMES,
   GROUP_AWAY_OPTIONS,
   GROUP_GROUP,
   GROUP_NPC_OPTIONS,
@@ -33,6 +36,8 @@ import {
 } from '../../src/phone/settings-page';
 import {
   AWAY_MODE_CHOICES,
+  CHARACTER_POLL_EVERY_CHOICES,
+  CHARACTER_POLL_ON_ROWS,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
   TIMER_LAYOUT_CHOICES,
@@ -584,7 +589,7 @@ describe('the settings page as data', () => {
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
     expect(SETTINGS_GROUPS.map((g) => g.title)).toEqual(['Text', 'Quick buttons', 'Keyboard', 'Map lens', 'Panes', 'Comm', 'Connection']);
     expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens', 'action:lens-reset']);
-    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'toggle:fight-card', 'toggle:fetch-info', 'link:timers-group']);
+    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'toggle:fight-card', 'toggle:fetch-info', 'link:character-fetch', 'link:timers-group']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font', 'pick:input-color']);
   });
 
@@ -632,6 +637,43 @@ describe('the settings page as data', () => {
     expect(settings.get().appearance.inputColor).toBe('steel');
     expect(menu.host.querySelector('[data-pick="input-color"]')).toBeNull();
     expect(row()?.querySelector('.wc-ph-srow-v')?.textContent).toBe('Steel');
+  });
+});
+
+describe('the Character fetching sub-page (stage 77 F1)', () => {
+  it("its choices and names are the desktop gear's", () => {
+    expect(CHARACTER_EVERY_OPTIONS).toEqual(CHARACTER_POLL_EVERY_CHOICES);
+    expect(CHARACTER_POLL_ON_NAMES).toEqual(CHARACTER_POLL_ON_ROWS);
+    expect(SETTINGS_PAGES.character!.groups).toEqual([CHARACTER_FETCH_GROUP]);
+  });
+
+  it('its rows read and patch character.pollEvery and character.pollOn', () => {
+    const d = defaultSettings();
+    const rows = CHARACTER_FETCH_GROUP.rows;
+    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual([
+      'seg:character-every',
+      'toggle:character-on-mood',
+      'toggle:character-on-equipment',
+      'toggle:character-on-affects',
+      'toggle:character-on-herblore',
+    ]);
+    const [every, mood] = rows;
+    if (every?.kind !== 'seg' || mood?.kind !== 'toggle') throw new Error('row kinds');
+    expect(every.get(d)).toBe('20');
+    expect(every.set('60', d)).toEqual({ character: { pollEvery: 60 } });
+    expect(mood.get(d)).toBe(true);
+    expect(mood.set(false, d)).toEqual({ character: { pollOn: { mood: false } } });
+  });
+
+  it('opens from the Panes group; a switch writes the shared key', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings('sheet'));
+    const page = (): string | undefined => (menu.host.querySelector('.wc-ph-page') as HTMLElement).dataset.page;
+    tap(menu.host.querySelector('[data-group="panes"] [data-row="character-fetch"]'));
+    expect(page()).toBe('sub:character');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Character fetching');
+    tap(menu.host.querySelector('[data-row="character-on-equipment"] [role="switch"]'));
+    expect(settings.get().character.pollOn).toEqual({ mood: true, equipment: false, affects: true, herblore: true });
   });
 });
 
