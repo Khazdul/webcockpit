@@ -1,0 +1,2053 @@
+<title>Character Pane Round 18</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=JetBrains+Mono:wght@400;600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Round 18 (stage 77, after round 17): the Status / Stats / Lore tabs and the ground they share with the
+   content. Eight new directions (G-N), under the hood, on the right and on the left, and A, D and E of
+   round 17 one step further (A2, D2, E2). The content (the status cells and shields, Stats, Lore) lies on
+   a sheet that is one piece with the chosen tab. The card is round 16's with variant C (heat). */
+:root {
+  color-scheme: dark;
+  --wall: #0a0c10; --wall2: #11141a; --ink: #e6e2d8; --ink-dim: #a29d91; --rule: #262a32;
+  --pane-bg: #12161f; --lamp: #e9cf9f; --lamp-hot: #fbe7c2;
+  --iron: #2a2d32; --iron-hi: #4a4e56; --iron-lo: #15171a;
+  --frost-edge: rgba(233,207,159,.24);
+  --text: #e2e0da; --dim: #8f8c84; --faint: #55534e;
+  --hp: #2fa84f; --ma: #3d7eff; --mv: #c08a3e; --crit: #ff4d4d; --xp: #d2ad5c; --tp: #62c3b2; --up: #6fd38a; --down: #ff8a7a;
+  --gilt: rgba(210,173,92,.62);
+  --g-herb: #a6c95a; --g-sanct: #f0b6e4; --g-buff: #4cc96a; --g-debuff: #c8504f;
+  --display: "Cinzel", Georgia, serif; --flavor: "Cormorant Garamond", Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace; --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.55 var(--body);
+  background-image: radial-gradient(1200px 500px at 50% -200px, rgba(233,207,159,.07), transparent); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .04em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 42px); color: var(--lamp-hot); }
+h2 { font-size: 22px; color: var(--lamp); }
+h3 { font-size: 15px; letter-spacing: .06em; color: var(--ink); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--ink-dim); font-size: 17px; margin-top: 10px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
+section { margin-top: 56px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.sec-head p { color: var(--ink-dim); }
+.scroll { overflow-x: auto; max-width: 100%; padding: 14px 4px 18px; }
+.lbl { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .06em; }
+.changes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; margin-top: 18px; }
+.changes div { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; }
+.changes b { color: var(--ink); font-weight: 600; }
+.pollnote { margin-top: 12px; font-size: 14.5px; color: var(--ink-dim); border: 1px dashed #4a4436; border-radius: 6px; padding: 8px 12px; max-width: 90ch; }
+.pollnote b { color: var(--lamp-hot); }
+
+.bench { background: var(--wall2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 520px) { .bench { padding: 10px; } }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #333944; border-radius: 7px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; font: 600 13px/1 var(--body); padding: 8px 10px; color: var(--ink-dim); background: #161a21; }
+.seg button + button { border-left: 1px solid #333944; }
+.seg button:hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.seg button.on { background: var(--lamp); color: #1b160d; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); flex-wrap: wrap; }
+.benchnote { font-size: 14.5px; color: var(--ink-dim); border-left: 2px solid var(--lamp); padding: 2px 0 2px 10px; max-width: 90ch; }
+.benchnote b { color: var(--ink); }
+details.more { font-size: 13px; color: var(--ink-dim); }
+details.more summary { cursor: pointer; color: var(--lamp); font-weight: 600; }
+
+/* ---------------------------------------------------------------- Lykta pane */
+.pane { position: relative; padding: 5px; border-radius: 3px; flex: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(74,78,86,.8), inset -1px -1px 0 var(--iron-lo), 0 0 0 1px #000, 0 0 22px -4px rgba(233,207,159,.22); }
+.pane > .hood { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 8; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5);
+  font: 700 11px/16px var(--display); letter-spacing: .1em; color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.45); }
+.pane > .hood::before, .pane > .hood::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.pane > .hood::before { left: 5px; } .pane > .hood::after { right: 5px; }
+.pane > .gearb { position: absolute; right: 9px; top: 1px; z-index: 8; width: 12px; height: 12px; stroke: var(--dim); fill: none; stroke-width: 2; opacity: .7; }
+.win { position: relative; border: 1px solid #000; border-radius: 1px; padding: 20px 8px 8px; overflow: hidden; font: 12.5px/1.35 var(--mono); color: var(--text);
+  display: flex; flex-direction: column; gap: 6px;
+  background: radial-gradient(38% 46px at 50% 0, rgba(233,207,159,.16), transparent),
+    radial-gradient(120% 80% at 50% 28%, rgba(233,207,159,.15), rgba(233,207,159,.04) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px rgba(233,207,159,.10), inset 0 0 24px rgba(0,0,0,.55); }
+.win.strip { padding: 10px 8px; }
+.win.crop { padding: 12px; align-items: center; }
+
+/* ---------------------------------------------------------------- Paper pane (light) */
+.pane.paper, .lightbg, .lit { --iron: #cbbd9c; --iron-hi: #efe6d1; --iron-lo: #8c7b58; --pane-bg: #f1e8d4;
+  --text: #2d2619; --dim: #6e634d; --faint: #b3a78d; --lamp: #6e5220; --lamp-hot: #3b2b10; --frost-edge: rgba(60,40,10,.22);
+  --xp: #d09a1c; --tp: #00737e; --crit: #c42f26; --gilt: rgba(150,105,20,.75);
+  --g-herb: #5c7a12; --g-sanct: #a956b5; --g-buff: #2a6e1a; --g-debuff: #98332f; }
+.pane.paper { box-shadow: inset 1px 1px 0 #f5eedd, inset -1px -1px 0 #8c7b58, 0 0 0 1px #3a3020; }
+:is(.pane.paper, .lit) > .hood { color: #3b2b10; text-shadow: none; box-shadow: inset 0 -1px 0 #f5eedd, 0 0 0 1px #6e6048, 0 2px 4px rgba(0,0,0,.25); }
+:is(.pane.paper, .lit) > .win { border-color: #6e6048; background: #f1e8d4; box-shadow: inset 0 0 0 1px rgba(60,40,10,.12); }
+:is(.pane.paper, .lit) .f, :is(.pane.paper, .lit) .abx, :is(.pane.paper, .lit) .shl > div, :is(.pane.paper, .lit) .agebox, :is(.pane.paper, .lit) .sen > div { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.07), 0 1px 2px rgba(60,40,10,.18); }
+:is(.pane.paper, .lit) .lr { background: radial-gradient(circle, #f7efdf 60%, transparent 63%); }
+:is(.pane.paper, .lit) .vt button { background: linear-gradient(90deg, rgba(60,40,10,.12), rgba(60,40,10,.04)); box-shadow: none; }
+:is(.pane.paper, .lit) .vt button.on { background: #fffdf8; box-shadow: inset 2px 0 0 #8c7b58; color: #3b2b10; }
+:is(.pane.paper, .lit) .ti.on { filter: none; }
+
+/* ---------------------------------------------------------------- icons */
+.ti { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.ti.on { stroke: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.7)); }
+.ti.posi { stroke: var(--text); } .ti.posi.fight { stroke: var(--crit); filter: drop-shadow(0 0 3px rgba(255,77,77,.6)); }
+
+/* ---------------------------------------------------------------- the card */
+.cw { position: relative; display: flex; gap: 8px; flex: none; min-height: 0; }
+.lc { position: relative; flex: none; align-self: center; }
+.lc.top { align-self: flex-start; }
+.ra { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.ra.scrolly { overflow-y: auto; scrollbar-width: thin; }
+
+/* the portrait: square frames */
+.pf { position: absolute; z-index: 1; border-radius: var(--R); padding: var(--t); transition: filter .6s; }
+.pf > .pimg { position: relative; width: 100%; height: 100%; border-radius: calc(var(--R) - var(--t) + 1px); overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%); box-shadow: inset 0 0 14px rgba(0,0,0,.85); }
+.pimg svg.fig, .disc2 svg.fig { position: absolute; left: 6%; top: 8%; width: 88%; height: 100%; transition: filter .6s; }
+.pf.dim1 svg.fig, .disc2.dim1 svg.fig { filter: brightness(.68) saturate(.75); }
+.pf.sleep svg.fig, .disc2.sleep svg.fig { filter: brightness(.46) saturate(.55); }
+.f-iron { background: linear-gradient(160deg, #62666e, #2c2f35 42%, #17191c); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.2), 0 2px 6px rgba(0,0,0,.6); }
+.f-iron > .pimg { box-shadow: 0 0 0 1px #000, inset 0 0 14px rgba(0,0,0,.85); }
+.f-double { background: transparent; box-shadow: 0 0 0 1px rgba(233,207,159,.45), 0 0 0 2px rgba(0,0,0,.8); }
+.f-double > .pimg { box-shadow: 0 0 0 1px rgba(0,0,0,.9), 0 0 0 2px rgba(233,207,159,.45), inset 0 0 14px rgba(0,0,0,.85); }
+.f-bronze { background: linear-gradient(135deg, #e6b874, #9a6a2e 28%, #5a3a16 58%, #b98a4a 82%, #6b4a22); box-shadow: 0 0 0 1px #000, inset 1px 1px 0 rgba(255,232,190,.65), inset -1px -1px 0 rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.6); }
+.f-bronze > .pimg { box-shadow: 0 0 0 1px rgba(40,22,6,.95), -1px -1px 0 1px rgba(0,0,0,.35), 1px 1px 0 1px rgba(255,232,190,.35), inset 0 0 14px rgba(0,0,0,.85); }
+.f-dnd { background: linear-gradient(180deg, #2f2820, #18140f); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(210,173,92,.4), 0 2px 6px rgba(0,0,0,.6); }
+.f-dnd > .pimg { box-shadow: 0 0 0 1px var(--gilt), 0 0 0 2px #000, inset 0 0 14px rgba(0,0,0,.85); }
+.f-gilt { background: linear-gradient(170deg, #4a4e56, #26292e 50%, #1a1c20); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.14), 0 0 10px -2px rgba(233,207,159,.28); }
+.f-gilt > .pimg { box-shadow: 0 0 0 1px var(--gilt), 0 0 0 2px rgba(0,0,0,.7), inset 0 0 14px rgba(0,0,0,.85); }
+.f-mat { background: linear-gradient(180deg, #4b4437, #312c24); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(255,240,210,.12), 0 2px 6px rgba(0,0,0,.6); }
+.f-mat > .pimg { box-shadow: 0 0 0 1px rgba(0,0,0,.75), 0 -1px 0 1px rgba(0,0,0,.4), 0 1px 0 1px rgba(255,240,210,.22), inset 0 2px 5px rgba(0,0,0,.95), inset 0 0 14px rgba(0,0,0,.8); }
+.orn { position: absolute; z-index: 3; fill: none; stroke: var(--gilt); stroke-width: 1.1; stroke-linecap: round; pointer-events: none; }
+.orn circle { fill: var(--gilt); stroke: none; }
+:is(.pane.paper, .lit) .pf > .pimg, :is(.pane.paper, .lit) .disc2 { background: radial-gradient(circle at 50% 40%, #f4e9d2, #d9ccb0 78%); box-shadow: inset 0 0 10px rgba(60,40,10,.25); }
+:is(.pane.paper, .lit) .f-iron { background: linear-gradient(160deg, #efe6d1, #b8a983 50%, #8c7b58); box-shadow: 0 0 0 1px #3a3020; }
+:is(.pane.paper, .lit) .f-double { box-shadow: 0 0 0 1px #6e5220, 0 0 0 2px #f1e8d4; } :is(.pane.paper, .lit) .f-double > .pimg { box-shadow: 0 0 0 1px #f1e8d4, 0 0 0 2px #6e5220, inset 0 0 10px rgba(60,40,10,.25); }
+:is(.pane.paper, .lit) .f-bronze > .pimg { box-shadow: 0 0 0 1px #3a2610, inset 0 0 10px rgba(60,40,10,.25); }
+:is(.pane.paper, .lit) .f-dnd { background: linear-gradient(180deg, #8a6a3e, #5e4524); box-shadow: 0 0 0 1px #3a2610, inset 0 0 0 1px rgba(255,230,170,.55); }
+:is(.pane.paper, .lit) .f-gilt { background: linear-gradient(170deg, #d9ccb0, #a89878); box-shadow: 0 0 0 1px #3a3020; }
+:is(.pane.paper, .lit) .f-mat { background: linear-gradient(180deg, #fffdf8, #e9dfc6); box-shadow: 0 0 0 1px #6e6048; }
+:is(.pane.paper, .lit) .f-mat > .pimg { box-shadow: 0 0 0 1px #8c7b58, inset 0 2px 4px rgba(60,40,10,.35); }
+/* the round portrait (round 11, style a) */
+.disc2 { position: absolute; border-radius: 50%; overflow: hidden; z-index: 1;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%);
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--iron-hi), 0 0 0 4px #000, 0 0 0 5px rgba(233,207,159,.25), inset 0 0 16px rgba(0,0,0,.9); }
+:is(.pane.paper, .lit) .disc2 { box-shadow: 0 0 0 1px #3a3020, 0 0 0 3px var(--iron-hi), 0 0 0 4px #3a3020; }
+
+.lrpos { position: absolute; z-index: 5; }
+.lr { position: relative; flex: none; display: grid; place-items: center; background: radial-gradient(circle, #15130f 60%, transparent 63%); border-radius: 50%; }
+.lr svg { position: absolute; inset: 0; }
+.lr b { font: 700 var(--fs, 11px)/1 var(--display); color: var(--lamp-hot); position: relative; }
+.icrow { position: absolute; z-index: 4; display: flex; justify-content: space-between; }
+.icrow > span { cursor: pointer; border-radius: 3px; }
+.icrow .pend, .sr.pend { opacity: .4; animation: pend 1s ease-in-out infinite; }
+@keyframes pend { 50% { opacity: .75; } }
+
+/* the name: the glass band */
+.npl { position: absolute; z-index: 3; display: grid; place-items: center; font-family: var(--display); font-weight: 700; letter-spacing: .14em; white-space: nowrap; overflow: hidden; }
+.npl.glass { color: var(--lamp-hot); text-shadow: 0 0 5px rgba(233,207,159,.8), 0 1px 1px #000; backdrop-filter: blur(2px);
+  background: rgba(10,12,16,.58); box-shadow: inset 0 1px 0 rgba(233,207,159,.35), inset 0 -1px 0 rgba(233,207,159,.35); }
+.npl.gtop { left: 0; right: 0; top: 0; box-shadow: inset 0 -1px 0 rgba(233,207,159,.35); }
+.npl.gtab { top: 0; transform: translateX(-50%); padding: 0 8px; border-radius: 0 0 6px 6px; box-shadow: inset 0 -1px 0 rgba(233,207,159,.35), inset 1px 0 0 rgba(233,207,159,.2), inset -1px 0 0 rgba(233,207,159,.2); }
+.npl.gcorner { transform: rotate(-45deg); }
+.npl.gcap { z-index: 2; border-radius: 7px 7px 0 0; background: rgba(10,12,16,.72); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(233,207,159,.4), inset 1px 0 0 rgba(233,207,159,.18), inset -1px 0 0 rgba(233,207,159,.18); }
+.npl.gbelow { z-index: 2; border-radius: 0 0 7px 7px; background: rgba(10,12,16,.72); box-shadow: 0 0 0 1px #000, inset 0 -1px 0 rgba(233,207,159,.4), inset 1px 0 0 rgba(233,207,159,.18), inset -1px 0 0 rgba(233,207,159,.18); }
+.npl.rail { left: 0; right: 0; top: 0; z-index: 2; color: var(--lamp-hot); text-shadow: 0 -1px 0 rgba(0,0,0,.9), 0 0 5px rgba(233,207,159,.6); background: none; }
+.npl.rail i { position: absolute; left: 22%; right: 22%; top: 3px; bottom: 2px; border-radius: 3px; background: rgba(10,12,16,.55); box-shadow: inset 0 1px 2px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.12); z-index: -1; }
+:is(.pane.paper, .lit) .npl.glass, :is(.pane.paper, .lit) .npl.gcap, :is(.pane.paper, .lit) .npl.gbelow { background: rgba(255,250,238,.78); color: #3b2b10; text-shadow: none; }
+:is(.pane.paper, .lit) .npl.rail { color: #2d2619; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+:is(.pane.paper, .lit) .npl.rail i { background: rgba(255,250,238,.7); box-shadow: inset 0 1px 2px rgba(60,40,10,.4); }
+
+/* the portrait's state */
+.srun { position: absolute; z-index: 4; pointer-events: none; overflow: visible; fill: none; }
+.srun .bg { stroke: rgba(255,240,214,.13); stroke-width: 2.4; }
+.srun .arc { stroke: #fff4dc; stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255,240,214,.95)) drop-shadow(0 0 6px rgba(255,240,214,.5)); }
+.srun .glow { stroke: rgba(255,244,220,.42); stroke-width: 1.6; filter: drop-shadow(0 0 4px rgba(255,240,214,.6)); }
+.srun .spark { stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-dasharray: 5 95; filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 7px rgba(255,240,214,.9)); animation: srun 3.2s linear infinite; }
+.srun .spark.full { animation-duration: 4.5s; --end: -100; }
+@keyframes srun { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--end); } }
+:is(.pane.paper, .lit) .srun .arc, :is(.pane.paper, .lit) .srun .spark { stroke: #a956b5; filter: none; }
+:is(.pane.paper, .lit) .srun .glow { stroke: rgba(169,86,181,.45); filter: none; }
+.zz { position: absolute; z-index: 5; font: italic 600 1em/1 var(--flavor); color: var(--lamp-hot); text-shadow: 0 0 5px rgba(233,207,159,.7); animation: zz 3s ease-in-out infinite; pointer-events: none; }
+.zz small { font-size: .7em; margin-left: 1px; vertical-align: super; }
+@keyframes zz { 0% { transform: translateY(3px); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateY(-4px); opacity: .3; } }
+
+/* the stones (round 11's dense rune stones, with the bar under the icon) */
+.st { position: absolute; z-index: 3; display: block; }
+.st .ib { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); border-radius: 3px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--c) 22%, rgba(0,0,0,.5)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 60%, transparent), 0 0 0 1px rgba(0,0,0,.6); }
+.st .ib .ti { width: 74%; height: 74%; stroke: var(--c); stroke-width: 2.3; }
+.st .tb { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 1px; background: rgba(0,0,0,.6); overflow: hidden; }
+.st .tb i { display: block; height: 100%; width: var(--p); background: var(--c); }
+.st.untimed .ib { box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--c) 70%, transparent); outline-offset: -1px; }
+.st.untimed .tb { display: none; }
+.st.end .ib { box-shadow: 0 0 0 1px var(--crit), 0 0 5px rgba(255,77,77,.7); }
+.st .x { display: none; position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); place-items: center; background: rgba(0,0,0,.78); border-radius: 3px; cursor: pointer; }
+.st .x .ti { width: 70%; height: 70%; stroke: var(--text); }
+.st.rm:hover .x { display: grid; }
+.st.add .ib { background: transparent; box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--g-herb) 75%, transparent); outline-offset: -1px; color: var(--g-herb); font: 700 10px/1 var(--mono); cursor: pointer; }
+.st.add .ib:hover { background: color-mix(in srgb, var(--g-herb) 22%, transparent); }
+.st.add .tb, .st.more .tb { display: none; }
+.st.more .ib { background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(233,207,159,.25); font: 800 7.5px/1 var(--mono); letter-spacing: -.04em; color: var(--text); cursor: pointer; }
+.spillrow { position: relative; flex: none; }
+:is(.pane.paper, .lit) .st .ib { background: color-mix(in srgb, var(--c) 16%, #fffdf8); box-shadow: inset 0 1px 0 var(--c), 0 0 0 1px rgba(60,40,10,.25); }
+:is(.pane.paper, .lit) .st.untimed .ib, :is(.pane.paper, .lit) .st.add .ib { box-shadow: none; }
+:is(.pane.paper, .lit) .st .tb { background: rgba(60,40,10,.15); }
+:is(.pane.paper, .lit) .st.more .ib { background: #fffdf8; }
+
+/* the status row */
+.srow { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); flex: none; }
+.sr { all: unset; box-sizing: border-box; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 3px 4px; cursor: pointer; border-radius: 3px; overflow: hidden; }
+.sr:focus-visible { outline: 1px solid var(--lamp); }
+.sr.ro { cursor: default; }
+.sr .k { font: 700 7px/1 var(--display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; white-space: nowrap; }
+.sr b { font: 700 var(--vf, 11px)/1 var(--mono); color: var(--text); white-space: nowrap; }
+.sr { padding: 3px 3px; }
+.hasm .sr { padding-right: 8px; }
+.hasm .sr .k { margin-right: -6px; }
+.sr .mt { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column-reverse; gap: 1px; }
+.sr .mt i { display: block; width: 3px; height: 2px; border-radius: .5px; background: color-mix(in srgb, var(--lamp) 20%, transparent); }
+.sr .mt i.on { background: var(--lamp-hot); box-shadow: 0 0 3px rgba(233,207,159,.75); }
+.srow.one .sr { flex-direction: row; justify-content: space-between; gap: 4px; }
+.srow.one .sr .mt i { height: 1.5px; }
+.sv-plain .sr:not(:first-child)::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 1px; background: rgba(233,207,159,.16); }
+.sv-plain .sr:hover:not(.ro) { background: rgba(233,207,159,.06); }
+.sv-cells .sr { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px rgba(233,207,159,.17); }
+.sv-cells .sr:hover:not(.ro) { box-shadow: inset 0 0 0 1px rgba(233,207,159,.4); }
+.sv-buttons .sr { background: linear-gradient(180deg, #363a42, #1f2227); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.13), 0 1px 2px rgba(0,0,0,.6); }
+.sv-buttons .sr:active:not(.ro) { transform: translateY(1px); background: linear-gradient(180deg, #24272c, #2e3238); }
+.sv-buttons .sr.ro { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.sv-wells .sr { background: rgba(0,0,0,.36); box-shadow: inset 0 1px 3px rgba(0,0,0,.95), 0 1px 0 rgba(233,207,159,.11); }
+.sv-legend .sr { overflow: visible; margin-top: 4px; padding-top: 6px; border: 1px solid rgba(233,207,159,.24); border-radius: 4px; }
+.sv-legend .sr .k { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); padding: 0 3px; background: var(--pane-bg); }
+.sv-plates .sr { background: linear-gradient(180deg, #30333a, #202328); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.1); border-radius: 2px; }
+.sv-under .sr { flex-direction: column-reverse; gap: 2px; }
+.sv-under .sr b { padding-bottom: 2px; border-bottom: 1px solid rgba(233,207,159,.3); }
+:is(.pane.paper, .lit) .sv-cells .sr { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.2); }
+:is(.pane.paper, .lit) .sv-buttons .sr, :is(.pane.paper, .lit) .sv-plates .sr { background: linear-gradient(180deg, #fffdf8, #e6dcc4); box-shadow: 0 0 0 1px #8c7b58, inset 0 1px 0 #fff; }
+:is(.pane.paper, .lit) .sv-wells .sr { background: rgba(60,40,10,.08); box-shadow: inset 0 1px 3px rgba(60,40,10,.4), 0 1px 0 #fff; }
+:is(.pane.paper, .lit) .sv-legend .sr { border-color: rgba(60,40,10,.3); } :is(.pane.paper, .lit) .sv-legend .sr .k { background: #f1e8d4; }
+:is(.pane.paper, .lit) .sr .mt i.on { box-shadow: none; }
+
+/* the shields, purse and the name + race */
+.reg { display: flex; flex-direction: column; gap: 3px; min-height: 0; flex: none; }
+.shg { display: grid; gap: 3px; align-items: center; justify-items: center; flex: none; }
+.shd { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.shd .sb { position: relative; display: block; }
+.shd svg.sp { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sp .o { fill: rgba(0,0,0,.32); stroke: color-mix(in srgb, var(--lamp) 70%, transparent); stroke-width: 1.4; }
+.sp .in { fill: none; stroke: rgba(233,207,159,.22); stroke-width: .8; }
+.sp .gem { fill: var(--lamp-hot); stroke: none; }
+.sp .rv { fill: color-mix(in srgb, var(--lamp) 60%, transparent); }
+.shd .sic { position: absolute; left: 50%; transform: translateX(-50%); stroke: var(--lamp); }
+.shd b { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--mono); font-weight: 700; line-height: 1; color: var(--lamp-hot); }
+.shd small { font: 700 7px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+:is(.pane.paper, .lit) .sp .o { fill: #fffdf8; stroke: #8c7b58; } :is(.pane.paper, .lit) .sp .in { stroke: rgba(60,40,10,.25); }
+.purse { display: flex; justify-content: flex-end; align-items: center; gap: 7px; font: 700 10.5px/1 var(--mono); color: var(--text); flex: none; height: 15px; }
+.purse span { display: inline-flex; align-items: center; gap: 2px; }
+.coin2 { display: block; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.ident { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0; overflow: hidden; }
+.ident b { font: 700 12px/1 var(--display); letter-spacing: .1em; color: var(--lamp-hot); white-space: nowrap; }
+.ident span { font: italic 600 13px/1 var(--flavor); color: var(--dim); white-space: nowrap; }
+.ident.one { flex-direction: row; align-items: baseline; gap: 7px; height: 14px; }
+
+/* vitals */
+.vit3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; padding: 0 6px; flex: none; }
+.vit { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.b { position: relative; display: block; height: 11px; border-radius: 5px; background: rgba(0,0,0,.55); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 rgba(233,207,159,.12); min-width: 0; }
+.b > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: inherit; transition: width .4s;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.b > u { position: absolute; top: 0; bottom: 0; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-radius: 0 4px 4px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 5px); }
+.b > .wim { position: absolute; left: var(--p); bottom: -6px; height: 4px; width: 0; margin-left: -4px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid var(--lamp-hot); z-index: 5; }
+.b > .lab { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 7px; font: 700 11px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; white-space: nowrap; overflow: hidden; }
+.b > .lab small { font-weight: 400; opacity: .75; } .b > .lab .k2 { font: 700 9px/1 var(--display); letter-spacing: .12em; opacity: .85; }
+.hp { --c: var(--hp); } .ma { --c: var(--ma); } .mv { --c: var(--mv); }
+:is(.pane.paper, .lit) .b { background: #a39880; box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 0 #fff; }
+/* engraved groove */
+.vv-groove .b { border-radius: 3px; background: linear-gradient(180deg, #040507, #12151a 45%, #2a2e35); box-shadow: inset 0 1px 2px rgba(0,0,0,.95), inset 0 -1px 0 rgba(233,207,159,.16), 0 1px 0 rgba(233,207,159,.18), 0 -1px 0 rgba(0,0,0,.7); }
+.vv-groove .b::before { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 1px; background: rgba(233,207,159,.13); }
+:is(.pane.paper, .lit) .vv-groove .b { background: linear-gradient(180deg, #8f8266, #b5a888 55%, #d6cab0); box-shadow: inset 0 1px 2px rgba(40,25,5,.6), 0 1px 0 #fff; }
+/* thin gilt frame */
+.vv-gilt .b { border-radius: 2px; background: rgba(233,207,159,.07); box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--gilt), 0 0 0 3px rgba(0,0,0,.55), inset 0 1px 2px rgba(0,0,0,.75); }
+:is(.pane.paper, .lit) .vv-gilt .b { background: #d9ccb0; box-shadow: 0 0 0 1px #fff, 0 0 0 2px var(--gilt), inset 0 1px 2px rgba(60,40,10,.35); }
+/* iron end caps */
+.vv-caps .vit { padding: 0 5px; }
+.vv-caps .b { border-radius: 1px; background: rgba(0,0,0,.6); box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(233,207,159,.1); }
+.vv-caps .b::before, .vv-caps .b::after { content: ""; position: absolute; top: -2px; bottom: -2px; width: 6px; z-index: 4; border-radius: 3px;
+  background: linear-gradient(180deg, #70747c, #2c2f35 55%, #15171a); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.28); }
+.vv-caps .b::before { left: -5px; } .vv-caps .b::after { right: -5px; }
+:is(.pane.paper, .lit) .vv-caps .b { background: #b3a78d; } :is(.pane.paper, .lit) .vv-caps .b::before, :is(.pane.paper, .lit) .vv-caps .b::after { background: linear-gradient(180deg, #fffdf8, #b8a983); box-shadow: 0 0 0 1px #6e6048; }
+/* parchment-tinted empty track */
+.vv-parch .b { border-radius: 2px; background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 5px), linear-gradient(180deg, rgba(233,207,159,.22), rgba(233,207,159,.12)); box-shadow: 0 0 0 1px rgba(0,0,0,.75), inset 0 1px 1px rgba(0,0,0,.5); }
+:is(.pane.paper, .lit) .vv-parch .b { background: repeating-linear-gradient(90deg, rgba(60,40,10,.06) 0 1px, transparent 1px 5px), #e2d4b4; box-shadow: 0 0 0 1px #8c7b58, inset 0 1px 1px rgba(60,40,10,.3); }
+/* hatched fill, iron rim */
+.vv-hatch .b { border-radius: 2px; background: rgba(0,0,0,.55); box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--iron-hi), inset 0 1px 2px #000; }
+.vv-hatch .b > i { background: repeating-linear-gradient(45deg, rgba(0,0,0,.22) 0 1px, transparent 1px 4px), linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), var(--c) 55%, color-mix(in srgb, var(--c), #000 22%)); }
+:is(.pane.paper, .lit) .vv-hatch .b { background: #b3a78d; box-shadow: 0 0 0 1px #6e6048, inset 0 1px 2px rgba(60,40,10,.4); }
+/* grain on the fill, engraved track */
+.vv-grain .b { border-radius: 3px; background: linear-gradient(180deg, #050608, #191c22); box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(233,207,159,.16), 0 0 0 1px rgba(0,0,0,.6); }
+.vv-grain .b > i { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='24'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.08 .9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 22%), var(--c) 50%, color-mix(in srgb, var(--c), #000 25%)); }
+:is(.pane.paper, .lit) .vv-grain .b { background: linear-gradient(180deg, #8f8266, #c9bc9e); box-shadow: inset 0 1px 2px rgba(40,25,5,.5), 0 1px 0 #fff; }
+/* leather, stitched */
+.vv-leather .b { border-radius: 4px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='24'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' seed='8'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), linear-gradient(180deg, #2a2017, #17110b); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,220,170,.08); }
+.vv-leather .b::before { content: ""; position: absolute; left: 3px; right: 3px; top: 2px; bottom: 2px; z-index: 3; border: 1px dashed rgba(233,207,159,.28); border-radius: 3px; pointer-events: none; }
+:is(.pane.paper, .lit) .vv-leather .b { background: linear-gradient(180deg, #a6865a, #7d6038); box-shadow: 0 0 0 1px #3a2610; } :is(.pane.paper, .lit) .vv-leather .b::before { border-color: rgba(255,240,210,.55); }
+/* glass bead highlight */
+.vv-bead .b { border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.5)), rgba(0,0,0,.45); box-shadow: inset 0 1px 2px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.1); }
+.vv-bead .b > i { border-radius: 999px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 45%), color-mix(in srgb, var(--c), #fff 12%) 32%, var(--c) 58%, color-mix(in srgb, var(--c), #000 32%)); box-shadow: inset 0 -2px 3px rgba(0,0,0,.25); }
+.vv-bead .b > i::after { content: ""; position: absolute; left: 5px; right: 5px; top: 2px; height: 28%; border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,0)); }
+.vv-bead .b > u { border-radius: 0 999px 999px 0; }
+:is(.pane.paper, .lit) .vv-bead .b { background: linear-gradient(180deg, #c9bc9e, #a39880); }
+/* D&D card, gem caps */
+.vv-gem .vit { padding: 0 6px; }
+.vv-gem .b { border-radius: 1px; background: rgba(233,207,159,.06); box-shadow: 0 0 0 1px var(--gilt), 0 0 0 2px #000, inset 0 1px 2px rgba(0,0,0,.8); }
+.vv-gem .b::before, .vv-gem .b::after { content: ""; position: absolute; top: 50%; width: 8px; height: 8px; margin-top: -4px; z-index: 4; transform: rotate(45deg);
+  background: radial-gradient(circle at 35% 35%, #fff 0 10%, color-mix(in srgb, var(--c), #fff 30%) 22%, var(--c) 55%, color-mix(in srgb, var(--c), #000 45%));
+  box-shadow: 0 0 0 1px var(--gilt), 0 0 0 2px #000, 0 0 5px color-mix(in srgb, var(--c) 70%, transparent); }
+.vv-gem .b::before { left: -6px; } .vv-gem .b::after { right: -6px; }
+:is(.pane.paper, .lit) .vv-gem .b { background: #e2d4b4; box-shadow: 0 0 0 1px var(--gilt), 0 0 0 2px #fff; }
+
+/* tabs */
+.vt { display: flex; flex-direction: column; gap: 3px; margin: -20px -8px 0 0; padding-top: 18px; align-self: stretch; flex: none; }
+.vt button { all: unset; cursor: pointer; writing-mode: vertical-rl; text-align: center; flex: 1 1 0; min-height: 0; overflow: hidden; font: 700 var(--tfs, 9px)/1 var(--display); letter-spacing: .12em; padding: 4px 4px; color: var(--dim);
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.15)); border-radius: 4px 0 0 4px; box-shadow: inset 1px 0 0 var(--frost-edge); }
+.vt button:hover { color: var(--text); }
+.vt button:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.vt button.on { color: var(--lamp-hot); background: rgba(233,207,159,.11); box-shadow: inset 2px 0 0 var(--lamp); }
+.vt.fight button:not(.on) { opacity: .4; }
+
+/* stats / lore */
+.f { padding: 4px 7px 5px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.f small { display: flex; align-items: center; gap: 5px; font: 700 8px/1 var(--display); letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-bottom: 3px; white-space: nowrap; }
+.f b { display: flex; align-items: center; gap: 4px; font: 600 12px/1.15 var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f b em { font: 400 10.5px/1 var(--mono); color: var(--dim); font-style: normal; }
+.lore { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); grid-auto-rows: minmax(0,1fr); flex: 1; min-height: 0; overflow: hidden; }
+.lore .f.wide { grid-column: 1 / -1; }
+.ab { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 3px; flex: none; }
+.abx { text-align: center; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.abx small { display: block; font: 700 7.5px/1 var(--display); letter-spacing: .08em; color: var(--dim); }
+.abx b { display: block; font: 700 12.5px/1.25 var(--mono); }
+.abx i { display: block; font: 600 9px/1 var(--mono); font-style: normal; color: var(--up); min-height: 9px; }
+.shl { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; flex: none; }
+.shl > div { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 3px 0; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); min-width: 0; }
+.shl .ti { width: 12px; height: 12px; stroke: var(--lamp); } .shl b { font: 700 12.5px/1 var(--mono); color: var(--lamp-hot); } .shl small { font: 700 7px/1 var(--display); color: var(--dim); letter-spacing: .1em; }
+.srow2 { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 4px; flex: none; }
+.agebox { padding: 4px 7px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.agebox .top { display: flex; align-items: baseline; gap: 6px; font: 600 10.5px/1.2 var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; }
+.agebox .top b { color: var(--text); font-size: 12px; }
+.kk { font: 700 7.5px/1 var(--display); letter-spacing: .1em; color: var(--dim); text-transform: uppercase; }
+.atrack { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; height: 4px; }
+.atrack i { background: rgba(233,207,159,.14); border-radius: 1px; } .atrack i.past { background: color-mix(in srgb, var(--lamp) 60%, transparent); }
+.atrack s { position: absolute; top: -2px; width: 2px; height: 8px; background: var(--lamp-hot); left: var(--p); }
+.mods { display: grid; grid-template-columns: auto repeat(3, minmax(0,1fr)); gap: 1px 6px; align-items: baseline; font: 600 10.5px/1.2 var(--mono); }
+.mods .up { color: var(--up); } .mods .dn { color: var(--down); }
+.sen { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 3px; min-width: 0; }
+.sen > div { padding: 3px 6px; border-radius: 5px; background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sen b { font: 600 11.5px/1 var(--mono); }
+
+/* ---------------------------------------------------------------- page bits */
+.rowx { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.rowx.nowrap { flex-wrap: nowrap; }
+.cap { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink-dim); min-width: 0; flex: none; }
+.cap p { font-size: 13px; max-width: 40ch; }
+.host { position: relative; }
+.gridalt { display: flex; flex-direction: column; gap: 8px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.gridalt h3 span { color: var(--lamp); margin-right: 6px; }
+.gridalt > p { font-size: 14.5px; color: var(--ink-dim); }
+.qs { display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.q { counter-increment: q; background: var(--wall2); border: 1px solid var(--rule); border-left: 3px solid var(--lamp); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.q h3::before { content: counter(q) ". "; color: var(--lamp); }
+.q p { font-size: 15px; color: var(--ink-dim); }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opts span { font: 12.5px/1.2 var(--mono); color: var(--ink); padding: 5px 8px; border-radius: 4px; background: #161a21; border: 1px solid #333944; }
+.q .opts span.rec { border-color: var(--lamp); color: var(--lamp-hot); }
+.tbl { display: grid; gap: 14px 18px; align-items: start; }
+.tbl .hd { font: 600 11px/1.3 var(--mono); color: var(--ink-dim); letter-spacing: .05em; }
+.tbl .nm h3 { font-size: 14px; cursor: pointer; } .tbl .nm p { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+.tbl .nm h3 span { color: var(--lamp); margin-right: 5px; }
+.combo { display: flex; flex-direction: column; gap: 6px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.combo .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.combo .tags span { font: 11.5px/1.2 var(--mono); color: var(--ink-dim); padding: 3px 6px; border-radius: 4px; background: #161a21; border: 1px solid #2c313b; }
+#tip { position: fixed; z-index: 50; font: 11px/1.4 var(--mono); color: var(--ink); background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 5px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.6); pointer-events: none; max-width: min(460px, 94vw); white-space: pre-wrap; }
+.hmenu { position: absolute; z-index: 30; min-width: 170px; background: #1a1d24; border: 1px solid #39404c; border-radius: 5px; padding: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.6); font: 12px/1.2 var(--mono); }
+.hmenu .mh { padding: 4px 8px; color: var(--ink-dim); font-size: 11px; }
+.hmenu div.it { padding: 5px 8px; border-radius: 3px; cursor: pointer; color: var(--ink); display: flex; gap: 6px; align-items: center; }
+.hmenu div.it:hover { background: #262b34; }
+.hmenu div.dis { color: #6b6a66; cursor: default; background: none; }
+.hmenu div.row { padding: 4px 8px; display: flex; gap: 6px; align-items: center; color: var(--ink); }
+.hmenu div.row em { margin-left: auto; font-style: normal; color: var(--ink-dim); }
+.hmenu div.row b { all: unset; cursor: pointer; color: var(--ink-dim); padding: 0 3px; border-radius: 3px; } .hmenu div.row b:hover { color: #fff; background: #3a2020; }
+.hmenu .ti { width: 11px; height: 11px; stroke: var(--c, #a6c95a); }
+@media (prefers-reduced-motion: reduce) { .zz, .srun .spark, .icrow .pend, .sr.pend { animation: none; } .b > i, .pf, .pimg svg.fig { transition: none; } }
+/* round 15: the compact card (no portrait, no ring) */
+.cmp { display: flex; flex-direction: column; justify-content: center; gap: var(--g); flex: none; }
+.cmp .l1 { display: flex; gap: 8px; }
+.cmp .l2 { display: flex; gap: 6px; align-items: flex-start; }
+.cmp .l2 .icrow { position: static; display: flex; gap: 3px; flex: none; }
+.cmp .srow .sr b { font-size: var(--vf); }
+.cmp .srow .sr { padding: 0 2px; }
+.cmp .lt { font-style: normal; color: var(--lamp); margin-right: 3px; }
+.chip .ti { flex: none; stroke: var(--lamp); }
+.vit3.tiny .b > .lab { font-size: 9.5px; padding: 0 5px; } .vit3.tiny .b > .lab .k2 { font-size: 7.5px; }
+/* round 14 */
+.lc.rg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.lc.rg.side { flex-direction: row; gap: 4px; }
+.lc.rg .icrow { position: static; gap: 3px; }
+.lc.rg.side .icrow { display: grid; grid-template-columns: repeat(3, auto); gap: 3px; }
+.rcol { display: flex; flex-direction: column; min-height: 0; flex: none; }
+.rcol.even { justify-content: space-evenly; }
+.l1 { display: flex; gap: 6px; flex: none; }
+.srow.nolab .sr .k { display: none; }
+.srow.nolab .sr { padding-left: 2px; }
+.chips { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 3px; flex: none; }
+.chip { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; white-space: nowrap; overflow: hidden; font: 700 10px/1 var(--mono); color: var(--text); border-radius: 3px; }
+.chip small { font: 700 7px/1 var(--display); letter-spacing: .08em; color: var(--dim); }
+.chip .sp { width: 10px; height: 12px; flex: none; }
+.c-chips .chip { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px rgba(233,207,159,.13); }
+:is(.pane.paper, .lit) .c-chips .chip { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.2); }
+.stz .purse { position: absolute; right: 0; gap: 6px; }
+.statsbox { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
+.statsbox > .sc { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.vt.gone { display: none; }
+/* round 13 */
+.stz { position: relative; flex: none; }
+.grid13 { display: flex; flex-direction: column; gap: 30px; }
+.sizerow h3 { margin-bottom: 4px; }
+.sizerow > p { color: var(--ink-dim); font-size: 14.5px; margin-bottom: 4px; }
+.ctlbar { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 8px; }
+.picked { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 18px; margin-top: 14px; font-size: 14.5px; color: var(--ink-dim); }
+.picked b { color: var(--ink); font-weight: 600; }
+.cap .lbl em { font-style: normal; color: var(--lamp); }
+/* ---------------------------------------------------------------- round 16: the status cell variants */
+.sr .k.tight { letter-spacing: .03em; }
+/* A: pips under the word, a chevron, Weight flat with a load bar */
+.vA .sr { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px rgba(233,207,159,.17); gap: 3px; padding: 3px 4px 4px; }
+.vA .sr:not(.ro) { padding-right: 9px; }
+.vA .sr:hover:not(.ro) { box-shadow: inset 0 0 0 1px rgba(233,207,159,.42); background: rgba(233,207,159,.05); }
+.vA .sr:hover:not(.ro) .chev { color: var(--lamp-hot); transform: translate(1px, -50%); }
+.vA .sr.ro { background: rgba(0,0,0,.1); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); }
+.vA .chev { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font: 700 11px/1 var(--mono); color: color-mix(in srgb, var(--lamp) 50%, transparent); transition: transform .15s, color .15s; }
+.vA .pp, .vA .ld { display: flex; align-items: center; gap: 2px; width: min(100%, 46px); height: 3px; }
+.vA .pp i { flex: 1; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--lamp) 20%, transparent); }
+.vA .pp i.on { flex: 2.2; height: 3px; background: var(--lamp-hot); box-shadow: 0 0 4px rgba(233,207,159,.8); }
+.vA .ld { gap: 1px; }
+.vA .ld i { flex: 1; height: 3px; background: color-mix(in srgb, var(--lamp) 14%, transparent); }
+.vA .ld i:first-child { border-radius: 1.5px 0 0 1.5px; } .vA .ld i:last-child { border-radius: 0 1.5px 1.5px 0; }
+.vA .ld i[style*="--hc"] { background: color-mix(in srgb, var(--hc) 70%, transparent); }
+.vA .ld i.on { background: var(--hc); box-shadow: 0 0 4px color-mix(in srgb, var(--hc) 80%, transparent); }
+:is(.pane.paper, .lit) .vA .sr { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.22); }
+:is(.pane.paper, .lit) .vA .sr.ro { background: transparent; box-shadow: inset 0 0 0 1px rgba(60,40,10,.12); }
+:is(.pane.paper, .lit) .vA .pp i.on, :is(.pane.paper, .lit) .vA .ld i.on { box-shadow: none; }
+/* B: icon dials, knobs for the clickable three, a gauge for Weight */
+.vB .sr { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px rgba(233,207,159,.14); padding: 2px 4px; gap: 5px; }
+.vB.row .sr { flex-direction: row; justify-content: center; }
+.vB.col .sr { gap: 1px; }
+.vB .sr.ro { background: rgba(0,0,0,.1); }
+.vB .sr:hover:not(.ro) .kn { fill: rgba(233,207,159,.12); stroke: var(--lamp); }
+.vB .sr:active:not(.ro) .dial { transform: rotate(14deg); }
+.dial { display: block; flex: none; overflow: visible; transition: transform .12s; }
+.dial .tk { stroke: color-mix(in srgb, var(--lamp) 30%, transparent); stroke-width: 1.3; stroke-linecap: round; }
+.dial .tk.on { stroke: var(--lamp-hot); stroke-width: 2; filter: drop-shadow(0 0 2px rgba(233,207,159,.9)); }
+.dial .kn { fill: rgba(0,0,0,.45); stroke: color-mix(in srgb, var(--lamp) 55%, transparent); stroke-width: .9; transition: fill .15s; }
+.dial .kp { stroke: var(--lamp-hot); stroke-width: 1.8; stroke-linecap: round; }
+.dial .dic { fill: none; stroke: var(--lamp); stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
+.dial .gt { fill: none; stroke: color-mix(in srgb, var(--lamp) 16%, transparent); stroke-width: 2.2; stroke-linecap: round; }
+.dial .gf { fill: none; stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 0 2px rgba(0,0,0,.6)); }
+:is(.pane.paper, .lit) .vB .sr { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.2); }
+:is(.pane.paper, .lit) .vB .sr.ro { background: transparent; }
+:is(.pane.paper, .lit) .dial .kn { fill: #efe6d1; stroke: #8c7b58; } :is(.pane.paper, .lit) .dial .tk.on { filter: none; }
+/* C: colour by step */
+.vC .sr { gap: 3px; padding: 3px 4px 7px; background: linear-gradient(180deg, rgba(0,0,0,.22), color-mix(in srgb, var(--hc) 13%, rgba(0,0,0,.22)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 26%, rgba(233,207,159,.1)); }
+.vC .sr:hover:not(.ro) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 60%, transparent); }
+.vC .sr b { text-shadow: 0 0 6px color-mix(in srgb, var(--hc) 35%, transparent); }
+.vC .ht { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 2.5px; display: flex; gap: 1px; }
+.vC .ht i { flex: 1; background: color-mix(in srgb, var(--lamp) 12%, transparent); }
+.vC .ht i.past { background: color-mix(in srgb, var(--hc) 55%, transparent); }
+.vC .ht i.on { background: var(--hc); box-shadow: 0 0 4px var(--hc); }
+.vC .cm { position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 6px solid color-mix(in srgb, var(--lamp) 55%, transparent); border-left: 6px solid transparent; border-top-right-radius: 3px; }
+.vC .sr:hover .cm { border-top-color: var(--lamp-hot); }
+:is(.pane.paper, .lit) .vC .sr { background: linear-gradient(180deg, #fffdf8, color-mix(in srgb, var(--hc) 9%, #fffdf8)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 35%, rgba(60,40,10,.15)); }
+:is(.pane.paper, .lit) .vC .sr b { text-shadow: none; } :is(.pane.paper, .lit) .vC .ht i.on { box-shadow: none; }
+/* D: one strip */
+.vD { grid-template-columns: repeat(4, minmax(0,1fr)); border-radius: 4px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.18)); box-shadow: inset 0 0 0 1px rgba(233,207,159,.2), inset 0 1px 2px rgba(0,0,0,.6); }
+.vD .sr { flex-direction: row; gap: 3px; padding: 0 4px 2px; border-radius: 0; }
+.vD .sr:not(:first-child)::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 1px; background: rgba(0,0,0,.65); box-shadow: 1px 0 0 rgba(233,207,159,.14); }
+.vD .sr:hover:not(.ro) { background: rgba(233,207,159,.08); }
+.vD .sr b { position: relative; z-index: 1; }
+.vD .fi { position: relative; z-index: 1; stroke: var(--lamp); stroke-width: 2.1; }
+.vD .rl { position: absolute; left: 6px; right: 6px; bottom: 2px; height: 1.5px; display: flex; gap: 1px; }
+.vD .rl i { flex: 1; background: color-mix(in srgb, var(--lamp) 16%, transparent); }
+.vD .rl i.on { background: var(--lamp-hot); box-shadow: 0 0 3px rgba(233,207,159,.85); }
+.vD .lf { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--hc) 4%, transparent), color-mix(in srgb, var(--hc) 20%, transparent)); }
+.vD .rl.ld { height: 2px; }
+.vD .rl.ld i[style*="--hc"] { background: color-mix(in srgb, var(--hc) 65%, transparent); }
+.vD .rl.ld i.on { background: var(--hc); box-shadow: 0 0 3px var(--hc); }
+:is(.pane.paper, .lit) .vD { background: #fffdf8; box-shadow: inset 0 0 0 1px rgba(60,40,10,.25); }
+:is(.pane.paper, .lit) .vD .sr:not(:first-child)::before { background: rgba(60,40,10,.25); box-shadow: none; } :is(.pane.paper, .lit) .vD .rl i.on { box-shadow: none; }
+/* the page */
+.cmpgrid { display: flex; flex-direction: column; gap: 14px; }
+.cmpgrid { overflow-x: auto; }
+.zrow { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.zrow > .lbl { width: 170px; }
+.zrow .lbl em { font-style: normal; color: var(--lamp); margin-right: 6px; }
+.zp { zoom: 2; }
+.zp .win { padding: 8px; }
+@media (max-width: 700px) { .zp { zoom: 1.4; } }
+/* ---------------------------------------------------------------- round 17's tab bits (A's ribbons, used by A2) */
+.vt7 { position: relative; flex: none; align-self: flex-start; margin: -20px -8px 0 0; }
+.t7 { all: unset; box-sizing: border-box; position: absolute; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.t7:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.t7 .w { position: relative; writing-mode: vertical-rl; font: 700 var(--fs)/1 var(--display); letter-spacing: .12em; white-space: nowrap; }
+.t7 svg { position: relative; display: block; flex: none; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* today, with H3's icons */
+.vt.icons button { display: grid; place-items: center; writing-mode: horizontal-tb; padding: 0; }
+.vt .tic { width: var(--is); height: var(--is); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vt { position: relative; }
+
+/* A: bookmark ribbons from a rod at the head */
+.dA .rod { position: absolute; left: 1px; right: 0; top: 8px; height: 3px; z-index: 3; border-radius: 2px 0 0 2px;
+  background: linear-gradient(180deg, #80848c, #2c2f35 60%, #15171a); box-shadow: 0 0 0 1px #000, 0 1px 2px rgba(0,0,0,.6); }
+.dA .rod::before { content: ""; position: absolute; left: -3px; top: -1.5px; width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #a3a8b0, #3a3d43 60%, #15171a); box-shadow: 0 0 0 1px #000; }
+.dA .t7 { align-items: flex-start; height: var(--l); transition: height .22s cubic-bezier(.2,.7,.2,1); filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.75)); overflow: visible; }
+.dA .rb { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - var(--n)), 0 100%);
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, rgba(0,0,0,.42), rgba(255,255,255,.17) 40%, rgba(255,255,255,.04) 62%, rgba(0,0,0,.36)), var(--rc); transition: filter .2s; }
+.dA .t7 .w { margin-top: 5px; color: rgba(240,228,200,.6); text-shadow: 0 1px 0 rgba(0,0,0,.6); }
+.dA .t7[aria-selected="false"] .rb { filter: brightness(.6) saturate(.7); }
+.dA .t7[aria-selected="false"]:hover { height: calc(var(--l) + 9px); }
+.dA .t7[aria-selected="false"]:hover .rb { filter: brightness(.82) saturate(.85); }
+.dA .t7[aria-selected="false"]:hover .w { color: rgba(250,240,215,.85); }
+.dA .t7[aria-selected="true"] { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.75)) drop-shadow(0 0 4px rgba(233,207,159,.28)); }
+.dA .t7[aria-selected="true"] .rb { box-shadow: inset 1px 0 0 rgba(246,220,156,.55), inset -1px 0 0 rgba(246,220,156,.55); }
+.dA .t7[aria-selected="true"] .w { color: #f6dc9c; text-shadow: 0 0 4px rgba(246,220,156,.75), 0 1px 0 rgba(0,0,0,.7); }
+.dA .t7 .gl { position: absolute; left: 50%; bottom: calc(var(--n) + 3px); width: 3px; height: 3px; margin-left: -1.5px; transform: rotate(45deg); background: #f6dc9c; box-shadow: 0 0 3px rgba(246,220,156,.8); }
+.pane.paper .dA .rod { background: linear-gradient(180deg, #fffdf8, #b8a983 60%, #8c7b58); box-shadow: 0 0 0 1px #6e6048; }
+.pane.paper .dA .rod::before { background: radial-gradient(circle at 35% 35%, #fffdf8, #b8a983 60%, #8c7b58); box-shadow: 0 0 0 1px #6e6048; }
+.pane.paper .dA .t7 { filter: drop-shadow(0 1px 1px rgba(60,40,10,.45)); }
+.pane.paper .dA .t7[aria-selected="false"] .rb { filter: brightness(.95) saturate(.45) opacity(.75); }
+/* the page: minis, idea lines */
+.idea { font-size: 15px; color: var(--ink); }
+.small7 { font-size: 14.5px; color: var(--ink-dim); }
+.small7 b { color: var(--lamp); font-weight: 600; }
+.minis { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; margin-top: 4px; }
+.minis .cap { gap: 6px; }
+.zm { zoom: 1.5; }
+@media (max-width: 520px) { .zm { zoom: 1.25; } }
+.mini .win { padding: 20px 8px 8px; }
+.mini .fill { flex: 1; min-width: 0; border-radius: 4px; background: repeating-linear-gradient(180deg, rgba(233,207,159,.05) 0 6px, transparent 6px 12px); box-shadow: inset 0 0 0 1px rgba(233,207,159,.08); }
+.pane.paper.mini .fill { background: repeating-linear-gradient(180deg, rgba(60,40,10,.06) 0 6px, transparent 6px 12px); }
+.pane.paper .dD .nt { background: radial-gradient(circle at 100% 50%, #6e6048 40%, #a39470 75%, #c9bb98); box-shadow: inset 1px 0 1px rgba(60,40,10,.4); }
+.pane.paper .dD .nt b { background: #d6c7a3; } .pane.paper .dD .t7[aria-selected="true"] .nt b { background: #fffdf8; box-shadow: none; }
+.ti.inl { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; stroke: var(--lamp); }
+h3.mh { margin-top: 10px; font-size: 13px; color: var(--ink-dim); max-width: 90ch; }
+/* ---------------------------------------------------------------- round 18: the tabs and the ground they share with the content */
+@property --gx { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --gy { syntax: '<length>'; inherits: true; initial-value: 0px; }
+:root { --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.05 .6' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .05 0 0 0 .25 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.ra18 { position: relative; flex: none; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.folio { position: relative; flex: none; }
+.folio > .bk, .folio > .itw, .folio > .gw, .folio > .fr { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.folio > .bk { z-index: 0; } .folio > .itw { z-index: 1; } .folio > .gw { z-index: 2; } .folio > .fr { z-index: 5; }
+.folio .gnd, .folio .itab { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.folio svg.ol, .folio svg.ols { position: absolute; left: 0; top: 0; overflow: visible; fill: none; pointer-events: none; }
+.folio svg.ol { z-index: 3; }
+.folio .sc18 { position: absolute; z-index: 4; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.folio .sc18.scrolly { overflow-y: auto; scrollbar-width: thin; }
+.folio .sc18 .lore { flex: 1; }
+.folio .bk > *, .folio .fr > * { position: absolute; }
+.t8 { all: unset; box-sizing: border-box; position: absolute; z-index: 6; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.t8:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.t8 .w { position: relative; font: 700 var(--fs)/1 var(--display); letter-spacing: .12em; white-space: nowrap; color: var(--dim); transition: color .15s; }
+.folio.top .t8 .w { letter-spacing: .14em; margin-right: -.14em; }
+.folio.side .t8 .w { writing-mode: vertical-rl; }
+.folio.side .t8 .w.nv, .t8 .w.nv { writing-mode: horizontal-tb; letter-spacing: .04em; margin: 0; }
+.t8 .w.hand { font: italic 600 var(--fs)/1 var(--flavor); letter-spacing: .03em; }
+.t8:hover .w { color: var(--text); }
+.t8 svg.mk { position: relative; display: block; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; color: var(--dim); }
+.t8 .dots { position: relative; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.t8 .dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+.folio.top .t8 .dots { flex-direction: row; }
+.folio .a2rib { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+.folio .a2rib .t7 { pointer-events: auto; }
+.folio .a2rib .rod { right: auto; }
+.cap p.cost { font-size: 12.5px; max-width: 46ch; }
+.cap p.cost em { font-style: normal; color: var(--lamp); }
+.grp { display: inline-block; margin-left: 8px; font: 600 11px/1 var(--mono); letter-spacing: .06em; color: var(--lamp); border: 1px solid rgba(233,207,159,.35); border-radius: 4px; padding: 3px 6px; vertical-align: 3px; }
+.swnote { margin-top: 6px; font-size: 14px; color: var(--ink-dim); border-left: 2px solid #6e8fb8; padding: 2px 0 2px 10px; max-width: 90ch; }
+.swnote b { color: var(--ink); font-weight: 600; }
+
+/* G: folder tabs cut from the sheet */
+.dG .gnd { background: var(--noise), linear-gradient(180deg, #2e291f, #211d17 55%, #1c1a15); }
+.dG .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dG .ol .o1 { stroke: rgba(233,207,159,.36); stroke-width: 1; }
+.dG .itab { background: linear-gradient(180deg, #1c1a16, #141310); }
+.dG .ols path { stroke: rgba(233,207,159,.17); stroke-width: 1; }
+.dG .t8 .w { color: #8a8272; } .dG .t8:hover .w { color: #d6cdb9; }
+.dG .t8[aria-selected="true"] .w { color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.7); }
+.pane.paper .dG .gnd { background: linear-gradient(180deg, #fffdf6, #f8f0de); }
+.pane.paper .dG .gw { filter: drop-shadow(0 1px 1.5px rgba(60,40,10,.35)); }
+.pane.paper .dG .ol .o1 { stroke: #8c7b58; }
+.pane.paper .dG .itab { background: linear-gradient(180deg, #e2d6b9, #d4c6a3); }
+.pane.paper .dG .ols path { stroke: #a89878; }
+.pane.paper .dG .t8 .w { color: #7a6c50; } .pane.paper .dG .t8[aria-selected="true"] .w { color: #3b2b10; text-shadow: none; }
+
+/* H: parchment sheets under iron clips (a light sheet in both themes) */
+.dH .gnd { background: var(--noise), linear-gradient(180deg, #ede0c2, #e0cfa9 70%, #d8c59c); }
+.dH .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.pane:not(.paper) .dH .gw { filter: brightness(.86) drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.pane:not(.paper) .dH .sc18, .pane:not(.paper) .dH .bk, .pane:not(.paper) .dH .itw, .pane:not(.paper) .dH .t8, .pane:not(.paper) .dH svg.ol { filter: brightness(.86); }
+.dH .ol .o1 { stroke: rgba(80,60,30,.5); stroke-width: .8; }
+.dH .bk .bs { background: linear-gradient(180deg, #d2c097, #bfab7c); box-shadow: 0 0 0 .5px rgba(60,40,10,.6), 0 1px 2px rgba(0,0,0,.6); border-radius: 2px; }
+.dH .bk .bs.b2 { background: linear-gradient(180deg, #b8a476, #a48f63); }
+.dH .itab { background: linear-gradient(180deg, #cdbb91, #baa77c); }
+.dH .ols path { stroke: rgba(60,40,10,.5); stroke-width: .8; }
+.dH .t8 .w { color: #6e5a36; } .dH .t8:hover .w { color: #3b2b10; }
+.dH .t8[aria-selected="true"] .w { color: #2a1a06; }
+.dH .fr .clip { background: linear-gradient(90deg, #6a6e76, #2c2f35 60%, #17191c); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.25), 0 1px 3px rgba(0,0,0,.7); border-radius: 1.5px; }
+.dH .fr .clip::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #c8ccd3, #3a3d43); }
+.pane.paper .dH .gnd { background: var(--fibre), linear-gradient(180deg, #fffdf8, #f7efdc); }
+.pane.paper .dH .bk .bs { background: #ece1c8; } .pane.paper .dH .bk .bs.b2 { background: #dfd0ae; }
+.pane.paper .dH .itab { background: linear-gradient(180deg, #e9ddc1, #dacba8); }
+.pane.paper .dH .fr .clip { background: linear-gradient(90deg, #efe6d1, #b8a983 60%, #8c7b58); box-shadow: 0 0 0 1px #6e6048, 0 1px 2px rgba(60,40,10,.4); }
+
+/* I: an engraved recess, the chosen tab part of the same recess */
+.dI .gnd { background: radial-gradient(90px 60px at var(--gx) var(--gy), rgba(233,207,159,.19), rgba(233,207,159,.05) 55%, transparent 80%), linear-gradient(180deg, #07080b, #0f1217 35%, #13161c); }
+.dI .ol .o1 { stroke: #000; stroke-width: 1.6; }
+.dI .ols path.lip { stroke: rgba(233,207,159,.24); stroke-width: 1; }
+.dI .itab { display: none; }
+.dI .t8 .w { color: #77736a; text-shadow: 0 1px 0 rgba(0,0,0,.9), 0 -1px 0 rgba(0,0,0,.4); }
+.dI .t8 svg.mk { color: #77736a; }
+.dI .t8:hover .w { color: var(--text); }
+.dI .t8[aria-selected="true"] .w { color: var(--lamp-hot); text-shadow: 0 0 4px rgba(233,207,159,.85), 0 0 10px rgba(233,207,159,.4); }
+.dI .t8[aria-selected="true"] svg.mk { color: var(--lamp-hot); filter: drop-shadow(0 0 3px rgba(233,207,159,.8)); }
+.dI .fr .sep { width: 3px; height: 3px; transform: rotate(45deg); background: rgba(233,207,159,.3); }
+.pane.paper .dI .gnd { background: radial-gradient(90px 60px at var(--gx) var(--gy), rgba(255,252,240,.95), transparent 80%), linear-gradient(180deg, #c9bb9a, #d9ccb0 35%, #e2d6bb); }
+.pane.paper .dI .ol .o1 { stroke: #6e6048; } .pane.paper .dI .ols path.lip { stroke: #fff; }
+.pane.paper .dI .t8 .w { color: #8a7d62; text-shadow: 0 1px 0 rgba(255,255,255,.7); } .pane.paper .dI .t8 svg.mk { color: #8a7d62; }
+.pane.paper .dI .t8[aria-selected="true"] .w { color: #3b2b10; text-shadow: none; } .pane.paper .dI .t8[aria-selected="true"] svg.mk { color: #3b2b10; filter: none; }
+.pane.paper .dI .fr .sep { background: rgba(60,40,10,.35); }
+
+/* J: scrolls, the chosen one unrolled into the sheet */
+.dJ .gnd { background: var(--noise), linear-gradient(180deg, #332b1f, #251f17 45%, #1e1a14); }
+.dJ .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dJ .ol .o1 { stroke: rgba(233,207,159,.3); }
+.dJ .itab { background: var(--noise), linear-gradient(180deg, #221c14, #17130e); }
+.dJ .ols path { stroke: rgba(0,0,0,.75); stroke-width: .8; }
+.dJ .fr .roll { border-radius: 999px; background: linear-gradient(var(--ra), rgba(255,240,210,.22), rgba(255,240,210,.05) 32%, rgba(0,0,0,0) 52%, rgba(0,0,0,.45)); }
+.dJ .fr .knob { border-radius: 50%; background: radial-gradient(circle at 35% 35%, #b8925f, #5a3c1e 60%, #24170a); box-shadow: 0 0 0 .6px #000, 0 1px 1px rgba(0,0,0,.6); }
+.dJ .t8 .w { color: #a8987a; text-shadow: 0 1px 0 rgba(0,0,0,.8); }
+.dJ .t8 svg.mk { color: #a8987a; }
+.dJ .t8[aria-selected="true"] .w { color: #f3dc9e; text-shadow: 0 0 4px rgba(243,220,158,.6), 0 1px 0 rgba(0,0,0,.8); }
+.dJ .t8[aria-selected="true"] svg.mk { color: #f3dc9e; }
+.pane.paper .dJ .gnd { background: var(--noise), linear-gradient(180deg, #fcf5e3, #f3e8cd); }
+.pane.paper .dJ .ol .o1 { stroke: #8c7b58; }
+.pane.paper .dJ .itab { background: linear-gradient(180deg, #e7dabb, #d6c6a1); }
+.pane.paper .dJ .ols path { stroke: #8c7b58; }
+.pane.paper .dJ .fr .roll { background: linear-gradient(var(--ra), rgba(255,255,255,.6), rgba(255,255,255,0) 40%, rgba(60,40,10,.22)); }
+.pane.paper .dJ .fr .knob { background: radial-gradient(circle at 35% 35%, #e6c99a, #a07a46 60%, #6e4f2c); box-shadow: 0 0 0 .6px #5a4020; }
+.pane.paper .dJ .t8 .w, .pane.paper .dJ .t8 svg.mk { color: #7a6c50; text-shadow: none; }
+.pane.paper .dJ .t8[aria-selected="true"] .w, .pane.paper .dJ .t8[aria-selected="true"] svg.mk { color: #3b2b10; text-shadow: none; }
+
+/* K: an inlaid leather panel; one gilt fillet round the panel and the chosen tab */
+.dK .gnd { background: var(--noise), linear-gradient(160deg, #3d2518, #2b1910 55%, #22140c); }
+.dK .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dK .ol .o1 { stroke: #000; stroke-width: 1; }
+.dK .ol .o2 { stroke: var(--gilt); stroke-width: .9; }
+.dK .ol .o3 { stroke: rgba(210,173,92,.26); stroke-width: .6; }
+.dK .itab { background: var(--noise), linear-gradient(90deg, #1d110b, #27170e); }
+.dK .ols path { stroke: #000; stroke-width: 1; }
+.dK .t8 .w, .dK .t8 svg.mk { color: #8a6a44; text-shadow: 0 -1px 0 rgba(0,0,0,.8); }
+.dK .t8:hover .w, .dK .t8:hover svg.mk { color: #c9a266; }
+.dK .t8[aria-selected="true"] .w, .dK .t8[aria-selected="true"] svg.mk { color: #f0d08a; text-shadow: 0 -1px 0 rgba(0,0,0,.8), 0 0 4px rgba(240,208,138,.45); }
+.dK .t8 svg.mk { fill: currentColor; stroke: none; }
+.pane.paper .dK .gnd { background: var(--noise), linear-gradient(160deg, #dcc196, #cbab7c 55%, #c09f70); }
+.pane.paper .dK .ol .o1 { stroke: #5a4020; } .pane.paper .dK .ol .o2 { stroke: #fff1c8; } .pane.paper .dK .ol .o3 { stroke: rgba(255,241,200,.5); }
+.pane.paper .dK .itab { background: linear-gradient(90deg, #a3815a, #b08e64); }
+.pane.paper .dK .ols path { stroke: #5a4020; }
+.pane.paper .dK .t8 .w, .pane.paper .dK .t8 svg.mk { color: #e6d2a6; text-shadow: 0 -1px 0 rgba(40,20,0,.6); }
+.pane.paper .dK .t8[aria-selected="true"] .w, .pane.paper .dK .t8[aria-selected="true"] svg.mk { color: #4a2e10; text-shadow: 0 1px 0 rgba(255,241,200,.6); }
+
+/* L: leaded lantern panes; the chosen pane's light falls on the content */
+.dL .gnd { background: radial-gradient(170px 120px at var(--gx) var(--gy), rgba(255,196,110,.25), rgba(233,207,159,.07) 50%, transparent 80%), linear-gradient(180deg, #161921, #11141a); }
+.dL .ol .o1 { stroke: rgba(255,206,130,.45); stroke-width: 1; }
+.dL .itab { display: none; }
+.dL .bk .lframe { background: linear-gradient(90deg, #3a3d43, #2a2d32 50%, #1a1c20); box-shadow: 0 0 0 1px #000, inset 1px 0 0 rgba(255,255,255,.12); border-radius: 2px; }
+.dL .fr .lg { border-radius: 1.5px; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(255,255,255,.06);
+  background: var(--lat), linear-gradient(90deg, #1d2026, #2a2e36 50%, #1b1e24); }
+.dL .fr .lg.on { background: var(--lat), radial-gradient(120% 70% at 50% 50%, #ffe7ad, #f0b45a 50%, #a8692a);
+  box-shadow: 0 0 0 1px #000, 0 0 10px rgba(255,190,90,.6), 0 0 22px rgba(255,190,90,.25); }
+.dL .lat0 { --lat: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,.45) 4px 5px), repeating-linear-gradient(-45deg, transparent 0 4px, rgba(0,0,0,.45) 4px 5px); }
+.dL .lat1 { --lat: repeating-linear-gradient(0deg, transparent 0 5px, rgba(0,0,0,.45) 5px 6px), repeating-linear-gradient(90deg, transparent 0 5px, rgba(0,0,0,.45) 5px 6px); }
+.dL .lat2 { --lat: linear-gradient(90deg, transparent calc(50% - .7px), rgba(0,0,0,.55) calc(50% - .7px) calc(50% + .7px), transparent calc(50% + .7px)), linear-gradient(0deg, transparent calc(50% - .7px), rgba(0,0,0,.55) calc(50% - .7px) calc(50% + .7px), transparent calc(50% + .7px)); }
+.dL .t8 .w { color: #908979; text-shadow: 0 0 2px #000, 0 1px 0 #000; }
+.dL .t8[aria-selected="true"] .w { color: #2a1806; text-shadow: 0 0 3px rgba(255,236,190,.9); }
+.pane.paper .dL .gnd { background: radial-gradient(170px 120px at var(--gx) var(--gy), rgba(240,170,60,.32), rgba(240,170,60,.08) 50%, transparent 80%), #f6eedb; }
+.pane.paper .dL .ol .o1 { stroke: rgba(168,105,42,.6); }
+.pane.paper .dL .bk .lframe { background: linear-gradient(90deg, #d6c9aa, #b8a983); box-shadow: 0 0 0 1px #6e6048; }
+.pane.paper .dL .fr .lg { background: var(--lat), linear-gradient(90deg, #cfc4ad, #ddd3be 50%, #cbbfa6); box-shadow: 0 0 0 1px #6e6048; }
+.pane.paper .dL .fr .lg.on { background: var(--lat), radial-gradient(120% 70% at 50% 50%, #fff3cf, #f6c56e 55%, #d08c3a); box-shadow: 0 0 0 1px #6e6048, 0 0 8px rgba(240,170,60,.55); }
+.pane.paper .dL .t8 .w { color: #5a4a2c; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+.pane.paper .dL .t8[aria-selected="true"] .w { color: #2a1806; text-shadow: none; }
+
+/* M: tinctures, the chosen tab's colour flows into the field */
+.dM .gnd { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 14%, #12161f), color-mix(in srgb, var(--tc) 26%, #12161f) calc(100% - var(--tw) - 34px), var(--tc) calc(100% - var(--tw) + 3px)); }
+.dM .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.dM .ol .o1 { stroke: var(--gilt); stroke-width: .9; }
+.dM .itab { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 50%, #000), color-mix(in srgb, var(--tc) 68%, #000)); }
+.dM .ols path { stroke: rgba(210,173,92,.38); stroke-width: .7; }
+.dM .t8 .w { color: rgba(232,200,119,.6); text-shadow: 0 1px 0 rgba(0,0,0,.7); }
+.dM .t8[aria-selected="true"] .w { color: #f6d98c; text-shadow: 0 1px 0 rgba(0,0,0,.6), 0 0 4px rgba(246,217,140,.5); }
+.dM .t8 .loz { position: relative; width: 5px; height: 5px; transform: rotate(45deg); background: #f6d98c; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 4px rgba(246,217,140,.8); }
+.pane.paper .dM .gnd { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 16%, #f8f2e4), color-mix(in srgb, var(--tc) 34%, #f8f2e4) calc(100% - var(--tw) - 34px), var(--tc) calc(100% - var(--tw) + 3px)); }
+.pane.paper .dM .gw { filter: drop-shadow(0 1px 1.5px rgba(60,40,10,.3)); }
+.pane.paper .dM .ol .o1 { stroke: #8c6a2a; }
+.pane.paper .dM .itab { background: color-mix(in srgb, var(--tc) 70%, #8c7b58); }
+.pane.paper .dM .t8 .w { color: rgba(40,28,10,.6); text-shadow: none; } .pane.paper .dM .t8[aria-selected="true"] .w { color: #2a1a06; text-shadow: none; }
+.pane.paper .dM .t8 .loz { background: #6e5220; box-shadow: none; }
+
+/* N: headings in the page's left margin */
+.dN .gnd { background: repeating-linear-gradient(180deg, transparent 0 12px, rgba(233,207,159,.05) 12px 13px), var(--noise), linear-gradient(180deg, #29241b, #1d1a15); }
+.dN .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dN .ol .o1 { stroke: rgba(233,207,159,.3); }
+.dN .itab { background: linear-gradient(90deg, #13110e, #1b1915); }
+.dN .ols path { stroke: rgba(233,207,159,.14); }
+.dN .fr .mr { border-left: 1px solid rgba(233,207,159,.2); border-right: 1px solid rgba(233,207,159,.2); }
+.dN .t8 .w { color: #8f8676; } .dN .t8:hover .w { color: #d6cdb9; }
+.dN .t8[aria-selected="true"] .w { color: #f2e1b6; text-shadow: 0 0 4px rgba(242,225,182,.4); }
+.pane.paper .dN .gnd { background: repeating-linear-gradient(180deg, transparent 0 12px, rgba(60,40,10,.07) 12px 13px), linear-gradient(180deg, #fffdf6, #f8f0de); }
+.pane.paper .dN .ol .o1 { stroke: #8c7b58; } .pane.paper .dN .itab { background: #ddd0b1; } .pane.paper .dN .ols path { stroke: #a89878; }
+.pane.paper .dN .fr .mr { border-color: rgba(140,60,40,.35); }
+.pane.paper .dN .t8 .w { color: #7a6c50; } .pane.paper .dN .t8[aria-selected="true"] .w { color: #2a1a06; text-shadow: none; }
+
+/* A2: the ribbons on the page's right margin */
+.dA2 .gnd { background: var(--noise), linear-gradient(180deg, #2c271e, #201c16 55%, #1b1914); }
+.dA2 .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dA2 .ol .o1 { stroke: rgba(233,207,159,.32); }
+.dA2 .fr .mg { border-left: 1px solid rgba(233,207,159,.13); }
+.pane.paper .dA2 .gnd { background: linear-gradient(180deg, #fffdf6, #f8f0de); }
+.pane.paper .dA2 .gw { filter: drop-shadow(0 1px 1.5px rgba(60,40,10,.35)); }
+.pane.paper .dA2 .ol .o1 { stroke: #8c7b58; } .pane.paper .dA2 .fr .mg { border-color: rgba(60,40,10,.15); }
+
+/* D2: a ledger's leaf, its index tab cut from the leaf */
+.dD2 .gnd { background: var(--fibre), linear-gradient(90deg, #d8c597, #e7d7ae 60%, #dccaa0); }
+.dD2 .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.pane:not(.paper) .dD2 .gw { filter: brightness(.86) drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.pane:not(.paper) .dD2 .sc18, .pane:not(.paper) .dD2 .bk, .pane:not(.paper) .dD2 .itw, .pane:not(.paper) .dD2 .t8, .pane:not(.paper) .dD2 svg.ol { filter: brightness(.86); }
+.dD2 .ol .o1 { stroke: rgba(60,40,10,.5); stroke-width: .8; }
+.dD2 .bk .fe { background: repeating-linear-gradient(90deg, #cdb98c 0 1px, #8f7a52 1px 2px); box-shadow: 1px 0 2px rgba(0,0,0,.6); border-radius: 0 2px 2px 0; }
+.dD2 .itab { background: var(--fibre), linear-gradient(90deg, #9c875c, #b6a177 70%, #a99469); }
+.dD2 .ols path { stroke: rgba(40,25,5,.55); stroke-width: .8; }
+.dD2 .t8 .w, .dD2 .t8 .dots { color: #3e2f16; } .dD2 .t8[aria-selected="true"] .w, .dD2 .t8[aria-selected="true"] .dots { color: #1e1204; }
+.pane.paper .dD2 .gnd { background: linear-gradient(90deg, #f6efdc, #fffdf8 55%, #fbf5e6); }
+.pane.paper .dD2 .bk .fe { background: repeating-linear-gradient(90deg, #efe5cf 0 1px, #c9bb98 1px 2px); box-shadow: 1px 0 1px rgba(60,40,10,.35); }
+.pane.paper .dD2 .itab { background: linear-gradient(90deg, #d6c7a3, #e4d7b8 70%, #dccdac); }
+.pane.paper .dD2 .ols path { stroke: #a89878; }
+
+/* E2: seals hanging on tags cut from the charter */
+.dE2 .gnd { background: var(--noise), linear-gradient(180deg, #2f291e, #231e17 60%, #1e1a14); }
+.dE2 .gw { filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+.dE2 .ol .o1 { stroke: rgba(233,207,159,.3); }
+.dE2 .itab { background: linear-gradient(90deg, #1b1813, #14120e); }
+.dE2 .ols path { stroke: rgba(233,207,159,.13); }
+.dE2 .t8 { align-items: flex-start; }
+.dE2 .t8 .w { color: #8a8070; margin-top: 6px; }
+.dE2 .t8:hover .w { color: #d6cdb9; }
+.dE2 .t8[aria-selected="true"] .w { color: #f2e1b6; }
+.dE2 .seal8 { pointer-events: none; overflow: visible; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.8)); transition: filter .18s; }
+.dE2 .seal8 .wx { fill: url(#wx-d); }
+.dE2 .seal8.on .wx { fill: url(#wx-h); }
+.dE2 .seal8.on { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.8)) drop-shadow(0 0 4px rgba(240,190,90,.5)); }
+.dE2 .seal8 .rim { fill: none; stroke: rgba(0,0,0,.35); stroke-width: .9; }
+.dE2 .seal8 .ch { fill: none; stroke: rgba(25,12,0,.8); stroke-linecap: round; stroke-linejoin: round; }
+.dE2 .seal8 .chl { fill: none; stroke: rgba(255,235,200,.2); stroke-linecap: round; stroke-linejoin: round; }
+.pane.paper .dE2 .gnd { background: var(--noise), linear-gradient(180deg, #fcf6e6, #f2e8d0); }
+.pane.paper .dE2 .ol .o1 { stroke: #8c7b58; } .pane.paper .dE2 .itab { background: #ddd0b1; } .pane.paper .dE2 .ols path { stroke: #a89878; }
+.pane.paper .dE2 .t8 .w { color: #7a6c50; } .pane.paper .dE2 .t8[aria-selected="true"] .w { color: #2a1a06; }
+.pane.paper .dE2 .seal8 { filter: drop-shadow(0 1px 1px rgba(60,40,10,.5)); }
+.folio .sc18.lit { color: var(--text); }
+
+</style>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="r-orc" viewBox="0 0 60 75">
+      <path d="M2 78C4 60 16 54 30 54S56 60 58 78Z" fill="#2a2622"/><path d="M8 66l8-6 6 8M52 66l-8-6-6 8" stroke="#55504a" stroke-width="2" fill="none"/>
+      <path d="M18 38L11 33L19 43Z M42 38L49 33L41 43Z" fill="#7c8656"/><ellipse cx="30" cy="39" rx="12" ry="12.5" fill="#7c8656"/>
+      <path d="M19 35C22 32 27 33 29 35M31 35C33 33 38 32 41 35" stroke="#3a3f26" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <circle cx="25" cy="38" r="1.6" fill="#ffcf4a"/><circle cx="35" cy="38" r="1.6" fill="#ffcf4a"/>
+      <path d="M24 48l1.5-4 1.5 4Z M33 48l1.5-4 1.5 4Z" fill="#efe4c8"/><path d="M24 48h12" stroke="#3a3f26" stroke-width="1.4"/>
+      <path d="M26 27C26 22 34 22 34 27C32 25 28 25 26 27Z" fill="#141210"/><path d="M30 23V16" stroke="#141210" stroke-width="3" stroke-linecap="round"/></symbol>
+<radialGradient id="cg-g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#e3b84a"/><stop offset="1" stop-color="#8a5f12"/></radialGradient>
+<radialGradient id="cg-s" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#c3c7cf"/><stop offset="1" stop-color="#6a6e76"/></radialGradient>
+<radialGradient id="cg-c" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffd2a8"/><stop offset=".45" stop-color="#c27a45"/><stop offset="1" stop-color="#6e3414"/></radialGradient>
+<radialGradient id="wx-r" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#e8604f"/><stop offset=".35" stop-color="#a8231d"/><stop offset="1" stop-color="#4e0a08"/></radialGradient>
+<radialGradient id="wx-d" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#8f7050"/><stop offset=".4" stop-color="#5a3f28"/><stop offset="1" stop-color="#271910"/></radialGradient>
+<radialGradient id="wx-h" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#f6d488"/><stop offset=".4" stop-color="#c8913a"/><stop offset="1" stop-color="#6e4312"/></radialGradient>
+</defs></svg>
+
+<main class="page">
+  <span class="eyebrow">WebCockpit · Character pane · runda 18</span>
+  <h1>Flikarna och deras grund</h1>
+  <p class="lede">Runda 18 bygger vidare på runda 17. Du ville ha fler varianter både under huven och till höger, och att det syns tydligare att en flik hör till sitt innehåll. Därför ligger innehållet nu på ett ark, ett blad eller i ett fält som är ett enda stycke med den valda fliken, som en mappflik eller en boksida med sin registerflik. De andra flikarna ligger bakom eller bredvid, på en annan grund. Stenraden och staplarna ligger utanför arket. Här finns åtta nya riktningar, G till N, och A, D och E ett steg längre (A2, D2, E2). Klicka på en flik för att byta: arket och fliken flyttar sig tillsammans.</p>
+  <div class="picked">
+    <div><b>Vad som ligger på arket:</b> på Status cellerna Mood, Casts, Alertness och Weight och sköldarna. På Stats och Lore deras innehåll. Stenarna ligger under arket på Status och Stats. Lore har inga stenar, som i dag, så där når arket ända ner.</div>
+    <div><b>Under huven blir till höger när det är lågt:</b> riktningarna under huven (G, H, I, J) flyttar flikarna till högra kanten under 110 px innehåll, i samma material och med samma grund. Hög och Mellan har dem överst, Låg till höger. Under varje kort står vad den andra placeringen hade gett.</div>
+    <div><b>Regeln från H3 gäller för alla:</b> ord visas bara där de blir minst 8 px. Under det har varje riktning en egen liten form. Ordet finns alltid i tooltipen och som namn för skärmläsare.</div>
+    <div><b>Under varje kort</b> står var flikarna sitter, vad de kostar (en kolumn i bredd eller en list i höjd) och hur stora porträttet och sköldarna blev.</div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Inställningar</span><h2>Samma för alla kort</h2>
+      <p>Höjden gäller för den första raden kort i varje riktning. Raden under visar alltid den dockade bredden i alla tre höjderna. Paper visar det ljusa temat.</p></div>
+    <div class="ctlbar">
+      <div class="ctl">Pane <span class="seg" data-ctl="pane"><button data-v="lykta">Lykta</button><button data-v="paper">Paper</button></span></div>
+      <div class="ctl">Höjd <span class="seg" data-ctl="hgt"><button data-v="tall">Hög · 187 px</button><button data-v="mid">Mellan · 119 px</button><button data-v="low">Låg · 92 px</button></span></div>
+      <div class="ctl">Vald flik <span class="seg" data-ctl="tab"><button data-v="0">Status</button><button data-v="1">Stats</button><button data-v="2">Lore</button></span></div>
+    </div>
+  </section>
+  <div id="vars"></div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Att välja</span><h2>Vad jag vill veta</h2></div>
+    <div class="qs">
+      <div class="q"><h3>Vilken riktning?</h3><p>Det går också att blanda dem, till exempel G:s mappflikar med K:s guldfilet, eller L:s ljus i I:s nisch.</p>
+        <div class="opts"><span>G · Mappflikar</span><span>H · Ark under klämman</span><span>I · Graverad nisch</span><span>J · Rullar</span><span>K · Läderinlägg</span><span>L · Lyktglas</span><span>M · Tinkturer</span><span>N · Marginal</span><span>A2 · Band på sidan</span><span>D2 · Registerblad</span><span>E2 · Sigill på brevet</span><span>Kombination</span></div></div>
+      <div class="q"><h3>Var ska flikarna sitta?</h3><p>Under huven kostar höjd, till höger kostar bredd. Att byta från huven till höger kant när panelen blir låg ger det bästa av båda, men flikarna flyttar sig då när du ändrar panelens storlek.</p>
+        <div class="opts"><span>Under huven, till höger när det är lågt</span><span>Alltid till höger</span><span>Alltid under huven</span><span>Till vänster (N)</span></div></div>
+      <div class="q"><h3>Ett ljust ark i Lykta?</h3><p>H och D2 lägger innehållet på ljust pergament också i det mörka temat, så att arket syns som ett föremål. Det ändrar hur cellerna och sköldarna ser ut i Lykta.</p>
+        <div class="opts"><span>Ja, det är fint</span><span>Bara i Paper</span><span>Nej, mörkt ark i Lykta</span></div></div>
+      <div class="q"><h3>Den lilla formen</h3><p>Vilken av de små formerna känns rätt när orden inte får plats? Den kan också väljas för sig.</p>
+        <div class="opts"><span>I, II, III</span><span>i, ii, iii i bläck</span><span>Runor</span><span>Guldstämplar</span><span>Blyinfattningar</span><span>Bara färgen</span><span>Bläckprickar</span><span>Sigill</span><span>Färgade band</span></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ------------------------------------------------------------------ data
+const D = { name: 'Rasta', race: 'Tarkhnarb orc', level: 73, xp: 0.41, xpSess: 0.03, tp: 1,
+  hp: [187, 270], band: [46, 70], ma: [93, 111], mv: [98, 122], mvBand: [30, 49], wimpy: 150,
+  sh: { ob: '137', db: '−1', pb: '39', abs: '43' }, purse: [3, 94, 12] };
+const SHL = [['ob', 'OB', 'Offensive bonus'], ['db', 'DB', 'Defensive bonus'], ['pb', 'PB', 'Parry bonus'], ['abs', 'ABS', 'Armour absorption']];
+
+const STEPS = {
+  mood: { label: 'Mood', cmd: 'change mood', steps: ['wimpy', 'prudent', 'normal', 'brave', 'aggressive', 'berserk'], cycle: ['wimpy', 'prudent', 'normal', 'brave', 'aggressive'] },
+  casts: { label: 'Casts', cmd: 'change spellcasting', steps: ['quick', 'fast', 'normal', 'careful', 'thorough'], cycle: ['quick', 'fast', 'normal', 'careful', 'thorough'] },
+  alert: { label: 'Alertness', short: 'Alert', cmd: 'change alertness', steps: ['normal', 'careful', 'attentive', 'vigilant', 'paranoid'], cycle: ['normal', 'careful', 'attentive', 'vigilant', 'paranoid'] },
+  weight: { label: 'Weight', steps: ['peanuts', 'uncomfortable', 'heavy', 'really heavy', 'painful', 'torture'],
+    say: { peanuts: 'Peanuts.', uncomfortable: 'A tad uncomfortable, but no problem.', heavy: 'Heavy, but we will manage...', 'really heavy': 'That is really heavy!', painful: 'You are trying to forget the pain...', torture: 'Every single move is sheer torture...' } },
+};
+// Shortened forms where cutting letters would mislead.
+const SHORT = { 'really heavy': ['r. heavy', 'r.hv.'], uncomfortable: ['uncomf.', 'unc.'], normal: ['norm.', 'nor.'], attentive: ['attent.', 'att.'], vigilant: ['vigil.', 'vig.'], paranoid: ['paran.', 'par.'], careful: ['caref.', 'car.'], thorough: ['thor.', 'thr.'], prudent: ['prud.', 'pru.'] };
+
+// Timers: real names and durations (src/timers/data/affects.ts, herblores.ts). Flags: STATUS_FLAGS (src/gmcp/group.ts).
+const GLAB = { herb: 'Herblores', buff: 'Buffs', debuff: 'Debuffs', flag: 'Your status (GMCP)' };
+const TM = [
+  { id: 'h1', g: 'herb', n: 'Healing', left: 2520, dur: 3600 },
+  { id: 'h2', g: 'herb', n: 'Haste (recovery)', left: 205, dur: 1080, ph: 'debuff' },
+  { id: 'h3', g: 'herb', n: 'Travelling', left: 5400, dur: 7200 },
+  { id: 'b1', g: 'buff', n: 'second wind', left: 14, dur: 60 },
+  { id: 'b2', g: 'buff', n: 'miruvor', left: 140, dur: 180 },
+  { id: 'b3', g: 'buff', n: 'battle glory', left: 96, dur: 170 },
+  { id: 'b5', g: 'buff', n: 'comfortable', still: 1 },
+  { id: 'd1', g: 'debuff', n: 'winded', left: 1210, dur: 1380 },
+  { id: 'd2', g: 'debuff', n: 'lethargy', left: 250, dur: 330 },
+  { id: 'd3', g: 'debuff', n: 'torpor', left: 9, dur: 780 },
+  { id: 'f1', g: 'flag', n: 'Poisoned', ic: 'poison' },
+  { id: 'f2', g: 'flag', n: 'Hungry', ic: 'hungry' },
+  { id: 'f3', g: 'flag', n: 'Thirsty', ic: 'thirsty' },
+  { id: 'f4', g: 'flag', n: 'Blind', ic: 'blind' },
+  { id: 'f5', g: 'flag', n: 'Snared', ic: 'snared' },
+  { id: 'f6', g: 'flag', n: 'Wounded', ic: 'wound' },
+];
+const SANCT = { id: 'fs', g: 'flag', n: 'Sanctuary', ic: 'sanct', sanct: 1, left: 134, dur: 270 };
+TM.push(SANCT);
+const SAN_T = { left: 134, dur: 270 };
+const SETS = { 3: ['h1', 'b2', 'f2'], 8: ['h1', 'h2', 'b1', 'b2', 'd1', 'f1', 'f2', 'fs'], 16: TM.filter((t) => t.id !== 'h3').map((t) => t.id) };
+const HERBS = [['Healing', 3600], ['Travelling', 7200], ['Clearthought', 120], ['Walking', 1440], ['Haste', 360], ['Dark aura', 210]];
+
+const I = {
+  sneak: 'M8 10.5c-1.7 0-2.7 2-2.7 4.3S6.3 19 8 19s2.5-1.8 2.5-4.2S9.7 10.5 8 10.5z M6.3 21.2h3.4 M16 3c-1.7 0-2.7 2-2.7 4.3S14.3 11.5 16 11.5s2.5-1.8 2.5-4.2S17.7 3 16 3z M14.3 13.7h3.4',
+  ride: 'M3 18.5l2.5-6h10.5l2.5-3.5 2.5 1-2 3.5v5 M7.5 12.5v6 M14.5 12.5v6 M11 12.5V8 M11 4.2a1.6 1.6 0 1 0 0 .01 M11 8l3.5 2',
+  climb: 'M7 3v18 M17 3v18 M7 7h10 M7 12h10 M7 17h10',
+  swim: 'M16.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M3.5 13l5.5-3.5 3 2.5 4-2.5 M2 18c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  ob: 'M14.5 3.5h6v6L9 21l-3.5-3.5L17 6 M4 15l5 5 M3 21l2.5-2.5',
+  db: 'M20 4C10 4 5 10 5 19 M5 19L15 9 M9 15h6 M11 11h6c1.2-2.5 2.2-4.5 3-7',
+  pb: 'M12 2v14 M7.5 16h9 M12 16v5.5 M4 8l4 2.5',
+  abs: 'M6 4l3 2h6l3-2 3 4-3 3v9H6v-9L3 8z M9 11h6 M9 15h6',
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  poison: 'M9.5 3h5 M10.5 3v5.5L6 17a2.4 2.4 0 0 0 2.1 3.5h7.8A2.4 2.4 0 0 0 18 17l-4.5-8.5V3 M7.6 14h8.8 M11 17.2h.01 M13.5 16h.01',
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M9.8 14.2a2.2 2.2 0 0 0 2.2 2.2',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  close: 'M5 5l14 14 M19 5L5 19',
+  fmood: 'M12 2.5c.8 3 4.8 5.2 4.8 10.2a4.8 4.8 0 0 1-9.6 0c0-2.4 1.1-3.8 2.3-4.8.1 2 1 3.2 2.2 3.6-.6-3.2-.6-6 .3-9z',
+  fcasts: 'M4 20.5L13.5 11 M16.5 3v2.6 M16.5 9.4V12 M11.9 7.5h2.6 M18.5 7.5h2.6 M20 15.5v2.4 M18.8 16.7h2.4',
+  falert: 'M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z M12 9.2a2.8 2.8 0 1 0 0 5.6a2.8 2.8 0 1 0 0-5.6',
+  fweight: 'M9.2 7.5a2.8 2.8 0 1 1 5.6 0 M6.5 7.5h11l2.6 13H3.9z M9.5 14h5',
+  tabStatus: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z M8 10.5l4 3 4-3',
+  tabStats: 'M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z M8.5 7.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2 M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2 M15.5 14.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2',
+  tabLore: 'M6 3.5h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4z M6 16.5h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4z M6.5 7.5v9 M17.5 7.5v9 M10 11h4 M10 13.5h4',
+  rAlgiz: 'M12 3.5v17 M12 11L6 4.5 M12 11l6-6.5',
+  rUruz: 'M7.5 20.5v-17l9 5.5v11.5',
+  rAnsuz: 'M8.5 3.5v17 M8.5 3.5l8 5 M8.5 10l8 5',
+  cSword: 'M12 2.5l1.7 2.6v10.4h-3.4V5.1z M7.5 15.5h9 M12 15.5v4.5 M10.6 21h2.8',
+  cTower: 'M6.5 21V9.5h11V21 M6.5 9.5v-4h2.2v2h2.2v-2h2.2v2h2.2v-2h2.2v4 M10.5 21v-3.5a1.5 1.5 0 0 1 3 0V21',
+  cCrown: 'M4.5 17.5h15 M4.5 17.5L3.5 8l4.5 4.5L12 5l4 7.5L20.5 8l-1 9.5 M4.5 20.5h15',
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M2 12h3 M19 12h3 M4.9 19.1L7 17 M17 7l2.1-2.1',
+};
+
+// Pane sizes: outer width × window height, px. Medium is the default docked pane.
+// s: stone size; minRa: the least status-area width the portrait leaves; vf: the status value's font size; shMax: the largest shield.
+const SZ = {
+  medium: { w: 300, h: 166, name: 'Medium', bar: 16, ico: 12, tabs: 18, s: 12, minRa: 150, vf: 9.5, shMax: 54 },
+  large: { w: 470, h: 204, name: 'Large', bar: 18, ico: 14, tabs: 18, s: 13, minRa: 250, vf: 11.5, shMax: 64 },
+  phone: { w: 366, h: 190, name: 'Telefon', bar: 18, ico: 14, tabs: 24, s: 13, minRa: 190, vf: 11, shMax: 60 },
+  tallN: { w: 300, h: 320, name: 'Hög smal', bar: 16, ico: 12, tabs: 18, s: 12, minRa: 150, vf: 9.5, shMax: 70 },
+  float: { w: 576, h: 150, name: 'Medium flytande', bar: 16, ico: 12, tabs: 18, s: 12, minRa: 150, vf: 10, shMax: 54 },
+  dock: { w: 290, h: 180, name: 'Dockad höger', bar: 16, ico: 12, tabs: 18, s: 12, minRa: 150, vf: 9.5, shMax: 54 },
+  strip: { w: 390, h: 176, name: 'Telefonremsan', bar: 18, ico: 14, tabs: 24, s: 13, minRa: 190, vf: 11, shMax: 60 },
+  tallW: { w: 470, h: 360, name: 'Hög bred', bar: 18, ico: 14, tabs: 18, s: 13, minRa: 250, vf: 11.5, shMax: 72 },
+};
+
+const FRAMES = [
+  ['iron', 'Järn', 'Panens järn som en slät ram, med en ljus kant upptill. Det diskretaste alternativet, och det ligger närmast Lykta.'],
+  ['double', 'Dubbel linje', 'Ingen ram, bara två tunna lyktlinjer med en mörk springa emellan. Lättast i vikt.'],
+  ['bronze', 'Fasad brons', 'En fasad bronslist med ljus och skugga. Varmast, och mest ”föremål”.'],
+  ['dnd', 'D&D-kort', 'En mörk list med en förgylld innerlinje och små hörnornament, som på ett spelkort. Diskret, men med kortkänsla.'],
+  ['gilt', 'Förgylld linje', 'Järnram med en tunn förgylld linje närmast bilden och ett svagt sken utåt.'],
+  ['mat', 'Passepartout', 'En bred, varm kartongram där bilden ligger nedsänkt, som en inramad tavla.'],
+  ['round', 'Rund (runda 11, a)', 'Runda 11:s järnring, som jämförelse. Med Gloria och Spiral blir porträttet alltid runt.'],
+];
+const NAMES = [
+  ['inside', 'I ramen upptill', 'Ett glasband längs bildens överkant, inne i ramen. Kostar ingen höjd, men täcker hjässan.'],
+  ['cap', 'Glaskåpa ovanför', 'En glaskåpa som sitter ovanpå ramen. Täcker ingenting, men tar höjd från porträttet.'],
+  ['below', 'Under ramen', 'Ett glasband som hänger under ramen. Nivåringen flyttar då till hörnet.'],
+  ['corner', 'Hörnband', 'Ett snett band över övre vänstra hörnet. Kostar ingen höjd, men är kort: i Medium får bara ett namn på 5–6 tecken plats.'],
+  ['rail', 'I överlisten', 'Ramens överlist blir bredare, och namnet ligger i en liten glasruta i listen. Tar höjd, men hör ihop med ramen.'],
+  ['tab', 'Flik', 'En liten glasflik som hänger från överkanten, bara så bred som namnet. Täcker minst.'],
+  ['none', 'Inget namn', 'Inget band. Passar ihop med namn och ras i statusytan.'],
+];
+const SROWS = [
+  ['plain', 'Linjer', 'Inga rutor, bara tunna linjer emellan (som i dag). Lugnast.'],
+  ['cells', 'Celler', 'Varje värde i en tunn ram med lite mörkare botten. Syns att det är fyra fält.'],
+  ['buttons', 'Knappar', 'Upphöjda järnknappar som trycks ner. Weight är platt, eftersom den inte går att klicka på.'],
+  ['wells', 'Brunnar', 'Nedsänkta fält, som graverade i panelen.'],
+  ['legend', 'Legend', 'Etiketten sitter i ramens överkant, som på ett formulär.'],
+  ['plates', 'Plåtar', 'Etiketten och värdet på en rad på en liten plåt. Lägst, men blir två rader när cellen är smalare än 64 px.'],
+  ['under', 'Understruken', 'Värdet överst med en tunn linje under och etiketten under linjen.'],
+];
+const SHIELDS = [
+  ['heater', 'Sköld', 'En platt överkant och en spets nedåt, med en tunn innerlinje och nitar.'],
+  ['round', 'Rund', 'En rundsköld med en kant.'],
+  ['kite', 'Drake', 'En droppformad drakesköld.'],
+  ['dnd', 'D&D (AC)', 'Formen från ett D&D-statblock, med dubbel kant och en liten pärla.'],
+  ['plate', 'Platta', 'En rundad platta, som Stats-fliken i dag.'],
+];
+const VITS = [
+  ['today', 'I dag', 'Runda 11:s staplar, som jämförelse.'],
+  ['groove', 'Graverat spår', 'Spåret är mörkare upptill och ljusare nedtill, och har en ljus kant under och en ljus mittlinje där det är tomt.'],
+  ['gilt', 'Förgylld ram', 'En tunn förgylld ram runt varje stapel, och ett svagt varmt tomt spår.'],
+  ['caps', 'Ändknappar', 'Små järnknappar i båda ändar. Den vänstra visar var stapeln börjar.'],
+  ['parch', 'Pergamentspår', 'Det tomma spåret är pergamentfärgat med tunna fibrer, så att fyllningen syns mot det.'],
+  ['hatch', 'Gravyr', 'Fin diagonal skraffering i fyllningen och en järnkant.'],
+  ['grain', 'Ådring', 'En svag ådring i fyllningen, och ett graverat spår.'],
+  ['leather', 'Läder', 'Spåret är mörkt läder med söm, och sömmen ligger också över fyllningen.'],
+  ['bead', 'Glaspärla', 'En rund glasstav med ljusreflex. Modernast av dem, men mjuk.'],
+  ['gem', 'D&D-kort', 'En tunn förgylld ram och en liten ädelsten i stapelns färg i varje ände.'],
+];
+const RINGS = [
+  ['lt', 'Vänster + topp', 'Stenarna går uppför vänster kant och vidare längs överkanten, som ett L.'],
+  ['right', 'Höger kant', 'En kolumn mellan porträttet och statusytan, uppifrån och ner.'],
+  ['frame', 'Runt om', 'Stenarna går medsols runt allt, med undersidan under ikonraden.'],
+  ['bottom', 'Under ikonerna', 'En eller flera rader under ikonraden.'],
+  ['halo', 'Gloria (rund)', 'En båge runt ett runt porträtt, med en lucka nertill för nivåringen och ikonerna.'],
+  ['spiral', 'Spiral (rund)', 'Två varv i en spiral runt ett runt porträtt. Rymmer flest.'],
+];
+const OVFS = [
+  ['badge', '+n', 'Den sista stenen blir +n.'],
+  ['shrink', 'Krymper', 'Stenarna krymper ner till 9 px, och sedan blir det +n.'],
+  ['lap2', 'Andra varv', 'Ett yttre varv läggs till, och porträttet krymper.'],
+  ['spill', 'Spill', 'Resten läggs i statusytan under sköldarna.'],
+];
+
+// Round 12 decisions 1-9 plus round 14 (the purse in the stones row), fixed.
+const st = { size: 'medium', pane: 'lykta', tab: '0', frame: 'iron', lvl: 'br', name: 'inside', srow: 'cells', meter: 'dot',
+  shield: 'dnd', shGrid: 'auto', purse: 'off', ident: 'off', vit: 'parch', ring: 'none', ovf: 'badge', count: 8,
+  fight: 'off', state: 'stand', cicons: 'on',
+  mood: 'brave', casts: 'normal', alert: 'normal', weight: 'really heavy', variant: 'C', vals: 'real', dir: 'G', hgt: 'tall', tog: { sneak: 1, ride: 0, climb: 1, swim: 0 },
+  gone: new Set(), added: [], pend: {} };
+
+// ------------------------------------------------------------------ helpers
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pct = (a) => Math.round((a[0] / a[1]) * 100);
+const svg = (k, cls = 'ti', style = '') => `<svg class="${cls}" viewBox="0 0 24 24"${style ? ` style="${style}"` : ''}><path d="${I[k]}"/></svg>`;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function cdt(secs) { const s = Math.max(0, Math.floor(secs)); if (s <= 90) return `${s}s`; const m = Math.floor((s + 30) / 60); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; }
+function exact(secs) { const s = Math.max(0, Math.floor(secs)); if (s < 60) return `${s}s`; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${r}` : `${m}:${r}`; }
+const pt = (c, r, deg) => { const a = deg * Math.PI / 180; return [c + r * Math.sin(a), c - r * Math.cos(a)]; };
+
+// ------------------------------------------------------------------ the level ring
+function ring(size) {
+  const c = size / 2, r1 = c - 1.8, r2 = c - 5;
+  const tip = `${D.name}\nLevel ${D.level}\nXP ${Math.round(D.xp * 100)} % · 210 591 to ${D.level + 1}\nTP done`;
+  return `<span class="lr" data-tip="${esc(tip)}" style="width:${size}px;height:${size}px;--fs:${Math.round(size * 0.38)}px"><svg viewBox="0 0 ${size} ${size}" fill="none" stroke-linecap="round" style="transform:rotate(-90deg)">
+    <circle cx="${c}" cy="${c}" r="${r1}" stroke="rgba(0,0,0,.7)" stroke-width="2.6"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="#6e5832" stroke-width="2.6" stroke-dasharray="${(D.xp - D.xpSess) * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r1}" pathLength="100" stroke="var(--xp)" stroke-width="2.6" stroke-dasharray="0 ${(D.xp - D.xpSess) * 100} ${D.xpSess * 100} 100"/>
+    <circle cx="${c}" cy="${c}" r="${r2}" pathLength="100" stroke="var(--tp)" stroke-width="1.3" stroke-dasharray="${D.tp * 100} 100" opacity=".85"/></svg><b>${D.level}</b></span>`;
+}
+
+// ------------------------------------------------------------------ steps
+function nextStep(k, cur) { const cy = STEPS[k].cycle; const i = cy.indexOf(cur); return cy[(i + 1) % cy.length]; }
+function stepTip(k, cur) {
+  const S = STEPS[k];
+  const list = S.steps.map((s) => (s === cur ? `[${s}]` : s)).join(' · ');
+  if (k === 'weight') return `Weight: ${cur}\n"${S.say[cur]}"\n${list}\n(GMCP carrying; not clickable)`;
+  return `${S.label}: ${cur}\n${list}\nClick: ${S.cmd} ${nextStep(k, cur)}${k === 'mood' ? '\n(never berserk)' : ''}`;
+}
+function shortV(w, n) {
+  if (w.length <= n) return w;
+  const sp = SHORT[w];
+  if (sp) return sp[0].length <= n ? sp[0] : sp[1].length <= n ? sp[1] : sp[1].slice(0, n);
+  if (n >= 7) return w.slice(0, Math.min(6, n - 1)) + '.';
+  return w.slice(0, 3) + '.';
+}
+
+// ------------------------------------------------------------------ timers: model
+function model(t) {
+  const timed = t.left != null;
+  const p = timed ? Math.round((t.left / t.dur) * 1000) / 10 : t.still ? 100 : 0;
+  const end = timed && t.left <= 20;
+  let tip = `${t.n}\n`;
+  if (timed) tip += `${exact(t.left)} left (of ${exact(t.dur)})${t.sanct ? '\nOn you while GMCP says so; the time is your cast' : ''}`;
+  else if (t.g === 'flag') tip += t.sanct ? `On while GMCP says so.\nThe frame shows your cast: ${exact(SAN_T.left)} left.` : 'On while GMCP says so (no time).';
+  else tip += 'No end time.';
+  tip += `\n${GLAB[t.g]}`;
+  if (t.g === 'herb') tip += `${t.ph === 'debuff' ? ' · debuff phase' : ''}\nHover: × stops it.`;
+  if (end) tip += '\nEnding soon (≤ 20 s).';
+  return Object.assign({}, t, { timed, p, end, tip, ic: t.ic || (t.ph === 'debuff' ? 'debuff' : t.g), col: t.g === 'flag' ? (t.sanct ? 'sanct' : 'debuff') : t.g, untimed: !timed && !t.still });
+}
+function itemsFor(o) {
+  const set = SETS[o.count];
+  let L = TM.filter((t) => set === 'all' || set.includes(t.id));
+  if (o.live) {
+    L = L.filter((t) => !st.gone.has(t.id));
+    L = L.concat(st.added.map(([n, dur]) => ({ id: 'hx-' + n.replace(/\W/g, ''), g: 'herb', n, left: dur - 4, dur })));
+  }
+  const its = L.map(model);
+  const key = (t) => (t.timed ? t.left : 1e9);
+  return ['herb', 'buff', 'debuff', 'flag'].flatMap((g) => its.filter((i) => i.g === g).sort((a, b) => key(a) - key(b)));
+}
+const prk = (t) => (t.end ? 0 : t.g === 'flag' ? 1 : t.g === 'debuff' ? 2 : t.g === 'herb' ? 3 : 4);
+
+// ------------------------------------------------------------------ the left part: portrait, name, ring, icons, stones
+const EDGES = { lt: ['left', 'top'], right: ['right'], frame: ['top', 'right', 'bottom', 'left'], bottom: ['bottom'], halo: ['halo'], spiral: ['halo'] };
+function frameT(f, p) { const t = { iron: 3, double: 4, bronze: 4, dnd: 5, gilt: 3, mat: 6, round: 0 }[f]; return f === 'round' ? 0 : Math.max(2, Math.min(t, Math.round(p * 0.065))); }
+function spread(a, len, size, gap) {
+  const n = Math.max(0, Math.floor((len + gap) / (size + gap)));
+  const used = n * (size + gap) - gap, s = a + (len - used) / 2, r = [];
+  for (let i = 0; i < n; i++) r.push(s + i * (size + gap));
+  return r;
+}
+function attempt(o, z, cwH, innerW, a) {
+  const { s, laps, isHalo, round, frame, name } = a;
+  const E = a.edges || EDGES[o.ring], has = (e) => E.includes(e);
+  const sw = s, sh = s + 3, gp = 2;
+  const m = isHalo ? laps * (sh + gp) + 4 : 0;
+  const eL = has('left') ? laps * (sw + gp) : 0, eR = has('right') ? laps * (sw + gp) : 0;
+  const eT = has('top') ? laps * (sh + gp) : 0, eB = has('bottom') ? laps * (sh + gp) : 0;
+  const icW = 5 * z.ico + 4 * 3, icH = z.ico + 4;
+  let p = 150, P = {};
+  for (let i = 0; i < 4; i++) {
+    const nh = clamp(Math.round(p * 0.15), 12, 19);
+    const t = frameT(frame, p);
+    const nameTop = name === 'cap' ? nh - 2 : 0;
+    const rail = name === 'rail' ? nh - t : 0;
+    const nameBot = name === 'below' ? nh + 1 : 0;
+    const rp = clamp(Math.round(p * 0.3), 20, 34);
+    const over = Math.round(rp * 0.32);
+    const below = Math.max(a.lvl === 'br' ? Math.round(rp * 0.28) : over, nameBot);
+    const top = isHalo ? m : eT;
+    const hAvail = cwH - top - nameTop - rail - below - icH - eB - 2;
+    const wAvail = innerW - z.tabs - 8 - z.minRa - (isHalo ? 2 * m : eL + eR);
+    p = Math.floor(Math.min(hAvail, wAvail, 150));
+    P = { nh, t, nameTop, rail, nameBot, rp, over, below, top };
+  }
+  const colW0 = isHalo ? p + 2 * m : eL + p + eR;
+  const colW = Math.max(colW0, icW);
+  const px = (isHalo ? m : eL) + Math.floor((colW - colW0) / 2);
+  const py = P.top + P.nameTop;
+  const fh = p + P.rail;
+  const iconsY = py + fh + P.below + 2;
+  const bY = iconsY + icH + gp;
+  let colH = has('bottom') ? bY + laps * (sh + gp) - gp : iconsY + icH;
+  if (isHalo) colH = Math.max(colH, py + p + m);
+  const ringBox = a.lvl === 'bc' ? { x: px + (p - P.rp) / 2, y: py + fh + P.over - P.rp, w: P.rp, h: P.rp }
+    : { x: px + p - Math.round(P.rp * 0.72), y: py + fh - Math.round(P.rp * 0.72), w: P.rp, h: P.rp };
+  const icBox = { x: px + (p - icW) / 2, y: iconsY, w: icW, h: icH };
+  const keep = [ringBox, icBox];
+  if (name === 'below') keep.push({ x: px, y: py + fh, w: p, h: P.nh + 1 });
+  if (name === 'cap') keep.push({ x: px + p * 0.1, y: py - P.nameTop, w: p * 0.8, h: P.nameTop });
+  const hit = (x, y) => keep.some((k) => x < k.x + k.w + 1 && x + sw > k.x - 1 && y < k.y + k.h + 1 && y + sh > k.y - 1);
+  const ok = (x, y) => x >= -0.5 && y >= -0.5 && x + sw <= colW + 0.5 && y + sh <= colH + 0.5 && !hit(x, y);
+  const slots = [];
+  const push = (x, y) => { if (ok(x, y)) slots.push({ x: Math.round(x), y: Math.round(y) }); };
+  const yA = py - P.nameTop, yB = iconsY + icH;
+  if (isHalo) {
+    const cx = px + p / 2, cy = py + p / 2, R0 = p / 2 + 6 + gp + sh / 2;
+    if (o.ring === 'halo') {
+      for (let k = 0; k < laps; k++) {
+        const R = R0 + k * (sh + gp), stp = ((sw + gp + 1) / R) * 180 / Math.PI;
+        const n = Math.floor(250 / stp) + 1, a0 = -125 + (250 - (n - 1) * stp) / 2;
+        for (let i = 0; i < n; i++) { const [x, y] = pt(0, R, a0 + i * stp); push(cx + x - sw / 2, cy + y - sh / 2); }
+      }
+    } else {
+      let ang = -125, tot = 0;
+      const end = laps * 360 - 110;
+      while (tot < end) {
+        const R = R0 + (sh + gp) * tot / 360;
+        const [x, y] = pt(0, R, ang); push(cx + x - sw / 2, cy + y - sh / 2);
+        const d = ((sw + gp + 1) / R) * 180 / Math.PI;
+        ang += d; tot += d;
+        if (ang > 125) { ang -= 250; tot += 110; }
+      }
+    }
+  } else {
+    for (let k = 0; k < laps; k++) {
+      const lx = px - gp - sw - k * (sw + gp), rx = px + p + gp + k * (sw + gp);
+      const ty = yA - gp - sh - k * (sh + gp), by = bY + k * (sh + gp);
+      const col = spread(yA, yB - yA, sh, gp), row = spread(px, p, sw, gp);
+      if (o.ring === 'lt') {
+        col.slice().reverse().forEach((y) => push(lx, y)); push(lx, ty); row.forEach((x) => push(x, ty));
+      } else if (o.ring === 'right') {
+        col.forEach((y) => push(rx, y));
+      } else if (o.ring === 'frame') {
+        push(lx, ty); row.forEach((x) => push(x, ty)); push(rx, ty);
+        col.forEach((y) => push(rx, y)); push(rx, by);
+        row.slice().reverse().forEach((x) => push(x, by)); push(lx, by);
+        col.slice().reverse().forEach((y) => push(lx, y));
+      } else if (o.ring === 'bottom') {
+        spread(0, colW, sw, gp).forEach((x) => push(x, by));
+      }
+    }
+  }
+  return { s, sw, sh, laps, p, px, py, fh, colW, colH, iconsY, icW, icH, ringBox, slots, R: clamp(Math.round(p * 0.11), 6, 13), ...P };
+}
+function leftLay(o, z, cwH, innerW) {
+  const a = { s: z.s, laps: 1, isHalo: false, round: false, frame: 'iron', name: 'inside', lvl: 'br', edges: [] };
+  const G = attempt(o, z, cwH, innerW, a);
+  return Object.assign(G, { frame: 'iron', name: 'inside', lvl: 'br', round: false, isHalo: false, entries: [] });
+}
+
+function stoneHtml(e, s, x, y) {
+  const pos = `${x != null ? `left:${x}px;top:${y}px;` : ''}width:${s}px;height:${s + 3}px;--s:${s}px`;
+  if (e.k === 'add') return `<span class="st add" data-add data-flip="t-add" data-tip="Herblores\nClick: start a herblore" style="${pos}"><span class="ib">+</span></span>`;
+  if (e.k === 'more') return `<span class="st more" data-more data-flip="t-more" data-tip="${esc(`${e.rest.length} more (no room). Click for the list:\n` + e.rest.map((t) => `${t.n}  ${t.timed ? cdt(t.left) : 'on'}`).join('\n'))}" style="${pos}"><span class="ib">+${e.rest.length}</span></span>`;
+  const t = e.t, rm = t.g === 'herb';
+  return `<span class="st${t.untimed ? ' untimed' : ''}${t.end ? ' end' : ''}${rm ? ' rm' : ''}" data-flip="t-${t.id}" data-tip="${esc(t.tip)}" style="${pos};--c:var(--g-${t.col});--p:${t.p}%"><span class="ib">${svg(t.ic)}</span><span class="tb"><i></i></span>${rm ? `<i class="x" data-rm="${t.id}" data-tip="Stop this herblore">${svg('close')}</i>` : ''}</span>`;
+}
+function rrPath(x, y, w, h, r) {
+  const cx = x + w / 2;
+  return `M${cx} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+}
+function sanctFx(o, L) {
+  const f = SAN_T.left / SAN_T.dur, pad = L.round ? 5 : 3, sp = 3;
+  const W = L.p + 2 * pad, H = L.fh + 2 * pad;
+  const d = L.round ? `M${sp + W / 2} ${sp}A${W / 2} ${W / 2} 0 1 1 ${sp + W / 2 - 0.01} ${sp}Z` : rrPath(sp, sp, W, H, L.R + pad);
+  let inner = `<path d="${d}" class="bg" pathLength="100"/>`;
+  if (o.sfx !== 'c') inner += `<path d="${d}" class="arc" pathLength="100" stroke-dasharray="${(f * 100).toFixed(1)} 100"/>`;
+  if (o.sfx === 'b') inner += `<path d="${d}" class="spark" pathLength="100" style="--end:${(-(f * 100 - 5)).toFixed(1)}"/>`;
+  if (o.sfx === 'c') inner += `<path d="${d}" class="glow" pathLength="100"/><path d="${d}" class="spark full" pathLength="100"/>`;
+  return `<svg class="srun" data-flip="sanct" viewBox="0 0 ${W + 2 * sp} ${H + 2 * sp}" style="left:${L.px - pad - sp}px;top:${L.py - pad - sp}px;width:${W + 2 * sp}px;height:${H + 2 * sp}px">${inner}</svg>`;
+}
+function ornaments(L) {
+  const sz = clamp(Math.round(L.p * 0.15), 9, 17), o = -1;
+  const one = (cls, tr) => `<svg class="orn" viewBox="0 0 12 12" style="width:${sz}px;height:${sz}px;${cls};transform:${tr}"><path d="M1 11V4.5Q1 1 4.5 1H11 M3.4 8.6V5.6Q3.4 3.4 5.6 3.4H8.6"/><circle cx="1.6" cy="1.6" r="1.1"/></svg>`;
+  return one(`left:${o}px;top:${o}px`, 'none') + one(`right:${o}px;top:${o}px`, 'scaleX(-1)') + one(`left:${o}px;bottom:${o}px`, 'scaleY(-1)') + one(`right:${o}px;bottom:${o}px`, 'scale(-1,-1)');
+}
+const POS = { stand: 'standing', rest: 'resting', sleep: 'sleeping', sanct: 'standing' };
+const POSCLICK = { standing: 'rest', resting: 'stand', sleeping: 'wake' };
+function leftHtml(o, L, z, F) {
+  const p = L.p, nh = L.nh, fs = clamp(Math.round(nh * 0.62), 8, 12);
+  const dc = o.state === 'rest' ? 'dim1' : o.state === 'sleep' ? 'sleep' : '';
+  const fig = `<svg class="fig" viewBox="0 0 60 75" preserveAspectRatio="xMidYMin meet"><use href="#r-orc"/></svg>`;
+  const N = D.name;
+  let inImg = '', outside = '', rail = '';
+  if (L.name === 'inside') inImg = `<div class="npl glass gtop" data-flip="name" style="${L.round ? `top:${Math.round(p * 0.1)}px;` : ''}height:${nh}px;font-size:${fs}px">${N}</div>`;
+  if (L.name === 'tab') inImg = `<div class="npl glass gtab" data-flip="name" style="left:50%;${L.round ? `top:${Math.round(p * 0.06)}px;` : ''}height:${nh - 1}px;font-size:${fs}px">${N}</div>`;
+  if (L.name === 'corner') { const c = p * 0.24, w = p * 0.8; inImg = `<div class="npl glass gcorner" data-flip="name" style="left:${(c - w / 2).toFixed(1)}px;top:${(c - nh / 2).toFixed(1)}px;width:${w.toFixed(1)}px;height:${nh}px;font-size:${Math.max(8, fs - 1)}px">${N}</div>`; }
+  if (L.name === 'cap') outside = `<div class="npl glass gcap" data-flip="name" style="left:${L.px + Math.round(p * 0.1)}px;top:${L.py - L.nameTop}px;width:${Math.round(p * 0.8)}px;height:${L.nameTop + 1}px;font-size:${fs}px">${N}</div>`;
+  if (L.name === 'below') outside = `<div class="npl glass gbelow" data-flip="name" style="left:${L.px}px;top:${L.py + L.fh}px;width:${p}px;height:${nh}px;font-size:${fs}px">${N}</div>`;
+  if (L.name === 'rail') rail = `<div class="npl rail" data-flip="name" style="height:${nh}px;font-size:${fs}px"><i></i>${N}</div>`;
+  const tip = `${D.name}\n${D.race}${o.state === 'sanct' ? `\nSanctuary on you: ${exact(SAN_T.left)} left (of ${exact(SAN_T.dur)})` : ''}`;
+  let por;
+  if (L.round) por = `<div class="disc2 ${dc}" data-tip="${esc(tip)}" style="left:${L.px}px;top:${L.py}px;width:${p}px;height:${p}px">${fig}${inImg}</div>`;
+  else por = `<div class="pf f-${L.frame} ${dc}" data-tip="${esc(tip)}" style="left:${L.px}px;top:${L.py}px;width:${p}px;height:${L.fh}px;--R:${L.R}px;--t:${L.t}px;${L.name === 'rail' ? `padding-top:${nh}px` : ''}">${L.frame === 'dnd' ? ornaments(L) : ''}${rail}<div class="pimg">${fig}${inImg}</div></div>`;
+  let fx = '';
+  if (o.state === 'sanct') fx += sanctFx(o, L);
+  if (o.state === 'sleep') fx += `<span class="zz" style="left:${L.px + p * 0.66}px;top:${L.py + (L.name === 'rail' ? nh : 0) + p * 0.05 + (['inside', 'tab'].includes(L.name) ? nh : 0)}px;font-size:${clamp(Math.round(p * 0.17), 9, 20)}px">z<small>z</small></span>`;
+  const rb = L.ringBox;
+  const lr = `<div class="lrpos" data-flip="lvl" style="left:${rb.x}px;top:${rb.y}px">${ring(L.rp)}</div>`;
+  const ic = z.ico, s = `width:${ic}px;height:${ic}px`;
+  const tog = ['sneak', 'ride', 'climb', 'swim'].map((k) => {
+    const on = o.tog[k], cmd = k === 'ride' ? (on ? 'lead' : 'ride') : k;
+    return `<span data-tog="${k}" class="${o.live && st.pend[k] ? 'pend' : ''}" data-tip="${k}: ${on ? 'on' : 'off'}\nClick: ${cmd}">${svg(k, 'ti' + (on ? ' on' : ''), s)}</span>`;
+  }).join('');
+  const pk = F ? 'fighting' : POS[o.state];
+  const ptip = F ? 'Fighting\n(the only fight sign on the card)' : `${pk}\nClick: ${POSCLICK[pk]}`;
+  const pos = `<span data-pos class="${o.live && st.pend.pos ? 'pend' : ''}" data-tip="${ptip}">${svg(pk, 'ti posi' + (F ? ' fight' : ''), s)}</span>`;
+  const icons = `<div class="icrow" data-flip="icons" style="left:${L.px + (p - L.icW) / 2}px;top:${L.iconsY}px;width:${L.icW}px">${tog}${pos}</div>`;
+  const stones = L.entries.map((e) => stoneHtml(e, L.s, e.x, e.y)).join('');
+  return `<div class="lc${L.tall ? ' top' : ''}" data-flip="lc" style="width:${L.colW}px;height:${L.colH}px">${por}${outside}${fx}${lr}${icons}${stones}</div>`;
+}
+
+// ------------------------------------------------------------------ the status area
+// ------------------------------------------------------------------ round 16: the status cells
+// The hand-made short forms (ADR 0166 points 126 and 171): the whole word when it fits, never "…".
+function fitW(w, n) {
+  if (w.length <= n) return w;
+  if (w === 'really heavy') return n >= 7 ? 'r.heavy' : n >= 5 ? 'r.hvy' : 'rhvy';
+  if (w === 'uncomfortable') return n >= 6 ? 'uncomf' : 'unc';
+  return ABBR[w] || w.slice(0, Math.max(3, n));
+}
+const nCh = (room, vf) => Math.floor(room / (vf * 0.6 + 0.12));
+// Colour by step, calm -> hot (variant C; the weight's ramp is also the load bar's in A and D).
+const HEAT = {
+  mood: ['#86a9cf', '#8fc0ad', '#d9cfb4', '#eab35e', '#f2874a', '#ff4d4d'],
+  casts: ['#f2a65a', '#e8c47e', '#d9cfb4', '#a7c8b6', '#7db7da'],
+  alert: ['#a9a491', '#cfc6a0', '#e9cf9f', '#f2b45c', '#ee7d5c'],
+  weight: ['#6fd38a', '#a6c95a', '#d9cfb4', '#f0a04b', '#ff6b5a', '#ff4d4d'],
+};
+const HEAT_P = {
+  mood: ['#3d6690', '#3d7a64', '#6e5220', '#9a6410', '#b4501c', '#b3261e'],
+  casts: ['#a8560f', '#8a6a1c', '#6e5220', '#3d7a64', '#2d6890'],
+  alert: ['#6e634d', '#7a6a32', '#6e5220', '#9a6410', '#b4501c'],
+  weight: ['#2a7e3c', '#5c7a12', '#6e5220', '#a8560f', '#c0392b', '#b3261e'],
+};
+const heat = (o, k, i) => (o.pane === 'paper' || o.lit ? HEAT_P : HEAT)[k][i];
+// Today's signal: only Weight, really heavy orange, painful and torture red.
+function sig(o, c) {
+  if (c.k !== 'weight' || c.idx < 3) return '';
+  const p = o.pane === 'paper' || o.lit;
+  return c.idx === 3 ? (p ? '#a8560f' : '#f0a04b') : (p ? '#c0392b' : '#ff6b5a');
+}
+const FICON = { mood: 'fmood', casts: 'fcasts', alert: 'falert', weight: 'fweight' };
+function cellsOf(o, W, gap) {
+  const cw = (W - 3 * gap) / 4;
+  return ['mood', 'casts', 'alert', 'weight'].map((k) => {
+    const S = STEPS[k], cur = o[k], idx = S.steps.indexOf(cur);
+    return { k, S, cur, idx, n: S.steps.length, ro: k === 'weight', cw, tip: stepTip(k, cur) };
+  });
+}
+function labOf(c) {
+  let lab = c.S.label;
+  if (lab.length * 5.4 > c.cw - 6) lab = c.S.short || lab;
+  return { lab, tight: lab.length * 5.4 > c.cw - 6 };
+}
+const cbtn = (c, cls, inner, style = '') => `<button class="sr${cls ? ' ' + cls : ''}${c.ro ? ' ro' : ''}"${c.ro ? '' : ` data-step="${c.k}"`} data-tip="${esc(c.tip)}"${style ? ` style="${style}"` : ''}>${inner}</button>`;
+const rowWrap = (cls, h, gap, vf, W, cells) => ({ h, html: `<div class="srow ${cls}" data-flip="srow" style="height:${h}px;gap:${gap}px;--vf:${vf}px;width:${W}px">${cells.join('')}</div>` });
+
+// Today: cells, a small label, the value, the vertical meter with only the current step lit (+ H4's short forms).
+function varToday(o, W, z) {
+  const gap = 3, vf = z.vf, big = vf >= 11, cs = cellsOf(o, W, gap);
+  const cells = cs.map((c) => {
+    const { lab } = labOf(c), val = fitW(c.cur, nCh(c.cw - 6 - 8, vf)), col = sig(o, c);
+    const mt = `<span class="mt">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : ''}"></i>`).join('')}</span>`;
+    return cbtn(c, '', `<span class="k">${lab}</span><b${col ? ` style="color:${col}"` : ''}>${val}</b>${mt}`);
+  });
+  return rowWrap('sv-cells hasm', big ? 30 : 27, gap, vf, W, cells);
+}
+
+// A: the meter as pips under the word (only the current step lit), a chevron on the clickable three,
+// Weight flat (no frame lift, no chevron) with a load bar that fills calm -> hot.
+function varA(o, W, z) {
+  const gap = 3, vf = z.vf, big = vf >= 11, cs = cellsOf(o, W, gap);
+  const cells = cs.map((c) => {
+    const { lab, tight } = labOf(c), val = fitW(c.cur, nCh(c.cw - 6 - (c.ro ? 0 : 8), vf)), col = sig(o, c);
+    const meter = c.ro
+      ? `<span class="ld">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : ''}" style="${i <= c.idx ? `--hc:${heat(o, 'weight', i)}` : ''}"></i>`).join('')}</span>`
+      : `<span class="pp">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : ''}"></i>`).join('')}</span>`;
+    return cbtn(c, '', `<span class="k${tight ? ' tight' : ''}">${lab}</span><b${col ? ` style="color:${col}"` : ''}>${val}</b>${meter}${c.ro ? '' : '<span class="chev">›</span>'}`);
+  });
+  return rowWrap('vA', big ? 37 : 34, gap, vf, W, cells);
+}
+
+// B: an icon per field instead of the label, in a small dial. The clickable three are knobs (a disc
+// with a pointer at the current step, the steps as ticks round it); Weight is a gauge (an arc that fills).
+// Wide cells: the dial beside the word; narrow cells: the dial above it.
+const ptA = (r, a) => { const t = a * Math.PI / 180; return [(12 + r * Math.sin(t)).toFixed(2), (12 - r * Math.cos(t)).toFixed(2)]; };
+function dial(o, c, size) {
+  const n = c.n, A = (i) => -125 + i * 250 / (n - 1);
+  const ico = `<g transform="translate(12 12) scale(.36) translate(-12 -12)"><path class="dic" d="${I[FICON[c.k]]}"/></g>`;
+  let g = '';
+  if (!c.ro) {
+    for (let i = 0; i < n; i++) {
+      const [x1, y1] = ptA(i === c.idx ? 8.9 : 9.7, A(i)), [x2, y2] = ptA(11.4, A(i));
+      g += `<line class="${i === c.idx ? 'tk on' : 'tk'}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+    }
+    const [px, py] = ptA(5.3, A(c.idx)), [qx, qy] = ptA(7.4, A(c.idx));
+    g += `<circle class="kn" cx="12" cy="12" r="7.6"/>${ico}<line class="kp" x1="${px}" y1="${py}" x2="${qx}" y2="${qy}"/>`;
+  } else {
+    const a0 = -125, a1 = -125 + 250 * (c.idx + 1) / n, r = 10.2;
+    const [sx, sy] = ptA(r, a0), [ex, ey] = ptA(r, 125), [fx, fy] = ptA(r, a1);
+    const col = sig(o, c) || heat(o, 'weight', c.idx);
+    g += `<path class="gt" d="M${sx} ${sy}A${r} ${r} 0 1 1 ${ex} ${ey}"/><path class="gf" style="stroke:${col}" d="M${sx} ${sy}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${fx} ${fy}"/>${ico}`;
+  }
+  return `<svg class="dial" viewBox="0 0 24 24" style="width:${size}px;height:${size}px">${g}</svg>`;
+}
+function varB(o, W, z) {
+  const gap = 3, vf = z.vf, big = vf >= 11, cs = cellsOf(o, W, gap), chw = vf * 0.6 + 0.12;
+  const D0 = big ? 24 : 22;
+  const row = cs[0].cw >= D0 + 4 + 5 * chw + 8;
+  const D = row ? D0 : clamp(Math.floor(cs[0].cw - 14), 16, 20);
+  const cells = cs.map((c) => {
+    const val = fitW(c.cur, nCh(row ? c.cw - D - 4 - 8 : c.cw - 6, vf)), col = sig(o, c);
+    return cbtn(c, '', `${dial(o, c, D)}<b${col ? ` style="color:${col}"` : ''}>${val}</b>`);
+  });
+  return rowWrap(`vB ${row ? 'row' : 'col'}`, row ? D0 + 6 : Math.round(D + vf + 9), gap, vf, W, cells);
+}
+
+// C: colour by step. The value and a fill track at the cell's foot take the step's colour (calm -> hot),
+// the ground warms a little with it; a small corner mark on the clickable three.
+function varC(o, W, z) {
+  const gap = 3, vf = z.vf, big = vf >= 11, cs = cellsOf(o, W, gap);
+  const cells = cs.map((c) => {
+    const { lab, tight } = labOf(c), col = heat(o, c.k, c.idx), val = fitW(c.cur, nCh(c.cw - 8, vf));
+    const tr = `<span class="ht">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : i < c.idx ? 'past' : ''}" style="--hc:${heat(o, c.k, i)}"></i>`).join('')}</span>`;
+    return cbtn(c, '', `<span class="k${tight ? ' tight' : ''}">${lab}</span><b style="color:${col}">${val}</b>${tr}${c.ro ? '' : '<span class="cm"></span>'}`, `--hc:${col}`);
+  });
+  return rowWrap('vC', big ? 34 : 31, gap, vf, W, cells);
+}
+
+// D: one strip instead of four boxes. Icon + value per segment, engraved dividers, a thin step rail
+// under each clickable segment; Weight's segment is a load bar (its ground fills in the signal colour).
+function varD(o, W, z) {
+  const vf = z.vf, big = vf >= 11, cs = cellsOf(o, W, 0), chw = vf * 0.6 + 0.12, is = Math.round(vf + 1);
+  const cells = cs.map((c) => {
+    const room = c.cw - 8, withIcon = room >= is + 3 + 4 * chw;
+    const val = fitW(c.cur, nCh(withIcon ? room - is - 3 : room, vf)), col = sig(o, c);
+    const icon = withIcon ? svg(FICON[c.k], 'ti fi', `width:${is}px;height:${is}px${col ? `;stroke:${col}` : ''}`) : '';
+    const extra = c.ro
+      ? `<span class="lf" style="width:${((c.idx + 1) / c.n * 100).toFixed(1)}%;--hc:${col || heat(o, 'weight', c.idx)}"></span><span class="rl ld">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : ''}" style="${i <= c.idx ? `--hc:${heat(o, 'weight', i)}` : ''}"></i>`).join('')}</span>`
+      : `<span class="rl">${c.S.steps.map((_, i) => `<i class="${i === c.idx ? 'on' : ''}"></i>`).join('')}</span>`;
+    return cbtn(c, '', `${extra}${icon}<b${col ? ` style="color:${col}"` : ''}>${val}</b>`);
+  });
+  return rowWrap('vD', big ? 24 : 21, 0, vf, W, cells);
+}
+const VARS = { today: varToday, A: varA, B: varB, C: varC, D: varD };
+
+function statusRow(o, W, z, mode = 'tall') {
+  if (mode === 'tall') return VARS[o.variant || 'today'](o, W, z);
+  const gap = mode === 'mini' ? 2 : 3, cw = (W - 3 * gap) / 4;
+  const vf = mode === 'mini' ? Math.min(z.vf, 9.5) : z.vf, chw = vf * 0.6, big = vf >= 11;
+  const labIn = mode === 'one' && cw >= 64, nolab = mode === 'mini' || (mode === 'one' && !labIn);
+  const h = mode === 'tall' ? (big ? 30 : 27) : mode === 'one' ? (big ? 20 : 18) : 14;
+  const cells = ['mood', 'casts', 'alert', 'weight'].map((k) => {
+    const S = STEPS[k], cur = o[k], idx = S.steps.indexOf(cur);
+    const room = cw - 6 - 5;
+    let lab = S.label;
+    if (lab.length * 5.4 > cw - 4) lab = S.short || lab;
+    const vroom = labIn ? room - lab.length * 6 - 4 : room;
+    const val = fitW(cur, Math.max(3, Math.floor(vroom / chw)));
+    const mt = `<span class="mt">${S.steps.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</span>`;
+    const ro = k === 'weight';
+    return `<button class="sr${ro ? ' ro' : ''}"${ro ? '' : ` data-step="${k}"`} data-tip="${esc(stepTip(k, cur))}"><span class="k">${lab}</span><b>${val}</b>${mt}</button>`;
+  });
+  const cls = `srow ${mode === 'mini' ? 'sv-plain' : 'sv-cells'}${mode !== 'tall' ? ' one' : ''}${nolab ? ' nolab' : ''} hasm`;
+  return { h, html: `<div class="${cls}" data-flip="srow" style="height:${h}px;gap:${gap}px;--vf:${vf}px;width:${W}px">${cells.join('')}</div>` };
+}
+function chips(o, W, mode) {
+  const h = mode === 'chips' ? 15 : 13;
+  const cells = SHL.map(([k, l, t]) => `<div class="chip" data-tip="${esc(`${l} ${D.sh[k]}\n${t}\nFrom the info poll.`)}">${mode === 'chips' ? `<svg class="sp" viewBox="0 0 40 48">${SHAPES.dnd.svg}</svg>` : ''}<small>${l}</small><b>${D.sh[k]}</b></div>`).join('');
+  return { h, html: `<div class="chips c-${mode}" data-flip="chips" style="height:${h}px;width:${W}px">${cells}</div>` };
+}
+const SHAPES = {
+  heater: { svg: '<path class="o" d="M4 4H36V21C36 33 29 40 20 45C11 40 4 33 4 21Z"/><path class="in" d="M7 7H33V21C33 31 27.5 36.5 20 41C12.5 36.5 7 31 7 21Z"/><circle class="rv" cx="9.5" cy="9.5" r="1"/><circle class="rv" cx="30.5" cy="9.5" r="1"/>', ic: 19, num: 50, num1: 36 },
+  round: { svg: '<circle class="o" cx="20" cy="24" r="18.5"/><circle class="in" cx="20" cy="24" r="15"/>', ic: 22, num: 53, num1: 41 },
+  kite: { svg: '<path class="o" d="M20 2C29 2 36 6 36 13C36 26 28 37 20 46C12 37 4 26 4 13C4 6 11 2 20 2Z"/><path class="in" d="M20 5C27.5 5 33 8.4 33 13.6C33 24.6 26.4 33.6 20 41.4C13.6 33.6 7 24.6 7 13.6C7 8.4 12.5 5 20 5Z"/>', ic: 13, num: 43, num1: 30 },
+  dnd: { svg: '<path class="o" d="M20 2L36 7V22C36 33 29 40 20 46C11 40 4 33 4 22V7Z"/><path class="in" d="M20 5.2L33 9.3V22C33 31.4 27.2 37.2 20 42.4C12.8 37.2 7 31.4 7 22V9.3Z"/><path class="gem" d="M20 .8l1.8 1.8-1.8 1.8-1.8-1.8z"/>', ic: 19, num: 51, num1: 37 },
+  plate: { svg: '<rect class="o" x="4" y="4" width="32" height="40" rx="5"/>', ic: 18, num: 54, num1: 40 },
+};
+function shieldHtml(o, key, lab, v, title, S) {
+  const w = Math.round(S * 40 / 48), shp = SHAPES[o.shield];
+  const nf = clamp(Math.round(S * 0.25), 9, 16), is = Math.round(S * 0.27);
+  const icon = S >= 30 ? `<span class="sic" style="top:${shp.ic}%">${svg(key, 'ti', `width:${is}px;height:${is}px;stroke:var(--lamp)`)}</span>` : '';
+  const val = o.noinfo ? '⋯' : v;
+  return `<div class="shd" data-tip="${esc(`${lab} ${v}\n${title}\nFrom the info poll (also while Status is shown).`)}"><span class="sb" style="width:${w}px;height:${S}px"><svg class="sp" viewBox="0 0 40 48">${shp.svg}</svg>${icon}<b style="font-size:${nf}px;top:${icon ? shp.num : shp.num1}%">${val}</b></span><small>${lab}</small></div>`;
+}
+function coin(kind, s) {
+  const edge = { g: '#6a4c0e', s: '#4a4d54', c: '#5a2c12' }[kind];
+  return `<svg class="coin2" viewBox="0 0 16 16" width="${s}" height="${s}"><circle cx="8" cy="8" r="7.2" fill="url(#cg-${kind})" stroke="${edge}" stroke-width=".9"/><circle cx="8" cy="8" r="5.1" fill="none" stroke="rgba(255,255,255,.38)" stroke-width=".6"/><circle cx="8" cy="8" r="5.6" fill="none" stroke="rgba(0,0,0,.25)" stroke-width=".5"/><path d="M8 4.9l.9 2.2 2.2.9-2.2.9L8 11.1l-.9-2.2-2.2-.9 2.2-.9z" fill="rgba(0,0,0,.3)"/></svg>`;
+}
+const COIN_N = { 3: 'g+s+k', 2: 'g+s', 1: 'g', 0: 'ingen' };
+function purseW(n, cs, fs) { const chw = fs * 0.6; return D.purse.slice(0, n).reduce((a, v) => a + String(v).length * chw + 2 + cs, 0) + (n - 1) * 6; }
+function purseFit(free, s) {
+  const cs = s >= 12 ? 12 : 10, fs = s >= 12 ? 10.5 : 9.5;
+  for (const n of [3, 2, 1]) if (purseW(n, cs, fs) + 6 <= free) return { n, cs, fs };
+  return { n: 0, cs, fs };
+}
+function purseHtml(P, top) {
+  const [g, si, c] = D.purse, kinds = ['g', 's', 'c'];
+  const tip = `Purse: ${g} gold, ${si} silver, ${c} copper${P.n < 3 ? `\n(${P.n === 1 ? 'only the gold' : 'gold and silver'} fit beside the stones)` : ''}\n(info poll)`;
+  return `<div class="purse" data-flip="purse" data-tip="${esc(tip)}" style="top:${top}px;height:${P.cs + 2}px;font-size:${P.fs}px">${D.purse.slice(0, P.n).map((v, i) => `<span>${v}${coin(kinds[i], P.cs)}</span>`).join('')}</div>`;
+}
+// The stones: left-aligned at the bottom, filling the width; the purse right-aligned in the last row,
+// in the room the stones leave (g+s+k, g+s, g, none). The stones always win.
+const SH_MIN = 30;
+function stonesFit(its, W, s, rows) {
+  const gap = 2, sh = s + 3, per = Math.max(2, Math.floor((W + gap) / (s + gap)));
+  const need = its.length + 1, cap = rows * per;
+  let entries = [{ k: 'add' }], hidden = [];
+  if (need <= cap) entries = entries.concat(its.map((t) => ({ k: 'it', t })));
+  else {
+    const pr = its.slice().sort((a, b) => prk(a) - prk(b) || (a.timed ? a.left : 1e9) - (b.timed ? b.left : 1e9));
+    const keep = new Set(pr.slice(0, cap - 2).map((t) => t.id));
+    entries = entries.concat(its.filter((t) => keep.has(t.id)).map((t) => ({ k: 'it', t })));
+    hidden = its.filter((t) => !keep.has(t.id));
+    entries.push({ k: 'more', rest: hidden });
+  }
+  const used = Math.ceil(entries.length / per), last = entries.length - (used - 1) * per;
+  return { entries, hidden, per, rows: used, s, sh, gap, h: used * (sh + gap) - gap, free: W - last * (s + gap), need, rowsNeed: Math.ceil(need / per) };
+}
+function stonesHtml(T, purse) {
+  const st = T.entries.map((e, i) => stoneHtml(e, T.s, (i % T.per) * (T.s + T.gap), Math.floor(i / T.per) * (T.sh + T.gap))).join('');
+  let pu = '';
+  if (purse) { const P = purseFit(T.free, T.s); T.purse = P.n; if (P.n) pu = purseHtml(P, (T.rows - 1) * (T.sh + T.gap) + (T.s - P.cs) / 2 - 1); }
+  return `<div class="stz" data-flip="stz" style="height:${T.h}px">${st}${pu}</div>`;
+}
+function shieldSize(W, rem, z) {
+  const gap = 3, lab = 9;
+  const opt = (r, c) => { const cw = (W - (c - 1) * gap) / c, ch = (rem - (r - 1) * gap) / r - lab; return Math.floor(Math.min(ch, cw * 48 / 40 * 0.92, z.shMax)); };
+  const s14 = opt(1, 4), s22 = opt(2, 2), grid = s22 > s14 * 1.12 ? '2x2' : '1x4';
+  return { grid, S: grid === '2x2' ? s22 : s14 };
+}
+// The steps, least compressed first. The first that fits is used.
+const LEVELS = [
+  { n: 'hel', sr: 'tall', sh: 'dnd', min: SH_MIN, rows: 'all' },
+  { n: 'mindre sköldar', sr: 'tall', sh: 'dnd', min: 22, rows: 1 },
+  { n: 'status på en rad', sr: 'one', sh: 'dnd', min: 22, rows: 1 },
+  { n: 'sköldbrickor', sr: 'one', sh: 'chips', rows: 1 },
+  { n: 'minimal', sr: 'mini', sh: 'chips', rows: 1, s: 11, g: 2 },
+];
+function solve(o, W, H, z) {
+  const its = itemsFor(o);
+  const tryLv = (lv, i) => {
+    const s = lv.s || z.s, g = lv.g || 4;
+    if (lv.two) {
+      if (W < 340) return null;
+      const w1 = Math.round(W * 0.46), sr = statusRow(o, w1, z, 'mini'), ch = chips(o, W - w1 - 6, 'chips');
+      const T = stonesFit(its, W, s, 1), h = Math.max(sr.h, ch.h) + g + T.h;
+      return { i, lv, T, h, fits: h <= H, html: `<div class="l1">${sr.html}${ch.html}</div>` };
+    }
+    const sr = statusRow(o, W, z, lv.sr);
+    if (lv.sh === 'dnd') {
+      const T0 = stonesFit(its, W, s, 1);
+      for (let rows = lv.rows === 'all' ? T0.rowsNeed : 1; rows >= 1; rows--) {
+        const T = stonesFit(its, W, s, rows), rem = H - sr.h - 4 - T.h - 3, sz = shieldSize(W, rem, z);
+        if (sz.S >= lv.min) {
+          const shields = SHL.map(([k, l, t]) => shieldHtml(o, k, l, D.sh[k], t, sz.S)).join('');
+          return { i, lv, T, S: sz.S, grid: sz.grid, fits: true, h: H, srh: sr.h,
+            html: `${sr.html}<div class="shg" data-flip="shg" style="height:${rem}px;margin-top:4px;margin-bottom:3px;grid-template-columns:repeat(${sz.grid === '2x2' ? 2 : 4}, minmax(0,1fr))">${shields}</div>` };
+        }
+      }
+      return null;
+    }
+    const ch = chips(o, W, lv.sh), T = stonesFit(its, W, s, 1), h = sr.h + g + ch.h + g + T.h;
+    return { i, lv, T, h, fits: h <= H, even: 1, html: `${sr.html}${ch.html}` };
+  };
+  let R = null;
+  for (let i = 0; i < LEVELS.length && !(R && R.fits); i++) { const r = tryLv(LEVELS[i], i); if (r) R = r; }
+  R.clip = !R.fits;
+  return R;
+}
+function statsTab() {
+  const ab = [['STR', 14, '+1'], ['INT', 15], ['WIS', 16], ['DEX', 8], ['CON', 10], ['WIL', 16], ['PER', 8]];
+  const mods = [['POINTS', ['+14', '−1', '+7']], ['REGEN', ['+1.4', '+2.1', '+2.4']]];
+  const cls = (v) => (v.startsWith('+') ? 'up' : 'dn');
+  return `<div class="ab">${ab.map(([k, v, d]) => `<div class="abx" data-tip="${k} ${v}${d ? ` (${d} from an affect)` : ''}"><small>${k}</small><b${d ? ' style="color:var(--up)"' : ''}>${v}</b><i>${d || ''}</i></div>`).join('')}</div>
+    <div class="srow2"><div class="agebox" data-tip="Age 57 · 2nd age · 3rd at 64\nModifiers interpolated from help age"><div class="top"><span class="kk">Age</span><b>57</b>2nd age<span style="margin-left:auto">3rd at 64</span></div>
+      <div class="atrack" style="--p:24%">${[1, 1, 0, 0, 0, 0, 0].map((x) => `<i class="${x ? 'past' : ''}"></i>`).join('')}<s></s></div>
+      <div class="mods"><span class="kk">Modifiers</span><span class="kk">HP</span><span class="kk">Mana</span><span class="kk">Moves</span>${mods.map(([r, vs]) => `<span class="kk">${r}</span>${vs.map((v) => `<b class="${cls(v)}">${v}</b>`).join('')}`).join('')}</div></div>
+      <div class="sen">${[['Vision', '25'], ['Hearing', '10'], ['Smell', '20'], ['Carrying', '97 lb']].map(([k, v]) => `<div><span class="kk">${k}</span><b>${v}</b></div>`).join('')}</div></div>`;
+}
+function loreTab() {
+  const f = (l, v, cls = '') => `<div class="f ${cls}"><small>${l}</small><b>${v}</b></div>`;
+  const pur = `<span style="display:inline-flex;gap:5px;align-items:center">${D.purse[0]}${coin('g', 11)} ${D.purse[1]}${coin('s', 11)} ${D.purse[2]}${coin('c', 11)}</span>`;
+  return `<div class="lore">${f('Race', D.race)}${f('Alignment', 'totally corrupted by the Evilness of Morgoth', 'wide')}${f('Citizen', 'GoblinTown')}${f('War fame', 'warlord')}${f('War points', '19')}${f('Purse', pur, 'wide')}${f('Height', "4' 11\"")}${f('Weight', '8 st 5 lb')}${f('Birthday', 'in 5 months')}</div>`;
+}
+
+// ------------------------------------------------------------------ vitals
+function vForm(colW, label) { const lw = label.length * 8.5 + 4, pad = 22; return lw + 9 * 6.6 + pad <= colW ? 'full' : lw + 3 * 6.6 + pad <= colW ? 'value' : 'number'; }
+function vIn(bar, F, label, cls, a, band, extra, tip, colW) {
+  const known = true, p = known ? pct(a) : band[0], form = vForm(colW, label);
+  const num = !known ? '' : form === 'full' ? `${a[0]}<small> / ${a[1]}</small>` : `${a[0]}`;
+  const lab = form === 'number' && known ? '' : `<span class="k2">${label}</span>`;
+  return `<div class="vit" data-flip="v-${cls}"${tip ? ` data-tip="${tip}"` : ''}><span class="b ${cls}" style="height:${bar}px"><i style="--w:${p}%"></i>${known ? '' : `<u style="--lo:${band[0]}%;--hi:${band[1]}%"></u>`}${extra || ''}<span class="lab">${lab}<span>${num}</span></span></span></div>`;
+}
+function vitals(o, innerW, bar, F) {
+  const wim = `<span class="wim" style="--p:${Math.round((D.wimpy / D.hp[1]) * 100)}%"></span>`;
+  const hpTip = 'HP 187 / 270 · 69 %' + '\nwimpy 150: you flee below the arrow';
+  const col = (innerW - 12 - 12) / 3;
+  return `<div class="vit3 vv-${o.vit}">${vIn(bar, F, 'HP', 'hp', D.hp, D.band, wim, hpTip, col)}${vIn(bar, F, 'MANA', 'ma', D.ma, null, '', '', col)}${vIn(bar, F, 'MOVES', 'mv', D.mv, D.mvBand, '', '', col)}</div>`;
+}
+
+// ------------------------------------------------------------------ the card
+const TAB_MIN = 80, P_MIN = 44;
+function zOf(o) { return Object.assign({}, SZ[o.size], o.h ? { h: +o.h } : {}); }
+function ringLay(o, z, cwH) {
+  const icW = 5 * z.ico + 12, icH = z.ico + 4;
+  if (cwH >= 22 + icH + 3) { const rs = clamp(cwH - icH - 3, 22, 46); return { ring: 1, rs, colW: Math.max(rs, icW), colH: rs + 3 + icH }; }
+  const rs = clamp(cwH, 20, 34), gw = 3 * z.ico + 6;
+  return { ring: 1, side: 1, rs, colW: rs + 4 + gw, colH: Math.max(rs, 2 * z.ico + 3) };
+}
+function iconSpans(o, z, F) {
+  const ic = z.ico, s = `width:${ic}px;height:${ic}px`;
+  const tog = ['sneak', 'ride', 'climb', 'swim'].map((k) => {
+    const on = o.tog[k], cmd = k === 'ride' ? (on ? 'lead' : 'ride') : k;
+    return `<span data-tog="${k}" data-tip="${k}: ${on ? 'on' : 'off'}\nClick: ${cmd}">${svg(k, 'ti' + (on ? ' on' : ''), s)}</span>`;
+  }).join('');
+  const pk = F ? 'fighting' : 'standing';
+  const pos = `<span data-pos data-tip="${F ? 'Fighting\n(the only fight sign on the card)' : 'standing\nClick: rest'}">${svg(pk, 'ti posi' + (F ? ' fight' : ''), s)}</span>`;
+  return tog + pos;
+}
+function ringHtml(o, L, z, F) {
+  return `<div class="lc rg${L.side ? ' side' : ''}" data-flip="lc" style="width:${L.colW}px;height:${L.colH}px"><div data-flip="lvl">${ring(L.rs)}</div><div class="icrow" data-flip="icons">${iconSpans(o, z, F)}</div></div>`;
+}
+// The compact card: line 1 = the status (left half, short) + the shields (icon + value, right half);
+// line 2 = the five icons, then the stones (more rows if they fit), the purse right-aligned.
+const LET = { mood: 'M', casts: 'C', alert: 'A', weight: 'W' };
+const CODE = { wimpy: 'W', prudent: 'P', normal: 'N', brave: 'B', aggressive: 'A', berserk: 'Bz', quick: 'Q', fast: 'F', careful: 'C', thorough: 'T',
+  attentive: 'At', vigilant: 'V', paranoid: 'P', peanuts: 'P', uncomfortable: 'U', heavy: 'H', 'really heavy': 'RH', painful: 'Pa', torture: 'T' };
+// The value cut without a dot: aggressive -> aggr, normal -> norm; the letter in the shields' icon colour.
+// Hand-made short forms, at most four characters, picked to read as the word (heavy -> hvy).
+const ABBR = { wimpy: 'wmpy', prudent: 'prud', normal: 'norm', brave: 'brav', aggressive: 'aggr', berserk: 'bsrk',
+  quick: 'qck', fast: 'fast', careful: 'care', thorough: 'thor', attentive: 'attn', vigilant: 'vigl', paranoid: 'para',
+  peanuts: 'pnts', uncomfortable: 'unc', heavy: 'hvy', 'really heavy': 'rhvy', painful: 'pain', torture: 'trtr' };
+function cutV(w, n) {
+  if (w.length <= n) return w;
+  if (w === 'really heavy') { if (n >= 7) return 'r.heavy'; if (n >= 5) return 'r.hvy'; }
+  if (w === 'uncomfortable' && n >= 6) return 'uncomf';
+  return ABBR[w].length <= n ? ABBR[w] : CODE[w];
+}
+function compact(o, W, H, z, F) {
+  const big = H >= 18 + 3 + z.s + 3, s = big ? z.s : 10, g = big ? 3 : 2, h1 = big ? 18 : 13;
+  const vf = big ? Math.min(z.vf, 10) : 9, chw = vf * 0.6;
+  const wl = Math.floor((W - 8) * 0.55), wr = W - 8 - wl, gap = 2, cw = (wl - 3 * gap) / 4;
+  const n = Math.floor((cw - 4 - chw - 2) / chw);
+  const cells = ['mood', 'casts', 'alert', 'weight'].map((k) => {
+    const cur = o[k], ro = k === 'weight';
+    return `<button class="sr${ro ? ' ro' : ''}"${ro ? '' : ` data-step="${k}"`} data-tip="${esc(stepTip(k, cur))}"><b><i class="lt">${LET[k]}</i>${cutV(cur, n)}</b></button>`;
+  }).join('');
+  const sr = `<div class="srow ${big ? 'sv-cells' : 'sv-plain'} one nolab" data-flip="srow" style="height:${h1}px;gap:${gap}px;--vf:${vf}px;width:${wl}px">${cells}</div>`;
+  const is = big ? 11 : 10;
+  const sh = SHL.map(([k, l, t]) => `<div class="chip" data-tip="${esc(`${l} ${D.sh[k]}\n${t}\nFrom the info poll.`)}">${svg(k, 'ti', `width:${is}px;height:${is}px`)}<b style="font-size:${vf}px">${D.sh[k]}</b></div>`).join('');
+  const ch = `<div class="chips${big ? ' c-chips' : ''}" data-flip="chips" style="height:${h1}px;width:${wr}px">${sh}</div>`;
+  const icons = o.cicons !== 'off';
+  const icW = icons ? 5 * z.ico + 12 : 0, W2 = W - (icons ? icW + 6 : 0);
+  const its = itemsFor(o), rowsFit = Math.max(1, Math.floor((H - h1 - g + 2) / (s + 3 + 2)));
+  const T0 = stonesFit(its, W2, s, 1), T = stonesFit(its, W2, s, Math.min(rowsFit, T0.rowsNeed));
+  const st = stonesHtml(T, true);
+  const html = `<div class="cmp" style="height:${H}px;width:${W}px;--g:${g}px"><div class="l1">${sr}${ch}</div><div class="l2">${icons ? `<div class="icrow" data-flip="icons">${iconSpans(o, z, F)}</div>` : ''}<div style="width:${W2}px">${st}</div></div></div>`;
+  return { html, T, big, h: h1 + g + T.h, n };
+}
+// ------------------------------------------------------------------ round 18: the tabs and the ground they share with the content
+// The three heights (ADR 0166 point 177): 62 x 11 has words today, 62 x 7 has icons, the low one is just over TAB_MIN.
+const HGT = { tall: 187, mid: 119, low: 92 };
+const HGT_N = { tall: 'Hög · 62×11 · 187 px', mid: 'Mellan · 62×7 · 119 px', low: 'Låg · 92 px' };
+const TABS = [['Status', 'STATUS'], ['Stats', 'STATS'], ['Lore', 'LORE']];
+const WORD_MIN = 8; // TAB_WORD_MIN: words only where they are at least 8 px
+// Under the hood below this content height, the tabs move to the right edge (same material, same ground).
+const SWITCH_H = 110, SG = 4;
+// The words' widths in em (Cinzel 700, .14em), measured in Chromium; the hand (Cormorant italic) per character.
+const EM = [4.75, 3.8, 3.37], EMS = EM.reduce((a, b) => a + b, 0), HAND = 0.43;
+const capFs = (len, n) => len / (n * 0.92); // Cinzel 700 capitals with .12em, set vertically
+function hFor(size, key) {
+  const z = SZ[size], cw = HGT[key];
+  for (const b of [z.bar, 14, 12, 10]) { const h = cw + 34 + b; if ((h >= 150 ? z.bar : h >= 110 ? 14 : h >= 90 ? 12 : 10) === b) return h; }
+  return cw + 44;
+}
+const RIB = ['#8b2626', '#2c5a40', '#2d3c70'];
+const RUNE = ['rAlgiz', 'rUruz', 'rAnsuz'];
+const CHARGE = ['cSword', 'cTower', 'cCrown'];
+// Bold charges for E2's seals, drawn to read at 11-19 px.
+const BOLD = ['M12 3.5v12 M7.5 15.5h9 M12 15.5v5', 'M7 20.5v-11h10v11 M7 9.5V5.5 M12 9.5V5.5 M17 9.5V5.5', 'M4.5 17.5h15 M4.8 17.5L4 8.5l4.5 4L12 6l3.5 6.5 4.5-4-.8 9'];
+const TOOLS = [ // K: bookbinder's tools, filled
+  (s) => `<svg class="mk" viewBox="0 0 10 10" style="width:${s}px;height:${s}px"><circle cx="5" cy="5" r="2.6"/></svg>`,
+  (s) => `<svg class="mk" viewBox="0 0 10 10" style="width:${s}px;height:${s}px"><path d="M5 1.2L8.8 5 5 8.8 1.2 5z"/></svg>`,
+  (s) => `<svg class="mk" viewBox="0 0 10 10" style="width:${s}px;height:${s}px"><path d="M5 .8l1.1 2.6 2.8-.4-1.7 2.2 1.7 2.2-2.8-.4L5 9.6 3.9 7l-2.8.4L2.8 5 1.1 2.8l2.8.4z"/></svg>`,
+];
+const TC = { lykta: ['#2d4c82', '#2c6443', '#62366a'], paper: ['#9fb6de', '#a8cfb4', '#d2b0d6'] };
+const TC_N = ['azur', 'grönt', 'purpur'];
+const BLOB = (() => {
+  const N = 18, p = [];
+  for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, r = 11 + 0.7 * Math.sin(i * 2.7) + 0.45 * Math.cos(i * 5.3); p.push([12 + r * Math.sin(a), 12 - r * Math.cos(a)]); }
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], f = (q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`;
+  let d = `M${f(mid(p[N - 1], p[0]))}`;
+  for (let i = 0; i < N; i++) d += `Q${f(p[i])} ${f(mid(p[i], p[(i + 1) % N]))}`;
+  return d + 'Z';
+})();
+
+// ------------------------------------------------------------------ geometry: one outline for the sheet and its chosen tab
+const f2 = (p) => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`;
+const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+// A closed polygon with rounded corners ([x, y, r]); the same commands for any tab, so the outline can morph.
+function rpath(P) {
+  const n = P.length; let d = '';
+  for (let i = 0; i < n; i++) {
+    const p = P[(i + n - 1) % n], c = P[i], q = P[(i + 1) % n];
+    const l1 = dist(p, c), l2 = dist(c, q), r = Math.min(c[2] || 0, l1 / 2, l2 / 2);
+    const a = l1 ? [c[0] + (p[0] - c[0]) / l1 * r, c[1] + (p[1] - c[1]) / l1 * r] : c;
+    const b = l2 ? [c[0] + (q[0] - c[0]) / l2 * r, c[1] + (q[1] - c[1]) / l2 * r] : c;
+    d += `${i ? 'L' : 'M'}${f2(a)}Q${f2(c)} ${f2(b)}`;
+  }
+  return d + 'Z';
+}
+// The polygon moved inwards by k (clockwise in screen coordinates): K's gilt fillet.
+function offsetPoly(P, k) {
+  const n = P.length;
+  return P.map((c, i) => {
+    const p = P[(i + n - 1) % n], q = P[(i + 1) % n];
+    const e1 = [c[0] - p[0], c[1] - p[1]], e2 = [q[0] - c[0], q[1] - c[1]], l1 = Math.hypot(...e1) || 1, l2 = Math.hypot(...e2) || 1;
+    const n1 = [-e1[1] / l1, e1[0] / l1], n2 = [-e2[1] / l2, e2[0] / l2], dn = 1 + n1[0] * n2[0] + n1[1] * n2[1];
+    const m = dn < 0.05 ? 0 : k / dn;
+    return [c[0] + (n1[0] + n2[0]) * m, c[1] + (n1[1] + n2[1]) * m, Math.max(0.5, (c[2] || 0) - k)];
+  });
+}
+function unionPoly(side, S, act, r) {
+  const TL = [S.x, S.y, r], TR = [S.x + S.w, S.y, r], BR = [S.x + S.w, S.y + S.h, r], BL = [S.x, S.y + S.h, r];
+  if (side === 'top') return [TL, ...act, TR, BR, BL];
+  if (side === 'right') return [TL, TR, ...act, BR, BL];
+  if (side === 'left') return [TL, TR, BR, BL, ...act];
+  return [TL, TR, BR, BL];
+}
+
+// ------------------------------------------------------------------ the directions
+const roman = (i, s) => `<span class="w nv num" style="--fs:${s.toFixed(1)}px">${['I', 'II', 'III'][i]}</span>`;
+const romanH = (i, s) => `<span class="w nv hand" style="--fs:${s.toFixed(1)}px">${['i', 'ii', 'iii'][i]}</span>`;
+const mk = (path, s, sw = 2.4) => `<svg class="mk" viewBox="0 0 24 24" style="width:${s}px;height:${s}px;stroke-width:${sw}"><path d="${path}"/></svg>`;
+const SIDE_TL = { m0: 3, m1: 3, gap: 2 };
+const DIRS = {
+  G: { place: 'top', cls: 'dG', th: (ph) => (ph ? 18 : 15), w: (ph) => (ph ? 22 : 18), pad: 5, idep: 0.78,
+    tl: { sl: 4, ov: 3, gap: 0, m0: 6, m1: 6, align: 'start' },
+    prof: (L, d) => { const s = Math.min(4, L * 0.14); return [[0, 0, 2.5], [s, d, 3], [L - s, d, 3], [L, 0, 2.5]]; },
+    small: (i, s) => roman(i, s), smallName: 'I, II, III' },
+  H: { place: 'top', cls: 'dH', th: (ph) => (ph ? 18 : 15), w: (ph) => (ph ? 22 : 18), pad: 5, idep: 0.8, lit: 1,
+    tl: { sl: 0, gap: 4, m0: 12, m1: 12, align: 'spread', padMax: 9 },
+    prof: (L, d) => [[0, 0, 1.5], [0, d, 3], [L, d, 3], [L, 0, 1.5]],
+    decor: (c) => {
+      const { S, side } = c;
+      const bs = side === 'top'
+        ? [[S.x + 2, S.y - 2, S.w - 4, S.h], [S.x + 4, S.y - 4, S.w - 8, S.h]]
+        : [[S.x, S.y + 2, S.w + 2, S.h - 4], [S.x, S.y + 4, S.w + 4, S.h - 8]];
+      const back = bs.reverse().map(([x, y, w, h], k) => `<span class="bs${k ? '' : ' b2'}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></span>`).join('');
+      const cl = side === 'top' ? [[S.x - 2, S.y + 6, 6, 13], [S.x + S.w - 4, S.y + 6, 6, 13]] : [[S.x + 7, S.y - 2, 13, 6], [S.x + 7, S.y + S.h - 4, 13, 6]];
+      return { back, front: cl.map(([x, y, w, h]) => `<span class="clip" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></span>`).join('') };
+    },
+    small: (i, s) => romanH(i, s + 2), smallName: 'i, ii, iii i bläck' },
+  I: { place: 'top', cls: 'dI', th: (ph) => (ph ? 17 : 14), w: (ph) => (ph ? 22 : 18), pad: 5, idep: 1, glow: 1, lip: 1,
+    tl: { sl: 2, gap: 10, m0: 8, m1: 8, align: 'center', padMax: 9 },
+    prof: (L, d) => [[0, 0, 2], [2, d, 2.5], [L - 2, d, 2.5], [L, 0, 2]],
+    decor: (c) => {
+      if (c.side !== 'top' || !c.words) return {};
+      const front = [1, 2].map((i) => { const a = c.R[i - 1], b = c.R[i]; return `<span class="sep" style="left:${((a.x + a.w + b.x) / 2 - 1.5).toFixed(1)}px;top:${(c.g.th / 2 - 1.5).toFixed(1)}px"></span>`; }).join('');
+      return { front };
+    },
+    small: (i, s) => mk(I[RUNE[i]], s + 2, 2.6), smallName: 'graverade runor' },
+  J: { place: 'top', cls: 'dJ', th: (ph) => (ph ? 19 : 16), w: (ph) => (ph ? 24 : 20), pad: 5, idep: 1,
+    tl: { sl: 0, gap: 18, m0: 12, m1: 12, align: 'start', padMax: 8 }, tls: { m0: 4, m1: 4, gap: 5 },
+    prof: (L, d) => [[0, 0, 5], [0, d, d / 2], [L, d, d / 2], [L, 0, 5]],
+    iprof: (L, d) => [[0, 1, (d - 1) / 2], [0, d, (d - 1) / 2], [L, d, (d - 1) / 2], [L, 1, (d - 1) / 2]],
+    decor: (c) => {
+      const { R, side, S } = c; let front = '';
+      R.forEach((r) => {
+        const d = side === 'top' ? r.h : r.w, ks = Math.min(9, Math.round(d * 0.5));
+        const top = side === 'top';
+        // the roll lies in the tab's rect: the outer d px from the sheet
+        const rx = top ? r.x : side === 'right' ? S.x + S.w : S.x - d, ry = top ? S.y - d : r.y;
+        const rw = top ? r.w : d, rh = top ? d : r.h;
+        front += `<span class="roll" style="left:${rx}px;top:${ry}px;width:${rw}px;height:${rh}px;--ra:${top ? '180deg' : '90deg'}"></span>`;
+        const k1 = top ? [rx - ks / 2 - 1, ry + (d - ks) / 2] : [rx + (d - ks) / 2, ry - ks / 2 - 1];
+        const k2 = top ? [rx + rw - ks / 2 + 1, ry + (d - ks) / 2] : [rx + (d - ks) / 2, ry + rh - ks / 2 + 1];
+        if ((top ? r.w : r.h) >= 26) front += [k1, k2].map(([x, y]) => `<span class="knob" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${ks}px;height:${ks}px"></span>`).join('');
+      });
+      return { front };
+    },
+    small: (i, s) => mk(I[CHARGE[i]], s + 1, 2.4), smallName: 'svärd, torn, krona på rullen' },
+  K: { place: 'right', cls: 'dK', w: (ph) => (ph ? 22 : 18), pad: 6, idep: 0.78, inset: [2.6, 4.4],
+    prof: (L, d) => [[0, 0, 2.5], [0, d, 4], [L, d, 4], [L, 0, 2.5]],
+    small: (i, s) => TOOLS[i](s), smallName: 'guldstämplar: punkt, ruta, stjärna' },
+  L: { place: 'right', cls: 'dL', w: (ph) => (ph ? 22 : 18), pad: 5, idep: 1, glow: 1, tls: { m0: 3, m1: 3, gap: 3 },
+    prof: (L, d) => [[0, 0, 1.5], [0, d, 2], [L, d, 2], [L, 0, 1.5]],
+    decor: (c) => {
+      const { R, sel } = c, r0 = R[0], r2 = R[2];
+      const back = `<span class="lframe" style="left:${r0.x - 1}px;top:${r0.y - 3}px;width:${r0.w + 2}px;height:${(r2.y + r2.h - r0.y + 6).toFixed(1)}px"></span>`;
+      const front = R.map((r, i) => `<span class="lg lat${i}${i === sel ? ' on' : ''}" style="left:${r.x + 1.5}px;top:${(r.y + 1.5).toFixed(1)}px;width:${r.w - 3}px;height:${(r.h - 3).toFixed(1)}px"></span>`).join('');
+      return { back, front };
+    },
+    small: () => '', smallName: 'bara rutorna: romber, rutor, kors' },
+  M: { place: 'right', cls: 'dM', w: (ph) => (ph ? 20 : 16), pad: 5, idep: 0.82,
+    prof: (L, d) => [[0, 0, 2], [0, d, 3], [L, d, 3], [L, 0, 2]],
+    gstyle: (c) => `--tc:${TC[c.o.pane][c.sel]};--tw:${c.g.tw}px`, istyle: (c, i) => `--tc:${TC[c.o.pane][i]}`,
+    small: (i, s, on) => (on ? '<i class="loz"></i>' : ''), smallName: 'bara färgen, en guldruta på den valda' },
+  N: { place: 'left', cls: 'dN', w: (ph) => (ph ? 20 : 16), pad: 5, idep: 0.72, hand: 1, tls: { m0: 6, m1: 6, gap: 3 },
+    prof: (L, d) => [[0, 0, 2.5], [0, d, 5], [L, d, 5], [L, 0, 2.5]],
+    decor: (c) => ({ front: `<span class="mr" style="left:${c.S.x + 2}px;top:${c.S.y + 4}px;width:2px;height:${c.S.h - 8}px"></span>` }),
+    small: (i, s) => romanH(i, s + 2), smallName: 'i, ii, iii i bläck' },
+  A2: { place: 'right', cls: 'dA2', w: (ph) => (ph ? 36 : 30), pad: 5, spans: 1, custom: tabsA2, smallName: 'färgen och längden, en guldpunkt på det valda' },
+  D2: { place: 'right', cls: 'dD2', w: (ph) => (ph ? 22 : 18), pad: 5, idep: 0.88, lit: 1, hand: 1, tls: { m0: 6, m1: 4, gap: 2 },
+    prof: (L, d) => [[0, 0, 2], [0, d, 5], [L, d, 5], [L, 0, 2]],
+    decor: (c) => ({ back: `<span class="fe" style="left:${c.S.x + c.S.w}px;top:2px;width:3px;height:${c.S.h - 4}px"></span>` }),
+    small: (i) => `<span class="dots">${'<i></i>'.repeat(i + 1)}</span>`, smallName: 'bläckprickar: en, två, tre' },
+  E2: { place: 'right', cls: 'dE2', w: (ph) => (ph ? 24 : 20), pad: 5, idep: 1, hand: 1, tls: { m0: 4, m1: 2, gap: 3 },
+    prof: (L, d, c) => {
+      const tg = c.words ? (c.ph ? 12 : 10) : 4, cx = d / 2, h = tg / 2, e = Math.max(6, L - sealD(L, d) * 0.5);
+      return [[0, 0, 1], [0, cx + h, 2], [e, cx + h, 0], [e, cx - h, 0], [4, cx - h, 2], [4, 0, 1]];
+    },
+    fs: (r, g) => Math.min(g.ph ? 12 : 10, (r.h - sealD(r.h, r.w) - 10) / (6 * HAND)),
+    decor: (c) => ({ front: c.R.map((r, i) => { const sd = sealD(r.h, r.w), x = c.S.x + c.S.w + r.w / 2 - sd / 2, y = r.y + r.h - sd - 0.5;
+      return `<svg class="seal8${i === c.sel ? ' on' : ''}" viewBox="0 0 24 24" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${sd}px;height:${sd}px">${sealBody(i, sd)}</svg>`; }).join('') }),
+    small: () => '', smallName: 'bara sigillen, större, med grova vapenbilder' },
+};
+const ORDER = ['G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'A2', 'D2', 'E2'];
+function sealD(L, d) { return Math.max(9, Math.floor(Math.min(d - 1, L - 6, 19))); }
+function sealBody(i, sd) {
+  const big = sd >= 14, sc = big ? 0.56 : 0.66, sw = big ? 3 : 3.8;
+  return `<path class="wx" d="${BLOB}"/>${big ? '<circle class="rim" cx="12" cy="12" r="8.4"/>' : ''}<g transform="translate(12 12) scale(${sc}) translate(-12 -12)">${big ? `<path class="chl" d="${BOLD[i]}" transform="translate(0 1.3)" style="stroke-width:${sw - 0.8}"/>` : ''}<path class="ch" d="${BOLD[i]}" style="stroke-width:${sw}"/></g>`;
+}
+
+// ------------------------------------------------------------------ geometry of the card
+function geo(o) {
+  const z0 = zOf(o), F = o.fight === 'on', ph = o.size === 'strip';
+  const bar = z0.h >= 150 ? z0.bar : z0.h >= 110 ? 14 : z0.h >= 90 ? 12 : 10;
+  const innerW = z0.w - 28, cwH = Math.floor(z0.h - 28 - bar - 6);
+  const D0 = DIRS[o.dir], tabsOn = cwH >= TAB_MIN;
+  let place = 'none';
+  if (tabsOn) { place = D0.place; if (place === 'top') place = o.forcePlace || (cwH < SWITCH_H ? 'right' : 'top'); }
+  const tw = place === 'right' || place === 'left' ? D0.w(ph) : 0, th = place === 'top' ? D0.th(ph) : 0;
+  const z = Object.assign({}, z0, { tabs: tw });
+  let L = leftLay(o, z, cwH, innerW);
+  if (L.p < P_MIN) L = { compact: 1, colW: 0 }; else L.tall = cwH > L.colH * 1.45;
+  const raW = L.compact ? innerW : Math.floor(innerW - L.colW - 8);
+  return { z, F, ph, bar, innerW, cwH, L, raW, tabsOn, place, tw, th, D0 };
+}
+const LV18 = [
+  { n: 'hel', sr: 'tall', sh: 'dnd', min: SH_MIN },
+  { n: 'mindre sköldar', sr: 'tall', sh: 'dnd', min: 22 },
+  { n: 'status på en rad', sr: 'one', sh: 'dnd', min: 22 },
+  { n: 'sköldbrickor', sr: 'one', sh: 'chips' },
+  { n: 'minimal', sr: 'mini', sh: 'chips' },
+];
+// The status sheet: the status row and the shields, the least compressed step that fits.
+function sheetStatus(o, W, H, z) {
+  let last = null;
+  for (let i = 0; i < LV18.length; i++) {
+    const lv = LV18[i], sr = statusRow(o, W, z, lv.sr);
+    if (lv.sh === 'dnd') {
+      const rem = H - sr.h - 4, sz = shieldSize(W, rem, z);
+      if (sz.S >= lv.min) return { i, n: lv.n, S: sz.S, html: `${sr.html}<div class="shg" data-flip="shg" style="height:${rem}px;margin-top:4px;grid-template-columns:repeat(${sz.grid === '2x2' ? 2 : 4}, minmax(0,1fr))">${SHL.map(([k, l, t]) => shieldHtml(o, k, l, D.sh[k], t, sz.S)).join('')}</div>` };
+    } else {
+      const ch = chips(o, W, 'chips'), h = sr.h + 4 + ch.h;
+      last = { i, n: lv.n, html: `${sr.html}<div style="height:4px;flex:none"></div>${ch.html}`, clip: h > H };
+      if (h <= H) return last;
+    }
+  }
+  return last;
+}
+function tabRects(D0, side, S, FW, FH, g) {
+  if (side === 'top') {
+    const T = D0.tl, gap = T.gap, ov = T.ov || 0, sl = T.sl || 0, avail = S.w - T.m0 - T.m1;
+    const room = avail + 2 * ov - 2 * gap;
+    const fs = Math.min(g.ph ? 10 : 9, (room - 3 * 2 * (4 + sl)) / EMS), words = fs >= WORD_MIN;
+    let ws;
+    if (words) { const padX = Math.min(T.padMax ?? 10, (room - EMS * fs) / 6 - sl); ws = EM.map((e) => e * fs + 2 * (padX + sl)); }
+    else ws = [0, 1, 2].map(() => room / 3);
+    let xs;
+    if (T.align === 'spread') { const free = avail - ws[0] - ws[1] - ws[2]; xs = [T.m0, T.m0 + ws[0] + free / 2, T.m0 + avail - ws[2]]; }
+    else {
+      const tot = ws[0] + ws[1] + ws[2] + 2 * gap - 2 * ov;
+      let x = T.align === 'center' ? T.m0 + (avail - tot) / 2 : T.m0; xs = [];
+      for (const w of ws) { xs.push(x); x += w + gap - ov; }
+    }
+    return { words, fs, R: ws.map((w, i) => ({ x: xs[i], y: 0, w, h: g.th, L: w, d: g.th })) };
+  }
+  const T = D0.tls || SIDE_TL, len = FH - T.m0 - T.m1, Lt = (len - 2 * T.gap) / 3, tw = g.tw;
+  const x = side === 'right' ? FW - tw : 0;
+  const R = [0, 1, 2].map((i) => ({ x, y: T.m0 + i * (Lt + T.gap), w: tw, h: Lt, L: Lt, d: tw }));
+  const r = R[0];
+  const fs = D0.fs ? D0.fs(r, g) : D0.hand ? Math.min(11.5, tw - 5, (Lt - 8) / (6 * HAND)) : Math.min(g.ph ? 10 : 9, tw - 8, capFs(Lt - 8, 6));
+  return { words: fs >= WORD_MIN, fs, R };
+}
+const btn18 = (i, sel, small, style, inner, base = 't8') => `<button class="${base}" data-tab="${i}" role="tab" aria-selected="${i === sel}" aria-label="${TABS[i][0]}"${small ? ` data-tip="${TABS[i][0]}"` : ''} style="${style}">${inner}</button>`;
+const word = (i, fs) => `<span class="w" style="--fs:${fs.toFixed(1)}px">${TABS[i][1]}</span>`;
+const hword = (i, fs) => `<span class="w hand" style="--fs:${fs.toFixed(1)}px">${TABS[i][0]}</span>`;
+
+// A2: the three silk ribbons, from a gilt rod on the page's head, lie on the page's right margin.
+function tabsA2(c) {
+  const { g, FW, FH, sel } = c, tw = g.tw, ph = g.ph, gap = 2, rw = Math.floor((tw - 4 - 2 * gap) / 3), x0 = FW - tw + 2;
+  const top = 8, n = ph ? 5 : 4, len = FH - top - 4, short = Math.round(len * 0.55);
+  let shown = 0;
+  const parts = TABS.map((_, i) => {
+    const L = i === sel ? len : short, fs = Math.min(rw, ph ? 10 : 9, capFs(L - 5 - n - 6, TABS[i][1].length)), w = fs >= WORD_MIN;
+    if (w) shown++;
+    return btn18(i, sel, !w, `left:${x0 + i * (rw + gap)}px;top:${top}px;width:${rw}px;--l:${L}px;--rc:${RIB[i]};--n:${n}px`,
+      `<span class="rb"></span>${w ? word(i, fs) : ''}${i === sel && !w ? '<i class="gl"></i>' : ''}`, 't7" data-mh="rib' + i);
+  }).join('');
+  const form = shown === 3 ? 'ord på alla tre band' : shown ? 'ord bara på det valda bandet' : 'inga ord: färgen och längden';
+  return { html: `<div class="dA a2rib"><span class="rod" style="left:${FW - tw}px;width:${tw - 1}px;top:3px"></span>${parts}</div>`, front: `<span class="mg" style="left:${FW - tw - 1}px;top:6px;width:1px;height:${FH - 12}px"></span>`, form, words: shown > 0 };
+}
+
+let lastMeta = null;
+function folio(o, g) {
+  const D0 = g.D0, side = g.place, tab = g.tabsOn ? +o.tab : 0, FW = g.raW, pad = D0.pad ?? 4;
+  const oc = D0.lit ? Object.assign({}, o, { lit: 1 }) : o;
+  const spans = !!D0.spans && side !== 'none';
+  const sheetOf = (FH) => side === 'top' ? { x: 0, y: g.th, w: FW, h: FH - g.th }
+    : side === 'right' ? { x: 0, y: 0, w: spans ? FW : FW - g.tw, h: FH }
+    : side === 'left' ? { x: g.tw, y: 0, w: FW - g.tw, h: FH } : { x: 0, y: 0, w: FW, h: FH };
+  const inner = (S) => ({ x: S.x + pad, y: S.y + pad, w: S.w - 2 * pad - (spans ? g.tw : 0), h: S.h - 2 * pad });
+  const its = itemsFor(o);
+  // The stones: as many rows as they need while the status sheet stays whole, else one row.
+  const T1 = stonesFit(its, FW, g.z.s, 1);
+  let T = null, ss = null;
+  for (let rows = T1.rowsNeed; rows >= 1; rows--) {
+    const Tr = stonesFit(its, FW, g.z.s, rows), I0 = inner(sheetOf(g.cwH - Tr.h - SG)), r = sheetStatus(oc, I0.w, I0.h, g.z);
+    if (r.i === 0 || rows === 1) { T = Tr; ss = r; break; }
+  }
+  const FH = tab === 2 ? g.cwH : g.cwH - T.h - SG; // Lore has no stones (as the card does today)
+  const S = sheetOf(FH), Ib = inner(S);
+  let content;
+  if (tab === 0) content = `<div class="rcol" style="height:${Ib.h}px;width:${Ib.w}px;justify-content:center">${ss.html}</div>`;
+  else if (tab === 1) content = `<div class="statsbox">${statsTab()}</div>`;
+  else content = loreTab();
+
+  let poly = unionPoly('none', S, [], 3), inact = '', istroke = '', tabsHtml = '', back = '', front = '', form = 'inga flikar', gx = 0, gy = 0;
+  const c = { o, g, S, FW, FH, sel: tab, side, ph: g.ph };
+  if (side !== 'none' && D0.custom) {
+    const X = D0.custom(c); tabsHtml = X.html; front = X.front || ''; form = X.form;
+  } else if (side !== 'none') {
+    const TR = tabRects(D0, side, S, FW, FH, g), R = TR.R, words = TR.words, fs = TR.fs;
+    Object.assign(c, { R, words });
+    const mapF = (r) => side === 'top' ? (u, v) => [r.x + u, S.y - v] : side === 'right' ? (u, v) => [S.x + S.w + v, r.y + u] : (u, v) => [S.x - v, r.y + r.h - u];
+    const pts = (i, dep, act) => {
+      const r = R[i], m = mapF(r), P = (act || !D0.iprof ? D0.prof : D0.iprof)(r.L, dep, Object.assign({}, c, { i }));
+      return P.map(([u, v, rr]) => { const p = m(u, act ? v : (v <= 0.01 ? -3 : v)); return [p[0], p[1], rr]; });
+    };
+    poly = unionPoly(side, S, pts(tab, R[tab].d, true), 3);
+    R.forEach((r, i) => {
+      const dEff = i === tab ? r.d : r.d * D0.idep;
+      if (i !== tab) {
+        const ip = rpath(pts(i, dEff, false));
+        inact += `<div class="itab" style="clip-path:path('${ip}');${D0.istyle ? D0.istyle(c, i) : ''}"></div>`;
+        istroke += `<path d="${ip}"/>`;
+      }
+      const br = side === 'top' ? { x: r.x, y: g.th - dEff, w: r.w, h: dEff } : side === 'right' ? { x: r.x, y: r.y, w: dEff, h: r.h } : { x: r.x + r.w - dEff, y: r.y, w: dEff, h: r.h };
+      const sz = Math.max(6, Math.min(br.w, br.h) - 7);
+      const inner2 = words ? (D0.hand ? hword(i, fs) : word(i, fs)) : D0.small(i, sz, i === tab);
+      tabsHtml += btn18(i, tab, !words, `left:${br.x.toFixed(1)}px;top:${br.y.toFixed(1)}px;width:${br.w.toFixed(1)}px;height:${br.h.toFixed(1)}px`, inner2);
+    });
+    const ra = R[tab]; gx = side === 'top' ? ra.x + ra.w / 2 : side === 'right' ? S.x + S.w + ra.w / 2 : S.x - ra.w / 2; gy = side === 'top' ? g.th / 2 : ra.y + ra.h / 2;
+    form = words ? `ord ${fs.toFixed(1)} px${D0.hand ? ' (handstil)' : ''}` : D0.smallName;
+    if (D0.decor) { const X = D0.decor(c); back = X.back || ''; front = X.front || ''; }
+  }
+  const d = rpath(poly);
+  let ol = `<path class="o1" data-m="o1" data-d="${d}" d="${d}"/>`;
+  (D0.inset || []).forEach((k, j) => { const di = rpath(offsetPoly(poly, k)); ol += `<path class="o${j + 2}" data-m="o${j + 2}" data-d="${di}" d="${di}"/>`; });
+  const lip = D0.lip ? `<path class="lip" data-m="o0" data-d="${d}" d="${d}" transform="translate(.9 .9)"/>` : '';
+  const gst = `clip-path:path('${d}');--gx:${gx.toFixed(1)}px;--gy:${gy.toFixed(1)}px;${D0.gstyle ? D0.gstyle(c) : ''}`;
+  const sideCls = side === 'top' ? ' top' : side === 'none' ? '' : ` side ${side}`;
+  const html = `<div class="ra18" role="tabpanel" style="width:${FW}px;height:${g.cwH}px"><div class="folio ${D0.cls}${sideCls}" data-side="${side}" style="width:${FW}px;height:${FH}px">`
+    + `<div class="bk">${back}<svg class="ols" width="${FW}" height="${FH}">${lip}</svg></div>`
+    + `<div class="itw">${inact}<svg class="ols" width="${FW}" height="${FH}">${istroke}</svg></div>`
+    + `<div class="gw"><div class="gnd" data-m="g" data-d="${d}" data-gx="${gx.toFixed(1)}" data-gy="${gy.toFixed(1)}" style="${gst}"></div></div>`
+    + `<svg class="ol" width="${FW}" height="${FH}">${ol}</svg>`
+    + `<div class="sc18${tab ? ' scrolly' : ''}${D0.lit ? ' lit' : ''}" style="left:${Ib.x}px;top:${Ib.y}px;width:${Ib.w}px;height:${Ib.h}px">${content}</div>`
+    + `<div class="fr">${front}</div>${tabsHtml}</div>${tab === 2 ? '' : stonesHtml(T, true)}</div>`;
+  return { html, meta: { form, side, tw: g.tw, th: g.th, S: ss.S, lvl: ss.n, lvi: ss.i, clip: ss.clip, T, sheet: S } };
+}
+
+function card(o) {
+  o = Object.assign({}, st, o);
+  const g = geo(o);
+  let ra, meta;
+  if (g.L.compact) { const C = compact(o, g.raW, g.cwH, g.z, g.F); ra = `<div class="ra18" style="width:${g.raW}px">${C.html}</div>`; meta = { form: 'kompakt kort, inga flikar', side: 'none', T: C.T }; }
+  else { const Fo = folio(o, g); ra = Fo.html; meta = Fo.meta; }
+  const left = g.L.compact ? '' : leftHtml(o, g.L, g.z, g.F);
+  lastMeta = Object.assign(meta, { g });
+  return `<div class="pane${o.pane === 'paper' ? ' paper' : ''}" style="width:${g.z.w}px"><div class="hood">CHARACTER</div>${svg('gear', 'gearb')}<div class="win" style="height:${g.z.h}px"><div class="cw" style="height:${g.cwH}px">${left}${ra}</div><div class="foot">${vitals(o, g.innerW, g.bar, g.F).replace('class="vit3', g.bar <= 10 ? 'class="vit3 tiny' : 'class="vit3')}</div></div></div>`;
+}
+const PLACE_N = { top: 'under huven', right: 'till höger', left: 'till vänster', none: 'inga flikar' };
+function noteFor(o, M) {
+  const { g } = M, parts = [`flikar <em>${PLACE_N[M.side]}</em>: ${M.form}`];
+  if (M.side === 'top') parts.push(`listen tar ${M.th} px av höjden`);
+  else if (M.side !== 'none') parts.push(`kolumn ${M.tw} px av bredden`);
+  if (!g.L.compact) parts.push(`porträtt ${g.L.p} px`);
+  parts.push(M.S ? `sköldar ${M.S} px` : M.lvl);
+  if (M.lvi) parts.push(`steg: ${M.lvl}`);
+  if (M.clip) parts.push('<em>för lågt, klipps</em>');
+  // For the directions under the hood: what the other placement would give.
+  if (DIRS[o.dir].place === 'top' && M.side !== 'none') {
+    const alt = M.side === 'top' ? 'right' : 'top';
+    card(Object.assign({}, o, { forcePlace: alt }));
+    const A = lastMeta;
+    parts.push(`<em>${alt === 'top' ? 'under huven' : 'till höger'} hade gett</em> sköldar ${A.S ? A.S + ' px' : '–'}${A.lvi ? ` (${A.lvl})` : ''}`);
+  }
+  return parts.join(' · ');
+}
+function host(o, label) {
+  const c = card(o), M = lastMeta;
+  return `<div class="cap"><span class="lbl">${label}</span><div class="host" data-o="${esc(JSON.stringify(o))}">${c}</div><p class="cost">${noteFor(o, M)}</p></div>`;
+}
+
+// ------------------------------------------------------------------ switching: the ground moves
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+const EASE = 'cubic-bezier(.2,.7,.2,1)';
+function snap(root) {
+  const m = new Map(); root.querySelectorAll('[data-flip]').forEach((e) => m.set(e.dataset.flip, e.getBoundingClientRect()));
+  const g = {}; root.querySelectorAll('[data-m]').forEach((e) => { g[e.dataset.m] = { d: e.dataset.d, gx: e.dataset.gx, gy: e.dataset.gy }; });
+  const h = {}; root.querySelectorAll('[data-mh]').forEach((e) => { h[e.dataset.mh] = e.getBoundingClientRect().height; });
+  const sc = root.querySelector('.folio');
+  return { m, g, h, side: sc ? sc.dataset.side : null };
+}
+function play(root, before) {
+  if (reduce.matches || !before) return;
+  root.querySelectorAll('[data-flip]').forEach((e) => {
+    if (e.parentElement.closest('[data-flip]') && !e.classList.contains('st')) return;
+    if (e.closest('.sc18')) return;
+    const a = before.m.get(e.dataset.flip), b = e.getBoundingClientRect();
+    if (!a) return;
+    const dx = a.left - b.left, dy = a.top - b.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    e.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 380, easing: EASE });
+  });
+  root.querySelectorAll('[data-m]').forEach((e) => {
+    const a = before.g[e.dataset.m]; if (!a || a.d === e.dataset.d) return;
+    const opt = { duration: 360, easing: EASE };
+    try {
+      if (e.tagName.toLowerCase() === 'path') e.animate([{ d: `path("${a.d}")` }, { d: `path("${e.dataset.d}")` }], opt);
+      else e.animate([{ clipPath: `path("${a.d}")`, '--gx': a.gx + 'px', '--gy': a.gy + 'px' }, { clipPath: `path("${e.dataset.d}")`, '--gx': e.dataset.gx + 'px', '--gy': e.dataset.gy + 'px' }], opt);
+    } catch (err) { /* a path of another shape: no morph */ }
+  });
+  root.querySelectorAll('[data-mh]').forEach((e) => { const a = before.h[e.dataset.mh], b = e.getBoundingClientRect().height; if (a && Math.abs(a - b) > 0.5) e.animate([{ height: a + 'px' }, { height: b + 'px' }], { duration: 300, easing: EASE }); });
+  const sc = root.querySelector('.sc18'), f = root.querySelector('.folio');
+  if (sc && f) {
+    const s = f.dataset.side, k = 6, t = s === 'top' ? `translateY(${-k}px)` : s === 'left' ? `translateX(${-k}px)` : `translateX(${k}px)`;
+    sc.animate([{ opacity: 0.15, transform: t }, { opacity: 1, transform: 'none' }], { duration: 320, easing: EASE });
+  }
+}
+
+// ------------------------------------------------------------------ the page
+const VSIZES = [['float', 'Medium flytande · 576 px'], ['dock', 'Dockad höger · 290 px'], ['strip', 'Telefonremsan · 390 px']];
+const GRP = { top: 'under huven', right: 'till höger', left: 'till vänster' };
+const DLIST = {
+  G: ['Mappflikar', 'Statusytan ligger på ett mörkt pergamentark, och flikarna sitter i arkets överkant som på en arkivmapp: den valda är skuren ur samma ark, de andra ligger bakom, lägre och mörkare.',
+    'Vid låg höjd: samma flikar på arkets högra kant. Får orden inte plats blir de I, II och III i versaler.'],
+  H: ['Ark under klämman', 'Tre ljusa pergamentark ligger i en bunt under två järnklämmor. Varje ark har sin flik på ett eget ställe i överkanten, och det valda arket ligger överst med sitt innehåll. Klicka, så dras ett annat ark fram.',
+    'Arket är ljust också i Lykta (lite dämpat), så innehållet är tryckt som i Paper. Vid låg höjd sitter flikarna på arkens högra kant. Små former: i, ii, iii i bläck.'],
+  I: ['Graverad nisch', 'Innehållet ligger i en nisch som är graverad i panelen, och den valda fliken är en del av samma nisch, där lyktans ljus samlas. De andra orden är bara inristade bredvid.',
+    'Ljuset glider med när du byter flik. Vid låg höjd går nischen ut åt höger i stället. Små former: C:s runor, inristade i nischen.'],
+  J: ['Rullar', 'Varje flik är en hoprullad skriftrulle under huven. Den valda är utrullad, och dess ark vidgar sig nedåt till hela statusytan. De andra ligger kvar hoprullade, med träknoppar i ändarna.',
+    'Vid låg höjd står rullarna lodrätt vid högra kanten och arket rullas ut åt vänster. Små former: svärd, torn och krona på rullen.'],
+  K: ['Läderinlägg', 'Innehållet ligger i ett inlagt läderfält, och en förgylld filet löper obruten runt både fältet och den valda fliken, som är av samma läder. De andra flikarna är blindpressade, utan guld.',
+    'Små former: bokbindarens guldstämplar, en punkt, en ruta och en stjärna. Då gör det inget att Status och Stats båda börjar på S.'],
+  L: ['Lyktglas', 'Flikarna är tre blyinfattade glasrutor i en järnram. Den valda rutan lyser, och dess ljus faller in över innehållet, så att fliken och fältet delar samma ljus.',
+    'Varje ruta har sin egen blyinfattning (romber, rutor, kors), så rutorna går att skilja åt även utan ord.'],
+  M: ['Tinkturer', 'Varje flik har en heraldisk färg: azur för Status, grönt för Stats och purpur för Lore. Den valda flikens färg flyter in i fältet, så att fältet får samma färg som sin flik. Rött är medvetet inte med.',
+    'Små former: bara färgen, och en liten guldruta på den valda. Smalast av alla: 16 px.'],
+  N: ['Marginal', 'Flikarna står i sidans vänstra marginal, mellan porträttet och innehållet, som rubriker skrivna i marginalen. Den valda sitter på en tunga av samma sida, de andra på sidorna under.',
+    'Handstil ger orden längre liv. Små former: i, ii, iii i bläck. Kolumnen tar samma bredd som en flik till höger, men sitter närmare porträttet.'],
+  A2: ['Bokmärkesband på sidan', 'A, ett steg längre: banden hänger nu på själva sidan, i dess högra marginal under en förgylld stång, så att de ligger på samma grund som innehållet. Det valda bandet hänger längst.',
+    'Som i A: utan ord visar färgen och längden vilket band det är, och det valda har en guldpunkt. Bandet växer och krymper när du byter.'],
+  D2: ['Registerblad', 'D, ett steg längre: innehållet ligger på ett ljust blad i liggaren, och den valda registerfliken är skuren ur samma blad. De andra bladens flikar sticker ut bakom, vid bladkanterna.',
+    'Handstil som i D. Utan ord blir flikarna bläckprickar: en, två och tre. Bladet är ljust också i Lykta, som D:s flikar var.'],
+  E2: ['Sigill på brevet', 'E, ett steg längre: innehållet ligger på brevets pergament, och sigillens remsor är skurna ur samma pergament. Den valda remsan sitter ihop med brevet och har ett sigill av ljust bivax, de andra är mörka.',
+    'Inget rött vax. Sigillen fyller hela kolumnens bredd (18–19 px) och vapenbilderna är grövre ritade. Blir det trångt försvinner orden och remsan blir en tråd, men sigillet blir kvar, aldrig mindre än 9 px.'],
+};
+const base = (size) => ({ count: 8, fight: 'off', pane: st.pane, cicons: 'on', variant: 'C', tab: st.tab, size, h: hFor(size, st.hgt) });
+function renderGrid() {
+  document.getElementById('vars').innerHTML = ORDER.map((d) => {
+    const [name, idea, small] = DLIST[d], D0 = DIRS[d], ref = d.length === 2;
+    const cards = VSIZES.map(([s, n]) => host(Object.assign(base(s), { dir: d }), `${n} · ${HGT_N[st.hgt].split(' · ')[0].toLowerCase()}`)).join('');
+    const heights = ['tall', 'mid', 'low'].map((k) => host(Object.assign(base('dock'), { dir: d, h: hFor('dock', k) }), `Dockad · ${HGT_N[k]}`)).join('');
+    let sw = '';
+    if (D0.place === 'top') {
+      card(Object.assign(base('dock'), { dir: d, h: hFor('dock', 'low'), forcePlace: 'top' })); const A = lastMeta;
+      card(Object.assign(base('dock'), { dir: d, h: hFor('dock', 'low') })); const B = lastMeta;
+      sw = `<p class="swnote"><b>Byter till högra kanten under ${SWITCH_H} px innehåll</b> (mellan Mellan, 119 px, och Låg, 92 px). Varför: under huven tar listen ${D0.th(false)} px av höjden, och i den låga dockade panelen skulle sköldarna då bli ${A.S ? A.S + ' px' : 'brickor'}${A.lvi ? ` (${A.lvl})` : ''}. Till höger kostar flikarna i stället ${D0.w(false)} px bredd, som den låga panelen har över eftersom porträttet där styrs av höjden: sköldarna blir ${B.S ? B.S + ' px' : 'brickor'}. Samma material och samma grund, bara vridna.</p>`;
+    }
+    return `<section>
+    <div class="sec-head"><span class="eyebrow">${ref ? 'Förfinad riktning ' + d : 'Riktning ' + d}<span class="grp">${GRP[D0.place]}${D0.place === 'top' ? ' → höger när det är lågt' : ''}</span></span><h2>${d} · ${name}</h2><p class="idea">${idea}</p><p class="small7">${small} <b>Små former:</b> ${D0.smallName}.</p>${sw}</div>
+    <div class="scroll"><div class="rowx">${cards}</div></div>
+    <h3 class="mh">De tre höjderna i den dockade bredden</h3>
+    <div class="scroll"><div class="rowx">${heights}</div></div></section>`;
+  }).join('');
+}
+function syncSegs() { document.querySelectorAll('[data-ctl]').forEach((seg) => { const k = seg.dataset.ctl; seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.v === String(st[k]))); }); }
+
+document.addEventListener('click', (e) => {
+  const seg = e.target.closest('[data-ctl]');
+  if (seg) { const b = e.target.closest('button'); if (!b) return; st[seg.dataset.ctl] = b.dataset.v; syncSegs(); renderGrid(); return; }
+  if (!e.target.closest('.hmenu')) closeMenu();
+  const h = e.target.closest('.host'); if (!h) return;
+  const o = JSON.parse(h.dataset.o);
+  const redraw = () => { const b = snap(h); h.dataset.o = JSON.stringify(o); h.innerHTML = card(o); const M = lastMeta; play(h, b); h.nextElementSibling.innerHTML = noteFor(o, M); };
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { if (String(o.tab) === tab.dataset.tab) return; o.tab = tab.dataset.tab; redraw(); return; }
+  const more = e.target.closest('[data-more]');
+  if (more) { openMenu(h, more, o); return; }
+  const add = e.target.closest('[data-add]');
+  if (add) { openMenu(h, add, null); return; }
+  const step = e.target.closest('[data-step]');
+  if (step) { const k = step.dataset.step; o[k] = nextStep(k, o[k] || st[k]); redraw(); return; }
+  const tg = e.target.closest('[data-tog]');
+  if (tg) { const k = tg.dataset.tog; o.tog = Object.assign({}, st.tog, o.tog); o.tog[k] = o.tog[k] ? 0 : 1; redraw(); }
+});
+function openMenu(h, anchor, o) {
+  closeMenu();
+  const r = anchor.getBoundingClientRect(), hr = h.getBoundingClientRect();
+  const m = document.createElement('div');
+  m.className = 'hmenu';
+  if (!o) m.innerHTML = `<div class="mh">Start a herblore</div>` + HERBS.map(([n]) => `<div class="it">${svg('herb')}${n}</div>`).join('');
+  else {
+    card(o); const rg = lastMeta.T;
+    m.innerHTML = `<div class="mh">${rg.hidden.length} more (no room)</div>` + rg.hidden.map((t) => `<div class="row" style="--c:var(--g-${t.col})">${svg(t.ic)}${esc(t.n)}<em>${t.timed ? cdt(t.left) : 'on'}</em>${t.g === 'herb' ? '<b>×</b>' : ''}</div>`).join('');
+  }
+  m.style.left = Math.max(0, Math.min(r.left - hr.left, hr.width - 180)) + 'px';
+  m.style.top = (r.bottom - hr.top + 4) + 'px';
+  h.appendChild(m);
+}
+function closeMenu() { document.querySelectorAll('.hmenu').forEach((m) => m.remove()); }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+syncSegs();
+renderGrid();
+
+const tip = document.createElement('div'); tip.id = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('[data-tip]');
+  if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.bottom + 8) + 'px';
+});
+addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>
