@@ -2614,3 +2614,9 @@ Kept: a log shows what the card showed.
 No troll to group with now. Parked: the Group troll row is verified from
 a History run with a troll in the group when one is at hand (progress.md,
 Loose ends). Built from the run exports' data, unit-tested.
+
+### Closing test (the owner, 2026-11-25)
+
+Steps 1–7 ok; step 8 (a log) later. Panic showed the generic debuff
+arrow: its pick (panic 2, fleeing) was waiting for the owner to see it;
+now confirmed and drawn (ADR 0166 addendum 43).

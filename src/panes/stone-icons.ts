@@ -97,7 +97,7 @@ export const STONE_ICONS = {
   'st-blindfolded': 'M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z M2 10h20 M2 14h20',
   /** haste (recovery) 1: broken lightning (also the Haste herblore, haste 6). */
   'st-haste-recovery': 'M13 2L6 12h5 M13 13h5l-8 9 1-6',
-  /** panic 2 (not recognised yet): fleeing. */
+  /** panic 2: fleeing. */
   'st-panic': 'M10 4h.01 M11 8l3 5h-4l-2 7 M14 13l4 2 M11 8l-4 3H4 M19 5l1-2 M21 8h1',
   /** sunlight 1 (not recognised yet): the sun. */
   'st-sunlight':
@@ -212,10 +212,11 @@ export const AFFECT_STONE: Readonly<Record<string, StonePick>> = {
   dreaming: { icon: 'st-dreaming', pick: 'dreaming-3' },
   blindfolded: { icon: 'st-blindfolded', pick: 'blindfolded-4' },
   'haste (recovery)': { icon: 'st-haste-recovery', pick: 'haste-recovery-1' },
-  panic: { icon: 'st-panic', pick: 'panic-2', confirmed: false },
   sunlight: { icon: 'st-sunlight', pick: 'sunlight-1', confirmed: false },
   // Confirmed by the owner live (stage 77, "H9 test").
   'unable to quit': { icon: 'st-unable-to-quit', pick: 'unable-to-quit-4' },
+  // Confirmed by the owner live (stage 77, closing test).
+  panic: { icon: 'st-panic', pick: 'panic-2' },
   'unable to void': { icon: 'st-unable-to-void', pick: 'unable-to-void-1', confirmed: false },
   'unable to sneak': { icon: 'st-unable-to-sneak', pick: 'unable-to-sneak-2', confirmed: false },
 };

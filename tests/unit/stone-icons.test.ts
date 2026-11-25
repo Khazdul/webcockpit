@@ -34,8 +34,8 @@ const cell = (p: Partial<TimerCell> & Pick<TimerCell, 'id' | 'name' | 'group'>):
   ...p,
 });
 
-/** The seven affects whose picks wait for the owner (picks.md, "Not recognised yet"; unable to quit confirmed in H9's test). */
-const UNCONFIRMED = ['bloodlust', 'some pipe-weed', 'potion', 'panic', 'sunlight', 'unable to void', 'unable to sneak'];
+/** The six affects whose picks wait for the owner (picks.md, "Not recognised yet"; unable to quit confirmed in H9's test, panic in the closing test). */
+const UNCONFIRMED = ['bloodlust', 'some pipe-weed', 'potion', 'sunlight', 'unable to void', 'unable to sneak'];
 
 describe('stone icons: the tables (H8)', () => {
   it('every picked path is one stroke path in the 24-unit box, and an icon', () => {
@@ -74,9 +74,11 @@ describe('stone icons: the tables (H8)', () => {
     expect(affectStoneIcon('thirst', 'debuff')).toBe('thirsty');
   });
 
-  it('unable to quit has its pick (confirmed live); the seven not recognised yet keep the generic icon, their picks kept', () => {
+  it('unable to quit and panic have their picks (confirmed live); the six not recognised yet keep the generic icon, their picks kept', () => {
     expect(affectStoneIcon('unable to quit', 'debuff')).toBe('st-unable-to-quit');
     expect(AFFECT_STONE['unable to quit']!.confirmed).toBeUndefined();
+    expect(affectStoneIcon('panic', 'debuff')).toBe('st-panic');
+    expect(AFFECT_STONE['panic']!.confirmed).toBeUndefined();
     expect(unconfirmedAffects().sort()).toEqual([...UNCONFIRMED].sort());
     for (const n of UNCONFIRMED) {
       const def = AFFECTS[n]!;

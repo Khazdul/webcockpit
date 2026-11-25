@@ -1911,3 +1911,12 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      kept, so no stone moves) until the pointer is over the stones row or
      focus is in it; shown always on a device without hover and after a
      touch (`data-touch`), where there is no hover to find it by.
+
+## Addendum 43 (2026-11-25): panic confirmed
+
+254. **Panic has its pick.** The owner saw panic in the game in the
+     closing test (a short malus to OB) with the generic debuff arrow:
+     point 222's rule, so `confirmed: false` is deleted and panic draws
+     its pick (panic 2, a fleeing figure, `st-panic`). Six affects are
+     still not recognised: bloodlust, some pipe-weed, potion, sunlight,
+     unable to void, unable to sneak.
