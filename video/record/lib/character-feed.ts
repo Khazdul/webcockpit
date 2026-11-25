@@ -9,10 +9,12 @@
 //
 // What the clicks replace and the DROPS (feeds/character.ts CLICKS: their commands, their
 // answers, the GMCP of those answers) and the client's own records (VIEW,
-// SIZE, the poll's `WebCockpit.Shields`) are left out; the shields become
+// SIZE, the poll's `WebCockpit.Shields`) and the owner's edit (DELETED_LINES) are
+// left out; the shields become
 // the poll's values. A `cut` leg's text is left out, its GMCP sent at once.
 import { lineBytes, gmcpBytes, isPrompt } from '../../../scripts/lib/mume-feed.ts';
-import { CLICKS, DROPS, DROP_GMCP, LEGS, type Leg, STAGED_GMCP, TYPE_MAX_SPEED, takeOf } from '../../feeds/character.ts';
+import { escapeXml } from './character-state.ts';
+import { CLICKS, DELETED_LINES, DROPS, DROP_GMCP, LEGS, type Leg, TYPE_MAX_SPEED, takeOf } from '../../feeds/character.ts';
 import { promptBytes } from './character-state.ts';
 import type { Run } from './run-feed.ts';
 
@@ -38,7 +40,6 @@ export function feedEvents(run: Run, from: number, to: number): FeedEvent[] {
     if (cur && cur.out.length) events.push(cur);
     cur = null;
   };
-  const staged = [...STAGED_GMCP];
   const out = (us: number, log: number): Extract<FeedEvent, { kind: 'out' }> => {
     if (!cur || us !== curUs) {
       flush();
@@ -55,18 +56,18 @@ export function feedEvents(run: Run, from: number, to: number): FeedEvent[] {
   const cmdsAt = new Map<number, number>();
   for (const l of run.lines) if (l.body.startsWith('> ')) cmdsAt.set(l.us, (cmdsAt.get(l.us) ?? 0) + 1);
 
-  for (const l of run.lines) {
+  /** Line n of the run log (1-based) is in a stretch the owner's edit left out. */
+  const deleted = (n: number): boolean => DELETED_LINES.some(([a, b]) => n >= a && n <= b);
+  // the XP the left-out stretches gave (the tarantulas'): taken off every later value, so the ring grows only with what is played
+  let xpOff = 0;
+  let runXp: number | null = null;
+
+  for (const [i, l] of run.lines.entries()) {
     const log = (l.us - t0) / 1e6;
     if (log < from || log >= to) continue;
+    const gone = deleted(i + 1);
     const leg = legOf(log);
     const cut = leg?.cut === true;
-    for (; staged.length && staged[0]!.log <= log; staged.shift()) {
-      const s = staged[0]!;
-      if (s.log < from) continue;
-      const e = out(Math.round(t0 + s.log * 1e6), s.log);
-      add(e, gmcpBytes(s.gmcp));
-      e.change.vitals = { ...e.change.vitals, ...(JSON.parse(s.gmcp.slice(s.gmcp.indexOf(' ') + 1)) as object) };
-    }
     const body = l.body;
     if (body.startsWith('\x1bGMCP ')) {
       const g = body.slice(6);
@@ -77,14 +78,27 @@ export function feedEvents(run: Run, from: number, to: number): FeedEvent[] {
         out(l.us, log).change.shields = JSON.parse(json) as StateChange['shields'];
         continue;
       }
+      if (pkg === 'Char.Vitals') {
+        const v = JSON.parse(json) as { xp?: number };
+        if (typeof v.xp === 'number') {
+          if (gone && runXp !== null) xpOff += v.xp - runXp;
+          runXp = v.xp;
+        }
+      }
+      // the GMCP of a left-out stretch goes with its text (its rooms are not played; the bars stay true by the next values)
+      if (gone) continue;
       if (DROP_GMCP.some((d) => Math.abs(d.log - log) < 0.05 && d.pkg === pkg && json.includes(d.has))) continue;
       const e = out(l.us, log);
-      add(e, gmcpBytes(g));
-      if (pkg === 'Char.Vitals') e.change.vitals = { ...e.change.vitals, ...(JSON.parse(json) as object) };
+      if (pkg === 'Char.Vitals') {
+        const v = JSON.parse(json) as Record<string, unknown>;
+        if (typeof v.xp === 'number' && xpOff) v.xp = (v.xp as number) - xpOff;
+        add(e, gmcpBytes(`Char.Vitals ${JSON.stringify(v)}`));
+        e.change.vitals = { ...e.change.vitals, ...v };
+      } else add(e, gmcpBytes(g));
       continue;
     }
     if (/^\x1b[A-Z]/.test(body)) continue;
-    if (dropped(log)) continue;
+    if (gone || dropped(log)) continue;
     if (body.startsWith('> ')) {
       if (cut) continue;
       flush();
@@ -100,7 +114,8 @@ export function feedEvents(run: Run, from: number, to: number): FeedEvent[] {
     }
     if (cut) continue;
     const e = out(l.us, log);
-    add(e, lineBytes(body));
+    // MUME's XML mode escapes its text (`&lt;wielded&gt;`): the client reads the rest as tags
+    add(e, lineBytes(escapeXml(body)));
     e.text.push(body.replace(/\x1b\[[0-9;]*m/g, ''));
   }
   flush();

@@ -4,14 +4,14 @@
 //
 //   - a fresh profile: no pane on; the map's place is the right dock's
 //     lane with Comm's under it (borderless, clear, a third of the height),
-//     the Character pane's a float in the middle at a Medium size (all
+//     the Character pane's a float in the middle at a Large size (all
 //     three switched on on camera);
-//   - Weather effects on for the balloons alone (round 2): the sky, the
-//     weather, fog and darkness off, so the game's window is as in round 1;
-//     the hobbit passenger follows Gittan's race;
-//   - an earlier run of Gittan's restored with its times moved to end just
-//     before now (`shiftedRun`), so the live run chains to it and the kill
-//     ratings have their history (round 1 of the balloon film);
+//   - Weather effects on for the balloons alone: the sky, the weather, fog
+//     and darkness off, so the game's window is as in round 1; Balloons
+//     itself off until the scene switches it on before the achievement
+//     (only its balloon flies); the hobbit passenger follows Gittan's race;
+//   - (`shiftedRun`, `enterMasonRoad`'s `chain`: an earlier run restored as
+//     the ratings' chain, round 2's; unused since draft 5);
 //   - Gittan's sex remembered (`wc.charSex.v1`), so no probe goes at login;
 //   - MUME's socket mocked (nothing reaches mume.org). The mock answers the
 //     client's hidden info poll (ADR 0166: `info WC<nonce>[…]WC<nonce>`)
@@ -38,15 +38,16 @@ export const CHARACTER_PAGE = { moment: NIGHT, seed: 3 };
 /** The cockpit's cell, CSS px (160 × 49 at 1600 × 900). */
 export const CELL = { w: 10, h: 900 / 49 } as const;
 
-/** Where the card floats when it comes on (cells, frame included): the middle, Medium. */
-export const CARD_FLOAT = { x: 35, y: 17, w: 40, h: 11 } as const;
+/** Where the card floats when it comes on (cells, frame included): the middle, Large (draft 5: about twice round 2's height, a little wider). */
+export const CARD_FLOAT = { x: 32, y: 14, w: 46, h: 20 } as const;
 /** The right dock's lane, as wide as the map wants (cells). */
 export const DOCK_LANE = 50;
 /** Comm under the map: about a third of the screen's 49 rows. */
 export const COMM_ROWS = 16;
 
-/** Escaped for an XML prompt. */
-const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Escaped as MUME's XML mode sends text (and prompts): `<wielded>` is `&lt;wielded&gt;`. */
+export const escapeXml = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = escapeXml;
 /** A prompt as MUME's XML mode sends it, GA after it. */
 export const promptBytes = (text: string): Buffer => Buffer.concat([Buffer.from(`<prompt>${esc(text)}</prompt>`, 'utf8'), Buffer.from([IAC, 249])]);
 
@@ -173,7 +174,7 @@ export async function enterMasonRoad(page: Page, mume: Mume, chain?: Buffer): Pr
       localStorage.setItem('wc.charSex.v1', JSON.stringify({ gittan: 'female' }));
       (window as unknown as CardWindow).__wc!.settings.update((d) => {
         // the balloons alone (src/settings/types.ts WeatherSettings)
-        Object.assign(d.weather, { enabled: true, sky: false, daySky: false, precipitation: false, lightning: false, fog: false, darkness: false, body: false, balloons: true });
+        Object.assign(d.weather, { enabled: true, sky: false, daySky: false, precipitation: false, lightning: false, fog: false, darkness: false, body: false, balloons: false });
         for (const p of Object.values(d.panes)) if (p) p.on = false;
         d.profile = 'default';
         d.character.fetchInfo = true;

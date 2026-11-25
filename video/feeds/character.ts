@@ -49,38 +49,51 @@ export interface Leg {
 }
 
 /**
- * The legs, in order, end to end (draft 4, the round 2 proposal; film =
- * take + 7): Mason Road 0:07, the coach 0:20 (the ring's tooltip, `rest`,
- * Comm on, the dock, Paper), Tharbad 0:56, the bakery 1:04, the north gate
- * 1:12, the tarantulas 1:20 (poisoned at the loud bar near 1:24), the camp
- * 1:32, the quakes 1:48 (both dead 1:57.5), the revenge 1:58, the pie 2:14;
- * the achievement after it (`ACHIEVEMENT`).
+ * The legs, in order, end to end (draft 5, the round 3 plan; film = take +
+ * 7): Mason Road 0:07, the coach 0:22 (fast; the tabs, the dock), the rings
+ * and Tharbad's West Alley 1:05, the bakery 1:16, the north gate 1:25, the
+ * owner's cut (the stone house, the tarantulas, the camp are gone: from
+ * the shroud at the gate straight to the walk back), the revenge at the
+ * game's pace 1:58, the pie 2:17; the achievement after it.
  */
 export const LEGS: readonly Leg[] = [
   // Mason Road: nothing in the run from 6.3 to the coach's arrival (42.75) but the owner's settings
   { name: 'mason-road', log: [PRE_LOG_S, 42.0], take: 0, speed: (42.0 - PRE_LOG_S) / 6.4 },
-  { name: 'the-coach-arrives', log: [42.0, 56.0], take: 6.4, speed: 1.8 },
-  // the coach: Bree, the Greenway, Jasper's Tavern, the ford, Tharbad's walls, the rings
-  { name: 'the-coach', log: [56.0, 239.5], take: 14.18, speed: 183.5 / 35.3 },
-  { name: 'tharbad', log: [239.5, 259.0], take: 49.48, speed: 19.5 / 7.5 },
+  { name: 'the-coach-arrives', log: [42.0, 56.0], take: 6.4, speed: 14 / 8.8 },
+  // the coach, fast: Bree, the Greenway, Jasper's Tavern, the ford
+  { name: 'the-coach', log: [56.0, 235.8], take: 15.2, speed: 179.8 / 36.3 },
+  // `stat`, Tharbad's walls, `eq`, the rings (as the owner edited them): "You feel stronger"
+  { name: 'the-rings', log: [235.8, 249.7], take: 51.5, speed: 13.9 / 6.5 },
+  // out of the coach; the rings back (Tiredness), a drink at the fountain
+  { name: 'tharbad', log: [249.7, 257.0], take: 58.0, speed: 1 },
+  // to the bakery, unhurried: a room every 1.5–2 s
+  { name: 'to-the-bakery', log: [257.0, 259.0], take: 65.3, speed: 0.55 },
   // closed; the bandit; the flight; wimpy 100
-  { name: 'the-bakery', log: [259.0, 268.3], take: 56.98, speed: 9.3 / 8.3 },
-  // invisible, the north gate, the locks, the stone building
-  { name: 'the-north-gate', log: [268.3, 307.95], take: 65.28, speed: 39.65 / 8.3 },
-  // the tarantulas, the poison, the flight up
-  { name: 'the-tarantulas', log: [307.95, 316.0], take: 73.58, speed: 1 },
-  { name: 'remove-poison', log: [316.0, 326.5], take: 81.63, speed: 10.5 / 5.55 },
-  // the camp fire, four stored earthquakes
-  { name: 'the-camp', log: [326.5, 347.5], take: 87.18, speed: 3 },
-  // rest, the herb, the brew
-  { name: 'the-rest', log: [347.5, 415.3], take: 94.18, speed: 67.8 / 7.1 },
-  // down; the quakes; both dead
-  { name: 'the-quakes', log: [415.3, 424.6], take: 101.28, speed: 1 },
-  { name: 'back-to-the-bakery', log: [424.6, 448.4], take: 110.58, speed: 23.8 / 3.0 },
-  // the bandit, the baker, `ag`, the kill
-  { name: 'the-revenge', log: [448.4, 468.0], take: 113.58, speed: 1.7 },
+  { name: 'the-bakery', log: [259.0, 268.3], take: 68.94, speed: 1 },
+  // to the north gate; "assaulted …"; invis
+  { name: 'the-north-gate', log: [268.3, 288.0], take: 78.24, speed: 1 },
+  // the owner's cut: from the shroud straight to the walk back (Main Street), unhurried
+  { name: 'back-to-the-bakery', log: [443.0, 448.4], take: 99.0, speed: 0.45 },
+  // the bandit, the baker, `ag`, the kill: the game's pace
+  { name: 'the-revenge', log: [448.4, 468.0], take: 111.0, speed: 1 },
   // `wi` (a click), the pie
-  { name: 'the-pie', log: [468.0, 472.0], take: 125.11, speed: 1 },
+  { name: 'the-pie', log: [468.0, 472.0], take: 130.6, speed: 1 },
+];
+
+/**
+ * The owner's edit of round 2's game text (`~/Downloads/
+ * character-film-r2-spellogg_edited.txt`): the run log's lines (1-based,
+ * every line counted) he left out. Their GMCP goes with them: their rooms
+ * are not played, and the bars stay true by the next values; the XP they
+ * gave (the tarantulas') is taken off every later value.
+ */
+export const DELETED_LINES: readonly [number, number][] = [
+  // the first ring swaps and "The coach has arrived in Tharbad."
+  [227, 271],
+  // "You can't find any water."
+  [348, 352],
+  // through the north gate: the stone house, the tarantulas, the camp, the quakes, the way back to Main Street
+  [500, 1002],
 ];
 
 /** The run is played up to here (log s): the pie eaten. */
@@ -89,21 +102,21 @@ export const END_LOG_S = 472.0;
 /**
  * Staged after the pie (the owner's text): MUME's achievement, in the
  * fixture's form (tests/fixtures/gmcp-demo.log): GMCP Event.Achieved, the
- * plain line, a blank line, the prompt. Its balloon rises and comes to rest.
+ * plain line, a blank line, the prompt. Its balloon rises, rests and flies on.
  */
-export const ACHIEVEMENT = { at: 129.6, what: 'Procured a pork-pie in Tharbad.' } as const;
-
-/** The take runs this long after the achievement's balloon comes to rest (the composition freezes it at the cutout, 0.3 s in: it moves on after about 4 s). */
-export const AFTER_REST_S = 1.0;
+export const ACHIEVEMENT = { at: 135.0, what: 'Procured a pork-pie in Tharbad.' } as const;
 
 /**
- * The balloon rating's chain (honest, as the balloon film's round 1): an
- * earlier run of Gittan's restored from the film backup, its times moved
- * to end just before the take's run starts, so the live run chains to it.
- * Its seven kills (median 1,257 xp) make the bandit's 650 *meh* (0.52);
- * the two tarantulas die in one pulse and share a sign ("2 kills").
+ * Balloons: only the achievement's (draft 5). They are switched on in the
+ * page's settings at this take second, after the bandit's kill (no UI, no
+ * frame shows the switch); its kill gets none.
  */
-export const CHAIN_RUN = 'Gittan/2026-11-02T20-21-34';
+export const BALLOONS_ON_AT = 132.5;
+
+/** After the achievement's balloon comes to rest: the balloon alone is shot on every frame from here … (s) */
+export const LAYER_FROM_S = 2.5;
+/** … and the take runs until here (its own fade ends at rest + 15). */
+export const AFTER_REST_S = 15.6;
 
 /** A log second → take second (the leg it is in). */
 export function takeOf(log: number): number {
@@ -149,13 +162,6 @@ const vitals = (o: Record<string, unknown>): string => `Char.Vitals ${JSON.strin
 export const CLICKS: readonly Click[] = [
   // `r` in the coach: "You sit down and rest your tired bones." (the run's)
   { log: 61.03, field: 'position', drop: [61.0, 61.3], steps: [{ sends: 'rest', lines: ['You sit down and rest your tired bones.', ''], gmcp: [vitals({ position: 'resting' })] }] },
-  // `r` by the camp fire (the run's answer)
-  {
-    log: 347.33,
-    field: 'position',
-    drop: [347.3, 347.6],
-    steps: [{ sends: 'rest', lines: ['You rest next to the campfire.', 'You feel comfortable.', ''], gmcp: [vitals({ position: 'resting' })] }],
-  },
   // `wi` after the kill: aggressive → wimpy, the run's own answer
   { log: 468.15, field: 'mood', drop: [468.1, 468.4], steps: [{ sends: 'change mood wimpy', lines: ['Ok.', ''], gmcp: [vitals({ mood: 'wimpy' })] }] },
 ];
@@ -163,7 +169,6 @@ export const CLICKS: readonly Click[] = [
 /** The run's GMCP that the clicks replace (their own answers carry it). */
 export const DROP_GMCP: readonly { log: number; pkg: string; has: string }[] = [
   { log: 61.27, pkg: 'Char.Vitals', has: '"position":"resting"' },
-  { log: 347.56, pkg: 'Char.Vitals', has: '"position":"resting"' },
   { log: 468.33, pkg: 'Char.Vitals', has: '"mood":"wimpy"' },
 ];
 
@@ -184,37 +189,22 @@ export const LOOK = {
 /** The run's first prompt (Mason Road, resting). */
 export const FIRST_PROMPT = '!#>';
 
-/** Other players' narrates (draft 4), at take seconds. */
+/** Other players' narrates (draft 5): an answer 10–15 s after what it answers. */
 export const NARRATES: readonly { at: number; talker: string; words: string }[] = [
-  { at: 20.6, talker: 'Thorgrim', words: 'bring one for me. two, if the road is long' },
-  { at: 26.4, talker: 'Mirel', words: 'tharbad? half of it is under the greyflood and the other half would steal your boots' },
-  { at: 70.0, talker: 'Odalric', words: 'closed? now that is the real crime' },
-  { at: 112.4, talker: 'Sigrun', words: 'did anyone else just feel the ground shake??' },
+  { at: 19.9, talker: 'Thorgrim', words: 'bring one for me. two, if the road is long' },
+  { at: 38.4, talker: 'Mirel', words: 'tharbad? half of it is under the greyflood and the other half would steal your boots' },
+  { at: 100.6, talker: 'Odalric', words: 'closed? now that is the real crime' },
 ];
 
 /**
- * Gittan's own narrates (draft 4): typed in the input line as `narr …`
- * (Enter at `at`), answered as MUME echoes one's own narrate (the fixture's
- * form): Comm.Channel.Text with talker `you`, the yellow `You narrate '…'`,
- * a blank line, the prompt.
+ * Gittan's own narrates: typed in the input line as `narr …` (Enter at
+ * `at`). The game window shows only MUME's `Ok.` (the owner, draft 5);
+ * Comm still gets Comm.Channel.Text with talker `you`.
  */
 export const OWN_NARRATES: readonly { at: number; words: string }[] = [
   { at: 5.9, words: 'off to tharbad! they say the pork-pies there are worth the whole road south' },
-  { at: 32.0, words: 'hobbits have no boots, mirel. my feet and my purse are both well guarded' },
-  { at: 68.7, words: 'assaulted in the bakery, and it was CLOSED. this town is crawling with cutpurses' },
-  { at: 73.35, words: 'hiding in a little stone house north of the gate. nobody looks for a hobbit in a cellar' },
-  { at: 85.5, words: 'attercop! the cellar is full of spiders. i am going back down with an earthquake or four' },
-];
-
-/**
- * The run's mana in four steps while the four earthquakes are stored
- * (manuscript): MUME sent it after the second and the fourth only (102,
- * 61); the first and the third are staged between them, at their "You
- * stored it.".
- */
-export const STAGED_GMCP: readonly { log: number; gmcp: string }[] = [
-  { log: 336.02, gmcp: vitals({ mana: 119 }) },
-  { log: 343.27, gmcp: vitals({ 'mana-string': 'hot', mana: 82 }) },
+  { at: 50.9, words: 'hobbits have no boots, mirel. my feet and my purse are both well guarded' },
+  { at: 88.4, words: 'assaulted in the bakery, and it was CLOSED. this town is crawling with cutpurses' },
 ];
 
 // ------------------------------------------------------------------ the poll
@@ -274,20 +264,16 @@ export function pollFields(s: PollState): string[] {
 export const AFFECTS: readonly { name: string; from: number; to?: number }[] = [
   { name: 'shield', from: 0 },
   { name: 'armour', from: 0 },
-  { name: 'lethargy', from: 244.5 },
+  // "You feel a sudden loss of energy …" (L285)
+  { name: 'lethargy', from: 244.52 },
+  // "You feel stronger." (L301)
   { name: 'strength', from: 248.77 },
+  // "… the strength that welled within you subsides." (L329)
+  { name: 'tiredness', from: 250.52 },
   { name: 'unable to quit', from: 264.52 },
-  { name: 'panic', from: 265.02, to: 400 },
-  { name: 'tiredness', from: 265.02 },
-  { name: 'shroud', from: 287.64, to: 308.27 },
-  { name: 'shroud', from: 361.5, to: 418.01 },
-  { name: 'comfortable', from: 347.56, to: 355.5 },
-  { name: 'stored spell earthquake', from: 336.02, to: 419.26 },
-  { name: 'stored spell earthquake', from: 339.52, to: 421.01 },
-  { name: 'stored spell earthquake', from: 343.27, to: 422.76 },
-  { name: 'stored spell earthquake', from: 346.78, to: 424.51 },
-  { name: 'comfortable', from: 364.5, to: 415.51 },
-  { name: 'potion', from: 392.25 },
+  { name: 'panic', from: 265.02 },
+  // "You are surrounded by a misty shroud." (L496); its end is in the owner's cut
+  { name: 'shroud', from: 287.64 },
 ];
 
 /** The order `stat` lists them in (its lists at 354 and 414). */

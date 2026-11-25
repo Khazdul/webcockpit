@@ -1,30 +1,30 @@
 // The Character pane film's one take (video/manuscript-character.md, the
-// round 2 proposal, draft 4; stage 78): Gittan's run from Mason Road in
-// Bree to a pork-pie in Tharbad, frame by frame on the film's clock
-// (record/lib/frame-clock.ts). Times are take seconds from its first frame
-// (feeds/character.ts; the film's 0:07).
+// round 3 plan, draft 5; stage 78): Gittan's run from Mason Road in Bree to
+// a pork-pie in Tharbad as the owner edited its text, frame by frame on the
+// film's clock (record/lib/frame-clock.ts). Times are take seconds from its
+// first frame (feeds/character.ts; the film's 0:07).
 //
 //   Mason Road  the pointer switches the map on (docked right); Gittan
-//               narrates; the coach arrives; the Character pane on (it
-//               floats in the middle, Medium); `enter coach`
-//   the coach   a click on the position icon rests her; the level ring's
-//               tooltip; Thorgrim; Comm on (under the map, borderless,
-//               clear); Mirel, Gittan's answer; the card dragged to the
-//               right dock above the map and made taller; a glimpse of
-//               Paper (Settings → Appearance → Background) and back
-//   Tharbad     the ring, the bakery, the bandit, the north gate, the
-//               tarantulas (their joined balloon), the camp and the quakes,
-//               the revenge (`ag` typed; the kill's balloon; a click on
-//               Mood: aggressive → wimpy), the pie; the achievement staged,
-//               its balloon at rest: the take ends there
+//               narrates (`Ok.`); the coach arrives; the Character pane on
+//               (it floats in the middle, Large); `enter coach`
+//   the coach   a click on the position icon rests her; Thorgrim; Comm on
+//               (under the map, borderless, clear); a calm look at Stats
+//               and Lore, back to Status; Mirel, Gittan's answer; the
+//               level ring's tooltip; the card dragged to the right dock
+//               above the map and made taller; `stat`, `eq`, the rings
+//   Tharbad     to the bakery, the bandit, the north gate ("assaulted …";
+//               Odalric on the way back), the revenge (`ag` typed; a click
+//               on Mood: aggressive → wimpy), the pie; the achievement
+//               staged: its balloon rises, rests and flies on
 //
 // The mock answers the hidden info poll with Gittan's values as they stand
 // at the take's moment of the run, the card's clicks and her own narrates
-// with MUME's own answers; every other line is the run's. The balloons'
-// ratings come from an earlier run of hers restored as the chain's start.
-// At the achievement balloon's rest the page is shot once more with only
-// the balloon drawn (public/recordings/character-balloon.png, transparent):
-// the composition keeps it while the rest fades.
+// with MUME's own answers; every other line is the run's, as the owner kept
+// them. From just after the achievement balloon's rest every frame is shot
+// a second time with only the balloon drawn (transparent PNGs in
+// public/recordings/character-balloon/): the composition keeps it while the
+// rest fades.
+import { mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Locator } from '@playwright/test';
 import { gmcpBytes, lineBytes, sleep } from '../../../scripts/lib/mume-feed.ts';
@@ -32,12 +32,13 @@ import {
   ACHIEVEMENT,
   AFTER_REST_S,
   ANSWER_LAG_S,
-  CHAIN_RUN,
+  BALLOONS_ON_AT,
   CHARACTER_BACKUP,
   CHARACTER_RUN,
   CLICKS,
   END_LOG_S,
   FIRST_PROMPT,
+  LAYER_FROM_S,
   LEGS,
   LOOK,
   NARRATES,
@@ -49,15 +50,14 @@ import {
   affectsAt,
   takeOf,
 } from '../../feeds/character.ts';
-import { FILM_BACKUP } from '../../feeds/film.ts';
 import { type FeedEvent, type StateChange, feedEvents } from '../lib/character-feed.ts';
-import { CELL, CHARACTER_PAGE, Mume, enterMasonRoad, promptBytes, shiftedRun } from '../lib/character-state.ts';
+import { CELL, CHARACTER_PAGE, Mume, enterMasonRoad, promptBytes } from '../lib/character-state.ts';
 import { Pointer, seeded } from '../lib/mouse.ts';
 import { loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
 
 const SEED = 20261125;
-const CUTOUT = fileURLToPath(new URL('../../public/recordings/character-balloon.png', import.meta.url));
+const LAYER = fileURLToPath(new URL('../../public/recordings/character-balloon/', import.meta.url));
 
 /** The pointer's moments (take s). */
 const UI = {
@@ -67,21 +67,15 @@ const UI = {
   firstType: 2.3,
   cardPanes: 7.2,
   cardRow: 8.1,
-  ring: 17.4,
-  ringOff: 19.6,
-  commPanes: 22.4,
-  commRow: 23.3,
-  dockGrab: 34.0,
-  resizeGrab: 37.2,
-  settings: 40.4,
-  appearance: 41.2,
-  bg: 41.9,
-  paper: 42.8,
-  /** Paper stands at least this long. */
-  paperHold: 2.6,
-  bgBack: 45.2,
-  black: 46.0,
-  close: 46.8,
+  commPanes: 21.8,
+  commRow: 22.7,
+  stats: 25.2,
+  lore: 31.4,
+  status: 37.6,
+  ring: 40.0,
+  ringOff: 42.4,
+  dockGrab: 44.0,
+  resizeGrab: 47.0,
   park: { x: 780, y: 620 },
 } as const;
 
@@ -90,7 +84,6 @@ const BUSY: readonly [number, number][] = [
   [UI.mapPanes - 0.3, UI.mapRow + 0.8],
   [UI.cardPanes - 0.3, UI.cardRow + 0.8],
   [UI.commPanes - 0.3, UI.commRow + 0.8],
-  [UI.settings - 0.3, UI.close + 1.5],
 ];
 
 /** A typed line stands this long before its Enter. */
@@ -128,8 +121,7 @@ export const characterTour: Scene = {
     const run = loadBackup(CHARACTER_BACKUP).get(CHARACTER_RUN);
     if (!run) throw new Error(`no run ${CHARACTER_RUN} in ${CHARACTER_BACKUP}: node record/character-runs.ts <log>`);
     const mume = new Mume({ strong: false, shields: { ob: 50, db: -1, pb: 60, abs: 70 }, wimpy: 204, copper: 48, vitals: {}, affects: affectsAt(0), prompt: FIRST_PROMPT });
-    // the chain's earlier run ends a minute and a half before this one starts
-    await enterMasonRoad(page, mume, shiftedRun(FILM_BACKUP, CHAIN_RUN, Date.now() * 1000 - 90e6));
+    await enterMasonRoad(page, mume);
     // the run up to Mason Road's first prompts, off camera
     let room: Buffer | null = null;
     for (const e of feedEvents(run, 0, PRE_LOG_S)) {
@@ -143,14 +135,9 @@ export const characterTour: Scene = {
     await page.evaluate((c) => (window as unknown as Wc).__wc.app.session.sendCommand(c), LOOK.cmd);
     await sleep(250);
     mume.send(Buffer.concat([...LOOK.lines.map((l) => lineBytes(l)), promptBytes(mume.state.prompt)]));
-    // the login poll answered, the run stored; then the balloons read the chain again (balloon film
-    // round 1's finding: at `run_start` the run is not yet in the store, so the chain is the live run alone)
+    // the login poll answered, the page settled
     await sleep(4000);
     if (mume.polls.length === 0) throw new Error('no login poll: is fetchInfo on?');
-    await page.evaluate(() => (window as unknown as Wc).__wc.settings.update((d) => void (d.weather.balloons = false)));
-    await sleep(800);
-    await page.evaluate(() => (window as unknown as Wc).__wc.settings.update((d) => void (d.weather.balloons = true)));
-    await sleep(2500);
     await page.locator('.wc-input-field').focus();
     await page.mouse.move(UI.park.x, UI.park.y);
     return { mume, run, room, events: feedEvents(run, PRE_LOG_S, END_LOG_S) };
@@ -201,13 +188,13 @@ export const characterTour: Scene = {
       out: () => Buffer.concat([...s.lines.map((l) => lineBytes(l)), ...s.gmcp.map((g) => gmcpBytes(g)), promptBytes(mume.state.prompt)]),
       change: vitalsOf(s.gmcp),
     });
-    // one's own narrate, as the fixture has it: the GMCP, the yellow line, a blank line, the prompt
+    // one's own narrate: Comm.Channel.Text (talker `you`) for Comm, and in the game window only MUME's `Ok.` (the owner, draft 5)
     const narrAnswer = (words: string): Answer => ({
       sends: `narr ${words}`,
       out: () =>
         Buffer.concat([
           gmcpBytes(`Comm.Channel.Text ${JSON.stringify({ channel: 'tales', talker: 'you', text: words })}`),
-          lineBytes(`\x1b[33mYou narrate '${words}'\x1b[0m`),
+          lineBytes('Ok.'),
           lineBytes(''),
           promptBytes(mume.state.prompt),
         ]),
@@ -280,19 +267,13 @@ export const characterTour: Scene = {
     });
     // the moments the captions follow
     clock.schedule(T(takeOf(STRONGER_LOG_S)), () => mark('stones', 'You feel stronger.'));
-    clock.schedule(T(takeOf(308.02)), () => mark('fight', 'the tarantulas'));
-    clock.schedule(T(takeOf(312.02)), () => mark('poison', 'poisoned'));
-    clock.schedule(T(takeOf(424.51)), () => mark('peak', 'both tarantulas dead'));
-    clock.schedule(T(takeOf(467.68)), () => mark('bandit', 'the bandit dead'));
-    // the balloons' signs as they come (the tarantulas' joined, the bandit's rating)
-    for (const log of [424.51, 467.68])
-      clock.schedule(T(takeOf(log) + 1.5), async () => {
-        const b = await page.evaluate(async () => {
-          const x = await (window as unknown as Wc).__wc.app.weather?.controller?.balloons();
-          return x ? x.list() : [];
-        });
-        console.log(`  balloons at ${(takeOf(log) + 1.5).toFixed(1)} s: ${JSON.stringify(b)}`);
-      });
+    clock.schedule(T(takeOf(448.51)), () => mark('fight', 'the bandit'));
+    clock.schedule(T(takeOf(467.68)), () => mark('peak', 'the bandit dead'));
+    // the balloons on, in the settings alone (no frame shows it): only the achievement gets one
+    clock.schedule(T(BALLOONS_ON_AT), async () => {
+      await page.evaluate(() => (window as unknown as Wc).__wc.settings.update((d) => void (d.weather.balloons = true)));
+      mark('balloons-on', 'Balloons on (settings)');
+    });
     clock.schedule(T(takeOf(469.52)), () => mark('pie', 'six copper'));
 
     await clock.frame(); // the first frame
@@ -344,19 +325,28 @@ export const characterTour: Scene = {
     mark('card-on', 'the Character pane');
     console.log(`  the card: ${await card.locator('.wc-cc').getAttribute('data-mode')} at ${JSON.stringify(await card.boundingBox())}`);
 
-    // ---- the coach: `r` a click on the position icon; the ring's tooltip
-    const [rest0, rest1, wi] = CLICKS;
+    // ---- the coach: `r` a click on the position icon
+    const [rest0, wi] = CLICKS;
     await clickCard('position', takeOf(rest0!.log), rest0!.steps[0]!);
-    await pointer.hoverAt(card.locator('.wc-cc-ring'), T(UI.ring));
-    mark('ring-tip', 'the level ring');
-    await pointer.rest(T(UI.ringOff));
     await pointer.moveTo(UI.park.x, UI.park.y);
 
     // Comm on: under the map, borderless and clear, Public
     await paneOn('comm', UI.commPanes, UI.commRow);
     mark('comm-on', 'Comm under the map');
     console.log(`  Comm on: the right dock's lane ${await lane()}`);
-    await pointer.moveTo(UI.park.x, UI.park.y);
+
+    // a calm look at Stats and Lore, then Status again
+    const tab = (id: string): Locator => card.locator(`.wc-cc-tab[data-tab="${id}"]`);
+    marks.markAt(await pointer.clickAt(tab('stats'), T(UI.stats)), 'tab', 'stats');
+    marks.markAt(await pointer.clickAt(tab('lore'), T(UI.lore)), 'tab', 'lore');
+    const more = await card.locator('.wc-pane-content').evaluate((e) => e.textContent?.includes('more') ?? false);
+    if (more) console.warn('  Lore shows "more": not all of it fits');
+    marks.markAt(await pointer.clickAt(tab('status'), T(UI.status)), 'tab', 'status');
+
+    // the ring's tooltip
+    await pointer.hoverAt(card.locator('.wc-cc-ring'), T(UI.ring));
+    mark('ring-tip', 'the level ring');
+    await pointer.rest(T(UI.ringOff));
 
     // the card docked above the map: by the title row to the screen's top right edge, then taller
     const c0 = (await card.boundingBox())!;
@@ -376,53 +366,10 @@ export const characterTour: Scene = {
     await clock.sleep(300);
     mark('dock-done', 'docked');
     console.log(`  docked: ${JSON.stringify(await card.boundingBox())} ${await card.locator('.wc-cc').getAttribute('data-mode')}; the lane ${await lane()}`);
-
-    // a glimpse of Paper
-    const popup = page.locator('.wc-sp-settings');
-    marks.markAt(await pointer.clickAt(page.locator('.wc-mb[data-mb="settings"]'), T(UI.settings)), 'settings', 'Settings');
-    await clock.sleep(300);
-    await pointer.clickAt(popup.locator('.wc-ck-tab[data-tab="appearance"]'), T(UI.appearance), { quick: true });
-    const bg = popup.locator('.wc-ck-dd[aria-label="Background"]');
-    const optBox = (hex: string): Promise<{ x: number; y: number } | null> =>
-      page.evaluate((h) => {
-        const o = document.querySelector(`.wc-ck-list[aria-label="Background"] .wc-ck-opt[data-value="${h}"]`);
-        const b = o?.getBoundingClientRect();
-        return b && b.width > 0 ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null;
-      }, hex);
-    /** The Background list opened, the game's text held, the colour pressed; returns the press. */
-    const choose = async (hex: string, open: number, pick: number, kind: string, label: string): Promise<number> => {
-      await waitFor(async () => (await page.locator('.wc-ck-list[aria-label="Background"]').count()) === 0, 1500, 'the list closing');
-      await pointer.hoverAt(bg, Math.max(T(open), clock.now() + 300));
-      held = [];
-      await pointer.pressAt(clock.now() + 150);
-      await waitFor(async () => (await optBox(hex)) !== null, 1500, `the ${label} option`);
-      // the list morphs in: its boxes are read once it has landed
-      await clock.sleep(400);
-      const r = await optBox(hex);
-      let down = clock.now();
-      if (r) {
-        await pointer.hoverPoint(r.x, r.y, Math.max(T(pick), clock.now() + 350));
-        down = await pointer.pressAt(clock.now() + 120);
-      }
-      marks.markAt(down, kind, label);
-      await clock.sleep(150);
-      release();
-      const got = await page.evaluate(() => (window as unknown as Wc).__wc.settings.get().appearance.bg);
-      if (got !== hex) console.warn(`  ${label}: not chosen (${got})`);
-      return down;
-    };
-    const paperAt = ((await choose('#f4ecd8', UI.bg, UI.paper, 'paper', 'Paper')) - t0) / 1000;
-    const back = Math.max(UI.bgBack, paperAt + UI.paperHold - 0.8);
-    await choose('#000000', back, back + 0.8, 'lykta', 'back to black');
-    await pointer.rest(Math.max(T(UI.close), clock.now() + 500));
-    await page.keyboard.press('Escape');
-    mark('settings-closed', 'Settings closed');
     await input.focus();
     await pointer.moveTo(UI.park.x, UI.park.y);
 
-    // ---- Tharbad: the camp's rest a click; after the bandit's kill, a click on Mood (aggressive → wimpy)
-    await clickCard('position', takeOf(rest1!.log), rest1!.steps[0]!);
-    await pointer.moveTo(UI.park.x, UI.park.y + 40);
+    // ---- Tharbad: after the bandit's kill, a click on Mood (aggressive → wimpy)
     const down = await clickCard('mood', takeOf(wi!.log), wi!.steps[0]!);
     marks.markAt(down, 'mood-click', 'change mood wimpy');
     await pointer.moveTo(UI.park.x, UI.park.y + 120);
@@ -439,28 +386,26 @@ export const characterTour: Scene = {
     await waitFor(async () => ach(await balloons())?.phase === 'read', 15000, 'the achievement balloon at rest');
     mark('balloon-rest', 'the achievement balloon at rest');
     const restAt = clock.now();
-    console.log(`  balloons: ${JSON.stringify(await balloons())}`);
-    await clock.sleep(300);
-    // only the achievement's balloon (the bandit's may still be in view): its sign names the pie
-    const one = await page.evaluate((what) => {
-      const els = [...document.querySelectorAll<HTMLElement>('.wc-balloon')];
-      const el = els.find((e) => e.textContent?.includes(what.slice(0, 12))) ?? els.at(-1);
-      el?.setAttribute('data-film-cutout', '');
-      return { n: els.length, found: !!el?.textContent?.includes(what.slice(0, 12)) };
-    }, ACHIEVEMENT.what);
-    console.log(`  the cutout: ${one.n} balloons in the page, the achievement's by its sign: ${one.found}`);
+    await clock.until(restAt + LAYER_FROM_S * 1000);
+    // from here every frame twice: the take's, then the page with only the balloon drawn (transparent)
+    rmSync(LAYER, { recursive: true, force: true });
+    mkdirSync(LAYER, { recursive: true });
     await page.addStyleTag({
       content:
-        'html, body, body * { background: transparent !important; background-color: transparent !important; box-shadow: none !important; } body * { visibility: hidden !important; } .wc-balloon[data-film-cutout], .wc-balloon[data-film-cutout] * { visibility: visible !important; } #wc-film-cutout {}',
+        '[data-film-layer] body, [data-film-layer] body * { background: transparent !important; background-color: transparent !important; box-shadow: none !important; } [data-film-layer] body * { visibility: hidden !important; } [data-film-layer] .wc-balloon, [data-film-layer] .wc-balloon * { visibility: visible !important; } [data-film-layer] { background: transparent !important; }',
     });
-    await page.screenshot({ path: CUTOUT, omitBackground: true });
-    await page.evaluate(() => {
-      for (const s of document.querySelectorAll('style')) if (s.textContent?.includes('#wc-film-cutout')) s.remove();
-      document.querySelector('[data-film-cutout]')?.removeAttribute('data-film-cutout');
-    });
-    mark('cutout', 'the balloon alone');
+    let layerFrames = 0;
+    clock.onFrame = async (index) => {
+      // the take's frame `index` and this one show the same moment
+      if (layerFrames === 0) marks.markAt(t0 + (index * 1000) / 60, 'layer-from', 'the balloon alone, frame by frame');
+      await page.evaluate(() => document.documentElement.setAttribute('data-film-layer', ''));
+      await page.screenshot({ path: `${LAYER}${String(layerFrames).padStart(5, '0')}.png`, omitBackground: true });
+      await page.evaluate(() => document.documentElement.removeAttribute('data-film-layer'));
+      layerFrames++;
+    };
     await clock.until(restAt + AFTER_REST_S * 1000);
-    if (ach(await balloons())?.phase !== 'read') console.warn('  the achievement balloon moved on before the take ended');
+    clock.onFrame = null;
+    console.log(`  the balloon alone: ${layerFrames} frames from ${((restAt - t0) / 1000 + LAYER_FROM_S).toFixed(2)} s`);
     marks.markAt(clock.now(), 'active-end', 'the take');
 
     // ---- checks, off the film
