@@ -508,11 +508,12 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       the right edge below 110 px of content, the active tab one sheet
       with its content (G1's iron, G3's edge); replaces H3's icons. Built:
       "Part H10: what was built", ADR 0166 addendum 32.
-- [ ] H11. The poll in a fight: the info poll and its events (a mood
+- [x] H11. The poll in a fight: the info poll and its events (a mood
       change above all) run in a fight too, with the same gate (a clean
       game prompt, the quiet after a command); the vitals' `xxx` writes
       nothing, as before. Replaces point 24's "while fighting". See "The
-      poll in a fight" under Owner feedback. Built after H10.
+      poll in a fight" under Owner feedback. Built: "Part H11: what was
+      built", ADR 0166 addendum 33.
 - [ ] H8 build: the stone icons from `notes/research/stone-icons/picks.md`
       (rounds 1–2), the generic stone per group for the rest.
 
@@ -1660,6 +1661,42 @@ pick in "Round 20 and the troll's mana". ADR 0166 addendum 32 (points
   outline, the stones under it, Enter and Space, Paper, the column at 62 ×
   7; the H test with the numerals; the overflow check skips the drawing).
 
+## Part H11: what was built (2026-11-25)
+
+The poll in a fight (H11): the owner's "The poll in a fight". ADR 0166
+addendum 33 (points 211–219).
+
+- **In a fight as out of one.** The login poll, an opened view, the
+  repeat (every 10 s while Status, Stats or Lore is open) and the events
+  (the mood above all) poll in a fight, with the same gate as otherwise.
+  The answer's OB, DB, PB and mood are taken; its `xxx` vitals write
+  nothing, so the bars keep following `Char.Vitals`. The `fighting`
+  option is gone from the poll; the card's red swords keep theirs.
+- **New: no poll while MUME holds your commands.** Your own GMCP
+  `waiting` flag (a cast, `shoot`, `track`, `scout`, `pick`, `mix` …:
+  1 483 waits in the run exports, 43 in a fight): no poll while it is on,
+  and none until 1 s after it ends, when the held commands come out. A
+  fight's rounds print prompts while you wait (55 of the waits had one),
+  so this, not the prompt, is what keeps a poll from going in behind a
+  held command. Everywhere, not only in a fight; only stricter.
+- **The burst rule unchanged.** In the exports' own fights 12 % of the
+  commands were bursts; replayed, a mood change in a fight would have
+  polled 0.5–7 s after it (4 s the median), about 25 s in two cases of
+  kept-up spam. Not useless, so no narrower rule.
+- **A fight's start and end are no position event** (`fighting` counts
+  as `standing`); being knocked to sitting in one still polls.
+- Tests: unit `info-poll` (the login poll in a fight; the repeat between
+  the rounds; the mood a second after its command, OB/PB taken, `xxx`
+  not; answered commands are no burst, a real burst still waits 10 s;
+  text after a round's prompt holds it; the position; rounds round the
+  answer in one frame; `waiting` and the held `who` whose pager closes
+  the gate), `info-filter` (a fight round the answer, five shapes cut at
+  every byte, and a round between the answer and its prompt),
+  `info-poll-app` (no trace in a fight on the bus, the screen or the run
+  log, the rounds shown, the HP from GMCP; the App wires `waiting`); e2e
+  `info-poll.spec.ts` (new test: a mood change in a fight polls, OB and
+  PB change, the HP number stays GMCP's, no trace).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1687,6 +1724,25 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part H11, the poll in a fight (the test server, MUME up)
+
+1. Character open on **Status** (the shields show OB, DB, PB). Start a
+   fight with something that lasts a while.
+2. Mid-fight, switch **mood** (wimpy ↔ aggressive, typed, an alias or a
+   click on the mood cell): OB and PB on the shields change within a few
+   seconds. Switch back: they change back.
+3. Keep fighting for 20–30 s without switching: the shields stay right
+   (the 10 s repeat runs in the fight too).
+4. The **HP bar** follows the fight as before (GMCP); it never jumps to
+   an odd value or blanks when a poll answers (in a fight the poll's
+   vitals are `xxx` and are not used).
+5. Watch the output: **nothing of the poll** (no `info …`, no `WC…`, no
+   `xxx`, no extra blank lines or prompts); every fight line is there.
+
+Feedback wanted: how fast OB/PB follow a mood change in a fight (and
+whether a few seconds is good enough when you spam commands: then it
+waits until you pause); anything of the poll seen in the output.
 
 ### Part H10, the tabs (the test server)
 

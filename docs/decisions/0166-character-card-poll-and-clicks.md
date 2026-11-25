@@ -1543,3 +1543,89 @@ found "för moderna och ai-genererade" ("H test and round 2").
      keyboard (Tab, Enter, Space), clicks and taps are the buttons' as
      before. The tablist's `aria-orientation` follows the side. No
      per-tick work.
+
+## Addendum 33 (2026-11-25): H11, the poll in a fight
+
+Stage 77 H11 ("Part H11: what was built"): the owner's "The poll in a
+fight" (stage file, Owner feedback). Measured live: in a fight `info [%O
+%D %k %Y %z]` answers `[80 49 30 aggressive xxx]`, whole, with no fight
+line inside. Replaces point 24's "while fighting" and point 100's last
+sentence ("In a fight the poll waits for the fight's end").
+
+211. **In a fight as out of one.** The login poll, an opened view, the
+     repeat and the events all poll in a fight, with the same gate (a
+     clean XML game prompt with nothing after it, no command since it,
+     the quiet after a command, the burst rule, no cast pending, one
+     outstanding, 2 s between polls, the fit). The vitals' `xxx` is no
+     value and writes nothing (point 195, unchanged); OB, DB, PB, the
+     mood and the rest are taken as ever. A `Char.Vitals` keeps moving
+     the bars in the fight.
+212. **The repeat too, not only the events.** The owner wants both ("the
+     poll going and it firing when I change mood"), and nothing found
+     speaks against it: the answer comes in one piece, the filter shows
+     a round's lines before and after it in order (point 218), and a
+     poll that fails is put back and counted as anywhere (two stop the
+     polls for the connection). Its cost is one hidden `info` per 10 s
+     while a view is open, as out of a fight.
+213. **Why a fight does not weaken the gate.** A round prints a prompt
+     that answers none of your commands, so in a fight "a game prompt
+     after the command" no longer means MUME has read it. But that was
+     already so out of your own fight: in the run exports a fight in
+     your room (a groupmate's) prints a prompt every 0.25–1.25 s whether
+     you fight or not. What makes a command wait unread is MUME holding
+     your input (a cast, a skill's delay, mixing), and the poll now
+     knows that from GMCP (point 214) instead of from the prompts. A
+     command not held is read within a pulse, well inside the 1 s quiet.
+214. **No poll while MUME holds your commands** (new, everywhere, not
+     only in a fight). Your own `waiting` status flag (`Group.Set` /
+     `Group.Update` for `type: "you"`, kept in `GroupModel.selfFlags`
+     since point 95) is on while MUME holds your input: in five run
+     exports (2026-09-28 to 11-17) 1 483 waits, from `cast` (most),
+     `shoot`, `track`, `scout`, `pick`, `mix`, `drain`, `recover`, an
+     item's power, an order to a mount; 43 of them in a fight. 55 of the
+     1 483 had a game prompt inside the wait (a mix's steps, a fight's
+     rounds), so the prompt alone does not close the gate there. The
+     rule: no poll while `waiting` (`InfoPollOptions.waiting`; the reason
+     "MUME holds your commands (waiting)"), and none until `SETTLE_MS`
+     (1 s) after it ends, as the commands held come out then, a pulse
+     each, and a pager or other output of theirs closes the gate
+     (not a game prompt). Only stricter: no poll goes sooner than
+     before. Assumed, not seen: that the lag after your own bash or kick
+     sets `waiting` too (no basher's own wait in the exports); if not,
+     point 98's burst and the quiet cover it as before. A stale flag
+     cannot block for ever: `Group.Set` at login and a new connection
+     clear it.
+215. **The burst rule stays as it is in a fight.** Point 118's burst (a
+     command less than 2 s after the one before it, with no game prompt
+     between) does not make the mood event useless in a fight: in the
+     run exports' own fights (`opponent` set) 1 917 commands were lone
+     and 264 bursts (12 %). Replaying the mood changes in those fights
+     with the gate's rules (the exports overlap, so some are counted
+     twice; 21 in all) the poll would have gone 0.5–7 s after the
+     change, 4 s the median, and about 25 s in two (a burst kept up). A
+     narrower rule for the mood would need input matching (point 101)
+     or a proof that MUME read the commands after the mood's, and the
+     burst is what guards a command held behind another: kept.
+216. **A fight's start and end are no position event.** `position`
+     `fighting` counts as `standing` for the event (point 116): the
+     bonuses do not change when a fight starts or ends, and before H11
+     the end released the waited poll anyway. Being knocked to `sitting`
+     in a fight (or standing up from it) still polls.
+217. **The `fighting` option is gone** from `InfoPoll`: nothing in the
+     poll waits for a fight any more. `GameState.fighting()` stays for
+     the card's red swords (point 143). Nothing else keyed on the fight
+     changes: the tab does not change in a fight (point 143, so there is
+     no "tab return" to touch), the filter (`InfoFilter`) never knew of
+     fights, and the typed `info`/`stat` reader (point 96) reads in a
+     fight as before.
+218. **The filter round a fight.** Nothing new was needed; unit tests
+     (`info-filter`, "a fight round the answer") cut at every byte: a
+     round and its prompt before the answer, after it, a round's line in
+     the same pulse before and after, rounds on both sides, and a round
+     in a frame of its own between the answer and its prompt. Each
+     round's lines show, in order, never swallowed; the answer's own
+     prompt is hidden with it where its pulse showed nothing else, a
+     prompt shared with a round's lines stays (point 27). The answer's
+     `xxx` gives null vitals.
+219. **Cost.** One flag read per check and per frame end; no new
+     listener, no per-line work.
