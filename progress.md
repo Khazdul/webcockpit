@@ -93,10 +93,12 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   troll in the group is enough to check it: no play needed. Also NPCs
   without mana (point 229). Remind the owner at the next Group or
   Character session.
-- **Flaky unit tests** (2026-11-25): `info-poll.test.ts` (the owner's
-  live session after F1b, 2–3 tests) and `watch-page.test.ts` (paused
-  start) fail in nearly every full unit run under load, pass alone. Make
-  them robust (fake timers / no wall-clock budget).
+- **Flaky unit tests under load** (2026-11-25): `info-poll` (F1b) and
+  `watch-page` fixed (`d9bf0dc7`, `8554268f`: a helper decoded the whole
+  sent stream on every 10 ms tick; a dynamic import of the replay page
+  inside a test). Still seen under heavy load, not fixed: `app.test.ts`
+  ("reports replay in the status…"), `panes-comm-ui.test.ts` ("seeds from
+  the archive…"), `map-mm2.test.ts` ("reads the bundled map").
 
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
@@ -210,8 +212,8 @@ with no stage of their own. Remove a line when it is done.
   `WebCockpit.*` hidden from scripts. A log follows the card's polls only
   (the owner: keep it so).
 - **Tested:** full e2e at 5 workers 2129 passed, 5 failed, all pass alone.
-  Open: `info-poll.test.ts` (2–3 tests) and `watch-page.test.ts` now fail
-  in every full unit run under load, pass alone: worth making robust.
+  The flaky `info-poll` / `watch-page` unit tests fixed (test-only; full
+  unit suite 6217 passed, also under double load).
 - **Next:** close part H (the Group troll row parked under Loose ends).
 
 ### 2026-11-25 — Stage 77 H9
