@@ -51,6 +51,13 @@
 //   or a `maxmana`. NPCs come the same way (`"mana-string": 0`) and show no
 //   mana bar either (the owner, 2026-11-25). A later
 //   mana number or word clears it.
+// - The list leads over a stale flag (`noteSelfList`, ADR 0166 addendum
+//   36): MUME does not send `wound: false` when a death heals the wound,
+//   so a whole affects list of yours (`stat`, `info`) that has no
+//   `… wound at …` line turns your `wound` off, and one without a
+//   `poison …` line your `poison`. It only clears, never sets (GMCP says
+//   when one comes). While `wound` is on, the wound lines of the latest
+//   list that had them are kept (`selfWounds`, the stone's tooltip).
 
 import { type VitalKind, VITAL_KINDS, bandMidpoint, inBand } from './bands';
 
@@ -285,6 +292,8 @@ export class GroupModel {
   /** Your own entry's id (`type: "you"`), and its status flags. */
   private selfId: number | null = null;
   private self: MemberFlags = noFlags();
+  /** The wound lines of the latest list of yours that had them, while `wound` is on. */
+  private wounds: readonly string[] = [];
 
   /** You are bashed (a bash or a trip: no prompt until "Your head stops stinging."). */
   get selfBashed(): boolean {
@@ -295,6 +304,38 @@ export class GroupModel {
   get selfFlags(): Readonly<MemberFlags> {
     return this.self;
   }
+  /** The `… wound at …` lines of your latest list that had them (none: not listed, or no wound). */
+  get selfWounds(): readonly string[] {
+    return this.wounds;
+  }
+
+  /**
+   * A whole affects list of yours (ADR 0166 addendum 36): `wounds` its
+   * `… wound at …` lines, `poison` whether it has a `poison …` line.
+   * Clears your `wound` / `poison` flag the list does not show; keeps the
+   * wound lines while the flag is on. Never sets a flag. True on a change
+   * (the version is bumped).
+   */
+  noteSelfList(l: { wounds: readonly string[]; poison: boolean }): boolean {
+    let changed = false;
+    if (this.self.wound) {
+      if (l.wounds.length === 0) {
+        this.self.wound = false;
+        this.wounds = [];
+        changed = true;
+      } else if (l.wounds.join('\n') !== this.wounds.join('\n')) {
+        this.wounds = [...l.wounds];
+        changed = true;
+      }
+    }
+    if (this.self.poison && !l.poison) {
+      this.self.poison = false;
+      changed = true;
+    }
+    if (changed) this.version++;
+    return changed;
+  }
+
   /** Bumped on every change. */
   version = 0;
 
@@ -361,6 +402,7 @@ export class GroupModel {
     this.room = null;
     this.selfId = null;
     this.self = noFlags();
+    this.wounds = [];
     this.version++;
   }
 
@@ -392,6 +434,8 @@ export class GroupModel {
       default:
         return false;
     }
+    // A wound GMCP ends (or a new self entry without one) takes its lines along.
+    if (!this.self.wound) this.wounds = [];
     if (changed) this.version++;
     return changed;
   }

@@ -45,7 +45,7 @@ export function buildTrackers(host: TrackerHost): TimersTrackers {
   const charms = new CharmTracker(host, casts);
   const herbs = new HerbloreTracker(host);
   const sanct = new SanctOthersTracker(host);
-  const reconcile = new StatReconcile(affects, stored, now);
+  const reconcile = new StatReconcile(affects, stored, now, host.flagList ? (l) => host.flagList?.(l) : undefined);
   reconcile.route(router);
   casts.route(router);
   affects.route(router);

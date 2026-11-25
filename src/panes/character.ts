@@ -250,6 +250,7 @@ export class CharacterPane extends PaneShell {
       this.stoneList = stoneView({
         view: ctx.game.timers.view(ctx.now()),
         flags: ctx.game.group.selfFlags,
+        wounds: ctx.game.group.selfWounds,
         show: ctx.settings.get().character.stones,
         player: ctx.player === true,
       });

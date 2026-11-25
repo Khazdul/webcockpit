@@ -420,7 +420,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
    */
   const set = (rows: StoneRows, size: number, gap: number, bar: number, x0 = 0): boolean => {
     let k = `${rows.per}|${size}|${gap}|${bar}|${x0}`;
-    for (const e of rows.entries) k += e.k === 'stone' ? `|${e.stone.id}:${e.stone.icon}:${e.stone.tone}:${e.stone.herbKey ?? ''}:${e.stone.expiresAt}` : e.k === 'more' ? `|+${e.rest.length}` : '|+';
+    for (const e of rows.entries) k += e.k === 'stone' ? `|${e.stone.id}:${e.stone.icon}:${e.stone.tone}:${e.stone.herbKey ?? ''}:${e.stone.expiresAt}:${e.stone.kind === 'flag' ? e.stone.about : ''}` : e.k === 'more' ? `|+${e.rest.length}` : '|+';
     if (k === key) return false;
     key = k;
     const warnAt = (): number => clock.warnAt();

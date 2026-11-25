@@ -23,6 +23,9 @@
 //   hungry → hunger, thirsty → thirst) is one stone: the affect's.
 // - `potion` (MUME's name for a herblore's draught, stage 77 H9) is no
 //   stone while a herblore runs: the herblore's stone is the same thing.
+// - One wound stone however many wounds; its tooltip lists the wound
+//   lines of your latest list that had them (`wounds`, ADR 0166 addendum
+//   36).
 // - Each stone's icon is its pick (stage 77 H8, `stone-icons.ts`), chosen
 //   here when the list is built; the group's generic icon for the rest.
 
@@ -119,6 +122,8 @@ export interface StoneViewInput {
   view: TimersView;
   /** Your own GMCP flags (`GroupModel.selfFlags`). */
   flags: Readonly<MemberFlags>;
+  /** Your wound lines from the latest list that had them (`GroupModel.selfWounds`); absent: none. */
+  wounds?: readonly string[];
   /** The shown groups (`character.stones`). */
   show: CharacterStones;
   /** A log player (`ctx.player`): read-only, no `+` and no ×. */
@@ -158,8 +163,9 @@ function fromCell(c: TimerCell, kind: StoneKind, player: boolean): Stone {
   };
 }
 
-function fromFlag(f: StoneFlag): Stone {
-  const [label, about] = STONE_FLAG_TEXT[f];
+function fromFlag(f: StoneFlag, wounds: readonly string[]): Stone {
+  const [label, text] = STONE_FLAG_TEXT[f];
+  const about = f === 'wound' && wounds.length > 0 ? [text, ...wounds.map(capitalise)].join('\n') : text;
   return {
     id: `flag:${f}`,
     kind: 'flag',
@@ -191,6 +197,7 @@ function byExpiry(a: Stone, b: Stone): number {
 /** The stones, in the display order, and the herblore `+`. Pure. */
 export function stoneView(inp: StoneViewInput): StoneView {
   const { view, flags, show, player } = inp;
+  const wounds = inp.wounds ?? [];
   const by: Record<StoneKind, Stone[]> = { herb: [], buff: [], debuff: [], sanct: [], flag: [] };
   if (show.herblores) for (const c of view.cells.herb) by.herb.push(fromCell(c, 'herb', player));
   const herbing = view.cells.herb.length > 0;
@@ -225,13 +232,13 @@ export function stoneView(inp: StoneViewInput): StoneView {
       const twin = FLAG_TWIN[f];
       // The twin is in the list only while Debuffs are shown.
       if (twin !== undefined && show.debuffs && debuffs.has(twin)) continue;
-      by.flag.push(fromFlag(f));
+      by.flag.push(fromFlag(f, wounds));
     }
   }
   const stones = KIND_ORDER.flatMap((k) => by[k].sort(byExpiry));
   const canStartHerb = show.herblores && !player;
   let key = canStartHerb ? '+' : '-';
-  for (const s of stones) key += `|${s.id}:${s.expiresAt}:${s.expected}:${s.tracked ? 1 : 0}:${s.herbKey ?? ''}:${s.herbDebuff ? 1 : 0}`;
+  for (const s of stones) key += `|${s.id}:${s.expiresAt}:${s.expected}:${s.tracked ? 1 : 0}:${s.herbKey ?? ''}:${s.herbDebuff ? 1 : 0}${s.kind === 'flag' ? `:${s.about}` : ''}`;
   return { stones, canStartHerb, herbs: view.herbs, key };
 }
 

@@ -23,6 +23,9 @@
 //                    Group.* change: `tracker.onGroup` (ADR 0122)
 //   reconcileAffects the info poll's `%f` list (stage 77 H9):
 //                    `tracker.reconcileList`, the stat reconcile's
+//   onFlagList       every whole affects list's GMCP flag forms (wound
+//                    lines, a poison line) to GameState, which clears a
+//                    stale own flag (ADR 0166 addendum 36)
 //
 // Saving: after each change, coalesced (one write at most `saveDelayMs`
 // after the first unsaved change) and at once on `pagehide`. One record per
@@ -50,6 +53,7 @@ import {
   stateMessage,
 } from './tracker';
 import { createTrackers } from './trackers';
+import type { FlagLines } from './reconcile';
 import type { SanctMember } from './sanct';
 
 /** Version of the saved state. */
@@ -98,6 +102,7 @@ export class TimersHub {
   private readonly debug: ManualTracker;
   private readonly listeners = new Set<() => void>();
   private readonly effectListeners = new Set<(e: EffectEvent) => void>();
+  private readonly flagListeners = new Set<(l: FlagLines) => void>();
   /** The cast queue among the trackers, or null (a test's factory). */
   private readonly casts: CastQueue | null;
   private readonly unsubs: Array<() => void> = [];
@@ -134,6 +139,9 @@ export class TimersHub {
         this.message(stateMessage(tag, name, verb, detail)),
       message: (m: UiMessage) => this.message(m),
       effect: (e: EffectEvent) => this.effect(e),
+      flagList: (l: FlagLines) => {
+        for (const fn of [...this.flagListeners]) fn(l);
+      },
     };
     this.trackers = (opts.trackers ?? createTrackers)(host);
     this.casts = this.trackers.find((t): t is CastQueue => t instanceof CastQueue) ?? null;
@@ -178,6 +186,7 @@ export class TimersHub {
     this.win?.removeEventListener('pagehide', this.onHide);
     this.listeners.clear();
     this.effectListeners.clear();
+    this.flagListeners.clear();
     this.bus = null;
   }
 
@@ -188,6 +197,15 @@ export class TimersHub {
   onEffect(fn: (e: EffectEvent) => void): () => void {
     this.effectListeners.add(fn);
     return () => this.effectListeners.delete(fn);
+  }
+
+  /**
+   * Calls `fn` with each whole affects list's GMCP flag forms (`stat`,
+   * `info`, the poll's `%f`; `l.poll` tells which). Returns the unsubscribe.
+   */
+  onFlagList(fn: (l: FlagLines) => void): () => void {
+    this.flagListeners.add(fn);
+    return () => this.flagListeners.delete(fn);
   }
 
   /** Until when a cast sent is pending (the info poll waits), or null. */

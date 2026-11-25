@@ -36,6 +36,12 @@
 //                     rest; App installs their rules (`timers.installRules`);
 //                     after a Group.* change the members go to
 //                     `timers.noteGroup` (sanctuary on others, ADR 0122)
+//   affects lists   → `group.noteSelfList` (`timers.onFlagList`, ADR 0166
+//                     addendum 36): the player's own `stat` / `info` list
+//                     clears a stale own `wound` / `poison` flag; then a
+//                     `group` change as for a Group.* message. The poll's
+//                     `%f` does not: that it lists the flag forms is not
+//                     measured
 //
 // Listeners (`subscribe`) are told which part changed; panes mark
 // themselves dirty and render in the next frame.
@@ -122,6 +128,16 @@ export class GameState {
     this.typed = new TypedInfoReader({ now: this.now, read: (r) => this.applyRead(r) });
     this.timers = new TimersHub({ ...opts.timers, now: this.now });
     this.timers.subscribe(() => this.emit('timers'));
+    this.timers.onFlagList((l) => {
+      // The poll's `%f`: not measured that it lists `… wound at …` and
+      // `poison …` as `stat` does; a poll that does not would clear a
+      // real wound each time it answers (ADR 0166 addendum 36).
+      if (l.poll) return;
+      if (this.group.noteSelfList(l)) {
+        this.noteGroup();
+        this.emit('group');
+      }
+    });
   }
 
   /** Follows the bus (GMCP, connection state). Returns this. */

@@ -365,7 +365,17 @@ export const UNLISTED_TYPE: AffectType = 'debuff';
  * which the flag's stone already shows.
  */
 export function isFlagForm(name: string): boolean {
-  return /^poison\b/i.test(name) || / wound at /i.test(name);
+  return isPoisonForm(name) || isWoundForm(name);
+}
+
+/** The `poison` flag's `stat` form (`poison (type: poison)`). */
+export function isPoisonForm(name: string): boolean {
+  return /^poison\b/i.test(name);
+}
+
+/** The `wound` flag's `stat` form (`a serious wound at the left hand (clean)`). */
+export function isWoundForm(name: string): boolean {
+  return / wound at /i.test(name);
 }
 
 /** An affect name as `stat` might print it → the table's name (case-insensitive). */

@@ -19,6 +19,7 @@
 import type { UiMessage } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { type HerbEntry, TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
+import type { FlagLines } from './reconcile';
 import type { SanctMember } from './sanct';
 
 /** `◆` tags of the timers (Inv §2.4). */
@@ -62,6 +63,11 @@ export interface TrackerHost {
    * changes only, never a restore or a reconcile. Absent: nobody listens.
    */
   effect?(e: EffectEvent): void;
+  /**
+   * A whole affects list was read (`stat`, `info`, the poll's `%f`): its
+   * GMCP flag forms (ADR 0166 addendum 36). Absent: nobody listens.
+   */
+  flagList?(l: FlagLines): void;
 }
 
 /** What `TrackerHost.effect` reports. */

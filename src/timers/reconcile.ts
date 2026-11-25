@@ -13,10 +13,27 @@
 // spells are reconciled only when it lists one: that `%f` lists them as
 // `stat` does is not measured, and a poll that does not would otherwise
 // forget every stored spell each time it answers.
+//
+// The GMCP flags' forms (stage 77, ADR 0166 addendum 36): every whole
+// list also goes to `onList` with its wound lines (`… wound at …`) and
+// whether it has a `poison …` line, so GameState can clear your own
+// `wound` / `poison` flag that MUME left on (it never sends `wound: false`
+// after a death). Whether a list may clear is GameState's call (`poll`).
 
 import type { AffectsTracker } from './affects';
 import type { LineRouter } from './lines';
 import type { StoredTracker } from './stored';
+import { isPoisonForm, isWoundForm } from './data/affects';
+
+/** What a whole list says of the GMCP flags' forms (`StatReconcile` → `onList`). */
+export interface FlagLines {
+  /** The `… wound at …` lines, as listed (none: no wound). */
+  wounds: string[];
+  /** A `poison …` line is listed. */
+  poison: boolean;
+  /** The list is the info poll's `%f` (not the player's own `stat` / `info`). */
+  poll: boolean;
+}
 
 export const RECONCILE_HEADERS: readonly string[] = [
   'Affected by:',
@@ -31,11 +48,13 @@ export class StatReconcile {
   private readonly affects: AffectsTracker;
   private readonly stored: StoredTracker;
   private readonly now: () => number;
+  private readonly onList: ((l: FlagLines) => void) | null;
 
-  constructor(affects: AffectsTracker, stored: StoredTracker, now: () => number) {
+  constructor(affects: AffectsTracker, stored: StoredTracker, now: () => number, onList?: (l: FlagLines) => void) {
     this.affects = affects;
     this.stored = stored;
     this.now = now;
+    this.onList = onList ?? null;
   }
 
   route(router: LineRouter): void {
@@ -72,6 +91,9 @@ export class StatReconcile {
     const now = this.now();
     this.affects.reconcile(affects, now);
     if (!o.poll || stored.length > 0) this.stored.reconcile(stored);
+    if (this.onList) {
+      this.onList({ wounds: affects.filter(isWoundForm), poison: affects.some(isPoisonForm), poll: o.poll === true });
+    }
   }
 
   /** Forgets a block in progress (new connection). */
