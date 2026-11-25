@@ -46,7 +46,7 @@ const BALLOON_OUT_S = 2.0;
 /** The posters (video/public/posters/: gitignored; record/posters/ makes them). */
 const POSTERS = ['posters/1-faces-of-arda.png', 'posters/2-status-stats-lore.png', 'posters/3-the-stones.png'];
 /** Each poster's time, its cross-fade into the next, and its push-in. */
-const POSTER = { s: 6.0, cross: 0.7, inS: 1.0, zoom: [1.0, 1.04] } as const;
+const POSTER = { s: 6.7, cross: 0.7, inS: 1.0, zoom: [1.0, 1.04] } as const;
 /** The end card's fade in; it stands to the last frame. */
 const END_IN_S = 1.2;
 

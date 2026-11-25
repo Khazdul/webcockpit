@@ -158,3 +158,82 @@ full screen, with sound:
    acceptable, or should the tour's click go elsewhere?
 3. **Captions:** the nine, their wording and place (high on the left).
 4. **The end:** is the end card long enough before the music ends?
+
+## Round 2 (2026-11-25, manuscript draft 4): the preview
+
+The owner's review copy first, at phone quality:
+`/home/ole/Downloads/character-film-r2-preview.mp4` (960×540 H.264,
+yuv420p, AAC, faststart, 3:06.35). How: the same frame-stepped take at a
+quarter of the pixels (`npm run record -- character-tour --mode
+intel-0.6-png`, 7.5 min), the composition rendered at `--scale=0.5`, the
+posters from the 2560×1440 PNGs. Timing, story and the end are the final
+film's; only the sharpness is not. The full-quality take, the sharp
+posters and the 1080p files wait for the owner's OK on the preview.
+
+| Film | Beat |
+|---|---|
+| 0:00–0:07 | Title |
+| 0:09.7 | Map on (docked right), finds Mason Road (the `l` is in the window from the start) |
+| 0:12.9 | Gittan types `narr off to tharbad! …`; MUME's own-narrate echo |
+| 0:15.6 | The coach has arrived; Character on: floats in the middle, Medium; caption |
+| 0:17.8 / 0:20.8 | `st`, `enter coach` |
+| 0:22.2 | Click on the position icon: `rest` |
+| 0:24.4 | The level ring's tooltip |
+| 0:27.6 | Thorgrim narrates |
+| 0:30.8 | Panes → Comm: docked under the map, borderless and clear, Public, 16 rows |
+| 0:33.4 / 0:39.0 | Mirel narrates; Gittan answers (`narr hobbits have no boots …`) |
+| 0:43.2 / 0:46.2 | The card docked above the map, then five rows taller; caption "It fits any size." Lane: Character 14, map 17, Comm 16 |
+| 0:51.7–0:54.9 | Paper, back to Black |
+| 1:00.1 | "You feel stronger."; STR 10 → 12 (+2) at the next poll; caption (stones) |
+| 1:05–1:11 | The bakery closed; `glare`; the bandit; the flight; `wimpy 100` |
+| 1:15.7 / 1:17.0 / 1:20.4 | Gittan: `narr assaulted in the bakery …`; Odalric; Gittan: `narr hiding in a little stone house …` |
+| 1:20.7 / 1:24.7 | The tarantulas; poisoned; caption |
+| 1:28.3 / 1:32.5 | Flee up; Gittan: `narr attercop! …`; remove poison |
+| 1:33–1:48 | Camp fire, four stored earthquakes (mana in four steps); 1:41.1 click on position (`rest`); herb, brew |
+| 1:49.7–1:57.5 | Down; the quakes; both dead: one balloon, "2 kills"; caption (the XP ring) |
+| 1:59.4 | Sigrun narrates |
+| 2:06.5 | `ag` typed (the run's) |
+| 2:11.9 | The bandit dead: a balloon rated *meh* (650 xp against the chain's median of 1,260) |
+| 2:12.3 | Click on Mood: `change mood wimpy` (the cycle's wrap); caption "A click sends the command." |
+| 2:13.5 / 2:15.8 | `buy pie` ("six copper"), `eat pie` |
+| 2:16.6 | Staged: Event.Achieved and "Achievement unlocked: Procured a pork-pie in Tharbad." |
+| 2:24.1 | Its balloon at rest; the picture stands still from 2:24.4 |
+| 2:28.1–2:30.1 | Everything but the balloon fades to black |
+| 2:30.1–2:35.1 | The balloon alone (the loud bar at 2:30) |
+| 2:35.1–2:37.1 | The balloon fades |
+| 2:37.1–2:55.8 | Three posters, 6.7 s each, 0.7 s cross-fades, a push-in 1.00 → 1.04 |
+| 2:55.1–3:06.35 | The end card (the balloon film's style), to the last frame |
+
+How, beyond round 1:
+
+- **Narrates.** Hers are typed in the input line (`narr …`) and answered in
+  the fixture's form (GMCP `Comm.Channel.Text` talker `you`, the yellow
+  `You narrate '…'`, a blank line, the prompt); the others' as round 1.
+- **Balloons.** Weather effects on for the balloons alone (sky, weather,
+  fog, darkness and the rest off, so the window looks as in round 1); the
+  hobbit passenger follows her race. The ratings are honest: Gittan's run
+  of 2026-11-02 (seven kills, median 1,257) is restored with its times
+  moved to end 90 s before the take's run, so the live run chains to it
+  (and the balloons are switched off and on in the setup, the balloon
+  film's workaround). The tarantulas die in one pulse and share a sign
+  ("2 kills"); its face is the joined kill's (*superb*). The bandit's
+  650 xp is *meh*.
+- **The end.** At the achievement balloon's rest the page is shot once
+  more with only that balloon drawn (`public/recordings/character-balloon.png`,
+  transparent); the composition stands the take still at that frame (the
+  balloon moves on after about 4 s at rest), fades it under the cutout,
+  then the cutout itself.
+- **Comm's height.** The map's place in the lane is 18 rows before the
+  take, so the card's dock and resize take their rows from the map and
+  Comm keeps its 16.
+- **The frame clock** gives a worker born after the freeze 60 s to answer
+  a step: the map reading its file once took more than the 8 s.
+
+Deviations from draft 4:
+
+- The beats run 1–2 s from the table here and there (Character on at
+  0:15.6, Tharbad's ring at 1:00, the achievement at 2:16.6, the
+  balloon's rest at 2:24.1); the balloon alone sits on 2:30.1–2:35.1 as
+  asked.
+- The tarantulas' joined sign has the *superb* face: that is the kill's
+  rating, which the product draws on a joined sign too.
