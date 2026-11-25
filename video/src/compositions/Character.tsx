@@ -7,7 +7,8 @@
 //          to black over its one hard cut (the wait for the coach home);
 //          the captions high on the left, away from the input line and
 //          the right dock, each at a marker of the take
-//   2      the take fades out, the end card with the music's credit
+//   2      the take fades out a breath after the coach starts home; the end
+//          card with the music's credit, readable to the last frame
 import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from 'remotion';
 import pkg from '../../../package.json';
 import { LowerThird, Rule } from '../components/Caption';
@@ -31,11 +32,13 @@ const TITLE = { nameIn: [0.5, 2.0], lineIn: [2.8, 4.0], out: [6.6, 7.7] } as con
 /** The take's first frame. */
 export const GAME_AT_S = 8.0;
 const GAME_IN_S = 1.2;
-const GAME_OUT_S = 1.6;
+const GAME_OUT_S = 1.2;
+/** The coach home starts moving: read this long before the take fades. */
+const HOMEWARD_HOLD_S = 0.9;
 /** The dip over the cut: out before it, in after it (s). */
 const DIP = { before: 0.3, after: 0.45 } as const;
 /** The end card: in after the take is out, readable to the end. */
-const END_CARD = { afterGame: 0.2, inS: 1.2 } as const;
+const END_CARD = { afterGame: 0.1, inS: 1.0 } as const;
 
 const CREDIT = ['"No Good Layabout" Kevin MacLeod (incompetech.com)', 'Licensed under Creative Commons: By Attribution 4.0', 'https://creativecommons.org/licenses/by/4.0/'];
 
@@ -97,7 +100,8 @@ const at = (take: TimelineFile, kind: string, label?: string): number => GAME_AT
 export function Character({ take }: CharacterProps) {
   const s = useCurrentFrame() / FPS;
   if (!take) return null;
-  const gameEnd = GAME_AT_S + take.frames / FPS;
+  // out soon after the coach starts home, so the end card is read before the music ends
+  const gameEnd = Math.min(GAME_AT_S + take.frames / FPS, at(take, 'homeward') + HOMEWARD_HOLD_S + GAME_OUT_S);
   const cut = at(take, 'cut');
   const game = interpolate(s, [GAME_AT_S, GAME_AT_S + GAME_IN_S, gameEnd - GAME_OUT_S, gameEnd], [0, 1, 1, 0], soft);
   const dip = interpolate(s, [cut - DIP.before, cut, cut + 0.05, cut + DIP.after], [1, 0, 0, 1], soft);
@@ -106,7 +110,7 @@ export function Character({ take }: CharacterProps) {
       <Sequence durationInFrames={f(GAME_AT_S)}>
         <Title />
       </Sequence>
-      <Sequence from={f(GAME_AT_S)} durationInFrames={take.frames}>
+      <Sequence from={f(GAME_AT_S)} durationInFrames={f(gameEnd - GAME_AT_S)}>
         <AbsoluteFill style={{ opacity: game * dip }}>
           <OffthreadVideo src={staticFile(`recordings/${take.scene}.mp4`)} muted style={{ width: '100%', height: '100%' }} />
           {/* a stepped take's input is logged at the frame before the one that shows it */}
