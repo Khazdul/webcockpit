@@ -2562,3 +2562,11 @@ log. Test guide:
    filled green disc with a light plus, both themes (addendum 42).
 4. The owner: the `+` should show only while the mouse is over the stones.
    Done (point 253); on touch it stays visible.
+
+### Shields in a log, the owner's test (2026-11-25)
+
+The shields had values in a played log, but did not follow `cha mood`:
+the Character pane was off, so no poll ran (only the login poll), and a
+log holds only what the card fetched. Asked whether to poll on a mood
+change with the pane closed, for the log's sake: "Vi låter det vara."
+Kept: a log shows what the card showed.
