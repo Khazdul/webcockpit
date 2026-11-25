@@ -3,6 +3,10 @@
 // theme) of it as a PNG of the pane alone, transparent around it.
 //
 //   node capture.ts [id …]       (the dev server on WC_POSTER_PORT, default 5190)
+//
+// At deviceScaleFactor POSTER_SHOT_DSF (default 4: the posters' render at
+// 2 draws the shots at about twice their CSS size, so 4 keeps every shot at
+// least 1:1 in a 5120 × 2880 poster; render.ts reports the ratios).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium, type Page, type WebSocketRoute } from '@playwright/test';
 import { answerText, pollNonce } from '../../../tests/fixtures/info-poll-answer.ts';
@@ -11,6 +15,7 @@ import { CHARS, FIGHT, type Char } from './chars.ts';
 
 const PORT = Number(process.env.WC_POSTER_PORT ?? 5190);
 const BASE = `http://localhost:${PORT}`;
+const DSF = Number(process.env.POSTER_SHOT_DSF ?? 4);
 const OUT = new URL('./shots/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
@@ -253,12 +258,12 @@ async function place(page: Page, s: Shot, wait: boolean): Promise<void> {
 // --------------------------------------------------------------- main
 
 const only = process.argv.slice(2);
-const browser = await chromium.launch({ args: ['--force-device-scale-factor=2'] });
+const browser = await chromium.launch({ args: [`--force-device-scale-factor=${DSF}`] });
 try {
   for (const { char, shots } of plan) {
     const mine = only.length ? shots.filter((s) => only.some((o) => s.out.includes(o) || char.id === o)) : shots;
     if (!mine.length) continue;
-    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: DSF });
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
     console.log(char.id);
