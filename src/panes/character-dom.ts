@@ -27,7 +27,7 @@ import {
   type VitalView,
 } from './character-model';
 import { type Purse, type Stone, type StoneRows, type StoneTone, purseTip, stoneTime, stoneTip } from './character-stones';
-import { el, isTouchType, setAttr, setHidden, setProp, setText } from './dom';
+import { el, isSyntheticMouseOver, isTouchType, setAttr, setHidden, setProp, setText } from './dom';
 import { type IconName, SVG_NS, iconSvg, setIconSvg } from './icons';
 import { setLiveTip, setTip } from './pane-tooltip';
 import { PopupMenu } from './popup-menu';
@@ -895,6 +895,7 @@ export class CardDom {
     const stonesBox = this.stones.box;
     let down = '';
     const pointer = (e: PointerEvent): void => {
+      if (isSyntheticMouseOver(e, stonesBox.ownerDocument.defaultView)) return;
       down = e.pointerType;
       setAttr(stonesBox, 'data-touch', e.pointerType === 'mouse' ? null : '');
     };

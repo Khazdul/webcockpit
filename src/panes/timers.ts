@@ -57,7 +57,7 @@ import type { TimersSettings } from '../settings/types';
 import type { HerbEntry } from '../timers/entry';
 import { forwardWheel } from './anchored-list';
 import type { PaneContext } from './context';
-import { ARMED_MS, SecondTick, isTouchType, setAttr, setClass, setHidden, setProp, setText } from './dom';
+import { ARMED_MS, SecondTick, isSyntheticMouseOver, isTouchType, setAttr, setClass, setHidden, setProp, setText } from './dom';
 import { iconSvg, ringDash, ringSvg, setIconSvg } from './icons';
 import { signalColors } from './palette';
 import { PaneShell } from './pane';
@@ -569,6 +569,7 @@ export class TimersPane extends PaneShell {
 
   /** Touch or mouse, by the pointer (ADR 0166 points 158, 163): `data-touch` turns the hover rules off. */
   private readonly onPointer = (e: PointerEvent): void => {
+    if (isSyntheticMouseOver(e, this.root.ownerDocument.defaultView)) return;
     if (e.type === 'pointerdown') this.down = e.pointerType;
     setAttr(this.root, 'data-touch', isTouchType(e.pointerType) ? '' : null);
   };

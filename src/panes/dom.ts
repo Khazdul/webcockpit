@@ -44,6 +44,15 @@ export const ARMED_MS = 3000;
 /** True for a pointer type that is not the mouse (touch, a pen; ADR 0166 point 158). */
 export const isTouchType = (type: string): boolean => type !== '' && type !== 'mouse';
 
+/**
+ * A mouse `pointerover` on a device without hover (a phone): Chromium sends
+ * one when a tap's layout change puts new content under the finger (a
+ * boundary event, not a mouse). It must not turn touch off (ADR 0166
+ * addendum 44); the tap's own `pointerdown` decides.
+ */
+export const isSyntheticMouseOver = (e: PointerEvent, win: Window | null | undefined): boolean =>
+  e.type === 'pointerover' && e.pointerType === 'mouse' && !!win?.matchMedia?.('(hover: none)').matches;
+
 /** ms after a wall-clock second boundary at which a tick runs. */
 export const TICK_LAG_MS = 5;
 

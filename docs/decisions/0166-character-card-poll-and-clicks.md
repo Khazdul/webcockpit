@@ -1925,3 +1925,20 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      generic arrow, as before, so nothing can draw wrong. The owner
      watches for an arrow on any of them. `confirmed: false` stays as the
      mechanism for a later pick; no entry uses it.
+
+## Addendum 44 (2026-11-25): a mouse pointerover on a phone is no mouse
+
+256. **The bug.** On a phone the Spells pane's charm × showed before any
+     tap, so a tap on it forgot the charmie at once (G7c's rule broken).
+     Chromium sends a `pointerover` with `pointerType: "mouse"` when a
+     tap's layout change puts new content under the finger (here the
+     strip's Panes tap opening Spells): a boundary event, not a mouse. The
+     pane's pointer rule (point 158) took it for a mouse and turned
+     `data-touch` off. `phone-timers-touch.spec.ts:81` caught it; it had
+     been flaky since G7c and failed every time on 2026-11-25, also at
+     G7c's own commit (no regression of a later change).
+257. **The fix.** `isSyntheticMouseOver` (`src/panes/dom.ts`): on a device
+     without hover (`(hover: none)`) a mouse `pointerover` is ignored, in
+     the Spells pane and on the card's stones (where it could also make a
+     tap's click read as the mouse's). The tap's own `pointerdown` still
+     decides; a real mouse on a device with hover is unchanged.
