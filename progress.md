@@ -182,6 +182,19 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-25 — Discord posters for the Character pane (0.23)
+
+- **Done:** three 2560×1440 posters on plain black, made from real
+  cards against a mocked MUME (invented characters, values modelled on
+  the owner's runs): "Faces of Arda" (21 portraits, two Medium cards,
+  one Paper), "Status · Stats · Lore", "The stones" (the fight card and
+  34 stones listed by group with a line each). Owner approved them. In
+  `video/out/posters-0.23/` (gitignored); scripts in the session's
+  scratchpad only. A Discord post text was drafted in the chat.
+- **Open:** the stone descriptions on poster 3 are paraphrases; the owner
+  accepted them as they are.
+- **Commits:** this one.
+
 ### 2026-11-25 — The UI pane leaves the Panes menu
 
 - **Done:** on the owner's word the UI pane is no longer listed in the
