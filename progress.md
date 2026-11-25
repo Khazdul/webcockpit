@@ -191,8 +191,16 @@ with no stage of their own. Remove a line when it is done.
   Character tooltip reviewed (`notes/research/character-tooltips.md`,
   T1–T47); the owner: all ok but T31 (the herblore `+`, kept; his wish
   for it still open); built (addendum 40).
-- **Next:** the owner's test of the tooltips (stage file, "The tooltips");
-  T31's wording; the Group troll row (H9 step 5) when grouped with one;
+- **Tooltips tested:** HP's tip is the wimpy alone; the herblore `+` a
+  filled green button, shown only while hovering the stones (addendum 42).
+  **Shields in a log** (addendum 41): the poll's OB/DB/PB/ABS go into the
+  run log as `WebCockpit.Shields` (on change), every player applies them;
+  `WebCockpit.*` hidden from scripts. A log follows the card's polls only
+  (the owner: keep it so).
+- **Tested:** full e2e at 5 workers 2129 passed, 5 failed, all pass alone.
+  Open: `info-poll.test.ts` (2–3 tests) and `watch-page.test.ts` now fail
+  in every full unit run under load, pass alone: worth making robust.
+- **Next:** the Group troll row (H9 step 5) when grouped with one;
   then close part H.
 
 ### 2026-11-25 — Stage 77 H9
