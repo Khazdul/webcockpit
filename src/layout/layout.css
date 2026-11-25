@@ -181,10 +181,11 @@
 
 /* The glow: a lamp-coloured shadow round the frame box. The pane's box
  * clips it (`overflow: hidden`, `contain: strict`), so it lies only in the
- * inset ring between the band and the pane's edge, never on a neighbour. */
+ * inset ring between the band and the pane's edge, never on a neighbour.
+ * Half of stage 40's (the owner, 2026-11-25, ADR 0123 "A smaller glow"). */
 .wc-pane[data-framed] > .wc-pane-frame {
   border-radius: 3px;
-  box-shadow: 0 0 4px 1px color-mix(in srgb, var(--lamp) 26%, transparent);
+  box-shadow: 0 0 2px 0 color-mix(in srgb, var(--lamp) 14%, transparent);
 }
 
 /* The window: the hole's bounds (inside the band), clipped round the hood
@@ -265,7 +266,7 @@
 }
 
 .wc-pane[data-clear][data-framed] > .wc-pane-frame {
-  box-shadow: 0 0 5px 1px color-mix(in srgb, var(--lamp) 36%, transparent);
+  box-shadow: 0 0 3px 0 color-mix(in srgb, var(--lamp) 20%, transparent);
 }
 
 /* The hood and its title (ADR 0123 "Title"): iron like the band, from the
@@ -624,9 +625,10 @@
   stroke: var(--engrave);
 }
 
-/* No glow: a small warm shadow in the gap (clear or not). */
+/* No glow: a small warm shadow in the gap (clear or not), softer than the
+ * hood's `--metal-drop` (ADR 0123 "A smaller glow"). */
 .wc-pane[data-light][data-framed] > .wc-pane-frame {
-  box-shadow: var(--metal-drop);
+  box-shadow: 0 1px 1.5px rgb(50 35 10 / 0.18);
 }
 
 /* The hood: engraved metal, the title cut in dark ink with a light lip. */

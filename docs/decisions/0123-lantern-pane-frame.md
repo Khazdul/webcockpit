@@ -428,3 +428,27 @@ headless (software) Firefox a frame that paints costs ≈ 1–3 ms more
 band's fourteen background layers (diagonal bracket gradients, the
 full-height sheen) and the window's lamp gradients; all well inside a
 frame, and not changed without changing the look.
+
+## A smaller glow (stage 77, 2026-11-25)
+
+The owner found the light round the panes' frames too strong, on every
+pane. Five strengths were shot in the app side by side (Lykta and Paper;
+docked, floating and clear; the frame's edges and sheen polished as a
+fifth), and the owner picked **B, half the glow, without the polish**:
+
+- **Dark** (`.wc-pane[data-framed] > .wc-pane-frame`): `0 0 2px 0` lamp
+  14 % (was `0 0 4px 1px` at 26 %).
+- **Clear** (`.wc-pane[data-clear][data-framed]`): `0 0 3px 0` lamp 20 %
+  (was `0 0 5px 1px` at 36 %).
+- **Paper** (`.wc-pane[data-light][data-framed]`): the frame box's warm
+  shadow `0 1px 1.5px rgb(50 35 10 / .18)` (was `--metal-drop`, `0 1px
+  3px` at 30 %). `--metal-drop` itself is unchanged: the hood and the
+  shelf keep it.
+- Not changed: the band's lit and dark hairlines, the sheen, the window's
+  lamp hairline and vignette, the hood and the title's glow. The polish
+  (lit hairline 80 → 55 %, sheen .10/.18 → .06/.12, window hairline
+  10 → 6 %, Paper's white line 75 → 55 %) made the iron read duller and
+  was not taken.
+- Cost: none (a smaller static shadow). The mockup (a scratch script that
+  injected the five variants, not kept) and its pick are in the stage 77
+  file, "Owner feedback".

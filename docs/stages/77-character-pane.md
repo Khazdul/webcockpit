@@ -2625,6 +2625,14 @@ The owner, after the closing test: the six other unseen icons turned on
 too (ADR 0166 addendum 43); the race strings checked tonight, a patch
 release if needed. Stage 77 closed.
 
+### A smaller glow (the owner, 2026-11-25)
+
+The owner, holding the release: the light round every pane's frame
+should be smaller. Five strengths shot in the app side by side (now, A
+a third less, B half, C barely, B+ = B with the frame's edges and sheen
+softened), Lykta and Paper, docked, floating and clear. The owner: "Kör
+B utan finputs." Built (ADR 0123 addendum "A smaller glow").
+
 ## Released
 
 Prepared as 0.23.0 (2026-11-25); tagged and pushed on the owner's word.
