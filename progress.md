@@ -81,7 +81,7 @@
 | 75 | Balloon passengers | Done, released 0.22.0 (desktop only, off by default) | `docs/stages/75-balloon-passengers.md` |
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's; the help text goes out with 0.23.0 | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Done (2026-11-25, the owner's closing test passed; ADR 0166 with addenda 1–47); released 0.23.0; open checks under Loose ends | `docs/stages/77-character-pane.md` |
-| 78 | The Character pane film | Round 1 being built (2026-11-25) | `docs/stages/78-character-film.md` |
+| 78 | The Character pane film | Built (round 3 is the film, 2026-11-26); the upload is the owner's | `docs/stages/78-character-film.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -181,6 +181,25 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-26 — Stage 78: the Character pane film
+
+- **Done:** music chosen from two rounds of ten (*No Good Layabout*, Kevin
+  MacLeod, CC BY 4.0); the owner played Gittan's Tharbad run for it; the
+  manuscript through drafts 0–5 (`video/manuscript-character.md`), three
+  rounds with low-quality phone previews, the owner editing the played
+  game text himself (`node video/record/character-played.ts`). Round 3 is
+  the film: 3:06.35, the pie story in narrates, Comm, the achievement
+  balloon alone on black, three still posters (sharp, 5120×2880, sources in
+  `video/record/posters/`), the end card. Files in `video/out/character-film-r3*`
+  (4K `-youtube.mp4` for the upload), H.264 copy in the owner's Downloads.
+  YouTube title and description at the end of the manuscript.
+- **Next:** the owner's upload (the music credit in the description from
+  the first moment; the track is in Content ID).
+- **Open (product, not changed):** an open Settings list closes when game
+  text arrives (`src/chrome/popups/controls.tsx`); "You feel stronger"
+  (the topaz ring's strength) gives no buff stone.
+- **Commits:** 7bb4897f … 3596b69e and the builder's (stage file, Round 1–3).
 
 ### 2026-11-25 — Discord posters for the Character pane (0.23)
 

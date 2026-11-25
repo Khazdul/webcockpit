@@ -43,7 +43,7 @@ The pipeline is ADR 0133's (`video/README.md`); the balloon film
 - [x] Round 1 render and contact sheet for the owner.
 - [x] Round 2 and round 3 previews; round 3 approved with no fight caption.
 - [x] Round 3: the full-quality take, the sharp posters, the three files.
-- [ ] The YouTube title and description (end of the manuscript).
+- [x] The YouTube title and description (end of the manuscript).
 
 ## Round 1 (2026-11-25)
 
