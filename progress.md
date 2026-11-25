@@ -93,12 +93,13 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   troll in the group is enough to check it: no play needed. Also NPCs
   without mana (point 229). Remind the owner at the next Group or
   Character session.
-- **Stage 77, watch in play** (the owner, 2026-11-25): the six affect
-  icons turned on unseen (bloodlust, some pipe-weed, potion: buffs;
-  sunlight, unable to void, unable to sneak: debuffs): an up or down arrow
-  on one means MUME names it otherwise (ADR 0166 point 255). The race
-  strings are all confirmed now (Zaugurz, Black Númenórean, Beorning:
-  ADR 0166 addenda 45–47). Not
+- **Stage 77, watch in play** (the owner, 2026-11-25): four affect icons
+  turned on unseen (bloodlust, some pipe-weed, potion: buffs; unable to
+  void: a debuff): an up or down arrow on one means MUME names it
+  otherwise (ADR 0166 point 255). Sunlight and unable to sneak were seen
+  by name in Piglet's and Melker's lists (addenda 45, 46). The race
+  strings are all confirmed (Zaugurz, Black Númenórean, Beorning: ADR
+  0166 addenda 45–47). Not
   measured live: whether the poll's `%f` lists wounds and stored spells,
   long names' wrapping, whether your own bash or kick sets `waiting`
   (point 214). A poll needs about 17 rows at 80 columns (none in a lower
