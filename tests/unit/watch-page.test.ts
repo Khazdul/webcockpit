@@ -4,6 +4,10 @@
 import { describe, expect, it } from 'vitest';
 import { PUB_ID_PATTERN, REPORT_TEXT_MAX } from '../../shared/cloud/api.ts';
 import { DEVICE_KEY } from '../../src/cloud/beat';
+// Static, not `await import()` inside the test: the frame pulls in the whole
+// replay page, and loading that graph inside the test counted against its 5 s
+// timeout (over a second alone, a timeout under load).
+import { framePaused } from '../../src/replay/frame';
 import { countView, fetchMeta, fetchPayload, parseMeta, sendReport, type WatchFetch } from '../../src/watch/api';
 import {
   dateText,
@@ -238,8 +242,7 @@ describe("Report's Log in, and back", () => {
 });
 
 describe("the frame's paused start (ADR 0155 W1)", () => {
-  it('only prefs.paused === true asks for it', async () => {
-    const { framePaused } = await import('../../src/replay/frame');
+  it('only prefs.paused === true asks for it', () => {
     expect(framePaused({ paused: true })).toBe(true);
     expect(framePaused({ paused: 'yes' })).toBe(false);
     expect(framePaused({})).toBe(false);
