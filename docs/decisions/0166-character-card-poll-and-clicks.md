@@ -1992,3 +1992,16 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      renewed!`) adds a second row, as the inventory says (Inv §2.6.9, "a
      re-charm adds a fresh entry"); the owner's call whether a renewal
      should restart the row instead.
+
+## Addendum 47 (2026-11-25): Dubb's run, the Beorning
+
+263. **The Beorning.** MUME sends `"race":"Man","subrace":"Beorning"`
+     (Dubb, `Char.StatusVars`) and `info` prints `You are a male
+     Beorning.`: `raceKind` gives `beorning` (the Beorning portrait; the
+     balloon flies the human, as decided), `parseSexLine` takes the line
+     with that subrace, the age factor is 1. No affects in the run.
+264. **The race line stays "Beorning man"** (the owner, 2026-11-25: way 1
+     of three). Decision 18 holds for every kind of Man ("Dunadan man",
+     MUME's own `Dunadan` without accents), though MUME's `info` line
+     names the subrace alone ("a male Fallohide", "a male Hill Troll").
+     Asked: keep it, Men alone without "man", or MUME's form for all.

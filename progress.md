@@ -97,8 +97,8 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   icons turned on unseen (bloodlust, some pipe-weed, potion: buffs;
   sunlight, unable to void, unable to sneak: debuffs): an up or down arrow
   on one means MUME names it otherwise (ADR 0166 point 255). The race
-  string of a Beorning (the portrait; Zaugurz and Black Númenórean
-  confirmed, ADR 0166 addenda 45 and 46). Not
+  strings are all confirmed now (Zaugurz, Black Númenórean, Beorning:
+  ADR 0166 addenda 45–47). Not
   measured live: whether the poll's `%f` lists wounds and stored spells,
   long names' wrapping, whether your own bash or kick sets `waiting`
   (point 214). A poll needs about 17 rows at 80 columns (none in a lower
@@ -121,9 +121,8 @@ with no stage of their own. Remove a line when it is done.
   presentation films: at most 25 new pictures a second (fixed in the
   recorder, needs a new recording) and WebCockpit on their cards where
   the owner wants MumeCockpit (both the owner's call).
-- Stage 75: the race string of a Beorning is unknown (Zaugurz and
-  Black Númenórean confirmed in stage 77) (matching is by word; `#weather balloon race`
-  shows what the client sees).
+- Stage 75: the race strings of a Zaugurz orc, a Black Númenórean and a
+  Beorning were confirmed in stage 77 (ADR 0166 addenda 45–47).
   Whether Balloons should be on by default (off; the owner's call).
   `script-code-editor.spec.ts:312` in Firefox failed under load in two
   full runs (passes alone). Any full e2e run rewrites `docs/stages/img`
