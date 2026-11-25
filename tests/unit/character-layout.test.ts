@@ -14,6 +14,7 @@ import {
   SHIELD_LOW,
   SHIELD_MIN,
   TAB_MIN,
+  TAB_SWITCH,
   TAB_WORD_MIN,
   areaLayout,
   barCap,
@@ -21,6 +22,7 @@ import {
   cardMode,
   cardScale,
   crossDepth,
+  folioPaths,
   shieldSize,
 } from '../../src/panes/character-layout';
 import { type Stone, purseFit, stoneRows } from '../../src/panes/character-stones';
@@ -43,7 +45,9 @@ describe('height modes', () => {
     expect(wide.left).toMatchObject({ form: 'portrait' });
     expect(wide.left.disc).toBeGreaterThan(100);
     expect(wide.status).toMatchObject({ cols: 4, form: 'cells', short: false });
-    expect(wide.area.shield).toBeGreaterThan(60);
+    // The tabs under the hood and the sheet's padding take 25 px of the height (round 20 G8, ADR 0166 addendum 32).
+    expect(wide.tabs).toMatchObject({ on: true, side: 'top', words: true });
+    expect(wide.area.shield).toBeGreaterThanOrEqual(40);
     expect(wide.area.stones.rows).toBe(1);
     expect(wide.foot.form).toBe('full');
     const lane = cardLayout(box({ w: 279, h: 153, px: 14.95 }));
@@ -208,11 +212,16 @@ describe('the status area, step 0 (ADR 0166 points 86, 120–122)', () => {
     for (const lock of ['auto', 'medium', 'large'] as const) {
       for (const w of [330, 420, 520]) {
         let last = 5;
+        let tabs = false;
         for (let h = 30; h <= 220; h++) {
           const l = cardLayout(box({ w, h, px: 16.61, lock, stones: 8, add: true, cross: 8 }));
           // Large's own sizes come at its least box (cardMode); the scale is one (H2).
           if (lock === 'auto' && h === LARGE_MIN.h) last = 5;
-          expect(order(l.step), `${lock} ${w}x${h}`).toBeLessThanOrEqual(last);
+          // Where the tabs come (80 px of content), Large's sizes may lose one step for a few px to the
+          // sheet and its column (round 20 G8, ADR 0166 addendum 32); never Medium's, never more.
+          const come = l.tabs.on && !tabs;
+          tabs = l.tabs.on;
+          expect(order(l.step), `${lock} ${w}x${h}`).toBeLessThanOrEqual(come && lock === 'large' ? last + 1 : last);
           last = order(l.step);
         }
         // Large's sizes at the font's scale leave a 330 px pane no portrait (one scale, ADR 0166 addendum 29).
@@ -284,27 +293,87 @@ describe('low panes (F2c, ADR 0166 points 124–126)', () => {
     }
   });
 
-  it('the tabs: the words standing from 8 px, else icons as narrow as the smallest words (H3, point 170)', () => {
-    let words = false;
-    for (let h = 90; h <= 200; h++) {
+  it('the tabs (round 20 G8): on the right edge from 80 px of content, under the hood from 110 px; words from 8 px, else I, II, III', () => {
+    const sides: string[] = [];
+    for (let h = 90; h <= 220; h++) {
       const l = cardLayout(box({ w: 520, h, px: 16.61, cross: 8 }));
-      if (!l.tabs.on) continue;
-      if (l.tabs.form === 'vertical') {
-        expect(l.tabs.px, `${h}`).toBeGreaterThanOrEqual(TAB_WORD_MIN);
-        words = true;
-      } else {
-        // Once the words come, a taller pane keeps them.
-        expect(words, `${h}`).toBe(false);
-        expect(l.tabs.icon, `${h}`).toBeGreaterThanOrEqual(9);
-        expect(l.tabs.icon).toBeLessThanOrEqual(l.tabs.w - 3);
-        expect(l.tabs.w).toBeLessThanOrEqual(18);
+      const body = l.main.y + l.main.h - l.left.y;
+      const side = l.tabs.on ? l.tabs.side : 'none';
+      if (sides.at(-1) !== side) sides.push(side);
+      if (side === 'top') {
+        expect(body, `${h}`).toBeGreaterThanOrEqual(TAB_SWITCH);
+        // The strip: the words in Cinzel from 8 px, left on the sheet, each tab over the next.
+        expect(l.tabs.words, `${h}`).toBe(true);
+        expect(l.tabs.px).toBeGreaterThanOrEqual(TAB_WORD_MIN);
+        const [a, b, c] = l.tabs.items;
+        expect(a!.x).toBeGreaterThan(0);
+        expect(b!.x).toBeLessThan(a!.x + a!.w);
+        expect(c!.x + c!.w).toBeLessThanOrEqual(l.tabs.w);
+        expect(a!.w).toBeGreaterThan(c!.w);
+      } else if (side === 'right') {
+        expect(body).toBeLessThan(TAB_SWITCH + 20);
+        // A low column has no room for STATUS standing: I, II, III, a tab each third of the sheet's edge.
+        expect(l.tabs.words).toBe(false);
+        expect(l.tabs.num).toBeGreaterThanOrEqual(6);
+        expect(l.tabs.numBack).toBeLessThanOrEqual(l.tabs.num);
+        expect(l.tabs.items.map((r) => Math.round(r.h))).toEqual(Array(3).fill(Math.round(l.tabs.items[0]!.h)));
       }
     }
-    expect(words).toBe(true);
-    // Narrow: icons whatever the height.
+    expect(sides).toEqual(['none', 'right', 'top']);
+    // Narrow and tall: the strip with I, II, III.
     const narrow = cardLayout(box({ w: 110, h: 300 }));
-    expect(narrow.tabs).toMatchObject({ on: true, form: 'icons' });
-    expect(narrow.tabs.icon).toBeGreaterThan(0);
+    expect(narrow.tabs).toMatchObject({ on: true, side: 'top', words: false });
+    expect(narrow.tabs.num).toBeGreaterThan(0);
+  });
+
+  it('the sheet (round 20 G8): padded round its content, the stones under it, the chosen tab cut from it', () => {
+    const l = cardLayout(box({ w: 520, h: 190, px: 16.61, stones: 8, cross: 8 }));
+    expect(l.sheet).toMatchObject({ on: true });
+    const p = l.sheet.pad;
+    expect(p).toBe(Math.round(5 * l.scale));
+    expect(l.content).toEqual({ x: l.main.x + p, y: l.main.y + p, w: l.main.w - 2 * p, h: l.main.h - 2 * p });
+    // The stones' row under the sheet as wide as it; its gap counted in the area.
+    expect(l.area.stones.w).toBe(l.main.w);
+    expect(l.area.gapBottom).toBe(l.sheet.gap);
+    expect(l.sheet.box).toEqual({ x: l.main.x, y: l.tabs.y, w: l.main.w, h: l.main.h + l.tabs.h });
+    // One outline for the sheet and the chosen tab; the others behind; with no stones' row the sheet reaches the foot.
+    for (const chosen of [0, 1, 2]) {
+      const f = folioPaths(l, chosen, true);
+      expect(f.ground).toMatch(/^M[\d. ]+Q.*Z$/);
+      expect(f.back.map((d) => d === '')).toEqual([0, 1, 2].map((i) => i === chosen));
+      expect(f.edge).not.toBe(f.ground);
+    }
+    const ys = (d: string): number[] => [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[2]));
+    const withRow = Math.max(...ys(folioPaths(l, 0, true).ground));
+    const full = Math.max(...ys(folioPaths(l, 2, false).ground));
+    expect(full - withRow).toBeCloseTo(l.area.stones.height + l.area.gapBottom, 5);
+    expect(full).toBeCloseTo(l.sheet.box.h, 5);
+    // The chosen tab reaches the strip's top; one behind is lower.
+    expect(Math.min(...ys(folioPaths(l, 0, true).ground))).toBeCloseTo(0, 5);
+    expect(Math.min(...ys(folioPaths(l, 0, true).back[1]!))).toBeGreaterThan(2);
+    // No tabs, no sheet: a low pane as before G8.
+    const low = cardLayout(box({ w: 520, h: 90, px: 16.61 }));
+    expect(low.tabs.on).toBe(false);
+    expect(low.sheet).toMatchObject({ on: false, pad: 0 });
+    expect(low.content).toEqual(low.main);
+    expect(folioPaths(low, 0, true).ground).toBe('');
+  });
+
+  it('the strip clears the pane’s cross, or goes under its row where the words would not fit beside it', () => {
+    const cellW = 16.61 * 0.602;
+    for (const [w, framed] of [[520, true], [520, false], [300, true], [300, false]] as const) {
+      const cross = crossDepth({ phone: false, framed, rowH: 19 });
+      const l = cardLayout(box({ w, h: 220, px: 16.61, cross }));
+      expect(l.tabs.side).toBe('top');
+      const last = l.tabs.items[2]!;
+      const clear = l.tabs.x + last.x + last.w <= w - (framed ? 4 : 11) * cellW;
+      expect(clear || l.tabs.y >= cross, `${w} ${framed}`).toBe(true);
+      expect(l.tabs.words, `${w} ${framed}`).toBe(true);
+    }
+    // A phone has no cross: the strip from the sheet's left, the words a little larger for a finger.
+    const phone = cardLayout(box({ w: 390, h: 220, px: 16.61, phone: 'strip' }));
+    expect(phone.tabs.y).toBe(phone.main.y - phone.tabs.h);
+    expect(phone.tabs.h).toBe(Math.round(18 * phone.scale));
   });
 
   it('the vitals: 14 px under a 122 px box, 12 under 82, 10 under 62 (the mockups’ 150, 110, 90 less their padding)', () => {
@@ -322,7 +391,7 @@ describe('low panes (F2c, ADR 0166 points 124–126)', () => {
 
   it('the portrait stays while it is at least 44 px; then the compact card, full width, no tabs', () => {
     const order: (number | string)[] = [];
-    for (let h = 40; h <= 120; h++) {
+    for (let h = 40; h <= 150; h++) {
       const l = cardLayout(box({ w: 330, h, px: 16.61, lock: 'medium', cross: 8 }));
       if (l.left.form === 'portrait') expect(l.left.disc).toBeGreaterThanOrEqual(PORTRAIT_MIN);
       else {
@@ -420,11 +489,33 @@ function problems(b: CardBox, l: CardLayout): string[] {
   for (let i = 0; i < parts.length; i++) {
     for (let j = i + 1; j < parts.length; j++) if (overlap(parts[i]![1], parts[j]![1])) out.push(`${parts[i]![0]} on ${parts[j]![0]}`);
   }
-  const { left, status, foot, area, main } = l;
+  const { left, status, foot, area } = l;
+  // What the area holds is inside the sheet's padding (round 20 G8).
+  const main = l.content;
   const k = l.scale;
-  if (b.cross && l.tabs.on && l.tabs.h >= 6 && l.tabs.y < b.cross) out.push('a tab is under the cross');
+  const { tabs } = l;
+  if (b.cross && tabs.on) {
+    // Under the hood: clear of the cross (and with no border its buttons) or below its row; on the right: below it.
+    const cells = b.cross > 8 ? 11 : 4;
+    for (const it of tabs.items) {
+      const under = tabs.y + it.y < b.cross && it.h >= 6;
+      if (under && (tabs.side === 'right' || tabs.x + it.x + it.w > b.w - cells * b.px * b.adv + 0.01)) out.push('a tab is under the cross');
+    }
+  }
   // Point 125: the tabs only where the content above the vitals is TAB_MIN high.
-  if (l.tabs.on && l.tabs.y + l.tabs.h < TAB_MIN - 0.5) out.push('tabs in a low pane');
+  if (tabs.on && l.main.y + l.main.h - l.left.y < TAB_MIN - 0.5) out.push('tabs in a low pane');
+  if (tabs.on) {
+    // The sheet: its content inside it, the tabs on its edge, each inside the strip or column.
+    const m = l.main;
+    if (l.content.x < m.x || l.content.y < m.y || l.content.x + l.content.w > m.x + m.w + 0.01 || l.content.y + l.content.h > m.y + m.h + 0.01) out.push('the content is outside the sheet');
+    if (tabs.side === 'top' && Math.abs(tabs.y + tabs.h - m.y) > 0.01) out.push('the strip is not on the sheet');
+    if (tabs.side === 'right' && Math.abs(tabs.x - (m.x + m.w)) > 0.01) out.push('the column is not on the sheet');
+    for (const it of tabs.items) {
+      if (it.w < 6 || it.h < 6) out.push('a tab is too small to press');
+      if (it.x < -0.01 || it.y < -0.01 || it.x + it.w > tabs.w + 0.01 || it.y + it.h > tabs.h + 0.01) out.push('a tab is outside its strip');
+    }
+    if (tabs.words && tabs.px < TAB_WORD_MIN) out.push('the tab words are too small');
+  }
   if ((l.step === 'compact') !== (left.form === 'none')) out.push('the compact card with a portrait');
   if (left.form === 'portrait') {
     if (left.disc < PORTRAIT_MIN) out.push('the portrait is under 44 px');
@@ -512,11 +603,18 @@ describe('no overlap and nothing outside', () => {
     });
   }
 
-  it('the landscape column keeps the tabs clear of the band’s grip', () => {
+  it('the landscape column keeps the tabs clear of the band’s grip; a low phone pane’s column is a finger wide', () => {
     const l = cardLayout(box({ w: 328, h: 399, phone: 'side' }));
+    expect(l.tabs.side).toBe('top');
     expect(l.tabs.x + l.tabs.w).toBeLessThanOrEqual(328 - PHONE_GRIP);
-    expect(l.tabs.w).toBeGreaterThanOrEqual(26);
-    expect(cardLayout(box({ w: 408, h: 153, phone: 'strip' })).tabs.w).toBeGreaterThanOrEqual(26);
+    expect(l.sheet.box.x + l.sheet.box.w).toBeLessThanOrEqual(328 - PHONE_GRIP);
+    const low = cardLayout(box({ w: 328, h: 125, phone: 'side' }));
+    expect(low.tabs.side).toBe('right');
+    expect(low.tabs.x + low.tabs.w).toBeLessThanOrEqual(328 - PHONE_GRIP);
+    expect(low.tabs.w).toBeGreaterThanOrEqual(26);
+    const strip = cardLayout(box({ w: 408, h: 125, phone: 'strip' }));
+    expect(strip.tabs.side).toBe('right');
+    expect(strip.tabs.w).toBeGreaterThanOrEqual(26);
   });
 
   it('the vitals are in Group’s columns', () => {

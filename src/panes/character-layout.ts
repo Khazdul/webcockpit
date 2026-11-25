@@ -36,6 +36,12 @@
 //   keeps the same rows.
 // - The tabs only where the content above the vitals is at least `TAB_MIN`
 //   high; below that only Status shows (`TabState.low`).
+// - The tabs are folder tabs (round 20 G8, stage 77 H10): under the hood
+//   from `TAB_SWITCH` px of content, on the sheet's right edge below it;
+//   the chosen one is cut from the same sheet as the content (the cells
+//   and the shields, Stats, Lore), the others lie behind. The sheet is
+//   `SHEET_PAD` inside, the stones' row under it (`folioPaths`). The words
+//   where they are at least `TAB_WORD_MIN`, else I, II, III.
 // - The vitals' bars are lower in a low pane (`barCap`).
 // - The values' room is counted in the font's advance, so nothing is
 //   measured.
@@ -69,8 +75,21 @@ export const SHIELD_MIN = 30;
 export const SHIELD_LOW = 22;
 /** The least content above the vitals for the tabs, px (point 125). */
 export const TAB_MIN = 80;
-/** The tabs' words at least, px; below it the tabs show icons (point 170). */
+/** The tabs' words at least, px; below it the tabs show I, II, III (ADR 0166 addendum 32). */
 export const TAB_WORD_MIN = 8;
+/** From this much content above the vitals the tabs stand under the hood, below it on the right edge (round 20). */
+export const TAB_SWITCH = 110;
+/** The sheet's padding round its content, and its gap to the stones' row, at scale 1 (round 20 G8). */
+export const SHEET_PAD = 5;
+export const SHEET_GAP = 4;
+/** With the tabs on the right, what of the area's height stays above the stones' rows at scale 1: three tabs of 14 px. */
+const TAB_LEAST = 46;
+/** With the tabs on the right (a low pane), the sheet's padding at scale 1. */
+export const SHEET_PAD_LOW = 2;
+/** The sheet's and the tabs' corner radius, px. */
+const SHEET_R = 3;
+/** A tab behind is this share of the chosen one's depth (round 20 `idep`). */
+export const TAB_BACK = 0.78;
 
 /**
  * The vitals' bars at most, px, below a content box this high (point 124:
@@ -138,8 +157,11 @@ const STATUS_SHORT_EM = 5.1;
 const CHIP_LABEL_EM = 2.6;
 /** `MOVES`, the widest bar label. */
 const VITAL_LABEL_EM = 4.35;
-/** STATUS, STATS and LORE under each other. */
-const TABS_EM = 11.7;
+/** STATUS, STATS and LORE in Cinzel Bold with 0.14em tracking, em (round 20, measured in Chromium). */
+const TAB_EM = [4.75, 3.8, 3.37] as const;
+const TABS_EM = TAB_EM[0] + TAB_EM[1] + TAB_EM[2];
+/** A capital set upright, with its tracking, em (the longest word, STATUS, has 6). */
+const TAB_CAP_EM = 0.92;
 
 export type CardMode = 'large' | 'medium' | 'small';
 
@@ -223,13 +245,37 @@ export interface CardLayout {
     icon: number;
     iconGap: number;
   };
-  main: Rect;
   /**
-   * `on`: shown (point 125). `vertical`: the words standing; `icons`: a
-   * shield, a die and a scroll where the words would be under
-   * `TAB_WORD_MIN` (point 170), `icon` px; `px`: the words' size.
+   * The area's box: with the tabs on, the sheet (and the stones' row under
+   * it), the tab strip or column outside it.
    */
-  tabs: Rect & { on: boolean; form: 'vertical' | 'icons'; px: number; icon: number };
+  main: Rect;
+  /** What the area holds inside the sheet's padding (`main` with no tabs). */
+  content: Rect;
+  /**
+   * `on`: shown (point 125). `side`: under the hood (`top`) or on the
+   * sheet's right edge. `words`: the words, `px` high (set upright on the
+   * right); else I, II, III, `num` px (`numBack` behind). `items`: each
+   * tab's box in this one, the chosen tab's depth (`depth`).
+   */
+  tabs: Rect & {
+    on: boolean;
+    side: 'top' | 'right';
+    words: boolean;
+    px: number;
+    num: number;
+    numBack: number;
+    depth: number;
+    items: Rect[];
+  };
+  /**
+   * The sheet (round 20 G8): `pad` inside it round the content, `gap` to
+   * the stones' row; `box` the sheet, its tabs and the stones' row (the
+   * drawing's box, `folioPaths`). Off (`pad` 0) without tabs. `whole`:
+   * the stones' row lies on the sheet, which never ends above it (the tabs
+   * on the right would be too short beside the sheet alone).
+   */
+  sheet: { on: boolean; pad: number; gap: number; box: Rect; whole: boolean };
   status: StatusLayout;
   /** Status' shields and stones, and the stones Stats shares (`areaLayout`, `compactLayout`). */
   area: AreaLayout;
@@ -395,7 +441,33 @@ const iconsWidth = (icon: number, gap: number): number => 5 * (icon + 2) + 5 * g
 /** The largest icon whose row fits in `wide`. */
 const iconFor = (wide: number, gap: number): number => (wide - 5 * gap - 1) / 5 - 2;
 
+/** A step's order, better first (the compact card last). */
+const stepOrder = (s: CardStep): number => (s === 'compact' ? 5 : s);
+
+/**
+ * The card's boxes. The tabs stand under the hood from `TAB_SWITCH` px of
+ * content where that costs the area no step against the right edge (the
+ * strip takes height, the column width): so a growing pane never takes a
+ * step back where the tabs move up (ADR 0166 addendum 32).
+ */
 export function cardLayout(b: CardBox): CardLayout {
+  const l = placed(b, null);
+  if (!l.tabs.on || l.tabs.side !== 'top') return l;
+  const r = placed(b, 'right');
+  return stepOrder(l.step) <= stepOrder(r.step) ? l : r;
+}
+
+/** The tabs' least length on the right edge, px at scale 1: shorter, the column starts below the cross's row. */
+const TAB_SHORTEST = 10;
+
+/** With the tabs on the right, where the cross's row leaves them too short (a large font, no border), the sheet starts below that row. */
+function placed(b: CardBox, force: 'right' | null): CardLayout {
+  const l = layoutAt(b, force, false);
+  if (!l.tabs.on || l.tabs.side !== 'right' || !(b.cross ?? 0) || l.tabs.items.every((r) => r.h >= TAB_SHORTEST * l.scale)) return l;
+  return layoutAt(b, force, true);
+}
+
+function layoutAt(b: CardBox, force: 'right' | null, lower: boolean): CardLayout {
   const { w, h } = b;
   const mode = cardMode(w, h, b.lock);
   const k = cardScale(w, h, b.px);
@@ -412,20 +484,40 @@ export function cardLayout(b: CardBox): CardLayout {
 
   const cross = b.cross ?? 0;
   const bottom = top + body;
-  const tabsY = Math.min(Math.max(top, cross), h);
   const gap = Math.round(Math.min(12 * k, w * 0.03));
   const clear = b.phone === 'side' ? Math.min(PHONE_GRIP, w * 0.08) : 0;
-  // Point 125: the tabs only where the content is at least TAB_MIN high.
-  const tabs: CardLayout['tabs'] =
-    body >= TAB_MIN ? tabsLayout(w, bottom - tabsY, tabsY, k, b.phone) : { on: false, form: 'icons', px: 0, icon: 0, x: w - clear, y: tabsY, w: 0, h: 0 };
-  const right = tabs.on ? tabs.x - gap : w - clear - pad;
-  const left = leftLayout(b, mode, k, { x: pad, y: top, h: body, room: right - pad - gap });
+  // Point 125: the tabs only where the content is at least TAB_MIN high; under the hood from TAB_SWITCH (round 20).
+  const side: 'top' | 'right' | null = body < TAB_MIN ? null : body >= TAB_SWITCH && force === null ? 'top' : 'right';
+  const on = side !== null;
+  // A low pane's sheet (the tabs on the right) is padded less: the round's 5 px cost its area a step where the tabs come.
+  const sp = !on ? 0 : side === 'top' ? Math.max(3, Math.round(SHEET_PAD * k)) : Math.max(2, Math.round(SHEET_PAD_LOW * k));
+  const sg = on ? Math.max(2, Math.round(SHEET_GAP * k)) : 0;
+  const th = side === 'top' ? Math.round((b.phone ? 18 : 15) * k) : 0;
+  let tw = side === 'right' ? Math.round((b.phone ? 22 : 18) * k) : 0;
+  if (side === 'right' && b.phone) tw = Math.max(tw, Math.min(TOUCH_TAB, Math.round(w * 0.14)));
+  // On the right the tabs stand at the card's edge; else the sheet keeps the pad.
+  const folioRight = side === 'right' ? w - clear : w - clear - pad;
+  const left = leftLayout(b, mode, k, { x: pad, y: top, h: body, room: folioRight - tw - 2 * sp - pad - gap });
   const compact = left.form === 'none';
   const mainX = Math.round(compact ? pad : left.x + left.w + gap);
   // Low and with no border, what the area holds would be under the cross's row.
   const underCross = cross > FRAMED_CROSS && body < 2.6 * cross && bottom - cross >= 9;
-  const mainY = underCross ? Math.max(top, cross) : top;
-  const main: Rect = { x: mainX, y: mainY, w: Math.max(0, Math.floor(right - mainX)), h: bottom - mainY };
+  const folioW = Math.max(0, Math.floor(folioRight - mainX));
+  // The strip under the hood ends clear of the cross (and, with no border, the pane's buttons). Where the words
+  // then do not fit but would in the whole width, or not even the numerals fit, it goes under the cross's row.
+  let reserve = side === 'top' ? crossReserve(cross, cellW) : 0;
+  if (reserve > 0) {
+    const whole = folioW - 2 * Math.round(6 * k);
+    const beside = Math.min(whole, w - reserve - mainX - Math.round(6 * k));
+    const words = (room: number): boolean => stripWords(room, k, b.phone) >= TAB_WORD_MIN;
+    if ((!words(beside) && words(whole)) || beside < 42 * k) reserve = 0;
+  }
+  const lowered = side === 'top' ? cross > 0 && reserve === 0 : underCross || lower;
+  const mainY = lowered ? Math.max(top, Math.ceil(cross)) : top;
+  const main: Rect = { x: mainX, y: mainY + th, w: Math.max(0, folioW - tw), h: Math.max(0, bottom - mainY - th) };
+  const content: Rect = { x: main.x + sp, y: main.y + sp, w: Math.max(0, main.w - 2 * sp), h: Math.max(0, main.h - 2 * sp) };
+  // With the tabs on the right: three tabs of 14 px stay above the stones, below the cross (in the content's height).
+  const tabLeast = Math.round(TAB_LEAST * k) + Math.max(0, Math.ceil(cross - main.y) - Math.round(3 * k)) - 2 * sp;
 
   const stones = b.stones ?? 0;
   const add = b.add ?? false;
@@ -433,21 +525,29 @@ export function cardLayout(b: CardBox): CardLayout {
   let area: AreaLayout;
   let line1: CardLayout['compact'] = null;
   if (compact) {
-    const c = compactLayout(b, mode, main, stones, add, n);
+    const c = compactLayout(b, mode, content, stones, add, n, side === 'right' ? tabLeast : 0);
     status = c.status;
     area = c.area;
     line1 = { cellsW: c.cellsW, mid: c.mid, letterGap: c.letterGap, flat: c.flat };
     left.icon = c.icon;
     left.iconGap = c.iconGap;
   } else {
-    const cells = cellsLayout(b, mode, k, main, n);
-    const line = lineLayout(b, mode, k, main, n);
-    const plain = plainLayout(b, mode, k, main, n);
-    area = areaLayout({ mode, k, adv: b.adv, main, heights: { cells: cells?.h ?? null, line: line?.h ?? null, plain: plain.h }, stones, add });
+    const cells = cellsLayout(b, mode, k, content, n);
+    const line = lineLayout(b, mode, k, content, n);
+    const plain = plainLayout(b, mode, k, content, n);
+    area = areaLayout({ mode, k, adv: b.adv, main: content, heights: { cells: cells?.h ?? null, line: line?.h ?? null, plain: plain.h }, stones, add, sheet: on ? { gap: sg, w: main.w, least: side === 'right' ? tabLeast : 0 } : undefined });
     status = area.step === 0 || area.step === 1 ? cells! : area.step === 2 || area.step === 3 ? line! : plain;
   }
-  const infoH = Math.max(0, main.h - (area.stones.rows > 0 || area.line2 ? area.stones.height + area.gapBottom : 0));
-  return { mode, mana, scale: k, step: area.step, left, main, tabs, status, area, compact: line1, info: infoLayout(b, k, { ...main, h: infoH }), foot };
+  const stonesH = area.stones.rows > 0 || area.line2 ? area.stones.height + area.gapBottom : 0;
+  const at = (short: number): CardLayout['tabs'] => (side !== null ? tabsLayout({ side, main, th, tw, k, phone: b.phone, cross, reserve, w, short }) : offTabs(w - clear, top));
+  let tabs = at(Math.max(0, main.h - stonesH));
+  // Too short on the right beside the sheet alone (a large font, the cross's row): the sheet takes the stones' row too.
+  const whole = tabs.side === 'right' && tabs.on && stonesH > 0 && tabs.items.some((r) => r.h < TAB_SHORTEST * k);
+  if (whole) tabs = at(main.h);
+  const box: Rect = on ? { x: main.x, y: main.y - th, w: main.w + tw, h: main.h + th } : { ...main };
+  const sheet = { on, pad: sp, gap: sg, box, whole };
+  const infoH = Math.max(0, content.h - stonesH);
+  return { mode, mana, scale: k, step: area.step, left, main, content, tabs, sheet, status, area, compact: line1, info: infoLayout(b, k, { ...content, h: infoH }), foot };
 }
 
 function footLayout(b: CardBox, k: number, cellW: number, pad: number, bars: number): CardLayout['foot'] {
@@ -486,26 +586,167 @@ function footLayout(b: CardBox, k: number, cellW: number, pad: number, bars: num
   return { x: 0, y: h - high, w, h: high, pad, gap, inset, bar, arrow, form, labels, numberPx: down(px), labelPx: down(px * 0.82) };
 }
 
-function tabsLayout(w: number, body: number, top: number, k: number, phone: CardBox['phone']): CardLayout['tabs'] {
-  let form: CardLayout['tabs']['form'] = 'icons';
-  let px = 0;
-  let icon = 0;
-  let wide: number;
-  // Narrow, so that a low pane's portrait keeps its room.
-  const vertical = Math.min(9 * k, (body - 16 * k) / TABS_EM);
-  if (vertical >= TAB_WORD_MIN && w >= 120) {
-    form = 'vertical';
-    px = down(vertical);
-    wide = Math.ceil(px + 9 * k);
-  } else {
-    // The icons (point 170): about as wide as the smallest words were.
-    wide = Math.round(Math.min(16 * k, w * 0.14));
-    const each = (body - 4 * k) / 3;
-    icon = Math.max(0, Math.floor(Math.min(11 * k, wide - 4 * k, each - 4)));
+const offTabs = (x: number, y: number): CardLayout['tabs'] => ({ on: false, side: 'right', words: false, px: 0, num: 0, numBack: 0, depth: 0, items: [], x, y, w: 0, h: 0 });
+
+/** How far left of the card's right edge the top strip ends: the pane's close cross, and with no border its buttons too, in cells. */
+const CROSS_CELLS = { framed: 4, borderless: 11 } as const;
+
+/** What the top strip leaves at the card's right for the pane's cross (and buttons), px. */
+const crossReserve = (cross: number, cellW: number): number => (cross === 0 ? 0 : (cross > FRAMED_CROSS ? CROSS_CELLS.borderless : CROSS_CELLS.framed) * cellW);
+
+/** The words' size in a top strip with `avail` px for the tabs (round 20: 6 px of padding and slant each side of a word). */
+function stripWords(avail: number, k: number, phone: CardBox['phone']): number {
+  const room = Math.max(0, avail + 2 * Math.round(3 * k));
+  return Math.min((phone ? 10 : 9) * k, (room - 6 * 8 * k) / TABS_EM);
+}
+
+/**
+ * The folder tabs (round 20 G8, ADR 0166 addendum 32). Under the hood:
+ * from 6 px in, each the word's width with a slanted side, 3 px over the
+ * next; the words at `TAB_WORD_MIN` or more, else I, II, III a third of
+ * the room each. The strip ends clear of the pane's cross (and, with no
+ * border, its buttons) by `reserve`, or (0) it is under the cross's row.
+ * On the right: three equal tabs down the sheet's edge as high as the
+ * sheet is above the stones (`short`), from below the cross.
+ */
+function tabsLayout(o: {
+  side: 'top' | 'right';
+  main: Rect;
+  th: number;
+  tw: number;
+  k: number;
+  phone: CardBox['phone'];
+  cross: number;
+  /** What the strip leaves at the card's right for the cross (`crossReserve`); 0: it is under the cross's row. */
+  reserve: number;
+  w: number;
+  short: number;
+}): CardLayout['tabs'] {
+  const { side, main, k } = o;
+  const most = (o.phone ? 10 : 9) * k;
+  if (side === 'top') {
+    const m0 = Math.round(6 * k);
+    const ov = Math.round(3 * k);
+    const sl = 4 * k;
+    const avail = Math.min(main.w - 2 * m0, o.reserve > 0 ? o.w - o.reserve - main.x - m0 : Infinity);
+    const y = main.y - o.th;
+    const room = Math.max(0, avail + 2 * ov);
+    const fs = stripWords(avail, k, o.phone);
+    const words = fs >= TAB_WORD_MIN;
+    const px = words ? down(fs) : 0;
+    const padX = Math.min(10 * k, (room - TABS_EM * px) / 6 - sl);
+    const ws = words ? TAB_EM.map((e) => Math.floor(e * px + 2 * (padX + sl))) : [0, 1, 2].map(() => Math.floor(room / 3));
+    const items: Rect[] = [];
+    let x = m0;
+    for (const tw of ws) {
+      items.push({ x, y: 0, w: tw, h: o.th });
+      x += tw - ov;
+    }
+    return { on: true, side, words, px, ...numerals(o.th, k), depth: o.th, items, x: main.x, y, w: main.w, h: o.th };
   }
-  if (phone) wide = Math.max(wide, Math.min(TOUCH_TAB, Math.round(w * 0.14)));
-  const clear = phone === 'side' ? Math.min(PHONE_GRIP, w * 0.08) : 0;
-  return { on: true, form, px, icon, x: w - clear - wide, y: top, w: wide, h: body };
+  const m0 = Math.max(Math.round(3 * k), Math.ceil(o.cross - main.y));
+  const m1 = Math.round(3 * k);
+  const g = Math.round(2 * k);
+  const len = Math.max(0, (o.short - m0 - m1 - 2 * g) / 3);
+  const fs = Math.min(most, o.tw - 8 * k, (len - 8 * k) / (6 * TAB_CAP_EM));
+  const words = fs >= TAB_WORD_MIN;
+  const items: Rect[] = [0, 1, 2].map((i) => ({ x: 0, y: m0 + i * (len + g), w: o.tw, h: len }));
+  return { on: true, side, words, px: words ? down(fs) : 0, ...numerals(o.tw, k), depth: o.tw, items, x: main.x + main.w, y: main.y, w: o.tw, h: o.short };
+}
+
+/** I, II, III: the chosen tab's and those behind, by the tabs' depth (round 20 `small`). */
+function numerals(depth: number, k: number): { num: number; numBack: number } {
+  const at = (d: number): number => down(clamp(d - 7 * k, 6, 11 * k));
+  return { num: at(depth), numBack: at(depth * TAB_BACK) };
+}
+
+/** A corner of the sheet's outline: x, y and its radius. */
+type Corner = readonly [number, number, number];
+
+/** A closed outline with rounded corners. */
+function roundPath(P: readonly Corner[]): string {
+  const n = P.length;
+  const f = (v: number): string => String(Math.round(v * 100) / 100);
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const p = P[(i + n - 1) % n]!;
+    const c = P[i]!;
+    const q = P[(i + 1) % n]!;
+    const l1 = Math.hypot(p[0] - c[0], p[1] - c[1]);
+    const l2 = Math.hypot(q[0] - c[0], q[1] - c[1]);
+    const r = Math.min(c[2], l1 / 2, l2 / 2);
+    const ax = l1 ? c[0] + ((p[0] - c[0]) / l1) * r : c[0];
+    const ay = l1 ? c[1] + ((p[1] - c[1]) / l1) * r : c[1];
+    const bx = l2 ? c[0] + ((q[0] - c[0]) / l2) * r : c[0];
+    const by = l2 ? c[1] + ((q[1] - c[1]) / l2) * r : c[1];
+    d += `${i ? 'L' : 'M'}${f(ax)} ${f(ay)}Q${f(c[0])} ${f(c[1])} ${f(bx)} ${f(by)}`;
+  }
+  return `${d}Z`;
+}
+
+/** The outline moved `by` px inwards (clockwise on the screen). */
+function insetPoly(P: readonly Corner[], by: number): Corner[] {
+  const n = P.length;
+  return P.map((c, i) => {
+    const p = P[(i + n - 1) % n]!;
+    const q = P[(i + 1) % n]!;
+    const l1 = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1;
+    const l2 = Math.hypot(q[0] - c[0], q[1] - c[1]) || 1;
+    // The inward normals of the edges into and out of the corner.
+    const n1x = -(c[1] - p[1]) / l1;
+    const n1y = (c[0] - p[0]) / l1;
+    const n2x = -(q[1] - c[1]) / l2;
+    const n2y = (q[0] - c[0]) / l2;
+    const dn = 1 + n1x * n2x + n1y * n2y;
+    const m = dn < 0.05 ? 0 : by / dn;
+    return [c[0] + (n1x + n2x) * m, c[1] + (n1y + n2y) * m, Math.max(0.5, c[2] - by)] as const;
+  });
+}
+
+/**
+ * The sheet's drawing in `sheet.box` (round 20 G8): `ground` the sheet with
+ * the chosen tab cut from it, `edge` its outline 1 px in (the light line),
+ * `back` the other tabs' shapes (behind it, in tab order, '' for the chosen
+ * one). `stones`: the stones' row is shown, so the sheet ends above it;
+ * else (Lore, Stats without the row) it reaches the area's foot. Pure; the
+ * card calls it when the layout, the tab or the row changes.
+ */
+export function folioPaths(l: CardLayout, chosen: number, stones: boolean): { ground: string; edge: string; back: string[] } {
+  const { tabs, sheet, main } = l;
+  if (!sheet.on || !tabs.on) return { ground: '', edge: '', back: [] };
+  const top = tabs.side === 'top';
+  const S = { x: main.x - sheet.box.x, y: main.y - sheet.box.y, w: main.w, h: Math.max(4, main.h - (stones && !sheet.whole ? stonesHeight(l) : 0)) };
+  // The strip or column in the box's coordinates.
+  const ox = tabs.x - sheet.box.x;
+  const oy = tabs.y - sheet.box.y;
+  const profile = (r: Rect, depth: number, behind: boolean): Corner[] => {
+    const L = top ? r.w : r.h;
+    const s = Math.min(4 * l.scale, L * 0.14);
+    // A tab behind reaches 3 px under the sheet, so no seam shows at its foot.
+    const base = behind ? -3 : 0;
+    const P: Corner[] = [
+      [0, base, 2.5],
+      [s, depth, 3],
+      [L - s, depth, 3],
+      [L, base, 2.5],
+    ];
+    // Along the strip from the left (top) or down the column (right), outwards from the sheet.
+    return P.map(([u, v, rr]): Corner => (top ? [ox + r.x + u, S.y - v, rr] : [S.x + S.w + v, oy + r.y + u, rr]));
+  };
+  const TL: Corner = [S.x, S.y, SHEET_R];
+  const TR: Corner = [S.x + S.w, S.y, SHEET_R];
+  const BR: Corner = [S.x + S.w, S.y + S.h, SHEET_R];
+  const BL: Corner = [S.x, S.y + S.h, SHEET_R];
+  const it = tabs.items[chosen] ?? tabs.items[0]!;
+  const act = profile(it, tabs.depth, false);
+  const poly = top ? [TL, ...act, TR, BR, BL] : [TL, TR, ...act, BR, BL];
+  const back = tabs.items.map((r, i) => (i === chosen ? '' : roundPath(profile(r, tabs.depth * TAB_BACK, true))));
+  return { ground: roundPath(poly), edge: roundPath(insetPoly(poly, 1)), back };
+}
+
+/** The stones' row under the sheet with its gap, px (0: no row). */
+export function stonesHeight(l: CardLayout): number {
+  return l.area.stones.rows > 0 || l.area.line2 ? l.area.stones.height + l.area.gapBottom : 0;
 }
 
 /**
@@ -696,6 +937,13 @@ export interface AreaInput {
   /** The stones, and the herblore `+`. */
   stones: number;
   add: boolean;
+  /**
+   * The sheet (round 20 G8): the stones' row lies under it, `gap` below its
+   * padding, as wide as the sheet (`w`); `least` of the area's height
+   * stays above the stones' rows (the tabs on its right edge). Absent: no
+   * sheet.
+   */
+  sheet?: { gap: number; w: number; least: number } | undefined;
 }
 
 /** The largest shield in `w` × `h` (its label under it), 1 × 4 or 2 × 2 by what gives the larger (the mockups' `shieldSize`). */
@@ -729,6 +977,7 @@ export function areaLayout(a: AreaInput): AreaLayout {
   const gap = Math.max(2, Math.round(2 * k));
   const shieldLabelPx = down(Math.max(6, 7 * k));
   const rowsH = (rows: number, size: number): number => (rows > 0 ? rows * (size + bar + gap) - gap : 0);
+  const stonesW = a.sheet?.w ?? main.w;
   const out = (o: { step: CardStep; size: number; rows: number; gapTop: number; gapBottom: number; shield?: { size: number; cols: 4 | 2; h: number }; chips?: ChipLayout | null }): AreaLayout => ({
     step: o.step,
     gapTop: o.gapTop,
@@ -739,7 +988,7 @@ export function areaLayout(a: AreaInput): AreaLayout {
     shieldLabelPx,
     chips: o.chips ?? null,
     even: o.step === 3 || o.step === 4,
-    stones: { x: 0, w: main.w, size: o.size, bar, gap, rows: o.rows, per: stonesPerRow(main.w, o.size, gap), height: rowsH(o.rows, o.size) },
+    stones: { x: 0, w: stonesW, size: o.size, bar, gap, rows: o.rows, per: stonesPerRow(stonesW, o.size, gap), height: rowsH(o.rows, o.size) },
     line2: false,
     purse: purseOf(o.size, k, adv),
   });
@@ -747,7 +996,8 @@ export function areaLayout(a: AreaInput): AreaLayout {
   const slots = a.stones + (a.add ? 1 : 0);
   const most = Math.round(k * clamp((main.h / k) * 0.3, sizes.shield, 72));
   const gapTop = Math.round(4 * k);
-  const gapBottom = Math.round(3 * k);
+  // Under a sheet, its gap (character.css adds the sheet's padding).
+  const gapBottom = a.sheet ? a.sheet.gap : Math.round(3 * k);
   /** The shields' room under a status `status` px high with `rows` rows of stones. */
   const rest = (status: number, rows: number): number => main.h - status - gapTop - rowsH(rows, size) - gapBottom;
   const shields = (step: CardStep, status: number, rows: number, least: number): AreaLayout | null => {
@@ -755,8 +1005,10 @@ export function areaLayout(a: AreaInput): AreaLayout {
     return s.size >= least ? out({ step, size, rows, gapTop, gapBottom, shield: { size: s.size, cols: s.cols, h: rest(status, rows) } }) : null;
   };
   if (heights.cells !== null) {
-    const need = Math.max(1, Math.ceil(slots / stonesPerRow(main.w, size, gap)));
+    const need = Math.max(1, Math.ceil(slots / stonesPerRow(stonesW, size, gap)));
     for (let rows = need; rows >= 1; rows--) {
+      // A sheet with its tabs on the right keeps the height of three tabs above the stones.
+      if (rows > 1 && a.sheet && rowsH(rows, size) + gapBottom > main.h - a.sheet.least) continue;
       const r = shields(0, heights.cells, rows, SHIELD_MIN);
       if (r) return r;
     }
@@ -799,6 +1051,8 @@ function compactLayout(
   stones: number,
   add: boolean,
   n: number,
+  /** With the tabs on the right: what of the height stays above the stones (the tabs' room). */
+  tabRoom = 0,
 ): { status: StatusLayout; area: AreaLayout; cellsW: number; mid: number; letterGap: number; flat: boolean; icon: number; iconGap: number } {
   const { adv } = b;
   const kc = clamp(b.px / 15, 0.8, 1.8);
@@ -875,7 +1129,7 @@ function compactLayout(
   if (line2 && w2 >= 2 * size + gap) {
     const per = stonesPerRow(w2, size, gap);
     const need = Math.max(1, Math.ceil((stones + (add ? 1 : 0)) / per));
-    const fit = Math.max(1, Math.floor((H - h1 - g + gap) / (size + bar + gap)));
+    const fit = Math.max(1, Math.floor((Math.min(H - h1 - g, H - tabRoom - g) + gap) / (size + bar + gap)));
     rows = Math.min(need, fit);
   }
   const area: AreaLayout = {
