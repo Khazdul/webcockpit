@@ -121,6 +121,8 @@ test('Herblore: + opens the menu, a pick starts the herb; × on hover stops it; 
   expect(await page.evaluate(() => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === 'Healing')?.active)).toBe(true);
   const healing = item(page, 'herb:Healing');
   await expect(healing).toBeVisible();
+  // The same icon as its stone on the card (stage 77 H8): healing 5, not the leaf.
+  await expect(healing.locator('.wc-tm-ic path, .wc-tm-ii path')).toHaveAttribute('d', 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M12 8v8 M8 12h8');
   // Running: checked in the menu; Esc closes it, so does a click outside.
   await add.click();
   await expect(menu.locator('.wc-tm-mi[data-key="Healing"]')).toHaveText('✓Healing');

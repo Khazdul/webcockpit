@@ -549,6 +549,9 @@ test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ pag
   await expect(menu).toHaveCount(0);
   const herb = card(page).locator('.wc-cc-st[data-k="stone"][data-tone="herb"]');
   await expect(herb).toHaveCount(1);
+  // Its own icon (stage 77 H8): the first herblore, Healing, its cross in a circle (healing 5).
+  expect(key).toBe('Healing');
+  await expect(herb.locator('.wc-cc-sti path')).toHaveAttribute('d', 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M12 8v8 M8 12h8');
   await herb.hover();
   const x = herb.locator('.wc-cc-stx');
   await expect(x).toHaveAttribute('data-key', key);
