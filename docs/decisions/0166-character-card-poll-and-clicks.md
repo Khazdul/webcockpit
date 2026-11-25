@@ -1964,3 +1964,31 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      at random. So panic starts from the lists only (your own `stat` /
      `info`, the poll) and ends by its line. Unable to quit and unable to
      void still have no lines.
+
+## Addendum 46 (2026-11-25): Melker's runs, the Black Númenórean and depression
+
+260. **The Black Númenórean.** MUME sends `"race":"Black
+     Númenórean","subrace":null` (Melker, `Char.StatusVars`) and `info`
+     prints `You are a male Black Númenórean.`: `raceKind` gives
+     `numenorean` (the portrait and the balloon passenger) and
+     `parseSexLine` takes the line with that race. Nothing to change; the
+     pair is now in the unit tests.
+261. **Depression's lines confirmed**, both as in the inventory: it starts
+     with `Alas, you realise that yet again the mighty knowledge of drowned
+     Númenor has been lost... Despair settles on you.` (a failed spell) and
+     ends with `Your heart feels lighter.`; with it `Char.Vitals` sends
+     the higher `maxmana` (53 → 78), which the mana bar follows. Untimed:
+     the drop line takes the stone away at once, otherwise the next list
+     without it (your own `stat` / `info`, or the poll while the card is
+     open).
+262. **Played in the app** (the run log player, the first run): the
+     numenorean male portrait; poison from GMCP on and off; unable to
+     sneak, panic and unable to quit from `stat` with their own icons;
+     unable to sneak and panic gone by their lines; comfortable on and
+     off by its lines six times; depression up by its line to the end. The
+     Spells pane agrees. With the Timers headers off, Herblores keeps its
+     header (it carries the `+`, ADR 0122 addendum), so the affects sit
+     under it: by design. A renewed charm (`Your control on … is
+     renewed!`) adds a second row, as the inventory says (Inv §2.6.9, "a
+     re-charm adds a fresh entry"); the owner's call whether a renewal
+     should restart the row instead.
