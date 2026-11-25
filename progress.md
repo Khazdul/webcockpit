@@ -189,6 +189,10 @@ with no stage of their own. Remove a line when it is done.
   ADR 0167). The pane itself stays; one already on keeps its cross.
 - **Tested:** unit 5805 passed (two label lists updated); `player.spec`
   22/22. Full e2e not run (video work in the tree).
+- **Later the same session:** released 0.23.1 (`942d4a01`, deploy green,
+  `test:prod` 36/36); README's pane list without UI; the script manual
+  says how to show the UI pane (`9b9bcee2`, unreleased: it waits for the
+  next release, the owner's word).
 - **Next:** removing the pane entirely only if the owner asks.
 - **Commits:** `cf31f88e`, plus this one.
 
