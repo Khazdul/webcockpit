@@ -84,7 +84,7 @@ ring, 12 (+2) after. Mood: our choice.
 | 1:20–1:32 | Down; the tarantulas; poisoned (≈1:24, a loud bar); flee up; Gittan: `narr attercop! the cellar is full of spiders. i am going back down with an earthquake or four`; remove poison |
 | 1:32–1:48 | Camp fire, four stored earthquakes (mana in four steps), rest, herb |
 | 1:48–1:58 | Down, the quakes; both dead: the balloon, the joined sign ("2 kills"). Sigrun: 'did anyone else just feel the ground shake??' |
-| 1:58–2:14 | The bakery: the bandit, the baker joins; one click on Mood (wimpy → … see below); the kill: a *meh* balloon |
+| 1:58–2:14 | The bakery: the bandit, the baker joins; `ag` typed; the kill: a *meh* balloon; one click on Mood: aggressive → wimpy |
 | 2:14–2:18 | `buy pie` ("six copper"), `eat pie` |
 | 2:18 | Staged: `Event.Achieved` and "Achievement unlocked: …" in the game pane; the achievement balloon rises |
 | ~2:24 | The balloon at rest in its reading place; it stays |
@@ -94,12 +94,12 @@ ring, 12 (+2) after. Mood: our choice.
 | 2:37–2:55 | Three posters, about 6 s each, with short cross-fades: `out/posters-0.23/1-faces-of-arda.png`, `2-status-stats-lore.png`, `3-the-stones.png` |
 | 2:55–3:06 | End card in the balloon film's style: the Character pane, "Turn it on under Panes → Character", mumecockpit.com, the music credit |
 
-Mood (our choice): the tour has no Mood click; the bakery fight has one
-click, and its staged answer sets aggressive at once (as `change mood
-aggressive` does; the click's own tooltip names its target). After the
-kill no click: Gittan types `wi`… — to be settled when building; the rule
-is one click on camera, no cycling. Casts: no click (round 1's careful
-dropped).
+Mood (our choice): no cycling on camera. The card steps wimpy → prudent →
+normal → brave → aggressive → wimpy, so: in the fight Gittan types `ag` as
+in the run; after the kill one click on Mood takes her from aggressive to
+wimpy (the cycle's wrap), with the caption "A click sends the command."
+The tour's click is on the position (`rest`). Casts: no click (round 1's
+careful dropped).
 
 Achievement text (proposals): "Procured a pork-pie in Tharbad." ·
 "Bought a pork-pie in Tharbad, the hard way." · "Survived the Tharbad
