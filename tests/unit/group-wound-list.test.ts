@@ -184,7 +184,7 @@ describe('the wound stone', () => {
     const v = stoneView({ view: emptyView(), flags, show: { ...show, flags: true }, player: false, wounds });
     const st = v.stones.filter((s) => s.id === 'flag:wound');
     expect(st).toHaveLength(1);
-    expect(stoneTip(st[0]!, T, 10).tip).toContain('Bleeding.\nA light wound at the head (clean)\nA deep wound at the left hand (clean)');
+    expect(stoneTip(st[0]!, T, 10).tip).toBe('A light wound at the head (clean)\nA deep wound at the left hand (clean)');
     // The key follows the lines (the card redraws the tooltip).
     const w = stoneView({ view: emptyView(), flags, show: { ...show, flags: true }, player: false, wounds: wounds.slice(1) });
     expect(w.key).not.toBe(v.key);
@@ -218,7 +218,7 @@ describe('light wounds (addendum 38): listed, no GMCP flag', () => {
     expect(t.game.group.selfLightWounds).toEqual([]);
   });
 
-  it('GMCP wound true: the full stone, no light one; wound false forgets the lines until the next list (Rasta 09-29)', () => {
+  it('GMCP wound true: the full stone, no light one; wound false keeps the lines as light ones until the next list (Rasta 09-29)', () => {
     const t = setup();
     t.stat('a light wound at the head (clean)');
     t.gmcp('Group.Update', { id: 1, wound: true });
@@ -227,7 +227,8 @@ describe('light wounds (addendum 38): listed, no GMCP flag', () => {
     expect(t.game.group.selfLightWounds).toEqual([]);
     expect(t.game.group.selfWounds).toEqual(['a deep wound at the head (clean)']);
     t.gmcp('Group.Update', { id: 1, wound: false });
-    expect(t.game.group.selfLightWounds).toEqual([]);
+    // Healed down to light: the last lines stand as light wounds until the next list (no blink).
+    expect(t.game.group.selfLightWounds).toEqual(['a deep wound at the head (clean)']);
     t.stat('a light wound at the head (clean)', 'a light wound at the left foot (clean)');
     expect(t.game.group.selfFlags.wound).toBe(false);
     expect(t.game.group.selfLightWounds).toHaveLength(2);

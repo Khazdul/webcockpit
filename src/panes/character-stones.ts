@@ -169,7 +169,8 @@ function fromCell(c: TimerCell, kind: StoneKind, player: boolean): Stone {
 
 function fromFlag(f: StoneFlag, wounds: readonly string[]): Stone {
   const [label, text] = STONE_FLAG_TEXT[f];
-  const about = f === 'wound' && wounds.length > 0 ? [text, ...wounds.map(capitalise)].join('\n') : text;
+  // A wound lists its wounds alone (the owner, 2026-11-25: no extra words).
+  const about = f === 'wound' && wounds.length > 0 ? wounds.map(capitalise).join('\n') : text;
   return {
     id: `flag:${f}`,
     kind: 'flag',
@@ -201,7 +202,7 @@ function fromLightWounds(lines: readonly string[]): Stone {
     tracked: false,
     herbKey: null,
     herbDebuff: false,
-    about: ['No malus yet; bandage it before it gets worse.', ...lines.map(capitalise)].join('\n'),
+    about: lines.map(capitalise).join('\n'),
     dim: true,
   };
 }
@@ -308,11 +309,9 @@ export function stoneTip(s: Stone, now: number, warnAt: number): { title: string
     const of = s.expected !== null ? ` (of ${exactText(s.expected / 1000)})` : '';
     lines.push(`${exactText(t.remaining! / 1000)} left${of}.`);
   } else if (t.state === 'still') lines.push('No end time.');
-  else if (s.id === LIGHT_WOUND_ID) lines.push('Seen in stat, info or the poll (no time).');
-  else if (s.kind === 'flag' || s.id === SANCT_FLAG_ID) lines.push('On while GMCP says so (no time).');
-  else lines.push('Seen in stat, info or the poll only, no time.');
+  // No source or kind lines (the owner, 2026-11-25: the colour says buff or
+  // debuff; "seen in stat", "GMCP flag" were noise).
   if (s.about) lines.push(s.about);
-  lines.push(s.herbDebuff ? `${KIND_LABEL[s.kind]} · a debuff phase` : KIND_LABEL[s.kind]);
   if (s.herbKey !== null) lines.push('Hover: × stops it.');
   if (t.ending) lines.push(`Ending soon (≤ ${warnAt} s).`);
   return { title: s.label, tip: lines.join('\n') };

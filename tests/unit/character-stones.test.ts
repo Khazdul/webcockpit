@@ -65,7 +65,7 @@ describe('stoneView: the poll’s affects (stage 77 H9)', () => {
       ['Bloodlust', 'buff', 'buff'],
       ['A strange curse', 'debuff', 'debuff'],
     ]);
-    expect(stoneTip(v.stones[1]!, NOW, 20).tip).toBe('Seen in stat, info or the poll only, no time.\nDebuff');
+    expect(stoneTip(v.stones[1]!, NOW, 20).tip).toBe('');
   });
 
   it("the flags' twins from the poll are one stone with the flag", () => {
@@ -113,7 +113,7 @@ describe('stoneView', () => {
     const view = viewWith([timed('herb:haste', 'haste (recovery)', 'herb', 200, 300, { herbKey: 'haste', phase: 'debuff' })]);
     const [s] = stoneView({ view, flags: noFlags(), show: ALL, player: false }).stones;
     expect(s).toMatchObject({ kind: 'herb', icon: 'st-haste-recovery', tone: 'debuff', herbDebuff: true });
-    expect(stoneTip(s!, NOW, 20).tip).toContain('Herblore · a debuff phase');
+    expect(stoneTip(s!, NOW, 20).tip).not.toContain('debuff');
   });
 
   it('your sanctuary from the GMCP flag alone when no cast of yours timed it; never a member’s', () => {
@@ -121,7 +121,7 @@ describe('stoneView', () => {
     expect(stoneView({ view, flags: noFlags(), show: ALL, player: false }).stones).toEqual([]);
     const v = stoneView({ view, flags: { ...noFlags(), sanctuary: true }, show: ALL, player: false });
     expect(v.stones.map((s) => [s.id, s.kind, s.tracked])).toEqual([[SANCT_FLAG_ID, 'sanct', false]]);
-    expect(stoneTip(v.stones[0]!, NOW, 20).tip).toBe('On while GMCP says so (no time).\nA white aura: half damage.\nSanctuary');
+    expect(stoneTip(v.stones[0]!, NOW, 20).tip).toBe('A white aura: half damage.');
   });
 
   it("a flag whose twin affect is in Debuffs is the affect's stone", () => {
@@ -184,8 +184,8 @@ describe('stoneTime and stoneTip', () => {
     expect(stoneTime(shield, NOW, 20)).toEqual({ state: 'timed', remaining: 100_000, fill: 0.25, text: '2m', ending: false });
     expect(stoneTime(shield, NOW + 80_000, 20)).toMatchObject({ remaining: 20_000, text: '20s', ending: true });
     expect(stoneTime(shield, NOW + 200_000, 20)).toMatchObject({ fill: 0, text: '0s', ending: true });
-    expect(stoneTip(shield, NOW, 20)).toEqual({ title: 'Shield', tip: '1:40 left (of 6:40).\nBuff' });
-    expect(stoneTip(shield, NOW + 85_000, 20).tip).toBe('15s left (of 6:40).\nBuff\nEnding soon (≤ 20 s).');
+    expect(stoneTip(shield, NOW, 20)).toEqual({ title: 'Shield', tip: '1:40 left (of 6:40).' });
+    expect(stoneTip(shield, NOW + 85_000, 20).tip).toBe('15s left (of 6:40).\nEnding soon (≤ 20 s).');
   });
 
   it('still, untimed and a flag', () => {
@@ -193,14 +193,14 @@ describe('stoneTime and stoneTip', () => {
     expect(stoneTime(still, NOW, 20)).toEqual({ state: 'still', remaining: null, fill: 1, text: null, ending: false });
     expect(stoneTime(seen, NOW, 20)).toEqual({ state: 'untimed', remaining: null, fill: 0, text: null, ending: false });
     expect(stoneTime(flag, NOW, 20).state).toBe('untimed');
-    expect(stoneTip(still, NOW, 20).tip).toBe('No end time.\nDebuff');
-    expect(stoneTip(seen, NOW, 20).tip).toBe('Seen in stat, info or the poll only, no time.\nDebuff');
-    expect(stoneTip(flag, NOW, 20)).toEqual({ title: 'Poisoned', tip: 'On while GMCP says so (no time).\nLoses HP over time.\nGMCP flag' });
+    expect(stoneTip(still, NOW, 20).tip).toBe('No end time.');
+    expect(stoneTip(seen, NOW, 20).tip).toBe('');
+    expect(stoneTip(flag, NOW, 20)).toEqual({ title: 'Poisoned', tip: 'Loses HP over time.' });
   });
 
   it('a herblore says its × stops it', () => {
     const [h] = stoneView({ view: viewWith([timed('herb:haste', 'haste (active)', 'herb', 200, 360, { herbKey: 'haste' })]), flags: noFlags(), show: ALL, player: false }).stones;
-    expect(stoneTip(h!, NOW, 20).tip).toBe('3:20 left (of 6:00).\nHerblore\nHover: × stops it.');
+    expect(stoneTip(h!, NOW, 20).tip).toBe('3:20 left (of 6:00).\nHover: × stops it.');
   });
 });
 

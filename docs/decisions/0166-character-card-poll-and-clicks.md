@@ -1803,3 +1803,25 @@ card's wound stone stayed whatever the player waited or typed.
      Character open). The tooltip: "No malus yet; bandage it before it gets
      worse." and the lines. Shown with the flags (`character.stones.flags`).
      Kept apart from the flag, so it cannot change when the full stone shows.
+
+## Addendum 39 (2026-11-25): no blink at heal-down; shorter stone tips; no fibres
+
+240. **GMCP's `wound: false` dims, it does not remove.** The owner's test:
+     a deep wound healed to light, GMCP sent `wound: false`, the stone went,
+     and the next poll brought the light one back (a blink per wound). Now
+     a `wound` that GMCP ends hands its last listed lines over as the light
+     wounds, so the full stone turns into the dimmed one at once and the
+     next list says what is left (or clears it). Replaces point 239's "any
+     GMCP change forgets them". A `wound: true` still takes the light ones
+     over.
+241. **The stone tooltips lose their source and kind lines** (the owner:
+     the colour says buff or debuff; the rest was noise): no "Seen in stat,
+     info or the poll only, no time.", "On while GMCP says so (no time).",
+     "Buff" / "Debuff" / "Herblore" / "GMCP flag" / "Sanctuary", "· a
+     debuff phase"; the wound stones list their wounds alone ("Bleeding."
+     and the light wound's advice went). The time, the flag's effect, the ×
+     hint and "Ending soon" stay, pending the owner's review of every
+     tooltip in the card.
+242. **The bars' track has no fibres.** The round 12 parchment's 1 px
+     stripes every 5 px (`--trk-bg`) read as bars behind the bars, most on
+     Paper; the tint alone stays, on both themes.

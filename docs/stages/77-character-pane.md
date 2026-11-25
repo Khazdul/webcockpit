@@ -2509,3 +2509,16 @@ Test:
 3. A serious wound ("You feel a sharp pain there!"): the full wound stone,
    no dimmed one; when it heals to light, the full stone goes and within a
    poll the dimmed one comes.
+
+### Light wounds test and the tooltips (the owner, 2026-11-25)
+
+Light wounds steps 1–2 ok. Step 3: GMCP sent `wound: false` at deep →
+light, the stone went, the next poll brought the light one back: a blink
+per wound. Fixed: GMCP's `wound: false` turns the full stone into the
+dimmed one at once (ADR 0166 addendum 39, point 240).
+The tooltips have too much: "Seen in stat … (no time)", "Debuff", "GMCP
+flag", the light wound's advice. Removed from the stones (point 241); the
+wound lists its wounds only. The owner wants a review of every tooltip in
+the card with proposed changes (to come).
+The stripes behind the bars (most on Paper): the track's fibres removed
+(point 242).

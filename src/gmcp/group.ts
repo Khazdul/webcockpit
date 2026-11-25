@@ -315,7 +315,7 @@ export class GroupModel {
    * Your wound lines from the latest list while GMCP has no `wound` on:
    * light wounds, which MUME sends no flag for (ADR 0166 addendum 38). The
    * flag means a bleeding wound; MUME clears it when the wound heals to
-   * light. Any GMCP change of `wound` forgets these until the next list.
+   * light, and its last listed lines then stand here until the next list.
    */
   get selfLightWounds(): readonly string[] {
     return this.lights;
@@ -459,10 +459,13 @@ export class GroupModel {
       default:
         return false;
     }
-    // A wound GMCP ends (or a new self entry without one) takes its lines along;
-    // any change of the flag forgets the light wounds until the next list.
+    // GMCP ends a wound when it heals down to light: its lines become the
+    // light wounds until the next list says what is left, so the stone dims
+    // and never blinks out between (the owner, 2026-11-25). A wound GMCP
+    // starts takes the light ones over.
+    if (woundBefore && !this.self.wound) this.lights = this.wounds;
+    else if (!woundBefore && this.self.wound) this.lights = [];
     if (!this.self.wound) this.wounds = [];
-    if (this.self.wound !== woundBefore) this.lights = [];
     if (changed) this.version++;
     return changed;
   }
