@@ -99,11 +99,20 @@ function setup(
   });
 
   const frame = (...parts: (string | number[])[]): void => sock.data(parts.flatMap((p) => (typeof p === 'string' ? wire(p) : p)));
-  const polls = (): string[] =>
-    new TextDecoder('latin1')
-      .decode(Uint8Array.from(sock.sentBytes()))
-      .split('\r\n')
-      .filter((l) => pollNonce(l) !== null);
+  // The sent polls, decoded again only when something new was sent: the
+  // F1b replay asks every 10 ms of its 100 s, and decoding all the sent
+  // bytes each time made it take seconds (a timeout under load).
+  let pollsOf: { sock: FakeSocket; writes: number; polls: string[] } | null = null;
+  const polls = (): string[] => {
+    if (pollsOf?.sock !== sock || pollsOf.writes !== sock.sent.length) {
+      const all = new TextDecoder('latin1')
+        .decode(Uint8Array.from(sock.sentBytes()))
+        .split('\r\n')
+        .filter((l) => pollNonce(l) !== null);
+      pollsOf = { sock, writes: sock.sent.length, polls: all };
+    }
+    return [...pollsOf.polls];
+  };
   const nonce = (): string => pollNonce(polls().at(-1)!)!;
   /** The sent sex probes' nonces. */
   const probes = (): string[] =>
