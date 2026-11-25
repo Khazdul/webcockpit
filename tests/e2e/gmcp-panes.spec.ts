@@ -34,7 +34,7 @@ test('the demo fills Character and Group, and they stay after the replay', async
   await expect(ch.locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('aria-label', 'Mood: aggressive');
   await expect(ch.locator('.wc-cc-f[data-key="alertness"]')).toHaveAttribute('aria-label', 'Alertness: careful');
   await expect(ch.locator('[data-click="position"]')).toHaveAttribute('aria-label', 'Standing');
-  await expect(ch.locator('.wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', /Wimpy 50:/);
+  await expect(ch.locator('.wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', 'Wimpy 50');
   await expect(ch.locator('.wc-cc-wimpy')).toBeVisible();
   // Room-scoped group by id: Dori 3, the merc 4, the dog 6 (labeled late),
   // Gibur back as 7; the unlabeled pony only in npcMode all.

@@ -53,14 +53,14 @@ export type StoneKind = 'buff' | 'debuff' | 'herb' | 'flag' | 'sanct';
 export const STONE_FLAGS = ['poison', 'blind', 'snared', 'wound', 'hungry', 'thirsty'] as const;
 export type StoneFlag = (typeof STONE_FLAGS)[number];
 
-/** A flag's name and what it does (the Group pane's words). */
-export const STONE_FLAG_TEXT: Readonly<Record<StoneFlag, readonly [string, string]>> = {
-  poison: ['Poisoned', 'Loses HP over time.'],
-  blind: ['Blind', 'Cannot see.'],
-  snared: ['Snared', 'Cannot leave the room.'],
-  wound: ['Wounded', 'Bleeding.'],
-  hungry: ['Hungry', 'Regenerates slower.'],
-  thirsty: ['Thirsty', 'Regenerates slower.'],
+/** A flag's name (the Group pane's words). What it does is not said: the red stone says it (the owner, 2026-11-25). */
+export const STONE_FLAG_LABEL: Readonly<Record<StoneFlag, string>> = {
+  poison: 'Poisoned',
+  blind: 'Blind',
+  snared: 'Snared',
+  wound: 'Wounded',
+  hungry: 'Hungry',
+  thirsty: 'Thirsty',
 };
 
 /** The Debuffs affect that is the same thing as a flag: one stone, the affect's. */
@@ -113,7 +113,7 @@ export interface Stone {
   herbKey: string | null;
   /** A herblore in its debuff phase. */
   herbDebuff: boolean;
-  /** For a flag: what it does. */
+  /** The tooltip's lines under the title: the wounds; null for the rest. */
   about: string | null;
   /** Drawn dimmed: a light wound (no GMCP flag, no malus; addendum 38). Absent: false. */
   dim?: boolean;
@@ -168,9 +168,9 @@ function fromCell(c: TimerCell, kind: StoneKind, player: boolean): Stone {
 }
 
 function fromFlag(f: StoneFlag, wounds: readonly string[]): Stone {
-  const [label, text] = STONE_FLAG_TEXT[f];
-  // A wound lists its wounds alone (the owner, 2026-11-25: no extra words).
-  const about = f === 'wound' && wounds.length > 0 ? wounds.map(capitalise).join('\n') : text;
+  const label = STONE_FLAG_LABEL[f];
+  // A wound lists its wounds alone (the owner, 2026-11-25: no extra words); the rest is the title alone.
+  const about = f === 'wound' && wounds.length > 0 ? wounds.map(capitalise).join('\n') : null;
   return {
     id: `flag:${f}`,
     kind: 'flag',
@@ -247,7 +247,7 @@ export function stoneView(inp: StoneViewInput): StoneView {
         tracked: false,
         herbKey: null,
         herbDebuff: false,
-        about: 'A white aura: half damage.',
+        about: null,
       });
     }
   }
@@ -305,15 +305,10 @@ export function stoneTime(s: Stone, now: number, warnAt: number): StoneTime {
 export function stoneTip(s: Stone, now: number, warnAt: number): { title: string; tip: string } {
   const t = stoneTime(s, now, warnAt);
   const lines: string[] = [];
-  if (t.state === 'timed') {
-    const of = s.expected !== null ? ` (of ${exactText(s.expected / 1000)})` : '';
-    lines.push(`${exactText(t.remaining! / 1000)} left${of}.`);
-  } else if (t.state === 'still') lines.push('No end time.');
-  // No source or kind lines (the owner, 2026-11-25: the colour says buff or
-  // debuff; "seen in stat", "GMCP flag" were noise).
+  // The time left and the wounds, nothing else (notes/research/character-tooltips.md
+  // T16–T30): the colour, the bar, the ending mark and the × say the rest.
+  if (t.state === 'timed') lines.push(`${exactText(t.remaining! / 1000)} left`);
   if (s.about) lines.push(s.about);
-  if (s.herbKey !== null) lines.push('Hover: × stops it.');
-  if (t.ending) lines.push(`Ending soon (≤ ${warnAt} s).`);
   return { title: s.label, tip: lines.join('\n') };
 }
 
@@ -461,13 +456,9 @@ export function purseFit(free: number, p: Purse | null, m: PurseMetrics): 0 | 1 
   return 0;
 }
 
-/** The purse's tooltip: the whole purse, and what fits when not all of it. */
-export function purseTip(p: Purse, shown: number): { title: string; tip: string } {
-  const lines = [`${p.gold} gold, ${p.silver} silver, ${p.copper} copper.`];
-  if (shown === 1) lines.push('Only the gold fits beside the stones.');
-  else if (shown === 2) lines.push('Gold and silver fit beside the stones.');
-  lines.push('From the info poll.');
-  return { title: 'Purse', tip: lines.join('\n') };
+/** The purse's one-line tooltip, the whole purse, only while a coin is hidden (T39–T41); else null. */
+export function purseTip(p: Purse, shown: number): string | null {
+  return shown < 3 ? `${p.gold} gold, ${p.silver} silver, ${p.copper} copper` : null;
 }
 
 // --------------------------------------------------------------- short forms

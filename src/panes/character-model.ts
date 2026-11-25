@@ -226,8 +226,18 @@ export interface RingView {
   base: number;
   gain: number;
   tp: number;
-  title: string;
+  /** The tooltip: a bold title over the body, or the body alone (one line, `title` null). */
+  title: string | null;
   tip: string;
+}
+
+/**
+ * A tooltip of a title and `lines` (the character tooltips, the owner
+ * 2026-11-25): with no lines it is the title alone, passed as a one-line
+ * body (an empty body shows no tooltip, `setTip`).
+ */
+export function tipOf(title: string, lines: readonly string[]): { title: string | null; tip: string } {
+  return lines.length > 0 ? { title, tip: lines.join('\n') } : { title: null, tip: title };
 }
 
 /** Whole percent, floored: 100 only when full. */
@@ -239,15 +249,14 @@ export function ringView(v: Pick<CharView, 'level' | 'xp' | 'tp' | 'toNext'>): R
   if (xp) {
     const left = v.toNext !== null && level !== null ? ` · ${grouped(v.toNext)} to ${level + 1}` : '';
     lines.push(`XP ${percent(xp.progress)} %${left}`);
-  } else lines.push('XP unknown');
+  }
   if (tp) lines.push(tp.progress >= 1 ? 'TP done' : `TP ${percent(tp.progress)} %`);
   return {
     level: level === null ? NONE : String(level),
     base: xp?.baseline ?? 0,
     gain: xp ? Math.max(0, xp.progress - xp.baseline) : 0,
     tp: tp?.progress ?? 0,
-    title: level === null ? 'Level unknown' : `Level ${level}`,
-    tip: lines.join('\n'),
+    ...tipOf(level === null ? 'Level unknown' : `Level ${level}`, lines),
   };
 }
 
@@ -259,14 +268,29 @@ export interface ClickView {
   /** The command, or null: no click (also where clicks are off). */
   command: string | null;
   pending: boolean;
-  tip: string | null;
+  /** The tooltip (also with no click, the owner 2026-11-25): a bold title over the body, or the body alone. */
+  tipTitle: string | null;
+  tip: string;
 }
 
+/** What a click hint names: the step a status cell goes to (`wimpy`), or the command (`rest`). */
+const clickHint = (id: ClickId, command: string): string =>
+  id === 'mood' || id === 'casts' || id === 'alertness' ? command.slice(command.lastIndexOf(' ') + 1) : command;
+
+/**
+ * The tooltips (notes/research/character-tooltips.md T2–T11): a toggle is
+ * its name alone; a status cell and the position their name, with
+ * `Click: <next>` under it while a click is there. A pending click keeps
+ * the bold name alone (T5).
+ */
 function clickView(id: ClickId, icon: IconName, name: string, v: ClickValues, e: CardEnv): ClickView {
   const command = e.clicks ? clickCommand(id, v, e.fighting) : null;
   const pending = e.pending.has(id);
-  const tip = command === null ? null : pending ? 'Waiting for the game.' : `Click: ${command}`;
-  return { id, icon, name, command, pending, tip };
+  const base = { id, icon, name, command, pending };
+  if (id === 'sneak' || id === 'ride' || id === 'climb' || id === 'swim') return { ...base, tipTitle: null, tip: capitalise(id) };
+  if (command === null) return { ...base, tipTitle: null, tip: name };
+  // A body equal to the title is left out: the bold title alone.
+  return { ...base, tipTitle: name, tip: pending ? name : `Click: ${clickHint(id, command)}` };
 }
 
 /** What the clickable elements need beside the values. */
@@ -302,16 +326,6 @@ export function iconsView(v: ClickValues, e: CardEnv): IconButtonView[] {
 
 // ------------------------------------------------------------------- Status
 
-/** MUME's encumbrance sentences (`info %F`), light to heavy. */
-export const LOAD_SENTENCES: readonly string[] = [
-  'Peanuts.',
-  'A tad uncomfortable, but no problem.',
-  'Heavy, but we will manage...',
-  'That is really heavy!',
-  'You are trying to forget the pain...',
-  'Every single move is sheer torture...',
-];
-
 /** The signal of a weight step: the two highest red, the third highest orange. */
 export function loadSignal(step: number | null): 'low' | 'critical' | null {
   if (step === null) return null;
@@ -331,6 +345,7 @@ export interface StatusFieldView {
   step: number | null;
   /** Null: Weight, which has no click. */
   click: ClickView | null;
+  tipTitle: string | null;
   tip: string | null;
 }
 
@@ -351,7 +366,7 @@ export function statusView(v: ClickValues & Pick<CharView, 'carrying'>, e: CardE
   const field = (id: 'mood' | 'casts' | 'alertness', icon: IconName, label: string, word: string | null, steps: readonly string[]): StatusFieldView => {
     const name = `${label}: ${word ?? 'unknown'}`;
     const click = clickView(id, icon, name, v, e);
-    return { key: id, icon, label, value: fit(word), name, signal: null, steps: steps.length, step: stepOf(steps, word), click, tip: click.tip };
+    return { key: id, icon, label, value: fit(word), name, signal: null, steps: steps.length, step: stepOf(steps, word), click, tipTitle: click.tipTitle, tip: click.tip };
   };
   const load = v.carrying;
   return [
@@ -368,7 +383,9 @@ export function statusView(v: ClickValues & Pick<CharView, 'carrying'>, e: CardE
       steps: CARRYING_STEPS.length,
       step: load?.step ?? null,
       click: null,
-      tip: load ? (load.step === null ? load.word : LOAD_SENTENCES[load.step]!) : null,
+      // The whole word alone (T6): the colour and the meter say how heavy.
+      tipTitle: null,
+      tip: load ? `Weight: ${load.word}` : null,
     },
   ];
 }
@@ -412,24 +429,22 @@ export function wimpyAt(wimpy: number | null, maxhp: number | null): number | nu
   return pct1(wimpy / maxhp);
 }
 
-/** The HP bar's tooltip: exact or span, and the wimpy. */
-export function hpTip(hp: CharVital, wimpy: number | null): { title: string; tip: string } {
+/**
+ * The HP bar's tooltip (T33–T38): the exact value or the band in the title,
+ * and the wimpy when one is set. Null: nothing known, no wimpy.
+ */
+export function hpTip(hp: CharVital, wimpy: number | null): { title: string | null; tip: string | null } {
   let title = 'HP';
-  const lines: string[] = [];
-  if (hp.exact && hp.value !== null) {
+  const known = hp.exact && hp.value !== null;
+  const band = hp.exact ? null : bandOf('hp', hp.word);
+  if (known) {
     title = `HP ${plain(hp.value)}`;
     if (hp.max !== null) title += ` / ${hp.max}`;
-    if (hp.max !== null && hp.max > 0) title += ` · ${Math.round((hp.value / hp.max) * 100)} %`;
-  } else {
-    const band = hp.exact ? null : bandOf('hp', hp.word);
-    if (!band) lines.push('Unknown.');
-    else if (band.lo === band.hi) lines.push(`Only the band is known (${band.lo} %).`);
-    else lines.push(`Only the band is known (${band.lo}–${band.hi} %).`);
-  }
-  if (wimpy === null) lines.push('Wimpy unknown.');
-  else if (wimpy <= 0) lines.push('No wimpy.');
-  else lines.push(`Wimpy ${wimpy}: you flee below the arrow.`);
-  return { title, tip: lines.join('\n') };
+    if (hp.max !== null && hp.max > 0) title += ` · ${Math.round((hp.value! / hp.max) * 100)} %`;
+  } else if (band) title = band.lo === band.hi ? `HP ${band.lo} %` : `HP ${band.lo}–${band.hi} %`;
+  const lines = wimpy !== null && wimpy > 0 ? [`Wimpy ${wimpy}`] : [];
+  if (!known && !band && lines.length === 0) return { title: null, tip: null };
+  return tipOf(title, lines);
 }
 
 /** The digits a bar's numbers need: by the maximum, so a falling value moves nothing. */
@@ -460,17 +475,13 @@ export const SHIELD_WAIT = '⋯';
 export interface ShieldView {
   key: (typeof SHIELDS)[number]['key'];
   value: string;
-  title: string;
+  /** The one-line tooltip: the full name (T12–T15). */
   tip: string;
 }
 
 /** The Status shields OB, DB, PB, ABS from the info poll's answer; `⋯` until it answers. */
 export function shieldsView(a: InfoAnswer | null): ShieldView[] {
-  return SHIELDS.map(({ key, label, title }) => {
-    const value = a ? plain(a[key]) : SHIELD_WAIT;
-    const tip = a ? `${title}\nFrom the info poll (also while Status is shown).` : `${title}\nWaiting for the info poll.`;
-    return { key, value, title: a ? `${label} ${value}` : label, tip };
-  });
+  return SHIELDS.map(({ key, title }) => ({ key, value: a ? plain(a[key]) : SHIELD_WAIT, tip: title }));
 }
 
 export const SENSES = [
@@ -485,8 +496,8 @@ export interface AbilityView {
   value: string;
   delta: string;
   dir: Dir;
-  title: string;
-  tip: string;
+  /** The one-line tooltip `Unaffected 16`, only with a delta (T43–T47), else null. */
+  tip: string | null;
 }
 
 export interface StatsView {
@@ -508,17 +519,12 @@ export interface StatsView {
 export function statsView(a: InfoAnswer, race: string | null, subrace: string | null): StatsView {
   const abilities = ABILITIES.map((key): AbilityView => {
     const { current, unaffected, delta } = a.abilities[key];
-    const label = key.toUpperCase();
-    const lines: string[] = [];
-    if (unaffected !== null) lines.push(`Unaffected ${unaffected}`);
-    if (delta !== null) lines.push(delta === 0 ? 'No change from affects' : `${signed(delta)} from affects`);
     return {
       key,
       value: plain(current),
       delta: delta ? signed(delta) : '',
       dir: delta ? dirOf(delta) : null,
-      title: `${label} ${plain(current)}`,
-      tip: lines.join('\n') || 'Unknown.',
+      tip: delta && unaffected !== null ? `Unaffected ${unaffected}` : null,
     };
   });
 

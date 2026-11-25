@@ -121,7 +121,7 @@ describe('stoneView', () => {
     expect(stoneView({ view, flags: noFlags(), show: ALL, player: false }).stones).toEqual([]);
     const v = stoneView({ view, flags: { ...noFlags(), sanctuary: true }, show: ALL, player: false });
     expect(v.stones.map((s) => [s.id, s.kind, s.tracked])).toEqual([[SANCT_FLAG_ID, 'sanct', false]]);
-    expect(stoneTip(v.stones[0]!, NOW, 20).tip).toBe('A white aura: half damage.');
+    expect(stoneTip(v.stones[0]!, NOW, 20)).toEqual({ title: 'Sanctuary', tip: '' });
   });
 
   it("a flag whose twin affect is in Debuffs is the affect's stone", () => {
@@ -184,8 +184,9 @@ describe('stoneTime and stoneTip', () => {
     expect(stoneTime(shield, NOW, 20)).toEqual({ state: 'timed', remaining: 100_000, fill: 0.25, text: '2m', ending: false });
     expect(stoneTime(shield, NOW + 80_000, 20)).toMatchObject({ remaining: 20_000, text: '20s', ending: true });
     expect(stoneTime(shield, NOW + 200_000, 20)).toMatchObject({ fill: 0, text: '0s', ending: true });
-    expect(stoneTip(shield, NOW, 20)).toEqual({ title: 'Shield', tip: '1:40 left (of 6:40).' });
-    expect(stoneTip(shield, NOW + 85_000, 20).tip).toBe('15s left (of 6:40).\nEnding soon (≤ 20 s).');
+    // The time left alone (T17, T30).
+    expect(stoneTip(shield, NOW, 20)).toEqual({ title: 'Shield', tip: '1:40 left' });
+    expect(stoneTip(shield, NOW + 85_000, 20).tip).toBe('15s left');
   });
 
   it('still, untimed and a flag', () => {
@@ -193,14 +194,15 @@ describe('stoneTime and stoneTip', () => {
     expect(stoneTime(still, NOW, 20)).toEqual({ state: 'still', remaining: null, fill: 1, text: null, ending: false });
     expect(stoneTime(seen, NOW, 20)).toEqual({ state: 'untimed', remaining: null, fill: 0, text: null, ending: false });
     expect(stoneTime(flag, NOW, 20).state).toBe('untimed');
-    expect(stoneTip(still, NOW, 20).tip).toBe('No end time.');
+    // The title alone (T18, T19, T20).
+    expect(stoneTip(still, NOW, 20).tip).toBe('');
     expect(stoneTip(seen, NOW, 20).tip).toBe('');
-    expect(stoneTip(flag, NOW, 20)).toEqual({ title: 'Poisoned', tip: 'Loses HP over time.' });
+    expect(stoneTip(flag, NOW, 20)).toEqual({ title: 'Poisoned', tip: '' });
   });
 
-  it('a herblore says its × stops it', () => {
+  it('a herblore: the time left, no × hint (T29)', () => {
     const [h] = stoneView({ view: viewWith([timed('herb:haste', 'haste (active)', 'herb', 200, 360, { herbKey: 'haste' })]), flags: noFlags(), show: ALL, player: false }).stones;
-    expect(stoneTip(h!, NOW, 20).tip).toBe('3:20 left (of 6:00).\nHover: × stops it.');
+    expect(stoneTip(h!, NOW, 20).tip).toBe('3:20 left');
   });
 });
 
@@ -315,10 +317,10 @@ describe('the purse steps (point 121)', () => {
     expect(purseWidth(p, 0, m)).toBe(0);
   });
 
-  it('the tooltip gives the whole purse', () => {
-    expect(purseTip(p, 3)).toEqual({ title: 'Purse', tip: '380 gold, 5 silver, 49 copper.\nFrom the info poll.' });
-    expect(purseTip(p, 2).tip).toBe('380 gold, 5 silver, 49 copper.\nGold and silver fit beside the stones.\nFrom the info poll.');
-    expect(purseTip(p, 1).tip).toContain('Only the gold fits');
+  it('the tooltip gives the whole purse, only while a coin is hidden (T39–T41)', () => {
+    expect(purseTip(p, 3)).toBeNull();
+    expect(purseTip(p, 2)).toBe('380 gold, 5 silver, 49 copper');
+    expect(purseTip(p, 1)).toBe('380 gold, 5 silver, 49 copper');
   });
 });
 

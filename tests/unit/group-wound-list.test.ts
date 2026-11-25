@@ -190,9 +190,11 @@ describe('the wound stone', () => {
     expect(w.key).not.toBe(v.key);
   });
 
-  it('without lines: the plain text', () => {
+  it('without lines: the title alone (T24)', () => {
     const v = stoneView({ view: emptyView(), flags, show: { ...show, flags: true }, player: false });
-    expect(v.stones.find((s) => s.id === 'flag:wound')!.about).toBe('Bleeding.');
+    const w = v.stones.find((s) => s.id === 'flag:wound')!;
+    expect(w.about).toBeNull();
+    expect(stoneTip(w, T, 10)).toEqual({ title: 'Wounded', tip: '' });
   });
 });
 

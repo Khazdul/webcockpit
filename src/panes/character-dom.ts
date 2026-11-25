@@ -227,7 +227,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
       setClick(b, v);
       setAttr(b, 'data-on', v.on ? '' : null);
       setAttr(b, 'data-fight', fighting && v.id === 'position' ? '' : null);
-      setTip(b, v.tip, v.name, `cc:${v.id}`);
+      setTip(b, v.tip, v.tipTitle, `cc:${v.id}`);
     });
   };
   return { box, icons: row, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons };
@@ -303,7 +303,7 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
         setAttr(f, 'role', 'group');
         setAttr(f, 'aria-label', v.name);
       }
-      setTip(f, v.tip, v.name, `cc:${v.key}`);
+      setTip(f, v.tip, v.tipTitle, `cc:${v.key}`);
       // The track's steps are built once, each in its own colour on both sides: a field's steps never change.
       while (segs.length < v.steps) {
         const seg = el(doc, 'i', 'wc-cc-hs');
@@ -336,7 +336,7 @@ function statusEl(doc: Document, click: (id: ClickId) => void) {
       const { s, value } = shields[i]!;
       setText(value, v.value);
       setProp(value, '--n', String(Math.max(3, v.value.length)));
-      setTip(s, v.tip, v.title, `cc:${v.key}`);
+      setTip(s, v.tip, null, `cc:${v.key}`);
     });
   };
   return { box, set, setShort, setShields, setMana };
@@ -465,9 +465,10 @@ function stonesEl(doc: Document, clock: StoneClock) {
             s.el,
             () => {
               const now = clock.now();
-              return [`${rest.length} more (no room). Click for the list:`, ...rest.map((r) => `${r.label}  ${stoneClock(r, now, warnAt())}`)].join('\n');
+              // The hidden stones alone (T32): `+3` is on the badge, the click opens the list.
+              return rest.map((r) => `${r.label}  ${stoneClock(r, now, warnAt())}`).join('\n');
             },
-            `+${rest.length}`,
+            null,
             'cc:st:more',
           );
         }
@@ -526,8 +527,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
       setText(c, i < n ? String(values[i]) : '');
     });
     setProp(purse, 'top', `${top}px`);
-    const t = purseTip(p, n);
-    setTip(purse, t.tip, t.title, 'cc:purse');
+    setTip(purse, purseTip(p, n), null, 'cc:purse');
   };
 
   return { box, set, tick, setPurse, setArmed };
@@ -665,7 +665,7 @@ function statsEl(doc: Document) {
       setText(e.value, a.value);
       setText(e.delta, a.delta);
       setAttr(e.a, 'data-dir', a.dir);
-      setTip(e.a, a.tip, a.title, `cc:${a.key}`);
+      setTip(e.a, a.tip, null, `cc:${a.key}`);
     });
     setText(years, v.age.years);
     setText(ageName, v.age.name);
@@ -788,7 +788,7 @@ function vitalsEl(doc: Document) {
     setHidden(wimpy, at === null);
     if (at !== null) setProp(wimpy, '--p', String(at));
   };
-  const setHpTip = (t: { title: string; tip: string }): void => setTip(hpBox, t.tip, t.title, 'cc:hp');
+  const setHpTip = (t: { title: string | null; tip: string | null }): void => setTip(hpBox, t.tip, t.title, 'cc:hp');
   /** No mana (a troll): no mana bar, HP and moves take the width (stage 77 H9). */
   const setMana = (on: boolean): void => {
     setHidden(boxes.mana, !on);

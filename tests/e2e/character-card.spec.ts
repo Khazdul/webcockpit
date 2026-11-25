@@ -331,11 +331,14 @@ test('Status: the cells, the shields `⋯` until the poll answers, the purse in 
   await expect.poll(() => polls().length, { timeout: 10_000 }).toBe(1);
   game.play(answerPulse(pollNonce(polls()[0]!)!));
   await expect(sv).toHaveText(['81', '13', '85', '70']);
-  await expect(card(page).locator('.wc-cc-shield[data-key="ob"]')).toHaveAttribute('data-tip-title', 'OB 81');
+  // The shield's full name alone (T12).
+  await expect(card(page).locator('.wc-cc-shield[data-key="ob"]')).toHaveAttribute('data-tip', 'Offensive bonus');
+  await expect(card(page).locator('.wc-cc-shield[data-key="ob"]')).not.toHaveAttribute('data-tip-title', /./);
   // The purse, right-aligned in the stones' one row, all of it in a wide pane.
   const purse = card(page).locator('.wc-cc-purse');
   await expect(purse.locator('.wc-cc-coin:not([hidden])')).toHaveText(['380', '5', '49']);
-  await expect(purse).toHaveAttribute('data-tip', /380 gold, 5 silver, 49 copper/);
+  // All three coins show: nothing hidden, no tooltip (T39).
+  await expect(purse).not.toHaveAttribute('data-tip', /./);
   const row = (await card(page).locator('.wc-cc-stones').boundingBox())!;
   const p = (await purse.boundingBox())!;
   expect(Math.abs(p.x + p.width - (row.x + row.width))).toBeLessThan(1);
@@ -525,6 +528,13 @@ test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ pag
   expect(n).toBeGreaterThan(0);
   expect(await card(page).locator('.wc-cc-st[data-k="stone"]:not([hidden])').count()).toBe(ids.length - n);
   await expect(more).toHaveAttribute('data-tip', 'live');
+  // Its tooltip (T32): the hidden stones' rows alone, no title, no header.
+  await more.hover();
+  const tip = page.locator('.wc-ptip');
+  await expect(tip).toBeVisible();
+  await expect(tip.locator('b')).toBeHidden();
+  await expect(tip).not.toContainText('no room');
+  expect((await tip.locator('span').textContent())!.split('\n')).toHaveLength(n);
   // The list: a press opens it, Esc closes it, and a press outside.
   await more.click();
   const list = page.locator('.wc-cc-list');
@@ -640,7 +650,7 @@ test('a low pane steps down; no tabs under 80 px; the compact card (ADR 0166 poi
   await expect(status.locator('.wc-cc-lt')).toHaveText(['M', 'C', 'A', 'W']);
   await expect(word(page, 'mood')).toHaveText(/^(brave|brav)$/);
   await expect(word(page, 'weight')).toHaveText(/^(rhvy|r\.hvy|r\.heavy)$/);
-  await expect(card(page).locator('.wc-cc-f[data-key="weight"]')).toHaveAttribute('data-tip-title', 'Weight: really heavy');
+  await expect(card(page).locator('.wc-cc-f[data-key="weight"]')).toHaveAttribute('data-tip', 'Weight: really heavy');
   await expect(status).toHaveAttribute('data-chips', 'icon');
   await expect(status.locator('.wc-cc-sv')).toHaveText(['81', '13', '85', '70']);
   await expect(status.locator('.wc-cc-shield .wc-cc-i').first()).toBeVisible();
@@ -657,12 +667,16 @@ test('a low pane steps down; no tabs under 80 px; the compact card (ADR 0166 poi
   await expect(card(page).locator('.wc-cc-purse')).toBeVisible();
   expect(await faults(page)).toEqual([]);
 
+  // The small icons name themselves on hover (T7).
+  await card(page).locator('.wc-cc-ib[data-click="sneak"]').hover();
+  await expect(page.locator('.wc-ptip')).toHaveText('Sneak');
   // A click on Mood works as on the full card.
   await card(page).locator('.wc-cc-f[data-click="mood"]').click();
   await expect.poll(() => game.sent.at(-1)).toBe('change mood aggressive');
   game.play(gmcp('Char.Vitals', { mood: 'aggressive' }));
   await expect(word(page, 'mood')).toHaveText('aggr');
   await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('data-tip-title', 'Mood: aggressive');
+  await expect(card(page).locator('.wc-cc-f[data-key="mood"]')).toHaveAttribute('data-tip', 'Click: wimpy');
 
   // Many stones: `+n` and its list.
   await buffs(page, 40);

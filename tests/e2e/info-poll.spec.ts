@@ -15,7 +15,7 @@ const gmcp = (pkg: string, data: unknown): number[] => [255, 250, 201, ...wire(`
 const polls = (m: LoginMock): string[] => m.sent[0]!.filter((l) => pollNonce(l) !== null);
 /** The wimpy as the card shows it: the arrow and the HP bar's tooltip. */
 async function expectWimpy(page: Page, n: number): Promise<void> {
-  await expect(page.locator('.wc-pane-character .wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', new RegExp(`Wimpy ${n}:`));
+  await expect(page.locator('.wc-pane-character .wc-cc-vital[data-kind="hp"]')).toHaveAttribute('data-tip', `Wimpy ${n}`);
   await expect(page.locator('.wc-pane-character .wc-cc-wimpy')).toBeVisible();
 }
 

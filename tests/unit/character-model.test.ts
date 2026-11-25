@@ -115,20 +115,46 @@ describe('clicks (decision 19, point 37)', () => {
     }
   });
 
-  it('a tooltip says what a click sends; none without a click', () => {
+  it('a tooltip names the next step under the whole word; the word alone without a click (T2–T11)', () => {
     const v = viewOf({ mood: 'brave', 'spell-effort': 'slow', alertness: 'normal', carrying: 'heavy', position: 'standing' });
     const [mood, casts, alert, weight] = statusView(v, env(), 20);
-    expect(mood!.tip).toBe('Click: change mood aggressive');
-    expect(casts!.tip).toBeNull();
+    expect(mood).toMatchObject({ tipTitle: 'Mood: brave', tip: 'Click: aggressive' });
+    expect(casts).toMatchObject({ tipTitle: null, tip: 'Casts: slow' });
     expect(casts!.click!.command).toBeNull();
-    expect(alert!.tip).toBe('Click: change alertness careful');
+    expect(alert).toMatchObject({ tipTitle: 'Alertness: normal', tip: 'Click: careful' });
     expect(weight!.click).toBeNull();
-    for (const f of statusView(v, env({ clicks: false }), 20).slice(0, 3)) {
-      expect(f.click!.command).toBeNull();
-      expect(f.tip).toBeNull();
-    }
-    expect(iconsView(v, env()).map((i) => i.command)).toEqual(['sneak', 'ride', 'climb', 'swim', 'rest']);
-    expect(iconsView(v, env({ pending: ['sneak'] }))[0]).toMatchObject({ pending: true, tip: 'Waiting for the game.' });
+    // A replay, the log player: no click, the whole word still on hover.
+    statusView(v, env({ clicks: false }), 20)
+      .slice(0, 3)
+      .forEach((f, i) => {
+        expect(f.click!.command).toBeNull();
+        expect(f).toMatchObject({ tipTitle: null, tip: ['Mood: brave', 'Casts: slow', 'Alertness: normal'][i] });
+      });
+    expect(statusView(viewOf({ mood: 'berserk' }), env(), 20)[0]).toMatchObject({ tipTitle: null, tip: 'Mood: berserk' });
+    expect(statusView(viewOf({}), env(), 20)[0]).toMatchObject({ tipTitle: null, tip: 'Mood: unknown' });
+    const icons = iconsView(v, env());
+    expect(icons.map((i) => i.command)).toEqual(['sneak', 'ride', 'climb', 'swim', 'rest']);
+    // The toggles: the name alone, always; the position its word, and its click.
+    expect(icons.map((i) => [i.tipTitle, i.tip])).toEqual([
+      [null, 'Sneak'],
+      [null, 'Ride'],
+      [null, 'Climb'],
+      [null, 'Swim'],
+      ['Standing', 'Click: rest'],
+    ]);
+    expect(iconsView(v, env({ clicks: false })).map((i) => [i.tipTitle, i.tip])).toEqual([
+      [null, 'Sneak'],
+      [null, 'Ride'],
+      [null, 'Climb'],
+      [null, 'Swim'],
+      [null, 'Standing'],
+    ]);
+    expect(iconsView(v, env({ fighting: true }))[4]).toMatchObject({ tipTitle: null, tip: 'Fighting' });
+    expect(iconsView(viewOf({ position: 'stunned' }), env())[4]).toMatchObject({ tipTitle: null, tip: 'Stunned' });
+    // Pending (T5): the bold title alone (a body equal to the title is left out).
+    expect(iconsView(v, env({ pending: ['sneak', 'position'] }))[0]).toMatchObject({ pending: true, tipTitle: null, tip: 'Sneak' });
+    expect(iconsView(v, env({ pending: ['position'] }))[4]).toMatchObject({ pending: true, tipTitle: 'Standing', tip: 'Standing' });
+    expect(statusView(v, env({ pending: ['mood'] }), 20)[0]).toMatchObject({ tipTitle: 'Mood: brave', tip: 'Mood: brave' });
   });
 });
 
@@ -220,12 +246,13 @@ describe('weight (decision 9)', () => {
     expect([0, 1, 2, 3, 4, 5, null].map(loadSignal)).toEqual([null, null, null, 'low', 'critical', 'critical', null]);
   });
 
-  it('the word as sent, the sentence in the tooltip, never pounds', () => {
+  it('the word as sent, the whole word in the tooltip (T6), never pounds', () => {
     const w = statusView(viewOf({ carrying: 'really heavy' }), env(), 20)[3]!;
-    expect(w).toMatchObject({ value: 'really heavy', tip: 'That is really heavy!', signal: 'low' });
+    expect(w).toMatchObject({ value: 'really heavy', tipTitle: null, tip: 'Weight: really heavy', signal: 'low' });
     const light = statusView(viewOf({ carrying: 'peanuts' }), env(), 20)[3]!;
-    expect(light).toMatchObject({ value: 'peanuts', tip: 'Peanuts.', signal: null });
-    expect(statusView(viewOf({ carrying: 'Odd' }), env(), 20)[3]).toMatchObject({ value: 'Odd', tip: 'Odd', signal: null });
+    expect(light).toMatchObject({ value: 'peanuts', tip: 'Weight: peanuts', signal: null });
+    expect(statusView(viewOf({ carrying: 'Odd' }), env(), 20)[3]).toMatchObject({ value: 'Odd', tip: 'Weight: Odd', signal: null });
+    expect(statusView(viewOf({}), env(), 20)[3]!.tip).toBeNull();
   });
 
   it('every Status form: the whole word where it fits, else the hand-made short form (points 126, 171)', () => {
@@ -272,7 +299,7 @@ describe('vitals (decision 11)', () => {
     const d = draw({ 'hp-string': 'Hurt', maxhp: 270 });
     expect(d).toMatchObject({ value: '', max: '', fill: 46, span: { lo: 46, hi: 70 } });
     expect(JSON.stringify(d).toLowerCase()).not.toContain('hurt');
-    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 0).tip.toLowerCase()).not.toContain('hurt');
+    expect(JSON.stringify(hpTip(hp({ 'hp-string': 'Hurt' }), 0)).toLowerCase()).not.toContain('hurt');
     expect(draw({ 'hp-string': 'Healthy' })).toMatchObject({ fill: 100, span: null });
   });
 
@@ -302,9 +329,18 @@ describe('vitals (decision 11)', () => {
   });
 
   it('the HP tooltip: exact or span, and the wimpy', () => {
-    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 150)).toEqual({ title: 'HP 187 / 270 · 69 %', tip: 'Wimpy 150: you flee below the arrow.' });
-    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 0)).toEqual({ title: 'HP', tip: 'Only the band is known (46–70 %).\nNo wimpy.' });
-    expect(hpTip(hp({}), null).tip).toBe('Unknown.\nWimpy unknown.');
+    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 150)).toEqual({ title: 'HP 187 / 270 · 69 %', tip: 'Wimpy 150' });
+    // One line, the title as the body (T33, T37, T38).
+    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 0)).toEqual({ title: null, tip: 'HP 187 / 270 · 69 %' });
+    expect(hpTip(hp({ hp: 187, maxhp: 270 }), null)).toEqual({ title: null, tip: 'HP 187 / 270 · 69 %' });
+    // The band in the title (T34).
+    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 0)).toEqual({ title: null, tip: 'HP 46–70 %' });
+    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 30)).toEqual({ title: 'HP 46–70 %', tip: 'Wimpy 30' });
+    expect(hpTip(hp({ 'hp-string': 'Healthy' }), null)).toEqual({ title: null, tip: 'HP 100 %' });
+    // Nothing known (T35): no tooltip, or the wimpy under `HP`.
+    expect(hpTip(hp({}), null)).toEqual({ title: null, tip: null });
+    expect(hpTip(hp({}), 0)).toEqual({ title: null, tip: null });
+    expect(hpTip(hp({}), 30)).toEqual({ title: 'HP', tip: 'Wimpy 30' });
   });
 
   it('the digits follow the maxima, so a falling value moves nothing', () => {
@@ -331,7 +367,7 @@ describe('the level ring (decision 3)', () => {
   });
 
   it('unknown: a dash and empty rings', () => {
-    expect(ringView(new CharModel().view())).toMatchObject({ level: '—', base: 0, gain: 0, tp: 0, tip: 'XP unknown' });
+    expect(ringView(new CharModel().view())).toMatchObject({ level: '—', base: 0, gain: 0, tp: 0, title: null, tip: 'Level unknown' });
   });
 
   it('the top level has nothing to reach', () => {
@@ -358,17 +394,22 @@ describe('Stats (decisions 14–17)', () => {
     const a = answerWith();
     a.abilities = { ...a.abilities, str: { current: 18, unaffected: 16, delta: 2 }, dex: { current: 10, unaffected: 11, delta: -1 } };
     const s = statsView(a, 'Orc', null);
-    expect(s.abilities[0]).toMatchObject({ value: '18', delta: '+2', dir: 'up', title: 'STR 18', tip: 'Unaffected 16\n+2 from affects' });
-    expect(s.abilities[3]).toMatchObject({ value: '10', delta: '−1', dir: 'down' });
+    expect(s.abilities[0]).toMatchObject({ value: '18', delta: '+2', dir: 'up', tip: 'Unaffected 16' });
+    expect(s.abilities[0]).not.toHaveProperty('title');
+    expect(s.abilities[3]).toMatchObject({ value: '10', delta: '−1', dir: 'down', tip: 'Unaffected 11' });
+    // No delta, or unknown: no tooltip (T46, T47).
+    expect(s.abilities[1]!.tip).toBeNull();
+    a.abilities = { ...a.abilities, int: { current: null, unaffected: null, delta: null } };
+    expect(statsView(a, 'Orc', null).abilities[1]!.tip).toBeNull();
   });
 
   it('the shields (on Status since F2b): a true minus, a dash, and `⋯` until the poll answers', () => {
     expect(shieldsView(answerWith()).map((s) => s.value)).toEqual(['81', '13', '85', '70']);
-    expect(shieldsView(answerWith({ db: -31 }))[1]).toMatchObject({ key: 'db', value: '−31', title: 'DB −31' });
+    expect(shieldsView(answerWith({ db: -31 }))[1]).toEqual({ key: 'db', value: '−31', tip: 'Defensive bonus' });
     expect(shieldsView(answerWith({ ob: null }))[0]!.value).toBe('—');
     const wait = shieldsView(null);
     expect(wait.map((s) => s.value)).toEqual(['⋯', '⋯', '⋯', '⋯']);
-    expect(wait[3]).toMatchObject({ title: 'ABS', tip: 'Armour absorption\nWaiting for the info poll.' });
+    expect(wait[3]).toEqual({ key: 'abs', value: '⋯', tip: 'Armour absorption' });
   });
 
   it('an unknown race: no age track and no modifiers', () => {

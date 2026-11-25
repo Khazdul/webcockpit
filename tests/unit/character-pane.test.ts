@@ -223,7 +223,11 @@ describe('clicks', () => {
     for (const id of ['mood', 'casts', 'alertness', 'sneak', 'position']) t.click(`[data-click="${id}"]`);
     expect(t.sent).toEqual([]);
     expect(t.q('[data-click="mood"]').getAttribute('aria-disabled')).toBe('true');
-    expect(t.q('[data-click="mood"]').dataset.tip).toBeUndefined();
+    // No click, the whole word still on hover (T2, T7, T11).
+    expect(t.q('[data-click="mood"]').dataset.tip).toBe('Mood: brave');
+    expect(t.q('[data-click="mood"]').dataset.tipTitle).toBeUndefined();
+    expect(t.q('[data-click="sneak"]').dataset.tip).toBe('Sneak');
+    expect(t.q('[data-click="position"]').dataset.tip).toBe('Standing');
     t.tab('stats');
     expect(t.q('.wc-cc-quiet').textContent).toContain('replay');
   });
@@ -312,7 +316,8 @@ describe('clicks', () => {
     t.tab('status');
     const tipped = [...t.pane.content.querySelectorAll<HTMLElement>('[data-tip]')].map((e) => e.dataset.tipKey).sort();
     expect(tipped).toEqual(
-      ['ring', 'sneak', 'ride', 'climb', 'swim', 'position', 'mood', 'casts', 'alertness', 'weight', 'ob', 'db', 'pb', 'abs', 'st:add', 'purse', 'hp', 'str', 'int', 'wis', 'dex', 'con', 'wil', 'per']
+      // The purse shows all three coins and no ability has a delta: neither has a tooltip (T39, T46).
+      ['ring', 'sneak', 'ride', 'climb', 'swim', 'position', 'mood', 'casts', 'alertness', 'weight', 'ob', 'db', 'pb', 'abs', 'st:add', 'hp']
         .map((k) => `cc:${k}`)
         .sort(),
     );
@@ -395,7 +400,8 @@ describe('what is shown', () => {
     expect(shields()).toEqual(['⋯', '⋯', '⋯', '⋯']);
     t.answer();
     expect(shields()).toEqual(['81', '13', '85', '70']);
-    expect(t.q('.wc-cc-shield[data-key="ob"]').dataset.tipTitle).toBe('OB 81');
+    expect(t.q('.wc-cc-shield[data-key="ob"]').dataset.tip).toBe('Offensive bonus');
+    expect(t.q('.wc-cc-shield[data-key="ob"]').dataset.tipTitle).toBeUndefined();
   });
 
   it('a tab change and a fight move no box', () => {
