@@ -1,6 +1,7 @@
 # The Character pane film — manuscript
 
-Draft 3 (2026-11-25): the owner's answers to draft 2. Draft 2: the owner's
+Draft 4 proposal (2026-11-25, below, not approved). Draft 3: the owner's
+answers to draft 2. Draft 2: the owner's
 run and story (below). Draft 1 (in git,\n98fc54a3) had the owner's answers to draft 0 (7bb4897f).
 Not approved. A film of its own about the Character pane of 0.23.0
 (stage 77), recorded after the release is published. Same pipeline as the
@@ -60,6 +61,49 @@ https://creativecommons.org/licenses/by/4.0/
 1:24 and the loudest at 2:30 (−16.5). Dips near 2:00 and 2:18–2:28 just
 before that peak. Ends at 3:06. To be checked by ear: the phrase starts and
 where the clarinet solo begins and ends, so the cuts land on them.
+
+## Round 2 proposal (draft 4, for the owner's review, 2026-11-25)
+
+The owner's notes on round 1: no fade to black in the middle (2:51); end
+shortly after the pie, no coach home; the balloons on (the tarantulas'
+joined sign, the bandit's *meh*); a story about pies told in narrates
+(Gittan types `narr …` herself in the input line; Public has no reply line);
+Comm opened in the coach, docked under the map, no border and no
+background, Public, about a third of the height; the end: an achievement
+balloon alone on black, three posters, the end card. STR 10 before the
+ring, 12 (+2) after. Mood: our choice.
+
+| Film | Beat |
+|---|---|
+| 0:00–0:07 | Title card |
+| 0:07–0:20 | Mason Road. Map on. Gittan: `narr off to tharbad! they say the pork-pies there are worth the whole road south`. The coach arrives; Character on (floats, Medium); `enter coach` |
+| 0:20–0:56 | The coach. Tour: Status, Stats, Lore, the ring's tooltip, a click on position (`rest`). Thorgrim: 'bring one for me. two, if the road is long'. Comm on (docked under the map, frameless, clear, ~1/3 height). Mirel: 'tharbad? half of it is under the greyflood and the other half would steal your boots'. Gittan: `narr hobbits have no boots, mirel. my feet and my purse are both well guarded`. Character docked above the map ("fits any size"); a Paper glimpse |
+| 0:56–1:04 | Tharbad; the ring: "You feel stronger", STR 10 → 12 (+2) |
+| 1:04–1:12 | The bakery closed; the bandit; the flight; `wimpy 100` |
+| 1:12–1:20 | Gittan: `narr assaulted in the bakery, and it was CLOSED. this town is crawling with cutpurses`. Odalric: 'closed? now that is the real crime'. Out by the north gate; Gittan: `narr hiding in a little stone house north of the gate. nobody looks for a hobbit in a cellar` |
+| 1:20–1:32 | Down; the tarantulas; poisoned (≈1:24, a loud bar); flee up; Gittan: `narr attercop! the cellar is full of spiders. i am going back down with an earthquake or four`; remove poison |
+| 1:32–1:48 | Camp fire, four stored earthquakes (mana in four steps), rest, herb |
+| 1:48–1:58 | Down, the quakes; both dead: the balloon, the joined sign ("2 kills"). Sigrun: 'did anyone else just feel the ground shake??' |
+| 1:58–2:14 | The bakery: the bandit, the baker joins; one click on Mood (wimpy → … see below); the kill: a *meh* balloon |
+| 2:14–2:18 | `buy pie` ("six copper"), `eat pie` |
+| 2:18 | Staged: `Event.Achieved` and "Achievement unlocked: …" in the game pane; the achievement balloon rises |
+| ~2:24 | The balloon at rest in its reading place; it stays |
+| 2:28–2:30 | Everything but the balloon fades to black |
+| 2:30–2:35 | The balloon alone on black (the track's loudest bar, 2:30) |
+| 2:35–2:37 | The balloon fades; black |
+| 2:37–2:55 | Three posters, about 6 s each, with short cross-fades: `out/posters-0.23/1-faces-of-arda.png`, `2-status-stats-lore.png`, `3-the-stones.png` |
+| 2:55–3:06 | End card in the balloon film's style: the Character pane, "Turn it on under Panes → Character", mumecockpit.com, the music credit |
+
+Mood (our choice): the tour has no Mood click; the bakery fight has one
+click, and its staged answer sets aggressive at once (as `change mood
+aggressive` does; the click's own tooltip names its target). After the
+kill no click: Gittan types `wi`… — to be settled when building; the rule
+is one click on camera, no cycling. Casts: no click (round 1's careful
+dropped).
+
+Achievement text (proposals): "Procured a pork-pie in Tharbad." ·
+"Bought a pork-pie in Tharbad, the hard way." · "Survived the Tharbad
+bakery."
 
 ## The run (Gittan, `~/Downloads/Gittan-2026-11-25T18-59-11.log`)
 
