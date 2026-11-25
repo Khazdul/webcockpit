@@ -2635,4 +2635,6 @@ B utan finputs." Built (ADR 0123 addendum "A smaller glow").
 
 ## Released
 
-Prepared as 0.23.0 (2026-11-25); tagged and pushed on the owner's word.
+Prepared as 0.23.0 (2026-11-25), held by the owner, prepared again the
+same evening with the smaller glow (ADR 0123) and the Piglet, Melker and
+Dubb runs (ADR 0166 addenda 45–47); tagged and pushed on the owner's word.
