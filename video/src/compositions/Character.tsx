@@ -54,7 +54,6 @@ const CAPTIONS: { kind: string; label?: string; at: number; dur: number; text: s
   { kind: 'tab', label: 'stats', at: 0.4, dur: 5.2, text: ['Stats: abilities, age, senses.'] },
   { kind: 'tab', label: 'lore', at: 0.4, dur: 5.2, text: ['Lore: race, alignment, towns,', 'war fame and purse.'] },
   { kind: 'docked', at: 0.6, dur: 4.2, text: ['It fits any size.'] },
-  { kind: 'fight', at: 0.6, dur: 4.6, text: ['A fight: the crossed swords.'] },
   { kind: 'peak', at: 0.5, dur: 4.4, text: ['The ring: your experience', 'to the next level.'] },
   { kind: 'mood-click', at: 0.3, dur: 4.0, text: ['A click sends the command.'] },
 ];
