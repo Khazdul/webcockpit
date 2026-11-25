@@ -48,7 +48,8 @@
 //   no `mana` or `maxmana` number. The run exports (2026-09-28 to 11-17):
 //   every troll ally (Grugg, Burpy, Dig, Soug; 8 adds) came so, and not one
 //   of their 4 624 updates had a mana key; every other ally carried a word
-//   or a `maxmana`. NPCs come the same way (`"mana-string": 0`). A later
+//   or a `maxmana`. NPCs come the same way (`"mana-string": 0`) and show no
+//   mana bar either (the owner, 2026-11-25). A later
 //   mana number or word clears it.
 
 import { type VitalKind, VITAL_KINDS, bandMidpoint, inBand } from './bands';

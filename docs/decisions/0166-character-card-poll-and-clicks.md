@@ -1698,3 +1698,17 @@ colours stand, but for a herblore's debuff phase (point 223).
      rebuilt on its tick, so `affectStoneIcon` keeps a memo per group by
      the name as given (one map read per item, no string work after the
      first); a herblore is a record read.
+
+## Addendum 35 (2026-11-25): the owner's picks after H8 and H11
+
+228. **Group's snared and wound** take the stones' picks (`st-snared`,
+     the lasso; `st-wound`, the cut and drop) in `STATUS_ICON`, so a flag
+     looks the same in Group as on the card. The other member flags keep
+     their icons (they were the picks already, or are not stones).
+229. **NPCs without mana.** An NPC member sent as point 198's troll
+     (`"mana-string": 0`, no mana number) shows no mana bar either; point
+     198's "an NPC keeps three bars" is reversed. A later mana number or
+     word brings the bar back, as for a troll.
+230. **Kept:** a herblore's debuff phase drawn in the debuff colour on the
+     card (point 223), and the `waiting` rule outside a fight too (point
+     214), both by the owner's word.

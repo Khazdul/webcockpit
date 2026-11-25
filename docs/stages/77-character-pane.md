@@ -2457,3 +2457,12 @@ in a fight.
 
 Test guide "Part H10", steps 1–5: "ser bra ut". Nothing else to remark
 on (the later strip switch, the smaller shields, I/II/III). H10 approved.
+
+### After H8 and H11 (the owner, 2026-11-25)
+
+The open picks of the handoff: (1) a herblore's debuff phase red on the
+card: kept (no remark); (2) Group's snared and wound take the card's
+icons: yes; (3) NPCs without mana lose the mana bar in Group: yes; (4)
+the `waiting` rule outside fights too: ok. Built at once (ADR 0166
+addendum 35). The troll check of H9 (steps 4–5) waits until the owner
+plays Stewash. The tests of H11 and H8 are still to come.

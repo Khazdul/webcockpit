@@ -57,13 +57,13 @@ describe('GroupModel: no mana', () => {
   });
 });
 
-describe('memberView: a troll player shows no mana bar', () => {
-  it('two bars for the troll, three for the others (an NPC keeps its three)', () => {
+describe('memberView: a member with no mana shows no mana bar', () => {
+  it('two bars for the troll and the NPC, three for the others', () => {
     const g = new GroupModel();
     g.apply('Group.Set', [GRUGG, ORORD, WARG]);
     expect(memberView(g.get(4)!, env).bars.map((b) => b.kind)).toEqual(['hp', 'mp']);
     expect(memberView(g.get(2)!, env).bars.map((b) => b.kind)).toEqual(['hp', 'mana', 'mp']);
-    expect(memberView(g.get(5)!, env).bars.map((b) => b.kind)).toEqual(['hp', 'mana', 'mp']);
+    expect(memberView(g.get(5)!, env).bars.map((b) => b.kind)).toEqual(['hp', 'mp']);
   });
 
   it('the row is rebuilt when the bars change', () => {
