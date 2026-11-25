@@ -230,6 +230,33 @@ describe('control kit', () => {
     expect(list()).toBeNull();
   });
 
+  it('Dropdown: a scroll that moves its button closes the list; another scroll (the game output) does not', () => {
+    const host = mount(
+      <div>
+        <div class="box">
+          <Dropdown value="a" label="X" options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]} onChange={() => {}} />
+        </div>
+        <div class="output" />
+      </div>,
+    );
+    const btn = host.querySelector<HTMLElement>('.wc-ck-dd')!;
+    const list = () => host.querySelector<HTMLElement>('.wc-ck-list');
+    const scroll = (el: EventTarget) =>
+      act(() => {
+        el.dispatchEvent(new Event('scroll'));
+      });
+    click(btn);
+    scroll(host.querySelector('.output')!);
+    expect(list()).not.toBeNull();
+    scroll(list()!);
+    expect(list()).not.toBeNull();
+    scroll(host.querySelector('.box')!);
+    expect(list()).toBeNull();
+    click(btn);
+    scroll(document);
+    expect(list()).toBeNull();
+  });
+
   it('Dropdown: a value outside the options shows as given', () => {
     const host = mount(<Dropdown value="zz" label="X" options={[{ value: 'a', label: 'A' }]} onChange={() => {}} />);
     expect(host.querySelector('.wc-ck-dd')!.textContent).toBe('zz');

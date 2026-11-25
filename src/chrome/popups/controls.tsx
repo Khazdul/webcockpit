@@ -24,8 +24,10 @@
 //   (`onHold`): the popup keeps its scale until it is let go (ADR 0107).
 // - A dropdown's list is `position: fixed` next to its button, inside the
 //   popup's DOM (the popup's key and click rules apply), not clipped by the
-//   popup's inner scroll; it closes on a press outside it, a scroll or a
-//   resize.
+//   popup's inner scroll; it closes on a press outside it, a scroll that
+//   moves its button (the document's or a box holding it, such as the
+//   popup's) or a resize. Other scrolls, such as the game's output as lines
+//   arrive, leave it open.
 // - Values are shown as given: a colour that is not in a list stays
 //   selected and is shown by its hex (the caller adds it, `colorOptions`).
 // - An option with `font` draws its label in that CSS font family, on the
@@ -358,7 +360,10 @@ export function Dropdown<T extends string | number>(p: {
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [open, active, pos]);
 
-  // A press outside, a scroll outside the list or a resize closes it.
+  // A press outside, a scroll that moves the button or a resize closes it.
+  // Only a scroll of the document or of a box holding the button moves the
+  // fixed list off its button; other scrolls (the game pane's output as
+  // lines arrive) leave it open.
   useEffect(() => {
     if (!open) return;
     const doc = btn.current!.ownerDocument;
@@ -369,7 +374,9 @@ export function Dropdown<T extends string | number>(p: {
       if (!inside(e.target)) hide(false);
     };
     const onScroll = (e: Event): void => {
-      if (!list.current?.contains(e.target as Node)) hide(false);
+      const t = e.target as Node | null;
+      if (!t || list.current?.contains(t)) return;
+      if (t === doc || (btn.current && t.contains(btn.current))) hide(false);
     };
     const onResize = (): void => hide(false);
     doc.addEventListener('pointerdown', onDown, true);
