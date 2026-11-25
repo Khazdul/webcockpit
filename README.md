@@ -92,7 +92,7 @@ buttons are its shortcuts. The browser tab's icon is the same iron "M".
 directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
 
-**Panes.** Character, Spells, Group, Communication, UI messages,
+**Panes.** Character, Spells, Group, Communication,
 Map and the live Statistics of the run. They can be docked left, right, at the bottom or at the top, in
 several columns or rows per side with panes spanning the whole dock, or
 float over the game, and resized, reordered and toggled, each with its
