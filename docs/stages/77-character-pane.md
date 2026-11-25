@@ -2550,7 +2550,7 @@ log. Test guide:
 2. Open the run in History and play it: the Status tab's shields are empty
    until the first poll's time, then show the values you had, and change
    where they changed; no new line in the game text. Stats and Lore still
-   say there is nothing in a log.
+   say "A replay has no Stats and Lore."
 
 ### The tooltips test (the owner, 2026-11-25)
 
