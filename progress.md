@@ -182,6 +182,16 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-25 — The UI pane leaves the Panes menu
+
+- **Done:** on the owner's word the UI pane is no longer listed in the
+  menu bar's Panes popup or the players' Panes popup (`MENU_HIDDEN`,
+  ADR 0167). The pane itself stays; one already on keeps its cross.
+- **Tested:** unit 5805 passed (two label lists updated); `player.spec`
+  22/22. Full e2e not run (video work in the tree).
+- **Next:** removing the pane entirely only if the owner asks.
+- **Commits:** `cf31f88e`, plus this one.
+
 ### 2026-11-25 — Stage 77: the smaller glow, three runs, release 0.23.0 again
 
 - **Glow:** five strengths shot in the app side by side (Lykta and Paper,
