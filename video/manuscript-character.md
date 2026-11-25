@@ -1,8 +1,9 @@
 # The Character pane film — manuscript
 
-Draft 0 (2026-11-25): brainstorm, not approved. A film of its own about
-the Character pane of 0.23.0 (stage 77), recorded after the release is
-published. Same pipeline as the balloon film (ADR 0133, `README.md`).
+Draft 1 (2026-11-25): the owner's answers to draft 0 (in git, 7bb4897f).
+Not approved. A film of its own about the Character pane of 0.23.0
+(stage 77), recorded after the release is published. Same pipeline as the
+balloon film (ADR 0133, `README.md`).
 
 ## The owner's decisions (2026-11-25)
 
@@ -10,35 +11,54 @@ published. Same pipeline as the balloon film (ADR 0133, `README.md`).
   small adventure that shows the pane's functions.
 - **The pane starts off.** The film shows where it is switched on, then the
   tabs.
-- **The adventure (the owner's suggestion):** Gittan goes to Tharbad, is
-  poisoned by spiders, and wins in the end by casting earthquakes.
-- **Material:** the owner plays Gittan live with the finished pane and
-  gives us the run log.
-- **Music.** *Sancho Panza gets a Latte* by Kevin MacLeod (3:13, CC BY 4.0,
-  in Content ID), `public/music/sancho-panza-gets-a-latte.mp3`; the
-  licence file is beside it. Chosen from two rounds of ten
-  (`~/Downloads/charpane-musik/`). **The film is as long as the track**
-  (193 s); the track ends on its own, so no fade is needed.
+- **The adventure is not fixed.** The owner plays something with Gittan
+  live, with the finished pane, and gives us the run log; the outline is
+  fitted to what the log holds. (The first idea: Tharbad, poisoned by
+  spiders, won with earthquakes.)
+- **Captions on chosen moments only.** One short caption per tab and a few
+  more (below). Not every detail.
+- **Other sizes: yes.** The card is shown in more than one size (Large →
+  Medium; the phone view, to confirm with the owner — see open questions).
+- **Paper: a quick glimpse.** Lykta for the film, Paper for a moment.
+- **Music.** *No Good Layabout* by Kevin MacLeod (3:06, CC BY 4.0, in
+  Content ID), `public/music/no-good-layabout.mp3` (local, the folder is
+  gitignored; source copy and licence file in
+  `~/Downloads/charpane-musik/6 No Good Layabout - Kevin MacLeod*`).
+  Chosen from two rounds of ten. **The film is as long as the track**
+  (186.4 s); it ends on its own, so no fade is needed. (Draft 0 had
+  *Sancho Panza gets a Latte*; the owner changed his mind.)
+
+Credit (YouTube description from the first moment, small on the end card):
+
+```
+"No Good Layabout" Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0
+https://creativecommons.org/licenses/by/4.0/
+```
 
 ## The track's shape (measured, short-term loudness)
 
-Even from 0:06 to 2:24 (about −16 to −17 LUFS, a small peak near 1:06).
-A clearly quieter passage 2:24–2:48 (about −19.5). A last lift 2:48–3:10,
-then the end at 3:13. To be checked by ear: phrase starts and the solo
-entries, so the cuts can land on them.
+124 BPM, walking bass, piano and drums, a clarinet solo in the middle
+(Incompetech's catalogue). Integrated −19.4 LUFS. A soft start to about
+0:12 (−24), then about −20 throughout, with louder moments near 0:42,
+1:24 and the loudest at 2:30 (−16.5). Dips near 2:00 and 2:18–2:28 just
+before that peak. Ends at 3:06. To be checked by ear: the phrase starts and
+where the clarinet solo begins and ends, so the cuts land on them.
 
-## Outline (draft 0, times to fit the track)
+## Outline (draft 1, beats; the story fills in from the log)
 
-| # | Time | Scene | What the pane shows |
-|---|---|---|---|
-| 1 | 0:00–0:08 | Title card | — |
-| 2 | 0:08–0:25 | Gittan somewhere calm, no Character pane; it is switched on | the card slides in |
-| 3 | 0:25–1:00 | A tour at rest | Status (mood, casts, alertness, weight; a click on Mood: the command in the game pane, `⋯`, the new value), Stats (shields, abilities with deltas, age), Lore (race, alignment, purse, birthday); the level ring's tooltip |
-| 4 | 1:00–1:20 | Preparing | wimpy set (the arrow under HP), buffs cast (stones light up), ride |
-| 5 | 1:20–1:40 | The road to Tharbad | moves going down, the ride icon, sneak |
-| 6 | 1:40–2:24 | The spiders | fight mode (Status, dimmed tabs, swords, bigger bars), HP as a hatched band, the poison stone, mana falling with each earthquake, HP near the wimpy arrow |
-| 7 | 2:24–2:48 | After the fight (the quiet passage) | back to the tab you had; the XP ring's bright gold grown; rest by a click on the position; bars filling |
-| 8 | 2:48–3:13 | The last lift and the end card | loot → weight one step up (orange), the purse; level-up if the log has one; end card with the music credit |
+| # | Time | Beat | What the pane shows | Caption |
+|---|---|---|---|---|
+| 1 | 0:00–0:08 | Title card (the soft start) | — | — |
+| 2 | 0:08–0:22 | Gittan, no Character pane; it is switched on | the card slides in | where it is switched on |
+| 3 | 0:22–0:58 | A tour at rest | Status (mood, casts, alertness, weight; a click on Mood: the command in the game pane, `⋯`, the new value), Stats (shields, abilities with deltas, age), Lore (race, alignment, purse, birthday); the level ring's tooltip | one per tab; "a click sends the command" |
+| 4 | 0:58–1:12 | Preparing | wimpy set (the arrow under HP), buffs (stones light up) | stones |
+| 5 | 1:12–1:24 | On the way | moves going down, ride/sneak icons | — |
+| 6 | 1:24–2:18 | The fight (the middle; the solo if it lands there) | fight mode (Status, dimmed tabs, swords, bigger bars), HP as a hatched band, a debuff stone (poison in the first idea), mana falling, HP near the wimpy arrow | fight mode |
+| 7 | 2:18–2:30 | The dip: it turns | the last blow | — |
+| 8 | 2:30–2:46 | The peak: the reward | back to the tab you had; the XP ring's bright gold grown; loot (weight up a step, the purse); a level-up if the log has one | the XP ring |
+| 9 | 2:46–2:56 | The card in other sizes, Paper | Large → Medium (and the phone), a glimpse of Paper | "fits any size" |
+| 10 | 2:56–3:06 | End card | — | the music credit |
 
 ## The log session (the owner, with Gittan)
 
@@ -48,15 +68,13 @@ The film can only show what is in the log, so play these live:
   answers are in the run.
 - **Click** in the card (mood, sneak, ride, position), so the GMCP answers
   come with it.
-- Cast the buffs and set wimpy on camera.
-- Several spiders per room; take the loot home (a heavier weight step).
+- Cast the buffs and set wimpy during the run.
+- A fight that is a little dangerous: a debuff, HP down towards the wimpy,
+  mana spent; then loot (a heavier weight step) and if possible a level.
 - Play calmly, 20–30 minutes; we cut the best moments together.
 
 ## Open questions for the owner
 
-1. Captions that name the functions ("Click = command"), or the picture
-   alone?
-2. Show Large → Medium, or the phone view? (Costs time in 3:13.)
-3. Lykta throughout, or a glimpse of Paper?
-4. Hunt a level-up for the end?
-5. Where does the film start: Bree, or elsewhere on the way to Tharbad?
+1. "Other sizes: yes" — Large → Medium only, or the phone view too?
+2. Hunt a level-up for the end? (Decided by what the log holds.)
+3. Where the film starts follows from the owner's run.
