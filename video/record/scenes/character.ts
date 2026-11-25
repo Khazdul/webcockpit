@@ -137,9 +137,20 @@ export const characterTour: Scene = {
     const input = page.locator('.wc-input-field');
 
     /** Server bytes; the poll's state follows the run. */
+    // Held while a Settings list is open: the game's text scrolling the output closes it (round 1's finding)
+    let held: (() => void)[] | null = null;
     const send = (out: Buffer, change: StateChange = {}, log?: number): void => {
+      if (held) {
+        held.push(() => send(out, change, log));
+        return;
+      }
       apply(mume, change, log);
       mume.send(out);
+    };
+    const release = (): void => {
+      const q = held ?? [];
+      held = null;
+      for (const f of q) f();
     };
     const block = (lines: readonly string[], gmcp: readonly string[]): Buffer =>
       Buffer.concat([...lines.map((l) => lineBytes(l)), ...gmcp.map((g) => gmcpBytes(g)), promptBytes(mume.state.prompt)]);
@@ -162,6 +173,10 @@ export const characterTour: Scene = {
     const rnd = seeded(SEED);
     const busy = (s: number): boolean => BUSY.some(([a, b]) => s >= a && s <= b);
     const sendCmd = async (cmd: string): Promise<void> => {
+      if (held) {
+        held.push(() => void sendCmd(cmd));
+        return;
+      }
       await page.evaluate((c) => (window as unknown as Wc).__wc.app.session.sendCommand(c), cmd);
     };
     /** Typed so that its Enter lands at `enter`; a hand's pace, quicker when the run's next command is close. */
@@ -331,26 +346,23 @@ export const characterTour: Scene = {
       }, hex);
     const choose = async (hex: string, open: number, pick: number, kind: string, label: string): Promise<number> => {
       await waitFor(async () => (await page.locator('.wc-ck-list[aria-label="Background"]').count()) === 0, 1500, 'the list closing');
-      await pointer.clickAt(bg, Math.max(T(open), clock.now() + 300));
+      await pointer.hoverAt(bg, Math.max(T(open), clock.now() + 300));
+      held = [];
+      await pointer.pressAt(clock.now() + 150);
       await waitFor(async () => (await optBox(hex)) !== null, 1500, `the ${label} option`);
       // the list morphs in: its boxes are read once it has landed
-      await clock.sleep(450);
-      let r = await optBox(hex);
+      await clock.sleep(400);
+      const r = await optBox(hex);
       let down = clock.now();
       if (r) {
         await pointer.hoverPoint(r.x, r.y, Math.max(T(pick), clock.now() + 350));
-        const r2 = await optBox(hex);
-        if (r2 && Math.hypot(r2.x - r.x, r2.y - r.y) > 2) await pointer.hoverPoint(r2.x, r2.y, clock.now() + 150);
-        r = r2 ?? r;
         down = await pointer.pressAt(clock.now() + 120);
       }
       marks.markAt(down, kind, label);
-      await clock.sleep(250);
+      await clock.sleep(150);
+      release();
       const got = await page.evaluate(() => (window as unknown as Wc).__wc.settings.get().appearance.bg);
-      if (got !== hex) {
-        console.warn(`  ${label}: the press did not take (${got}); clicked in the page`);
-        await page.evaluate((h) => (document.querySelector(`.wc-ck-list[aria-label="Background"] .wc-ck-opt[data-value="${h}"]`) as HTMLElement | null)?.click(), hex);
-      }
+      if (got !== hex) console.warn(`  ${label}: not chosen (${got})`);
       return down;
     };
     const paperAt = (await choose('#f4ecd8', UI.bg, UI.paper, 'paper', 'Paper') - t0) / 1000;
