@@ -2637,4 +2637,5 @@ B utan finputs." Built (ADR 0123 addendum "A smaller glow").
 
 Prepared as 0.23.0 (2026-11-25), held by the owner, prepared again the
 same evening with the smaller glow (ADR 0123) and the Piglet, Melker and
-Dubb runs (ADR 0166 addenda 45–47); tagged and pushed on the owner's word.
+Dubb runs (ADR 0166 addenda 45–47). Published 2026-11-25 on the owner's
+word: `v0.23.0` (`e1749ee8`), deployed, `test:prod` 36 passed.
