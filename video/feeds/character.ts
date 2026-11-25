@@ -49,49 +49,61 @@ export interface Leg {
 }
 
 /**
- * The legs, in order, end to end. The film's beats (manuscript outline,
- * film = take + 8): Mason Road 0:08–0:34, the coach and the tour 0:34–1:10,
- * Tharbad 1:10, the bakery 1:20, the stone building 1:28, the tarantulas
- * 1:40, the camp 1:52, the quakes 2:18, both dead at the peak 2:30
- * (`PEAK_TAKE_S`), the revenge 2:36, aboard 2:54.
+ * The legs, in order, end to end (draft 4, the round 2 proposal; film =
+ * take + 7): Mason Road 0:07, the coach 0:20 (the ring's tooltip, `rest`,
+ * Comm on, the dock, Paper), Tharbad 0:56, the bakery 1:04, the north gate
+ * 1:12, the tarantulas 1:20 (poisoned at the loud bar near 1:24), the camp
+ * 1:32, the quakes 1:48 (both dead 1:57.5), the revenge 1:58, the pie 2:14;
+ * the achievement after it (`ACHIEVEMENT`).
  */
 export const LEGS: readonly Leg[] = [
   // Mason Road: nothing in the run from 6.3 to the coach's arrival (42.75) but the owner's settings
-  { name: 'mason-road', log: [PRE_LOG_S, 42.0], take: 0, speed: (42.0 - PRE_LOG_S) / 7.0 },
-  { name: 'the-coach-arrives', log: [42.0, 61.4], take: 7.0, speed: 1 },
-  // the tour while the coach waits, leaves Bree and takes the Greenway
-  { name: 'the-tour', log: [61.4, 96.0], take: 26.4, speed: 34.6 / 13.6 },
-  // the long ride: Jasper's Tavern, the ford, Tharbad's walls
-  { name: 'the-ride', log: [96.0, 236.0], take: 40.0, speed: 140 / 15.5 },
-  { name: 'tharbad', log: [236.0, 239.5], take: 55.5, speed: 3.5 / 2.5 },
-  // the rings: "You feel stronger"; out of the coach, to the bakery
-  { name: 'the-rings', log: [239.5, 259.0], take: 58.0, speed: 19.5 / 12.0 },
+  { name: 'mason-road', log: [PRE_LOG_S, 42.0], take: 0, speed: (42.0 - PRE_LOG_S) / 6.4 },
+  { name: 'the-coach-arrives', log: [42.0, 56.0], take: 6.4, speed: 1.8 },
+  // the coach: Bree, the Greenway, Jasper's Tavern, the ford, Tharbad's walls, the rings
+  { name: 'the-coach', log: [56.0, 239.5], take: 14.18, speed: 183.5 / 35.3 },
+  { name: 'tharbad', log: [239.5, 259.0], take: 49.48, speed: 19.5 / 7.5 },
   // closed; the bandit; the flight; wimpy 100
-  { name: 'the-bakery', log: [259.0, 268.3], take: 70.0, speed: 1 },
+  { name: 'the-bakery', log: [259.0, 268.3], take: 56.98, speed: 9.3 / 8.3 },
   // invisible, the north gate, the locks, the stone building
-  { name: 'the-north-gate', log: [268.3, 308.0], take: 79.3, speed: 39.7 / 12.7 },
+  { name: 'the-north-gate', log: [268.3, 307.95], take: 65.28, speed: 39.65 / 8.3 },
   // the tarantulas, the poison, the flight up
-  { name: 'the-tarantulas', log: [308.0, 316.0], take: 92.0, speed: 1 },
-  { name: 'remove-poison', log: [316.0, 326.5], take: 100.0, speed: 10.5 / 4.0 },
+  { name: 'the-tarantulas', log: [307.95, 316.0], take: 73.58, speed: 1 },
+  { name: 'remove-poison', log: [316.0, 326.5], take: 81.63, speed: 10.5 / 5.55 },
   // the camp fire, four stored earthquakes
-  { name: 'the-camp', log: [326.5, 347.5], take: 104.0, speed: 21.0 / 10.5 },
+  { name: 'the-camp', log: [326.5, 347.5], take: 87.18, speed: 3 },
   // rest, the herb, the brew
-  { name: 'the-rest', log: [347.5, 415.3], take: 114.5, speed: 67.8 / 18.3 },
-  // down; the quakes; both dead at the track's peak
-  { name: 'the-quakes', log: [415.3, 424.6], take: 132.8, speed: 1 },
-  { name: 'the-xp', log: [424.6, 431.6], take: 142.1, speed: 7.0 / 4.0 },
-  { name: 'back-to-the-bakery', log: [431.6, 448.4], take: 146.1, speed: 16.8 / 3.0 },
-  // the bandit, the baker, the kill, the pie
-  { name: 'the-revenge', log: [448.4, 472.0], take: 149.1, speed: 23.6 / 15.0 },
-  // the wait for the coach home: cut
-  { name: 'the-wait', log: [472.0, 589.0], take: 164.1, speed: 1, cut: true },
-  { name: 'aboard', log: [589.0, 629.4], take: 164.3, speed: 40.4 / 7.0 },
+  { name: 'the-rest', log: [347.5, 415.3], take: 94.18, speed: 67.8 / 7.1 },
+  // down; the quakes; both dead
+  { name: 'the-quakes', log: [415.3, 424.6], take: 101.28, speed: 1 },
+  { name: 'back-to-the-bakery', log: [424.6, 448.4], take: 110.58, speed: 23.8 / 3.0 },
+  // the bandit, the baker, `ag`, the kill
+  { name: 'the-revenge', log: [448.4, 468.0], take: 113.58, speed: 1.7 },
+  // `wi` (a click), the pie
+  { name: 'the-pie', log: [468.0, 472.0], take: 125.11, speed: 1 },
 ];
 
-/** The take's length: the coach home starts moving, a breath after it. */
-export const TAKE_S = 174.0;
-/** Both tarantulas dead (log 424.51): the track's loudest moment, 2:30. */
-export const PEAK_TAKE_S = 142.0;
+/** The run is played up to here (log s): the pie eaten. */
+export const END_LOG_S = 472.0;
+
+/**
+ * Staged after the pie (the owner's text): MUME's achievement, in the
+ * fixture's form (tests/fixtures/gmcp-demo.log): GMCP Event.Achieved, the
+ * plain line, a blank line, the prompt. Its balloon rises and comes to rest.
+ */
+export const ACHIEVEMENT = { at: 129.6, what: 'Procured a pork-pie in Tharbad.' } as const;
+
+/** The take runs this long after the achievement's balloon comes to rest (the composition freezes it at the cutout, 0.3 s in: it moves on after about 4 s). */
+export const AFTER_REST_S = 1.0;
+
+/**
+ * The balloon rating's chain (honest, as the balloon film's round 1): an
+ * earlier run of Gittan's restored from the film backup, its times moved
+ * to end just before the take's run starts, so the live run chains to it.
+ * Its seven kills (median 1,257 xp) make the bandit's 650 *meh* (0.52);
+ * the two tarantulas die in one pulse and share a sign ("2 kills").
+ */
+export const CHAIN_RUN = 'Gittan/2026-11-02T20-21-34';
 
 /** A log second → take second (the leg it is in). */
 export function takeOf(log: number): number {
@@ -116,23 +128,20 @@ export const TYPE_MAX_SPEED = 1.8;
 // ---------------------------------------------------------------- the clicks
 
 /**
- * The commands of the run that are clicks on the card (manuscript: `r`,
- * `ag`, `wi`; the failed `cha spellspeed quick` a click on Casts). `field`
- * is the card's `data-click`; `times` clicks, each sending the card's own
- * command (`change mood …`, `rest`), each answered as MUME answers it
- * (`answer`: the run's own lines where the run has them). The run's command
- * and its answer are left out (`drop`, log seconds).
+ * The run's commands that are clicks on the card (draft 4: the coach's and
+ * the camp's `r` on the position icon, `wi` after the kill on Mood, the
+ * cycle's wrap from aggressive). Each sends the card's own command and is
+ * answered as MUME answers it (the run's own lines where it has them). The
+ * run's command and its answer are left out (`drop`, log seconds).
  */
 export interface Click {
   /** The run's command it replaces, at this log second. */
   log: number;
-  field: 'mood' | 'casts' | 'position';
-  /** What each click sends and what MUME answers it (lines, then GMCP, then the prompt). */
+  field: 'mood' | 'position';
+  /** What it sends and what MUME answers it (lines, then GMCP, then the prompt). */
   steps: { sends: string; lines: string[]; gmcp: string[] }[];
   /** The run's lines it replaces: [from, to] log s, text and the command (the GMCP of the click's own answer goes too). */
   drop: [number, number];
-  /** Off the game's own times: the first press this far before `log` (s, take). */
-  lead?: number;
 }
 
 const vitals = (o: Record<string, unknown>): string => `Char.Vitals ${JSON.stringify(o)}`;
@@ -147,21 +156,6 @@ export const CLICKS: readonly Click[] = [
     drop: [347.3, 347.6],
     steps: [{ sends: 'rest', lines: ['You rest next to the campfire.', 'You feel comfortable.', ''], gmcp: [vitals({ position: 'resting' })] }],
   },
-  // `ag` in the fight: the tour left Mood at prudent, so three steps (MUME's `change mood` answer: "Ok.", GMCP)
-  {
-    log: 458.41,
-    field: 'mood',
-    lead: 1.2,
-    drop: [458.4, 458.55],
-    steps: ['normal', 'brave', 'aggressive'].map((m) => ({ sends: `change mood ${m}`, lines: ['Ok.', ''], gmcp: [vitals({ mood: m })] })),
-  },
-  // `cha spellspeed quick` failed ("No field by that name."): one click on Casts, normal → careful (MUME's form)
-  {
-    log: 461.13,
-    field: 'casts',
-    drop: [461.1, 461.3],
-    steps: [{ sends: 'change spellcasting careful', lines: ['Ok.', ''], gmcp: [vitals({ 'spell-effort': 'careful' })] }],
-  },
   // `wi` after the kill: aggressive → wimpy, the run's own answer
   { log: 468.15, field: 'mood', drop: [468.1, 468.4], steps: [{ sends: 'change mood wimpy', lines: ['Ok.', ''], gmcp: [vitals({ mood: 'wimpy' })] }] },
 ];
@@ -170,35 +164,46 @@ export const CLICKS: readonly Click[] = [
 export const DROP_GMCP: readonly { log: number; pkg: string; has: string }[] = [
   { log: 61.27, pkg: 'Char.Vitals', has: '"position":"resting"' },
   { log: 347.56, pkg: 'Char.Vitals', has: '"position":"resting"' },
-  { log: 460.26, pkg: 'Char.Vitals', has: '"mood":"aggressive"' },
   { log: 468.33, pkg: 'Char.Vitals', has: '"mood":"wimpy"' },
 ];
 
-/** The tour's click on Mood (take s): wimpy → prudent, MUME's answer. */
-export const TOUR_MOOD = { sends: 'change mood prudent', lines: ['Ok.', ''], gmcp: [vitals({ mood: 'prudent' })] } as const;
+/** The run's lines left out (log s): the failed `cha spellspeed quick` and its "No field by that name.". */
+export const DROPS: readonly [number, number][] = [[461.1, 461.3]];
 
 /** MUME answers a click this long after it (s): a pulse. */
 export const ANSWER_LAG_S = 0.35;
 
 // -------------------------------------------------------------- staged lines
 
-/** On camera at Mason Road: `l`, as MUME showed this room to Gittan (brief mode, her run of 2026-11-08). */
+/** Before the camera rolls at Mason Road: `l`, as MUME showed this room to Gittan (brief mode, her run of 2026-11-08). */
 export const LOOK = {
   cmd: 'l',
-  at: 1.6,
   lines: ['\x1b[32mMason Road\x1b[0m', 'A white-painted bench is here.', 'A timetable for a coach service hangs on the wall.', 'Exits: -north-, -south-, [west].', ''],
 } as const;
 
 /** The run's first prompt (Mason Road, resting). */
 export const FIRST_PROMPT = '!#>';
 
-/** The narrates (manuscript draft 3), at take seconds. */
+/** Other players' narrates (draft 4), at take seconds. */
 export const NARRATES: readonly { at: number; talker: string; words: string }[] = [
-  { at: 37.0, talker: 'Fenwick', words: 'anyone know when the bakery in tharbad opens?' },
-  { at: 79.0, talker: 'Mirel', words: 'tharbad bakery keeps hobbit hours. second breakfast only' },
-  { at: 105.0, talker: 'Thorgrim', words: 'never go down into that stone hut north of tharbad. trust me' },
-  { at: 146.6, talker: 'Odalric', words: 'did anyone else just feel the ground shake??' },
-  { at: 168.2, talker: 'Sigrun', words: 'gittan, was the pie worth it?' },
+  { at: 20.6, talker: 'Thorgrim', words: 'bring one for me. two, if the road is long' },
+  { at: 26.4, talker: 'Mirel', words: 'tharbad? half of it is under the greyflood and the other half would steal your boots' },
+  { at: 70.0, talker: 'Odalric', words: 'closed? now that is the real crime' },
+  { at: 112.4, talker: 'Sigrun', words: 'did anyone else just feel the ground shake??' },
+];
+
+/**
+ * Gittan's own narrates (draft 4): typed in the input line as `narr …`
+ * (Enter at `at`), answered as MUME echoes one's own narrate (the fixture's
+ * form): Comm.Channel.Text with talker `you`, the yellow `You narrate '…'`,
+ * a blank line, the prompt.
+ */
+export const OWN_NARRATES: readonly { at: number; words: string }[] = [
+  { at: 5.9, words: 'off to tharbad! they say the pork-pies there are worth the whole road south' },
+  { at: 32.0, words: 'hobbits have no boots, mirel. my feet and my purse are both well guarded' },
+  { at: 68.7, words: 'assaulted in the bakery, and it was CLOSED. this town is crawling with cutpurses' },
+  { at: 73.35, words: 'hiding in a little stone house north of the gate. nobody looks for a hobbit in a cellar' },
+  { at: 85.5, words: 'attercop! the cellar is full of spiders. i am going back down with an earthquake or four' },
 ];
 
 /**
@@ -227,15 +232,15 @@ export interface PollState {
 
 /** The `INFO_FIELDS` answer (src/gmcp/info-answer.ts), in its order. */
 export function pollFields(s: PollState): string[] {
-  // STR 12 throughout; with the ring's strength 12 (+2) (the owner: before the ring 12 with no +2)
-  const unaffected = `Str:${s.strong ? 10 : 12} Int:17 Wis:19 Dex:11 Con:14 Wil:13 Per:16`;
+  // STR 10 before the ring, 12 (+2) after "You feel stronger" (the owner, draft 4)
+  const unaffected = 'Str:10 Int:17 Wis:19 Dex:11 Con:14 Wil:13 Per:16';
   return [
     '45',
     String(s.shields.ob),
     String(s.shields.db),
     String(s.shields.pb),
     String(s.shields.abs),
-    '12',
+    s.strong ? '12' : '10',
     '17',
     '19',
     '11',

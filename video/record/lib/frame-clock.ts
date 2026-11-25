@@ -245,7 +245,8 @@ function clockShim(): void {
           if (k === 'who') resolve(got);
           else reject(new Error(`frame clock: ${got.size} of ${workers.size} workers answered`));
         },
-        k === 'who' ? 400 : 8000,
+        // a worker born after the freeze may be busy for a while (the map reading its file)
+        k === 'who' ? 400 : 60_000,
       );
       waiting = (from) => {
         got.add(from);

@@ -7,12 +7,12 @@
 //   cmd    a command the player sent: `typed` when its leg is slow enough
 //          to type it on camera, else it is sent as a typed one is;
 //
-// What the clicks replace (feeds/character.ts CLICKS: their commands, their
+// What the clicks replace and the DROPS (feeds/character.ts CLICKS: their commands, their
 // answers, the GMCP of those answers) and the client's own records (VIEW,
 // SIZE, the poll's `WebCockpit.Shields`) are left out; the shields become
 // the poll's values. A `cut` leg's text is left out, its GMCP sent at once.
 import { lineBytes, gmcpBytes, isPrompt } from '../../../scripts/lib/mume-feed.ts';
-import { CLICKS, DROP_GMCP, LEGS, type Leg, STAGED_GMCP, TYPE_MAX_SPEED, takeOf } from '../../feeds/character.ts';
+import { CLICKS, DROPS, DROP_GMCP, LEGS, type Leg, STAGED_GMCP, TYPE_MAX_SPEED, takeOf } from '../../feeds/character.ts';
 import { promptBytes } from './character-state.ts';
 import type { Run } from './run-feed.ts';
 
@@ -50,7 +50,7 @@ export function feedEvents(run: Run, from: number, to: number): FeedEvent[] {
   const add = (e: Extract<FeedEvent, { kind: 'out' }>, b: Buffer): void => {
     e.out = Buffer.concat([e.out, b]);
   };
-  const dropped = (log: number): boolean => CLICKS.some((c) => log >= c.drop[0] && log < c.drop[1]);
+  const dropped = (log: number): boolean => [...CLICKS.map((c) => c.drop), ...DROPS].some(([a, b]) => log >= a && log < b);
   // commands at one moment (an alias's): none typed
   const cmdsAt = new Map<number, number>();
   for (const l of run.lines) if (l.body.startsWith('> ')) cmdsAt.set(l.us, (cmdsAt.get(l.us) ?? 0) + 1);

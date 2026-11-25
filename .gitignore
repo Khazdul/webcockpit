@@ -17,6 +17,8 @@ video/node_modules/
 video/.env.local
 video/public/recordings/
 video/public/music/
+video/public/posters/
+video/record/posters/shots/
 video/private/
 video/out/
 

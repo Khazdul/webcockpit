@@ -146,8 +146,10 @@ async function recordStepped(sceneName: string, modeName: string, page: Page, cl
   const { dpr } = MODES[modeName]!;
   mkdirSync(OUT, { recursive: true });
   await clock.freeze(workers);
-  const width = 1920;
-  const height = 1080;
+  // the film's 1920 × 1080; a preview mode below the film's scale records at its own size
+  const small = dpr < 1.19;
+  const width = small ? Math.round(VIEWPORT.width * dpr) : 1920;
+  const height = small ? Math.round(VIEWPORT.height * dpr) : 1080;
   await clock.record({ file: join(OUT, `${sceneName}.mp4`), width, height, x });
   const load = (): number => Number(readFileSync('/proc/loadavg', 'utf8').split(' ')[0]);
   const loads = [load()];

@@ -2,9 +2,16 @@
 // video/manuscript-character.md): Gittan at Mason Road in Bree, the night of
 // 2026-11-25.
 //
-//   - a fresh profile: weather effects off, no pane on; the map's place is
-//     the right dock's lane, the Character pane's a float in the middle at
-//     a Medium size (both switched on on camera);
+//   - a fresh profile: no pane on; the map's place is the right dock's
+//     lane with Comm's under it (borderless, clear, a third of the height),
+//     the Character pane's a float in the middle at a Medium size (all
+//     three switched on on camera);
+//   - Weather effects on for the balloons alone (round 2): the sky, the
+//     weather, fog and darkness off, so the game's window is as in round 1;
+//     the hobbit passenger follows Gittan's race;
+//   - an earlier run of Gittan's restored with its times moved to end just
+//     before now (`shiftedRun`), so the live run chains to it and the kill
+//     ratings have their history (round 1 of the balloon film);
 //   - Gittan's sex remembered (`wc.charSex.v1`), so no probe goes at login;
 //   - MUME's socket mocked (nothing reaches mume.org). The mock answers the
 //     client's hidden info poll (ADR 0166: `info WC<nonce>[…]WC<nonce>`)
@@ -15,6 +22,8 @@
 //     plays MUME's answers from the run.
 //   - prompts go as MUME's XML prompts (`<prompt>…</prompt>` and GA): the
 //     poll waits for one (src/gmcp/info-poll.ts).
+import { readFileSync } from 'node:fs';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import type { Page, WebSocketRoute } from '@playwright/test';
 import { GMCP, IAC, WILL, gmcpBytes, sleep, startMenu } from '../../../scripts/lib/mume-feed.ts';
 import { answerText, pollNonce, probeNonce } from '../../../tests/fixtures/info-poll-answer.ts';
@@ -33,6 +42,8 @@ export const CELL = { w: 10, h: 900 / 49 } as const;
 export const CARD_FLOAT = { x: 35, y: 17, w: 40, h: 11 } as const;
 /** The right dock's lane, as wide as the map wants (cells). */
 export const DOCK_LANE = 50;
+/** Comm under the map: about a third of the screen's 49 rows. */
+export const COMM_ROWS = 16;
 
 /** Escaped for an XML prompt. */
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -117,39 +128,73 @@ interface CardSettings {
   };
 }
 interface CardWindow {
-  __wc?: { settings: { update(fn: (d: CardSettings) => void): void; get(): CardSettings } };
+  __wc?: { settings: { update(fn: (d: CardSettings) => void): void; get(): CardSettings }; runs(): Promise<{ restore(b: Blob): Promise<unknown> }> };
 }
 
-/** Into the game at Mason Road: the settings, then Enter MUME on the mocked socket. Returns the mock. */
-export async function enterMasonRoad(page: Page, mume: Mume): Promise<Mume> {
+/** Where the page fetches the chain's run (served by a route). */
+const CHAIN_URL = '/__film/chain.jsonl.gz';
+
+/**
+ * One run of a backup file as a backup of its own, its µs times moved so
+ * that its last event is `endUs`: meta, summary and events (the rating
+ * reads the kills' XP); no text (nothing replays it).
+ */
+export function shiftedRun(file: string, runId: string, endUs: number): Buffer {
+  const lines = gunzipSync(readFileSync(file)).toString('utf8').split('\n');
+  const runLine = lines.find((l) => l.startsWith('{"type":"run"') && l.includes(`"runId":${JSON.stringify(runId)}`));
+  if (!runLine) throw new Error(`no run ${runId} in ${file}`);
+  const run = (JSON.parse(runLine) as { run: { startedUs: number; endedUs?: number; summary?: Record<string, number | string> } }).run;
+  const last = Number(run.summary?.lastEventUs ?? run.endedUs ?? run.startedUs);
+  const d = endUs - last;
+  const sh = (o: Record<string, unknown>, keys: string[]): void => {
+    for (const k of keys) if (typeof o[k] === 'number') o[k] = (o[k] as number) + d;
+  };
+  sh(run as unknown as Record<string, unknown>, ['startedUs', 'endedUs']);
+  if (run.summary) sh(run.summary, ['startUs', 'lastEventUs', 'endUs', 'firstUs', 'lastUs']);
+  const out = [JSON.stringify({ type: 'webcockpit-runs', schema: 1, exportedUs: endUs }), JSON.stringify({ type: 'run', run })];
+  for (const l of lines) {
+    if (!l.startsWith('{"type":"event"') || !l.includes(`"runId":${JSON.stringify(runId)}`)) continue;
+    const e = JSON.parse(l) as { event: Record<string, unknown> };
+    sh(e.event, ['us', 'logUs']);
+    out.push(JSON.stringify(e));
+  }
+  return gzipSync(Buffer.from(`${out.join('\n')}\n`, 'utf8'));
+}
+
+/** Into the game at Mason Road: the settings, then Enter MUME on the mocked socket. `chain`: a backup to restore first. Returns the mock. */
+export async function enterMasonRoad(page: Page, mume: Mume, chain?: Buffer): Promise<Mume> {
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => mume.attach(ws));
+  if (chain) await page.route(`**${CHAIN_URL}`, (r) => r.fulfill({ body: chain, contentType: 'application/gzip' }));
   await page.goto('/');
   await startMenu(page);
   await page.waitForFunction(() => (window as unknown as CardWindow).__wc !== undefined);
   await page.evaluate(
-    ({ card, lane }) => {
+    async ({ card, lane, comm, url }) => {
       localStorage.setItem('wc.charSex.v1', JSON.stringify({ gittan: 'female' }));
       (window as unknown as CardWindow).__wc!.settings.update((d) => {
-        d.weather.enabled = false;
+        // the balloons alone (src/settings/types.ts WeatherSettings)
+        Object.assign(d.weather, { enabled: true, sky: false, daySky: false, precipitation: false, lightning: false, fog: false, darkness: false, body: false, balloons: true });
         for (const p of Object.values(d.panes)) if (p) p.on = false;
         d.profile = 'default';
         d.character.fetchInfo = true;
         // the owner's looks (his run's VIEW): the card framed with glass, the map bare
         Object.assign(d.panes.character!, { border: true, glass: true });
         Object.assign(d.panes.map!, { border: false, glass: false });
+        Object.assign(d.panes.comm!, { border: false, glass: false });
         // the map alone in the right dock's lane; the card floats in the middle
-        const strip = (l: { id: string }[]) => l.filter((p) => p.id !== 'map' && p.id !== 'character');
+        const strip = (l: { id: string }[]) => l.filter((p) => p.id !== 'map' && p.id !== 'character' && p.id !== 'comm');
         for (const dock of Object.values(d.layout.docks)) {
           dock.head = strip(dock.head);
           dock.tail = strip(dock.tail);
           for (const l of dock.lanes) l.panes = strip(l.panes) as typeof l.panes;
           dock.lanes = dock.lanes.filter((l) => l.panes.length > 0);
         }
-        d.layout.docks.right!.lanes = [{ size: lane, panes: [{ id: 'map', desired: 49 }] }, ...d.layout.docks.right!.lanes];
-        d.layout.floating = [...d.layout.floating.filter((f) => f.id !== 'character' && f.id !== 'map'), { id: 'character', ...card }];
+        d.layout.docks.right!.lanes = [{ size: lane, panes: [{ id: 'map', desired: 18 }, { id: 'comm', desired: comm }] }, ...d.layout.docks.right!.lanes];
+        d.layout.floating = [...d.layout.floating.filter((f) => f.id !== 'character' && f.id !== 'map' && f.id !== 'comm'), { id: 'character', ...card }];
       });
+      if (url) await (await (window as unknown as CardWindow).__wc!.runs()).restore(await (await fetch(url)).blob());
     },
-    { card: CARD_FLOAT, lane: DOCK_LANE },
+    { card: CARD_FLOAT, lane: DOCK_LANE, comm: COMM_ROWS, url: chain ? CHAIN_URL : null },
   );
   // the settings are written to IndexedDB after a short debounce
   await sleep(600);
