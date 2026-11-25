@@ -86,6 +86,18 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Loose ends
 
+- **Verify when grouped with a troll** (stage 77 H9 step 5, parked by the
+  owner 2026-11-25): a troll member's row in Group shows HP and moves
+  only, no mana bar (`noMana`, ADR 0166 point 198; built from the run
+  exports' four troll allies, never seen live). A run from History with a
+  troll in the group is enough to check it: no play needed. Also NPCs
+  without mana (point 229). Remind the owner at the next Group or
+  Character session.
+- **Flaky unit tests** (2026-11-25): `info-poll.test.ts` (the owner's
+  live session after F1b, 2–3 tests) and `watch-page.test.ts` (paused
+  start) fail in nearly every full unit run under load, pass alone. Make
+  them robust (fake timers / no wall-clock budget).
+
 Collected 2026-11-17 from stage files and the session log; small things
 with no stage of their own. Remove a line when it is done.
 
@@ -200,8 +212,7 @@ with no stage of their own. Remove a line when it is done.
 - **Tested:** full e2e at 5 workers 2129 passed, 5 failed, all pass alone.
   Open: `info-poll.test.ts` (2–3 tests) and `watch-page.test.ts` now fail
   in every full unit run under load, pass alone: worth making robust.
-- **Next:** the Group troll row (H9 step 5) when grouped with one;
-  then close part H.
+- **Next:** close part H (the Group troll row parked under Loose ends).
 
 ### 2026-11-25 — Stage 77 H9
 
