@@ -1767,3 +1767,16 @@ card's wound stone stayed whatever the player waited or typed.
      `wounds`, capitalised: "A deep wound at the left hand (clean)"). A
      flag stone's text is part of the stone list's key and the card's
      slot key, so a changed line redraws the tooltip.
+
+## Addendum 37 (2026-11-25): the poll clears a flag once it has listed it
+
+236. **The poll learns that `%f` lists the flag forms.** The owner: `%f`
+     should list wounds as `stat` does; not measured. A poll that did not
+     would clear a real wound at every answer, and MUME would not set it
+     again (no new `wound: true` while the wound lasts). So `GameState`
+     lets a poll's list clear your `wound` only once a poll answer of the
+     same connection has listed a `… wound at …` line, and your `poison`
+     only once one has listed a `poison …` line (`noteSelfList`'s `clear`).
+     A poll's wound lines are always taken for the tooltip. A new
+     connection (`resetCharacter`) forgets it. Replaces point 233's "the
+     poll never clears"; the typed `stat` / `info` clears as before.

@@ -122,16 +122,33 @@ describe('GameState: the list clears a stale own flag', () => {
     expect(t.game.group.selfFlags).toMatchObject({ hungry: true, blind: true, snared: true });
   });
 
-  it("the poll's %f never clears (not measured that it lists the flag forms)", () => {
+  it("the poll's %f clears a flag only once a poll answer has listed its form (addendum 37)", () => {
     const t = setup();
     t.gmcp('Group.Update', { id: 1, wound: true, poison: true });
+    // No poll has listed a wound or a poison line yet: an answer without them clears nothing.
     t.game.applyPoll(pollAnswer(['comfortable']), null);
     expect(t.game.group.selfFlags).toMatchObject({ wound: true, poison: true });
     t.game.applyPoll(pollAnswer([]), null);
     expect(t.game.group.selfFlags).toMatchObject({ wound: true, poison: true });
-    // Its wound lines are not taken either.
+    // A poll lists the wound: its lines are taken, and from now on the poll may clear the wound.
     t.game.applyPoll(pollAnswer(['a deep wound at the left hand (clean)']), null);
-    expect(t.game.group.selfWounds).toEqual([]);
+    expect(t.game.group.selfWounds).toEqual(['a deep wound at the left hand (clean)']);
+    t.game.applyPoll(pollAnswer(['comfortable']), null);
+    expect(t.game.group.selfFlags).toMatchObject({ wound: false, poison: true });
+    // Poison the same, once a poll has listed it.
+    t.game.applyPoll(pollAnswer(['poison (type: poison)']), null);
+    t.game.applyPoll(pollAnswer([]), null);
+    expect(t.game.group.selfFlags).toMatchObject({ poison: false });
+  });
+
+  it('a new connection forgets what the poll has listed', () => {
+    const t = setup();
+    t.gmcp('Group.Update', { id: 1, wound: true });
+    t.game.applyPoll(pollAnswer(['a deep wound at the left hand (clean)']), null);
+    t.game.resetCharacter();
+    t.gmcp('Group.Set', [{ ...SELF, wound: true }]);
+    t.game.applyPoll(pollAnswer([]), null);
+    expect(t.game.group.selfFlags).toMatchObject({ wound: true });
   });
 });
 

@@ -40,8 +40,8 @@
 //                     addendum 36): the player's own `stat` / `info` list
 //                     clears a stale own `wound` / `poison` flag; then a
 //                     `group` change as for a Group.* message. The poll's
-//                     `%f` does not: that it lists the flag forms is not
-//                     measured
+//                     `%f` clears a flag only once a poll answer has
+//                     listed its form (addendum 37)
 //
 // Listeners (`subscribe`) are told which part changed; panes mark
 // themselves dirty and render in the next frame.
@@ -107,6 +107,9 @@ export class GameState {
   private readonly typed: TypedInfoReader;
   /** The connection is a replay: what it shows is not remembered. */
   private replay = false;
+  /** A poll answer has listed a wound / a poison line (this connection): the poll may clear that flag. */
+  private pollListsWound = false;
+  private pollListsPoison = false;
   private readonly now: () => number;
   private readonly storage: Storage | null;
   private readonly listeners = new Set<(part: GamePart) => void>();
@@ -129,11 +132,17 @@ export class GameState {
     this.timers = new TimersHub({ ...opts.timers, now: this.now });
     this.timers.subscribe(() => this.emit('timers'));
     this.timers.onFlagList((l) => {
-      // The poll's `%f`: not measured that it lists `… wound at …` and
-      // `poison …` as `stat` does; a poll that does not would clear a
-      // real wound each time it answers (ADR 0166 addendum 36).
-      if (l.poll) return;
-      if (this.group.noteSelfList(l)) {
+      // The poll's `%f` (ADR 0166 addendum 37): not measured that it lists
+      // `… wound at …` and `poison …` as `stat` does, and a poll that did
+      // not would clear a real wound each time it answers. So the poll may
+      // clear a flag only once a poll answer has itself listed that form
+      // (this connection); the player's own `stat` / `info` always may.
+      if (l.poll) {
+        if (l.wounds.length > 0) this.pollListsWound = true;
+        if (l.poison) this.pollListsPoison = true;
+      }
+      const clear = l.poll ? { wound: this.pollListsWound, poison: this.pollListsPoison } : undefined;
+      if (this.group.noteSelfList(l, clear)) {
         this.noteGroup();
         this.emit('group');
       }
@@ -232,6 +241,7 @@ export class GameState {
   resetCharacter(): void {
     this.char.reset();
     this.group.reset();
+    this.pollListsWound = this.pollListsPoison = false;
     const infoGone = this.info.reset();
     this.sex = this.sexOf = null;
     this.noteGroup();

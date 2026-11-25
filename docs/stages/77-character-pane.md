@@ -2475,11 +2475,18 @@ died, and `stat` afterwards listed only `comfortable`; MUME never sent
 stayed. Fixed (ADR 0166 addendum 36): your own typed `stat` or `info`
 list without a `… wound at …` line turns the wound flag off, and one
 without a `poison …` line the poison flag; it never turns one on. The
-hidden poll's `%f` does not clear (not measured that it lists wounds).
-The wound stone's tooltip lists the wound lines of the latest `stat`.
+wound stone's tooltip lists the wound lines of the latest list.
+The owner: `%f` should list wounds. Not measured, so the poll clears a
+flag only once a poll answer of the same connection has itself listed
+that form (a wound line, a poison line); until then only the typed
+`stat` / `info` clears (ADR 0166 addendum 37).
 
 Test:
 1. Get wounded (a fight that leaves "a … wound at …" in `stat`); hover the
    card's wound stone: the tooltip lists the wound as `stat` shows it.
 2. When `stat` no longer lists a wound (healed, or after a death), type
    `stat`: the wound stone goes at once.
+3. With Character open, get wounded and wait a poll (10 s): the tooltip
+   shows the wound from the poll too. When the wound heals, the stone goes
+   within a poll without typing `stat`. If it does not, `%f` does not list
+   wounds after all: say so.

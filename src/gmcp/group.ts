@@ -314,21 +314,28 @@ export class GroupModel {
    * `… wound at …` lines, `poison` whether it has a `poison …` line.
    * Clears your `wound` / `poison` flag the list does not show; keeps the
    * wound lines while the flag is on. Never sets a flag. True on a change
-   * (the version is bumped).
+   * (the version is bumped). `clear` says which flags this list may clear
+   * (none given: both); a list that may not clear a flag still updates the
+   * wound lines it shows.
    */
-  noteSelfList(l: { wounds: readonly string[]; poison: boolean }): boolean {
+  noteSelfList(
+    l: { wounds: readonly string[]; poison: boolean },
+    clear: { wound: boolean; poison: boolean } = { wound: true, poison: true },
+  ): boolean {
     let changed = false;
     if (this.self.wound) {
       if (l.wounds.length === 0) {
-        this.self.wound = false;
-        this.wounds = [];
-        changed = true;
+        if (clear.wound) {
+          this.self.wound = false;
+          this.wounds = [];
+          changed = true;
+        }
       } else if (l.wounds.join('\n') !== this.wounds.join('\n')) {
         this.wounds = [...l.wounds];
         changed = true;
       }
     }
-    if (this.self.poison && !l.poison) {
+    if (this.self.poison && !l.poison && clear.poison) {
       this.self.poison = false;
       changed = true;
     }
