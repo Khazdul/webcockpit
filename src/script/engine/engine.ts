@@ -25,7 +25,7 @@
 // runaway #N repeats.
 
 import type { Bus } from '../../core/bus';
-import { type BusEvents, type Line, type StyleRun, nowUs } from '../../core/types';
+import { type BusEvents, type Line, type StyleRun, isPrivateGmcp, nowUs } from '../../core/types';
 import { type CommandEntry, resolveCommand, scriptCommandArgs } from '../commands';
 import { checkBraces, parseProfile } from '../doc';
 import { parseColored } from './color';
@@ -286,6 +286,8 @@ export class ScriptEngine {
 
   private onGmcp(m: BusEvents['gmcp.raw']): void {
     if (!this.system.hasEvents && !this.userStore.hasEvents && !this.eventTap) return;
+    // WebCockpit's own records in a replayed log are not MUME's GMCP (ADR 0166 addendum 41).
+    if (isPrivateGmcp(m.pkg.toLowerCase())) return;
     const args = [m.pkg, m.json];
     this.fireEvent('IAC SB GMCP ' + m.pkg, args);
     this.fireEvent('IAC SB GMCP', args);

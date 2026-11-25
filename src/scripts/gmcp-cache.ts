@@ -18,13 +18,17 @@
 //   `Comm.Channel.Text`, `Event.*`, `Core.*`), so merging would mix
 //   different members, rooms or messages.
 // - The cache is cleared when a new connection starts (`connecting`).
+// - WebCockpit's own packages (`WebCockpit.*`, `isPrivateGmcp`: a replayed
+//   log's timers state or shields, ADR 0166 addendum 41) are not GMCP from
+//   MUME: `attach` hands them to `before` and keeps them out of the cache,
+//   so no script sees them.
 // - `attach(bus, before)`: `before` gets each bus message before the cache
 //   stores it and tells its listeners. App and the host pass the game
 //   state's `take`, so `state.char` and `state.group` are current when a
 //   script's GMCP handler runs, whatever the bus order (ADR 0090 §3).
 
 import type { Bus } from '../core/bus';
-import type { BusEvents } from '../core/types';
+import { type BusEvents, gmcpKey, isPrivateGmcp } from '../core/types';
 
 /** Lower-case names of the messages that merge into their last value. */
 export const MERGED_GMCP: ReadonlySet<string> = new Set(['char.vitals', 'char.statusvars']);
@@ -88,6 +92,7 @@ export class GmcpCache {
     });
     const b = bus.on('gmcp', (m) => {
       before?.(m);
+      if (isPrivateGmcp(gmcpKey(m))) return;
       this.apply(m.pkg, m.data);
     });
     return () => {

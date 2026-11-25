@@ -102,6 +102,7 @@ import { Bus } from '../core/bus';
 import { type BusEvents, type Socketish, gmcpKey } from '../core/types';
 import type { FetchLike } from '../net/link-probe';
 import { ReplaySocket } from '../net/replay-socket';
+import { shieldsOf } from '../gmcp/info-model';
 import { REASON_USER_RECONNECT, Session } from '../net/session';
 import { LineAssembler } from '../text/assembler';
 import { InputPane } from '../ui/input-pane';
@@ -471,6 +472,17 @@ export class App {
     // they react to the same message.
     this.game.attach(bus);
     this.runEvents.shareGroup(this.game);
+    // The shields into the run log (ADR 0166 addendum 41): a live answer's
+    // only trace there; the recorder writes them when they change.
+    if (!player) {
+      this.unsubs.push(
+        this.game.subscribe((part) => {
+          if (part !== 'info' || this.session.isReplay) return;
+          const shields = shieldsOf(this.game.info.answer);
+          if (shields) bus.emit('info.shields', shields);
+        }),
+      );
+    }
     this.settings = opts.settings ?? new SettingsStore({ factory: null, storage: null, win: null });
     this.profiles = opts.profiles ?? null;
     // Before the cockpit, so the recorder sees its first `view.size`.

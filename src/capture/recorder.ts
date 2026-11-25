@@ -38,6 +38,11 @@
 //   present pane is written when the run starts (after VIEW / SIZE). A
 //   pane's first record is preceded by the pending VIEW, so its placement
 //   (stored by its first creation) is in the log before it shows.
+// - Shields (ADR 0166 addendum 41): `info.shields` (the App, after a live
+//   poll answer or a read of the player's own `info`) is written as
+//   `ESC GMCP WebCockpit.Shields {"ob":…,"db":…,"pb":…,"abs":…}` when it
+//   differs from the run's last shields record; the latest of the
+//   connection is written when a run starts. Nothing else of the poll.
 //
 // Run events (ADR 0018, stage 6): with `events` (the App's RunEventDeriver)
 // the events of the recorded run are buffered like the lines and written
@@ -63,6 +68,7 @@ import {
   utf8Length,
 } from './format';
 import type { RunMeta } from './store';
+import { SHIELDS_GMCP } from '../gmcp/info-model';
 import type { PaneSnapshot } from '../panes/script-content';
 import { PANE_KEYFRAME_US, type PaneRecordState, encodePaneRecord } from '../panes/script-record';
 import type { RunEvent } from '../runs/events';
@@ -195,6 +201,9 @@ export class Recorder {
   /** Present script panes and their latest content; what this run wrote of each. */
   private readonly panes = new Map<string, PaneSnapshot>();
   private panesWritten = new Map<string, PaneRecordState & { fullUs: number }>();
+  /** The connection's latest shields (JSON) and the run's last shields record. */
+  private shieldsJson = '';
+  private shieldsWritten = '';
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private statusText = '';
@@ -238,7 +247,10 @@ export class Recorder {
         const was = this.state;
         this.state = s.state;
         this.replay = s.replay === true;
-        if (s.state === 'connecting') this.preRun = [];
+        if (s.state === 'connecting') {
+          this.preRun = [];
+          this.shieldsJson = '';
+        }
         if (s.state === 'playing') this.maybeStart();
         else if (was === 'playing') this.stop();
       }),
@@ -271,6 +283,11 @@ export class Recorder {
             this.capture(ts, formatPaneRecord(ts, p.id, 'null'));
           }
         }
+      }),
+      bus.on('info.shields', (v) => {
+        if (this.replay) return;
+        this.shieldsJson = JSON.stringify({ ob: v.ob, db: v.db, pb: v.pb, abs: v.abs });
+        if (this.run) this.writeShields(this.now());
       }),
       bus.on('text.line', (line) => {
         if (this.run) this.capture(line.ts, formatInbound(line.ts, line.raw));
@@ -396,9 +413,11 @@ export class Recorder {
     this.viewWritten = '';
     this.sizeWritten = '';
     this.panesWritten = new Map();
+    this.shieldsWritten = '';
     const t0 = ts || this.now();
     this.writeView(t0);
     for (const [id, snap] of this.panes) this.writePane(t0, id, snap);
+    this.writeShields(t0);
     const startedUs = this.now();
     const runId = makeRunId(character, new Date(startedUs / 1000));
     this.enqueue(() => this.startRun(run, runId, startedUs));
@@ -507,6 +526,13 @@ export class Recorder {
       this.sizeWritten = this.sizeJson;
       this.capture(ts, formatRecord(ts, RECORD.size, this.sizeJson));
     }
+  }
+
+  /** Writes the shields record when the shields differ from the run's last one. */
+  private writeShields(ts: number): void {
+    if (!this.shieldsJson || this.shieldsJson === this.shieldsWritten) return;
+    this.shieldsWritten = this.shieldsJson;
+    this.capture(ts, formatGmcpRecord(ts, SHIELDS_GMCP, this.shieldsJson));
   }
 
   /** Writes a script pane's record (full the first time in the run, then a delta), unless unchanged. */

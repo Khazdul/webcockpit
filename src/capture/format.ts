@@ -21,6 +21,15 @@
 //   ESC GMCP <Package.Name>[ <json>]   an inbound GMCP message as received
 //                                      (JSON text verbatim, CR/LF → space);
 //                                      Core.Ping replies are not recorded.
+//                                      WebCockpit's own packages ride here
+//                                      too: `WebCockpit.Shields {"ob":…,
+//                                      "db":…,"pb":…,"abs":…}`, the four
+//                                      shields when they change (ADR 0166
+//                                      addendum 41), and in an exported
+//                                      replay `WebCockpit.Timers` (ADR
+//                                      0033). A reader that does not know
+//                                      the package ignores it, as any
+//                                      unknown GMCP; scripts never see them
 //   ESC VIEW <json>                    the screen settings (ViewSnapshot:
 //                                      appearance, panes, layout, group,
 //                                      comm) at run start and on change

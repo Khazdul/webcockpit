@@ -134,6 +134,16 @@ export function gmcpKey(m: { pkg: string; key?: string }): string {
   return m.key ?? m.pkg.toLowerCase();
 }
 
+/**
+ * True for WebCockpit's own GMCP packages (`WebCockpit.*`, key in lower
+ * case): records the client writes into a log for a replay (the timers
+ * state at a cut, the shields; ADR 0033, ADR 0166 addendum 41), never sent
+ * by MUME. The scripts' `gmcp` table and GMCP events skip them.
+ */
+export function isPrivateGmcp(key: string): boolean {
+  return key.startsWith('webcockpit.');
+}
+
 /** Current time in µs since the Unix epoch, as an integer. */
 export function nowUs(): number {
   return Math.round((performance.timeOrigin + performance.now()) * 1000);
@@ -254,6 +264,13 @@ export interface BusEvents {
    * went away. The recorder writes it as an `ESC SPANE` record.
    */
   'view.pane': { id: string; snap: PaneSnapshot | null };
+  /**
+   * The four shields of `game.info` (OB, DB, PB, ABS; null: not read) after
+   * a live poll answer or a read of the player's own `info` / `stat`. App
+   * emits it on every info change of a live connection; the recorder writes
+   * a `WebCockpit.Shields` record when one changed (ADR 0166 addendum 41).
+   */
+  'info.shields': { ob: number | null; db: number | null; pb: number | null; abs: number | null };
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,10 @@
 //                     the vitals into `char` (a newer Char.Vitals wins);
 //                     the affects to `timers.reconcileAffects` (stage 77
 //                     H9, ADR 0166 addendum 31)
+//   shields record  → `game.info.applyShields` (ADR 0166 addendum 41): a
+//                     `WebCockpit.Shields` GMCP record of a replayed log
+//                     (the live App writes it when the four shields
+//                     change); ignored on a live connection
 //   sex             → `game.sex` (sex.ts, stage 77 part E2): remembered per
 //                     name (`wc.charSex.v1`, the same storage), loaded at
 //                     Char.Name; set by the poll's probe (`applySex`) and
@@ -62,7 +66,7 @@ import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
 import type { InfoAnswer, PollAnswer } from './info-answer';
-import { InfoModel } from './info-model';
+import { InfoModel, SHIELDS_GMCP_KEY, parseShields } from './info-model';
 import { type InfoRead, TypedInfoReader } from './info-typed';
 import { SEX_LINE_START, type Sex, SexMemory, parseSexLine } from './sex';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
@@ -221,6 +225,10 @@ export class GameState {
         if (p !== 'room.info') this.noteGroup();
         this.emit('group');
       }
+    } else if (p === SHIELDS_GMCP_KEY) {
+      // A log's shields (ADR 0166 addendum 41): in a replay only.
+      const shields = this.replay ? parseShields(data) : null;
+      if (shields && this.info.applyShields(shields)) this.emit('info');
     } else if (p === 'event.sun') {
       const what = (data as { what?: unknown } | undefined)?.what;
       if (this.clock.syncSun(what, this.now())) this.clockSynced();
