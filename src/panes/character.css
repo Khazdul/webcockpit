@@ -38,7 +38,15 @@
   --trk-edge: 0 0 0 1px rgb(0 0 0 / 0.75), inset 0 1px 1px rgb(0 0 0 / 0.5);
   --gloss: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.15));
   --label-px: max(7px, calc(8.3px * var(--k, 1)));
+  /* The tabs' words (round 20 G8): behind, lit on hover, the chosen one the lamp's. */
+  --tab-ink: color-mix(in srgb, var(--dim) 80%, #8a92a3);
+  --tab-hover: color-mix(in srgb, var(--text) 85%, #dfe3ea);
   color: var(--text);
+}
+
+.wc-cc[data-light] {
+  --tab-ink: color-mix(in srgb, var(--dim) 60%, #85775a);
+  --tab-hover: #3b2b10;
 }
 
 .wc-cc [hidden] {
@@ -1325,61 +1333,143 @@
 
 /* ---------------------------------------------------------------- tabs */
 
+/* Round 20 G8, "Järnark, bara skifferkanten" (stage 77 H10, ADR 0166
+ * addendum 32): folder tabs under the hood (on the sheet's right edge in a
+ * low pane), the chosen one cut from the sheet the content lies on (G1's
+ * iron), the others behind it; the edge is G3's: a near-black line on the
+ * outline and one light line 1 px in. The layout places each tab
+ * (`CardLayout.tabs.items`); `folioPaths` draws the sheet. */
 .wc-cc-tabs {
-  contain: strict;
-  display: flex;
-  flex-direction: column;
-  gap: calc(2px * var(--k));
+  contain: layout style;
+  pointer-events: none;
 }
 
 .wc-cc-tab {
+  position: absolute;
+  z-index: 1;
   display: flex;
-  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  min-height: 0;
   overflow: hidden;
-  border-radius: 4px 0 0 4px;
-  background: linear-gradient(90deg, rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.15));
-  box-shadow: inset 1px 0 0 var(--frost-edge);
-  color: var(--dim);
+  pointer-events: auto;
+  color: var(--tab-ink);
   font-size: var(--tab-px);
+  text-shadow: 0 -1px 0 rgb(0 0 0 / 0.7);
+  transition: color 0.15s;
 }
 
-.wc-cc-tabs[data-form="vertical"] .wc-cc-tab {
-  padding: calc(2px * var(--k)) 0;
+.wc-cc-tab[aria-selected="true"] {
+  z-index: 2;
+  color: var(--hot);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 60%, transparent);
 }
 
-.wc-cc-tab-t {
+/* A tab behind is lower than the chosen one: its word in what shows of it. */
+.wc-cc-tabs[data-side="top"] .wc-cc-tab[aria-selected="false"] {
+  padding-top: var(--tab-back);
+}
+
+.wc-cc-tabs[data-side="right"] .wc-cc-tab[aria-selected="false"] {
+  padding-right: var(--tab-back);
+}
+
+.wc-cc-tab-t,
+.wc-cc-tab-n {
   flex: none;
   line-height: 1;
 }
 
-.wc-cc-tabs[data-form="vertical"] .wc-cc-tab-t {
+.wc-cc-tabs[data-side="top"] .wc-cc-tab-t {
+  letter-spacing: 0.14em;
+  margin-right: -0.14em;
+}
+
+.wc-cc-tabs[data-side="right"] .wc-cc-tab-t {
   writing-mode: vertical-rl;
 }
 
-.wc-cc-tabs:not([data-form="vertical"]) .wc-cc-tab {
-  flex-basis: 0;
+/* Too little for words (under 8 px): I, II, III, the word in the tooltip and the name. */
+.wc-cc-tab-n {
+  font-size: var(--tab-num-back);
+  letter-spacing: 0.04em;
 }
 
-/* Too little for words (under 8 px, ADR 0166 point 170): a shield, a die and
-   a scroll; the word in the tooltip and the name. */
-.wc-cc-tabs[data-form="icons"] .wc-cc-tab-t,
-.wc-cc-tabs:not([data-form="icons"]) .wc-cc-tab-i {
+.wc-cc-tab[aria-selected="true"] .wc-cc-tab-n {
+  font-size: var(--tab-num);
+}
+
+.wc-cc-tabs[data-form="numerals"] .wc-cc-tab-t,
+.wc-cc-tabs:not([data-form="numerals"]) .wc-cc-tab-n {
   display: none;
 }
 
-.wc-cc-tab-i {
-  flex: none;
-  width: var(--tab-icon);
-  height: var(--tab-icon);
+/* The sheet: under the area and the tabs, the box of both and the stones' row. */
+.wc-cc-folio {
+  position: absolute;
+  pointer-events: none;
+  /* G1's iron: the pane's own ground a step lighter toward cold steel (any tint), at least
+   * round 20's lightness, so a black pane under the lamp still has a sheet; the tabs behind darker. */
+  --steel: #a0b2cd;
+  --fg-a: oklch(from color-mix(in srgb, var(--window-base, #12161f) 93%, var(--steel)) max(l, 0.245) c h);
+  --fg-b: oklch(from color-mix(in srgb, var(--window-base, #12161f) 95.5%, var(--steel)) max(l, 0.225) c h);
+  --fg-c: oklch(from color-mix(in srgb, var(--window-base, #12161f) 97%, var(--steel)) max(l, 0.205) c h);
+  --fb-a: oklch(from color-mix(in srgb, var(--window-base, #12161f) 97%, #000) max(l, 0.2) c h);
+  --fb-b: oklch(from color-mix(in srgb, var(--window-base, #12161f) 80%, #000) max(l, 0.17) c h);
+  --fo: rgb(10 12 15 / 0.95);
+  --fi: rgb(205 215 228 / 0.16);
+  --fl: rgb(205 215 228 / 0.1);
+  --fshadow: drop-shadow(0 1px 2px rgb(0 0 0 / 0.85));
+  /* G1's grain. */
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-.wc-cc-tab[aria-selected="true"] {
-  background: color-mix(in srgb, var(--lamp) 12%, transparent);
-  box-shadow: inset 2px 0 0 var(--lamp);
-  color: var(--hot);
+.wc-cc-folio > * {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.wc-cc-fb {
+  background: linear-gradient(180deg, var(--fb-a), var(--fb-b));
+}
+
+.wc-cc-fw {
+  filter: var(--fshadow);
+}
+
+.wc-cc-fg {
+  position: absolute;
+  inset: 0;
+  background: var(--noise), linear-gradient(180deg, var(--fg-a), var(--fg-b) 55%, var(--fg-c));
+}
+
+.wc-cc-folio svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke-width: 1;
+}
+
+.wc-cc-fl path {
+  stroke: var(--fl);
+}
+
+.wc-cc-fo {
+  stroke: var(--fo);
+}
+
+.wc-cc-fi {
+  stroke: var(--fi);
+}
+
+/* The area on the sheet: its padding round the content; the stones' row
+ * under the sheet, as wide as it (character-layout.ts `SHEET_PAD`). */
+.wc-cc-main[data-sheet] {
+  padding: var(--sheet-pad);
+}
+
+.wc-cc-main[data-sheet] > .wc-cc-stones {
+  margin: calc(var(--gap-bottom) + var(--sheet-pad)) calc(-1 * var(--sheet-pad)) calc(-1 * var(--sheet-pad));
 }
 
 /* -------------------------------------------------------------- vitals */
@@ -1527,7 +1617,7 @@
   }
 
   .wc-cc-tab[aria-selected="false"]:hover {
-    color: var(--text);
+    color: var(--tab-hover);
   }
 }
 
@@ -1718,13 +1808,27 @@
   color: #8f5e00;
 }
 
+/* G8 on Paper: G1's paper, G3's edge in G1's warm hue (a darker edge, the white line 1 px in). */
 .wc-cc[data-light] .wc-cc-tab {
-  background: linear-gradient(90deg, rgb(60 40 10 / 0.12), rgb(60 40 10 / 0.04));
+  text-shadow: none;
 }
 
 .wc-cc[data-light] .wc-cc-tab[aria-selected="true"] {
-  background: #fffdf8;
-  box-shadow: inset 2px 0 0 var(--iron-lo);
+  color: var(--tab-hover);
+  text-shadow: none;
+}
+
+.wc-cc[data-light] .wc-cc-folio {
+  --fg-a: color-mix(in srgb, var(--window-base, #f1e8d4) 40%, #fff);
+  --fg-b: color-mix(in srgb, var(--window-base, #f1e8d4) 55%, #fff);
+  --fg-c: color-mix(in srgb, var(--window-base, #f1e8d4) 70%, #fff);
+  --fb-a: color-mix(in srgb, var(--window-base, #f1e8d4) 88%, #6b5530);
+  --fb-b: color-mix(in srgb, var(--window-base, #f1e8d4) 80%, #6b5530);
+  --fo: color-mix(in srgb, var(--window-base, #f1e8d4) 48%, #1c1000);
+  --fi: rgb(255 255 255 / 0.8);
+  --fl: color-mix(in srgb, var(--window-base, #f1e8d4) 62%, #1c1000);
+  --fshadow: drop-shadow(0 1px 1.5px rgb(60 40 10 / 0.3));
+  --noise: none;
 }
 
 /* ------------------------------------------------------ the `+n` list */

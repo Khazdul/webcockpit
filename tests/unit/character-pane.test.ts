@@ -261,21 +261,47 @@ describe('clicks', () => {
     for (const b of named) expect(b.type).toBe('button');
   });
 
-  it('the tabs: words where they are 8 px or more, else a shield, a die and a scroll with the word as tooltip (H3)', () => {
+  it('the tabs (round 20 G8): words under the hood; low, on the right edge as I, II, III with the word as tooltip', () => {
     const t = setup();
     const tabs = t.q('.wc-cc-tabs');
-    const tips = (): (string | undefined)[] => [...tabs.querySelectorAll<HTMLElement>('.wc-cc-tab')].map((b) => b.dataset.tip);
-    expect(tabs.dataset.form).toBe('vertical');
+    const buttons = (): HTMLElement[] => [...tabs.querySelectorAll<HTMLElement>('.wc-cc-tab')];
+    const tips = (): (string | undefined)[] => buttons().map((b) => b.dataset.tip);
+    expect(tabs.dataset.side).toBe('top');
+    expect(tabs.getAttribute('aria-orientation')).toBe('horizontal');
+    expect(tabs.dataset.form).toBe('words');
     expect(tips()).toEqual([undefined, undefined, undefined]);
+    // The sheet: drawn under the area, the chosen tab cut from it, the area padded on it.
+    const folio = t.q('.wc-cc-folio');
+    expect(folio.hidden).toBe(false);
+    expect(folio.getAttribute('aria-hidden')).toBe('true');
+    expect(t.q('.wc-cc-main').hasAttribute('data-sheet')).toBe(true);
+    const ground = (): string => t.q('.wc-cc-fg').style.getPropertyValue('clip-path');
+    const first = ground();
+    expect(first).toMatch(/^path\('M/);
+    t.tab('stats');
+    expect(ground()).not.toBe(first);
+    expect(folio.querySelectorAll('.wc-cc-fb:not([hidden])')).toHaveLength(2);
+    t.tab('status');
+    expect(ground()).toBe(first);
     t.show(62, 7);
     t.flush();
-    expect(tabs.dataset.form).toBe('icons');
+    expect(tabs.dataset.side).toBe('right');
+    expect(tabs.getAttribute('aria-orientation')).toBe('vertical');
+    expect(tabs.dataset.form).toBe('numerals');
     expect(tips()).toEqual(['Status', 'Stats', 'Lore']);
-    expect([...tabs.querySelectorAll('.wc-cc-tab')].map((b) => b.getAttribute('aria-label'))).toEqual(['Status', 'Stats', 'Lore']);
-    expect(tabs.querySelectorAll('.wc-cc-tab > svg.wc-cc-tab-i')).toHaveLength(3);
+    expect(buttons().map((b) => b.getAttribute('aria-label'))).toEqual(['Status', 'Stats', 'Lore']);
+    expect(buttons().map((b) => b.querySelector('.wc-cc-tab-n')!.textContent)).toEqual(['I', 'II', 'III']);
+    // H3's icons are gone.
+    expect(tabs.querySelectorAll('svg')).toHaveLength(0);
     t.show();
     t.flush();
     expect(tips()).toEqual([undefined, undefined, undefined]);
+    // Too low for tabs: no sheet.
+    t.show(62, 5);
+    t.flush();
+    expect(tabs.hidden).toBe(true);
+    expect(folio.hidden).toBe(true);
+    expect(t.q('.wc-cc-main').hasAttribute('data-sheet')).toBe(false);
   });
 
   it('tooltips only where part D lists them', () => {

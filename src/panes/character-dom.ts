@@ -8,7 +8,7 @@ import { ABILITIES, AGE_NAMES } from '../gmcp/age';
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import { countdownText } from '../timers/entry';
 import { heatColor } from './character-heat';
-import type { CardLayout, Rect } from './character-layout';
+import { type CardLayout, type Rect, TAB_BACK, folioPaths } from './character-layout';
 import {
   CARD_TABS,
   CARD_TOGGLES,
@@ -796,6 +796,47 @@ function vitalsEl(doc: Document) {
   return { box, bars, setWimpy, setHpTip, setMana };
 }
 
+// --------------------------------------------------------------- the sheet
+
+/**
+ * The sheet the chosen tab is cut from (round 20 G8, ADR 0166 addendum 32),
+ * drawn under the area and the tabs: the tabs behind (their ground and a
+ * faint edge), the sheet's ground (clipped to its outline, a shadow under
+ * it), then its dark edge and the light line 1 px in. No content: the area
+ * and the tab buttons lie over it.
+ */
+function folioEl(doc: Document): { box: HTMLDivElement; draw(p: { ground: string; edge: string; back: string[] }): void } {
+  const box = el(doc, 'div', 'wc-cc-folio');
+  box.setAttribute('aria-hidden', 'true');
+  const backs = [0, 1, 2].map(() => el(doc, 'div', 'wc-cc-fb'));
+  const backLines = svgEl(doc, 'svg', { class: 'wc-cc-fl' });
+  const backPaths = [0, 1, 2].map(() => svgEl(doc, 'path', {}));
+  backLines.append(...backPaths);
+  const shadow = el(doc, 'div', 'wc-cc-fw');
+  const ground = el(doc, 'div', 'wc-cc-fg');
+  shadow.append(ground);
+  const lines = svgEl(doc, 'svg', { class: 'wc-cc-fe' });
+  const outer = svgEl(doc, 'path', { class: 'wc-cc-fo' });
+  const inner = svgEl(doc, 'path', { class: 'wc-cc-fi' });
+  lines.append(outer, inner);
+  box.append(...backs, backLines, shadow, lines);
+  const clip = (d: string): string => (d ? `path('${d}')` : '');
+  return {
+    box,
+    draw(p) {
+      backs.forEach((b, i) => {
+        const d = p.back[i] ?? '';
+        setHidden(b, d === '');
+        setProp(b, 'clip-path', clip(d));
+        setAttr(backPaths[i]!, 'd', d || 'M0 0');
+      });
+      setProp(ground, 'clip-path', clip(p.ground));
+      setAttr(outer, 'd', p.ground);
+      setAttr(inner, 'd', p.edge);
+    },
+  };
+}
+
 // ---------------------------------------------------------------------- card
 
 export interface CardHandlers {
@@ -825,7 +866,9 @@ export class CardDom {
   private readonly age: HTMLDivElement;
   private readonly tabs: HTMLDivElement;
   private readonly tabEls: { id: CardTab; b: HTMLButtonElement; name: string }[];
+  private readonly folio: ReturnType<typeof folioEl>;
   private tab: CardTab | null = null;
+  private layout: CardLayout | null = null;
   private stoneRows = 0;
   private line2 = false;
   /** Stats has no room for the stones' row (`fitStats`). */
@@ -881,21 +924,21 @@ export class CardDom {
     });
     this.tabs = el(doc, 'div', 'wc-cc-tabs');
     this.tabs.setAttribute('role', 'tablist');
-    this.tabs.setAttribute('aria-orientation', 'vertical');
-    this.tabEls = CARD_TABS.map(({ id, label, icon }) => {
+    this.tabEls = CARD_TABS.map(({ id, label, numeral }) => {
       const b = button(doc, 'wc-cc-tab');
       b.dataset.tab = id;
       b.setAttribute('role', 'tab');
       const name = label.charAt(0) + label.slice(1).toLowerCase();
       b.setAttribute('aria-label', name);
-      // The word, or the icon where it would be too small (CSS by the layout's form, point 170).
-      b.append(el(doc, 'span', 'wc-cc-tab-t', label), iconSvg(doc, icon, 'wc-cc-i wc-cc-tab-i'));
+      // The word, or I, II, III where it would be too small (CSS by the layout's `words`, ADR 0166 addendum 32).
+      b.append(el(doc, 'span', 'wc-cc-tab-t', label), el(doc, 'span', 'wc-cc-tab-n', numeral));
       b.addEventListener('click', () => on.tab(id));
       this.tabs.append(b);
       return { id, b, name };
     });
+    this.folio = folioEl(doc);
     this.vitals = vitalsEl(doc);
-    this.root.append(this.left.box, this.main, this.tabs, this.vitals.box);
+    this.root.append(this.left.box, this.folio.box, this.main, this.tabs, this.vitals.box);
     this.scroll.addEventListener('scroll', this.markMore, { passive: true });
   }
 
@@ -917,11 +960,28 @@ export class CardDom {
     if (tab === this.tab) return;
     this.tab = tab;
     this.scroll.scrollTop = 0;
+    this.drawFolio();
+  }
+
+  /**
+   * The sheet and its tabs (round 20 G8): the chosen tab cut from the
+   * sheet, which ends above the stones' row where it shows. Only on a
+   * change of the layout, the tab or the row (`folioPaths` is pure).
+   */
+  private drawFolio(): void {
+    const l = this.layout;
+    const chosen = Math.max(0, CARD_TABS.findIndex((t) => t.id === (this.tab ?? 'status')));
+    const on = l !== null && l.sheet.on && l.tabs.on && !this.main.hidden;
+    setHidden(this.folio.box, !on);
+    if (!on) return;
+    this.folio.draw(folioPaths(l, chosen, !this.stones.box.hidden));
   }
 
   /** The stones show on Status and Stats, in the rows the layout gives (ADR 0166 point 122), on Stats where it has room (point 168). */
   private showStones(tab: CardTab | null): void {
+    const was = this.stones.box.hidden;
     setHidden(this.stones.box, tab === 'lore' || tab === null || (this.stoneRows === 0 && !this.line2) || (tab === 'stats' && this.statsOff));
+    if (this.stones.box.hidden !== was) this.drawFolio();
   }
 
   /**
@@ -962,6 +1022,11 @@ export class CardDom {
     place(this.left.box, left);
     place(this.main, l.main);
     place(this.tabs, l.tabs);
+    place(this.folio.box, l.sheet.box);
+    l.tabs.items.forEach((r, i) => {
+      const b = this.tabEls[i]!.b;
+      place(b, r);
+    });
     place(this.vitals.box, l.foot);
     setHidden(this.left.box, left.form === 'none');
     setHidden(this.main, l.main.w < 8 || l.main.h < 6);
@@ -977,9 +1042,12 @@ export class CardDom {
     // The image inside the iron is what is baked.
     this.left.setDisc(left.disc > 0 ? Math.max(0, left.disc - 2 * left.frame) : 0);
     setAttr(this.left.box, 'data-form', left.form);
-    setAttr(this.tabs, 'data-form', l.tabs.form);
-    // The icons' word in the tooltip; the words need none.
-    for (const t of this.tabEls) setTip(t.b, l.tabs.form === 'icons' ? t.name : null);
+    setAttr(this.tabs, 'data-side', l.tabs.side);
+    setAttr(this.tabs, 'aria-orientation', l.tabs.side === 'top' ? 'horizontal' : 'vertical');
+    setAttr(this.tabs, 'data-form', l.tabs.words ? 'words' : 'numerals');
+    setAttr(this.main, 'data-sheet', l.sheet.on ? '' : null);
+    // The numerals' word in the tooltip; the words need none.
+    for (const t of this.tabEls) setTip(t.b, l.tabs.words ? null : t.name);
     const sb = this.status.box;
     setAttr(sb, 'data-form', status.form);
     setAttr(sb, 'data-cols', String(status.cols));
@@ -1023,7 +1091,10 @@ export class CardDom {
       '--ico': px(left.icon),
       '--ico-gap': px(left.iconGap),
       '--tab-px': px(l.tabs.px),
-      '--tab-icon': px(l.tabs.icon),
+      '--tab-num': px(l.tabs.num),
+      '--tab-num-back': px(l.tabs.numBack),
+      '--tab-back': px(Math.round(l.tabs.depth * (1 - TAB_BACK) * 10) / 10),
+      '--sheet-pad': px(l.sheet.pad),
       '--st-cols': String(status.cols),
       '--st-label': px(status.labelPx),
       '--st-value': px(status.valuePx),
@@ -1065,6 +1136,8 @@ export class CardDom {
       '--vk-px': px(l.foot.labelPx),
     };
     for (const [key, v] of Object.entries(vars)) setProp(root, key, v);
+    this.layout = l;
+    this.drawFolio();
   }
 
   setTheme(ramp: Readonly<Record<string, string>>, light: boolean, adv: number, signals: { low: string; critical: string }): void {
