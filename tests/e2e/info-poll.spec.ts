@@ -1,7 +1,7 @@
 // The hidden info poll (stage 77 part C, ADR 0166) against the login mock:
 // nothing reaches MUME. Uses the dev-only `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
-import { GA, XML_PROMPT, answerPulse, pollNonce, wire } from '../fixtures/info-poll-answer';
+import { ANSWER_FIELDS, FIGHT_VITALS, GA, XML_PROMPT, answerPulse, pollNonce, wire } from '../fixtures/info-poll-answer';
 import { type LoginMock, loginMock } from './mume-login-mock';
 
 const PROMPT = XML_PROMPT + GA;
@@ -165,4 +165,40 @@ test("a typed stat updates the card's shields and shows; a wear line polls", asy
   // MUME's own line for a wear: a poll once the quiet after the command is over.
   play(m, `You wear a black pair of padded boots on your feet.\r\n\r\n${PROMPT}`);
   await expect.poll(() => polls(m).length, { timeout: 15_000 }).toBe(2);
+});
+
+test('in a fight (stage 77 H11): a mood change polls; OB and PB change; xxx leaves the HP bar to GMCP; no trace', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const m = await login(page);
+  await expect.poll(() => polls(m).length, { timeout: 10_000 }).toBe(1);
+  play(m, answerPulse(pollNonce(polls(m)[0]!)!));
+  await expectWimpy(page, 120);
+  const card = page.locator('.wc-pane-character .wc-cc');
+  const shield = (key: string) => card.locator(`.wc-cc-shield[data-key="${key}"] .wc-cc-sv`);
+  const hp = card.locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn');
+  await expect(shield('ob')).toHaveText('81');
+  const FP = `<prompt>o HP:Hurt a grizzled orc:Wounded&gt;</prompt>${GA}`;
+  play(m, gmcp('Char.Vitals', { hp: 200, maxhp: 375, mood: 'wimpy', position: 'fighting', opponent: 'a grizzled orc' }), `\r\nYou slash a grizzled orc.\r\n\r\n${FP}`);
+  await expect(hp).toHaveText('200');
+  await field(page).focus();
+  await page.keyboard.type('cha mood aggr');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => m.sent[0]).toContain('cha mood aggr');
+  play(m, `Ok.\r\n\r\n`, gmcp('Char.Vitals', { mood: 'aggressive' }), FP);
+  await expect.poll(() => polls(m).length, { timeout: 5_000 }).toBe(2);
+  const moved = ANSWER_FIELDS.map((f, i) => (i === 1 ? '95' : i === 3 ? '60' : f));
+  play(
+    m,
+    `\r\nDig hits a grizzled orc's body extremely hard.\r\n\r\n${FP}`,
+    answerPulse(pollNonce(polls(m)[1]!)!, { queued: true, fields: moved, vitals: FIGHT_VITALS }).replace(PROMPT, FP),
+  );
+  await expect(shield('ob')).toHaveText('95');
+  await expect(shield('pb')).toHaveText('60');
+  await expect(hp).toHaveText('200');
+  await expect(rows(page).filter({ hasText: "Dig hits a grizzled orc's body extremely hard." })).toHaveCount(1);
+  await expect(output(page)).not.toContainText('xxx');
+  await expect(output(page)).not.toContainText('WC');
+  // The bar still follows GMCP in the fight.
+  play(m, gmcp('Char.Vitals', { hp: 150 }), `\r\nA grizzled orc hits you.\r\n\r\n${FP}`);
+  await expect(hp).toHaveText('150');
 });
