@@ -1,7 +1,9 @@
 # Character card: every hover text, with a proposal
 
-Research note, 2026-11-25, for the owner's review. Nothing has been
-changed yet.
+Research note, 2026-11-25, for the owner's review.
+
+**Decided 2026-11-25: all ok but T31 (kept as it is).** Built in ADR 0166
+addendum 40.
 
 **The principle** (the owner, 2026-11-25): "I don't want so much
 irrelevant information when hovering. That it is a malus you understand

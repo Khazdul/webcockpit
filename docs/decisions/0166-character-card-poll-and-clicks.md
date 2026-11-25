@@ -1825,3 +1825,21 @@ card's wound stone stayed whatever the player waited or typed.
 242. **The bars' track has no fibres.** The round 12 parchment's 1 px
      stripes every 5 px (`--trk-bg`) read as bars behind the bars, most on
      Paper; the tint alone stays, on both themes.
+
+## Addendum 40 (2026-11-25): the tooltips, the owner's review
+
+243. **The tooltips per `notes/research/character-tooltips.md`, T1–T47 but
+     T31**, the owner's word ("Allt ok utom T31"). T31, the herblore `+`,
+     keeps `Herblores` / `Click: start a herblore.`. Replaces point 241's
+     "the time, the flag's effect, the × hint and Ending soon stay".
+244. **Implementation choices.** A one-line tooltip is the body with no
+     title (`tipOf` in `character-model.ts`: a title with no lines becomes
+     the body). The status cells and the position now have a tooltip also
+     without a click (a replay, the log player, berserk, an unknown value,
+     a fight, stunned): the whole word alone. A pending click (T5) shows
+     the bold title alone (the body set equal to it, which the tooltip
+     leaves out). An unknown weight still has no tooltip. A stat's
+     `Unaffected 16` needs a delta other than 0 and a known unaffected
+     value. `LOAD_SENTENCES` went (nothing else read it); `STONE_FLAG_TEXT`
+     became `STONE_FLAG_LABEL`, the names alone; `ShieldView` and
+     `AbilityView` lost their `title`.

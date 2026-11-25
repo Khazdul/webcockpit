@@ -2522,3 +2522,18 @@ wound lists its wounds only. The owner wants a review of every tooltip in
 the card with proposed changes (to come).
 The stripes behind the bars (most on Paper): the track's fibres removed
 (point 242).
+
+### The tooltips (the owner, 2026-11-25)
+
+The review of every hover text (`notes/research/character-tooltips.md`):
+"Allt ok utom T31". Built as proposed, T31 (the herblore `+`) kept as it
+was (ADR 0166 addendum 40, points 243–244). Test guide:
+1. Hover the status cells, the five icons, the shields, the HP bar and a
+   stone: a title and the one fact the card does not show (`Mood: brave` /
+   `Click: aggressive`, `Sneak`, `Offensive bonus`, `HP 187 / 270 · 69 %` /
+   `Wimpy 50`, `Bless` / `1:23 left`), no explanations.
+2. Open a replay (or fight, or go berserk): the cells and the position
+   icon still name their whole word on hover (`Mood: berserk`, `Fighting`).
+3. Narrow the card until the purse loses a coin and the stones get a `+n`:
+   the purse's tooltip gives the whole purse, the `+n`'s lists the hidden
+   stones only; with all three coins shown the purse has none.
