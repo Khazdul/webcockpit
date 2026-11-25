@@ -267,7 +267,7 @@ test("a plain info the player types tells the sex", async ({ page }) => {
 test('a fight: only the swords; the tab, the bars and the boxes stay (round 12 decision 8)', async ({ page }) => {
   const game = await play(page);
   await tab(page, 'lore').click();
-  await expect(selected(page)).toHaveText('LORE');
+  await expect(selected(page).locator('.wc-cc-tab-t')).toHaveText('LORE');
   const left = await card(page).locator('.wc-cc-left').boundingBox();
   const bar = card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-trk');
   const before = (await bar.boundingBox())!;
@@ -278,7 +278,7 @@ test('a fight: only the swords; the tab, the bars and the boxes stay (round 12 d
   await expect(position).toHaveAttribute('aria-label', 'Fighting');
   // The red swords, nothing else.
   expect(await position.evaluate((b) => getComputedStyle(b).color)).toMatch(/^rgb\((2[0-9]{2}), /);
-  await expect(selected(page)).toHaveText('LORE');
+  await expect(selected(page).locator('.wc-cc-tab-t')).toHaveText('LORE');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-span')).toBeVisible();
   await expect(card(page)).not.toContainText(/hurt/i);
@@ -286,10 +286,10 @@ test('a fight: only the swords; the tab, the bars and the boxes stay (round 12 d
   expect(await card(page).locator('.wc-cc-left').boundingBox()).toEqual(left);
   expect(await card(page).locator('.wc-cc-tab[aria-selected="false"]').first().evaluate((b) => getComputedStyle(b).opacity)).toBe('1');
   await tab(page, 'stats').click();
-  await expect(selected(page)).toHaveText('STATS');
+  await expect(selected(page).locator('.wc-cc-tab-t')).toHaveText('STATS');
   game.play(gmcp('Char.Vitals', { opponent: null, hp: 150 }));
   await expect(position).not.toHaveAttribute('data-fight', '');
-  await expect(selected(page)).toHaveText('STATS');
+  await expect(selected(page).locator('.wc-cc-tab-t')).toHaveText('STATS');
   await expect(card(page).locator('.wc-cc-vital[data-kind="hp"] .wc-cc-vn')).toHaveText('150');
 });
 
@@ -339,7 +339,8 @@ test('Status: the cells, the shields `⋯` until the poll answers, the purse in 
   const row = (await card(page).locator('.wc-cc-stones').boundingBox())!;
   const p = (await purse.boundingBox())!;
   expect(Math.abs(p.x + p.width - (row.x + row.width))).toBeLessThan(1);
-  // Stats: the same stones, never the purse.
+  // Stats: the same stones, never the purse (from 62 × 12 at this font: the sheet and the strip of H10 take 25 px).
+  await place(page, 62, 12);
   await tab(page, 'stats').click();
   await expect(card(page).locator('.wc-cc-stones')).toBeVisible();
   await expect(purse).toBeHidden();
@@ -419,17 +420,18 @@ test('H2: heat, the cells coloured by step on the Lykta and on Paper, in every f
   }
 });
 
-test('H: the tabs’ icons in a low pane, the short forms, and Stats’ stones only where Stats fits (ADR 0166 points 168–171)', async ({ page }) => {
+test('H: the tabs’ numerals in a low pane (H10), the short forms, and Stats’ stones only where Stats fits (ADR 0166 points 168–171)', async ({ page }) => {
   const game = await play(page, { rows: 7, fetchInfo: true });
   await buffs(page, 3);
   const tabs = card(page).locator('.wc-cc-tabs');
   const stones = card(page).locator('.wc-cc-stones');
-  // H3: under 8 px the words go, the icons come; the word is the tooltip and the name.
-  await expect(tabs).toHaveAttribute('data-form', 'icons');
-  for (const [id, name] of [['status', 'Status'], ['stats', 'Stats'], ['lore', 'Lore']] as const) {
+  // H10 (round 20 G8): low, the tabs on the sheet's right edge; under 8 px the words go, I, II, III come; the word is the tooltip and the name.
+  await expect(tabs).toHaveAttribute('data-side', 'right');
+  await expect(tabs).toHaveAttribute('data-form', 'numerals');
+  for (const [id, name, n] of [['status', 'Status', 'I'], ['stats', 'Stats', 'II'], ['lore', 'Lore', 'III']] as const) {
     await expect(tab(page, id)).toHaveAttribute('data-tip', name);
     await expect(tab(page, id)).toHaveAccessibleName(name);
-    await expect(tab(page, id).locator('svg.wc-cc-tab-i')).toBeVisible();
+    await expect(tab(page, id).locator('.wc-cc-tab-n')).toHaveText(n);
     await expect(tab(page, id).locator('.wc-cc-tab-t')).toBeHidden();
   }
   // H4: the hand-made short forms, never `…`.
@@ -456,8 +458,61 @@ test('H: the tabs’ icons in a low pane, the short forms, and Stats’ stones o
   await tab(page, 'stats').click();
   await expect(stones).toBeVisible();
   await expect(card(page).locator('.wc-cc-main')).not.toHaveAttribute('data-stats-stones', 'off');
-  await expect(tabs).toHaveAttribute('data-form', 'vertical');
+  await expect(tabs).toHaveAttribute('data-form', 'words');
+  await expect(tabs).toHaveAttribute('data-side', 'top');
   await expect(tab(page, 'stats')).not.toHaveAttribute('data-tip', /./);
+});
+
+test('H10: the folder tabs of round 20 G8: one sheet with the chosen tab, the others behind, the stones under it; keys and Paper', async ({ page }) => {
+  await play(page, { rows: 11 });
+  await buffs(page, 3);
+  const tabs = card(page).locator('.wc-cc-tabs');
+  const folio = card(page).locator('.wc-cc-folio');
+  await expect(tabs).toHaveAttribute('data-side', 'top');
+  await expect(tabs).toHaveAttribute('data-form', 'words');
+  await expect(tabs).toHaveAttribute('aria-orientation', 'horizontal');
+  await expect(folio).toBeVisible();
+  // The words in Cinzel, at least 8 px; the chosen one lit.
+  const font = await tab(page, 'status').locator('.wc-cc-tab-t').evaluate((e) => ({ family: getComputedStyle(e).fontFamily, px: parseFloat(getComputedStyle(e).fontSize) }));
+  expect(font.family).toMatch(/Cinzel/);
+  expect(font.px).toBeGreaterThanOrEqual(8);
+  // The strip under the hood: the three tabs side by side over the sheet, each over the next a little.
+  const bs = await Promise.all(['status', 'stats', 'lore'].map(async (id) => (await tab(page, id).boundingBox())!));
+  const main = (await card(page).locator('.wc-cc-main').boundingBox())!;
+  for (const b of bs) expect(b.y + b.height).toBeCloseTo(main.y, 0);
+  expect(bs[1]!.x).toBeLessThan(bs[0]!.x + bs[0]!.width);
+  // The sheet's ground: one outline with the chosen tab; a change of tab redraws it, the boxes stay.
+  const ground = () => card(page).locator('.wc-cc-fg').evaluate((e) => getComputedStyle(e).clipPath);
+  const atStatus = await ground();
+  expect(atStatus).toMatch(/^path\(/);
+  // The stones' row is outside the sheet: below its foot.
+  const stones = (await card(page).locator('.wc-cc-stones').boundingBox())!;
+  const folioBox = (await folio.boundingBox())!;
+  expect(stones.y + stones.height).toBeLessThanOrEqual(folioBox.y + folioBox.height + 0.5);
+  await tab(page, 'lore').click();
+  await expect(card(page)).toHaveAttribute('data-tab', 'lore');
+  expect(await ground()).not.toBe(atStatus);
+  // The keyboard: Tab reaches a tab, Enter and Space choose.
+  await tab(page, 'stats').focus();
+  await page.keyboard.press('Enter');
+  await expect(card(page)).toHaveAttribute('data-tab', 'stats');
+  await tab(page, 'status').focus();
+  await page.keyboard.press('Space');
+  await expect(card(page)).toHaveAttribute('data-tab', 'status');
+  expect(await ground()).toBe(atStatus);
+  // Paper: the sheet lighter than the pane, its edge dark.
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
+  await expect(card(page)).toHaveAttribute('data-light', '');
+  const paper = await card(page).locator('.wc-cc-fg').evaluate((e) => getComputedStyle(e).backgroundImage);
+  expect(paper).toMatch(/linear-gradient/);
+  const edge = await card(page).locator('.wc-cc-fo').evaluate((e) => getComputedStyle(e).stroke);
+  expect(edge).not.toBe('none');
+  // Low (below 110 px of content): the tabs on the sheet's right edge.
+  await place(page, 62, 7);
+  await expect(tabs).toHaveAttribute('data-side', 'right');
+  const col = (await tabs.boundingBox())!;
+  const m2 = (await card(page).locator('.wc-cc-main').boundingBox())!;
+  expect(col.x).toBeCloseTo(m2.x + m2.width, 0);
 });
 
 test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ page }) => {
@@ -638,7 +693,8 @@ async function faults(page: Page): Promise<string[]> {
     const bad = new Set<string>();
     const shown = (e: Element): boolean => e.getClientRects().length > 0;
     const outer = root.getBoundingClientRect();
-    const parts = [...root.children].filter(shown);
+    // The sheet (round 20 G8) is drawn under the area and the tabs: no box of its own.
+    const parts = [...root.children].filter((e) => shown(e) && !e.classList.contains('wc-cc-folio'));
     const boxes = parts.map((e) => e.getBoundingClientRect());
     parts.forEach((e, i) => {
       const r = boxes[i]!;
