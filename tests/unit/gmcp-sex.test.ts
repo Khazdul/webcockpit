@@ -30,6 +30,8 @@ describe('parseSexLine', () => {
     expect(parseSexLine('You are a female Tarkhnarb Orc.', ORC)).toBe('female');
     expect(parseSexLine('You are a male orc.', ORC)).toBe('male');
     expect(parseSexLine('You are a male Numenorean.', { race: 'Númenórean', subrace: null })).toBe('male');
+    // Melker's run (ADR 0166 addendum 46): the race as MUME sends it.
+    expect(parseSexLine('You are a male Black Númenórean.', { race: 'Black Númenórean', subrace: null })).toBe('male');
     expect(parseSexLine('You are a male Dúnadan.', { race: 'Human', subrace: 'Dunadan' })).toBe('male');
   });
 

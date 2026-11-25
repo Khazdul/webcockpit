@@ -43,6 +43,8 @@ describe('portraitOf', () => {
       ['Troll', null, 'troll'],
       ['Man', 'Black Númenórean', 'numenorean'],
       ['Black Númenórean', '', 'numenorean'],
+      // Melker's run (2026-11-25, ADR 0166 addendum 46): MUME's own pair.
+      ['Black Númenórean', null, 'numenorean'],
       ['Man', 'Númenórean', 'numenorean'],
       ['Half-elven', null, 'halfelf'],
       ['Elf', 'Half-Elf', 'halfelf'],

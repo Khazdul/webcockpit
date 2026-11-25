@@ -42,6 +42,26 @@ describe('affects tracker', () => {
     expect(b.tr.affects.samples('panic')).toEqual([]);
   });
 
+  it("Melker's run (addendum 46): depression comes by its line and goes at once by its drop line, or by the next list without it", () => {
+    const b = bench();
+    const start = 'Alas, you realise that yet again the mighty knowledge of drowned Númenor has been lost... Despair settles on you.';
+    b.line(start);
+    expect(b.take()).toEqual(['◆ DEBUFF: depression up.']);
+    expect(b.cell('depression')).toMatchObject({ group: 'debuff', expiresAt: null, expected: null });
+    b.advance(30);
+    b.line('Your heart feels lighter.');
+    expect(b.take()).toEqual(['◆ DEBUFF: depression down.']);
+    expect(b.cell('depression')).toBeUndefined();
+    // No drop line seen: the next `stat` / `info` list without it takes it away.
+    b.line(start);
+    b.take();
+    b.tr.affects.reconcile(['hunger', 'depression'], b.host.now());
+    expect(b.cell('depression')).toBeDefined();
+    b.advance(60);
+    b.tr.affects.reconcile(['hunger'], b.host.now());
+    expect(b.cell('depression')).toBeUndefined();
+  });
+
   it('start → up, refresh → refreshed (timer restarts), drop → down', () => {
     const b = bench();
     b.line('You start glowing.');
