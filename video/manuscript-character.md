@@ -1,6 +1,6 @@
 # The Character pane film — manuscript
 
-Draft 4 proposal (2026-11-25, below, not approved). Draft 3: the owner's
+Draft 5 (2026-11-25, round 3 plan, below). Draft 4: round 2. Draft 3: the owner's
 answers to draft 2. Draft 2: the owner's
 run and story (below). Draft 1 (in git,\n98fc54a3) had the owner's answers to draft 0 (7bb4897f).
 Not approved. A film of its own about the Character pane of 0.23.0
@@ -61,6 +61,64 @@ https://creativecommons.org/licenses/by/4.0/
 1:24 and the loudest at 2:30 (−16.5). Dips near 2:00 and 2:18–2:28 just
 before that peak. Ends at 3:06. To be checked by ear: the phrase starts and
 where the clarinet solo begins and ends, so the cuts land on them.
+
+## Round 3 plan (draft 5, 2026-11-25)
+
+The source for the played text is the owner's edit of round 2's game text:
+`~/Downloads/character-film-r2-spellogg_edited.txt` (film time | id | text;
+`Lnnnn` = line of the run log, `S-…` = staged). Its times are round 2's and
+are to be redone; its content (which lines are kept, the "Ok." after
+Gittan's own narrates) is the owner's.
+
+The owner's notes on the round 2 preview:
+
+- **Pace.** Too fast overall. The coach may stay fast-forwarded. Narrates
+  and their answers come at natural gaps (an answer never within 5 s; about
+  10–15 s). In Tharbad a natural rhythm: rarely more than one room every
+  3 s, varied, 1–3 s.
+- **Own narrates.** The game window shows only `Ok.` (plain grey) after
+  `narr …`, no "You narrate". Comm still shows the narrate (only the game
+  window changes).
+- **No Paper glimpse.** Instead a calm look at Stats and Lore while the
+  card floats, opened about twice as tall and a little wider than round 2
+  (Large); no hurry between the tabs. Then the dock.
+- **eq.** The list's `<wielded>` … labels went missing: the film's mock
+  sends XML mode without escaping `<`/`>` (MUME sends `&lt;`), so the
+  client took them as tags. Fix the mock, not the product.
+- **No bandit balloon, no tarantulas.** The house, the spiders, the camp,
+  the quakes, "hiding…", "attercop" and Sigrun are gone (the owner's edit).
+- **Odalric's answer back** (it was in a deleted block), about 10–15 s after
+  "assaulted…", while Gittan walks back to the bakery.
+- **The rings stay as edited.** "…the strength that welled within you
+  subsides" is the Tiredness debuff (STR +2 stays): its stone appears with
+  that line. "A sudden loss of energy" is Lethargy, likewise.
+- **One balloon only: the achievement's.** Not frozen: it keeps its natural
+  motion and may fly on. The fades stay, with new timings: the first fade
+  (all but the balloon) starts 1 s earlier than in round 2 (3 s after the
+  balloon comes to rest); the balloon's own fade starts when it did in
+  round 2 (11 s after rest); both fades take 4 s (twice round 2's).
+- **Posters still** (no push-in).
+- **No stones caption.**
+- The film still ends with the music (3:06.35). The owner allows shorter
+  posters and a shorter end sequence to make it fit.
+
+| Film | Beat |
+|---|---|
+| 0:00–0:07 | Title |
+| 0:07–0:22 | Mason Road: map on; `narr off to tharbad…`, `Ok.`; the coach arrives; Character on, floating, Large (about twice round 2's height, a little wider); `st`, `enter coach` |
+| 0:22–1:05 | The coach (fast): click on position (`rest`); Thorgrim ~14 s after Gittan's narrate, then Comm on; a calm look at Stats and Lore (a caption each); Mirel; ~12 s later Gittan's answer (`narr …`, `Ok.`); the ring's tooltip; the dock ("It fits any size."); `stat`, `eq` (fixed), the rings: "You feel stronger" (STR 12 +2), Lethargy and Tiredness stones |
+| 1:05–1:19 | Tharbad to the bakery, a room every 1–3 s; a drink at the fountain |
+| 1:19–1:30 | The bakery: closed, `glare`, the bandit, the flight; `wimpy 100` |
+| 1:30–1:49 | To the north gate; `narr assaulted…`, `Ok.`; `invis` |
+| 1:49–2:01 | Back to the bakery; Odalric answers on the way |
+| 2:01–2:21 | The revenge at the game's pace (fight caption); the baker; `ag`; the kill (no balloon; the XP ring caption) |
+| 2:21–2:26 | Click on Mood (aggressive → wimpy, "A click sends the command."); the pie; the achievement |
+| ~2:28 | The achievement balloon at rest (natural motion) |
+| rest+3 → rest+7 | Everything but the balloon fades (4 s) |
+| rest+7 → rest+11 | The balloon alone on black, moving |
+| rest+11 → rest+15 | The balloon fades (4 s) |
+| ~2:43–2:57 | Three posters, still, about 4.5 s each, short cross-fades |
+| ~2:57–3:06.35 | End card |
 
 ## Round 2 proposal (draft 4, for the owner's review, 2026-11-25)
 
