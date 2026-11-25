@@ -416,7 +416,7 @@ export class App {
           live: () => !this.session.isReplay && this.session.state === 'playing',
           passwordMode: () => this.session.passwordMode,
           enabled: () => this.settings.get().character.fetchInfo,
-          fighting: () => this.game.fighting(),
+          waiting: () => this.game.group.selfFlags.waiting,
           dataAt: () => this.game.info.at,
           complete: () => this.game.info.complete,
           everyMs: () => this.settings.get().character.pollEvery * 1000,

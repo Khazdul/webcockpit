@@ -19,9 +19,12 @@
 //
 // When: never more often than 2 s, one outstanding (2 min at most), none
 // while idle (no key or pointer press in 5 min; entering the game counts),
-// not fighting, not while a cast is pending (`castPendingUntil`), after
-// the character's Char.Vitals, two failures stop it for the connection,
-// and only when the gate is open:
+// not while a cast is pending (`castPendingUntil`), not while MUME holds
+// your commands (`waiting`, your own GMCP status flag) and 1 s after it
+// ends, after the character's Char.Vitals, two failures stop it for the
+// connection, and only when the gate is open. A fight is no reason to
+// wait (stage 77 H11, ADR 0166 addendum 33): MUME answers `info` in a fight
+// in one piece, and only the vitals are `xxx` (no value, written nowhere).
 //
 // - the last thing MUME printed is an XML game prompt ending in `>`, with
 //   nothing after it (not the pager, the line editor or a question);
@@ -56,7 +59,7 @@
 // or not; any other `conn.state` disarms it.
 //
 // One timer at most, and only while time alone can make a poll due. What
-// else a poll waits for (a prompt, the fight's end) comes with a frame.
+// else a poll waits for (a prompt, the end of a wait) comes with a frame.
 
 import type { Bus } from '../core/bus';
 import { type Line, gmcpKey } from '../core/types';
@@ -171,7 +174,12 @@ export interface InfoPollOptions {
   live(): boolean;
   passwordMode(): boolean;
   enabled(): boolean;
-  fighting(): boolean;
+  /**
+   * MUME holds your commands (your own `waiting` status flag in GMCP
+   * `Group.*`: a cast, a skill's delay, mixing): one sent now waits, and
+   * the commands held come out after it, a pulse each. None: never.
+   */
+  waiting?(): boolean;
   /** When the model's data was received, or null. */
   dataAt(): number | null;
   /** A poll has answered (a partial read alone is not enough for an opened view). None: any data is. */
@@ -248,6 +256,9 @@ export class InfoPoll {
   private burst = false;
   /** A game prompt came after the last command (not in the frame it was sent in). */
   private promptSinceCommand = true;
+  /** `waiting` as last seen, and when it last ended. */
+  private wasWaiting = false;
+  private waitEndAt = Number.NEGATIVE_INFINITY;
 
   private timer: unknown = null;
   private timerAt: number | null = null;
@@ -302,8 +313,9 @@ export class InfoPoll {
           const position = data?.position;
           if (typeof position === 'string') {
             const was = this.position;
-            this.position = position;
-            if (was !== null && was !== position && this.events().position) this.event();
+            // A fight's start and end are no change of the bonuses: fighting is standing.
+            this.position = position.toLowerCase() === 'fighting' ? 'standing' : position;
+            if (was !== null && was !== this.position && this.events().position) this.event();
           }
         } else if (key === 'char.name') this.named((m.data as { name?: unknown } | null | undefined)?.name);
       }),
@@ -427,6 +439,8 @@ export class InfoPoll {
     this.commandAt = Number.NEGATIVE_INFINITY;
     this.burst = false;
     this.promptSinceCommand = true;
+    this.wasWaiting = false;
+    this.waitEndAt = Number.NEGATIVE_INFINITY;
   }
 
   private events(): InfoPollEvents {
@@ -494,6 +508,8 @@ export class InfoPoll {
     if (sent !== null) at = Math.max(at, sent + (this.outstanding === null ? MIN_GAP_MS : UNANSWERED_MS));
     const cast = this.o.castPendingUntil?.() ?? null;
     if (cast !== null) at = Math.max(at, cast);
+    // What MUME held comes out after the wait, a pulse each: the gate sees it.
+    at = Math.max(at, this.waitEndAt + SETTLE_MS);
     return Math.max(at, this.commandAt + (repeat ? this.quiet() : SETTLE_MS));
   }
 
@@ -505,13 +521,22 @@ export class InfoPoll {
   /** What time does not decide. */
   private blocked(): string | null {
     if (this.o.passwordMode()) return 'password mode';
-    if (this.o.fighting()) return 'fighting';
+    if (this.noteWaiting()) return 'MUME holds your commands (waiting)';
     if (!answerFits(this.o.windowSize?.() ?? null, this.o.affectCount?.() ?? 0)) return "the answer would not fit the window: MUME's pager";
     return this.gate();
   }
 
+  /** `waiting` now; notes when it ended. */
+  private noteWaiting(): boolean {
+    const waiting = this.o.waiting?.() ?? false;
+    if (this.wasWaiting && !waiting) this.waitEndAt = this.o.now();
+    this.wasWaiting = waiting;
+    return waiting;
+  }
+
   private check(): void {
     if (this.inFrame || this.disposed) return;
+    this.noteWaiting();
     const now = this.o.now();
     const at = this.nextAt(now);
     if (at === null) return this.clearTimer();

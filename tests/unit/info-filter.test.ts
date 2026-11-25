@@ -10,6 +10,7 @@ import { FakeScheduler } from '../../src/script/engine/timers';
 import { LineAssembler } from '../../src/text/assembler';
 import {
   ANSWER_FIELDS,
+  FIGHT_VITALS,
   GA,
   XML_PROMPT,
   answerLines,
@@ -367,6 +368,49 @@ describe('InfoFilter: the text round it', () => {
     t.frame(answerPulse(N, { queued: true }));
     expect(t.lines).toEqual(t.raw);
     expect(t.found).toHaveLength(1);
+  });
+});
+
+describe('InfoFilter: a fight round the answer (stage 77 H11)', () => {
+  // A prompt in a fight carries the opponent's condition; MUME puts a blank
+  // line before and after a round's lines (the run exports, 2026-09-29).
+  // The answer's own prompt is hidden with it (its pulse showed nothing
+  // else); a prompt shared with a round's lines stays.
+  const FP = `<prompt>o HP:Hurt a grizzled orc:Wounded&gt;</prompt>${GA}`;
+  const FP_TEXT = 'o HP:Hurt a grizzled orc:Wounded>';
+  const HIT = "Dig hits a grizzled orc's body extremely hard.";
+  const DYING = 'A grizzled orc is mortally wounded and will die soon if not aided.';
+  const fight = { vitals: FIGHT_VITALS };
+  const NO_VITALS = { hp: null, maxhp: null, mana: null, maxmana: null, mp: null, maxmp: null };
+  const shapes: Array<[string, string, string[]]> = [
+    ['a round and its prompt before', `\r\n${HIT}\r\n\r\n${FP}${answerText(N, { ...fight, queued: true })}${FP}`, ['', HIT, '', FP_TEXT]],
+    ['a round and its prompt after', `${answerText(N, fight)}${FP}\r\n${DYING}\r\n\r\n${FP}`, ['', DYING, '', FP_TEXT]],
+    ['a round in the same pulse, before', `${HIT}\r\n${answerText(N, fight)}${FP}`, [HIT, FP_TEXT]],
+    ['a round in the same pulse, after', `${answerText(N, fight)}${DYING}\r\n\r\n${FP}`, [DYING, '', FP_TEXT]],
+    ['rounds both sides', `\r\n${HIT}\r\n\r\n${FP}${answerText(N, { ...fight, queued: true })}${FP}\r\n${DYING}\r\n\r\n${FP}`, ['', HIT, '', FP_TEXT, '', DYING, '', FP_TEXT]],
+  ];
+  for (const [name, text, want] of shapes) {
+    it(`${name}: shown, in order, at every chunk boundary; the answer hidden with no vitals`, () => {
+      const bytes = wire(text);
+      for (let cut = 0; cut <= bytes.length; cut++) {
+        const t = setup({ prompt: FP });
+        t.frame(bytes.slice(0, cut), bytes.slice(cut));
+        expect(t.texts(), `cut ${cut}`).toEqual(want);
+        expect(t.partials.every((p) => !p.includes(N)), `cut ${cut}`).toBe(true);
+        expect(t.failed).toEqual([]);
+        expect(t.found.map((f) => f.answer.vitals)).toEqual([NO_VITALS]);
+        expect(wimpy(t)).toEqual([120]);
+      }
+    });
+  }
+
+  it('a round in a frame of its own between the answer and its prompt is shown; the answer hidden', () => {
+    const t = setup({ prompt: FP });
+    t.frame(answerText(N, fight));
+    t.frame(`${HIT}\r\n\r\n${FP}`);
+    expect(t.texts()).toEqual([HIT, '', FP_TEXT]);
+    expect(t.found).toHaveLength(1);
+    expect(t.failed).toEqual([]);
   });
 });
 

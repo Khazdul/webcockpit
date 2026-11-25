@@ -22,10 +22,14 @@ import { GameState } from '../../src/gmcp/state';
 import { Session } from '../../src/net/session';
 import { FakeScheduler } from '../../src/script/engine/timers';
 import { LineAssembler } from '../../src/text/assembler';
-import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
+import { ANSWER_FIELDS, FIGHT_VITALS, GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
 import { FakeSocket, sb, utf8 } from './net-helpers';
 
 const PROMPT = XML_PROMPT + GA;
+/** A prompt in a fight: the opponent's condition in it (stage 77 H11). */
+const FIGHT_PROMPT = '<prompt>o HP:Hurt a grizzled orc:Wounded&gt;</prompt>' + GA;
+/** A fight round of someone else's: MUME's blank lines round it and its prompt. */
+const ROUND = `\r\nKvällulv stabs a grizzled orc's left arm extremely hard.\r\n\r\n${FIGHT_PROMPT}`;
 /** The repeat most tests run with (part C's fixed 5 min); the F1 tests set their own. */
 const EVERY_MS = 5 * 60_000;
 const T0 = 1_790_000_000_000;
@@ -56,7 +60,7 @@ function setup(
     live: () => !session.isReplay && session.state === 'playing',
     passwordMode: () => session.passwordMode,
     enabled: () => enabled,
-    fighting: () => game.fighting(),
+    waiting: () => game.group.selfFlags.waiting,
     dataAt: () => game.info.at,
     complete: () => game.info.complete,
     ...(o.every === null ? {} : { everyMs: () => o.every ?? EVERY_MS }),
@@ -193,19 +197,13 @@ describe('InfoPoll: the login poll', () => {
     expect(t.polls()).toHaveLength(1);
   });
 
-  it('waits out a fight', () => {
-    for (const [on, off] of [
-      [{ opponent: 'a troll' }, { opponent: null }],
-      [{ position: 'fighting' }, { position: 'standing' }],
-    ]) {
+  it('is sent in a fight too (H11: point 24 no longer waits for its end)', () => {
+    for (const on of [{ opponent: 'a troll' }, { position: 'fighting' }]) {
       const t = setup();
       t.login();
-      t.frame(gmcp('Char.Vitals', on), PROMPT);
-      t.wait(60_000);
-      t.frame(PROMPT);
-      expect(t.polls()).toEqual([]);
-      expect(t.poll.request()).toBe('fighting');
-      t.frame(gmcp('Char.Vitals', off), PROMPT);
+      t.frame(gmcp('Char.Vitals', on), FIGHT_PROMPT);
+      expect(t.game.fighting()).toBe(true);
+      t.wait(SETTLE_MS);
       expect(t.polls()).toHaveLength(1);
     }
   });
@@ -1082,15 +1080,14 @@ describe("InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addenda 18
     expect(u.polls()).toHaveLength(2);
   });
 
-  it('an event in a fight waits for its end', () => {
+  it('an event in a fight polls as out of one (H11; it waited for the end before)', () => {
     const t = opened({ every: EVERY_MS });
     t.wait(BURST_SETTLE_MS); // the width commands at login are a burst
     t.frame(vitals({ opponent: 'a troll' }), PROMPT);
     t.poll.effect('affect-up');
-    t.wait(30_000);
-    t.frame(PROMPT);
+    t.wait(COALESCE_MS - 1);
     expect(t.polls()).toHaveLength(1);
-    t.frame(vitals({ opponent: null }), PROMPT);
+    t.wait(1);
     expect(t.polls()).toHaveLength(2);
   });
 
@@ -1139,6 +1136,186 @@ describe("InfoPoll F1: the repeat, the quiet and the events (ADR 0166 addenda 18
     expect(t.polls()).toHaveLength(1);
     t.answer();
     t.poll.open();
+    expect(t.polls()).toHaveLength(1);
+  });
+});
+
+describe('InfoPoll H11: the poll in a fight (ADR 0166 addendum 33)', () => {
+  const vitals = (data: unknown): number[] => gmcp('Char.Vitals', data);
+  /** The login poll answered, a view open, the burst after the width commands over, then a fight with a mood. */
+  const fighting = (o: Parameters<typeof setup>[0] = {}) => {
+    const t = setup({ every: null, ...o });
+    t.ready();
+    t.poll.open();
+    t.wait(BURST_SETTLE_MS - 2000);
+    t.frame(vitals({ mood: 'wimpy', position: 'fighting', opponent: 'a grizzled orc', hp: 150, maxhp: 200 }), FIGHT_PROMPT);
+    expect(t.game.fighting()).toBe(true);
+    expect(t.polls()).toHaveLength(1);
+    return t;
+  };
+  /** The card's fields with another OB and PB (a mood change in a fight). */
+  const moved = ANSWER_FIELDS.map((f, i) => (i === 1 ? '95' : i === 3 ? '60' : f));
+
+  it(`the repeat runs in a fight, every ${DEFAULT_EVERY_MS / 1000} s, between the rounds`, () => {
+    const t = fighting();
+    for (let i = 0; i < 3; i++) {
+      t.wait(500);
+      t.frame(ROUND);
+    }
+    // DEFAULT_EVERY_MS after the login answer (sent at SETTLE_MS).
+    t.wait(SETTLE_MS + DEFAULT_EVERY_MS - t.sched.now() - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    t.frame(answerPulse(t.nonce(), { vitals: FIGHT_VITALS }));
+    t.wait(500);
+    t.frame(ROUND);
+    t.active(DEFAULT_EVERY_MS - 500);
+    expect(t.polls()).toHaveLength(3);
+  });
+
+  it("the mood changed in a fight polls a second after the command; the answer's OB and PB taken, its xxx vitals not", () => {
+    const t = fighting();
+    t.wait(500);
+    t.session.sendCommand('cha mood aggr');
+    t.frame(`Ok.\r\n\r\n`, vitals({ mood: 'aggressive' }), FIGHT_PROMPT);
+    t.wait(500);
+    t.frame(ROUND);
+    t.wait(REPEAT_SETTLE_MS - 500 - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+    const before = t.shown.length;
+    t.frame(answerPulse(t.nonce(), { vitals: FIGHT_VITALS, fields: moved }));
+    expect(t.game.info.answer?.ob).toBe(95);
+    expect(t.game.info.answer?.pb).toBe(60);
+    // The bars keep what GMCP said: `xxx` is no value.
+    expect(t.game.char.view().vitals.hp.value).toBe(150);
+    expect(t.shown.slice(before).join('\n')).not.toMatch(/WC|xxx/);
+  });
+
+  it('commands each answered (a prompt between them) are no burst in a fight: the mood among them polls 1 s after the last', () => {
+    const t = fighting();
+    for (const cmd of ['kick', 'kick', 'cha mood aggr', 'kick']) {
+      t.wait(800);
+      t.session.sendCommand(cmd);
+      t.wait(150);
+      t.frame(`You kick a grizzled orc.\r\n\r\n`, ...(cmd.startsWith('cha') ? [vitals({ mood: 'aggressive' })] : []), FIGHT_PROMPT);
+    }
+    t.wait(REPEAT_SETTLE_MS - 150 - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('a burst in a fight (no prompt between the commands) still waits its 10 s', () => {
+    const t = fighting();
+    t.wait(500);
+    t.session.sendCommand('cha mood aggr');
+    t.wait(100);
+    t.session.sendCommand('kick');
+    t.frame(`Ok.\r\n\r\n`, vitals({ mood: 'aggressive' }), FIGHT_PROMPT);
+    t.frame(ROUND);
+    t.wait(BURST_SETTLE_MS - 1);
+    t.frame(ROUND);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    t.frame(ROUND);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('the gate is the same: a round with text after its prompt holds the poll', () => {
+    const t = fighting();
+    t.wait(500);
+    t.frame(vitals({ mood: 'aggressive' }), FIGHT_PROMPT);
+    t.frame('Kvällulv stabs a grizzled orc.');
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(1);
+    expect(t.poll.request()).toBe('there is text after the last prompt');
+    t.frame(`\r\n\r\n${FIGHT_PROMPT}`);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it("a fight's start and end are no position event; being knocked to sitting in it is", () => {
+    const t = setup({ every: EVERY_MS });
+    t.login();
+    t.frame(vitals({ position: 'standing' }), PROMPT);
+    t.wait(SETTLE_MS);
+    t.answer();
+    t.poll.open();
+    t.wait(BURST_SETTLE_MS);
+    t.frame(vitals({ position: 'fighting', opponent: 'a grizzled orc' }), FIGHT_PROMPT);
+    t.wait(5000);
+    t.frame(vitals({ position: 'standing', opponent: null }), PROMPT);
+    t.wait(5000);
+    expect(t.polls()).toHaveLength(1);
+    t.frame(vitals({ position: 'fighting', opponent: 'a grizzled orc' }), FIGHT_PROMPT);
+    t.frame(vitals({ position: 'sitting' }), FIGHT_PROMPT);
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('fight lines in the frame before and after the answer are shown, in order; the answer is not', () => {
+    const t = fighting();
+    t.wait(500);
+    t.frame(vitals({ mood: 'aggressive' }), FIGHT_PROMPT);
+    t.wait(COALESCE_MS);
+    expect(t.polls()).toHaveLength(2);
+    const before = t.shown.length;
+    t.frame(
+      `\r\nDig hits a grizzled orc's body extremely hard.\r\n\r\n${FIGHT_PROMPT}`,
+      answerText(t.nonce(), { queued: true, vitals: FIGHT_VITALS, fields: moved }),
+      FIGHT_PROMPT,
+      `\r\nA grizzled orc is mortally wounded and will die soon if not aided.\r\n\r\n${FIGHT_PROMPT}`,
+    );
+    const shown = t.shown.slice(before);
+    expect(shown.filter((l) => l.includes('grizzled orc') && !l.includes('HP:'))).toEqual([
+      "Dig hits a grizzled orc's body extremely hard.",
+      'A grizzled orc is mortally wounded and will die soon if not aided.',
+    ]);
+    expect(shown.join('\n')).not.toMatch(/WC|xxx|warlord/);
+    expect(t.game.info.answer?.ob).toBe(95);
+    expect(t.poll.failures).toBe(0);
+  });
+});
+
+describe('InfoPoll H11: MUME holds your commands (your GMCP `waiting`)', () => {
+  const group = (pkg: string, data: unknown): number[] => gmcp(pkg, data);
+  const waitingReady = () => {
+    const t = setup({ every: null });
+    t.ready();
+    t.frame(group('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', waiting: false }]), PROMPT);
+    t.poll.open();
+    t.frame(group('Group.Update', { id: 1, waiting: true }), PROMPT);
+    expect(t.game.group.selfFlags.waiting).toBe(true);
+    t.wait(BURST_SETTLE_MS);
+    return t;
+  };
+
+  it('no poll while you are waiting, and none until 1 s after it ends', () => {
+    const t = waitingReady();
+    t.active(DEFAULT_EVERY_MS);
+    t.frame(PROMPT);
+    expect(t.polls()).toHaveLength(1);
+    expect(t.poll.request()).toBe('MUME holds your commands (waiting)');
+    t.frame(`You feel stronger.\r\n\r\n`, group('Group.Update', { id: 1, waiting: false }), PROMPT);
+    t.wait(SETTLE_MS - 1);
+    expect(t.polls()).toHaveLength(1);
+    t.wait(1);
+    expect(t.polls()).toHaveLength(2);
+  });
+
+  it('a command held behind the wait comes out after it and closes the gate (its pager is no game prompt)', () => {
+    const t = waitingReady();
+    t.session.sendCommand('who');
+    // Prompts while waiting (a fight's rounds) do not open it.
+    t.active(DEFAULT_EVERY_MS);
+    t.frame(ROUND);
+    expect(t.polls()).toHaveLength(1);
+    t.frame(group('Group.Update', { id: 1, waiting: false }), FIGHT_PROMPT);
+    t.wait(250);
+    t.frame('Players\r\n-------\r\n[ Return to continue, (q)uit, (r)efresh, (b)ack, or page number (1/3). ]');
+    t.wait(10_000);
     expect(t.polls()).toHaveLength(1);
   });
 });

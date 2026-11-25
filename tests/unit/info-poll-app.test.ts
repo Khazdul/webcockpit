@@ -8,7 +8,7 @@ import { App } from '../../src/app/app';
 import { RunStore } from '../../src/runs/store';
 import { SETTLE_MS } from '../../src/gmcp/info-poll';
 import { FakeScheduler } from '../../src/script/engine/timers';
-import { GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
+import { FIGHT_VITALS, GA, XML_PROMPT, answerPulse, answerText, pollNonce, probeNonce, probeText, wire } from '../fixtures/info-poll-answer';
 import { FakeSocket, sb, utf8 } from './net-helpers';
 
 const PROMPT = XML_PROMPT + GA;
@@ -252,6 +252,54 @@ describe('the info poll in the App', () => {
     // HP from GMCP (newer than the poll's send), mana and moves from the poll.
     expect(t.app.game.char.view().vitals.hp).toMatchObject({ value: 50, max: 375 });
     expect(t.app.game.char.view().vitals.mp).toMatchObject({ value: 68, max: 112 });
+  });
+});
+
+describe('the info poll in the App: a fight (stage 77 H11)', () => {
+  const FP = `<prompt>o HP:Hurt a grizzled orc:Wounded&gt;</prompt>${GA}`;
+
+  it('polls in a fight with no trace; the rounds round it shown; xxx writes no vitals; the bars follow GMCP', async () => {
+    const t = setup();
+    t.app.connectLive();
+    t.sock.open();
+    t.frame([255, 251, 201]);
+    t.frame(gmcp('Char.Name', { name: 'Rasta' }));
+    t.frame(gmcp('Char.Vitals', { hp: 150, maxhp: 200, position: 'fighting', opponent: 'a grizzled orc' }), FP);
+    expect(t.app.game.fighting()).toBe(true);
+    t.sched.advance(SETTLE_MS);
+    const n = pollNonce(t.sent())!;
+    expect(n).toMatch(/^[a-z0-9]{6}$/);
+    t.frame(`\r\nDig hits a grizzled orc's body extremely hard.\r\n\r\n${FP}`, answerPulse(n, { queued: true, vitals: FIGHT_VITALS }).replace(PROMPT, FP));
+    t.frame(gmcp('Char.Vitals', { hp: 140 }), `\r\nA grizzled orc hits you.\r\n\r\n${FP}`);
+    expect(t.app.game.char.view().wimpy).toBe(120);
+    expect(t.app.game.char.view().vitals.hp).toMatchObject({ value: 140, max: 200 });
+    for (const trace of [n, 'xxx', 'warlord']) {
+      expect(t.heard.join('\n')).not.toContain(trace);
+      expect(t.rows()).not.toContain(trace);
+    }
+    expect(t.rows()).toContain("Dig hits a grizzled orc's body extremely hard.");
+    expect(t.rows()).toContain('A grizzled orc hits you.');
+    await t.app.recorder.idle();
+    await t.app.recorder.flush();
+    const store = (await t.app.recorder.getStore())!;
+    const log = (await store.getChunks(t.app.recorder.runId!)).map((c) => c.text).join('');
+    for (const trace of [n, 'xxx']) expect(log).not.toContain(trace);
+    expect(log).toContain('Dig hits a grizzled orc');
+  });
+
+  it('your GMCP `waiting` holds it (the App wires the group model)', () => {
+    const t = setup();
+    t.app.connectLive();
+    t.sock.open();
+    t.frame([255, 251, 201]);
+    t.frame(gmcp('Char.Name', { name: 'Rasta' }), gmcp('Group.Set', [{ id: 1, type: 'you', name: 'Rasta', waiting: true }]));
+    t.frame(gmcp('Char.Vitals', { hp: 100, maxhp: 200 }), PROMPT);
+    t.sched.advance(30_000);
+    expect(pollNonce(t.sent())).toBeNull();
+    expect(t.app.infoPoll!.request()).toBe('MUME holds your commands (waiting)');
+    t.frame(gmcp('Group.Update', { id: 1, waiting: false }), PROMPT);
+    t.sched.advance(SETTLE_MS);
+    expect(pollNonce(t.sent())).not.toBeNull();
   });
 });
 
