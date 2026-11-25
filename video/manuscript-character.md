@@ -261,3 +261,37 @@ echo of your own narrate is to be checked in a run before it is staged.
    reward.
 2. HP never goes low (lowest 172/205): the danger is in the poison and
    the flights, not the bar.
+
+## YouTube
+
+Proposed to the owner 2026-11-25, with the chapters of round 3's times.
+No `#` words in it: YouTube makes hashtags of them. The track is played
+whole (not edited), so the credit has no "(edited)".
+
+```text
+TITLE
+MumeCockpit 0.23: The Character pane
+
+DESCRIPTION
+MumeCockpit is a free MUD client for MUME (Multi-Users in Middle-earth). It runs in your browser, on desktop, tablet and phone.
+
+New in 0.23: the Character pane. A card with your portrait (one for every race and sex), your level and XP ring, mood, spell speed, alertness and weight, your OB, DB, PB and armour as shields, and every buff, debuff, herb and flag on you as a stone with its own icon. Stats and Lore show your abilities, age, senses, alignment, purse and more. Click a field and the card sends the command.
+
+In this demo, Gittan the hobbit takes the coach to Tharbad. She has heard the pork-pies there are worth the whole road south.
+
+To turn it on: Panes → Character.
+
+0:00 The Character pane
+0:07 Bree: turning it on
+0:22 On the coach: Stats and Lore
+1:05 Tharbad
+1:58 The bandit, again
+2:22 Procured a pork-pie
+2:44 Faces of Arda, the tabs and the stones
+
+▶ Play: https://mumecockpit.com
+🌍 MUME: https://mume.org
+🎵 Music: "No Good Layabout" Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0
+https://creativecommons.org/licenses/by/4.0/
+```
