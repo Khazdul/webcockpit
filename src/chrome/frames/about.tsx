@@ -92,7 +92,7 @@ PvP is what sets MUME apart: towers and terrain to take, deep skill and spell sy
 WebCockpit is made for that. Keystrokes go to the game at once, macros and actions fire without delay, and the panes show what matters in a fight: your vitals, spell and debuff timers, your group, the channels and the map.
 
 WHAT IS INSIDE
-  Panes           Small windows around the game text: your character's vitals, spell timers, your group, your chats and channels, the map, and the live statistics of your run. Panes in the menu bar turns them on and off. Drag one to dock it on any side, or let it float.
+  Panes           Small windows around the game text: your character, your spell timers, your group, your chats and channels, the map, and the live statistics of your run. Panes in the menu bar turns them on and off. Drag one to dock it on any side, or let it float. Character is a card with your vitals, bonuses, buffs and debuffs; to fill it the client now and then sends MUME a hidden info, which the card's gear can turn off.
   Profile         Your aliases, actions, highlights, macros and timers. Edit them as a form or as text; #help explains every command. Import brings in profiles from TinTin++, JMC, Powwow and Mudlet.
   Map             Reads MMapper maps and follows you as you move.
   Weather         The sky and weather of Middle-earth over the whole client, driven by the game.

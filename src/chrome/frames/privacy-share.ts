@@ -10,7 +10,7 @@
 // ids, the map subset without room notes and with a neutral name, the
 // meta; src/share/link-payload.ts; ADR 0155 W3: src/share/shared-panes.ts
 // drops only SPANE and Comm records, so Char.StatusVars and Char.Vitals
-// stay; the payload is a public GET; `level` is in PubMeta and the rows),
+// stay, and so do the WebCockpit.Shields records, ADR 0166 addendum 41; the payload is a public GET; `level` is in PubMeta and the rows),
 // worker/pub.ts (the row, views once per device and UTC day, `pub_view`
 // pruned after two days, Remove and Delete account to tombstones and R2
 // deleted), worker/reports.ts (one per account and run, five accounts
@@ -21,11 +21,11 @@
 import type { LeafNav } from './about';
 
 /** The page's date while the share links section shows. */
-export const PRIVACY_SHARE_UPDATED = 'Last changed 19 November 2026';
+export const PRIVACY_SHARE_UPDATED = 'Last changed 25 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_SHARE = `SHARE LINKS
-A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included); the game's own status data that the Map, Spells and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), but no channel records and no other pane; the map of the rooms the log passes, if it passes any (without your own room notes or the name of your map file); the display settings the replay needs; and the title and description you give it. With it goes a preview picture of the log's first lines, drawn in this browser, that chat apps show when the link is pasted. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared log is not encrypted: it is meant to be watched.
+A share link is your own choice, made with an account: in History, Share a session and choose Link or Hall of Fame. What you cut is all that leaves this browser: the game text of the parts you kept, as it was (other players' tells and channels in it included); the game's own status data that the Map, Spells and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), and the four bonuses the Character pane fetched from the game (offensive, defensive and parry bonus and absorption), but no channel records and no other pane; the map of the rooms the log passes, if it passes any (without your own room notes or the name of your map file); the display settings the replay needs; and the title and description you give it. With it goes a preview picture of the log's first lines, drawn in this browser, that chat apps show when the link is pasted. Your account name is shown with it as the sender. Nothing else of your runs, profiles or account goes with it. A shared log is not encrypted: it is meant to be watched.
   Who can watch   Anyone with the link, without an account. A Link log is not listed anywhere, but whoever has it can pass it on. A Hall of Fame log is listed in the Community for everyone. Whoever can watch a log can also save a copy of it, and a saved copy is theirs: removing the log does not reach it.
   What is kept    The log as you cut it, its preview picture, its title, description, character, level (not shown on the pages, but part of the log's public data) and length, when it was made, and how many have watched it. A view is counted once a day for each device and network, by the random number of the heartbeat (made for this browser if it has none) and a scrambled form of the address that changes every day; which devices watched is deleted after two days.
   Removing it     Remove a log on the Account page under Published logs, whenever you like: the link then says it was removed, and the log is deleted. Delete account removes all your shared logs.

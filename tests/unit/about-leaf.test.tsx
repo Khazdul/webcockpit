@@ -491,7 +491,7 @@ describe("the privacy page's share links section (flags `accounts` and `share`)"
     expect(PRIVACY_SHARE).toContain('Map, Spells and Group');
     expect(PRIVACY_SHARE).not.toContain('download');
     // Review 2 R2-3: the status data that goes, the map whenever there are rooms, a copy anyone can save, the level kept.
-    expect(PRIVACY_SHARE).toContain("the game's own status data that the Map, Spells and Group panes use (the character's name, level, race and class, and its vitals as the game sent them)");
+    expect(PRIVACY_SHARE).toContain("the game's own status data that the Map, Spells and Group panes use (the character's name, level, race and class, and its vitals as the game sent them), and the four bonuses the Character pane fetched from the game (offensive, defensive and parry bonus and absorption)");
     expect(PRIVACY_SHARE).toContain('no channel records and no other pane');
     expect(PRIVACY_SHARE).not.toContain('when the map is on');
     expect(PRIVACY_SHARE).toContain('the map of the rooms the log passes, if it passes any');

@@ -23,8 +23,9 @@ aims for tt++-level features and latency.
 
 - **Nothing to install.** Open a link and play; the browser connects
   straight to MUME, with nothing in between.
-- **Panes driven by GMCP:** character, spell timers, group, chats, the
-  map and live XP statistics. Dock them on any side or let them float.
+- **Panes driven by GMCP:** a character card (vitals, bonuses, buffs
+  and debuffs), spell timers, group, chats, the map and live XP
+  statistics. Dock them on any side or let them float.
 - **A map** that reads MMapper files and follows you as you move.
 - **MUME's sky and weather in real time** over the whole client: sun
   and moon on the game clock, rain, fog, lightning and snow.
@@ -91,7 +92,7 @@ buttons are its shortcuts. The browser tab's icon is the same iron "M".
 directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
 
-**Panes.** Character, Timers, Group, Communication, UI messages,
+**Panes.** Character, Spells, Group, Communication, UI messages,
 Map and the live Statistics of the run. They can be docked left, right, at the bottom or at the top, in
 several columns or rows per side with panes spanning the whole dock, or
 float over the game, and resized, reordered and toggled, each with its
