@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Faces of Arda</title>
+<link rel="stylesheet" href="poster.css">
+<style>
+  .face { position: absolute; width: 278px; height: 289px; overflow: hidden; filter: drop-shadow(0 18px 26px rgba(0,0,0,.75)); }
+  .face img { width: 278px; display: block; clip-path: inset(5px 4px 0 4px round 15px); }
+  .face-l { position: absolute; width: 278px; text-align: center; font-family: 'Cinzel', serif; font-weight: 500; font-size: 15px; letter-spacing: .12em; color: rgba(226,211,173,.6); text-shadow: 0 0 8px #000; }
+</style>
+</head><body>
+<div id="wall"></div>
+<div class="card" style="left:1830px; top:1094px; width:672px; height:317px"><img src="shots/medp-azruphel.png"></div>
+<div class="card" style="left:1120px; top:1094px; width:672px; height:317px"><img src="shots/med-nalbor.png"></div>
+<div class="title" style="left:110px; top:1190px">Faces of Arda</div>
+<script>
+  // id, people · sex, paper
+  const F = [
+    ['aerlinn', 'Noldo · woman'], ['nalbor', 'Longbeard · man'], ['gruzhbag', 'Morruhk · man', 1], ['tansy', 'Stoor · woman'], ['eadric', 'Rohirrim · man'], ['murzga', 'Cave troll · woman', 1], ['celebrin', 'Sinda · man'],
+    ['azruphel', 'Black Númenórean · woman'], ['bodo', 'Fallohide · man', 1], ['idhrenna', 'Dúnadan · woman'], ['ughlakh', 'Mountain troll · man'], ['hrefna', 'Firebeard · woman', 1], ['gorbakh', 'Zaugurz · man'], ['faelivrin', 'Silvan · woman'],
+    ['bjarnulf', 'Beorning · man', 1], ['shagra', 'Tarkhnarb · woman'], ['lindorie', 'Half-elf · woman'], ['wulfhere', 'Eriadorian · man', 1], ['grimhild', 'Broadbeam · woman'], ['durgash', 'Hill troll · man'], ['adunaphel', 'Black Númenórean · man', 1],
+  ];
+  const wall = document.getElementById('wall');
+  const W = 278, GAP = 44, ROWH = 328;
+  F.forEach(([id, label, paper], i) => {
+    const row = Math.floor(i / 7), col = i % 7;
+    const x = 120 + (row % 2) * 70 + col * (W + GAP) + (row === 2 ? -35 : 0);
+    const y = 44 + row * ROWH + ((col * 37 + row * 23) % 3) * 9;
+    const d = document.createElement('div');
+    d.className = 'face';
+    d.style.left = x + 'px'; d.style.top = y + 'px';
+    d.innerHTML = `<img src="shots/${paper ? 'facep' : 'face'}-${id}.png">`;
+    wall.append(d);
+    const l = document.createElement('div');
+    l.className = 'face-l';
+    l.style.left = x + 'px'; l.style.top = (y + 292) + 'px';
+    l.textContent = label;
+    wall.append(l);
+  });
+  Promise.all([...document.images].map((i) => i.decode())).then(() => (window.ready = true));
+</script>
+</body></html>

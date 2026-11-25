@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Status Stats Lore</title>
+<link rel="stylesheet" href="poster.css">
+<style>
+  .back { filter: brightness(0.86) drop-shadow(0 24px 40px rgba(0,0,0,.75)); }
+  .mid { filter: drop-shadow(0 30px 50px rgba(0,0,0,.8)) drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+  .front { filter: drop-shadow(0 40px 70px rgba(0,0,0,.85)) drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
+</style>
+</head><body>
+<div class="card back" style="left:110px; top:170px; width:1141px; height:994px"><img src="shots/big-lore-nalbor.png"></div>
+<div class="card mid" style="left:1300px; top:92px; width:1159px; height:629px"><img src="shots/big-stats-aerlinn.png"></div>
+<div class="card front" style="left:1281px; top:772px; width:1178px; height:596px"><img src="shots/big-status-gruzhbag.png"></div>
+<div class="title" style="left:120px; top:1262px">Status · Stats · Lore</div>
+<script>
+  Promise.all([...document.images].map((i) => i.decode())).then(() => (window.ready = true));
+</script>
+</body></html>

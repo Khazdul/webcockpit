@@ -1,0 +1,73 @@
+@font-face {
+  font-family: 'Cinzel';
+  font-weight: 700;
+  src: url('../../../public/fonts/Cinzel-Bold-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cinzel';
+  font-weight: 500;
+  src: url('../../../public/fonts/Cinzel-Medium-latin.woff2') format('woff2');
+}
+:root {
+  --ink: #e2d3ad;
+  --ink-dim: rgba(226, 211, 173, 0.62);
+}
+html, body {
+  margin: 0;
+  width: 2560px;
+  height: 1440px;
+  overflow: hidden;
+  background: #000;
+}
+#sky {
+  position: absolute;
+  inset: 0;
+  width: 2560px;
+  height: 1440px;
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+}
+.card {
+  position: absolute;
+  display: block;
+  filter: drop-shadow(0 28px 44px rgba(0, 0, 0, 0.72)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+.card img { display: block; width: 100%; height: 100%; }
+/* a see-through card: its sheet tinted and frosted, the sky behind it glowing through */
+.glass { position: absolute; inset: 6px; background: rgba(5, 7, 12, 0.6); backdrop-filter: blur(5px) saturate(1.15); }
+.glass.paper { background: rgba(244, 236, 216, 0.8); }
+.title {
+  position: absolute;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 46px;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.title::before, .title::after {
+  content: '';
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--ink-dim);
+  flex: none;
+}
+.label {
+  position: absolute;
+  font-family: 'Cinzel', serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.95);
+  white-space: nowrap;
+}
