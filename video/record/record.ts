@@ -24,6 +24,7 @@ import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
 import { balloonsFountain } from './scenes/balloons.ts';
 import { bree } from './scenes/bree.ts';
+import { characterTour } from './scenes/character.ts';
 import { devicesDesktop, devicesPhone, devicesTablet } from './scenes/devices.ts';
 import { film2A } from './scenes/film2-a.ts';
 import { film2B } from './scenes/film2-b.ts';
@@ -42,6 +43,7 @@ const SCENES: Record<string, Scene> = {
   'film2-a': film2A,
   'film2-b': film2B,
   'balloons-fountain': balloonsFountain,
+  'character-tour': characterTour,
 };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));

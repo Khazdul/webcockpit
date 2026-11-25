@@ -22,6 +22,8 @@ npm run record -- part1                      # part 1 alone (public/recordings/p
 npm run record -- part1 --mode intel-2       # another capture mode (record/lib/browser.ts)
 npm run record -- devices-desktop            # film 2's device takes: also devices-tablet, devices-phone
 npm run record -- balloons-fountain          # the balloon film's one take (frame-stepped: 12–15 min)
+npm run record -- character-tour             # the Character pane film's one take (frame-stepped, about 15 min)
+node record/character-runs.ts <Gittan-…log>  # its run, from the run-log export → private/character-runs.jsonl.gz (once)
 npm run record -- bree --measure             # every mode: an fps table, no files kept
 node record/gpu-probe.ts                     # which flags give WebGL2 on which GPU
 node record/capture-login.ts                 # MUME's real welcome screen → private/ (once)
@@ -82,6 +84,7 @@ npm run render -- Film --out webcockpit-demo   # the whole film: out/webcockpit-
                                      #   webcockpit-demo.mp4 (HEVC 10-bit), -youtube.mp4 (4K H.264, the upload), -h264.mp4
 npm run render -- Film --out webcockpit-demo --no-4k   # without the YouTube 4K variant
 npm run render -- Balloons --out balloon-film-r4   # the balloon film (manuscript-balloons.md), with its YouTube 4K file
+npm run render -- Character --out character-film-r1   # the Character pane film (manuscript-character.md)
 npm run render -- Part1              # the same for part 1 alone
 node record/thumbnail.ts             # out/thumbnail/: the start page at 3840×2160, for the YouTube thumbnail
 npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)
