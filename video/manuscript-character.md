@@ -77,7 +77,7 @@ ring, 12 (+2) after. Mood: our choice.
 |---|---|
 | 0:00–0:07 | Title card |
 | 0:07–0:20 | Mason Road. Map on. Gittan: `narr off to tharbad! they say the pork-pies there are worth the whole road south`. The coach arrives; Character on (floats, Medium); `enter coach` |
-| 0:20–0:56 | The coach. Tour: Status, Stats, Lore, the ring's tooltip, a click on position (`rest`). Thorgrim: 'bring one for me. two, if the road is long'. Comm on (docked under the map, frameless, clear, ~1/3 height). Mirel: 'tharbad? half of it is under the greyflood and the other half would steal your boots'. Gittan: `narr hobbits have no boots, mirel. my feet and my purse are both well guarded`. Character docked above the map ("fits any size"); a Paper glimpse |
+| 0:20–0:56 | The coach. No tab tour (owner): the ring's tooltip, a click on position (`rest`). Thorgrim: 'bring one for me. two, if the road is long'. Comm on (docked under the map, frameless, clear, ~1/3 height). Mirel: 'tharbad? half of it is under the greyflood and the other half would steal your boots'. Gittan: `narr hobbits have no boots, mirel. my feet and my purse are both well guarded`. Character docked above the map ("fits any size"); a Paper glimpse |
 | 0:56–1:04 | Tharbad; the ring: "You feel stronger", STR 10 → 12 (+2) |
 | 1:04–1:12 | The bakery closed; the bandit; the flight; `wimpy 100` |
 | 1:12–1:20 | Gittan: `narr assaulted in the bakery, and it was CLOSED. this town is crawling with cutpurses`. Odalric: 'closed? now that is the real crime'. Out by the north gate; Gittan: `narr hiding in a little stone house north of the gate. nobody looks for a hobbit in a cellar` |
@@ -101,9 +101,11 @@ wimpy (the cycle's wrap), with the caption "A click sends the command."
 The tour's click is on the position (`rest`). Casts: no click (round 1's
 careful dropped).
 
-Achievement text (proposals): "Procured a pork-pie in Tharbad." ·
-"Bought a pork-pie in Tharbad, the hard way." · "Survived the Tharbad
-bakery."
+Achievement text (owner): "Procured a pork-pie in Tharbad."
+
+The coach (owner): no tab tour. The card stays on Status in the coach (the
+three posters show the tabs at the end); the ring's tooltip and the click
+on position stay.
 
 ## The run (Gittan, `~/Downloads/Gittan-2026-11-25T18-59-11.log`)
 
