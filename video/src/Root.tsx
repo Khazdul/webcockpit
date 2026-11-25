@@ -3,6 +3,7 @@
 import { Composition } from 'remotion';
 import { beat } from './beats';
 import { BALLOONS_END_S, BALLOONS_TAKE, Balloons, type BalloonsProps } from './compositions/Balloons';
+import { CHARACTER_END_S, CHARACTER_TAKE, Character, type CharacterProps } from './compositions/Character';
 import { DEVICES_PROTO_S, DEVICES_TAKES, DevicesProto, type DevicesProtoProps } from './compositions/DevicesProto';
 import { Film, type FilmProps, ending } from './compositions/Film';
 import { FILM2_TAKES, Film2, type Film2Props, film2Length } from './compositions/Film2';
@@ -62,6 +63,17 @@ export function Root() {
         durationInFrames={Math.round(BALLOONS_END_S * FPS)}
         defaultProps={{ take: null } satisfies BalloonsProps}
         calculateMetadata={async ({ props }) => ({ props: { ...props, take: await loadTimeline(BALLOONS_TAKE) } })}
+      />
+      {/* The Character pane film (video/manuscript-character.md, stage 78): as long as its music. */}
+      <Composition
+        id="Character"
+        component={Character}
+        width={WIDTH}
+        height={HEIGHT}
+        fps={FPS}
+        durationInFrames={Math.floor(CHARACTER_END_S * FPS)}
+        defaultProps={{ take: null } satisfies CharacterProps}
+        calculateMetadata={async ({ props }) => ({ props: { ...props, take: await loadTimeline(CHARACTER_TAKE) } })}
       />
       {/* Film 2's device prototype (stage 70): one session on desktop, tablet and phone. */}
       <Composition
