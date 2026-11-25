@@ -237,3 +237,82 @@ Deviations from draft 4:
   asked.
 - The tarantulas' joined sign has the *superb* face: that is the kill's
   rating, which the product draws on a joined sign too.
+
+## Round 3 (2026-11-25, manuscript draft 5): the preview
+
+`/home/ole/Downloads/character-film-r3-preview.mp4` (960×540 H.264,
+yuv420p, AAC, faststart, 9 MB, 3:06.35), made as round 2's preview (the
+stepped take at `--mode intel-0.6-png`, the composition at
+`--scale=0.5`). The played text for the owner's next edit:
+`/home/ole/Downloads/character-film-r3-spellogg.txt` (`node
+record/character-played.ts <run log> <out>`; the same ids, and exactly
+the L-lines of his edit). The full-quality take waits for his OK.
+
+| Film | Beat |
+|---|---|
+| 0:00–0:07 | Title |
+| 0:09.7 | Map on (docked right) |
+| 0:12.9 | `narr off to tharbad! …`, `Ok.` |
+| 0:13.9 | The coach from Fornost has arrived |
+| 0:15.6 | Character on: floats in the middle, Large (46 × 20 cells); caption |
+| 0:18.3 / 0:21.8 | `st`, `enter coach` |
+| 0:23.2 | Click on position: `rest` |
+| 0:26.9 | Thorgrim (14 s after her narrate) |
+| 0:30.1 | Comm on: under the map, borderless, clear, Public, 16 rows |
+| 0:32.2 / 0:38.4 | Stats, Lore (6.2 s each, a caption each) |
+| 0:44.6 | Status again |
+| 0:45.4 | Mirel |
+| 0:47.0 | The ring's tooltip |
+| 0:53.2 / 0:56.2 | Docked above the map, five rows taller; caption "It fits any size." |
+| 0:57.9 | `narr hobbits have no boots …`, `Ok.` (12.5 s after Mirel) |
+| 0:58.5–1:04.6 | `stat`, the walls, `eq` (its labels back), the rings: Lethargy's stone (1:02.6), "You feel stronger" (1:04.6) |
+| 1:05.1 | West Alley; Tiredness's stone (1:05.8); `st`; east to the fountain (1:09.2), a drink |
+| 1:12.4–1:15.6 | North, east, `open exit`, east: the bakery |
+| 1:17–1:24 | Closed; `glare`; the bandit; the flight; `wimpy 100` |
+| 1:25.3–1:31.1 | South, east, east, north, north: before the north gate |
+| 1:35.4 | `narr assaulted in the bakery …`, `Ok.` |
+| 1:41.7 | `invis`; the shroud |
+| 1:46.6–1:58.0 | (the owner's cut) back to the bakery; Odalric at 1:47.6 (12.2 s after "assaulted") |
+| 1:58.1 | The bandit; caption (fight); the baker; `cast n 'lightning bolt'`; `ag` (2:08.0) |
+| 2:17.3 | The bandit dead; caption (the XP ring) |
+| 2:17.8 | Click on Mood: `change mood wimpy`; caption "A click sends the command." |
+| 2:19.0 / 2:21.3 | `buy pie`, `eat pie` |
+| 2:22.0 | The achievement (staged) |
+| 2:29.35 | Its balloon at rest |
+| 2:32.35–2:36.35 | Everything but the balloon fades |
+| 2:36.35–2:40.35 | The balloon alone, flying on |
+| 2:40.35–2:44.35 | The balloon fades |
+| 2:44.35–2:58.05 | Three posters, still, 4.9 s each, 0.5 s cross-fades |
+| 2:57.55–3:06.35 | The end card (8.8 s) |
+
+How, beyond round 2:
+
+- **The owner's edit** decides the run's text: the log lines he left out
+  are `DELETED_LINES` (227–271, 348–352, 500–1002). Their GMCP goes with
+  them (the rooms of the stone house and the way back are not played; the
+  bars stay true by the next values). The XP those stretches gave (the
+  tarantulas', 10,933) is taken off every later Char.Vitals xp, so the
+  ring grows only at the bandit. Kept: every GMCP line between kept text.
+- **eq.** The mock now escapes `&`, `<`, `>` in every text line it sends
+  (MUME's XML mode); prompts were escaped already. The list is back and
+  left-aligned.
+- **Her own narrates:** the game window gets only `Ok.`; Comm keeps the
+  narrate (Comm.Channel.Text, talker `you`).
+- **The balloon's own layer.** Balloons are off until 2:19.5 (switched in
+  the settings, no UI), so only the achievement gets one. From 2.5 s
+  after its rest every frame is shot twice in the stepped take: the
+  frame, then the page with only the `.wc-balloon` drawn on a
+  transparent background (786 PNGs in `public/recordings/
+  character-balloon/`). The composition lays those over the take frame
+  for frame, so the balloon keeps moving while the rest fades.
+- **Posters** still; their length is what leaves the end card 8.8 s
+  (4.9 s each here).
+
+Found in the product (not changed): **"You feel stronger." gives no
+stone.** Lethargy's ("a sudden loss of energy") and Tiredness's ("… the
+strength that welled within you subsides") stones come with their lines,
+but the topaz ring's strength (L0297–L0301) shows no buff stone; the poll
+still lists `strength` and STR shows 12 (+2).
+
+Left over: the card's Lore at Large still shows "↓ more" (the birthday
+is under the fold).
