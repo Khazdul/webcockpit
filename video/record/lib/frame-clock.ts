@@ -19,6 +19,8 @@
 //     animation on by the same 1/60 s (their playback rate is 0 between the
 //     steps). The workers step with the page and answer once their canvases
 //     are committed; then the frame is taken (Page.captureScreenshot, PNG).
+//     A worker born after the freeze (the map switched on on camera) says
+//     hello and is stepped from the next frame on, frozen at its first.
 //   - the clock is the only driver: a scene says `until(t)` and does its
 //     typing, pointer moves and server sends between frames, so a take is
 //     the same whatever the machine's load.
@@ -180,12 +182,16 @@ function clockShim(): void {
       const { k, abs, seq } = e.data;
       if (k === 'freeze') freezeAt(abs);
       else if (k === 'step') {
+        // born after the freeze (a pane switched on on camera): it joins the clock at its first step
+        if (!manual) freezeAt(abs - 1000 / 60);
         await runTo(abs - origin);
         await painted(); // an OffscreenCanvas commits with the worker's own frame
       } else if (k !== 'who') return;
       bus.postMessage({ k: 'done', seq, from: me });
     };
     g.__frames = {};
+    // the page counts it from its next step when it comes after the freeze
+    bus.postMessage({ k: 'hello', from: me });
     return;
   }
 
@@ -223,10 +229,12 @@ function clockShim(): void {
 
   let seq = 0;
   let waiting: ((from: string) => void) | null = null;
+  let workers = new Set<string>();
   bus.onmessage = (e: MessageEvent<{ k: string; seq: number; from: string }>) => {
     if (e.data.k === 'done' && e.data.seq === seq) waiting?.(e.data.from);
+    // a worker born after the freeze: waited for from the next step on
+    else if (e.data.k === 'hello' && manual) workers.add(e.data.from);
   };
-  let workers = new Set<string>();
   const tell = (k: string, abs: number): Promise<Set<string>> =>
     new Promise((resolve, reject) => {
       const got = new Set<string>();
