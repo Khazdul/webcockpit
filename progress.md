@@ -185,8 +185,14 @@ with no stage of their own. Remove a line when it is done.
 - **Light wounds:** MUME's `wound` flag is a bleeding wound (exports:
   off when it heals to light); a light wound is now a dimmed stone from the
   lists, apart from the flag (addendum 38).
-- **Next:** the owner's test of the wound fix and light wounds (stage
-  file, "Wound stays after death", "Light wounds"); the Group troll row (H9 step 5) when grouped with one;
+- **Then:** light wounds 1–2 ok; deep → light blinked, fixed (GMCP's
+  `wound: false` dims the stone at once); the stones' tooltips lost their
+  source/kind lines; the bars' track lost its fibres (addendum 39). Every
+  Character tooltip reviewed (`notes/research/character-tooltips.md`,
+  T1–T47); the owner: all ok but T31 (the herblore `+`, kept; his wish
+  for it still open); built (addendum 40).
+- **Next:** the owner's test of the tooltips (stage file, "The tooltips");
+  T31's wording; the Group troll row (H9 step 5) when grouped with one;
   then close part H.
 
 ### 2026-11-25 — Stage 77 H9
