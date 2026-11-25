@@ -17,7 +17,8 @@ owner looked; polish is a pass of its own, H below). **Part E done**
 the fight card belongs, is to be discussed in a pass of its own before
 anything more is built. Nothing of F was kept. The wimpy point is decided (open points). **The direction pass was held 2026-11-23…24** (mockup rounds 10–12): the decisions are in "Direction pass", "Round 12 decisions" and "The info poll, round 2" below; the plan is F0 (round 13 mockup), F1, F2, G, H. Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
-(2026-11-22, "Ja"). Nothing is built yet.
+(2026-11-22, "Ja"). **All parts A–H are built** (2026-11-25); the stage
+waits for the owner's closing verdict ("Closing test" in the test guide).
 
 ## What is approved (the source to build from)
 
@@ -1764,9 +1765,44 @@ Parked:
 
 - `race`/`subrace` of the other races (completed from run logs as they
   come; the rules above work without them).
-- Compact mode.
+- ~~Compact mode.~~ Built in F2c (the compact card, ADR 0166 addendum 25).
 
 ## Test guide (for the owner)
+
+### Closing test, the whole card (the test server, MUME up)
+
+One pass over everything, for the verdict. About 20 minutes.
+
+1. **Desktop, docked.** Panes → Character on, docked right. Log in: the
+   portrait (your race, your sex), the name band, the level ring, the
+   status cells, the shields (`⋯` until the first poll, then OB/DB/PB/ABS)
+   and the parchment vitals. Status, Stats and Lore each fill; nothing of
+   the poll shows in the game text.
+2. **Resize.** Drag the dock narrower and lower, down to the compact
+   card, then back: the words only grow as the pane grows, the tabs move
+   to the right edge (I, II, III) when low, the stones get a `+n`, the
+   purse loses coins, nothing overlaps or jumps.
+3. **Floating.** Float the pane over the game, resize it from the rim,
+   dock it again: the same card, the same steps.
+4. **Clicks and the poll.** Click mood, alertness and the position icon:
+   each sends its command (echoed), the value follows GMCP. Change mood in
+   a fight: OB/PB follow within a few seconds. The gear: interval and the
+   event switches, the Stones groups.
+5. **Stones.** Start a herblore with the `+` (shown on hover), stop it
+   with ×; get a buff, a debuff, a wound (and a light one): each its icon
+   and a short tooltip. Spells shows the same icons.
+6. **Lykta and Paper.** Switch to Paper and back: the card, the stones,
+   the heat cells and the `+` read in both; no stripes behind the bars.
+7. **Phone.** Log in on the phone: Character first in the strip, the same
+   card; tap a herblore stone for ×; the Settings page for Character (the
+   poll's switch and settings). Turn the phone: both orientations.
+8. **A log.** Log out, open the run in History and play it: the card
+   follows the run, the shields from the first poll's time on and change
+   where they changed; Stats and Lore say a replay has none. If you like,
+   also as a shared link.
+
+Feedback wanted: the verdict on the stage (close it or not), and anything
+that looks wrong at a size or in a theme you had not tried before.
 
 ### Part H11, the poll in a fight (the test server, MUME up)
 
