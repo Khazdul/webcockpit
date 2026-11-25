@@ -21,3 +21,9 @@ panes confuse users. It is off by default for new players (ADR 0092).
 
 Removing the pane entirely (code, settings migration, the run log's
 VIEW records) is a later step if the owner wants it.
+
+## Addendum (2026-11-25): the manual
+
+Released in 0.23.1. The script manual says the Panes menu does not offer
+the UI pane and that `setPaneOn("ui", true)` shows it (`uiMessage` and
+script errors still go there). Waits for the next release.
