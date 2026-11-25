@@ -1,6 +1,7 @@
 # The Character pane film — manuscript
 
-Draft 2 (2026-11-25): the owner's run and story (below). Draft 1 (in git,\n98fc54a3) had the owner's answers to draft 0 (7bb4897f).
+Draft 3 (2026-11-25): the owner's answers to draft 2. Draft 2: the owner's
+run and story (below). Draft 1 (in git,\n98fc54a3) had the owner's answers to draft 0 (7bb4897f).
 Not approved. A film of its own about the Character pane of 0.23.0
 (stage 77), recorded after the release is published. Same pipeline as the
 balloon film (ADR 0133, `README.md`).
@@ -23,6 +24,13 @@ balloon film (ADR 0133, `README.md`).
   little smaller than in the picture but large enough for the shields and
   the portrait (about Medium). Then it is docked above the mapper.
 - **Narrates**, as in the balloon film: they made the game feel alive.
+  Invented by us, in the game's own colour and form (below).
+- **The tour** while the card floats in the middle during the coach ride,
+  then the dock (owner: ok).
+- **Clicks instead of typing**: `r`, `ag`, `wi` are shown as clicks on the
+  card (position, Mood) with the game's own answers; the failed
+  `cha spellspeed quick` becomes a click on Casts (owner: ok).
+- **No phone view.**
 - **Captions on chosen moments only.** One short caption per tab and a few
   more (below). Not every detail.
 - **Other sizes: yes.** The card is shown in more than one size (Large →
@@ -67,7 +75,7 @@ where the clarinet solo begins and ends, so the cuts land on them.
 | 284–308 | `invis`, through the north gate, picks locks, down into the stone building | invisibility stone, gone at 308 |
 | 308–316 | Two huge tarantulas; poisoned (312), flees up (315.8) | fight mode, the poison stone |
 | 324–326 | `remp`: the poison is gone | the stone goes |
-| 328–347 | Camp fire; `store earthquake` ×4 | mana 137 → 55 in four steps; four stored-spell stones |
+| 328–347 | Camp fire; `store earthquake` ×4 | mana 137 → 55 in four steps (stored spells are no stones: they show in Timers only) |
 | 347–415 | Rest, `mix clear` ("You feel bolder"), `quaff brew`, `stat` twice | herb stone; mana back to 96 |
 | 416–424.5 | Down; four earthquakes; both tarantulas dead | fight mode; XP +9,5k (the ring's bright gold) |
 | 448–468 | The bakery again: the bandit; the baker joins; lightning bolt; `ag` (mood aggressive, 460), kill (467.7), `wi` (wimpy again) | fight mode; Mood changes twice |
@@ -90,7 +98,7 @@ went low (lowest 172/205). The weight stays `heavy` throughout.
 | 5 | 1:20–1:28 | 259–268 | Closed. The bandit; Gittan flees; `wimpy 100` | fight mode for a blink; the wimpy arrow | — |
 | 6 | 1:28–1:40 | 284–308 | Invisible, out through the north gate, down into the stone building | invisibility stone | — |
 | 7 | 1:40–1:52 | 308–326 | The tarantulas; poisoned; flee up; remove poison | fight mode, the poison stone comes and goes | "fight mode" |
-| 8 | 1:52–2:18 | 328–415 | Camp fire; four stored earthquakes; rest, herb, brew | mana down in four steps; four stones; the herb stone | — |
+| 8 | 1:52–2:18 | 328–415 | Camp fire; four stored earthquakes; rest, herb, brew | mana down in four steps; the herb stone | — |
 | 9 | 2:18–2:30 | 415–424 | The dip: down the stairs, the quakes cast | fight mode | — |
 | 10 | 2:30–2:36 | 424.5 | The peak: both tarantulas dead | the XP ring grows | "the XP ring" |
 | 11 | 2:36–2:54 | 448–472 | Revenge: the bandit, the baker joins, the kill; a pie for six copper | Mood changes (clicks?), the purse | — |
@@ -109,18 +117,43 @@ The film can only show what is in the log, so play these live:
   mana spent; then loot (a heavier weight step) and if possible a level.
 - Play calmly, 20–30 minutes; we cut the best moments together.
 
+## Stats and Lore (the owner's screenshots, 2026-11-25)
+
+The poll's answers are not in the log; the mock answers the poll with these.
+
+- **Stats:** STR 12 (+2, the ring's strength), INT 17, WIS 19, DEX 11,
+  CON 14, WIL 13, PER 16. Age 55, 3rd age, 4th at 60; points HP +11,
+  MANA +2, MOVES +2; regen +0.3, +5.0, +1.3. Vision 35, hearing −5,
+  smell −20, carrying 76 lb.
+- **Lore:** Fallohide hobbit. Alignment "You must have been sent to Arda to
+  free it from the sorrows that weigh upon it". Citizen Bree · Shire ·
+  Fornost · GreyHavens · Rivendell. War fame war leader, war points 13.
+  Purse 66 gold, 4 silver, 48 copper (42 copper after the pie). Height
+  3′1″, weight 4 st 13 lb, birthday in 1 month.
+- Before the ring (Bree, the coach): STR 12 without the `+2` line is to be
+  confirmed (the screenshot was taken with the strength on).
+
+## Narrates (invented, draft)
+
+The form of the owner's runs (as `feeds/balloons.ts`): an empty line, the
+line in yellow (ANSI 33) as `Name narrates 'words'`, an empty line,
+`Comm.Channel.Text` (`tales`, `talker-type` player), the prompt. Players
+are invented. Lower case, as MUME players write.
+
+| Film | Where | Line |
+|---|---|---|
+| ~0:45 | in the coach | Fenwick narrates 'anyone know when the bakery in tharbad opens?' |
+| ~1:26 | after "closed" and the flight | Mirel narrates 'tharbad bakery keeps hobbit hours. second breakfast only' |
+| ~1:52 | after the poison | Thorgrim narrates 'never go down into that stone hut north of tharbad. trust me' |
+| ~2:34 | after the quakes | Odalric narrates 'did anyone else just feel the ground shake??' |
+| ~2:58 | aboard, homeward | Sigrun narrates 'gittan, was the pie worth it?' |
+
+Optional: Gittan answers the last one (`narrate every crumb`); the game's
+echo of your own narrate is to be checked in a run before it is staged.
+
 ## Open questions for the owner
 
-1. The tour while the card floats in the middle during the coach ride,
-   then the dock? (Proposed.)
-2. The typed `r`, `ag` and `wi` shown as clicks on the card instead
-   (position, Mood), with the game's own answers? And the failed
-   `cha spellspeed quick` replaced by a click on Casts?
-3. Stats and Lore: the poll's answers are not in the log. Screenshots of
-   Gittan's Stats and Lore tabs give the mock its values.
-4. The phone view: dropped for time? The dock already shows the card
-   change size.
-5. Narrates: three to five staged ones with invented names (proposals in
-   the reply of 2026-11-25), or does the owner write them?
-6. No level-up in the run (150k xp to go); the XP ring's growth is the
+1. No level-up in the run (150k xp to go): the XP ring's growth is the
    reward.
+2. HP never goes low (lowest 172/205): the danger is in the poison and
+   the flights, not the bar.
