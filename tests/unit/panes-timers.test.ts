@@ -244,8 +244,9 @@ describe('timersModel', () => {
     ];
     const [g] = timersModel(input(cells, {}, {}, true));
     expect(g!.items.map((t) => [t.name, t.icon, t.remove, t.herbKey])).toEqual([
-      ['Healing', 'herb', 'herb', 'Healing'],
-      ['Haste (recovery)', 'debuff', 'herb', 'Haste'],
+      // The herblore's pick in every phase, as its stone (stage 77 H8).
+      ['Healing', 'st-healing', 'herb', 'Healing'],
+      ['Haste (recovery)', 'st-haste-recovery', 'herb', 'Haste'],
     ]);
     expect(g!.items[1]!.tip).toContain('Herblore, a debuff phase.');
     // Other groups have no pinned header and no +; a charm's × forgets it.

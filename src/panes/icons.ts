@@ -1,6 +1,7 @@
 // The line icons of the Group, Timers and Character panes (ADR 0122; the
 // set of mockup 3c, notes/research/group-timers-mockups/r2-P3c-revised.dc.html,
-// and round 3 of the Character pane's, stage 77 decision 20).
+// and round 3 of the Character pane's, stage 77 decision 20; the stones'
+// own icons from `stone-icons.ts`, stage 77 H8).
 // Each is one SVG path `d` on a 24×24 view box, drawn as a stroke (no
 // fill): stroke width 2, round caps and joins, `currentColor`. Several
 // subpaths share one `d` (`M … M …`).
@@ -10,6 +11,7 @@
 // icons.css; `ringDash` sets how much of it is left).
 
 import './icons.css';
+import { STONE_ICONS, type StoneIconName } from './stone-icons';
 
 /** The icon names. */
 export type IconName =
@@ -59,7 +61,9 @@ export type IconName =
   | 'mood'
   | 'casts'
   | 'alertness'
-  | 'weight';
+  | 'weight'
+  /** The stones' own icons (stage 77 H8, `stone-icons.ts`). */
+  | StoneIconName;
 
 /** Path data by name. */
 export const ICONS: Readonly<Record<IconName, string>> = {
@@ -158,6 +162,8 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   alertness: 'M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5',
   /** Character: weight, a weight. */
   weight: 'M6 8h12l2 12H4z M9 8V6a3 3 0 0 1 6 0v2',
+  /** The stones' picks (stage 77 H8, ADR 0166 addendum 34). */
+  ...STONE_ICONS,
 };
 
 /** The view box every icon is drawn in. */

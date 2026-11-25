@@ -100,7 +100,8 @@ describe('stoneView', () => {
       'flag:wound',
     ]);
     expect(v.stones.map((s) => s.kind)).toEqual(['herb', 'buff', 'buff', 'buff', 'debuff', 'sanct', 'flag', 'flag']);
-    expect(v.stones.map((s) => s.icon)).toEqual(['herb', 'buff', 'buff', 'buff', 'debuff', 'sanct', 'poison', 'wound']);
+    // Each its pick (H8); the spells as buffs here have none: the generic buff.
+    expect(v.stones.map((s) => s.icon)).toEqual(['st-haste-recovery', 'buff', 'buff', 'buff', 'st-winded', 'sanct', 'poison', 'st-wound']);
     expect(v.stones.map((s) => s.tone)).toEqual(['herb', 'buff', 'buff', 'buff', 'debuff', 'sanct', 'debuff', 'debuff']);
     expect(v.stones.map((s) => s.label)).toEqual(['Haste (active)', 'Armour', 'Shield', 'Bless', 'Winded', 'Sanctuary', 'Poisoned', 'Wounded']);
     expect(v.canStartHerb).toBe(true);
@@ -108,10 +109,10 @@ describe('stoneView', () => {
     expect(v.stones[0]!.herbKey).toBe('haste');
   });
 
-  it("a herblore's debuff phase has the debuff arrow", () => {
+  it("a herblore's debuff phase keeps the herblore's icon, in the debuffs' colour (H8)", () => {
     const view = viewWith([timed('herb:haste', 'haste (recovery)', 'herb', 200, 300, { herbKey: 'haste', phase: 'debuff' })]);
     const [s] = stoneView({ view, flags: noFlags(), show: ALL, player: false }).stones;
-    expect(s).toMatchObject({ kind: 'herb', icon: 'debuff', tone: 'herb', herbDebuff: true });
+    expect(s).toMatchObject({ kind: 'herb', icon: 'st-haste-recovery', tone: 'debuff', herbDebuff: true });
     expect(stoneTip(s!, NOW, 20).tip).toContain('Herblore · a debuff phase');
   });
 

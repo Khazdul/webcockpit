@@ -38,6 +38,7 @@ import {
 } from '../timers/entry';
 import { capitalise } from '../gmcp/char';
 import { type IconName, TIMER_GROUP_ICON } from './icons';
+import { affectStoneIcon, herbStoneIcon } from './stone-icons';
 import { resolveColor } from './palette';
 
 export type TimerItemKind = 'timed' | 'still' | 'untimed' | 'charm';
@@ -58,7 +59,7 @@ export interface TimerItem {
   /** Ms left (timed), else null. */
   remaining: number | null;
   ending: TimerEnding;
-  /** The item's own icon (a herb's leaf or, in a debuff phase, the debuff arrow; the group icon otherwise). */
+  /** The item's own icon (a buff's, debuff's or herblore's pick, as its stone; the group icon otherwise). */
   icon: IconName;
   /** Draw the icon in a bar (chip); circles always have it in the ring. */
   chipIcon: boolean;
@@ -165,9 +166,15 @@ export function timerGroupColor(setting: ColorSetting, g: TimerGroup, light: boo
 }
 
 function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
-  // A herblore's leaf; its debuff phases (`Haste (recovery)`) the debuff arrow.
+  // The same icon as the cell's stone on the card (stage 77 H8): a buff's,
+  // a debuff's and a herblore's pick (a herblore's in every phase), the
+  // group's generic for the rest; the other groups their group icon.
   const herb = c.group === 'herb' || c.id.startsWith('herb:');
-  const icon: IconName = herb ? (c.phase === 'debuff' ? 'debuff' : 'herb') : TIMER_GROUP_ICON[c.group];
+  const icon: IconName = herb
+    ? herbStoneIcon(c.herbKey)
+    : c.group === 'buff' || c.group === 'debuff'
+      ? affectStoneIcon(c.name, c.group)
+      : TIMER_GROUP_ICON[c.group];
   const base = {
     id: c.id,
     group: c.group,

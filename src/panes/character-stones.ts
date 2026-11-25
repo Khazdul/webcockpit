@@ -23,6 +23,8 @@
 //   hungry → hunger, thirsty → thirst) is one stone: the affect's.
 // - `potion` (MUME's name for a herblore's draught, stage 77 H9) is no
 //   stone while a herblore runs: the herblore's stone is the same thing.
+// - Each stone's icon is its pick (stage 77 H8, `stone-icons.ts`), chosen
+//   here when the list is built; the group's generic icon for the rest.
 
 import type { MemberFlags } from '../gmcp/group';
 import type { CharacterStones } from '../settings/types';
@@ -36,7 +38,8 @@ import {
   exactText,
   isTimed,
 } from '../timers/entry';
-import { type IconName, STATUS_ICON, TIMER_GROUP_ICON } from './icons';
+import type { IconName } from './icons';
+import { SANCT_STONE, affectStoneIcon, flagStoneIcon, herbStoneIcon } from './stone-icons';
 
 // -------------------------------------------------------------------- stones
 
@@ -70,7 +73,7 @@ export const HERB_POTION = 'potion';
 /** Your sanctuary from the GMCP flag alone (no cell of yours in the Sanctuary group). */
 export const SANCT_FLAG_ID = 'flag:sanctuary';
 
-/** The colour a stone is drawn in: a Timers group's colour (flags in the debuffs'). */
+/** The colour a stone is drawn in: a Timers group's colour (flags and a herblore's debuff phase in the debuffs'). */
 export type StoneTone = 'buff' | 'debuff' | 'herb' | 'sanct';
 
 /** The `+n` priority of each kind, most urgent first (after ending soon). */
@@ -136,12 +139,15 @@ export interface StoneView {
 
 function fromCell(c: TimerCell, kind: StoneKind, player: boolean): Stone {
   const herbDebuff = kind === 'herb' && c.phase === 'debuff';
-  const icon: IconName = kind === 'herb' ? (herbDebuff ? 'debuff' : 'herb') : TIMER_GROUP_ICON[kind as 'buff' | 'debuff' | 'sanct'];
+  // Its own pick (stage 77 H8): a herblore's is the same in every phase, so
+  // a debuff phase is drawn in the debuffs' colour (the round pages' red stone).
+  const icon: IconName =
+    kind === 'herb' ? herbStoneIcon(c.herbKey) : kind === 'sanct' ? SANCT_STONE.icon : affectStoneIcon(c.name, kind as 'buff' | 'debuff');
   return {
     id: c.id,
     kind,
     icon,
-    tone: kind === 'flag' ? 'debuff' : (kind as StoneTone),
+    tone: kind === 'flag' || herbDebuff ? 'debuff' : (kind as StoneTone),
     label: kind === 'sanct' ? 'Sanctuary' : capitalise(c.name),
     expiresAt: isTimed(c) ? c.expiresAt : null,
     expected: c.expected,
@@ -157,7 +163,7 @@ function fromFlag(f: StoneFlag): Stone {
   return {
     id: `flag:${f}`,
     kind: 'flag',
-    icon: STATUS_ICON[f],
+    icon: flagStoneIcon(f),
     tone: 'debuff',
     label,
     expiresAt: null,
@@ -200,7 +206,7 @@ export function stoneView(inp: StoneViewInput): StoneView {
       by.sanct.push({
         id: SANCT_FLAG_ID,
         kind: 'sanct',
-        icon: 'sanct',
+        icon: SANCT_STONE.icon,
         tone: 'sanct',
         label: 'Sanctuary',
         expiresAt: null,
