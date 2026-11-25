@@ -5,7 +5,8 @@ own (3:06, the length of its music) that shows the Character pane of 0.23.0
 (stage 77) through a small adventure of Gittan's. It does not replace the
 presentation films (stages 48 and 70) or the balloon film (stage 76).
 
-Status: **Round 1 being built** (2026-11-25, the owner: "kör på").
+Status: **Built: round 3 is the film** (2026-11-26). Left to the main
+session: the YouTube title and description; to the owner: the upload.
 
 The manuscript and the owner's decisions are in
 `video/manuscript-character.md` (draft 3), which the main session owns.
@@ -40,6 +41,8 @@ The pipeline is ADR 0133's (`video/README.md`); the balloon film
 - [x] Composition `Character`: title, captions, end card with the music
       credit; 3:06.
 - [x] Round 1 render and contact sheet for the owner.
+- [x] Round 2 and round 3 previews; round 3 approved with no fight caption.
+- [x] Round 3: the full-quality take, the sharp posters, the three files.
 - [ ] The YouTube title and description (end of the manuscript).
 
 ## Round 1 (2026-11-25)
@@ -316,3 +319,38 @@ still lists `strength` and STR shows 12 (+2).
 
 Left over: the card's Lore at Large still shows "↓ more" (the birthday
 is under the fold).
+
+### Round 3 final (2026-11-26)
+
+The owner approved the preview with one change: no fight caption
+(f7387d9e). Nothing else changed: the full-quality take (`npm run record
+-- character-tour`, 12.6 min) has the preview's times to the frame (the
+balloon at rest at take 142.35 s, 786 balloon-only frames, 17 polls, the
+same five answers), now at 1920 × 1080; the balloon's frames too.
+
+`npm run render -- Character --out character-film-r3` (17 min). In
+`video/out/`:
+
+| File | Format | Size |
+|---|---|---|
+| `character-film-r3.mp4` | 1920×1080, HEVC Main 10, yuv420p10le | 40 MB |
+| `character-film-r3-h264.mp4` | 1920×1080, H.264 High, yuv420p (copy in the owner's Downloads) | 45 MB |
+| `character-film-r3-youtube.mp4` | 3840×2160, H.264 High, yuv420p: **the upload** | 312 MB |
+| `character-film-r3-master.mov` | ProRes 4444 master | 10.2 GB |
+| `character-film-r3-sheet.png` | the contact sheet | |
+
+All three: 186.35 s (3:06.35), 11,181 frames, exactly 60 fps, AAC 48 kHz
+stereo (the music, mean −19.8 dB at 2:30), the end card's credit legible
+(checked on the 4K frame). On the sheet: the captions, the eq list with
+its labels, the Large card's Stats and Lore, the balloon's fades, the
+three posters, the end card.
+
+**The posters, sharp.** The poster session's sources are in
+`video/record/posters/` (committed; `shots/` local). The card shots are
+now taken at scale 4 (`capture.ts`, `POSTER_SHOT_DSF`), the pages
+rendered at scale 2 (`render.ts`): 5120 × 2880 PNGs in
+`video/public/posters/` (gitignored). `render.ts` reports every shot's
+pixels against the device pixels it is drawn at: the least 1.00 (the
+fight card), so no poster pixel is ever enlarged, in the 1080p files or
+the 4K one (round 2's shots were 0.50–0.64 at that size). In the render's
+frames the posters match their sources downscaled.
