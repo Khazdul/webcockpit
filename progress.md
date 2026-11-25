@@ -196,9 +196,9 @@ with no stage of their own. Remove a line when it is done.
   YouTube title and description at the end of the manuscript.
 - **Next:** the owner's upload (the music credit in the description from
   the first moment; the track is in Content ID).
-- **Open (product, not changed):** an open Settings list closes when game
-  text arrives (`src/chrome/popups/controls.tsx`); "You feel stronger"
-  (the topaz ring's strength) gives no buff stone.
+- **Fixed (unreleased):** an open Settings list no longer closes when game
+  text arrives (`src/chrome/popups/controls.tsx`, unit test). "You feel
+  stronger" giving no buff stone is fine as it is (owner).
 - **Commits:** 7bb4897f … 3596b69e and the builder's (stage file, Round 1–3).
 
 ### 2026-11-25 — Discord posters for the Character pane (0.23)
