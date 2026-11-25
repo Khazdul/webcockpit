@@ -1629,3 +1629,72 @@ sentence ("In a fight the poll waits for the fight's end").
      `xxx` gives null vitals.
 219. **Cost.** One flag read per check and per frame end; no new
      listener, no per-line work.
+
+## Addendum 34 (2026-11-25): H8, the stones' own icons
+
+Stage 77 H8 build ("Part H8: what was built"): the owner's picks of
+`notes/research/stone-icons/picks.md` (rounds 1–2, confirmed 2026-11-24)
+and "H9 test" (unable to quit seen live). Replaces point 130's icons; its
+colours stand, but for a herblore's debuff phase (point 223).
+
+220. **Where the icons live.** `src/panes/stone-icons.ts`: the picked paths
+     (`STONE_ICONS`, named `st-<round page id>`), taken from the round
+     pages' own data (`round1.html`, `round2.html`, the shape helpers
+     evaluated, nothing redrawn; Clearthought's star point
+     `1.2000000000000002` written `1.2`), 24 × 24, one stroked path as the
+     rest of `icons.ts`, which takes them into `ICONS` and `IconName`.
+     The tables: `AFFECT_STONE` (every buff and debuff of the affect table
+     by its name in lower case), `HERB_STONE` (all twelve herblores by
+     catalogue key), `FLAG_STONE` (the six flag stones), `SANCT_STONE`.
+     A pick that is today's icon keeps its old name: poison, blind,
+     hungry, thirsty (flags 1) and sanctuary 1 (`sanct`).
+221. **The generic icons** (`GENERIC_STONE`, the "Generic" picks): a buff
+     the up arrow (buff 1), a debuff the down arrow (debuff 1), both as
+     before; a herblore the flask and leaf (herblore 4, new; only a
+     herblore missing from `HERB_STONE` gets it, none today); a flag the
+     question mark (flag 4; no flag reaches it today, as round 2's note
+     said, kept as the fallback of `flagStoneIcon`). An affect the table
+     does not know is a debuff (`UNLISTED_TYPE`, point 193),
+     so the down arrow; a spell shown as a buff (no pick) the up arrow.
+222. **Not recognised yet.** A pick marked `confirmed: false` keeps the
+     group's generic icon until the owner has seen the affect in the
+     game; turning it on is deleting that mark (one line). Unconfirmed:
+     bloodlust (pick bloodlust 1), some pipe-weed (5), potion (1), panic
+     (2), sunlight (1), unable to void (1), unable to sneak (2).
+     **Unable to quit** is confirmed ("H9 test": it came from the poll)
+     and has its pick (4, power off, slashed).
+223. **A herblore's phases.** One icon per herblore in every phase (the
+     picks give no phase its own). Haste is haste 6, haste (recovery) 1's
+     broken bolt (`st-haste-recovery`): for the herblore, all its phases,
+     as round 2's wish says ("så att herbloren och dess efterverkan hör
+     ihop"); the affect haste (active) keeps its own lightning (1). With
+     the debuff arrow gone, a herblore's debuff phase is drawn in the
+     debuffs' colour (`tone: 'debuff'`, the round pages' small red stone
+     beside each such herblore); the tooltip still says "a debuff phase".
+     It stays a herblore for the order, the `+n` rank and its ×.
+224. **The flags' twins and the Group pane.** Blindness, hunger and thirst
+     (the Debuffs twins of blind, hungry, thirsty, point 128) take the
+     flag's pick: one stone, one icon, whichever draws it. Snared (4, a
+     lasso) and wound (4, a cut and a drop) are new on the stones only:
+     the Group pane's member flags are not stones and keep `STATUS_ICON`
+     (the chain link, the bandage); to align them is the owner's call.
+225. **The Spells pane** shows the same icon for the same cell: its Buffs,
+     Debuffs and Herblores items take `affectStoneIcon` / `herbStoneIcon`
+     (`timers-model.ts`), which the card's stones use. Structurally free:
+     the item already carried an icon name. The group headers keep the
+     group icons (the arrows, the leaf), and the other groups (Spells,
+     Sanctuary, Stored, Blinds, Charmies) are unchanged. A herblore's debuff
+     phase in Spells keeps the group's colour (the pane colours by group,
+     the owner's setting); its name says the phase (`Haste (recovery)`).
+226. **Sizes.** The stones are 13 px (Large), 12 (Medium), 10 in a low or
+     compact card, at least 8 at the smallest scale; the icon is drawn at
+     74 % with stroke 2.3, as before. The owner judged the picks at 13 and
+     10 px on Lykta and Paper on round 2's page, in the same stone style.
+     In Spells the icon is the bars' chip icon (0.95 em) or the ring's
+     centre (40 %), as the group icons before.
+227. **No per-tick work.** A stone's icon is chosen when the stone list is
+     built (`stoneView`, on a Timers or group change); the DOM sets the
+     path only when the stone in a slot changes. The Spells model is
+     rebuilt on its tick, so `affectStoneIcon` keeps a memo per group by
+     the name as given (one map read per item, no string work after the
+     first); a herblore is a record read.
