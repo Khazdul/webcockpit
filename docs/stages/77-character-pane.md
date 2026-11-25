@@ -18,7 +18,7 @@ the fight card belongs, is to be discussed in a pass of its own before
 anything more is built. Nothing of F was kept. The wimpy point is decided (open points). **The direction pass was held 2026-11-23…24** (mockup rounds 10–12): the decisions are in "Direction pass", "Round 12 decisions" and "The info poll, round 2" below; the plan is F0 (round 13 mockup), F1, F2, G, H. Each part stops for the owner's
 go before the next (owner, 2026-11-22). The owner approved writing the stage from round 9
 (2026-11-22, "Ja"). **All parts A–H are built** (2026-11-25); the stage
-waits for the owner's closing verdict ("Closing test" in the test guide).
+passed the owner's closing test and is **done** (release 0.23.0).
 
 ## What is approved (the source to build from)
 
@@ -2617,6 +2617,14 @@ Loose ends). Built from the run exports' data, unit-tested.
 
 ### Closing test (the owner, 2026-11-25)
 
-Steps 1–7 ok; step 8 (a log) later. Panic showed the generic debuff
+Steps 1–7 ok; step 8 (a log) verified later the same day. Panic showed the generic debuff
 arrow: its pick (panic 2, fleeing) was waiting for the owner to see it;
 now confirmed and drawn (ADR 0166 addendum 43).
+
+The owner, after the closing test: the six other unseen icons turned on
+too (ADR 0166 addendum 43); the race strings checked tonight, a patch
+release if needed. Stage 77 closed.
+
+## Released
+
+Prepared as 0.23.0 (2026-11-25); tagged and pushed on the owner's word.
