@@ -439,6 +439,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
         setText(s.text, '');
         setAttr(s.el, 'data-tone', st.tone);
         setAttr(s.el, 'data-state', st.expiresAt !== null ? 'timed' : st.tracked ? 'still' : 'untimed');
+        setAttr(s.el, 'data-dim', st.dim ? '' : null);
         setAttr(s.el, 'data-act', null);
         setAttr(s.el, 'data-id', st.id);
         setHidden(s.x, st.herbKey === null);
@@ -477,7 +478,7 @@ function stonesEl(doc: Document, clock: StoneClock) {
       s.stone = null;
       setHidden(s.el, true);
       setTip(s.el, null);
-      for (const a of ['data-k', 'data-id', 'data-tone', 'data-state', 'data-act', 'data-end', 'data-armed']) setAttr(s.el, a, null);
+      for (const a of ['data-k', 'data-id', 'data-tone', 'data-state', 'data-dim', 'data-act', 'data-end', 'data-armed']) setAttr(s.el, a, null);
     }
     used = rows.entries.length;
     return true;

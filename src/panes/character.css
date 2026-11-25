@@ -905,6 +905,11 @@
   display: none;
 }
 
+/* A light wound (stage 77, ADR 0166 addendum 38): no GMCP flag, no malus; dimmed. */
+.wc-cc-st[data-dim] > .wc-cc-sti {
+  opacity: 0.5;
+}
+
 .wc-cc-st[data-state="untimed"] > .wc-cc-sti {
   box-shadow: none;
   outline: 1px dashed color-mix(in srgb, var(--c) 70%, transparent);

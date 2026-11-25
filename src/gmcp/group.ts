@@ -294,6 +294,8 @@ export class GroupModel {
   private self: MemberFlags = noFlags();
   /** The wound lines of the latest list of yours that had them, while `wound` is on. */
   private wounds: readonly string[] = [];
+  /** Your wound lines while GMCP has no wound on (a light wound has no flag; addendum 38). */
+  private lights: readonly string[] = [];
 
   /** You are bashed (a bash or a trip: no prompt until "Your head stops stinging."). */
   get selfBashed(): boolean {
@@ -310,6 +312,16 @@ export class GroupModel {
   }
 
   /**
+   * Your wound lines from the latest list while GMCP has no `wound` on:
+   * light wounds, which MUME sends no flag for (ADR 0166 addendum 38). The
+   * flag means a bleeding wound; MUME clears it when the wound heals to
+   * light. Any GMCP change of `wound` forgets these until the next list.
+   */
+  get selfLightWounds(): readonly string[] {
+    return this.lights;
+  }
+
+  /**
    * A whole affects list of yours (ADR 0166 addendum 36): `wounds` its
    * `… wound at …` lines, `poison` whether it has a `poison …` line.
    * Clears your `wound` / `poison` flag the list does not show; keeps the
@@ -323,6 +335,10 @@ export class GroupModel {
     clear: { wound: boolean; poison: boolean } = { wound: true, poison: true },
   ): boolean {
     let changed = false;
+    if (!this.self.wound && (l.wounds.length > 0 || clear.wound) && l.wounds.join('\n') !== this.lights.join('\n')) {
+      this.lights = [...l.wounds];
+      changed = true;
+    }
     if (this.self.wound) {
       if (l.wounds.length === 0) {
         if (clear.wound) {
@@ -410,6 +426,7 @@ export class GroupModel {
     this.selfId = null;
     this.self = noFlags();
     this.wounds = [];
+    this.lights = [];
     this.version++;
   }
 
@@ -419,6 +436,7 @@ export class GroupModel {
    */
   apply(pkg: string, data: unknown): boolean {
     let changed: boolean;
+    const woundBefore = this.self.wound;
     switch (pkg.toLowerCase()) {
       case 'group.set':
         changed = this.set(data);
@@ -441,8 +459,10 @@ export class GroupModel {
       default:
         return false;
     }
-    // A wound GMCP ends (or a new self entry without one) takes its lines along.
+    // A wound GMCP ends (or a new self entry without one) takes its lines along;
+    // any change of the flag forgets the light wounds until the next list.
     if (!this.self.wound) this.wounds = [];
+    if (this.self.wound !== woundBefore) this.lights = [];
     if (changed) this.version++;
     return changed;
   }

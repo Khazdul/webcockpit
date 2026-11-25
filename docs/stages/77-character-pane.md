@@ -2490,3 +2490,22 @@ Test:
    shows the wound from the poll too. When the wound heals, the stone goes
    within a poll without typing `stat`. If it does not, `%f` does not list
    wounds after all: say so.
+
+### Light wounds (the owner, 2026-11-25)
+
+The owner got a light wound and no stone. MUME's `wound` flag is a
+bleeding wound, worse than light (the run exports: it goes off when the
+wound heals down to light, by itself or tended); a light wound has no
+flag. The owner: a different icon for light wounds is a nice touch, but
+only if it costs no reliability. Built (ADR 0166 addendum 38): the full
+wound stone stays GMCP's alone; light wounds are a dimmed wound stone
+from the lists only, kept apart from the flag.
+
+Test:
+1. Get a light wound, type `stat`: a dimmed wound stone; its tooltip
+   lists the wound.
+2. When `stat` no longer lists it, type `stat` (or wait a poll with the
+   card open): the dimmed stone goes.
+3. A serious wound ("You feel a sharp pain there!"): the full wound stone,
+   no dimmed one; when it heals to light, the full stone goes and within a
+   poll the dimmed one comes.

@@ -251,6 +251,7 @@ export class CharacterPane extends PaneShell {
         view: ctx.game.timers.view(ctx.now()),
         flags: ctx.game.group.selfFlags,
         wounds: ctx.game.group.selfWounds,
+        lightWounds: ctx.game.group.selfLightWounds,
         show: ctx.settings.get().character.stones,
         player: ctx.player === true,
       });

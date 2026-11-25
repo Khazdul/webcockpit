@@ -115,6 +115,8 @@ export interface Stone {
   herbDebuff: boolean;
   /** For a flag: what it does. */
   about: string | null;
+  /** Drawn dimmed: a light wound (no GMCP flag, no malus; addendum 38). Absent: false. */
+  dim?: boolean;
 }
 
 /** What `stoneView` reads. */
@@ -124,6 +126,8 @@ export interface StoneViewInput {
   flags: Readonly<MemberFlags>;
   /** Your wound lines from the latest list that had them (`GroupModel.selfWounds`); absent: none. */
   wounds?: readonly string[];
+  /** Your light wounds (`GroupModel.selfLightWounds`): lines while GMCP has no wound; absent: none. */
+  lightWounds?: readonly string[];
   /** The shown groups (`character.stones`). */
   show: CharacterStones;
   /** A log player (`ctx.player`): read-only, no `+` and no ×. */
@@ -181,6 +185,27 @@ function fromFlag(f: StoneFlag, wounds: readonly string[]): Stone {
   };
 }
 
+/** The light-wound stone's id. */
+export const LIGHT_WOUND_ID = 'flag:wound-light';
+
+/** Light wounds: listed, but no GMCP flag (MUME flags only a bleeding wound). Dimmed. */
+function fromLightWounds(lines: readonly string[]): Stone {
+  return {
+    id: LIGHT_WOUND_ID,
+    kind: 'flag',
+    icon: flagStoneIcon('wound'),
+    tone: 'debuff',
+    label: lines.length > 1 ? 'Light wounds' : 'Light wound',
+    expiresAt: null,
+    expected: null,
+    tracked: false,
+    herbKey: null,
+    herbDebuff: false,
+    about: ['No malus yet; bandage it before it gets worse.', ...lines.map(capitalise)].join('\n'),
+    dim: true,
+  };
+}
+
 /** Within a kind: timed by expiry (soonest first), then no end, then untimed; name, then id, as tie-breaks. */
 function byExpiry(a: Stone, b: Stone): number {
   const r = (s: Stone): number => (s.expiresAt !== null ? 0 : s.tracked ? 1 : 2);
@@ -234,6 +259,8 @@ export function stoneView(inp: StoneViewInput): StoneView {
       if (twin !== undefined && show.debuffs && debuffs.has(twin)) continue;
       by.flag.push(fromFlag(f, wounds));
     }
+    const light = inp.lightWounds ?? [];
+    if (!flags.wound && light.length > 0) by.flag.push(fromLightWounds(light));
   }
   const stones = KIND_ORDER.flatMap((k) => by[k].sort(byExpiry));
   const canStartHerb = show.herblores && !player;
@@ -281,6 +308,7 @@ export function stoneTip(s: Stone, now: number, warnAt: number): { title: string
     const of = s.expected !== null ? ` (of ${exactText(s.expected / 1000)})` : '';
     lines.push(`${exactText(t.remaining! / 1000)} left${of}.`);
   } else if (t.state === 'still') lines.push('No end time.');
+  else if (s.id === LIGHT_WOUND_ID) lines.push('Seen in stat, info or the poll (no time).');
   else if (s.kind === 'flag' || s.id === SANCT_FLAG_ID) lines.push('On while GMCP says so (no time).');
   else lines.push('Seen in stat, info or the poll only, no time.');
   if (s.about) lines.push(s.about);

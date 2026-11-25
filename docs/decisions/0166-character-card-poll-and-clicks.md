@@ -1780,3 +1780,26 @@ card's wound stone stayed whatever the player waited or typed.
      A poll's wound lines are always taken for the tooltip. A new
      connection (`resetCharacter`) forgets it. Replaces point 233's "the
      poll never clears"; the typed `stat` / `info` clears as before.
+
+## Addendum 38 (2026-11-25): light wounds
+
+237. **What the GMCP flag means.** The owner got a light wound and no stone
+     (Stewash, 09-41: `wound` false all through, `stat` listing "a light
+     wound at the right leg (clean)"). The run exports: the flag comes with
+     "You feel a sharp pain there!" and "You bleed from open wounds.", and
+     MUME sends `wound: false` when the wound heals down to light, by itself
+     (Rasta 2026-09-29: 147 s, then `stat` lists three light wounds) or
+     tended (Rasta 2026-11-03). So the flag is a bleeding wound, worse than
+     light; a light wound (no malus, but it can worsen unbandaged) has no
+     flag. Only a death left it on (addendum 36).
+238. **The full stone stays GMCP's alone.** No list ever sets the flag.
+239. **The light-wound stone** (`flag:wound-light`, the wound icon at 50 %,
+     `dim`): your wound lines from the latest list while GMCP has no wound
+     on (`GroupModel.selfLightWounds`). Set by any list (`stat`, `info`, the
+     poll); cleared by a typed list without wound lines, and by a poll's
+     once a poll has listed a wound (addendum 37). Any GMCP change of
+     `wound` forgets them until the next list, so a bleeding wound that
+     heals to light shows nothing until the next list (a poll, 10 s, with
+     Character open). The tooltip: "No malus yet; bandage it before it gets
+     worse." and the lines. Shown with the flags (`character.stones.flags`).
+     Kept apart from the flag, so it cannot change when the full stone shows.

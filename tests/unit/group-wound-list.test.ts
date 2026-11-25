@@ -112,7 +112,8 @@ describe('GameState: the list clears a stale own flag', () => {
     expect(t.game.group.selfFlags.wound).toBe(false);
     expect(t.game.group.selfFlags.poison).toBe(false);
     expect(t.game.group.selfWounds).toEqual([]);
-    expect(t.parts).not.toContain('group');
+    // The wound line is a light wound (addendum 38), not the flag.
+    expect(t.game.group.selfLightWounds).toEqual(['a light wound at the head (clean)']);
   });
 
   it('the other flags are left alone', () => {
@@ -192,5 +193,53 @@ describe('the wound stone', () => {
   it('without lines: the plain text', () => {
     const v = stoneView({ view: emptyView(), flags, show: { ...show, flags: true }, player: false });
     expect(v.stones.find((s) => s.id === 'flag:wound')!.about).toBe('Bleeding.');
+  });
+});
+
+describe('light wounds (addendum 38): listed, no GMCP flag', () => {
+  it("the Stewash run of 09-41: a light wound in stat with wound false is a dimmed stone; the GMCP flag is untouched", () => {
+    const t = setup();
+    t.stat('a light wound at the right leg (clean)');
+    expect(t.game.group.selfFlags.wound).toBe(false);
+    expect(t.game.group.selfLightWounds).toEqual(['a light wound at the right leg (clean)']);
+    const v = stoneView({
+      view: emptyView(),
+      flags: t.game.group.selfFlags,
+      wounds: t.game.group.selfWounds,
+      lightWounds: t.game.group.selfLightWounds,
+      show: DEFAULT_SETTINGS.character.stones,
+      player: false,
+    });
+    const s = v.stones.find((x) => x.id === 'flag:wound-light')!;
+    expect(s).toMatchObject({ dim: true, label: 'Light wound' });
+    expect(stoneTip(s, T, 10).tip).toContain('A light wound at the right leg (clean)');
+    // A list without it takes it away.
+    t.stat('comfortable');
+    expect(t.game.group.selfLightWounds).toEqual([]);
+  });
+
+  it('GMCP wound true: the full stone, no light one; wound false forgets the lines until the next list (Rasta 09-29)', () => {
+    const t = setup();
+    t.stat('a light wound at the head (clean)');
+    t.gmcp('Group.Update', { id: 1, wound: true });
+    expect(t.game.group.selfLightWounds).toEqual([]);
+    t.stat('a deep wound at the head (clean)');
+    expect(t.game.group.selfLightWounds).toEqual([]);
+    expect(t.game.group.selfWounds).toEqual(['a deep wound at the head (clean)']);
+    t.gmcp('Group.Update', { id: 1, wound: false });
+    expect(t.game.group.selfLightWounds).toEqual([]);
+    t.stat('a light wound at the head (clean)', 'a light wound at the left foot (clean)');
+    expect(t.game.group.selfFlags.wound).toBe(false);
+    expect(t.game.group.selfLightWounds).toHaveLength(2);
+  });
+
+  it("the poll sets light wounds; it clears them only once a poll has listed a wound", () => {
+    const t = setup();
+    t.stat('a light wound at the right leg (clean)');
+    t.game.applyPoll(pollAnswer(['comfortable']), null);
+    expect(t.game.group.selfLightWounds).toHaveLength(1);
+    t.game.applyPoll(pollAnswer(['a light wound at the right leg (clean)']), null);
+    t.game.applyPoll(pollAnswer(['comfortable']), null);
+    expect(t.game.group.selfLightWounds).toEqual([]);
   });
 });
