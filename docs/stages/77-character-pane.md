@@ -2333,3 +2333,8 @@ vitals are `xxx`. The answer came whole, with no fight line inside it.
 Decided: the poll and its events run in a fight too (H11), after H10.
 Still to see in the owner's test: the numbers changing with a mood change
 in a fight.
+
+### H10 test (the owner, 2026-11-25)
+
+Test guide "Part H10", steps 1–5: "ser bra ut". Nothing else to remark
+on (the later strip switch, the smaller shields, I/II/III). H10 approved.
