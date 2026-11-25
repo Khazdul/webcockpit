@@ -34,8 +34,8 @@ const cell = (p: Partial<TimerCell> & Pick<TimerCell, 'id' | 'name' | 'group'>):
   ...p,
 });
 
-/** The six affects whose picks wait for the owner (picks.md, "Not recognised yet"; unable to quit confirmed in H9's test, panic in the closing test). */
-const UNCONFIRMED = ['bloodlust', 'some pipe-weed', 'potion', 'sunlight', 'unable to void', 'unable to sneak'];
+/** The six turned on before release 0.23.0, unseen (ADR 0166 addendum 43): an unknown name still falls back to the generic. */
+const TURNED_ON = ['bloodlust', 'some pipe-weed', 'potion', 'sunlight', 'unable to void', 'unable to sneak'];
 
 describe('stone icons: the tables (H8)', () => {
   it('every picked path is one stroke path in the 24-unit box, and an icon', () => {
@@ -60,7 +60,7 @@ describe('stone icons: the tables (H8)', () => {
 
   it('a recognised affect gets its pick, case as the game or the table writes it', () => {
     for (const [name, def] of Object.entries(AFFECTS)) {
-      if (def.type === 'spell' || UNCONFIRMED.includes(name)) continue;
+      if (def.type === 'spell') continue;
       expect(affectStoneIcon(name, def.type), name).toBe(AFFECT_STONE[name.toLowerCase()]!.icon);
       expect(affectStoneIcon(name.toUpperCase(), def.type), name).toBe(AFFECT_STONE[name.toLowerCase()]!.icon);
     }
@@ -74,17 +74,14 @@ describe('stone icons: the tables (H8)', () => {
     expect(affectStoneIcon('thirst', 'debuff')).toBe('thirsty');
   });
 
-  it('unable to quit and panic have their picks (confirmed live); the six not recognised yet keep the generic icon, their picks kept', () => {
+  it('unable to quit, panic and the six turned on have their picks; none waits any more', () => {
     expect(affectStoneIcon('unable to quit', 'debuff')).toBe('st-unable-to-quit');
-    expect(AFFECT_STONE['unable to quit']!.confirmed).toBeUndefined();
     expect(affectStoneIcon('panic', 'debuff')).toBe('st-panic');
-    expect(AFFECT_STONE['panic']!.confirmed).toBeUndefined();
-    expect(unconfirmedAffects().sort()).toEqual([...UNCONFIRMED].sort());
-    for (const n of UNCONFIRMED) {
+    expect(unconfirmedAffects()).toEqual([]);
+    for (const n of TURNED_ON) {
       const def = AFFECTS[n]!;
       expect(def.type === 'buff' || def.type === 'debuff').toBe(true);
-      expect(affectStoneIcon(n, def.type as 'buff' | 'debuff'), n).toBe(GENERIC_STONE[def.type as 'buff' | 'debuff']);
-      // The pick is ready: turning it on is deleting `confirmed: false`.
+      expect(affectStoneIcon(n, def.type as 'buff' | 'debuff'), n).toBe(AFFECT_STONE[n]!.icon);
       expect(AFFECT_STONE[n]!.icon.startsWith('st-'), n).toBe(true);
     }
   });
@@ -142,7 +139,7 @@ describe('stone icons on the card and in Spells (H8)', () => {
     expect(v.stones.map((s) => [s.id, s.icon, s.tone])).toEqual([
       ['herb:Shadows', 'st-shadows', 'debuff'],
       ['affect:comfortable', 'st-comfortable', 'buff'],
-      ['affect:bloodlust', 'buff', 'buff'],
+      ['affect:bloodlust', 'st-bloodlust', 'buff'],
       ['affect:odd', 'debuff', 'debuff'],
       ['affect:unable to quit', 'st-unable-to-quit', 'debuff'],
       [SANCT_FLAG_ID, 'sanct', 'sanct'],

@@ -62,7 +62,7 @@ describe('stoneView: the poll’s affects (stage 77 H9)', () => {
     const view = viewWith([untimed('affect:?a strange curse', 'a strange curse', 'debuff'), untimed('affect:armour', 'armour', 'spell'), untimed('affect:bloodlust', 'bloodlust', 'buff')]);
     const v = stoneView({ view, flags: noFlags(), show: ALL, player: false });
     expect(v.stones.map((s) => [s.label, s.kind, s.icon])).toEqual([
-      ['Bloodlust', 'buff', 'buff'],
+      ['Bloodlust', 'buff', 'st-bloodlust'],
       ['A strange curse', 'debuff', 'debuff'],
     ]);
     expect(stoneTip(v.stones[1]!, NOW, 20).tip).toBe('');

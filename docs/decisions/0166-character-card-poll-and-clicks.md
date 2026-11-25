@@ -1912,11 +1912,16 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      focus is in it; shown always on a device without hover and after a
      touch (`data-touch`), where there is no hover to find it by.
 
-## Addendum 43 (2026-11-25): panic confirmed
+## Addendum 43 (2026-11-25): panic confirmed; the six others on
 
 254. **Panic has its pick.** The owner saw panic in the game in the
      closing test (a short malus to OB) with the generic debuff arrow:
      point 222's rule, so `confirmed: false` is deleted and panic draws
-     its pick (panic 2, a fleeing figure, `st-panic`). Six affects are
-     still not recognised: bloodlust, some pipe-weed, potion, sunlight,
-     unable to void, unable to sneak.
+     its pick (panic 2, a fleeing figure, `st-panic`).
+255. **The six others on, unseen** (the owner, before 0.23.0): bloodlust,
+     some pipe-weed, potion, sunlight, unable to void and unable to sneak
+     draw their picks now. Panic showed that a listed affect is
+     recognised; a name MUME writes otherwise is unknown and keeps the
+     generic arrow, as before, so nothing can draw wrong. The owner
+     watches for an arrow on any of them. `confirmed: false` stays as the
+     mechanism for a later pick; no entry uses it.

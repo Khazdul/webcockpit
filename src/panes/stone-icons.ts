@@ -63,11 +63,11 @@ export const STONE_ICONS = {
   'st-shadow-veil': 'M4 21c0-9 3-17 8-17s8 8 8 17 M9 12h.01 M15 12h.01 M8 21h8',
   /** haste (active) 1: lightning. */
   'st-haste-active': 'M13 2L4 14h7l-1 8 9-12h-7z',
-  /** bloodlust 1 (not recognised yet): fangs. */
+  /** bloodlust 1: fangs. */
   'st-bloodlust': 'M4 7c2 6 14 6 16 0 M8 9.5l1 4 1-3.5 M14 10.5l1 3.5 1-4',
-  /** some pipe-weed 5 (not recognised yet): a long hobbit pipe. */
+  /** some pipe-weed 5: a long hobbit pipe. */
   'st-pipe-weed': 'M2 9c3 3 7 5 12 5 M14 9h5v4a3 3 0 0 1-3 3 2 2 0 0 1-2-2z M17 6c-1-1.5 1-2.5 0-4',
-  /** potion 1 (not recognised yet): a round flask. */
+  /** potion 1: a round flask. */
   'st-potion': 'M10 2.5h4 M10.5 2.5v5a7 7 0 1 0 3 0v-5 M6 15h12',
 
   // ---------------------------------------------------------- debuffs
@@ -99,14 +99,14 @@ export const STONE_ICONS = {
   'st-haste-recovery': 'M13 2L6 12h5 M13 13h5l-8 9 1-6',
   /** panic 2: fleeing. */
   'st-panic': 'M10 4h.01 M11 8l3 5h-4l-2 7 M14 13l4 2 M11 8l-4 3H4 M19 5l1-2 M21 8h1',
-  /** sunlight 1 (not recognised yet): the sun. */
+  /** sunlight 1: the sun. */
   'st-sunlight':
     'M7.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0 M19.0 12.0L21.5 12.0 M16.9 16.9L18.7 18.7 M12.0 19.0L12.0 21.5 M7.1 16.9L5.3 18.7 M5.0 12.0L2.5 12.0 M7.1 7.1L5.3 5.3 M12.0 5.0L12.0 2.5 M16.9 7.1L18.7 5.3',
   /** unable to quit 4: power off, slashed. */
   'st-unable-to-quit': 'M12 3v8 M7 6a8 8 0 1 0 10 0 M3 3l18 18',
-  /** unable to void 1 (not recognised yet): a vortex, slashed. */
+  /** unable to void 1: a vortex, slashed. */
   'st-unable-to-void': 'M12 11.5a1 1 0 0 1 1 1 2 2 0 0 1-2 2 3 3 0 0 1-3-3 4 4 0 0 1 4-4 5 5 0 0 1 5 5 6 6 0 0 1-6 6 M3 3l18 18',
-  /** unable to sneak 2 (not recognised yet): a footprint, slashed. */
+  /** unable to sneak 2: a footprint, slashed. */
   'st-unable-to-sneak': 'M11 4c2.5 0 4 2.5 4 6s-1.5 5-4 5-4-1.5-4-5 1.5-6 4-6z M9 19h4 M3 3l18 18',
 
   // -------------------------------------------------------- herblores
@@ -192,9 +192,9 @@ export const AFFECT_STONE: Readonly<Record<string, StonePick>> = {
   smothered: { icon: 'st-smothered', pick: 'smothered-1' },
   'shadow-veil': { icon: 'st-shadow-veil', pick: 'shadow-veil-4' },
   'haste (active)': { icon: 'st-haste-active', pick: 'haste-active-1' },
-  bloodlust: { icon: 'st-bloodlust', pick: 'bloodlust-1', confirmed: false },
-  'some pipe-weed': { icon: 'st-pipe-weed', pick: 'pipe-weed-5', confirmed: false },
-  potion: { icon: 'st-potion', pick: 'potion-1', confirmed: false },
+  bloodlust: { icon: 'st-bloodlust', pick: 'bloodlust-1' },
+  'some pipe-weed': { icon: 'st-pipe-weed', pick: 'pipe-weed-5' },
+  potion: { icon: 'st-potion', pick: 'potion-1' },
   // debuffs
   winded: { icon: 'st-winded', pick: 'winded-1' },
   blindness: { icon: 'blind', pick: 'blind-1' },
@@ -212,13 +212,13 @@ export const AFFECT_STONE: Readonly<Record<string, StonePick>> = {
   dreaming: { icon: 'st-dreaming', pick: 'dreaming-3' },
   blindfolded: { icon: 'st-blindfolded', pick: 'blindfolded-4' },
   'haste (recovery)': { icon: 'st-haste-recovery', pick: 'haste-recovery-1' },
-  sunlight: { icon: 'st-sunlight', pick: 'sunlight-1', confirmed: false },
+  sunlight: { icon: 'st-sunlight', pick: 'sunlight-1' },
   // Confirmed by the owner live (stage 77, "H9 test").
   'unable to quit': { icon: 'st-unable-to-quit', pick: 'unable-to-quit-4' },
   // Confirmed by the owner live (stage 77, closing test).
   panic: { icon: 'st-panic', pick: 'panic-2' },
-  'unable to void': { icon: 'st-unable-to-void', pick: 'unable-to-void-1', confirmed: false },
-  'unable to sneak': { icon: 'st-unable-to-sneak', pick: 'unable-to-sneak-2', confirmed: false },
+  'unable to void': { icon: 'st-unable-to-void', pick: 'unable-to-void-1' },
+  'unable to sneak': { icon: 'st-unable-to-sneak', pick: 'unable-to-sneak-2' },
 };
 
 /** Every herblore of the catalogue (`src/timers/data/herblores.ts`, by its key) → its pick, the same in every phase. */
