@@ -182,8 +182,11 @@ with no stage of their own. Remove a line when it is done.
   after a death (MUME sends no `wound: false`); fixed: your own `stat` /
   `info` list clears a stale wound or poison, the poll once it has listed
   that form; the stone's tooltip lists the wounds (addenda 36–37).
-- **Next:** the owner's test of the wound fix (stage file, "Wound stays
-  after death"); the Group troll row (H9 step 5) when grouped with one;
+- **Light wounds:** MUME's `wound` flag is a bleeding wound (exports:
+  off when it heals to light); a light wound is now a dimmed stone from the
+  lists, apart from the flag (addendum 38).
+- **Next:** the owner's test of the wound fix and light wounds (stage
+  file, "Wound stays after death", "Light wounds"); the Group troll row (H9 step 5) when grouped with one;
   then close part H.
 
 ### 2026-11-25 — Stage 77 H9
