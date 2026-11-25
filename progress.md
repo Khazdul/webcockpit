@@ -187,7 +187,9 @@ with no stage of their own. Remove a line when it is done.
   longest of four copies): `"race":"Zaugurz","subrace":null` already gives
   the Zaugurz portrait and the balloon orc. Sunlight's start and end lines,
   panic's and unable to sneak's end lines confirmed and built (ADR 0166
-  addendum 45, `3ae1b351`). Unit 6218 passed.
+  addendum 45, `3ae1b351`). Unit 6218 passed. Panic's start has no line
+  and no GMCP (random after a flee, the owner): it starts from the lists
+  only, by design.
 - **Held by the owner:** not ready to publish. He logs a Black Númenórean
   and a Beorning for their race strings and more affects (the logs land in
   `~/Downloads`), and wants the glow round the borders of all panes

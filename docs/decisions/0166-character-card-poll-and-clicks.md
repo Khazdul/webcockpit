@@ -1957,6 +1957,10 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      feel bolder.`; unable to sneak ends with `You feel stealthy again.`
      All three stay untimed (no duration, nothing learned): a start line
      makes an indefinite stone, a drop line takes it away at once, the
-     lists still reconcile them. Panic's start is not known: `PANIC! You
-     couldn't escape!` came twice with no panic in the lists after it.
-     Unable to quit and unable to void still have no lines.
+     lists still reconcile them. Panic's start has no line and no GMCP:
+     `PANIC! You couldn't escape!` came twice with no panic in the lists
+     after it, and around the flee that gave it GMCP sent only
+     `Char.Vitals`, `Room.*` and `Event.Moved`. The owner: a flee gives it
+     at random. So panic starts from the lists only (your own `stat` /
+     `info`, the poll) and ends by its line. Unable to quit and unable to
+     void still have no lines.

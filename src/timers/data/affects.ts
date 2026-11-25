@@ -344,7 +344,7 @@ export const AFFECTS: Readonly<Record<string, AffectDef>> = {
   },
   // Untimed, from `stat` and `%f` (stage 77 H9). The lines below were seen
   // with the list in Piglet's run (2026-11-25, ADR 0166 addendum 45):
-  // panic's start is not known (`PANIC! You couldn't escape!` gave none),
+  // panic's start has no line and no GMCP (a flee gives it at random),
   // unable to sneak has no start line; unable to quit and unable to void
   // have no lines at all.
   panic: { type: 'debuff', drop: ['You feel bolder.'] },
