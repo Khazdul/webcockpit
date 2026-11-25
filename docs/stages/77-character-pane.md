@@ -507,6 +507,11 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
 - [ ] H10. The tabs as round 20's **G8**: folder tabs under the hood, on
       the right edge below 110 px of content, the active tab one sheet
       with its content (G1's iron, G3's edge); replaces H3's icons.
+- [ ] H11. The poll in a fight: the info poll and its events (a mood
+      change above all) run in a fight too, with the same gate (a clean
+      game prompt, the quiet after a command); the vitals' `xxx` writes
+      nothing, as before. Replaces point 24's "while fighting". See "The
+      poll in a fight" under Owner feedback. Built after H10.
 - [ ] H8 build: the stone icons from `notes/research/stone-icons/picks.md`
       (rounds 1–2), the generic stone per group for the rest.
 
@@ -2234,3 +2239,18 @@ herblores show the generic icons: the icons picked in
 third pass). `unable to quit` was one of the "not recognised yet"
 stones, which keep the generic icon until the owner has seen them in the
 game: he has now, so H8 gives it its pick (unable to quit 4).
+
+### The poll in a fight (the owner, 2026-11-25)
+
+The owner: OB/PB change often in a fight (wimpy ↔ aggressive) and the
+card does not catch it; why no poll in a fight? Point 24's "never while
+fighting" was a caution from part C, never measured. Measured live:
+
+    info [%O %D %k %Y %z]   →   [80 49 30 aggressive 222]
+    in a fight              →   [80 49 30 aggressive xxx]
+
+In a fight OB, DB, PB and mood answer as numbers and words; only the
+vitals are `xxx`. The answer came whole, with no fight line inside it.
+Decided: the poll and its events run in a fight too (H11), after H10.
+Still to see in the owner's test: the numbers changing with a mood change
+in a fight.
