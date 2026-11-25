@@ -1433,3 +1433,113 @@ troll's mana" (stage file, Owner feedback).
      timers' view only when a poll is due and time allows it. The card's
      layout key gains `mana`; hiding writes only on a change (`setHidden`,
      `setAttr`). No per-tick work.
+
+## Addendum 32 (2026-11-25): H10, the folder tabs of round 20 G8
+
+Stage 77 H10 ("Part H10: what was built"): the owner's pick of round 20,
+**G8** ("Järnark, bara skifferkanten"; stage file, "Round 20 and the
+troll's mana"). Replaces H3's icon tabs (points 170, 177), which the owner
+found "för moderna och ai-genererade" ("H test and round 2").
+
+201. **The shape.** Folder tabs under the pane's hood: a strip over the
+     status area, the tabs from 6 px in, each as wide as its word with a
+     4 px slant each side, 3 px over the next (round 20 `GSHAPE`), 15 px
+     high (18 on a phone). The chosen tab and the sheet the area's content
+     lies on are one outline (`folioPaths`: the sheet's corners and the
+     tab's four points, rounded 3 and 2.5 px), so the tab shares its
+     ground with what it shows; the other two lie behind it at 0.78 of its
+     depth, their foot 3 px under the sheet. The sheet holds the cells and
+     the shields (Status), Stats or Lore, 5 px inside its edge
+     (`SHEET_PAD`); the stones' row lies under it, 4 px below
+     (`SHEET_GAP`), as wide as the sheet, so on Lore and on Stats without
+     the row (point 174) the sheet reaches the area's foot.
+202. **The right edge.** Below `TAB_SWITCH` (110 px of content above the
+     vitals, round 20's `SWITCH_H`) the tabs stand on the sheet's right
+     edge: a column 18 px wide (22, and a finger's 26, on a phone), three
+     equal tabs down the sheet as high as it is above the stones' row,
+     from 3 px (or below the cross) to 3 px from its foot, 2 px apart.
+     Below `TAB_MIN` (80 px, point 125) there are no tabs and no sheet: the
+     low card and the compact card of F2c are as before. The compact card
+     of a narrow tall pane (point 126) has the tabs, so the sheet too.
+203. **The edge (G3's on G1's iron).** A near-black line on the outline
+     (`rgb(10 12 15 / 0.95)`) and one light line 1 px inside it
+     (`rgb(205 215 228 / 0.16)`, the outline moved in, `insetPoly`); no
+     G1 inner line. The tabs behind: a faint light edge (0.10). A drop
+     shadow under the sheet (0 1px 2px, 0.85). On Paper: the edge
+     `#857759`'s mix of the pane's ground, the white line at 0.8, the
+     shadow warm and light (round 20's Paper G8).
+204. **The iron and the tints.** Round 20's colours are the Lykta pane's
+     (`#12161f`). The card takes them from the pane's own ground
+     (`--window-base`): the sheet the ground mixed 7–3 % toward cold steel
+     (`#a0b2cd`), top to foot, with G1's grain; the tabs behind the ground
+     darkened. Each has a least OKLCH lightness (the sheet 0.245 → 0.205,
+     the tabs behind 0.20 → 0.17, round 20's own), so a black (Plain) pane
+     under the lamp still shows a sheet and not a hole, and a tinted one
+     keeps its hue. On Paper: the ground toward white (60 → 30 %, round
+     20's `#faf6ec` → `#f5efe1` on `#f1e8d4`), the tabs behind toward a warm
+     brown (12 → 20 %). The words: behind, the label shade toward round
+     20's `#7f8592` (Paper `#85775a`); the chosen one the lamp's hot light
+     with a glow (Paper `#3b2b10`, no glow); hover lights them.
+205. **Words, or I, II, III.** The words (STATUS, STATS, LORE in Cinzel
+     Bold, 0.14em tracking, at most 9 px × the card's scale, 10 on a phone)
+     stand where they are at least `TAB_WORD_MIN` (8 px, kept); else the
+     tabs show **I, II, III** (round 20 shows the numerals at every size
+     where the words do not fit, never icons), each tab a third of the
+     strip. On the right edge the words stand upright, which needs a tab
+     52 px long: in practice the column has the numerals. The numerals
+     are `depth − 7 px` (6 px at least, 11 × scale at most), the tabs
+     behind smaller. The word is the tooltip (`data-tip`) only where the
+     numerals show, and always the accessible name (`aria-label`). H3's
+     three paths (`tabStatus`, `tabStats`, `tabLore`) are removed from
+     `icons.ts`: no icon survives anywhere.
+206. **The cross.** The strip under the hood ends clear of the pane's close
+     cross: four cells from the card's right edge on a framed pane (its
+     glyph reaches 8 px in), eleven with no border (the cross's row and
+     the pane's buttons are over the content's top row). Where the words
+     would not fit beside the cross but would in the whole width, or not
+     even three numerals fit there, the strip goes under the cross's row
+     (the sheet's top with it), as the right column's first tab does.
+     Where a borderless cross's row leaves the column's tabs under 10 px
+     (a large font), the sheet starts below that row (`placed`); where the
+     sheet above the stones is still too short for three tabs, the stones'
+     row lies on the sheet (`sheet.whole`) and the tabs run its whole
+     height.
+207. **The room it takes, in the layout model.** The strip takes 15 px of
+     height (× scale) and the sheet's padding 10 px each way; the column
+     18 px of width. `cardLayout` gives `main` (the sheet and the stones'
+     row), `content` (inside the padding: what the steps, the cells, the
+     shields, the compact card and Stats' and Lore's columns are sized
+     for), `tabs` (the strip or column, each tab's box) and `sheet`; the
+     portrait's room counts the padding and the column. So nothing
+     overflows: unit tests (`character-layout`) for every size, font, lock
+     and phone place, and e2e `character-card`'s "nothing overflows"
+     (which skips the drawing, `.wc-cc-folio`, as a box).
+208. **A growing pane never takes a step back where the tabs move.** The
+     strip costs height the column does not: at 110 px a pane would go
+     from step 0 to step 2. So the tabs go under the hood from
+     `TAB_SWITCH` only where that costs the area no step against the right
+     edge (both laid out, the better kept, a tie to the hood): at the
+     default font from about 126 px of content instead of 110 (62 × 9 and
+     up). Where the tabs come (80 px), the sheet with the round's 5 px
+     padding cost a step too, so a low pane's sheet (the column) is padded
+     2 px (`SHEET_PAD_LOW`); with the column on, the stones keep three
+     tabs' height (46 px) above them (`TAB_LEAST`). Large's sizes (a Large
+     lock in a low pane) may still lose one step for a few px where the
+     tabs come (the unit test allows that one, never more, never Medium).
+     The shields shrink where the strip comes at the same step (52 → 31 px
+     at 520 × 158): the price of the strip the owner picked (round 20
+     notes "under huven hade gett").
+209. **What it costs elsewhere.** At the default font Stats keeps the
+     stones' row from 62 × 12 (was 62 × 11, point 174); the new player's
+     480 × 171 pane has shields of 41 px (was over 60). The phone strip at
+     its default height has the column (I, II, III); about 12 rows high,
+     the strip under the hood.
+210. **Drawn once per change.** `folioPaths` is pure; the card draws it on
+     a change of the layout, the tab, or the stones' row being shown
+     (`CardDom.drawFolio`): three clipped boxes (the tabs behind, the
+     sheet's ground) and two SVG paths, `clip-path: path()` (seen in
+     Chromium and Firefox; WebKit has it too, not tried here). Each tab button is placed by the layout and is
+     its tab's whole box (the chosen one on top where they overlap); the
+     keyboard (Tab, Enter, Space), clicks and taps are the buttons' as
+     before. The tablist's `aria-orientation` follows the side. No
+     per-tick work.

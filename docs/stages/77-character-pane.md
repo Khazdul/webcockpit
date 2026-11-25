@@ -504,9 +504,10 @@ Decided: Stats and Lore keep their scroll (ADR 0166 point 46).
       "Vitals from the poll", "Trolls have no mana" and "Round 20 and the
       troll's mana" under Owner feedback. Built: "Part H9: what was
       built", ADR 0166 addendum 31.
-- [ ] H10. The tabs as round 20's **G8**: folder tabs under the hood, on
+- [x] H10. The tabs as round 20's **G8**: folder tabs under the hood, on
       the right edge below 110 px of content, the active tab one sheet
-      with its content (G1's iron, G3's edge); replaces H3's icons.
+      with its content (G1's iron, G3's edge); replaces H3's icons. Built:
+      "Part H10: what was built", ADR 0166 addendum 32.
 - [ ] H11. The poll in a fight: the info poll and its events (a mood
       change above all) run in a fight too, with the same gate (a clean
       game prompt, the quiet after a command); the vitals' `xxx` writes
@@ -1609,6 +1610,56 @@ addendum 31 (points 188–200).
   e2e `poll-affects.spec.ts` (new: `%f` hidden and giving stones, the
   polled vitals, a troll's card), `timers.spec.ts` (the `+` menu's twelve).
 
+## Part H10: what was built (2026-11-25)
+
+The tabs as round 20's G8 ("Järnark, bara skifferkanten"), the owner's
+pick in "Round 20 and the troll's mana". ADR 0166 addendum 32 (points
+201–210).
+
+- **Folder tabs.** Under the pane's hood: STATUS, STATS, LORE in Cinzel, a
+  strip over the status area, each tab its word's width with slanted
+  sides, a little over the next. The chosen tab is cut from the same sheet
+  as what it shows (the cells and shields, Stats, Lore); the other two lie
+  behind it, lower and darker. The stones' row lies under the sheet (as
+  wide as it); on Lore, and on Stats where the row goes (H1), the sheet
+  reaches the foot.
+- **Low panes.** Below 110 px of content the tabs stand on the sheet's
+  right edge (a column of three); below 80 px there are no tabs and no
+  sheet, as before. The strip comes only where it costs the area no step
+  against the column, so a growing pane never gets a simpler status: at
+  the default font the strip from 62 × 9 (about 126 px), the column at
+  62 × 7.
+- **The edge and the iron.** G3's edge: a near-black outline, one light
+  line 1 px in; G1's iron sheet with its grain and a shadow under it, on
+  every pane tint (the sheet is the pane's own ground a step toward cold
+  steel, with round 20's lightness at least, so a black pane has a sheet
+  too). Paper: G1's paper with the darker warm edge and the white line, as
+  the round.
+- **Words or I, II, III.** The words where they are at least 8 px; else
+  I, II, III (as round 20 at every size: no icons anywhere; H3's three
+  icons are removed). The low column has room for the numerals only. The
+  word is the tooltip with the numerals, and always the accessible name;
+  keyboard, clicks and taps as before.
+- **The cross.** The strip ends clear of the pane's cross (and, with no
+  border, its buttons), or goes under the cross's row where the words
+  would not fit beside it.
+- **Costs.** The strip and the sheet's padding take 25 px of height (the
+  new player's 480 × 171 pane: shields 41 px, were over 60); Stats keeps
+  the stones' row from 62 × 12 (was 62 × 11). A low pane's sheet is padded
+  2 px, not the round's 5 (the 5 cost a step where the tabs come).
+- Screenshots (not committed): the round's G8 next to the card, Lykta and
+  Paper, Status and Stats, docked width (33 columns × 13, 9, 7) and Medium
+  floating (62 × 9); and the phone strip, the docked 33-column lane with
+  Spells, three tints and Firefox.
+- Tests: unit `character-layout` (the sides by height, the words and the
+  numerals, the sheet's padding and paths, the cross, the phone and its
+  grip, no overlap at every size/font/lock/phone place, the steps never
+  back where the tabs move), `character-pane` (the sides, the numerals'
+  tooltips and names, the sheet redrawn by the tab, no sheet without
+  tabs); e2e `character-card` (a new H10 test: the strip, the sheet's
+  outline, the stones under it, Enter and Space, Paper, the column at 62 ×
+  7; the H test with the numerals; the overflow check skips the drawing).
+
 ## Open points
 
 Decided by the owner 2026-11-22, after part B: **wimpy** is not in GMCP,
@@ -1636,6 +1687,34 @@ Parked:
 - Compact mode.
 
 ## Test guide (for the owner)
+
+### Part H10, the tabs (the test server)
+
+Round 20's G8 is built: the tabs as folder tabs. MUME up helps (Stats and
+Lore need the poll), but the look shows without it.
+
+1. Character **docked** in its usual lane, Status: the three tabs stand
+   under the hood over the status area, STATUS lit, cut from the same
+   sheet as the cells and shields; STATS and LORE lie behind it. The stones
+   lie under the sheet. Click STATS and LORE: the chosen tab joins the
+   sheet each time; on Lore the sheet reaches the foot.
+2. **Floating**, wide (62 columns or so) and **tall** (pull it high): the
+   same, the words a little larger; nothing moves when you change tab.
+3. Make it **low** (about 7 rows, under 110 px of content): the tabs move
+   to the sheet's right edge as **I, II, III** (hover: the word). Lower
+   still: no tabs, the low card as before. Grow it again: the tabs come
+   back under the hood when there is room.
+4. **The phone**: the strip at its default height has the column on the
+   right (I, II, III); make the strip taller in Settings (about 12 rows)
+   and the tabs go under the hood; tap each tab in both.
+5. **Paper** (light bg) and a **pane colour** or two (gear → colour): the
+   sheet follows; the Paper sheet light with a darker warm edge.
+6. The keyboard: Tab to a tab, Enter or Space chooses it.
+
+Feedback wanted: does it look like G8 (the iron and the thin edge, Lykta
+and Paper)? The words' size and the strip's height; whether the low column
+with I, II, III is good or should be something else; whether the sheet's
+padding (it takes some room from the shields) is worth it.
 
 ### Part H9, the poll pass (the test server, MUME up)
 
