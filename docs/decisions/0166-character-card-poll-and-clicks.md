@@ -1712,3 +1712,58 @@ colours stand, but for a herblore's debuff phase (point 223).
 230. **Kept:** a herblore's debuff phase drawn in the debuff colour on the
      card (point 223), and the `waiting` rule outside a fight too (point
      214), both by the owner's word.
+
+## Addendum 36 (2026-11-25): the list leads over a stale wound
+
+The owner's Stewash run (`Stewash-2026-11-25T09-14-32.log`): GMCP set
+your own `wound` (`Group.Update {"id":1,"wound":true}`), `stat` listed
+`- a serious wound at the left hand (clean)`, later `- a deep wound at
+…`; the character died ("You are dead! Sorry..."), and the next `stat`
+listed only `- comfortable`. MUME never sent `wound: false`, so the
+card's wound stone stayed whatever the player waited or typed.
+
+231. **The list clears a stale flag.** A whole affects list of yours, the
+     player's own `stat` block (`Affected by:`) or `info` block (`You are
+     subjected to the following temporary effects:`), that has no
+     `… wound at …` line turns your `wound` flag off; one with no
+     `poison …` line your `poison` (`GroupModel.noteSelfList`). The
+     version is bumped and GameState tells `group`, as for a
+     `Group.Update {"wound": false}`. It only clears: a list with a wound
+     or poison line while the flag is off changes nothing (GMCP says when
+     one comes), and a later GMCP `wound: true` sets it again as usual.
+     The other flags are not touched (their list forms are not the
+     flag's: hunger and the rest are affects of their own).
+232. **The wiring.** `StatReconcile.apply` (both the typed blocks and the
+     poll's `%f`) hands each whole list's flag forms (`FlagLines`: the
+     wound lines, a poison line, `poll`) to the hub's host
+     (`TrackerHost.flagList`, recognised by `isWoundForm` /
+     `isPoisonForm`, the two halves of `isFlagForm`); the hub passes them
+     to its `onFlagList` listeners; GameState, which owns both the hub and
+     the group model, listens. One call per list, no per-tick work.
+233. **Not the poll.** That `%f` lists `… wound at …` and `poison …` as
+     `stat` does is not measured: no `%f` answer is in any log at hand
+     (the poll is hidden from the run logs, `~/Downloads/*.log` to
+     2026-11-25; the run exports end 2026-11-17, before the poll; the
+     owner's hand-typed `info` formats in `Rasta-2026-11-22` hold no
+     `%f`). The header is the same (`Affected by:`), so it is likely, but
+     a poll that left wounds out would clear a real wound every time it
+     answers. GameState skips a list with `poll: true`; the owner's report
+     (the stone stayed after a typed `stat`) is fixed by the typed path.
+     To measure: `info [%f]` with a wound on, live; if it lists the wound,
+     dropping the `if (l.poll) return;` line in `GameState` extends the
+     rule to the poll.
+234. **Death sends no flags.** After "You are dead! Sorry..." the log has
+     `Event.Moved`, `Char.Vitals` (`position: resting`, the opponent
+     null), `Room.Chars.Set []` and no `Group.*` message for the rest of
+     the run (35 s, the `stat` that listed only `comfortable` included).
+     The flags go stale at a death, but the list rule fixes the wound the
+     next time a list is read; nothing is built on the death line. (One
+     death in the logs at hand; the run exports have none.)
+235. **One wound stone, its lines in the tooltip.** Several wounds stay
+     one stone. While `wound` is on, the wound lines of the latest list
+     that had them are kept (`GroupModel.selfWounds`; a GMCP `wound:
+     false`, a new self entry without one, or a reset forget them) and the
+     stone's tooltip lists them under "Bleeding." (`stoneView` input
+     `wounds`, capitalised: "A deep wound at the left hand (clean)"). A
+     flag stone's text is part of the stone list's key and the card's
+     slot key, so a changed line redraws the tooltip.

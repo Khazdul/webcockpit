@@ -2466,3 +2466,20 @@ icons: yes; (3) NPCs without mana lose the mana bar in Group: yes; (4)
 the `waiting` rule outside fights too: ok. Built at once (ADR 0166
 addendum 35). The troll check of H9 (steps 4–5) waits until the owner
 plays Stewash. The tests of H11 and H8 are still to come.
+
+### Wound stays after death (the owner, 2026-11-25)
+
+Stewash's run log: GMCP set the wound, `stat` listed it, the character
+died, and `stat` afterwards listed only `comfortable`; MUME never sent
+`wound: false` (no `Group.*` at all after the death), so the wound stone
+stayed. Fixed (ADR 0166 addendum 36): your own typed `stat` or `info`
+list without a `… wound at …` line turns the wound flag off, and one
+without a `poison …` line the poison flag; it never turns one on. The
+hidden poll's `%f` does not clear (not measured that it lists wounds).
+The wound stone's tooltip lists the wound lines of the latest `stat`.
+
+Test:
+1. Get wounded (a fight that leaves "a … wound at …" in `stat`); hover the
+   card's wound stone: the tooltip lists the wound as `stat` shows it.
+2. When `stat` no longer lists a wound (healed, or after a death), type
+   `stat`: the wound stone goes at once.
