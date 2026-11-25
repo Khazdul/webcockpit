@@ -265,12 +265,14 @@ Each part ends with a stop: the owner looks and says go before the next.
       interval) and e2e (the card from a GMCP fixture, stones and `+n`,
       the click list, herb `+` and ×, swords only, `⋯` until the poll),
       then the full e2e at 5 workers alone on the machine.
-- [ ] Stone icons (a pass of its own, later; the owner 2026-11-24): a
+- [x] Stone icons (a pass of its own, later; the owner 2026-11-24): a
       unique icon for each buff, debuff and herblore found, a generic icon
       for the rest. Starts with research: go through the owner's run logs
       in `~/Downloads` for every affect and herblore seen.
-- [ ] H. Polish: the owner's list from D and what F shows live; whether
-      Timers becomes Spells.
+- [x] H. Polish: the owner's list from D and what F shows live; whether
+      Timers becomes Spells. Done 2026-11-25 (H1–H11, the wound and
+      tooltip passes, shields in a log); one live check parked: a troll
+      member's Group row (progress.md, Loose ends).
 
 Record the technical decisions in **ADR 0166** (the card, the poll, the
 click-to-command rule) and in an addendum to ADR 0122 (Group's "show
