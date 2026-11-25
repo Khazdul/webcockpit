@@ -130,8 +130,8 @@ The poll's answers are not in the log; the mock answers the poll with these.
   Fornost · GreyHavens · Rivendell. War fame war leader, war points 13.
   Purse 66 gold, 4 silver, 48 copper (42 copper after the pie). Height
   3′1″, weight 4 st 13 lb, birthday in 1 month.
-- Before the ring (Bree, the coach): STR 12 without the `+2` line is to be
-  confirmed (the screenshot was taken with the strength on).
+- Before the ring (Bree, the coach, until log s 248.8 "You feel
+  stronger"): STR 12 with no `+2` line (owner). The `+2` from then on.
 
 ## Narrates (invented, draft)
 
