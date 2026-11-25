@@ -2537,3 +2537,12 @@ was (ADR 0166 addendum 40, points 243–244). Test guide:
 3. Narrow the card until the purse loses a coin and the stones get a `+n`:
    the purse's tooltip gives the whole purse, the `+n`'s lists the hidden
    stones only; with all three coins shown the purse has none.
+
+### The tooltips test (the owner, 2026-11-25)
+
+1. The HP bar's tooltip should only say the wimpy: the bar shows the
+   rest. Done: `Wimpy n`, none without a wimpy (ADR 0166 addendum 42).
+2. Stats and Lore need nothing in a log; OB/DB/PB/ABS would be good there
+   ("Shields in a log", a pass of its own).
+3. ok. T31 kept as it is, but the `+` looked like a rune: it is now a
+   filled green disc with a light plus, both themes (addendum 42).

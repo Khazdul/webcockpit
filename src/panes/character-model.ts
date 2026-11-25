@@ -429,22 +429,10 @@ export function wimpyAt(wimpy: number | null, maxhp: number | null): number | nu
   return pct1(wimpy / maxhp);
 }
 
-/**
- * The HP bar's tooltip (T33–T38): the exact value or the band in the title,
- * and the wimpy when one is set. Null: nothing known, no wimpy.
- */
-export function hpTip(hp: CharVital, wimpy: number | null): { title: string | null; tip: string | null } {
-  let title = 'HP';
-  const known = hp.exact && hp.value !== null;
-  const band = hp.exact ? null : bandOf('hp', hp.word);
-  if (known) {
-    title = `HP ${plain(hp.value)}`;
-    if (hp.max !== null) title += ` / ${hp.max}`;
-    if (hp.max !== null && hp.max > 0) title += ` · ${Math.round((hp.value! / hp.max) * 100)} %`;
-  } else if (band) title = band.lo === band.hi ? `HP ${band.lo} %` : `HP ${band.lo}–${band.hi} %`;
-  const lines = wimpy !== null && wimpy > 0 ? [`Wimpy ${wimpy}`] : [];
-  if (!known && !band && lines.length === 0) return { title: null, tip: null };
-  return tipOf(title, lines);
+/** The HP bar's tooltip: `Wimpy n` when one is set, else none (ADR 0166 addendum 42). */
+export function hpTip(_hp: CharVital, wimpy: number | null): { title: string | null; tip: string | null } {
+  // The wimpy alone (the owner, 2026-11-25: the bar shows the rest).
+  return wimpy !== null && wimpy > 0 ? { title: null, tip: `Wimpy ${wimpy}` } : { title: null, tip: null };
 }
 
 /** The digits a bar's numbers need: by the maximum, so a falling value moves nothing. */

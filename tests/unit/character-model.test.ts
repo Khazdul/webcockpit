@@ -328,19 +328,13 @@ describe('vitals (decision 11)', () => {
     expect([wimpyAt(0, 200), wimpyAt(null, 200), wimpyAt(50, null), wimpyAt(50, 0)]).toEqual([null, null, null, null]);
   });
 
-  it('the HP tooltip: exact or span, and the wimpy', () => {
-    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 150)).toEqual({ title: 'HP 187 / 270 · 69 %', tip: 'Wimpy 150' });
-    // One line, the title as the body (T33, T37, T38).
-    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 0)).toEqual({ title: null, tip: 'HP 187 / 270 · 69 %' });
-    expect(hpTip(hp({ hp: 187, maxhp: 270 }), null)).toEqual({ title: null, tip: 'HP 187 / 270 · 69 %' });
-    // The band in the title (T34).
-    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 0)).toEqual({ title: null, tip: 'HP 46–70 %' });
-    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 30)).toEqual({ title: 'HP 46–70 %', tip: 'Wimpy 30' });
-    expect(hpTip(hp({ 'hp-string': 'Healthy' }), null)).toEqual({ title: null, tip: 'HP 100 %' });
-    // Nothing known (T35): no tooltip, or the wimpy under `HP`.
-    expect(hpTip(hp({}), null)).toEqual({ title: null, tip: null });
-    expect(hpTip(hp({}), 0)).toEqual({ title: null, tip: null });
-    expect(hpTip(hp({}), 30)).toEqual({ title: 'HP', tip: 'Wimpy 30' });
+  it('the HP tooltip: the wimpy alone (the owner, 2026-11-25)', () => {
+    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 150)).toEqual({ title: null, tip: 'Wimpy 150' });
+    expect(hpTip(hp({ 'hp-string': 'Hurt' }), 30)).toEqual({ title: null, tip: 'Wimpy 30' });
+    expect(hpTip(hp({}), 30)).toEqual({ title: null, tip: 'Wimpy 30' });
+    // No wimpy: no tooltip.
+    expect(hpTip(hp({ hp: 187, maxhp: 270 }), 0)).toEqual({ title: null, tip: null });
+    expect(hpTip(hp({ 'hp-string': 'Hurt' }), null)).toEqual({ title: null, tip: null });
   });
 
   it('the digits follow the maxima, so a falling value moves nothing', () => {

@@ -1843,3 +1843,16 @@ card's wound stone stayed whatever the player waited or typed.
      value. `LOAD_SENTENCES` went (nothing else read it); `STONE_FLAG_TEXT`
      became `STONE_FLAG_LABEL`, the names alone; `ShieldView` and
      `AbilityView` lost their `title`.
+
+## Addendum 42 (2026-11-25): the HP tooltip is the wimpy; the herblore `+` a button
+
+(Numbered after addendum 41, written in the same hour by the log-shields
+pass; its points come first.)
+
+250. **HP's tooltip** is `Wimpy n` alone, none without a wimpy: the bar
+     shows the value, the band and the max (the owner). Replaces T33–T35.
+251. **The herblore `+`** is a filled disc in the herblore green
+     (a gradient, a light inner edge, a soft drop), round where the stones
+     are square, with a light plus (`#f4fbe8`, Paper `#fbfff4`) at 0.8 of
+     the stone, weight 900; hover lightens it. It no longer reads as a rune.
+     Its tooltip (T31) is unchanged.

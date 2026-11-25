@@ -339,7 +339,8 @@ describe('what is shown', () => {
     expect(hp.querySelector<HTMLElement>('.wc-cc-span')!.hidden).toBe(false);
     expect(hp.querySelector('.wc-cc-vn')!.textContent).toBe('');
     expect(t.pane.content.textContent!.toLowerCase()).not.toContain('hurt');
-    expect(hp.dataset.tip).toContain('46–70 %');
+    // The HP tooltip is the wimpy alone (none set here).
+    expect(hp.dataset.tip).toBeUndefined();
   });
 
   it('the wimpy arrow', () => {
