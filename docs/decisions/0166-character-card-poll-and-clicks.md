@@ -1844,19 +1844,70 @@ card's wound stone stayed whatever the player waited or typed.
      became `STONE_FLAG_LABEL`, the names alone; `ShieldView` and
      `AbilityView` lost their `title`.
 
+## Addendum 41 (2026-11-25): the shields in a log
+
+The owner: in a log (the run log player, a replay, a shared run,
+Spotlights) the Status tab's OB / DB / PB / ABS were empty, as the poll's
+answer leaves no trace in the run log (point 1, addenda 31 and 33). He
+wants the shields there; Stats and Lore stay empty in a log (decided).
+
+245. **The record.** The live App writes the four shields into the run
+     log as `<ts> ESC GMCP WebCockpit.Shields {"ob":81,"db":13,"pb":85,"abs":70}`
+     (a value not read: `null`), and nothing else of the poll. App emits
+     `info.shields` on every `info` change of a live connection (a poll
+     answer, or a read of the player's own `info` / `stat`, which already
+     counts as a poll); the recorder writes it when it differs from the
+     run's last shields record, so not every 10 s. A new connection forgets
+     it, so each run has its own first record.
+246. **A private GMCP package, not a new record type.** It is how the
+     exported replay already carries the timers state at a cut
+     (`WebCockpit.Timers`, ADR 0033), and every reader already carries GMCP
+     records through: the timeline (`ENTRY_GMCP`) and the engine's frames
+     (History, the shared run viewer, the HTML replay, Spotlights), the
+     ReplaySocket (`#replay`), the share capture and the fold (a
+     `WebCockpit.*` record is a barrier and is kept inside an excluded
+     range), the payload. A new `ESC SHIELDS` type would have been skipped
+     by the timeline, the reel and the fold until each learnt it. An older
+     client reading a new log treats it as any unknown GMCP: its game
+     state ignores the package, and no reader prints GMCP as text (only
+     bad JSON prints a line, and the JSON is the recorder's own).
+247. **Applied in a replay only.** `GameState` takes `WebCockpit.Shields`
+     only on a replay connection (`InfoModel.applyShields`); a live
+     connection ignores it. Only the shields change: `at` stays null and
+     `complete` false, so the Status tab's shields (which read
+     `game.info.answer`) show from the record on, and Stats and Lore keep
+     their quiet text. A record is read defensively (a shared run is
+     anyone's file): integers up to ±100 000 or null, other keys ignored,
+     a record with no shield ignored.
+248. **No script sees it.** The scripts' `gmcp` table (`GmcpCache`) and the
+     `#event {IAC SB GMCP…}` events skip `WebCockpit.*` packages
+     (`isPrivateGmcp`, src/core/types.ts); the game state still gets them
+     first. This also keeps `WebCockpit.Timers` from scripts, which never
+     needed it. Accepted: an older client's scripts would see the record in
+     a `#replay` of a new log (no text, no command).
+249. **Privacy.** A shared run is published: the four numbers go with it
+     (the owner's wish), nothing else from the poll. An excluded range
+     keeps its shields records (point 246's barrier), the values alone.
+250. **Paths checked.** Recording (`src/capture/recorder.ts`), the `.log`
+     download and cloud sync of runs (the chunk text as is), History's
+     player and the shared run viewer and the HTML replay (timeline →
+     engine → player App), `#replay` (ReplaySocket → live App), the export
+     editor's text and the text export (`share/text.ts`, `in` / `out` /
+     system lines only), the replay payload and its fold, Spotlights' text
+     (`spotStill`, lines only). Limit: a Spotlight reads at most 10 minutes
+     before its window plus the login stretch, so a change of shields older
+     than that shows the login stretch's values (or none).
+
 ## Addendum 42 (2026-11-25): the HP tooltip is the wimpy; the herblore `+` a button
 
-(Numbered after addendum 41, written in the same hour by the log-shields
-pass; its points come first.)
-
-250. **HP's tooltip** is `Wimpy n` alone, none without a wimpy: the bar
+251. **HP's tooltip** is `Wimpy n` alone, none without a wimpy: the bar
      shows the value, the band and the max (the owner). Replaces T33–T35.
-251. **The herblore `+`** is a filled disc in the herblore green
+252. **The herblore `+`** is a filled disc in the herblore green
      (a gradient, a light inner edge, a soft drop), round where the stones
      are square, with a light plus (`#f4fbe8`, Paper `#fbfff4`) at 0.8 of
      the stone, weight 900; hover lightens it. It no longer reads as a rune.
      Its tooltip (T31) is unchanged.
-252. **The `+` only on hover** (the owner): hidden (opacity 0, its slot
+253. **The `+` only on hover** (the owner): hidden (opacity 0, its slot
      kept, so no stone moves) until the pointer is over the stones row or
      focus is in it; shown always on a device without hover and after a
      touch (`data-touch`), where there is no hover to find it by.

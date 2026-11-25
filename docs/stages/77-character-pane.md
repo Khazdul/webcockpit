@@ -2538,6 +2538,20 @@ was (ADR 0166 addendum 40, points 243–244). Test guide:
    the purse's tooltip gives the whole purse, the `+n`'s lists the hidden
    stones only; with all three coins shown the purse has none.
 
+### Shields in a log (the owner, 2026-11-25)
+
+OB / DB / PB / ABS were empty in a log: the poll's answer is kept out of
+the run log. Now the four values (and nothing else of the poll) go into
+it as a hidden record when they change, and every player shows them
+(ADR 0166 addendum 41, points 245–250). Stats and Lore stay empty in a
+log. Test guide:
+1. Log in with the Character pane open, stay half a minute (a poll or
+   two), log out.
+2. Open the run in History and play it: the Status tab's shields are empty
+   until the first poll's time, then show the values you had, and change
+   where they changed; no new line in the game text. Stats and Lore still
+   say there is nothing in a log.
+
 ### The tooltips test (the owner, 2026-11-25)
 
 1. The HP bar's tooltip should only say the wimpy: the bar shows the
@@ -2547,4 +2561,4 @@ was (ADR 0166 addendum 40, points 243–244). Test guide:
 3. ok. T31 kept as it is, but the `+` looked like a rune: it is now a
    filled green disc with a light plus, both themes (addendum 42).
 4. The owner: the `+` should show only while the mouse is over the stones.
-   Done (point 252); on touch it stays visible.
+   Done (point 253); on touch it stays visible.
