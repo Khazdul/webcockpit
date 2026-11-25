@@ -342,13 +342,20 @@ export const AFFECTS: Readonly<Record<string, AffectDef>> = {
     start: ['You feel less hasty.'],
     drop: ['Your muscles feel normal again.'],
   },
-  // Seen only in `stat` and `%f` (stage 77 H9): untimed. Panic and sunlight
-  // have candidate lines in the inventory, not yet confirmed in the game.
-  panic: { type: 'debuff' },
-  sunlight: { type: 'debuff' },
+  // Untimed, from `stat` and `%f` (stage 77 H9). The lines below were seen
+  // with the list in Piglet's run (2026-11-25, ADR 0166 addendum 45):
+  // panic's start is not known (`PANIC! You couldn't escape!` gave none),
+  // unable to sneak has no start line; unable to quit and unable to void
+  // have no lines at all.
+  panic: { type: 'debuff', drop: ['You feel bolder.'] },
+  sunlight: {
+    type: 'debuff',
+    start: ['You blink and feel weaker under the cruel light of the sun.', 'The day has begun. You feel so weak under the cruel light!'],
+    drop: ['You feel so much better hiding in the shadows!'],
+  },
   'unable to quit': { type: 'debuff' },
   'unable to void': { type: 'debuff' },
-  'unable to sneak': { type: 'debuff' },
+  'unable to sneak': { type: 'debuff', drop: ['You feel stealthy again.'] },
 };
 
 /**

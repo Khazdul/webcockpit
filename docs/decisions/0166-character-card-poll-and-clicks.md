@@ -1942,3 +1942,21 @@ wants the shields there; Stats and Lore stay empty in a log (decided).
      the Spells pane and on the card's stones (where it could also make a
      tap's click read as the mouse's). The tap's own `pointerdown` still
      decides; a real mouse on a device with hover is unchanged.
+
+## Addendum 45 (2026-11-25): Piglet's run, the Zaugurz and three affects' lines
+
+258. **The Zaugurz.** MUME sends `"race":"Zaugurz","subrace":null`
+     (Piglet, `Char.StatusVars`); `subraceKind` already reads it as
+     `zaugurz` (the card's portrait) and the balloon passenger as `orc`.
+     Nothing to change.
+259. **Lines seen with the list** (the inventory's candidates, confirmed in
+     Piglet's run): sunlight starts with `You blink and feel weaker under
+     the cruel light of the sun.` (also the inventory's `The day has
+     begun. You feel so weak under the cruel light!`) and ends with `You
+     feel so much better hiding in the shadows!`; panic ends with `You
+     feel bolder.`; unable to sneak ends with `You feel stealthy again.`
+     All three stay untimed (no duration, nothing learned): a start line
+     makes an indefinite stone, a drop line takes it away at once, the
+     lists still reconcile them. Panic's start is not known: `PANIC! You
+     couldn't escape!` came twice with no panic in the lists after it.
+     Unable to quit and unable to void still have no lines.

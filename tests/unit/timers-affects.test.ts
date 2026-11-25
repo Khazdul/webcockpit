@@ -9,9 +9,11 @@ describe('affect data', () => {
     expect(all.filter((a) => a.type === 'spell')).toHaveLength(12);
     expect(all.filter((a) => a.type === 'buff')).toHaveLength(22);
     expect(all.filter((a) => a.type === 'debuff')).toHaveLength(21);
-    // Stage 77 H9: no lines of their own.
-    const listed = ['bloodlust', 'some pipe-weed', 'potion', 'panic', 'sunlight', 'unable to quit', 'unable to void', 'unable to sneak'];
+    // Stage 77 H9: no lines of their own; panic, sunlight and unable to
+    // sneak got theirs from Piglet's run (ADR 0166 addendum 45).
+    const listed = ['bloodlust', 'some pipe-weed', 'potion', 'unable to quit', 'unable to void'];
     for (const n of listed) expect(hasLines(AFFECTS[n]!), n).toBe(false);
+    for (const n of ['panic', 'sunlight', 'unable to sneak']) expect(hasLines(AFFECTS[n]!), n).toBe(true);
     expect(all.filter((a) => a.duration !== undefined)).toHaveLength(37);
     expect(Object.entries(AFFECTS).filter(([, a]) => a.damageDroppable).map(([n]) => n).sort()).toEqual(['armour', 'shroud']);
     expect(AFFECTS.sanctuary!.duration).toBe(270);
@@ -22,6 +24,24 @@ describe('affect data', () => {
 });
 
 describe('affects tracker', () => {
+  it("Piglet's lines (addendum 45): sunlight comes and goes by its lines, panic and unable to sneak end by theirs; none is timed", () => {
+    const b = bench();
+    b.line('You blink and feel weaker under the cruel light of the sun.');
+    expect(b.take()).toEqual(['◆ DEBUFF: sunlight up.']);
+    expect(b.cell('sunlight')).toMatchObject({ group: 'debuff', expiresAt: null, expected: null });
+    b.advance(7);
+    b.line('You feel so much better hiding in the shadows!');
+    expect(b.take()).toEqual(['◆ DEBUFF: sunlight down.']);
+    expect(b.cell('sunlight')).toBeUndefined();
+    b.tr.affects.reconcile(['panic', 'unable to sneak'], b.host.now());
+    expect(b.cell('panic')).toMatchObject({ expiresAt: null, expected: null });
+    b.line('You feel stealthy again.');
+    expect(b.cell('unable to sneak')).toBeUndefined();
+    b.line('You feel bolder.');
+    expect(b.cell('panic')).toBeUndefined();
+    expect(b.tr.affects.samples('panic')).toEqual([]);
+  });
+
   it('start → up, refresh → refreshed (timer restarts), drop → down', () => {
     const b = bench();
     b.line('You start glowing.');
