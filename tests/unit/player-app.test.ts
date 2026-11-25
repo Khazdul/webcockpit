@@ -266,7 +266,7 @@ describe('PlayerHost', () => {
     expect(pop('panes').hasAttribute('data-wc-own-keys')).toBe(true);
     expect(btn('panes').classList.contains('is-on')).toBe(true);
     const rows = [...pop('panes').querySelectorAll<HTMLElement>('[data-pane]')];
-    expect(rows.map((r) => r.textContent)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'UI', 'Map']);
+    expect(rows.map((r) => r.textContent)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'Map']);
     expect(rows[1]!.getAttribute('aria-checked')).toBe('true');
     rows[1]!.click();
     expect(host.viewerOverrides.panes).toEqual({ timers: false });

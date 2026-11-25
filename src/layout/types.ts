@@ -29,6 +29,13 @@ export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group
  */
 export const LIVE_ONLY: ReadonlySet<PaneId> = new Set<PaneId>(['statistics']);
 
+/**
+ * Built-in panes left out of the Panes popups (the menu bar's and the
+ * players'), ADR 0167: the pane still exists and keeps its cross, so a
+ * pane already on can be closed, but nobody is offered it any more.
+ */
+export const MENU_HIDDEN: ReadonlySet<PaneId> = new Set<PaneId>(['ui']);
+
 /** The built-in panes of the default right dock (the map floats by default). */
 export const DOCKED_BY_DEFAULT: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui'];
 

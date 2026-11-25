@@ -109,7 +109,7 @@ import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot, defaultPhoneLensWant } from '../settings';
 import { paneSettingsOf } from '../settings/types';
-import { type BuiltinPaneId, LIVE_ONLY, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
+import { type BuiltinPaneId, LIVE_ONLY, MENU_HIDDEN, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
 import { PaneContent, type PaneSnapshot } from '../panes/script-content';
 import { ScriptPane } from '../panes/script-pane';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
@@ -988,7 +988,7 @@ export class PlayerHost {
         ? {
             panes: {
               list: () => [
-                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id) && this.paneAvailable(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id) && !MENU_HIDDEN.has(id) && this.paneAvailable(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
                 ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
               ],
               toggle: (id: string) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),

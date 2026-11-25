@@ -1,5 +1,6 @@
 // The Panes popup (stage 30 S4, mockup 30a-2, ADR 0099): one row per pane
-// with a toggle switch, the built-in panes first (PANE_IDS order), then
+// with a toggle switch, the built-in panes first (PANE_IDS order, without
+// MENU_HIDDEN: the UI pane, ADR 0167), then
 // the running script panes under a "Script panes" subhead (label and a
 // dim script name). Reset layout asks inline: `Reset layout?` Reset /
 // Cancel. Every change goes straight to the settings store, and the rows
@@ -13,7 +14,7 @@
 // inside it (popup.ts). A click on a row keeps the focus on that row.
 
 import { forgetTempPlaces } from '../layout/temp-places';
-import { PANE_IDS, PANE_LABELS, type PaneId, defaultLayout } from '../layout/types';
+import { MENU_HIDDEN, PANE_IDS, PANE_LABELS, type PaneId, defaultLayout } from '../layout/types';
 import type { ScriptPaneInfo } from '../layout/cockpit';
 import type { SettingsStore } from '../settings';
 import { paneSettingsOf } from '../settings/types';
@@ -43,7 +44,7 @@ export interface PaneRow {
 /** The popup's rows: the built-in panes, then the script panes. */
 export function paneRows(scripts: readonly ScriptPaneInfo[]): PaneRow[] {
   return [
-    ...PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id] })),
+    ...PANE_IDS.filter((id) => !MENU_HIDDEN.has(id)).map((id) => ({ id, label: PANE_LABELS[id] })),
     ...scripts.map((p) => ({ id: p.id, label: p.title, script: p.script })),
   ];
 }

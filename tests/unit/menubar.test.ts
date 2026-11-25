@@ -532,13 +532,13 @@ describe('Panes popup', () => {
     t.bar.popupEl!.querySelector<HTMLButtonElement>(`.wc-pop-row[data-pane="${id}"]`)!;
 
   it('lists the built-in panes, then the running script panes', () => {
-    expect(paneRows([]).map((r) => r.id)).toEqual([...PANE_IDS]);
+    expect(paneRows([]).map((r) => r.id)).toEqual(PANE_IDS.filter((id) => id !== 'ui'));
     const t = setup();
     t.bar.open('panes');
     // Statistics last among the built-ins (ADR 0109).
-    expect(labels(t)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'UI', 'Map', 'Statistics']);
+    expect(labels(t)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'Map', 'Statistics']);
     t.setPanes([{ id: 'keymanager/keys', script: 'keymanager', title: 'Keys' }]);
-    expect(labels(t)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'UI', 'Map', 'Statistics', 'Script panes', 'Keys keymanager']);
+    expect(labels(t)).toEqual(['Character', 'Spells', 'Group', 'Comm', 'Map', 'Statistics', 'Script panes', 'Keys keymanager']);
   });
 
   it('shows and hides a pane, following the store while open', () => {
