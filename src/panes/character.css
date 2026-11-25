@@ -981,6 +981,20 @@
   display: grid;
 }
 
+/* The herblore `+` only while the pointer is over the stones (the owner,
+ * 2026-11-25); it keeps its slot, so nothing moves when it shows. A device
+ * without hover, or a touch (`data-touch`), always shows it. */
+@media (hover: hover) {
+  .wc-cc-stones:not([data-touch]) > .wc-cc-st[data-k="add"] {
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .wc-cc-stones:not([data-touch]):is(:hover, :focus-within) > .wc-cc-st[data-k="add"] {
+    opacity: 1;
+  }
+}
+
 /* The purse, right-aligned in the stones' last row (ADR 0166 point 121); only on Status. */
 .wc-cc-purse {
   position: absolute;

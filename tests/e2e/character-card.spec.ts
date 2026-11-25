@@ -551,7 +551,14 @@ test('the stones: `+n` and its list; the herblore `+` menu and ×', async ({ pag
   // The herblore `+` opens the Timers pane's menu; a pick starts it, its × stops it.
   await page.evaluate(() => window.__wc!.app.game.timers.debugClear());
   await expect(shown(page)).toHaveCount(1);
-  await card(page).locator('.wc-cc-st[data-k="add"]').click();
+  // The `+` shows only while the pointer is over the stones (it keeps its slot).
+  const add = card(page).locator('.wc-cc-st[data-k="add"]');
+  const opacity = () => add.evaluate((e) => getComputedStyle(e).opacity);
+  await page.mouse.move(2, 2);
+  await expect.poll(opacity).toBe('0');
+  await card(page).locator('.wc-cc-stones').hover();
+  await expect.poll(opacity).toBe('1');
+  await add.click();
   const menu = page.locator('.wc-tm-menu[aria-label="Herblores"]');
   await expect(menu).toBeVisible();
   const key = (await menu.locator('.wc-tm-mi').first().getAttribute('data-key'))!;

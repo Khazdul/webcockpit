@@ -1856,3 +1856,7 @@ pass; its points come first.)
      are square, with a light plus (`#f4fbe8`, Paper `#fbfff4`) at 0.8 of
      the stone, weight 900; hover lightens it. It no longer reads as a rune.
      Its tooltip (T31) is unchanged.
+252. **The `+` only on hover** (the owner): hidden (opacity 0, its slot
+     kept, so no stone moves) until the pointer is over the stones row or
+     focus is in it; shown always on a device without hover and after a
+     touch (`data-touch`), where there is no hover to find it by.

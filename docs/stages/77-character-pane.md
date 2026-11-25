@@ -2546,3 +2546,5 @@ was (ADR 0166 addendum 40, points 243–244). Test guide:
    ("Shields in a log", a pass of its own).
 3. ok. T31 kept as it is, but the `+` looked like a rune: it is now a
    filled green disc with a light plus, both themes (addendum 42).
+4. The owner: the `+` should show only while the mouse is over the stones.
+   Done (point 252); on touch it stays visible.
