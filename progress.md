@@ -183,6 +183,23 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-26 — README: new pictures, shorter text
+
+- **Done:** the owner asked for a better-looking README with current
+  pictures and fewer details. Three showcase mockups were turned down;
+  of two that keep today's page, the owner chose the trimmed one.
+  `README.md` keeps its sections, about 1,900 words became about 1,070,
+  with a new Character paragraph and the balloons named. Hosting and
+  Tailscale moved to `docs/hosting.md`. The ten PNGs in `docs/img/`
+  are replaced by fifteen JPEGs, all frames of the film takes
+  (`film2-a`, `film2-b`, `character-tour`, `balloons-fountain`,
+  `devices-phone`), so no game text is invented.
+- **Next:** the owner reads it on GitHub after the push.
+- **Open:** no fog, Lua editor or standalone HTML player picture (not
+  in the film material). `scripts/screenshots.ts` still writes the old
+  PNG set.
+- **Commits:** this one.
+
 ### 2026-11-26 — Stage 79: balloon smoothness
 
 - **Done:** the owner's report (subtle jerks, Firefox, high resolution)

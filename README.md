@@ -2,15 +2,12 @@
 
 A MUD client for [MUME](https://mume.org) that runs entirely in your
 browser. No installation and no server between you and the game: the
-page connects straight to MUME. What you create (profiles, runs,
-settings, maps) is kept in your browser; an optional account keeps it
-in step between your devices, encrypted so that the server cannot read
-it. It is the browser sibling of
+page connects straight to MUME. It is the browser sibling of
 [MUME Cockpit][cockpit], with the same panes, menus and TUI look, and
 aims for tt++-level features and latency.
 
 <p align="center">
-<img alt="Gameplay at sunset: the game text, the map, timers, group and channels, with the weather effects on" src="docs/img/hero.png" />
+<img alt="A fight in Tharbad: the game text, the character card, the map and the chats" src="docs/img/hero.jpg" />
 </p>
 
 <p align="center">
@@ -23,14 +20,13 @@ aims for tt++-level features and latency.
 
 - **Nothing to install.** Open a link and play; the browser connects
   straight to MUME, with nothing in between.
-- **Panes driven by GMCP:** a character card (vitals, bonuses, buffs
-  and debuffs), spell timers, group, chats, the map and live XP
-  statistics. Dock them on any side or let them float.
+- **Panes driven by GMCP:** a character card, spell timers, group,
+  chats, the map and live XP statistics. Dock them on any side or let
+  them float.
 - **A map** that reads MMapper files and follows you as you move.
 - **MUME's sky and weather in real time** over the whole client: sun
   and moon on the game clock, rain, fog, lightning and snow.
-- **Scripting:** a tt++-style profile (actions, aliases, macros and
-  more) and sandboxed Lua 5.4 scripts with an editor and a manual.
+- **Scripting:** a tt++-style profile and sandboxed Lua 5.4 scripts.
   Imports profiles from TinTin++, Mudlet, JMC and Powwow.
 - **Every session recorded:** replay it, cut and annotate it, and share
   it as a link or a standalone HTML file.
@@ -39,14 +35,17 @@ aims for tt++-level features and latency.
 
 ## Run it
 
-Open <https://mumecockpit.com/> in a desktop Chrome or
-Firefox. Nothing to install. On a phone you can log in, chat and play
-lightly: the game gets a layout made for the thumb, with an on-screen
-keyboard of its own (Swedish or English) in place of the phone's. Real
-play needs a computer.
+Open <https://mumecockpit.com/> in a desktop Chrome or Firefox. Nothing
+to install. On a phone or tablet you can log in, chat and play lightly,
+with a layout made for the thumb. Real play needs a computer.
 
-WebCockpit is a static site. To run it locally you need
-[Node.js](https://nodejs.org) 24 or newer:
+<div align="center">
+<img width="190" alt="A fight on a phone" src="docs/img/phone-game.jpg" />
+<img width="190" alt="A chat on a phone" src="docs/img/phone-chat.jpg" />
+<img width="190" alt="Spell timers on a phone" src="docs/img/phone-timers.jpg" />
+</div>
+
+To run it locally you need [Node.js](https://nodejs.org) 24 or newer:
 
 ```
 git clone https://github.com/Khazdul/webcockpit.git
@@ -55,163 +54,111 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173> in a desktop Chrome or Firefox.
-
-To open the dev server from another device on your
-[Tailscale](https://tailscale.com) network, proxy
-`https://<machine>.<tailnet>.ts.net:5173` to `http://127.0.0.1:5173` with
-`tailscale serve` and run `npm run dev:tailnet` (or set
-`WEBCOCKPIT_DEV_HOSTS` to the proxy's host names;
-[ADR 0096](docs/decisions/0096-dev-server-over-tailscale.md)).
-
-To host it yourself, run `npm run build` and serve `dist/` from any
-static file server that sends `.js` as JavaScript and `.woff2` as
-`font/woff2`; no special headers are needed (the public site is a
-Cloudflare Worker with static assets,
-[ADR 0144](docs/decisions/0144-cloudflare-and-a-backend.md): `wrangler.jsonc`,
-`worker/`, `npm run build:site`).
-To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
-([ADR 0028](docs/decisions/0028-github-pages-deployment.md)).
+Then open <http://localhost:5173>. Hosting it yourself, serving it under
+a subpath and reaching the dev server over Tailscale are described in
+[`docs/hosting.md`](docs/hosting.md).
 
 ## What's in the box
 
-**Start page.** The page you land on shows MUME's sky by the game
-clock, even before you connect: the sun and moon cross it, clouds drift,
-stars and shooting stars come out at night, and the season brings its
-weather (snow all winter, now and then rain in spring and autumn). Over
-it sit the forged-iron MUME wordmark with its mithril inlay, the
-menu, a Tolkien quote and, at the bottom right, the date and time in
-Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
-letter of each entry (E Enter MUME, P Profile, S Scripts, H History
-with its tabs Sessions, Spotlights and Diary, C Community, A About); Esc goes back. The mouse and a tap
-work too. Each entry opens its page in a large box that grows out of
-the menu, with Back at the top left; the letters marked in a page's
-buttons are its shortcuts. The browser tab's icon is the same iron "M".
+**Start page.** MUME's sky by the game clock, even before you connect:
+the sun and moon cross it, clouds drift, stars come out at night and the
+season brings its weather. Everything on it can be reached from the
+keyboard.
 
 **Connection.** The browser talks to `wss://mume.org/ws-play/`
-directly, with full GMCP and a keep-alive that shows
-your round-trip time. Nobody in between sees your password.
+directly, with full GMCP and a keep-alive that shows your round-trip
+time. Nobody in between sees your password.
 
-**Panes.** Character, Spells, Group, Communication,
-Map and the live Statistics of the run. They can be docked left, right, at the bottom or at the top, in
-several columns or rows per side with panes spanning the whole dock, or
-float over the game, and resized, reordered and toggled, each with its
-own background colour. A framed pane sits in a thin band of dark iron
-with its name on a small hood, lit from within by its colour (pewter and
-brass on a light background). Hover a pane for its buttons, left of the close
-cross: step its colour, turn its border on or off, and switch its
-background between frosted glass and clear (no fill, so what is behind
-it shows sharp). In Firefox without GPU compositing, a large floating
-pane hides the weather behind it once the client sees the screen lag, so
-the text stays fast.
+**Panes.** Character, Spells, Group, Communication, Map and the live
+Statistics of the run. Dock them on any side, in several columns or
+rows, or let them float over the game. Each can be resized, reordered
+and toggled, and has its own colour, border and frosted or clear
+background.
 
-**Comm and Statistics.** Comm is a conversation pane: Public (the
-channels you pick in its gear, NPCs' talk only if you turn it on), Group (everything your group's players
-say) and one chat per person with only the talk between you two (tells,
-whispers, asks and emotes at you), with search, a reply line
-that sends a tell, and a column that folds away. Statistics follows the
-run live: the last kill rated against the median of your recent kills
-(from poor to superb), the average, the median, XP per hour and XP to the
-next level, and every kill of the run. Type `#perf` for a small live
-readout of frame rate and latency.
+**Character.** A card with your portrait and level, your vitals, mood
+and position, and tabs for stats and lore.
 
-**Menu bar.** At the right end of the input line: the game clock (a sun
-or moon in a ring that empties as the day or night runs out; hover it for
-the time to the next change), then Profile, Scripts, Panes, Settings,
-Fullscreen and Exit. Profile and
-Scripts open movable windows and Settings a box of controls, all of them
-live while you keep playing; `#profile`, `#scripts`, `#panes`,
-`#settings`, `#fullscreen` and `#exit` do the same, so a macro can bind
-them. On a phone the ESC menu (`☰`) holds them instead.
-
-**Appearance.** Fifteen bundled monospace fonts, font size,
-padding, the ANSI palette, cursor style and blink. Changes apply
-immediately, from the menu bar's Settings in the game.
+**Comm and Statistics.** Comm is a conversation pane: the public
+channels you pick, your group, and one chat per person, with search and
+a reply line. Statistics follows the run live: each kill rated against
+your recent ones, XP per hour and XP to the next level.
 
 <div align="center">
-<img width="400" alt="Start page" src="docs/img/startpage.png" />
-<img width="400" alt="Appearance options" src="docs/img/appearance.png" />
+<img width="400" alt="The Character pane" src="docs/img/character-pane.jpg" />
+<img width="400" alt="The Comm pane with a chat" src="docs/img/comm-pane.jpg" />
+</div>
+
+**Menu bar.** At the right end of the input line: the game clock, then
+Profile, Scripts, Panes, Settings, Fullscreen and Exit. They open while
+you keep playing, and each has a command (`#profile`, `#settings` and so
+on) that a macro can bind.
+
+**Appearance.** Fifteen bundled monospace fonts, font size, padding,
+the ANSI palette and the cursor. Changes apply immediately.
+
+<div align="center">
+<img width="400" alt="Start page at sunrise" src="docs/img/startpage.jpg" />
+<img width="400" alt="Appearance options on a paper background" src="docs/img/appearance.jpg" />
 </div>
 
 **Profiles.** Actions, aliases, highlights, macros, substitutes, gags,
-variables and tickers in tt++ syntax. The profile editor has three
-views: Lite, a form for each kind; Editor, the whole profile as text
-with syntax highlighting and find and replace; and Help, the manual.
-Lite and Editor edit the same profile, and round-trips are lossless.
-Macros bind any key the browser lets through. Profiles can be exported
-and imported as `.tin` files, and import also reads TinTin++, JMC,
-Powwow and Mudlet profiles: drop the files on the import page or choose
-them, and a receipt counts the settings translated, kept as `#nop`,
-skipped or in need of a look. The
-start page's Profile list shows when each was last changed; the
-highlighted profile has its own Select, Edit, Rename and Delete buttons
-(S E R D), and New, Import and Export (N I X) sit below the list.
+variables and tickers in tt++ syntax. Edit them in a form or as text
+with syntax highlighting; both edit the same profile. Import reads
+TinTin++, JMC, Powwow and Mudlet profiles.
 
 **Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
 sandbox, with an API for triggers, aliases, keys, timers, GMCP, the map
-and panes of their own, down to bars and buttons. The Scripts page
-lists them beside the chosen script's panel: its settings as tiles that
-take effect at once, and its help. The script editor completes names,
-shows help as you type and marks errors, and a manual with contents,
-find and highlighted examples is built in.
+and panes of their own. The editor completes names and marks errors,
+and a manual is built in.
 
-**Bundled scripts.** Ready to turn on in Scripts (on the start page or
-the menu bar): an almanac of MUME's seasons, moon and events; a port key
-manager; map search like MMapper's Find Rooms; shorter, colour-coded mob
-and movement lines; a mercenary tracker; and a coin looter.
+**Bundled scripts.** Ready to turn on: an almanac of MUME's seasons,
+moon and events; a port key manager; map search like MMapper's Find
+Rooms; shorter, colour-coded mob and movement lines; a mercenary
+tracker; and a coin looter.
 
 <div align="center">
-<img width="400" alt="Lua script editor" src="docs/img/scripts.png" />
-<img width="400" alt="Map pane" src="docs/img/map.png" />
+<img width="400" alt="The Scripts window with the mercenary tracker" src="docs/img/scripts.jpg" />
+<img width="400" alt="The map outside Bree" src="docs/img/map.jpg" />
 </div>
 
 **Map.** A map pane that reads MMapper `.mm2` files, draws MMapper's
 tiles and follows you as you move. A default map is bundled, and you
-can import your own. Settings → Mapper picks the tileset: MMapper's own,
-Shimrod's seasonal tiles (which follow MUME's season), Desert, Gefe &
-Rik and Gray's Map. Room notes show as in MMapper, and hovering a room
-tells you about it.
+can import your own. Five tilesets to choose from.
 
 **Weather effects.** Sky, rain, snow, fog and lightning over the whole
-client, driven by the game's GMCP: the sun rises and sets on MUME's
-clock and snow builds up on the panes. Settings → Weather effects turns
-them off or picks what to show, and `#weather demo` plays them all. The
-drawing runs in a worker, so text and keys are never slowed.
+client, driven by the game's GMCP, and balloons that carry your kills,
+level-ups, achievements and deaths across the sky. Settings picks what
+to show. The drawing runs in a worker, so text and keys are never
+slowed.
 
 <div align="center">
-<img width="400" alt="Night with moon and stars" src="docs/img/weather-night.png" />
-<img width="400" alt="Heavy rain" src="docs/img/weather-rain.png" />
-<img width="400" alt="Fog" src="docs/img/weather-fog.png" />
+<img width="400" alt="A clear night over the map" src="docs/img/weather-night.jpg" />
+<img width="400" alt="Lightning in heavy rain" src="docs/img/weather-lightning.jpg" />
+<img width="400" alt="Balloons on a clear day" src="docs/img/weather-balloons.jpg" />
 </div>
 
 **Runs.** Every login starts a run, recorded in the browser. History
-on the start page has three tabs (1, 2 and 3 change between them):
-Sessions, a table of sessions with a card for the chosen one (its
-Statistics, a log player that replays the whole screen, rating, saving,
-export, deletion); Spotlights, a wall of cards of your kills, deaths,
-level-ups and achievements that play in a viewer growing out of the
-card; and the Diary, which tells your characters' deeds as a book,
-filtered as Spotlights is. Runs older than 14 days are pruned unless
+keeps them in three tabs: Sessions, with a log player that replays the
+whole screen; Spotlights, your kills, deaths, level-ups and
+achievements as cards that play; and the Diary, which tells your
+characters' deeds as a book. Runs older than 14 days are pruned unless
 you save them.
 
-**Export editor.** Cut spans from a run, write comments at their place
-in the log to narrate it, and export plain text or a self-contained
-HTML replay that anyone can open without WebCockpit. With an account,
+**Sharing.** Cut spans from a run, write comments to narrate it, and
+export plain text or a self-contained HTML replay. With an account,
 Share makes the run a link anyone can watch, or lists it in the Hall of
-Fame. It works on a phone too.
+Fame.
 
 **Accounts and the Community.** An account is optional. It keeps
-profiles, scripts, settings, Comm history and saved runs in step between
-devices, encrypted in the browser with a key that only your password or
-recovery code unlocks. The Community page lists the logs shared to the
-Hall of Fame, with stars, comments, the log of the day and Random Runes,
-a board for short notes; Hall of Fame logs are also posted in MUME's
-Discord. What the server keeps is on the
+profiles, scripts, settings and saved runs in step between devices,
+encrypted in the browser with a key that only your password or recovery
+code unlocks. The Community page lists the shared logs, with stars and
+comments. What the server keeps is on the
 [privacy page](https://mumecockpit.com/privacy).
 
 <div align="center">
-<img width="400" alt="Export editor" src="docs/img/exporteditor.png" />
-<img width="400" alt="HTML replay" src="docs/img/htmlplayer.png" />
+<img width="400" alt="The Spotlights wall" src="docs/img/spotlights.jpg" />
+<img width="400" alt="A shared run on its watch page" src="docs/img/shared-run.jpg" />
 </div>
 
 ## Documentation
@@ -241,10 +188,7 @@ Bug reports and feature requests are welcome on
 ## License
 
 GPL-2.0-or-later, the same licence as MMapper, so code can move both
-ways. The map renderer and tracking are partly derived from MMapper
-(listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)). See
-[`LICENSE`](LICENSE) and, for bundled fonts (the terminal fonts,
-Cinzel, Cormorant Garamond and Cormorant SC), libraries and map assets,
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+ways. See [`LICENSE`](LICENSE) and, for bundled fonts, libraries and
+map assets, [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 [cockpit]: https://github.com/Khazdul/mumecockpit

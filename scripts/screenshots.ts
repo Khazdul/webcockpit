@@ -1,5 +1,9 @@
 // The README screenshots (docs/img/), reproducible:
 //
+// Since 2026-11-26 the README's pictures are frames of the film takes
+// (video/public/recordings/, see progress.md); this script still writes
+// the earlier PNG set and is kept for shots the films do not have.
+//
 //   npm run screenshots                 every shot
 //   npm run screenshots -- hero map     only these
 //
