@@ -9,6 +9,7 @@ import type { MapData } from '../model';
 import type { Scene } from '../scene';
 import type { View } from '../view';
 import { BACKGROUND, type RGBA, clearRgba } from './palette';
+import type { TokenImageSource } from './tokens';
 import { WebGLMapRenderer } from './webgl';
 
 /** MMapper background (owner config `#2e3436`), 0…1 RGB: the default (ADR 0085). */
@@ -44,6 +45,12 @@ export interface Renderer {
    * Transparent addendum 2).
    */
   setBackground?(color: RGBA): void;
+  /** Where the token pictures come from (stage 80, ADR 0171); absent: no tokens. */
+  setTokenSource?(src: TokenImageSource | null): void;
+  /** A token picture arrived: build the scene again at the next render. */
+  tokensChanged?(): void;
+  /** What the last scene build drew as tokens (tests): tokens, `+n` discs, HP arcs. */
+  readonly tokenCounts?: { tokens: number; plus: number; arcs: number };
   /** False while tiles or the font are still loading (absent: nothing to load). */
   readonly complete?: boolean;
 }

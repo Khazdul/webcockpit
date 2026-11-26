@@ -4,6 +4,8 @@
 //
 //   Show map pane            [toggle]     panes.map.on
 //   Room notes               [toggle]     mapper.notes (ADR 0077)
+//   Tokens                   [toggle]     mapper.tokens (stage 80, ADR 0171)
+//   HP arc on tokens         [toggle]     mapper.tokenHp (dim while tokens are off)
 //   Room info on hover       Off|Minimal|Full       mapper.hover (ADR 0080)
 //   Hover text size          Small|Medium|Large     mapper.hoverSize
 //   Background colour        [dropdown]   mapper.background (ADR 0085)
@@ -159,6 +161,12 @@ export function MapperSettings(): VNode {
       </Row>
       <Row label="Room notes">
         <Toggle label="Room notes" on={m.notes} onChange={(notes) => settings.update({ mapper: { notes } })} />
+      </Row>
+      <Row label="Tokens">
+        <Toggle label="Tokens" on={m.tokens} onChange={(tokens) => settings.update({ mapper: { tokens } })} />
+      </Row>
+      <Row label="HP arc on tokens" dim={!m.tokens}>
+        <Toggle label="HP arc on tokens" on={m.tokenHp} onChange={(tokenHp) => settings.update({ mapper: { tokenHp } })} />
       </Row>
       <Row label="Room info on hover">
         <Segmented label="Room info on hover" value={m.hover} options={HOVER_CHOICES} onChange={(hover) => settings.update({ mapper: { hover } })} />

@@ -172,3 +172,109 @@ out vec4 oColor;
 void main() {
   oColor = uColor;
 }`;
+
+/**
+ * Map tokens (stage 80 §7, ADR 0171): one instanced quad per token, sized
+ * in device px around its projected centre (never snapped, so a moving
+ * token glides). Per instance (16 floats): centre xyz, picture radius
+ * (CSS px); texture layer (-1: none), kind (0 drawing, 1 library or own,
+ * 2 `+n` disc), HP (-1: no arc), arc width (CSS px); ring rgb; arc rgb;
+ * the picture's crop (zoom, top offset).
+ */
+export const TOKEN_VS = /* glsl */ `#version 300 es
+${PROJ}
+uniform vec2 uPhys;
+uniform float uDpr;
+layout(location = 0) in vec4 aA;
+layout(location = 1) in vec4 aB;
+layout(location = 2) in vec3 aRing;
+layout(location = 3) in vec3 aArc;
+layout(location = 4) in vec2 aCrop;
+out vec2 vPx;
+flat out vec4 vB;
+flat out vec3 vRing;
+flat out vec3 vArc;
+flat out vec3 vCrop;
+void main() {
+  vec4 p = proj(aA.xyz);
+  if (abs(p.w) < 1e-3) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
+  // Out to the arc and its dark backdrop, plus a pixel for the smoothing.
+  float reach = (aA.w + 1.0 + 1.0 + 1.0 + aB.w + 1.0) * uDpr + 1.0;
+  vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1)) * 2.0 - 1.0;
+  vPx = corner * reach;
+  vB = aB;
+  vRing = aRing;
+  vArc = aArc;
+  vCrop = vec3(aCrop, aA.w * uDpr);
+  gl_Position = vec4(p.xy / p.w + vPx * 2.0 / uPhys, 0.0, 1.0);
+}`;
+
+// Every edge is a coverage of the distance in device px (±0.5 px), so the
+// disc, the 1 px ring and outline and the arc hold at every zoom and
+// device scale. The layers are put together premultiplied, back to front
+// (the mockup's canvas order): the disc (gradient, the picture over it),
+// the outline, the ring, the arc's dark backdrop, the arc. The pictures
+// are premultiplied and mipmapped (trilinear): no shimmer when small.
+export const TOKEN_FS = /* glsl */ `#version 300 es
+precision highp float;
+precision highp sampler2DArray;
+uniform sampler2DArray uTex;
+uniform float uDpr;
+in vec2 vPx;
+flat in vec4 vB;
+flat in vec3 vRing;
+flat in vec3 vArc;
+flat in vec3 vCrop;
+out vec4 oColor;
+vec4 over(vec4 dst, vec3 rgb, float a) {
+  return vec4(rgb * a, a) + dst * (1.0 - a);
+}
+float disc(float d, float r) {
+  return clamp(r - d + 0.5, 0.0, 1.0);
+}
+float band(float d, float lo, float hi) {
+  return clamp(min(d - lo, hi - d) + 0.5, 0.0, 1.0);
+}
+void main() {
+  float px = uDpr;
+  float R = vCrop.z;
+  float d = length(vPx);
+  vec2 q = vPx / max(R, 0.5);
+  // The picture's crop: a square of side 1/zoom, centred across, at oy down (texture v grows down).
+  float sw = 1.0 / vCrop.x;
+  vec2 uv = vec2((1.0 - sw) * 0.5 + (q.x * 0.5 + 0.5) * sw, (1.0 - sw) * vCrop.y + (0.5 - q.y * 0.5) * sw);
+  vec4 tx = texture(uTex, vec3(uv, max(vB.x, 0.0)));
+  if (vB.x < 0.0) tx = vec4(0.0);
+  vec4 c = vec4(0.0);
+  if (vB.y > 1.5) {
+    // The +n disc: dark, a thin light rim, the count's glyphs.
+    float rr = R + px;
+    c = over(c, vec3(0.0824, 0.0902, 0.1020), disc(d, rr));
+    c = tx * disc(d, R) + c * (1.0 - tx.a * disc(d, R));
+    c = over(c, vec3(0.9137, 0.8118, 0.6235), 0.7 * band(d, rr - 0.5 * px, rr + 0.5 * px));
+  } else {
+    float t = clamp(length(q - vec2(0.0, 0.2)) / 1.2, 0.0, 1.0);
+    vec3 bg = vB.y > 0.5 ? mix(vec3(0.4353, 0.4078, 0.3569), vec3(0.1647, 0.1490, 0.1255), t)
+                         : mix(vec3(0.2275, 0.1333, 0.1333), vec3(0.0706, 0.0471, 0.0471), t);
+    vec4 inner = tx + vec4(bg, 1.0) * (1.0 - tx.a);
+    c = inner * disc(d, R);
+    float rw = px;
+    c = over(c, vec3(0.0), band(d, R + rw - 0.25 * px, R + rw + 0.75 * px));
+    c = over(c, vRing, band(d, R, R + rw));
+    if (vB.z >= 0.0) {
+      float aw = vB.w * px;
+      float ar = R + rw + 0.5 * px + aw * 0.5;
+      c = over(c, vec3(0.0), 0.78 * band(d, ar - aw * 0.5 - 0.5 * px, ar + aw * 0.5 + 0.5 * px));
+      // From 12 o'clock, clockwise; butt ends.
+      float ang = atan(vPx.x, vPx.y);
+      if (ang < 0.0) ang += 6.2831853;
+      float along = clamp(min(ang, vB.z * 6.2831853 - ang) * ar + 0.5, 0.0, 1.0);
+      c = over(c, vArc, band(d, ar - aw * 0.5, ar + aw * 0.5) * along);
+    }
+  }
+  if (c.a < 0.002) discard;
+  oColor = vec4(c.rgb / c.a, c.a);
+}`;

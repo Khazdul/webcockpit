@@ -87,10 +87,19 @@
 //   ADR 0160): it takes no mouse either, its glass moves the lens. (The
 //   hand lens of stage 71, where the mouse panned the map, went in stage
 //   73; the worker's `follow` message stays, always on.)
+// - Tokens (stage 80 §7, ADR 0171): with `ctx.looks` (the live app; not the
+//   log player, not the replay bundle) a TokenFeed (src/map/tokens-feed.ts,
+//   loaded with the map client) tells the worker the tokens on change while
+//   the pane is shown, and bakes the drawings the worker asks for
+//   (`tokenArt`). Without it the worker draws today's boxes.
+//   `mapTokens` (dataset): `tokens/plus discs/arcs` the last frame drew;
+//   `mapSelfLook`: the key of your token's picture as last sent.
 
 import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
+import type { TokenFeed } from '../map/tokens-feed';
+import { isLight } from '../theme/color';
 import { type PinchPoint, pinchStep } from '../map/pinch';
 import { BUNDLED_MAP_BYTES } from '../map/progress';
 import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
@@ -194,6 +203,8 @@ export class MapPane extends PaneShell {
   private lens: MapLens | null = null;
   /** The lens's absolute zoom, sent to the worker when it starts and after a map load. */
   private lensZoom: number | null = null;
+  /** The tokens' feed (ADR 0171), with looks only. */
+  private tokens: TokenFeed | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -368,6 +379,8 @@ export class MapPane extends PaneShell {
     this.unmarks?.();
     this.unmarks = null;
     this.forward(false);
+    this.tokens?.dispose();
+    this.tokens = null;
     super.dispose();
     this.client?.dispose();
     this.client = null;
@@ -404,7 +417,9 @@ export class MapPane extends PaneShell {
    * phone's last room is replayed and it finds the player.
    */
   private syncForward(): void {
-    this.forward(this.visible && this.loaded && this.client !== null);
+    const on = this.visible && this.loaded && this.client !== null;
+    this.forward(on);
+    this.tokens?.setActive(on);
   }
 
   private win(): (Window & typeof globalThis) | null {
@@ -438,6 +453,7 @@ export class MapPane extends PaneShell {
         this.client?.visible(false);
         this.watchDpr(false);
         this.forward(false);
+        this.tokens?.setActive(false);
       }
       return;
     }
@@ -479,7 +495,10 @@ export class MapPane extends PaneShell {
     this.content.dataset.mapState = 'starting';
     this.loading.begin('load');
     try {
-      const { MapClient, MapEventForwarder } = await import('../map/client');
+      const [{ MapClient, MapEventForwarder }, feed] = await Promise.all([
+        import('../map/client'),
+        this.ctx.looks && !IN_REPLAY ? import('../map/tokens-feed') : Promise.resolve(null),
+      ]);
       const { w, h } = this.cssSize();
       this.client = await MapClient.create({
         canvas: this.canvas,
@@ -492,6 +511,22 @@ export class MapPane extends PaneShell {
         onMessage: this.onWorker,
       });
       if (this.lensZoom !== null) this.client.zoomTo(this.lensZoom);
+      const looks = this.ctx.looks;
+      if (feed && looks) {
+        this.tokens = new feed.TokenFeed({
+          game: this.ctx.game,
+          looks,
+          settings: this.ctx.settings,
+          doc: this.ctx.doc,
+          light: () => isLight(this.background()),
+          requestFrame: (cb) => this.ctx.requestFrame(cb),
+          send: (st) => {
+            this.content.dataset.mapSelfLook = feed.tokenKeyOf(st.self.look);
+            this.client?.tokens(st);
+          },
+          answer: (key, a) => this.client?.tokenImage(key, a),
+        });
+      }
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
       const notes = this.ctx.mapNotes;
       if (notes) this.forwarder.stampRooms = () => notes.wanted();
@@ -642,6 +677,12 @@ export class MapPane extends PaneShell {
         return;
       case 'answer':
         this.ctx.mapMarks?.answered(m.req, m.answer);
+        return;
+      case 'tokenArt':
+        this.tokens?.art(m.key, m.look);
+        return;
+      case 'tokensDrawn':
+        this.content.dataset.mapTokens = `${m.tokens}/${m.plus}/${m.arcs}`;
         return;
       case 'roomAt':
         {

@@ -15,6 +15,12 @@
 // - Tiles come through the AssetResolver (createImageBitmap, flipped as
 //   MMapper mirrors its QImages) into texture arrays with mipmaps and
 //   trilinear filtering (display/Textures.cpp).
+// - Tokens (stage 80, ADR 0171): with the scene's tokens drawn, one more
+//   instanced draw after the path and before the names; the pictures come
+//   from the worker's TokenImageSource into their own array (tokens.ts).
+//   The scene's meshes are rebuilt only when the scene or the view
+//   changed (compared field by field: nothing is allocated on a frame
+//   whose scene and view are unchanged).
 //
 // The draw order follows MMapper 26.06.0 MapCanvas::actuallyPaintGL,
 // renderMapBatches and LayerMeshes::render (GPL-2.0-or-later).
@@ -50,6 +56,7 @@ import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
 import type { Renderer, TileStyle } from './renderer';
 import { uploadLayer } from './upload';
+import { TOKEN_STRIDE, type TokenImageSource, TokenTextures } from './tokens';
 
 /** Zoom cutoffs (configuration.h). */
 export const CONNECTION_ZOOM = 0.15;
@@ -172,7 +179,12 @@ export class WebGLMapRenderer implements Renderer {
   private readonly texColor: Program;
   private readonly font: Program;
   private readonly full: Program;
+  private readonly token: Program;
   private readonly fullVao: WebGLVertexArrayObject;
+  private readonly tokenTex: TokenTextures;
+  private tokenSrc: TokenImageSource | null = null;
+  /** The token instances' VAO and buffer (made with the first token), and how many to draw. */
+  private tokenMesh: { vao: WebGLVertexArrayObject; vbo: WebGLBuffer; count: number } | null = null;
   private readonly arrays: (WebGLTexture | null)[] = [null, null, null, null];
   private charArrows: WebGLTexture | null = null;
   private fontTex: WebGLTexture | null = null;
@@ -183,7 +195,13 @@ export class WebGLMapRenderer implements Renderer {
   private layers: LayerGL[] = [];
   private scene: Scene = EMPTY_SCENE;
   private sceneVersion = 0;
-  private sceneMeshes: { key: string; roomSel: FloatMesh; tris: FloatMesh; arrows: FloatMesh; points: FloatMesh; path: FloatMesh; names: FloatMesh } | null = null;
+  private sceneMeshes: { roomSel: FloatMesh; tris: FloatMesh; arrows: FloatMesh; points: FloatMesh; path: FloatMesh; names: FloatMesh } | null = null;
+  /** What the scene meshes were built for (compared field by field, ADR 0171). */
+  private readonly sceneKey = { version: -1, font: 0, x: 0, y: 0, zoom: 0, layer: 0, w: 0, h: 0, dpr: 0 };
+  /** Draw calls in the last render (tests). */
+  drawCalls = 0;
+  /** What the last scene build drew as tokens (tests, `tokensDrawn`). */
+  readonly tokenCounts = { tokens: 0, plus: 0, arcs: 0 };
   private pw = 1;
   private ph = 1;
   private dpr = 1;
@@ -220,7 +238,9 @@ export class WebGLMapRenderer implements Renderer {
     this.texColor = compile(gl, S.TEXCOLOR_VS, S.TEXCOLOR_FS, ['uView', 'uTex']);
     this.font = compile(gl, S.FONT_VS, S.FONT_FS, ['uView', 'uPhys', 'uScreen', 'uTex']);
     this.full = compile(gl, S.FULL_VS, S.FULL_FS, ['uColor']);
+    this.token = compile(gl, S.TOKEN_VS, S.TOKEN_FS, ['uView', 'uPhys', 'uDpr', 'uTex']);
     this.fullVao = gl.createVertexArray()!;
+    this.tokenTex = new TokenTextures(gl);
     this.setNamedColors(undefined);
     gl.useProgram(this.room.p);
     gl.uniform1i(this.room.u.uTex!, 0);
@@ -228,6 +248,8 @@ export class WebGLMapRenderer implements Renderer {
     gl.uniform1i(this.texColor.u.uTex!, 0);
     gl.useProgram(this.font.p);
     gl.uniform1i(this.font.u.uTex!, 0);
+    gl.useProgram(this.token.p);
+    gl.uniform1i(this.token.u.uTex!, 0);
     this.arrays[TEX.DOTTED] = this.makeDotted();
     void this.loadTextures();
   }
@@ -510,6 +532,17 @@ export class WebGLMapRenderer implements Renderer {
     this.sceneVersion++;
   }
 
+  /** Where the token pictures come from (the worker's TokenImages; ADR 0171). */
+  setTokenSource(src: TokenImageSource | null): void {
+    this.tokenSrc = src;
+    this.sceneVersion++;
+  }
+
+  /** A token picture arrived: the scene is built again at the next render. */
+  tokensChanged(): void {
+    this.sceneVersion++;
+  }
+
   // ------------------------------------------------------------ render
 
   render(view: View): void {
@@ -521,16 +554,20 @@ export class WebGLMapRenderer implements Renderer {
     const clear = clearRgba(this.bg);
     gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    this.drawCalls = 0;
     if (!this.map) return;
 
     const cssW = this.pw / this.dpr;
     const cssH = this.ph / this.dpr;
     const kx = (5280 * view.zoom) / cssW;
     const ky = (5280 * view.zoom) / cssH;
-    for (const p of [this.room, this.color, this.texColor, this.font]) {
+    for (const p of [this.room, this.color, this.texColor, this.font, this.token]) {
       gl.useProgram(p.p);
       gl.uniform4f(p.u.uView!, view.x, view.y, kx, ky);
     }
+    gl.useProgram(this.token.p);
+    gl.uniform2f(this.token.u.uPhys!, this.pw, this.ph);
+    gl.uniform1f(this.token.u.uDpr!, this.dpr);
     gl.useProgram(this.font.p);
     gl.uniform2f(this.font.u.uPhys!, this.pw, this.ph);
 
@@ -575,6 +612,7 @@ export class WebGLMapRenderer implements Renderer {
     gl.uniform4fv(this.full.u.uColor!, c);
     gl.bindVertexArray(this.fullVao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.drawCalls++;
   }
 
   /** LayerMeshes::render. */
@@ -597,6 +635,7 @@ export class WebGLMapRenderer implements Renderer {
       gl.uniform1i(this.room.u.uWhite!, white ? 1 : 0);
       gl.vertexAttribIPointer(0, 4, gl.INT, 16, range.first * 16);
       gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, range.count);
+      this.drawCalls++;
     };
     if (noTex) draw('terrain', withAlpha(WHITE, 0.2), true);
     else {
@@ -639,6 +678,7 @@ export class WebGLMapRenderer implements Renderer {
     gl.uniform1f(this.color.u.uInk!, ink);
     gl.bindVertexArray(m.vao);
     gl.drawArrays(gl.TRIANGLES, 0, m.count);
+    this.drawCalls++;
   }
 
   private drawFont(m: FloatMesh, tex: WebGLTexture | null, screen: boolean, solidOnly = false): void {
@@ -650,20 +690,93 @@ export class WebGLMapRenderer implements Renderer {
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.bindVertexArray(m.vao);
     gl.drawArrays(gl.TRIANGLES, 0, m.count);
+    this.drawCalls++;
+  }
+
+  /** Whether the scene meshes were built for this scene and view; if not, notes them (no allocation either way). */
+  private sceneCurrent(view: View, cssW: number, cssH: number): boolean {
+    const k = this.sceneKey;
+    if (
+      k.version === this.sceneVersion &&
+      k.font === this.fontSize &&
+      k.x === view.x &&
+      k.y === view.y &&
+      k.zoom === view.zoom &&
+      k.layer === view.layer &&
+      k.w === cssW &&
+      k.h === cssH &&
+      k.dpr === this.dpr
+    ) {
+      return true;
+    }
+    k.version = this.sceneVersion;
+    k.font = this.fontSize;
+    k.x = view.x;
+    k.y = view.y;
+    k.zoom = view.zoom;
+    k.layer = view.layer;
+    k.w = cssW;
+    k.h = cssH;
+    k.dpr = this.dpr;
+    return false;
+  }
+
+  /** The token instances into their buffer (made the first time), and how many. */
+  private uploadTokens(g: SceneGeometry): void {
+    const gl = this.gl;
+    const c = this.tokenCounts;
+    c.tokens = c.plus = c.arcs = 0;
+    for (const t of g.tokens) {
+      if (t.plus > 0) c.plus++;
+      else c.tokens++;
+      if (t.hp >= 0) c.arcs++;
+    }
+    if (g.tokens.length === 0) {
+      if (this.tokenMesh) this.tokenMesh.count = 0;
+      return;
+    }
+    const data = this.tokenTex.pack(g.tokens, this.tokenSrc);
+    let m = this.tokenMesh;
+    if (!m) {
+      const vao = gl.createVertexArray()!;
+      const vbo = gl.createBuffer()!;
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      const layout: [number, number, number][] = [
+        [0, 4, 0],
+        [1, 4, 4],
+        [2, 3, 8],
+        [3, 3, 11],
+        [4, 2, 14],
+      ];
+      for (const [loc, size, off] of layout) {
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, size, gl.FLOAT, false, TOKEN_STRIDE * 4, off * 4);
+        gl.vertexAttribDivisor(loc, 1);
+      }
+      gl.bindVertexArray(null);
+      m = this.tokenMesh = { vao, vbo, count: 0 };
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    m.count = g.tokens.length;
   }
 
   /** Characters, path and labels (MapCanvas::paintCharacters, CharFakeGL::reallyDraw). */
   private drawScene(view: View, cssW: number, cssH: number): void {
     const map = this.map!;
     const s = this.scene;
-    if (s.room === null && s.members.length === 0) return;
-    const key = `${this.sceneVersion},${this.fontSize},${view.x},${view.y},${view.zoom},${view.layer},${cssW},${cssH},${this.dpr}`;
-    if (!this.sceneMeshes || this.sceneMeshes.key !== key) {
+    if (s.room === null && s.members.length === 0) {
+      const c = this.tokenCounts;
+      c.tokens = c.plus = c.arcs = 0;
+      return;
+    }
+    if (!this.sceneMeshes || !this.sceneCurrent(view, cssW, cssH)) {
+      if (!this.sceneMeshes) this.sceneCurrent(view, cssW, cssH);
       const g: SceneGeometry = buildScene(s, { map, view, w: cssW, h: cssH, dpr: this.dpr, font: this.fontMetrics });
       const old = this.sceneMeshes;
       const dyn = this.gl.DYNAMIC_DRAW;
       this.sceneMeshes = {
-        key,
         roomSel: this.floatMesh(g.roomSel, 10, TEXCOLOR_LAYOUT, dyn, old?.roomSel),
         tris: this.floatMesh(g.tris.data, COLOR_STRIDE, COLOR_LAYOUT, dyn, old?.tris),
         arrows: this.floatMesh(g.arrows.data, FONT_STRIDE, FONT_LAYOUT, dyn, old?.arrows),
@@ -671,6 +784,7 @@ export class WebGLMapRenderer implements Renderer {
         path: this.floatMesh(g.pathQuads.data, COLOR_STRIDE, COLOR_LAYOUT, dyn, old?.path),
         names: this.floatMesh(g.names.data, FONT_STRIDE, FONT_LAYOUT, dyn, old?.names),
       };
+      this.uploadTokens(g);
     }
     const m = this.sceneMeshes;
     const gl = this.gl;
@@ -680,11 +794,21 @@ export class WebGLMapRenderer implements Renderer {
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.arrays[TEX.A256] ?? null);
       gl.bindVertexArray(m.roomSel.vao);
       gl.drawArrays(gl.TRIANGLES, 0, m.roomSel.count);
+      this.drawCalls++;
     }
     this.drawColor(m.tris, WHITE);
     this.drawFont(m.arrows, this.charArrows, false);
     this.drawFont(m.points, null, false, true);
     this.drawColor(m.path, WHITE);
+    const t = this.tokenMesh;
+    if (t && t.count > 0) {
+      gl.useProgram(this.token.p);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tokenTex.tex);
+      gl.bindVertexArray(t.vao);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, t.count);
+      this.drawCalls++;
+    }
     this.drawFont(m.names, this.fontTex, true);
   }
 
@@ -694,7 +818,13 @@ export class WebGLMapRenderer implements Renderer {
     this.sceneMeshes = this.freeScene();
     const gl = this.gl;
     for (const t of [...this.arrays, this.charArrows, this.fontTex]) if (t) gl.deleteTexture(t);
-    for (const p of [this.room, this.color, this.texColor, this.font, this.full]) gl.deleteProgram(p.p);
+    this.tokenTex.dispose();
+    if (this.tokenMesh) {
+      gl.deleteVertexArray(this.tokenMesh.vao);
+      gl.deleteBuffer(this.tokenMesh.vbo);
+      this.tokenMesh = null;
+    }
+    for (const p of [this.room, this.color, this.texColor, this.font, this.full, this.token]) gl.deleteProgram(p.p);
     gl.deleteVertexArray(this.fullVao);
   }
 }

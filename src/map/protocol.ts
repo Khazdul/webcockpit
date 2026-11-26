@@ -194,6 +194,70 @@ export type MapEvent =
    */
   | { k: 'resync' };
 
+// ------------------------------------------------------------- tokens
+
+/**
+ * A token's picture (stage 80 §7, ADR 0171), resolved on the main thread
+ * (src/looks/resolve.ts): a library token the worker fetches itself, an
+ * engraved drawing the main thread bakes when the worker asks
+ * (`tokenArt`), an own image (part D: its bytes, sent once), or none (the
+ * disc and the ring only: an NPC with no match).
+ */
+export type TokenLook =
+  | { k: 'lib'; id: string }
+  | { k: 'drawn'; portrait: string; sex: 'male' | 'female' }
+  | { k: 'own'; id: string }
+  | { k: 'none' };
+
+/** The key a picture is kept under in the worker ('' for none). */
+export function tokenKey(l: TokenLook): string {
+  switch (l.k) {
+    case 'lib':
+      return `lib:${l.id}`;
+    case 'own':
+      return `own:${l.id}`;
+    case 'drawn':
+      return l.portrait === 'neutral' ? 'drawn:neutral' : `drawn:${l.portrait}:${l.sex}`;
+    default:
+      return '';
+  }
+}
+
+/** One character's token: the picture, its fallback when the picture cannot load (`alt`), and the HP fraction (null: unknown). */
+export interface TokenFace {
+  look: TokenLook;
+  alt?: TokenLook;
+  hp: number | null;
+}
+
+/** A group member's token, by its Group.* id; `color` (0xRRGGBB) is the main thread's hue and wins over the worker's. */
+export interface TokenMember extends TokenFace {
+  id: number;
+  color: number;
+}
+
+/** The HP arc's colours (0xRRGGBB) by tone (src/gmcp/vital-tone.ts): Group's bar colours for the side. */
+export interface TokenColors {
+  ok: number;
+  low: number;
+  critical: number;
+}
+
+/**
+ * Everything the worker needs to draw tokens (ADR 0171). Sent only when it
+ * changed. `on` false: today's boxes (the colours still apply); `hp`: the
+ * HP arc. `lib`: the URL prefix of the library's 128 px pictures
+ * (`${BASE_URL}tokens/t/`).
+ */
+export interface TokenState {
+  on: boolean;
+  hp: boolean;
+  self: TokenFace;
+  members: TokenMember[];
+  colors: TokenColors;
+  lib?: string;
+}
+
 // ---------------------------------------------------- main → worker
 
 export type MainToWorker =
@@ -265,6 +329,14 @@ export type MainToWorker =
    * preview). Answered by `roomAt`.
    */
   | { t: 'roomAt'; req: number; x: number; y: number; full: boolean }
+  /** The tokens (stage 80, ADR 0171): sent only on change. */
+  | ({ t: 'tokens' } & TokenState)
+  /**
+   * A picture the worker asked for (`tokenArt`): a baked drawing as a
+   * transferred ImageBitmap, an own image's bytes (part D), or `failed`
+   * (the worker draws the fallback).
+   */
+  | { t: 'tokenImage'; key: string; bitmap?: ImageBitmap; bytes?: ArrayBuffer; failed?: boolean }
   | {
       t: 'debugScene';
       scene?: Scene;
@@ -317,6 +389,14 @@ export type WorkerToMain =
     }
   /** An `ask` answered. */
   | { t: 'answer'; req: number; answer: MapAnswer }
+  /**
+   * What the last frame drew as tokens (stage 80; tests and debugging):
+   * tokens with a picture or a disc, `+n` discs, HP arcs. Posted when it
+   * changed.
+   */
+  | { t: 'tokensDrawn'; tokens: number; plus: number; arcs: number }
+  /** The worker needs a picture it cannot get itself (a drawing to bake, an own image): answered by `tokenImage`. */
+  | { t: 'tokenArt'; key: string; look: TokenLook }
   /** A mark ended (its time ran out, `unmark`, or a map load). */
   | { t: 'markEnded'; id: number }
   /** Locator state (P2): the player's room index, or null when unknown. */

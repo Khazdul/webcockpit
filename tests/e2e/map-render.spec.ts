@@ -30,7 +30,8 @@ async function openMap(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1600, height: 1250 });
   await page.goto('/?replay');
   await expect(page.locator('.wc-cockpit')).toBeVisible();
-  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } } }));
+  // The boxes: this file is the renderer's reference without tokens (stage 80 part B; looks-map-tokens.spec.ts has them).
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { tokens: false } }));
   const content = page.locator('.wc-pane-map .wc-pane-content');
   await expect(content).toHaveAttribute('data-map-state', 'loaded', { timeout: 30_000 });
 }

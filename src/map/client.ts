@@ -25,6 +25,7 @@ import {
   type MarkStyle,
   type MarkTarget,
   type RoomQuery,
+  type TokenState,
   type WorkerToMain,
 } from './protocol';
 import { spawnMapWorker } from './spawn-worker';
@@ -150,6 +151,19 @@ export class MapClient {
   /** The room under (x, y) CSS px for the hover box (ADR 0077); answered by `roomAt`. */
   roomAt(req: number, x: number, y: number, full: boolean): void {
     this.post({ t: 'roomAt', req, x, y, full });
+  }
+
+  /** The tokens (stage 80, ADR 0171): sent by the TokenFeed only when they changed. */
+  tokens(st: TokenState): void {
+    this.post({ t: 'tokens', ...st });
+  }
+
+  /** The answer to a `tokenArt`: a bitmap or bytes (transferred), or failed. */
+  tokenImage(key: string, a: { bitmap?: ImageBitmap; bytes?: ArrayBuffer; failed?: boolean }): void {
+    const transfer: Transferable[] = [];
+    if (a.bitmap) transfer.push(a.bitmap);
+    if (a.bytes) transfer.push(a.bytes);
+    this.post({ t: 'tokenImage', key, ...a }, transfer);
   }
 
   /** Lets the worker keep learned server ids in IndexedDB (the app's own pane only). */

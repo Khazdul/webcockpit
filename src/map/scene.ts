@@ -2,6 +2,8 @@
 // renderer (P1) besides the static map. Owned by the worker; the renderer
 // only reads it. Room values are MapData room indices.
 
+import type { TokenColors, TokenFace } from './protocol';
+
 /** A group mate drawn on the map (research §7). */
 export interface SceneMember {
   /** Group.* id (stable while the member is in the group table). */
@@ -27,6 +29,21 @@ export interface SceneMark {
   label?: string;
 }
 
+/**
+ * The tokens (stage 80 §7, ADR 0171), from the main thread's `tokens`
+ * message: present only while `mapper.tokens` is on. The renderer draws
+ * them at TOKEN_MIN_PX CSS px a room and more, outside the far style;
+ * else today's boxes.
+ */
+export interface SceneTokens {
+  /** The HP arc (`mapper.tokenHp`). */
+  hp: boolean;
+  self: TokenFace;
+  /** By Group.* id; a member without one draws the disc and the ring only. */
+  members: ReadonlyMap<number, TokenFace>;
+  colors: TokenColors;
+}
+
 export interface Scene {
   /** The player's room, or null before the first match. */
   room: number | null;
@@ -40,6 +57,8 @@ export interface Scene {
   members: readonly SceneMember[];
   /** Script marks (absent: none). */
   marks?: readonly SceneMark[];
+  /** Tokens (absent: today's boxes). */
+  tokens?: SceneTokens;
 }
 
 export const EMPTY_SCENE: Scene = { room: null, located: false, color: 0xffff00, path: [], members: [] };

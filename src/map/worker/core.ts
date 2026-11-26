@@ -38,6 +38,13 @@
 // After an `assets` change, `tilesDrawn` follows the first frame drawn
 // with the new tiles.
 //
+// Tokens (stage 80 §7, ADR 0171): the main thread's `tokens` message (sent
+// on change) is kept; every scene handed to the renderer gets the main
+// thread's hue for each member id it knows (else the tracker's own) and,
+// with tokens on, the faces. The pictures are TokenImages' (they outlive a
+// renderer rebuilt after a lost context): library tokens fetched here, the
+// rest asked of the main thread (`tokenArt` → `tokenImage`).
+//
 // Background (ADR 0085): `init.background` and later `background`
 // messages set the renderer's clear colour (kept for a rebuilt renderer
 // after a context restore) and ask for a redraw. With `transparent` the
@@ -61,12 +68,15 @@ import {
   type MarkStyle,
   roomTints,
   streamsAsIs,
+  type TokenFace,
+  type TokenState,
   type WorkerToMain,
 } from '../protocol';
 import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from '../progress';
 import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
-import type { Scene, SceneMark } from '../scene';
+import type { Scene, SceneMark, SceneTokens } from '../scene';
+import { TokenImages } from './token-images';
 import { BACKGROUND, type RGBA, backgroundRgba } from '../render/palette';
 import { type Renderer, type TileStyle, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
@@ -152,6 +162,8 @@ export class MapWorkerCore {
   private loadReq = -1;
   /** Frames drawn (tests, debugging). */
   frames = 0;
+  /** The last `tokensDrawn` posted (tokens, plus, arcs; -1: none yet). */
+  private readonly lastTokens = [-1, -1, -1];
   readonly tracker = new Tracker();
   private persistIds = false;
   private lastStatus = '';
@@ -179,8 +191,26 @@ export class MapWorkerCore {
   private background: RGBA = BACKGROUND;
   /** The view follows the player (`follow`, ADR 0160); off: a move leaves the view where it is. */
   private following = true;
+  /** The last `tokens` message (null: none, today's map). */
+  private tokenState: TokenState | null = null;
+  /** Its hues by member id, and the faces (with tokens on). */
+  private tokenColors = new Map<number, number>();
+  private sceneTokens: SceneTokens | null = null;
+  /** The scene `debugScene` set, drawn until the tracker's scene changes. */
+  private debugBase: Scene | null = null;
+  /** The token pictures (ADR 0171). */
+  readonly tokenImages: TokenImages;
 
-  constructor(private readonly host: WorkerHost) {}
+  constructor(private readonly host: WorkerHost) {
+    this.tokenImages = new TokenImages({
+      fetch: (...a) => this.host.fetch(...a),
+      ask: (key, look) => this.host.post({ t: 'tokenArt', key, look }),
+      onChange: () => {
+        this.renderer?.tokensChanged?.();
+        this.requestRender();
+      },
+    });
+  }
 
   handle(m: MainToWorker): void {
     if (this.marks.size > 0) this.expireMarks();
@@ -263,6 +293,12 @@ export class MapWorkerCore {
       case 'debugScene':
         this.debugScene(m);
         return;
+      case 'tokens':
+        this.setTokens(m);
+        return;
+      case 'tokenImage':
+        this.tokenImages.receive(m.key, m);
+        return;
       default:
         // An unknown message from a newer client: ignore (protocol.ts).
         return;
@@ -293,6 +329,7 @@ export class MapWorkerCore {
     const build = (): Renderer => {
       const r = make(glc, this.assets!, () => this.requestRender(), this.style);
       r.setBackground?.(this.background);
+      r.setTokenSource?.(this.tokenImages);
       return r;
     };
     this.renderer = build();
@@ -380,9 +417,47 @@ export class MapWorkerCore {
     this.requestRender();
   }
 
+  /** The main thread's tokens (ADR 0171): the hues, the faces; the scene again. */
+  private setTokens(m: TokenState): void {
+    const { on, hp, self, members, colors, lib } = m;
+    this.tokenState = { on, hp, self, members, colors };
+    if (typeof lib === 'string' && lib !== '') this.tokenImages.lib = lib;
+    this.tokenColors = new Map(members.map((x) => [x.id, x.color & 0xffffff]));
+    this.sceneTokens = on
+      ? { hp, self, members: new Map<number, TokenFace>(members.map((x) => [x.id, { look: x.look, ...(x.alt ? { alt: x.alt } : {}), hp: x.hp }])), colors }
+      : null;
+    this.pushScene();
+    this.requestRender();
+  }
+
+  /** `base` with the main thread's hues and, with tokens on, the faces. */
+  private decorate(base: Scene): Scene {
+    if (!this.tokenState) return base;
+    const colors = this.tokenColors;
+    let members = base.members;
+    if (colors.size > 0 && members.some((x) => colors.has(x.id) && colors.get(x.id) !== x.color)) {
+      members = members.map((x) => {
+        const c = colors.get(x.id);
+        return c === undefined || c === x.color ? x : { ...x, color: c };
+      });
+    }
+    const t = this.sceneTokens;
+    if (members === base.members && !t) return base;
+    return t ? { ...base, members, tokens: t } : { ...base, members };
+  }
+
+  /** The renderer gets the scene again (the debug scene while one is set). */
+  private pushScene(): void {
+    if (this.debugBase) this.renderer?.setScene(this.decorate(this.debugBase));
+    else if (this.map) this.renderer?.setScene(this.scene());
+  }
+
   /** `debugScene` (development and tests): a scene, a centre and a zoom without the tracking side. */
   private debugScene(m: Extract<MainToWorker, { t: 'debugScene' }>): void {
-    if (m.scene) this.renderer?.setScene(m.scene);
+    if (m.scene) {
+      this.debugBase = m.scene;
+      this.renderer?.setScene(this.decorate(m.scene));
+    }
     let v = this.view;
     const c = m.center;
     if (c && 'room' in c) {
@@ -538,7 +613,10 @@ export class MapWorkerCore {
         draw = true;
       }
     }
-    if (r.changed) this.renderer?.setScene(this.scene());
+    if (r.changed) {
+      this.debugBase = null;
+      this.renderer?.setScene(this.scene());
+    }
     if (draw) this.requestRender();
     this.postStatus();
     if (r.infos.length > 0) {
@@ -552,8 +630,12 @@ export class MapWorkerCore {
 
   // ------------------------------------------------------------ marks
 
-  /** The tracker's scene with the live marks (ADR 0057). */
+  /** The tracker's scene with the live marks (ADR 0057), the main thread's hues and the tokens (ADR 0171). */
   private scene(): Scene {
+    return this.decorate(this.markedScene());
+  }
+
+  private markedScene(): Scene {
     const base = this.tracker.current;
     if (this.marks.size === 0) return base;
     const now = this.host.now();
@@ -750,6 +832,16 @@ export class MapWorkerCore {
       try {
         this.renderer.render(this.view);
         this.frames++;
+        const tc = this.renderer.tokenCounts;
+        if (tc && this.tokenState) {
+          const l = this.lastTokens;
+          if (l[0] !== tc.tokens || l[1] !== tc.plus || l[2] !== tc.arcs) {
+            l[0] = tc.tokens;
+            l[1] = tc.plus;
+            l[2] = tc.arcs;
+            this.host.post({ t: 'tokensDrawn', tokens: tc.tokens, plus: tc.plus, arcs: tc.arcs });
+          }
+        }
         const d = this.drawnPending;
         if (d && this.map && this.renderer.complete !== false) {
           this.drawnPending = null;

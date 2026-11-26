@@ -663,7 +663,12 @@ describe('Settings popup tabs', () => {
     expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).not.toBe('');
     // The order (ADR 0118): Background colour and Map file before the tileset picker, which is last.
     const order = [...map.querySelectorAll('.wc-ck-row > .wc-ck-l, .wc-sp-thead > .wc-ck-l')].map((l) => l.firstChild!.textContent);
-    expect(order).toEqual(['Show map pane', 'Room notes', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    // Stage 80 part B: the two token switches after Room notes.
+    expect(order).toEqual(['Show map pane', 'Room notes', 'Tokens', 'HP arc on tokens', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    map.querySelector<HTMLButtonElement>('[aria-label="Tokens"]')!.click();
+    expect(t.s().mapper.tokens).toBe(false);
+    map.querySelector<HTMLButtonElement>('[aria-label="HP arc on tokens"]')!.click();
+    expect(t.s().mapper.tokenHp).toBe(false);
     expect(map.querySelector('.wc-sp-mapper')!.lastElementChild!.classList.contains('wc-sp-tileset')).toBe(true);
     // Without a map store, import says so.
     click(map.querySelector('.wc-sp-import'));

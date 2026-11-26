@@ -13,6 +13,13 @@
 // Script marks (ADR 0057; WebCockpit's own) are drawn first: a fill and an
 // outline a little larger than the room, a screen dot when rooms are
 // small, an edge arrow when off view, the layer arrow on another layer.
+//
+// Tokens (stage 80 §7, ADR 0171): with `scene.tokens`, at TOKEN_MIN_PX CSS
+// px a room and more on the view's layer and outside the far style, the
+// boxes give way to round tokens (token-layout.ts), one quad each in
+// `tokens`. The off-screen and layer arrows, the path and the name labels
+// are made exactly as for the boxes; an unlocated player keeps the far
+// marker. Otherwise nothing changes: the same geometry as before.
 
 import type { MapData } from '../model';
 import type { Scene } from '../scene';
@@ -21,6 +28,11 @@ import { type FontMetrics, FontVerts, layoutText } from './font';
 import { ColorTris, lineQuad, lineQuadSafe, perpendicularNormal, type Vec3, vec } from './geometry';
 import { type RGBA, rgb, textColor, withAlpha } from './palette';
 import { L256 } from './textures';
+import { ringRgb } from '../../looks/ring';
+import { vitalTone } from '../../gmcp/vital-tone';
+import type { SceneTokens } from '../scene';
+import type { TokenFace } from '../protocol';
+import { type RoomToken, TOKEN_MIN_PX, type TokenQuad, layoutRoom } from './token-layout';
 
 const PATH_LINE_WIDTH = 0.1;
 /** Round point diameter at the end of the path, physical px. */
@@ -118,6 +130,8 @@ export interface SceneGeometry {
   pathQuads: ColorTris;
   /** Name labels, screen anchors in physical px (y down). */
   names: FontVerts;
+  /** Tokens (stage 80), back to front; empty with the boxes. */
+  tokens: TokenQuad[];
 }
 
 export interface SceneContext {
@@ -140,6 +154,7 @@ class CharBatch {
     points: new FontVerts(),
     pathQuads: new ColorTris(),
     names: new FontVerts(),
+    tokens: [],
   };
   private readonly lines = new ColorTris();
   private readonly counts = new Map<string, number>();
@@ -250,6 +265,12 @@ class CharBatch {
   }
 
   drawCharacter(x: number, y: number, z: number, color: RGBA, fill: boolean, far: boolean): void {
+    this.drawPointers(x, y, z, color, fill);
+    this.drawBox(x, y, z, color, fill, far);
+  }
+
+  /** The off-screen arrow and the other-layer arrow of a character. */
+  drawPointers(x: number, y: number, z: number, color: RGBA, fill: boolean): void {
     const centre: Vec3 = [x + 0.5, y + 0.5, z];
     const layerDiff = z - this.ctx.view.layer;
     if (!this.screen.roomVisible(x, y, z, MARGIN / 2)) {
@@ -258,7 +279,18 @@ class CharBatch {
       this.screenArrow(this.screen.proxy(centre, MARGIN), deg, color, fill);
     }
     if (layerDiff !== 0) this.arrow([centre[0], centre[1], this.ctx.view.layer], layerDiff > 0 ? 90 : 270, color, fill);
-    this.drawBox(x, y, z, color, fill, far);
+  }
+
+  /** A token's character: its pointers, and a count in the room as a box would (the labels stack the same). */
+  drawTokenCharacter(x: number, y: number, z: number, color: RGBA, fill: boolean): void {
+    this.drawPointers(x, y, z, color, fill);
+    const k = this.key(x, y, z);
+    this.counts.set(k, (this.counts.get(k) ?? 0) + 1);
+  }
+
+  /** The tokens of a room, back to front (token-layout.ts). */
+  drawTokens(x: number, y: number, z: number, list: readonly RoomToken[], arc: boolean): void {
+    layoutRoom(this.g.tokens, list, x, y, z, pxPerRoom(this.ctx.view.zoom, z), arc);
   }
 
   private drawBox(x: number, y: number, z: number, color: RGBA, fill: boolean, far: boolean): void {
@@ -344,8 +376,21 @@ class CharBatch {
 
 const colorOf = (c: number): RGBA => rgb(c & 0xffffff);
 
+/** Whether `scene` draws tokens in `view` (stage 80 §7): tokens on, not the far style, at least TOKEN_MIN_PX a room on the view's layer. */
+export function drawsTokens(scene: Scene, view: View): boolean {
+  return !!scene.tokens && view.zoom > CHAR_FAR_ZOOM && pxPerRoom(view.zoom, view.layer) >= TOKEN_MIN_PX;
+}
+
+/** A character's token in its room: the muted ring and the arc's colour by the tone. */
+function roomToken(face: TokenFace | null, color: number, t: SceneTokens): RoomToken {
+  const [r, g, b] = ringRgb(color & 0xffffff);
+  const hp = face && t.hp && face.hp !== null && face.hp < 1 ? Math.max(0, face.hp) : -1;
+  return { face, ring: (r << 16) | (g << 8) | b, hp, arc: hp < 0 ? 0 : t.colors[vitalTone(hp)] };
+}
+
 /** Builds the frame's character geometry (MapCanvas::paintCharacters). */
 export function buildScene(scene: Scene, ctx: SceneContext): SceneGeometry {
+  if (drawsTokens(scene, ctx.view)) return buildTokenScene(scene, scene.tokens!, ctx);
   const map = ctx.map;
   const b = new CharBatch(ctx);
   const far = ctx.view.zoom <= CHAR_FAR_ZOOM;
@@ -395,6 +440,73 @@ export function buildScene(scene: Scene, ctx: SceneContext): SceneGeometry {
     );
   } else {
     drawGroup();
+  }
+  return b.finish();
+}
+
+/**
+ * The token form of buildScene (stage 80 §7): the marks, arrows, path and
+ * labels as there, the boxes as tokens, the characters of a room as one
+ * fan (you first when located there, else the first member).
+ */
+function buildTokenScene(scene: Scene, t: SceneTokens, ctx: SceneContext): SceneGeometry {
+  const map = ctx.map;
+  const b = new CharBatch(ctx);
+  const pos = (r: number): Vec3 => [map.x[r]!, map.y[r]!, map.z[r]!];
+  const valid = (r: number | null): r is number => r !== null && r >= 0 && r < map.roomCount;
+  const you = valid(scene.room) ? scene.room : null;
+
+  for (const mk of scene.marks ?? []) {
+    const color = withAlpha(colorOf(mk.color), 1);
+    let arrows = 0;
+    for (const r of mk.rooms) {
+      if (!valid(r)) continue;
+      const [x, y, z] = pos(r);
+      b.drawMark(x, y, z, color, mk.alpha, mk.arrows && arrows++ < MARK_ARROWS);
+    }
+    const first = mk.rooms.find(valid);
+    if (mk.label && first !== undefined && mk.alpha > 0.01) {
+      const [x, y, z] = pos(first);
+      b.drawMarkLabel(x, y, z, mk.label, withAlpha(color, mk.alpha));
+    }
+  }
+
+  // Rooms in the order their first character came; you lead your room.
+  const rooms = new Map<number, RoomToken[]>();
+  const located = you !== null && scene.located;
+  if (located) rooms.set(you, []);
+  const drawGroup = () => {
+    const drawn = new Set<number>();
+    for (const m of scene.members) {
+      if (!valid(m.room)) continue;
+      const [x, y, z] = pos(m.room);
+      const color = colorOf(m.color);
+      b.drawTokenCharacter(x, y, z, color, !drawn.has(m.room));
+      if (m.room !== you) b.drawName(x, y, z, m.text, color);
+      drawn.add(m.room);
+      let list = rooms.get(m.room);
+      if (!list) rooms.set(m.room, (list = []));
+      list.push(roomToken(t.members.get(m.id) ?? null, m.color, t));
+    }
+  };
+
+  if (you !== null) {
+    const [x, y, z] = pos(you);
+    b.reserve(x, y, z);
+    drawGroup();
+    b.clear(x, y, z);
+    const color = colorOf(scene.color);
+    if (located) {
+      b.drawTokenCharacter(x, y, z, color, true);
+      rooms.get(you)!.unshift(roomToken(t.self, scene.color, t));
+    } else b.drawCharacter(x, y, z, color, true, true); // not located: the far marker, as today
+    b.drawPath([x, y, z], scene.path.filter(valid).map(pos), color);
+  } else {
+    drawGroup();
+  }
+  for (const [r, list] of rooms) {
+    const [x, y, z] = pos(r);
+    b.drawTokens(x, y, z, list, t.hp);
   }
   return b.finish();
 }
