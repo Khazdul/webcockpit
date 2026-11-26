@@ -350,8 +350,8 @@ describe('database version 10', () => {
       const f = new IDBFactory();
       await version9(f, name);
       const db = await openWebcockpitDb(f, name, { create: true });
-      expect(db.version).toBe(10);
-      expect(DB_VERSION).toBe(10);
+      // Version 11 (stage 80) came after: the upgrade goes through 10 on its way.
+      expect(db.version).toBe(DB_VERSION);
       expect([...db.objectStoreNames]).toContain(STORE.runCloud);
       const tx = db.transaction(['runs', 'runChunks', 'runEvents', 'exports', 'profiles', 'runCloud'], 'readwrite');
       expect(await idbRequest(tx.objectStore('runs').getAll())).toEqual([
@@ -376,7 +376,7 @@ describe('database version 10', () => {
   it('builds a new database at version 10 from nothing, and a version 8 one through 9', async () => {
     const f = new IDBFactory();
     const fresh = await openDeviceDb(f);
-    expect(fresh.version).toBe(10);
+    expect(fresh.version).toBe(DB_VERSION);
     expect([...fresh.objectStoreNames]).toEqual(expect.arrayContaining(['sync', 'syncMeta', 'runCloud']));
     fresh.close();
     const g = new IDBFactory();
@@ -385,6 +385,25 @@ describe('database version 10', () => {
     expect([...db.objectStoreNames]).toEqual(expect.arrayContaining(['sync', 'syncMeta', 'runCloud']));
     const profiles = await idbRequest(db.transaction('profiles').objectStore('profiles').getAll());
     for (const p of profiles) expect(typeof p.id).toBe('string');
+    db.close();
+  });
+});
+
+describe('database version 11 (stage 80)', () => {
+  it('adds the empty looks and lookImages stores and keeps the runs', async () => {
+    const f = new IDBFactory();
+    await version9(f);
+    const db = await openWebcockpitDb(f, DB_NAME, { create: true });
+    expect(DB_VERSION).toBe(11);
+    expect(db.version).toBe(11);
+    expect([...db.objectStoreNames]).toEqual(expect.arrayContaining([STORE.runCloud, STORE.looks, STORE.lookImages]));
+    const tx = db.transaction(['runs', STORE.looks, STORE.lookImages], 'readwrite');
+    expect(await idbRequest(tx.objectStore('runs').getAll())).toHaveLength(1);
+    expect(tx.objectStore(STORE.looks).keyPath).toBeNull();
+    expect(tx.objectStore(STORE.lookImages).keyPath).toBe('id');
+    expect(await idbRequest(tx.objectStore(STORE.looks).count())).toBe(0);
+    tx.objectStore(STORE.looks).put({ names: {} }, 'looks');
+    await idbDone(tx);
     db.close();
   });
 });
