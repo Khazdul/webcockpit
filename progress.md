@@ -208,6 +208,10 @@ with no stage of their own. Remove a line when it is done.
 - The spec was reviewed against the code by a separate agent and its
   findings are folded in (routes, limits in blob bytes, the hue's owner,
   cell-based row steps, test material, build notes).
+- Bear form: the owner's run with Dubb shows `race: "Bear"` in
+  `Char.StatusVars` while changed. Two engraved bears drawn
+  (`src/panes/portraits/bears.ts`, not wired; preview published); the
+  wiring is in part A of the spec.
 - Next: the owner starts the night run with the kickoff prompt.
 - Nothing in `src/` changed. No release.
 

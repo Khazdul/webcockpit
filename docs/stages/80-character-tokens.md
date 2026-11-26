@@ -264,10 +264,38 @@ Which look a character gets, the first that applies:
   every fallback. The Character pane, the Group pane and the map all ask
   it; none of them has rules of its own.
 - An unknown sex is male, as today.
-- Bear form: `raceKind` maps a bear to `beorning`, and there is no
-  engraved bear. The automatic look shows the Beorning drawing in both
-  forms, as today, and the directory stores `beorning`. The library's
-  bear pictures can be chosen like any other.
+- **Bear form has a look of its own** (the owner, 2026-11-26). What
+  MUME sends, from the owner's run with Dubb, a Beorning (2026-11-26):
+  at login `Char.StatusVars {…"race":"Man","subrace":"Beorning"}`; at
+  the change ("You growl loudly, as you shapechange into a bear.")
+  `Char.StatusVars {"race":"Bear","subrace":null}`; back again
+  `{"race":"Man","subrace":"Beorning"}`. A typed `info` in bear form
+  says `You are a male Bear.`
+  - Two engraved bears, male and female, are drawn
+    (`src/panes/portraits/bears.ts`; preview
+    `notes/research/portraits/bears.html`,
+    <https://claude.ai/artifact/CYwoWxZukcP8Khr5d5nLQh>), not wired.
+    The module exports `portraits.bear({sex, size, uid})` under a type
+    of its own, because `bear` is not a `PortraitId`. To wire it: add
+    `bear` to the id union, to `PORTRAIT_GROUP` and to `CHUNKS` in
+    `index.ts`, and type the export as a `PortraitSet`. The female in
+    the module wears the heather band; `alternatives.cord` exists only
+    for the preview page: remove it when wiring, unless "Owner
+    feedback" says the owner chose it. Wiring them is
+    part A: `raceKind` keeps giving `beorning` for a bear (the age
+    factor, the balloon and the race line depend on it); the portrait's
+    choice gets the form from the race word itself (`race` is "Bear").
+  - The automatic look shows the bear while in bear form, in the
+    Character pane and as your token, by your sex. The sex is the
+    character's (remembered per name); make sure the `info` line in
+    bear form is read as the same sex and never clears it.
+  - A chosen look (library or own) does not change with the form.
+  - The directory always stores `beorning` for this character, in
+    either form, and a change of form sends no report: others see the
+    Beorning drawing. (A member's form is not in GMCP.)
+  - Unit tests with the three `StatusVars` messages above; an e2e that
+    emits them and sees the portrait and the token change and change
+    back.
 - A missing or broken image falls back one row down, silently.
 - **Where looks are drawn.** There are three kinds of replay:
   1. the `__WC_REPLAY__` bundle (exported HTML, the share frame): no
@@ -717,11 +745,12 @@ Decision 22: the basics are in, and the design is yours to propose.
 ### 11. Not in this stage
 
 - Sharing own images with others (needs moderation).
-- A separate look for bear form, looks from Lua, looks in replays.
+- A chosen look of its own for bear form, looks from Lua, looks in
+  replays.
 - Tokens for enemies or for characters outside the group.
 - Class in the automatic choice (`subclass` in `Char.StatusVars` is not
   read today).
-- New engraved drawings.
+- New engraved drawings, other than the two bears.
 
 ### Where the mockup is not the truth
 
@@ -746,6 +775,7 @@ next starts.
 - `scripts/tokens.ts`, `public/tokens/`, the manifest and its test; the
   notices and the credit.
 - `LookRef`, the resolver, the store for looks in the device's space.
+- Bear form wired to the two bear drawings (§1).
 - The picker with Automatic and Library (My images shows the logged-out
   card for now), the click on the portrait, the gear's "Look…" row.
 - The new settings with migration.
