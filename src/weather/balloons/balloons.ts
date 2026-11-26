@@ -27,9 +27,9 @@
 //
 // Stage 79 (ADR 0168): the flight is the compositor's. The whole balloon's
 // transform (translate, scale) and opacity are one Web Animation per
-// balloon, its keyframes the plan sampled (flight.ts `flightKeys`), so the
-// browser moves an already rasterised balloon at every vsync whatever the
-// main thread does. The animation's time is the balloon's clock: the frame
+// balloon, its keyframes the plan sampled (flight.ts `flightKeys`: the
+// next few seconds at a time, `KEYS_AHEAD`), so the browser moves the
+// balloon at every vsync whatever the main thread does. The animation's time is the balloon's clock: the frame
 // loop reads it for the parts inside (the lean, the swing, the burner, the
 // layer change, the rest, the end). A hidden page pauses it. A joined kill
 // and a hurried fade change the plan from now on: the same animation gets
@@ -64,6 +64,16 @@ export const HURRY_FADE = 1.5;
  * `max` s whatever its size. Far and small by then, behind the text.
  */
 export const REST_AFTER = { min: 8, shrunk: 0.6, max: 20 } as const;
+/**
+ * How far ahead a flight's animation has keyframes, s, and how long
+ * before they run out it is given the next ones (stage 79, ADR 0168:
+ * Firefox sends every keyframe to its compositor with each paint, so
+ * they are few). The compositor flies on by itself for at least
+ * `KEYS_MARGIN` s of a hung main thread; beyond that the balloon heads
+ * straight for where its flight ends until the main thread is back.
+ */
+export const KEYS_AHEAD = 4;
+export const KEYS_MARGIN = 2;
 
 /** A box in viewport px (a DOMRect's part the layers use). */
 export interface Box {
@@ -160,6 +170,8 @@ interface Flight {
   anim: Animation | null;
   /** When the animation ends, s. */
   end: number;
+  /** Its keyframes follow the flight up to here, s (`KEYS_AHEAD`). */
+  until: number;
   /** When too many are up: the time it began to fade out (null: not fading). */
   fadeAt: number | null;
   notices: Notice[];
@@ -254,17 +266,21 @@ export function startBalloons(host: BalloonsHost): Balloons {
   /**
    * The flight's animation from the plan as it is now: made at the launch,
    * and given new keyframes when the plan changes (a joined kill, a hurried
-   * fade). The animation and its time stay, and the new keyframes agree
-   * with the old up to now (flight.ts `flightKeys`), so nothing jumps.
+   * fade) and when the ones it has run short (`KEYS_AHEAD`). The animation
+   * and its time stay, and the new keyframes agree with the old wherever
+   * both follow the flight (flight.ts `flightKeys`), so nothing jumps.
    */
   const animate = (f: Flight): void => {
-    const k = flightKeys(f.plan, f.fadeAt === null ? null : { at: f.fadeAt, over: HURRY_FADE });
+    const now = clock(f);
+    const k = flightKeys(f.plan, f.fadeAt === null ? null : { at: f.fadeAt, over: HURRY_FADE }, { from: now, to: now + KEYS_AHEAD });
     const frames = k.keys.map((s) => ({ offset: s.t / k.end, transform: flightTransform(f.plan.bw, s), opacity: s.opacity.toFixed(4) }));
-    f.end = k.end;
     const effect = f.anim?.effect as KeyframeEffect | null | undefined;
+    const longer = k.end !== f.end;
+    f.end = k.end;
+    f.until = k.to;
     if (effect) {
       effect.setKeyframes(frames);
-      effect.updateTiming({ duration: k.end * 1000 });
+      if (longer) effect.updateTiming({ duration: k.end * 1000 });
       return;
     }
     // forwards: the last frame stays until the frame loop takes the balloon away
@@ -332,6 +348,8 @@ export function startBalloons(host: BalloonsHost): Balloons {
       f.t = t;
       f.burn = f.plan.reduced ? BURN_STILL : burnStep(f.burn, burnTarget(f.plan, f.t), step);
       place(f);
+      // the next seconds' keyframes, in good time
+      if (f.anim && f.phase !== 'done' && f.until < f.end && f.t > f.until - KEYS_MARGIN) animate(f);
       if (f.phase === 'done') {
         drop(f);
         flights.splice(i--, 1);
@@ -379,7 +397,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
     const skin = make(doc, { sign, reduced: rm });
     skin.el.classList.add('wc-balloon');
     const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: rm, avoidX: near });
-    const f: Flight = { skin, plan, t: 0, anim: null, end: 0, fadeAt: null, notices, front: null, x: plan.start.x, phase: 'arrive', opacity: -1, burn: plan.reduced ? BURN_STILL : 1, passenger, resting: false };
+    const f: Flight = { skin, plan, t: 0, anim: null, end: 0, until: 0, fadeAt: null, notices, front: null, x: plan.start.x, phase: 'arrive', opacity: -1, burn: plan.reduced ? BURN_STILL : 1, passenger, resting: false };
     skin.setMood(sign.mood);
     skin.setSign(sign, false);
     flights.push(f);

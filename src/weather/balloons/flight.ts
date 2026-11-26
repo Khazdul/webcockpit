@@ -478,14 +478,28 @@ export function flightAt(p: FlightPlan, t: number): FlightFrame {
 // --------------------------------------------------------------- keyframes
 
 // The flight as keyframes for a compositor animation (stage 79, ADR 0168):
-// `flightAt` sampled every KEYFRAME_DT, linear between two samples. The
-// path's acceleration is small (the arrival brakes at some tens of px/s²,
-// the leave turns at A_MAX at most), so the chord is within a few
-// hundredths of a px of the curve (unit tested: under 0.1 px, the scaled
-// foot of the balloon included).
+// `flightAt` sampled on a fixed grid, every KEYFRAME_DT from the launch,
+// linear between two samples. The path's acceleration is small (the
+// arrival brakes at some tens of px/s², the leave turns at A_MAX at most),
+// so the chord is within a few hundredths of a px of the curve (unit
+// tested: under 0.1 px, the scaled foot of the balloon included).
+//
+// Few keyframes at a time. Firefox sends an animation's every keyframe to
+// its compositor again with each paint of the page, and a balloon's parts
+// repaint every frame: a whole flight at once (2000 keyframes at 1/30 s)
+// cost more than it saved (ADR 0168, the numbers). So the keyframes follow
+// the flight only over a span of a few seconds ahead (`span`), and
+// balloons.ts gives the animation the next span in good time. Outside
+// the span there is one keyframe at the launch (the past: never shown)
+// and one at the flight's end (the future: a straight line to it, shown
+// only if the main thread hangs for longer than the span).
+//
+// The grid is fixed, so two spans agree wherever they overlap, and so do
+// the keyframes of a plan before and after a joined kill up to its time:
+// an animation given new keyframes does not jump.
 
 /** The spacing of the flight's keyframes, s. */
-export const KEYFRAME_DT = 1 / 30;
+export const KEYFRAME_DT = 1 / 12;
 
 /** One keyframe: `flightAt` at `t`. x, y: the balloon's top centre, px. */
 export interface FlightKey {
@@ -499,6 +513,8 @@ export interface FlightKey {
 export interface FlightKeys {
   /** When the animation ends, s: the flight's end, or the end of a hurried fade. */
   end: number;
+  /** The keyframes follow the flight up to here, s (`end`: all the way). */
+  to: number;
   /** Ascending in `t`, the first at 0, the last at `end`. */
   keys: FlightKey[];
 }
@@ -510,31 +526,44 @@ export interface HurryFade {
 }
 
 /**
- * The keyframes of a whole flight: every KEYFRAME_DT from 0 to its end,
- * plus the moments where the opacity turns a corner. With `fade` the
- * opacity also falls to nothing from `fade.at` and the keyframes end
- * there. A changed plan (`extendRead`) or a fade gives the same values up
- * to the time of the change, so an animation given the new keyframes at
- * that time does not jump.
+ * The keyframes of a flight: every KEYFRAME_DT over `span` (default: the
+ * whole flight), the launch and the end. With `fade` the opacity also
+ * falls to nothing from `fade.at` and the keyframes end there; the fade's
+ * first keyframe is on the chord it starts from, so nothing moves.
  */
-export function flightKeys(p: FlightPlan, fade?: HurryFade | null): FlightKeys {
+export function flightKeys(p: FlightPlan, fade?: HurryFade | null, span?: { from: number; to: number }): FlightKeys {
   const total = flightTotal(p);
   const end = fade ? Math.min(total, fade.at + fade.over) : total;
-  const want: number[] = [];
-  if (p.reduced) want.push(0, REDUCED_IN, total - REDUCED_OUT);
-  else for (let i = 0; i * KEYFRAME_DT < end; i++) want.push(i * KEYFRAME_DT);
-  if (fade) want.push(fade.at);
-  want.sort((a, b) => a - b);
-  const ts: number[] = [];
-  for (const t of want) if (t >= 0 && t < end - 1e-6 && (!ts.length || t - ts.at(-1)! > 1e-6)) ts.push(t);
-  ts.push(end);
-  const keys = ts.map((t): FlightKey => {
-    // the last sample is the flight's own last moment, not the 'done' frame after it
+  // (the last sample is the flight's own last moment, not the 'done' frame after it)
+  const sample = (t: number): FlightKey => {
     const f = flightAt(p, Math.min(t, total - 1e-9));
-    const out = !fade ? 1 : t >= fade.at + fade.over ? 0 : clamp(1 - (t - fade.at) / fade.over, 0, 1);
-    return { t, x: f.x, y: f.y, scale: f.scale, opacity: f.opacity * out };
-  });
-  return { end, keys };
+    return { t, x: f.x, y: f.y, scale: f.scale, opacity: f.opacity };
+  };
+  let keys: FlightKey[];
+  let to = total;
+  if (p.reduced) keys = [0, REDUCED_IN, total - REDUCED_OUT].map(sample);
+  else {
+    // the grid's last point before the end
+    const last = Math.ceil((total - 1e-6) / KEYFRAME_DT) - 1;
+    const i1 = span ? Math.min(last, Math.ceil(span.to / KEYFRAME_DT)) : last;
+    const i0 = span ? clamp(Math.floor(span.from / KEYFRAME_DT), 0, i1) : 0;
+    keys = [];
+    for (let i = i0; i <= i1; i++) keys.push(sample(i * KEYFRAME_DT));
+    if (i0 > 0) keys.unshift({ ...keys[0]!, t: 0 });
+    if (i1 < last) to = i1 * KEYFRAME_DT;
+  }
+  keys.push(sample(total));
+  if (fade) {
+    const out = (t: number): number => (t >= fade.at + fade.over ? 0 : clamp(1 - (t - fade.at) / fade.over, 0, 1));
+    const whole: FlightKeys = { end: total, to, keys };
+    const cut = keys.filter((k) => k.t < end - 1e-6);
+    if (fade.at > 0 && fade.at < end && !cut.some((k) => Math.abs(k.t - fade.at) < 1e-6)) cut.push(keysAt(whole, fade.at));
+    cut.sort((a, b) => a.t - b.t);
+    cut.push(end < total ? sample(end) : keys.at(-1)!);
+    keys = cut.map((k) => ({ ...k, opacity: k.opacity * out(k.t) }));
+    to = Math.min(to, end);
+  }
+  return { end, to: to >= total ? end : to, keys };
 }
 
 /** The keyframes' value at `t`: linear between two, as the browser plays them (tests). */

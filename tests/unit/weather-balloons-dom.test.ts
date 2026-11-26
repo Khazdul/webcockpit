@@ -4,9 +4,9 @@
 // (and the round-2 notices never joining), the cap, frames only while a
 // balloon is up, and the skins (SVG goblin, raster layers).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HURRY_FADE, MAX_BALLOONS, pinBox, startBalloons } from '../../src/weather/balloons/balloons';
+import { HURRY_FADE, KEYS_AHEAD, KEYS_MARGIN, MAX_BALLOONS, pinBox, startBalloons } from '../../src/weather/balloons/balloons';
 import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS, signFor } from '../../src/weather/balloons/feed';
-import { type LaneGeom, READ_EXTEND, flightAt, flightKeys, flightTotal, flightTransform } from '../../src/weather/balloons/flight';
+import { KEYFRAME_DT, type LaneGeom, READ_EXTEND, flightAt, flightKeys, flightTotal, flightTransform } from '../../src/weather/balloons/flight';
 import { passenger as dwarf } from '../../src/weather/balloons/passengers/dwarf';
 import { PASSENGER_IDS, loadPassenger } from '../../src/weather/balloons/passenger';
 import { type RigCtx, createRig } from '../../src/weather/balloons/rig';
@@ -191,6 +191,9 @@ describe('the flight on the compositor (stage 79, ADR 0168)', () => {
     document.dispatchEvent(new Event('visibilitychange'));
   };
   const duration = (a: Animation): number => Number((a.effect as KeyframeEffect).getTiming().duration);
+  /** The animation's keyframes by their time, s (to a microsecond). */
+  const frames = (a: Animation): Map<number, string> => new Map((a.effect as KeyframeEffect).getKeyframes().map((k) => [Math.round(k.offset! * duration(a) * 1000) / 1e6, String(k.transform)]));
+  const grid = (i: number): number => Math.round(i * KEYFRAME_DT * 1e6) / 1e6;
 
   it('one animation per balloon, its keyframes the plan; the frame loop writes no transform and reads its clock from it', () => {
     const root = cockpit();
@@ -201,11 +204,13 @@ describe('the flight on the compositor (stage 79, ADR 0168)', () => {
     expect(anim!.playState).toBe('running');
     expect(duration(anim!)).toBeCloseTo(flightTotal(plan) * 1000, 6);
     const kf = (anim!.effect as KeyframeEffect).getKeyframes();
-    expect(kf.length).toBe(flightKeys(plan).keys.length);
+    // the first seconds of the flight, and its end
+    expect(kf.length).toBe(Math.ceil(KEYS_AHEAD / KEYFRAME_DT) + 2);
     expect(kf[0]!.offset).toBe(0);
     expect(kf.at(-1)!.offset).toBe(1);
     for (const k of kf) expect(String(k.transform)).toMatch(SHAPE);
-    expect(kf[90]!.transform).toBe(flightTransform(plan.bw, flightAt(plan, 3)));
+    expect(frames(anim!).get(3)).toBe(flightTransform(plan.bw, flightAt(plan, 3)));
+    expect(kf.at(-1)!.transform).toBe(flightTransform(plan.bw, flightKeys(plan).keys.at(-1)!));
     run(2);
     expect(Number(anim!.currentTime)).toBeCloseTo(2000, 6);
     expect(b.flights()[0]!.t).toBeCloseTo(2, 6);
@@ -221,7 +226,7 @@ describe('the flight on the compositor (stage 79, ADR 0168)', () => {
     b.show(SAMPLE_KILLS.good[0]!);
     run(3);
     const { el, anim, plan } = b.flights()[0]!;
-    const d0 = duration(anim!), t0 = anim!.currentTime, before = (anim!.effect as KeyframeEffect).getKeyframes();
+    const d0 = duration(anim!), t0 = anim!.currentTime, before = frames(anim!);
     b.show(SAMPLE_KILLS.superb[0]!);
     expect(b.list()[0]!.count).toBe(2);
     expect(b.flights()[0]!.anim).toBe(anim);
@@ -229,16 +234,40 @@ describe('the flight on the compositor (stage 79, ADR 0168)', () => {
     expect(anim!.currentTime).toBe(t0);
     expect(anim!.playState).toBe('running');
     expect(duration(anim!)).toBeCloseTo(d0 + READ_EXTEND * 1000, 6);
-    // every keyframe up to now says what it said (at its own time: the offsets are shares of a longer flight)
-    const after = (anim!.effect as KeyframeEffect).getKeyframes();
-    for (let i = 0; i <= 90; i++) expect(after[i]!.transform).toBe(before[i]!.transform);
-    expect(after[90]!.offset! * duration(anim!)).toBeCloseTo(before[90]!.offset! * d0, 6);
+    // round now every keyframe says what it said, at its own time (the offsets are shares of a longer flight)
+    const after = frames(anim!);
+    for (let i = 36; i <= 60; i++) {
+      expect(after.get(grid(i)), String(i)).toBeDefined();
+      expect(after.get(grid(i)), String(i)).toBe(before.get(grid(i)));
+    }
     // and the flight ends when the longer plan does
     run(flightTotal(plan) - 3 - 0.2);
     expect(b.list()).toHaveLength(1);
     run(0.5);
     expect(b.list()).toHaveLength(0);
     expect(anim!.playState).toBe('idle');
+    b.destroy();
+  });
+
+  it('few keyframes at a time: the animation gets the next seconds in good time, the same animation all the flight', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    b.show(SAMPLE_KILLS.good[0]!);
+    const { el, anim, plan } = b.flights()[0]!;
+    const total = flightTotal(plan), whole = flightKeys(plan);
+    let most = 0;
+    for (let t = 0.5; t < total - KEYS_AHEAD - 1; t += 0.5) {
+      run(0.5);
+      const now = b.flights()[0]!.t, kf = frames(anim!);
+      most = Math.max(most, kf.size);
+      // the flight's own keyframes from now to at least KEYS_MARGIN ahead, each where the whole flight has it
+      for (let i = Math.floor(now / KEYFRAME_DT); i * KEYFRAME_DT <= now + KEYS_MARGIN; i++) {
+        expect(kf.get(grid(i)), `${now} ${i}`).toBe(flightTransform(plan.bw, whole.keys[i]!));
+      }
+    }
+    expect(most).toBeLessThanOrEqual(Math.ceil((KEYS_AHEAD + 0.1) / KEYFRAME_DT) + 4);
+    expect(el.getAnimations()).toEqual([anim]);
+    expect(duration(anim!)).toBeCloseTo(total * 1000, 6);
     b.destroy();
   });
 
@@ -270,14 +299,19 @@ describe('the flight on the compositor (stage 79, ADR 0168)', () => {
       run(0.5);
     }
     const old = b.flights()[0]!, t = old.t;
-    const before = (old.anim!.effect as KeyframeEffect).getKeyframes();
+    const before = frames(old.anim!);
     b.show(SAMPLE_MOMENTS.levelup);
     expect(b.flights()[0]!.anim).toBe(old.anim);
     expect(Number(old.anim!.currentTime) / 1000).toBeCloseTo(t, 6);
     expect(duration(old.anim!)).toBeCloseTo((t + HURRY_FADE) * 1000, 6);
     const kf = (old.anim!.effect as KeyframeEffect).getKeyframes();
     expect(Number(kf.at(-1)!.opacity)).toBe(0);
-    expect(kf[30]!.transform).toBe(before[30]!.transform);
+    // the path is the same: the keyframes round now say what they said
+    const next = Math.ceil(t / KEYFRAME_DT);
+    for (const i of [next, next + 1, next + 6]) {
+      expect(frames(old.anim!).get(grid(i)), String(i)).toBeDefined();
+      expect(frames(old.anim!).get(grid(i)), String(i)).toBe(before.get(grid(i)));
+    }
     run(HURRY_FADE + 0.2);
     expect(b.flights()).toHaveLength(MAX_BALLOONS);
     expect(old.anim!.playState).toBe('idle');

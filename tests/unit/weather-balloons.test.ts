@@ -339,7 +339,7 @@ describe('the flight as keyframes (stage 79, ADR 0168: the compositor plays them
     return Math.max(Math.abs(a.x - f.x) + (p.bw / 2) * ds, Math.abs(a.y - f.y) + p.bh * ds);
   };
 
-  it('every 1/30 s from the launch to the end, in order', () => {
+  it('every KEYFRAME_DT from the launch to the end, in order', () => {
     const p = plan(3), k = flightKeys(p);
     expect(k.end).toBe(flightTotal(p));
     expect(k.keys[0]!.t).toBe(0);
@@ -350,6 +350,7 @@ describe('the flight as keyframes (stage 79, ADR 0168: the compositor plays them
       expect(dt).toBeLessThanOrEqual(KEYFRAME_DT + 1e-9);
     }
     expect(k.keys.length).toBe(Math.ceil(k.end / KEYFRAME_DT) + 1);
+    expect(k.to).toBe(k.end);
     for (const s of k.keys) for (const v of [s.x, s.y, s.scale, s.opacity]) expect(Number.isFinite(v)).toBe(true);
   });
 
@@ -369,6 +370,30 @@ describe('the flight as keyframes (stage 79, ADR 0168: the compositor plays them
     }
     expect(worst).toBeLessThan(0.1);
     expect(fade).toBeLessThan(0.005);
+  });
+
+  it('a span of the flight: its keyframes are the whole flight\'s there, with one at the launch and one at the end', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const p = plan(seed), whole = flightKeys(p), total = flightTotal(p);
+      for (const from of [0, 0.01, 3.3, p.ta + 1, p.ta + p.read + 2.5, total - 5, total - 0.5, total + 3]) {
+        const k = flightKeys(p, null, { from, to: from + 4 });
+        expect(k.end).toBe(total);
+        expect(k.keys[0]!.t).toBe(0);
+        expect(k.keys.at(-1)).toEqual(whole.keys.at(-1));
+        // from the grid point at or before `from` to the one at or after `to` (or the end)
+        const i0 = Math.min(Math.floor(from / KEYFRAME_DT), whole.keys.length - 2), dense = k.keys.slice(i0 > 0 ? 1 : 0, -1);
+        expect(dense).toEqual(whole.keys.slice(i0, i0 + dense.length));
+        expect(dense.length).toBeLessThanOrEqual(Math.ceil(4 / KEYFRAME_DT) + 2);
+        if (from + 4 < total - KEYFRAME_DT) {
+          expect(k.to).toBeGreaterThanOrEqual(from + 4);
+          expect(k.to).toBe(dense.at(-1)!.t);
+          // so the keyframes are the flight over the whole span
+          for (let t = Math.min(from, total); t <= k.to; t += 0.0371) expect(off(p, k, t)).toBeLessThan(0.1);
+        } else expect(k.to).toBe(total);
+        // the past is the span's first keyframe held
+        if (i0 > 0) expect({ ...k.keys[0]!, t: k.keys[1]!.t }).toEqual(k.keys[1]);
+      }
+    }
   });
 
   it('the same shape of transform in every keyframe (the browser interpolates function by function), to a thousandth of a px', () => {
