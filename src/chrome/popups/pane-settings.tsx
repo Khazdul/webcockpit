@@ -58,7 +58,7 @@ import {
   warnAtOf,
 } from '../pane-options-model';
 import { ColorPicker } from './color-picker';
-import { Dropdown, Row, Segmented, Toggle } from './controls';
+import { Dropdown, GhostButton, Row, Segmented, Toggle } from './controls';
 import type { CharacterPollEvery } from '../../settings/types';
 
 /** A channel's swatch while it is off. */
@@ -233,10 +233,22 @@ export function GroupSettings(): VNode {
 }
 
 export function CharacterSettings(): VNode {
-  const { settings } = useServices();
+  const { settings, openLook, playedCharacter } = useServices();
   const s = useSettings();
+  const name = playedCharacter?.() ?? null;
   return (
     <div class="wc-sp-character">
+      {openLook && (
+        // The look picker (stage 80 §6): the compact card has no portrait to click.
+        <Row label="Look…" help={name ? 'The picture of your character' : 'Once you are in the game'}>
+          <GhostButton class="wc-sp-look" label="Choose a look" disabled={name === null} onClick={() => name && openLook({ name, self: true })}>
+            Choose…
+          </GhostButton>
+        </Row>
+      )}
+      <Row label="Show my look to other MUME Cockpit players" help="Race, sex and a library look; never your own images">
+        <Toggle label="Show my look to other MUME Cockpit players" on={s.character.shareLook} onChange={(shareLook) => setCharacter(settings, { shareLook })} />
+      </Row>
       <Row label="Height" help="Auto follows the pane's size">
         <Segmented label="Height" value={s.character.height} options={CHARACTER_HEIGHT_CHOICES} onChange={(height) => setCharacter(settings, { height })} />
       </Row>

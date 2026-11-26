@@ -68,7 +68,9 @@ import { groupVitals } from './group-model';
 import { signalColors } from './palette';
 import { type PaneCell, type PanePlacement, PaneShell } from './pane';
 import { type PaneTooltip, installPaneTooltip } from './pane-tooltip';
-import { PORTRAIT_SEX, portraitOf } from './portrait';
+import { PORTRAIT_FORCED, PORTRAIT_SEX, type Sex, portraitOf } from './portrait';
+import { libraryNow, tokenUrl } from '../looks/library';
+import { resolveSelf } from '../looks/resolve';
 import { paneShade } from './shade';
 import { HerbMenu } from './timers';
 import { timerGroupColor } from './timers-model';
@@ -138,6 +140,7 @@ export class CharacterPane extends PaneShell {
         more: (anchor) => this.openMore(anchor),
         stop: (key) => this.stopHerb(key),
         arm: (id) => this.arm(id),
+        look: () => this.openLook(),
       },
       { now: () => ctx.now(), warnAt: () => ctx.settings.get().timers.warnAt },
     );
@@ -184,6 +187,8 @@ export class CharacterPane extends PaneShell {
         this.markDirty();
       }),
     );
+    // The chosen look (stage 80): a choice, or the picker's live preview.
+    if (ctx.looks) this.own(ctx.looks.subscribe(() => this.markDirty()));
     // The content box is cells × this, and the values' room is counted in it.
     this.own(ctx.cells.subscribe(() => this.markDirty()));
     this.own(
@@ -359,6 +364,26 @@ export class CharacterPane extends PaneShell {
     return true;
   }
 
+  /**
+   * Your look (stage 80, ADR 0169): the drawing that stands under it (the
+   * automatic one, also the fallback of a picture that cannot load) and the
+   * chosen picture. `?portrait=` (dev) forces the drawing and drops the choice.
+   */
+  private look(name: string | null, race: string | null, subrace: string | null, sex: Sex) {
+    const { ctx } = this;
+    const portrait = portraitOf(race, subrace);
+    const looks = ctx.looks;
+    const l = resolveSelf({ mode: looks && !PORTRAIT_FORCED ? 'live' : 'none', choice: looks?.lookFor(name) ?? null, race, subrace, sex, library: libraryNow() });
+    const image = l.kind === 'lib' ? { src: tokenUrl(l.id, 'p'), art: 'lib' as const, look: `lib:${l.id}` } : null;
+    return { portrait, image, lookable: !!ctx.openLook && !ctx.player && name !== null };
+  }
+
+  /** The portrait's click: the look picker for the character being played. */
+  private openLook(): void {
+    const name = this.ctx.game.char.view().name;
+    if (name && this.ctx.openLook && !this.ctx.player) this.ctx.openLook({ name, self: true });
+  }
+
   protected override render(): void {
     const { ctx, card } = this;
     if (card.root.parentNode !== this.content) this.content.replaceChildren(card.root);
@@ -394,7 +419,11 @@ export class CharacterPane extends PaneShell {
     if (this.changed('fight', String(fighting))) card.setFight(fighting);
     if (this.changed('name', name)) card.left.setName(name);
     const sex = PORTRAIT_SEX ?? ctx.game.sex ?? 'male';
-    if (this.changed('portrait', `${v.race}|${v.subrace}|${sex}`)) card.left.setPortrait(portraitOf(v.race, v.subrace), sex);
+    const look = this.look(v.name, v.race, v.subrace, sex);
+    if (this.changed('portrait', `${v.race}|${v.subrace}|${sex}|${look.image?.look ?? ''}|${look.lookable}`)) {
+      card.left.setPortrait(look.portrait, sex, look.image);
+      card.left.setLookable(look.lookable);
+    }
     if (this.changed('ring', `${v.level}|${v.xp?.baseline}|${v.xp?.progress}|${v.toNext}|${v.tp?.progress}`)) card.left.setRing(ringView(v));
 
     const env: CardEnv = { clicks: this.clicks, fighting, pending: this.pending };

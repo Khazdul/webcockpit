@@ -274,13 +274,15 @@ describe('the picker library filter', () => {
     expect(c.human).toBe(20);
     expect(c.dwarf).toBe(4);
     expect(c.other).toBe(13);
-    expect(c.all).toBe(125 - 15 - 22);
+    expect(c.all).toBe(125);
     expect(c.male + c.female).toBe(all.filter((t) => t.sex).length);
   });
 
   it('filters by people, sex, kind and search words', () => {
     const f = { race: 'all', sex: null, kind: null, q: '' } as const;
-    expect(filterLibrary(all, f)).toHaveLength(88);
+    expect(filterLibrary(all, f)).toHaveLength(125);
+    expect(filterLibrary(all, f)[0]!.race).toBe('human');
+    expect(filterLibrary(all, f).at(-1)!.group).toBe('mob');
     expect(filterLibrary(all, { ...f, race: 'elf', sex: 'female' }).map((t) => t.id)).toContain('elf-f-noldor');
     expect(filterLibrary(all, { ...f, race: 'elf', sex: 'female' }).every((t) => t.race === 'elf' && t.sex === 'female')).toBe(true);
     expect(filterLibrary(all, { ...f, kind: 'mount' })).toHaveLength(15);

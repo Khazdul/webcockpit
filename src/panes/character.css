@@ -225,6 +225,38 @@
   height: 100%;
 }
 
+/* The look picker (stage 80 §5): the portrait opens it. */
+.wc-cc-disc[data-lookable] {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.wc-cc-hit {
+  display: none;
+}
+
+/* Without the border the name over the frame drags the pane: only the frame below it clicks. */
+.wc-pane:not([data-framed]) .wc-cc-disc[data-lookable] {
+  pointer-events: none;
+}
+
+.wc-pane:not([data-framed]) .wc-cc-disc[data-lookable] > .wc-cc-hit {
+  display: block;
+  position: absolute;
+  inset: 30% 0 0;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.wc-cc-disc[data-lookable]:hover > .wc-cc-photo {
+  filter: brightness(1.12);
+}
+
+/* A library token (ADR 0170): a cut-out bust on transparency, on the mockup's grey-brown backing. */
+.wc-cc-left[data-form="portrait"] .wc-cc-disc[data-art="lib"] {
+  background: radial-gradient(circle at 50% 38%, #6f685b, #2a2620 78%);
+}
+
 /* A raster portrait (public/portraits/README.md): the square file, of which the circle shows the inscribed disc. */
 .wc-cc-photo {
   position: absolute;

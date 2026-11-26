@@ -95,6 +95,12 @@ export interface ChromeServices {
   notices?: Notices;
   /** The character in play in this tab (`Char.Name`), or null: the sync holds its pulled timers (ADR 0152). */
   playedCharacter?: () => string | null;
+  /**
+   * Opens the look picker (stage 80 §5) for a character, closing the open
+   * settings popup. Absent: no look picker here (the Character gear's
+   * "Look…" row is not shown).
+   */
+  openLook?: (who: { name: string; self: boolean }) => void;
 }
 
 export const ServicesCtx = createContext<ChromeServices | null>(null);

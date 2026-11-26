@@ -20,6 +20,13 @@ import type { MapMarkHub } from '../map/marks';
 import type { MapNotesPort } from '../map/notes';
 import type { MapPaneHost } from '../map/protocol';
 import { SettingsStore } from '../settings';
+import type { LooksStore } from '../looks/store';
+
+/** Whose look the picker opens for (stage 80 §5): a character name, and whether it is the one being played. */
+export interface LookTarget {
+  name: string;
+  self: boolean;
+}
 
 /** The cell size source (src/theme/cells.ts `CellMetrics` fits). `px`: the font size that gives the cell (absent from a test's plain source). */
 export interface CellSource {
@@ -110,6 +117,18 @@ export interface PaneContext {
    * does (the log player, tests).
    */
   readonly canCommand?: () => boolean;
+  /**
+   * The chosen looks (stage 80, ADR 0169), in the current space. Absent
+   * (the log player, the replay bundle, tests): no looks are drawn, only
+   * the automatic drawings.
+   */
+  readonly looks?: LooksStore;
+  /**
+   * Opens the look picker for a character (stage 80 §5; the chrome chunk's
+   * dialog). Absent (the log player, the phone until its page, tests): the
+   * portrait has no click.
+   */
+  readonly openLook?: (who: LookTarget) => void;
 }
 
 /** A sender that drops everything (tests, a cockpit without a session). */
@@ -199,5 +218,7 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.statsView ? { statsView: p.statsView } : {}),
     ...(p.openInfo ? { openInfo: p.openInfo } : {}),
     ...(p.canCommand ? { canCommand: p.canCommand } : {}),
+    ...(p.looks ? { looks: p.looks } : {}),
+    ...(p.openLook ? { openLook: p.openLook } : {}),
   };
 }

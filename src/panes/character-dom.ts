@@ -52,6 +52,9 @@ const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
 
 // ------------------------------------------------------------------ portrait
 
+/** The portrait's tooltip line where it opens the look picker (stage 80 §5). */
+export const LOOK_TIP = 'Click to choose a look';
+
 /**
  * The round frame's content (decision 22, part E; the portrait pass, ADR
  * 0166 addendum 12): the portrait's drawing baked into an image once
@@ -69,6 +72,8 @@ function portraitEl(doc: Document, disc: HTMLElement) {
   let img: HTMLImageElement | null = null;
   let id: PortraitId = 'neutral';
   let sex: Sex = 'male';
+  /** A chosen picture (a library token's 256 px file, an own image), drawn over the backing; null: the drawing. */
+  let chosen: { src: string; art: 'lib' | 'own' } | null = null;
   let css = 0;
   const failed = new Set<string>();
   /** What the image shows (or is loading): the key and the pixel bucket. */
@@ -76,7 +81,7 @@ function portraitEl(doc: Document, disc: HTMLElement) {
   let shownPx = 0;
   let asked = '';
   let ticket = 0;
-  const put = (src: string, key: string, px: number, art: 'drawn' | 'raster', t: number): void => {
+  const put = (src: string, key: string, px: number, art: 'drawn' | 'raster' | 'lib' | 'own', t: number): void => {
     const next = el(doc, 'img', 'wc-cc-photo');
     next.alt = '';
     next.decoding = 'async';
@@ -97,7 +102,8 @@ function portraitEl(doc: Document, disc: HTMLElement) {
     next.addEventListener(
       'error',
       () => {
-        if (t !== ticket || art !== 'raster') return;
+        // A missing or broken picture falls back one row, silently (ADR 0169): the drawing.
+        if (t !== ticket || art === 'drawn') return;
         failed.add(src);
         asked = '';
         refresh();
@@ -108,6 +114,13 @@ function portraitEl(doc: Document, disc: HTMLElement) {
   };
   const refresh = (): void => {
     if (css <= 0) return;
+    if (chosen && !failed.has(chosen.src)) {
+      const key = `${chosen.art}|${chosen.src}`;
+      if (key === shown || key === asked) return;
+      asked = key;
+      put(chosen.src, key, 0, chosen.art, ++ticket);
+      return;
+    }
     const size = sizeFor(css);
     const raster = portraitImage(id, sex);
     const useRaster = raster !== null && !failed.has(raster);
@@ -129,13 +142,20 @@ function portraitEl(doc: Document, disc: HTMLElement) {
       () => {},
     );
   };
-  /** The portrait and the sex to show. */
-  const set = (next: PortraitId, s: Sex = 'male'): void => {
-    if (next === id && s === sex && shown !== '') return;
+  /**
+   * The portrait to show: the drawing `next` for `s`, and over it a chosen
+   * picture (`image`: its URL and kind), which falls back to the drawing
+   * when it cannot load.
+   */
+  const set = (next: PortraitId, s: Sex = 'male', image: { src: string; art: 'lib' | 'own'; look: string } | null = null): void => {
+    const c = image ? { src: image.src, art: image.art } : null;
+    if (next === id && s === sex && c?.src === chosen?.src && shown !== '') return;
     id = next;
     sex = s;
+    chosen = c;
     setAttr(disc, 'data-portrait', id);
     setAttr(disc, 'data-sex', id === 'neutral' ? null : sex);
+    setAttr(disc, 'data-look', image ? image.look : 'auto');
     refresh();
   };
   /** The frame's size in CSS px (0: no frame, nothing is baked). */
@@ -197,12 +217,32 @@ function setClick(b: HTMLElement, v: ClickView): void {
   setAttr(b, 'data-pending', v.pending ? '' : null);
 }
 
-function leftEl(doc: Document, click: (id: ClickId) => void) {
+function leftEl(doc: Document, click: (id: ClickId) => void, look?: () => void) {
   const box = el(doc, 'div', 'wc-cc-left');
   const name = el(doc, 'span', 'wc-cc-name');
   const medal = el(doc, 'div', 'wc-cc-medal');
   const disc = el(doc, 'div', 'wc-cc-disc');
   const portrait = portraitEl(doc, disc);
+  // The look picker (stage 80 §5): a click on the portrait, while there is one to open.
+  let lookable = false;
+  // Without the border the name is the pane's grip: a hit area below it takes the click (character.css).
+  disc.append(el(doc, 'span', 'wc-cc-hit'));
+  disc.addEventListener('click', () => {
+    if (lookable) look?.();
+  });
+  disc.addEventListener('keydown', (e) => {
+    if (!lookable || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    look?.();
+  });
+  const setLookable = (on: boolean): void => {
+    if (on === lookable) return;
+    lookable = on;
+    setAttr(disc, 'role', on ? 'button' : null);
+    setAttr(disc, 'aria-label', on ? 'Choose a look' : null);
+    setAttr(disc, 'data-lookable', on ? '' : null);
+    setTip(disc, on ? LOOK_TIP : null, null, on ? 'cc:look' : null);
+  };
   const ring = ringEl(doc);
   medal.append(disc, ring.box);
   const row = el(doc, 'div', 'wc-cc-icons');
@@ -230,7 +270,7 @@ function leftEl(doc: Document, click: (id: ClickId) => void) {
       setTip(b, v.tip, v.tipTitle, `cc:${v.id}`);
     });
   };
-  return { box, icons: row, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons };
+  return { box, icons: row, setName, setPortrait: portrait.set, setDisc: portrait.size, setRing: ring.set, setIcons, setLookable };
 }
 
 // ------------------------------------------------------------------- Status
@@ -851,6 +891,8 @@ export interface CardHandlers {
   stop(herbKey: string): void;
   /** On touch: a tap showed this herblore stone's × (its id), or a tap elsewhere hid it (null). */
   arm(id: string | null): void;
+  /** The portrait was clicked (stage 80: the look picker), while `setLookable(true)`. */
+  look?(): void;
 }
 
 export class CardDom {
@@ -877,7 +919,7 @@ export class CardDom {
 
   constructor(doc: Document, on: CardHandlers, clock: StoneClock) {
     this.root = el(doc, 'div', 'wc-cc');
-    this.left = leftEl(doc, on.click);
+    this.left = leftEl(doc, on.click, on.look ? () => on.look?.() : undefined);
     this.main = el(doc, 'div', 'wc-cc-main');
     this.main.setAttribute('role', 'tabpanel');
     this.status = statusEl(doc, on.click);

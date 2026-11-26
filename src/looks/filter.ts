@@ -27,10 +27,10 @@ export interface LibFilter {
 
 const isPerson = (t: LibraryEntry): boolean => t.group === 'character' || t.group === 'other';
 
-/** Whether `t` is in the people chip `race`. */
+/** Whether `t` is in the people chip `race` (All: the whole library, mounts and mobs too, as the mockup's). */
 export function inRace(t: LibraryEntry, race: RaceChip): boolean {
-  if (!isPerson(t)) return false;
   if (race === 'all') return true;
+  if (!isPerson(t)) return false;
   if (race === 'other') return t.race === null || !SIX.has(t.race);
   return t.race === race;
 }
@@ -39,7 +39,7 @@ export function inRace(t: LibraryEntry, race: RaceChip): boolean {
 export function filterLibrary(tokens: readonly LibraryEntry[], f: LibFilter): LibraryEntry[] {
   const q = f.q.trim().toLowerCase();
   const words = q.split(/[\s-]+/).filter(Boolean);
-  return tokens.filter((t) => {
+  return sortForGrid(tokens).filter((t) => {
     if (f.kind ? t.group !== f.kind : !inRace(t, f.race)) return false;
     if (f.sex && t.sex !== f.sex) return false;
     if (words.length === 0) return true;
@@ -49,12 +49,19 @@ export function filterLibrary(tokens: readonly LibraryEntry[], f: LibFilter): Li
   });
 }
 
+/** The grid's order: the six peoples as the chips name them, then the rest, mounts and mobs; the manifest's order within. */
+const RANK: ReadonlyMap<string, number> = new Map(RACE_CHIPS.slice(1, 7).map((r, i) => [r.id, i]));
+const rankOf = (t: LibraryEntry): number => (t.group === 'mount' ? 8 : t.group === 'mob' ? 9 : (RANK.get(t.race ?? '') ?? 7));
+export function sortForGrid(tokens: readonly LibraryEntry[]): LibraryEntry[] {
+  return tokens.map((t, i) => ({ t, i, r: rankOf(t) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.t);
+}
+
 /** The chips' counts: per people chip, per sex, mounts and mobs. */
 export function libraryCounts(tokens: readonly LibraryEntry[]): Record<RaceChip | 'male' | 'female' | 'mount' | 'mob', number> {
   const c = { all: 0, human: 0, elf: 0, dwarf: 0, hobbit: 0, orc: 0, troll: 0, other: 0, male: 0, female: 0, mount: 0, mob: 0 };
   for (const t of tokens) {
     if (t.group === 'mount' || t.group === 'mob') c[t.group]++;
-    else for (const r of RACE_CHIPS) if (inRace(t, r.id)) c[r.id]++;
+    for (const r of RACE_CHIPS) if (inRace(t, r.id)) c[r.id]++;
     if (t.sex) c[t.sex]++;
   }
   return c;

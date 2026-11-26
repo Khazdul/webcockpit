@@ -1,0 +1,441 @@
+/* The look picker (stage 80 §5): the mockup's dialog (notes/research/
+ * token-mockups/round2.html, `.pk-*`) inside the look kit's Dialog. Prefix
+ * `wc-looks-` (the kit's own is `wc-lk-`). */
+
+.wc-looks-host {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  --lks-ink: #e6e2d8;
+  --lks-ink-dim: #a29d91;
+  --lks-dim: #8f8c84;
+  --lks-faint: #55534e;
+  --lks-lamp: #e9cf9f;
+  --lks-lamp-hot: #fbe7c2;
+  --lks-mono: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+}
+
+.wc-looks-host > .wc-stack,
+.wc-looks-host .wc-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.wc-looks-host [data-dlg="look"] .wc-lk-dwin {
+  padding: 30px 16px 12px;
+}
+
+.wc-looks {
+  font: 13px/1.4 var(--lks-mono);
+  color: var(--lks-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.wc-looks-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wc-looks-prev {
+  flex: 0 0 172px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.wc-looks-main {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wc-looks-sub {
+  font: 600 10px/1.2 var(--lks-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lks-dim);
+  align-self: flex-start;
+}
+
+/* The portrait frame: the card's iron frame, square with round corners as the mockup's. */
+.wc-looks-frame {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  flex: none;
+  border-radius: 13px;
+  background: linear-gradient(160deg, #62666e, #2c2f35 42%, #17191c);
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgb(255 255 255 / 0.2), 0 2px 6px rgb(0 0 0 / 0.6);
+}
+
+.wc-looks-pimg {
+  position: absolute;
+  inset: 3px;
+  overflow: hidden;
+  border-radius: 11px;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lks-lamp) 24%, #14110c), #14110c 72%);
+  box-shadow: 0 0 0 1px #000;
+}
+
+.wc-looks-frame.is-lib .wc-looks-pimg {
+  background: radial-gradient(circle at 50% 38%, #6f685b, #2a2620 78%);
+}
+
+.wc-looks-pimg > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wc-looks-pimg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 14px rgb(0 0 0 / 0.85);
+}
+
+.wc-looks-plate {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font: 700 12px/15px var(--lk-display, serif);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lks-lamp-hot);
+  background: rgb(10 12 16 / 0.62);
+  box-shadow: 0 0 0 1px rgb(233 207 159 / 0.25);
+  text-shadow: 0 0 5px rgb(233 207 159 / 0.6);
+}
+
+/* A bit of map: the tileset's preview scene, a token on it. */
+.wc-looks-mapbit {
+  width: 132px;
+  height: 132px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #000;
+  background-color: #2e3436;
+  background-size: 198px 198px;
+  background-position: -33px -33px;
+  image-rendering: pixelated;
+  display: grid;
+  place-items: center;
+}
+
+/* A Group row (the two-line row at 34 px). */
+.wc-looks-row {
+  width: 172px;
+  height: 34px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 4px;
+  border-radius: 3px;
+  background: #12161f;
+  box-shadow: 0 0 0 1px #262a32;
+}
+
+.wc-looks-row-b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wc-looks-row-b > b {
+  font: 600 12px/1 var(--lks-mono);
+  color: var(--lks-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-looks-bars {
+  display: flex;
+  gap: 3px;
+}
+
+.wc-looks-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.1);
+  overflow: hidden;
+}
+
+.wc-looks-bar > i {
+  display: block;
+  height: 100%;
+}
+
+.wc-looks-bar.is-hp > i { background: #2fa84f; }
+.wc-looks-bar.is-ma > i { background: #3d7eff; }
+.wc-looks-bar.is-mv > i { background: #c08a3e; }
+
+/* The token: round, the R3 ring (1 px, `--c`), a dark outline outside it. */
+.wc-looks-tk {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%);
+  box-shadow: 0 0 0 1px var(--c), 0 0 0 2px #000;
+}
+
+.wc-looks-tk > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wc-looks-tk.is-por > img {
+  transform: scale(1.2);
+  transform-origin: 50% 12%;
+}
+
+.wc-looks-tk.is-lib {
+  background: radial-gradient(circle at 50% 38%, #6f685b, #2a2620 78%);
+}
+
+.wc-looks-tk.is-lib > img {
+  transform: scale(1.12);
+  transform-origin: 50% 8%;
+}
+
+/* The tabs. */
+.wc-looks-tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 8px;
+  background: #0b0a08;
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.18);
+}
+
+.wc-looks-tabs > button {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 6px;
+  color: var(--lks-dim);
+  font: 600 13px/1 var(--lks-mono);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.wc-looks-tabs > button:hover { color: var(--lks-ink); }
+
+.wc-looks-tabs > button[aria-selected="true"] {
+  color: var(--lks-lamp-hot);
+  border-color: rgb(233 207 159 / 0.7);
+  background: #1d1a14;
+}
+
+.wc-looks :focus-visible,
+.wc-looks-tabs > button:focus {
+  outline: 2px solid var(--lks-lamp);
+  outline-offset: 1px;
+}
+
+.wc-looks-pane {
+  min-height: 286px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Automatic: the one card. */
+.wc-looks-auto {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgb(233 207 159 / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.16);
+}
+
+.wc-looks-auto[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--lks-lamp);
+  background: rgb(233 207 159 / 0.09);
+}
+
+.wc-looks-auto:focus { outline: 2px solid var(--lks-lamp); outline-offset: 2px; }
+.wc-looks-autoimg {
+  flex: none;
+  width: 84px;
+  height: 84px;
+  margin: 4px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%);
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px #3a3d44, 0 0 0 4px #000;
+}
+
+.wc-looks-autoimg.is-lib { background: radial-gradient(circle at 50% 38%, #6f685b, #2a2620 78%); }
+.wc-looks-autoimg > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wc-looks-auto b { display: block; color: var(--lks-ink); font-weight: 700; }
+.wc-looks-d { display: block; color: var(--lks-dim); font-size: 12px; }
+.wc-looks-hint { margin: 0; color: var(--lks-dim); font-size: 12px; }
+
+/* Library: chips, the search, the grid. */
+.wc-looks-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.wc-looks-chips + .wc-looks-chips { margin-top: -4px; }
+
+.wc-looks-chip {
+  all: unset;
+  cursor: pointer;
+  font: 600 11.5px/1 var(--lks-mono);
+  padding: 6px 8px;
+  border-radius: 12px;
+  color: var(--lks-ink-dim);
+  background: #0f0e0b;
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.18);
+  white-space: nowrap;
+}
+
+.wc-looks-chip > i { font-style: normal; color: var(--lks-faint); margin-left: 4px; font-weight: 400; }
+.wc-looks-chip:hover { color: var(--lks-ink); }
+.wc-looks-chip:focus { outline: 2px solid var(--lks-lamp); outline-offset: 1px; }
+.wc-looks-chip[aria-pressed="true"] { color: #1b160d; background: var(--lks-lamp); box-shadow: none; }
+.wc-looks-chip[aria-pressed="true"] > i { color: rgb(27 22 13 / 0.65); }
+.wc-looks-sep { width: 1px; height: 16px; background: rgb(233 207 159 / 0.2); margin: 0 3px; }
+
+.wc-looks-search {
+  box-sizing: border-box;
+  font: 13px/1 var(--lks-mono);
+  color: var(--lks-ink);
+  background: #0b0a08;
+  border: 1px solid rgb(233 207 159 / 0.22);
+  border-radius: 6px;
+  padding: 7px 9px;
+  width: 100%;
+}
+
+.wc-looks-search::placeholder { color: var(--lks-faint); }
+.wc-looks-search:focus { outline: 2px solid var(--lks-lamp); outline-offset: 0; }
+
+.wc-looks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 3px;
+  margin: -3px;
+}
+
+.wc-looks-it {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 2px 7px;
+  border-radius: 7px;
+  min-width: 0;
+}
+
+.wc-looks-it:hover { background: rgb(233 207 159 / 0.07); }
+.wc-looks-it:focus { outline: 2px solid var(--lks-lamp); outline-offset: -1px; }
+.wc-looks-it[aria-pressed="true"] { background: rgb(233 207 159 / 0.12); box-shadow: inset 0 0 0 1.5px var(--lks-lamp); }
+.wc-looks-n { font-size: 10px; line-height: 1.2; color: var(--lks-ink-dim); text-align: center; overflow-wrap: anywhere; }
+.wc-looks-it[aria-pressed="true"] .wc-looks-n { color: var(--lks-lamp-hot); }
+.wc-looks-empty { color: var(--lks-dim); padding: 22px 6px; grid-column: 1 / -1; text-align: center; }
+
+/* My images: the account card (the shelf comes with own images, part D). */
+.wc-looks-out {
+  border-radius: 8px;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.3);
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 380px;
+}
+
+.wc-looks-out p { margin: 0; font-size: 12.5px; color: var(--lks-ink-dim); }
+.wc-looks-out p b { color: var(--lks-ink); }
+.wc-looks-out .wc-looks-sub { color: var(--lks-faint); }
+
+/* The share switch (for your own character). */
+.wc-looks-share {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-top: 1px solid rgb(233 207 159 / 0.16);
+  padding-top: 12px;
+}
+
+.wc-looks-share b { display: block; color: var(--lks-ink); font-weight: 600; }
+
+.wc-looks-sw {
+  all: unset;
+  flex: none;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: #0b0a08;
+  box-shadow: inset 0 0 0 1px #5a5140;
+  position: relative;
+  cursor: pointer;
+  margin-top: 1px;
+}
+
+.wc-looks-sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8a7f6c, #4a4438);
+  transition: transform 0.15s;
+}
+
+.wc-looks-sw[aria-checked="true"] { background: #4d4230; }
+.wc-looks-sw[aria-checked="true"]::after { transform: translateX(18px); background: radial-gradient(circle at 35% 30%, #fff3d6, #c9ab73); }
+.wc-looks-sw:focus { outline: 2px solid var(--lks-lamp); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .wc-looks-prev { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .wc-looks-prev .wc-looks-sub { display: none; }
+}

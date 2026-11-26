@@ -142,7 +142,7 @@ import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
 import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
-import { lazyDb } from '../panes/context';
+import { type LookTarget, lazyDb } from '../panes/context';
 import { setPlaying } from '../core/playing';
 import { followSpace, holdGameLock, reloadToStart, spaceMessagePending } from '../core/space';
 import { type Notices, noticeIndicators } from './notices';
@@ -158,6 +158,7 @@ import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress
 import type { BeatState } from '../../shared/cloud/api.ts';
 
 type ChromeModule = typeof import('../chrome');
+type LookPickerHandle = import('../chrome').LookPickerHandle;
 
 /**
  * The chrome chunk: the Shell's, and the watch page's (`<base>r/<id>`,
@@ -648,6 +649,39 @@ export class Shell {
     return this.popupsP;
   }
 
+  // ------------------------------------------------------------ look picker
+
+  /** The open look picker (tests, the dev hook). */
+  private lookPicker: LookPickerHandle | null = null;
+
+  /**
+   * Opens the look picker for `who` (stage 80 §5): the chrome chunk's
+   * dialog over the whole window. The open settings popup closes first
+   * (one popup at a time); a second open replaces the first.
+   */
+  async openLook(who: LookTarget): Promise<void> {
+    const app = this.appRef;
+    if (!app?.looks || !this.inCockpit) return;
+    const chrome = await this.loadChrome();
+    if (!this.inCockpit || this.appRef !== app) return;
+    this.popups?.close(false);
+    this.lookPicker?.dispose();
+    const host = app.el.ownerDocument.createElement('div');
+    app.el.append(host);
+    this.lookPicker = chrome.mountLookPicker(host, this.services(), {
+      who,
+      looks: app.looks,
+      game: app.game,
+      focusInput: () => app.input.focus(),
+      onClose: () => (this.lookPicker = null),
+    });
+  }
+
+  /** The look picker, while it is open. */
+  get lookPickerHandle(): LookPickerHandle | null {
+    return this.lookPicker;
+  }
+
   // ----------------------------------------------------------- log player
 
   /** The open log player (tests, the dev hook). */
@@ -799,6 +833,9 @@ export class Shell {
     setPlaying(false);
     // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
     this.windows?.closeAll();
+    // The look picker closes as Cancel would.
+    this.lookPicker?.dispose();
+    this.lookPicker = null;
     this.appRef?.menuBar?.setShown(false);
     if (this.appRef) this.appRef.el.style.display = 'none';
     this.markPhoneGame(false);
@@ -927,6 +964,7 @@ export class Shell {
               mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
                 this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
               escapeWindow: () => this.windows?.escapeTop() ?? false,
+              openLook: (who: LookTarget) => void this.openLook(who),
               windowsUnsaved: () => this.windows?.unsaved() ?? false,
             }),
       },
@@ -1141,6 +1179,7 @@ export class Shell {
       scripts: this.scripts,
       scriptRunning: (name) => this.appRef?.scriptRunning(name) ?? null,
       playedCharacter: () => this.appRef?.game.timers.characterName ?? null,
+      ...(device().phone ? {} : { openLook: (who: LookTarget) => void this.openLook(who) }),
       scriptPanes: {
         list: () => this.appRef?.cockpit.scriptPanes() ?? [],
         subscribe: (fn) => this.appRef?.cockpit.onScriptPanes(fn) ?? (() => {}),

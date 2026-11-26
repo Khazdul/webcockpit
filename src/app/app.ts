@@ -114,7 +114,8 @@ import type { WeatherHook, WeatherHookDeps } from '../weather/hook';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
-import { type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
+import { type LookTarget, type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
+import { LooksStore } from '../looks/store';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip, STRIP_CELLS } from '../ui/clock-strip';
 import { MenuBar } from '../menubar/menubar';
@@ -307,6 +308,8 @@ export interface AppUi {
   mountStatsPane?(host: HTMLElement, deps: StatsPaneDeps): Promise<StatsPaneView>;
   /** Esc in the input with no popup open: the topmost window's close request; false when none is open. */
   escapeWindow?(): boolean;
+  /** Opens the look picker for a character (stage 80 §5; desktop and tablet). Absent: portraits have no click. */
+  openLook?(who: LookTarget): void;
   /** True while an open window holds unsaved changes (the Exit popup warns). */
   windowsUnsaved?(): boolean;
 }
@@ -330,6 +333,8 @@ export class App {
   readonly game: GameState;
   /** The hidden info poll (stage 77, ADR 0166); none in a log player. */
   readonly infoPoll: InfoPoll | null;
+  /** The chosen looks (stage 80, ADR 0169), in the current space; none in a log player (it draws no looks). */
+  readonly looks: LooksStore | null;
   /** The input line's day/night clock (in the menu bar where there is one). */
   readonly clockStrip!: ClockStrip | BarClock;
   /** The menu bar (ADR 0099), desktop and tablet; null elsewhere. */
@@ -447,6 +452,7 @@ export class App {
     );
     const cells = opts.cells;
     const openDb = lazyDb(player ? null : opts.paneDb);
+    this.looks = player ? null : new LooksStore({ openDb, now });
     this.game = new GameState({
       now,
       storage: player ? null : opts.clockStorage === undefined ? defaultLocalStorage() : opts.clockStorage,
@@ -542,6 +548,8 @@ export class App {
       ...(player ? {} : { mapMarks: this.mapMarks }),
       mapNotes: this.mapNotes,
       focusGame: () => this.input.focus(),
+      ...(this.looks ? { looks: this.looks } : {}),
+      ...(this.looks && this.appUi?.openLook ? { openLook: (who: LookTarget) => this.appUi?.openLook?.(who) } : {}),
       ...(poll
         ? {
             openInfo: () => poll.open(),
