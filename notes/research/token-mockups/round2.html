@@ -1036,7 +1036,7 @@ function renderPane() {
   if (st.tab === 'auto') {
     const on = sameLook(m.look, m.auto);
     h = `<button class="pk-auto" data-look='${JSON.stringify(m.auto)}' aria-pressed="${on}"><img class="${lookCls(m.auto)}" src="${lookSrc(m.auto, true)}" alt=""><span><b>${m.auto.t === 'por' && m.auto.k === 'neutral' ? 'Neutral figure' : m.auto.t === 'lib' ? m.auto.k : 'Engraved drawing'}</b><span class="d">${m.autoTxt}</span></span></button>
-      <p class="pk-hint">${me ? 'This is the default. It changes by itself if your character does.' : 'What you get without choosing anything. Pick from Library or My images to set your own look for this name. It is only shown to you.'}</p>`;
+      ${me ? '' : '<p class="pk-hint">What you get without choosing anything. Pick from Library or My images to set your own look for this name. It is only shown to you.</p>'}`;
   } else if (st.tab === 'lib') {
     const chip = (grp, v, l, n) => `<button class="pk-chip" data-f="${grp}" data-v="${v}" aria-pressed="${grp === 'race' ? !st.kind && st.race === v : st[grp] === v}">${l}<i>${n}</i></button>`;
     const list = libList();

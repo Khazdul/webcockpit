@@ -8,7 +8,8 @@
 > Goals 13–15 (accounts and sync, usage statistics, public sharing)
 > added 2026-11-13; with them the "no application server" constraint
 > and the "no accounts" non-goal were replaced. Approved by the owner
-> the same day.
+> the same day. Goal 16 (looks and tokens, with the shared directory of
+> looks) added by the owner's decision 2026-11-26.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -175,6 +176,19 @@ reference only.
     - The Community has a notice board, **Random Runes**, where any
       logged-in player writes short notes under the account name;
       everybody reads. It is reported and moderated as comments are.
+16. **Looks and tokens** (owner decision 2026-11-26). A player can
+    choose the picture of their character: the client's own drawing by
+    race and sex (the default), a picture from a library shipped with
+    the client, or an image of their own, which needs an account and
+    stays private. The picture shows in the Character pane and as a
+    small token on the map and in the Group pane, and group members get
+    tokens too.
+    - So that group members who use the client get the right picture,
+      every client reports its character's name, race, subrace, sex
+      and chosen library picture to the service, and asks it for the
+      names in the player's group. This is on by default, with a
+      switch to turn it off, and the privacy text says so plainly. An
+      own image is never shown to others.
 
 ## Non-goals
 
@@ -215,7 +229,8 @@ reference only.
   service is down or the player is logged out.
 - **Privacy by construction.** As little as possible is collected; the
   GDPR is handled as well as a hobby project can: no e-mail, a plain
-  privacy text, deletion by the player.
+  privacy text, deletion by the player. The one thing the service
+  knows about a character is what Goal 16 names (2026-11-26).
 - **Private hobby project.** MUME management is not involved during
   development. The repository and deployment stay private until the
   owner judges the client mature. (The earlier line about contacting

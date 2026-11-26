@@ -83,7 +83,7 @@
 | 77 | The Character pane as a card | Done (2026-11-25, the owner's closing test passed; ADR 0166 with addenda 1–47); released 0.23.0; open checks under Loose ends | `docs/stages/77-character-pane.md` |
 | 78 | The Character pane film | Built (round 3 is the film, 2026-11-26); the upload is the owner's | `docs/stages/78-character-film.md` |
 | 79 | Balloon smoothness | Done, released 0.23.2 (the owner: a considerable improvement, acceptable; round 2 stays on its branch) | `docs/stages/79-balloon-smoothness.md` |
-| 80 | Looks: portraits you choose, tokens on the map and in Group | Proposed (2026-11-26): the spec is written, mockup round 2 waits for the owner; nothing built | `docs/stages/80-character-tokens.md` |
+| 80 | Looks: portraits you choose, tokens on the map and in Group | Approved for building (2026-11-26): the spec and the night run brief are written; nothing built | `docs/stages/80-character-tokens.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -200,8 +200,13 @@ with no stage of their own. Remove a line when it is done.
   tokens with thinner rings, Group rows that follow the pane's height,
   50 own images, tokens on by default, the directory approved, the
   creator's Discord message is the permission). Round 2 is published.
-- Next: the owner decides round 2's three open points (ring width, row
-  scaling, the marker's replacement). Then part A in a new session.
+- Round 2 answered too (decisions 16–20: ring R3, free scaling, 68 px,
+  no red dot). The stage file is now the full spec and the brief for an
+  unattended night run (parts A–F, staging allowed, production and MUME
+  login not), with the kickoff prompt at its end. `intent.md` has
+  Goal 16.
+- Next: the owner starts the night run with the kickoff prompt. Open:
+  decision 24 (one-line rows grow too) is proposed, not confirmed.
 - Nothing in `src/` changed. No release.
 
 ### 2026-11-26 — README: the Lua editor picture, the screenshot script
