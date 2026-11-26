@@ -118,7 +118,7 @@ tracker; and a coin looter.
 
 <div align="center">
 <img width="400" alt="The Scripts window with the mercenary tracker" src="docs/img/scripts.jpg" />
-<img width="400" alt="The map outside Bree" src="docs/img/map.jpg" />
+<img width="400" alt="The Lua editor with Find open and the help for a call being typed" src="docs/img/lua-editor.jpg" />
 </div>
 
 **Map.** A map pane that reads MMapper `.mm2` files, draws MMapper's
@@ -132,6 +132,7 @@ to show. The drawing runs in a worker, so text and keys are never
 slowed.
 
 <div align="center">
+<img width="400" alt="The map outside Bree" src="docs/img/map.jpg" />
 <img width="400" alt="A clear night over the map" src="docs/img/weather-night.jpg" />
 <img width="400" alt="Lightning in heavy rain" src="docs/img/weather-lightning.jpg" />
 <img width="400" alt="Balloons on a clear day" src="docs/img/weather-balloons.jpg" />

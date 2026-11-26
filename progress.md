@@ -183,6 +183,23 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-26 — README: the Lua editor picture, the screenshot script
+
+- **Done:** `scripts/screenshots.ts` now makes the README's pictures:
+  a `FRAMES` table cuts the fifteen film frames with ffmpeg from
+  `video/public/recordings/` (a run gives files identical to the
+  committed ones), and the new browser shot `lua-editor` shows the
+  script editor with Find open and the completion list with its help
+  box. A run without arguments makes only the README's set; the
+  release-post shots run when named. The browser shots the frames
+  replaced (hero, startpage, appearance, map, night, rain) are gone.
+  `docs/img/lua-editor.jpg` is in the README beside the Scripts window;
+  the map moved to the weather pictures.
+- **Next:** nothing.
+- **Open:** no fog or standalone HTML player picture in the README
+  (`weather-fog` and `exporteditor` still make them when named).
+- **Commits:** this one.
+
 ### 2026-11-26 — README: new pictures, shorter text
 
 - **Done:** the owner asked for a better-looking README with current
@@ -198,7 +215,7 @@ with no stage of their own. Remove a line when it is done.
   good.
 - **Open:** no fog, Lua editor or standalone HTML player picture (not
   in the film material). `scripts/screenshots.ts` still writes the old
-  PNG set.
+  PNG set. (Both seen to in the next entry.)
 - **Commits:** this one.
 
 ### 2026-11-26 — Stage 79: balloon smoothness

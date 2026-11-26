@@ -1,26 +1,35 @@
-// The README screenshots (docs/img/), reproducible:
+// The README pictures (docs/img/) and the pictures of the release posts,
+// reproducible:
 //
-// Since 2026-11-26 the README's pictures are frames of the film takes
-// (video/public/recordings/, see progress.md); this script still writes
-// the earlier PNG set and is kept for shots the films do not have.
-//
-//   npm run screenshots                 every shot
+//   npm run screenshots                 the README's pictures
 //   npm run screenshots -- hero map     only these
+//   npm run screenshots -- weather-fog  a shot outside the README's set
 //
-// WC_SHOT_OUT=<dir> writes the PNGs there instead of docs/img/.
+// WC_SHOT_OUT=<dir> writes them there instead of docs/img/.
 //
-// Starts the dev server on WC_SHOT_PORT (default 5188) unless one answers
-// there already, and drives Chromium at 1600×900 CSS px, device scale 2
-// (3200×1800 PNG). Every shot starts from an empty browser profile (the
-// new-player defaults, ADR 0092). The gameplay shots log in through a
-// mocked MUME WebSocket (as tests/e2e/live-mock.spec.ts does: nothing
-// reaches the real server) that plays a feed built from the repository's
-// fixtures (tests/fixtures/*.log, invented names); the weather is pinned
-// with the dev hook `__weather` (src/weather/dev.ts). `exporteditor` also
-// writes htmlplayer.png: it records a run through the mocked connection,
-// edits it in the Export Editor (ADR 0115, stage 43d), exports the HTML
-// replay (H, then O) and opens the file. The start-menu pages are driven as
-// tests/e2e does (look.ts, history-page, scripts-page). The snow shots run in Firefox (see there). The
+// The README's pictures (README_SET) are of two kinds:
+//
+// - Frames of the film takes (FRAMES; since 2026-11-26): cut with ffmpeg
+//   from video/public/recordings/<take>.mp4, the lossless 1920×1080
+//   recordings of the presentation films (video/README.md), whose game
+//   text is the owner's real runs. The takes are not in git: record them
+//   first (`cd video && npm run record -- <take>`). JPEG, 1600 px wide,
+//   or the pane or phone alone at its own size.
+// - `lua-editor`, which no film shows: the browser shot below.
+//
+// The browser shots start the dev server on WC_SHOT_PORT (default 5188)
+// unless one answers there already, and drive Chromium at 1600×900 CSS px,
+// device scale 2 (3200×1800). Every shot starts from an empty browser
+// profile (the new-player defaults, ADR 0092). The gameplay shots log in
+// through a mocked MUME WebSocket (as tests/e2e/live-mock.spec.ts does:
+// nothing reaches the real server) that plays a feed built from the
+// repository's fixtures (tests/fixtures/*.log, invented names); the weather
+// is pinned with the dev hook `__weather` (src/weather/dev.ts).
+// `exporteditor` also writes htmlplayer.png: it records a run through the
+// mocked connection, edits it in the Export Editor (ADR 0115, stage 43d),
+// exports the HTML replay (H, then O) and opens the file. The start-menu
+// pages are driven as tests/e2e does (look.ts, history-page, scripts-page).
+// The snow shots run in Firefox (see there). The
 // `discord-*` shots are for the 0.2.0 release post (WC_SHOT_OUT them
 // elsewhere); some restore the demo runs (tests/fixtures/runs-demo.jsonl.gz)
 // with the page's clock pinned, as tests/e2e/demo-clock.ts does. The feed,
@@ -35,7 +44,8 @@
 // accounts, runs, votes, comments and runes.
 import { cloudFakes } from './lib/cloud-fakes.ts';
 import { devServer } from './lib/dev-server.ts';
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { type Browser, type BrowserContext, type Locator, type Page, chromium, firefox as firefoxType } from '@playwright/test';
@@ -71,7 +81,7 @@ const SCALE = 2;
 /** Where the exported replay is saved for the htmlplayer shot. */
 const TMP = `${mkdtempSync(`${tmpdir()}/wc-shots-`)}/`;
 
-/** The scripts shot's user script: a trigger, a timer and a small pane. */
+/** The lua-editor shot's user script: a trigger, a timer and a small pane. */
 const KILL_COUNTER = `-- @name     killcounter
 -- @summary  Counts your kills, in a small pane
 -- @api      1
@@ -132,11 +142,65 @@ async function newPage(browser: Browser): Promise<{ ctx: BrowserContext; page: P
   return { ctx, page };
 }
 
-async function shot(page: Page, name: string, png?: Buffer): Promise<void> {
-  const file = `${OUT}${name}.png`;
+/** Saves the page's picture (or `png`) as `name`.png; `jpeg` saves `name`.jpg at that quality instead. */
+async function shot(page: Page, name: string, png?: Buffer, jpeg?: number): Promise<void> {
+  const file = `${OUT}${name}.${jpeg ? 'jpg' : 'png'}`;
   if (png) writeFileSync(file, png);
+  else if (jpeg) await page.screenshot({ path: file, type: 'jpeg', quality: jpeg });
   else await page.screenshot({ path: file });
-  console.log(`  ${name}.png  ${(statSync(file).size / 1024 / 1024).toFixed(2)} MB`);
+  report(file);
+}
+
+function report(file: string): void {
+  console.log(`  ${file.slice(OUT.length)}  ${(statSync(file).size / 1024 / 1024).toFixed(2)} MB`);
+}
+
+// ------------------------------------------------------------ film frames
+
+/** Where the film takes are (video/README.md; not in git). */
+const TAKES = `${ROOT}video/public/recordings/`;
+
+/** One README picture cut from a film take: the take, the second, and a crop (`w:h:x:y` in the take's pixels) for a pane alone. */
+interface Frame {
+  take: string;
+  t: number;
+  crop?: string;
+  /** Keeps the take's own size (the phone takes are 468×1012). */
+  native?: boolean;
+}
+
+const FRAMES: Record<string, Frame> = {
+  // The fight in the Tharbad bakery: the game text, the Character card, the map and Comm.
+  hero: { take: 'character-tour', t: 118 },
+  'phone-game': { take: 'devices-phone', t: 10, native: true },
+  'phone-chat': { take: 'devices-phone', t: 40, native: true },
+  'phone-timers': { take: 'devices-phone', t: 44, native: true },
+  // The floating Character card on its Status tab, and the floating Comm pane with Eilwen's chat.
+  'character-pane': { take: 'character-tour', t: 39, crop: '560:444:386:308' },
+  'comm-pane': { take: 'film2-a', t: 44.2, crop: '664:462:1246:22' },
+  // The start page at sunrise, logged in.
+  startpage: { take: 'film2-b', t: 160 },
+  // Settings' Appearance tab on the Paper background.
+  appearance: { take: 'film2-a', t: 72 },
+  // The Scripts window on the mercenary tracker.
+  scripts: { take: 'film2-b', t: 34 },
+  map: { take: 'film2-a', t: 113 },
+  'weather-night': { take: 'film2-a', t: 122 },
+  'weather-lightning': { take: 'film2-a', t: 83.4 },
+  'weather-balloons': { take: 'balloons-fountain', t: 45 },
+  spotlights: { take: 'film2-b', t: 54 },
+  // A Hall of Fame run on its watch page.
+  'shared-run': { take: 'film2-b', t: 134 },
+};
+
+function frame(name: string, f: Frame): void {
+  const take = `${TAKES}${f.take}.mp4`;
+  if (!existsSync(take)) throw new Error(`no take ${f.take}.mp4 in video/public/recordings/ (cd video && npm run record -- ${f.take})`);
+  const file = `${OUT}${name}.jpg`;
+  const vf = f.crop ? `crop=${f.crop}` : f.native ? 'null' : 'scale=1600:-1:flags=lanczos';
+  // Seeking before -i lands on the exact frame: the takes are all-intra.
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(f.t), '-i', take, '-frames:v', '1', '-vf', vf, '-q:v', f.crop ? '2' : '3', file]);
+  report(file);
 }
 
 // ------------------------------------------------------------ shots
@@ -343,77 +407,15 @@ async function exportEditor(browser: Browser, name: string, player?: string): Pr
 }
 
 const SHOTS: Record<string, Shot> = {
-  // A sunset by the clock under a clear sky: the shot 20 s before the night begins (the turn runs over the
-  // 60 s before it), when the warm glow and its rays are strongest. Tried: -52 … -3 s, sunrises, light clouds.
-  hero: (b) => gameplay(b, 'hero', (now) => ({ ...DAY, weather: ' ', sunU: 0.97, nightAt: now + 23_000 }), () => sleep(3000)),
-  // A clear night, the full moon past the middle of its way (by the clock).
-  'weather-night': (b) =>
-    gameplay(b, 'weather-night', (now) => ({ ...NIGHT, weather: ' ', moonUp: true, moonPhase: 1, moonRiseAt: now - 450_000, moonSetAt: now + 295_000 }), () => sleep(5000)),
-  // Heavy rain by day during a fight, caught during a lightning strike: the brightest of a few tries.
-  'weather-rain': (b) =>
-    gameplay(b, 'weather-rain', () => ({ ...DAY, weather: '"' }), async (page) => {
-      await sleep(8000);
-      return brightestStrike(page, 4);
-    }, { fight: 'mid' }),
   // Snow by day, built up on the pane tops (at the game's pace). Firefox: its worker canvases draw the
   // far snow layers as dots; headless Chromium's pattern fills showed few of them.
   'weather-snow': async () => gameplay(await firefox(), 'weather-snow', () => ({ ...DAY, weather: '*' }), () => sleep(90_000)),
   // Dense fog by day.
   'weather-fog': (b) => gameplay(b, 'weather-fog', () => ({ ...DAY, weather: '~', fog: '=' }), () => sleep(20_000)),
 
-  // The start page of a new install.
-  async startpage(browser) {
-    const { ctx, page } = await newPage(browser);
-    await page.goto('/');
-    await startMenu(page);
-    await sleep(2500);
-    await shot(page, 'startpage');
-    await ctx.close();
-  },
-
-  // The menu bar's Settings popup (Appearance tab) over the game, on a starry night.
-  appearance: (b) =>
-    gameplay(b, 'appearance', () => ({ ...NIGHT, weather: ' ', moonUp: false }), async (page) => {
-      await sleep(2000);
-      await page.locator('.wc-mb[data-mb="settings"]').click();
-      await page.locator('.wc-sp-settings .wc-sp-page[data-page="appearance"]').waitFor();
-      // No hover glow on the icon in the picture.
-      await page.mouse.move(10, 10);
-      await sleep(800);
-    }),
-
-  // A wider right dock (the game text keeps its 80 columns) with a taller map, the mouse resting on a room: the hover box.
-  map: (b) =>
-    gameplay(
-      b,
-      'map',
-      () => ({ ...DAY, weather: ' ' }),
-      async (page) => {
-        await sleep(1500);
-        const box = (await page.locator('.wc-pane[data-pane="map"]').boundingBox())!;
-        // A room west of the player (the map is centred on him); the box shows after the pointer rests 3 s.
-        const hover = page.locator('.wc-map-hover');
-        for (let i = 0; i < 4 && !(await hover.isVisible()); i++) {
-          await page.mouse.move(box.x + box.width / 2 - 70 - i * 3, box.y + box.height / 2 + 4, { steps: 5 });
-          await hover.waitFor({ timeout: 6000 }).catch(() => {});
-        }
-        await hover.waitFor({ timeout: 1000 });
-        await sleep(500);
-      },
-      {
-        prepare: (page) =>
-          page.evaluate(() => {
-            const s = window.__wc!.settings;
-            const layout = structuredClone(s.get().layout);
-            for (const lane of layout.docks.right.lanes) lane.size = 38;
-            for (const p of layout.docks.right.head) if (p.id === 'map') p.desired = 400;
-            s.update({ layout });
-          }),
-      },
-    ),
-
-  // A new user script (KILL_COUNTER) in the editor, a call being typed: the completion list and its help.
-  async scripts(browser) {
+  // A new user script (KILL_COUNTER) in the editor: Find open on a word (its matches marked), and a call
+  // being typed, with the completion list and its help box.
+  async 'lua-editor'(browser) {
     const { ctx, page } = await newPage(browser);
     await page.goto('/');
     await startMenu(page);
@@ -436,14 +438,19 @@ const SHOTS: Record<string, Shot> = {
     const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
     await ed.locator('.cm-content').waitFor();
     await morphDone(page);
-    // A new line after the trigger, a call being typed (high enough for the help panel to fit).
     await ed.locator('.cm-line', { hasText: /^end\)$/ }).click();
+    await page.keyboard.press('Control+f');
+    await ed.locator('.cm-panels input').first().waitFor();
+    await page.keyboard.type('kills', { delay: 40 });
+    // Back to the code (the find row stays open): a new line after draw(), high enough for the help box to fit.
+    await ed.locator('.cm-line', { hasText: /^end$/ }).first().click();
     await page.keyboard.press('End');
     await page.keyboard.press('Enter');
     await page.keyboard.type('tempT', { delay: 60 });
     await page.locator('.cm-tooltip-autocomplete').waitFor();
+    await page.locator('.cm-completionInfo').waitFor();
     await sleep(800);
-    await shot(page, 'scripts');
+    await shot(page, 'lua-editor', undefined, 90);
     await ctx.close();
   },
 
@@ -973,30 +980,39 @@ const WATCH_AT = 0.97;
 
 // ------------------------------------------------------------ main
 
-const wanted = process.argv.slice(2);
-for (const w of wanted) if (!(w in SHOTS)) throw new Error(`unknown shot ${w}; known: ${Object.keys(SHOTS).join(' ')}`);
+/** What a run without arguments makes: the README's pictures. */
+const README_SET = [...Object.keys(FRAMES), 'lua-editor'];
+
+const known = [...Object.keys(FRAMES), ...Object.keys(SHOTS)];
+const wanted = process.argv.slice(2).length ? process.argv.slice(2) : README_SET;
+for (const w of wanted) if (!known.includes(w)) throw new Error(`unknown shot ${w}; known: ${known.join(' ')}`);
 mkdirSync(OUT, { recursive: true });
-const server = await devServer(PORT);
-const browser = await chromium.launch();
 const failed: string[] = [];
-try {
-  for (const [name, run] of Object.entries(SHOTS)) {
-    if (wanted.length && !wanted.includes(name)) continue;
-    console.log(name);
-    try {
-      await run(browser);
-    } catch (err) {
-      failed.push(name);
-      console.error(`  FAILED: ${err instanceof Error ? err.message : String(err)}`);
-    }
+const attempt = async (name: string, run: () => void | Promise<void>): Promise<void> => {
+  console.log(name);
+  try {
+    await run();
+  } catch (err) {
+    failed.push(name);
+    console.error(`  FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
-} finally {
-  await browser.close();
-  rmSync(TMP, { recursive: true, force: true });
-  const f = ff as Promise<Browser> | null;
-  if (f) await (await f).close();
-  server?.kill();
+};
+for (const [name, f] of Object.entries(FRAMES)) if (wanted.includes(name)) await attempt(name, () => frame(name, f));
+// The dev server and the browser only for a browser shot.
+const shots = Object.entries(SHOTS).filter(([name]) => wanted.includes(name));
+if (shots.length) {
+  const server = await devServer(PORT);
+  const browser = await chromium.launch();
+  try {
+    for (const [name, run] of shots) await attempt(name, () => run(browser));
+  } finally {
+    await browser.close();
+    const f = ff as Promise<Browser> | null;
+    if (f) await (await f).close();
+    server?.kill();
+  }
 }
+rmSync(TMP, { recursive: true, force: true });
 if (failed.length) {
   console.error(`failed: ${failed.join(' ')}`);
   process.exitCode = 1;
