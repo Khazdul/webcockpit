@@ -330,7 +330,7 @@ describe('migrateSettings', () => {
   it('adds the group and comm options with defaults (older stored data; Public without the chat channels, ADR 0134)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
-    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' }, tokens: true });
     expect(s.comm).toEqual({ filters: { tells: false }, npcs: false, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
@@ -340,6 +340,7 @@ describe('migrateSettings', () => {
       pollEvery: 10,
       pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true },
       stones: { buffs: true, debuffs: true, herblores: true, flags: true, sanctuary: true },
+      shareLook: true,
     };
     expect(migrateSettings({ version: 7 }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
     expect(migrateSettings({ character: { fetchInfo: 'no', height: 'compact' } }).character).toEqual({ fetchInfo: true, height: 'auto', ...poll });
@@ -426,7 +427,7 @@ describe('migrateSettings', () => {
     store.update({ comm: { filters: { tells: true } } });
     expect(store.get().comm.filters).toEqual({ says: false });
     store.update({ group: { npcMode: 'all' } });
-    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' }, tokens: true });
   });
 
   it('adds the timers options with defaults (ADR 0122)', () => {
@@ -557,6 +558,7 @@ describe('migrateSettings', () => {
       away: 'room',
       fight: false,
       colors: { hp: 'auto', mana: 'auto', mp: 'auto' },
+      tokens: true,
     });
     expect(migrateGroup({ away: 'dim', colors: { hp: '#FF0000', mana: 'blue', mp: 'auto' } })).toMatchObject({
       away: 'dim',
@@ -883,7 +885,7 @@ describe('database', () => {
     });
     const cap = await CaptureStore.open(factory);
     expect(cap.db.version).toBe(DB_VERSION);
-    expect([...cap.db.objectStoreNames].sort()).toEqual(['comm', 'exports', 'mapIds', 'maps', 'profiles', 'runChunks', 'runCloud', 'runEvents', 'runs', 'scriptData', 'scripts', 'settings', 'sync', 'syncMeta', 'timers']);
+    expect([...cap.db.objectStoreNames].sort()).toEqual(['comm', 'exports', 'mapIds', 'maps', 'profiles', 'runChunks', 'runCloud', 'lookImages', 'looks', 'runEvents', 'runs', 'scriptData', 'scripts', 'settings', 'sync', 'syncMeta', 'timers'].sort());
     expect((await cap.listRuns()).map((r) => r.runId)).toEqual(['A/1']);
     cap.close();
   });
@@ -1096,15 +1098,15 @@ describe('SettingsStore', () => {
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a full hover, and clamps stored values', () => {
     // A new player: Shimrod on a transparent map (ADR 0092); a stored mapper keeps the MMapper look.
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
     expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
     expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
-    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
     // Transparent (ADR 0085 addendum) is kept, as a choice and remembered.
     expect(migrateMapper({ background: 'transparent', backgroundBefore: 'transparent' })).toMatchObject({ background: 'transparent', backgroundBefore: 'transparent' });
     expect(migrateMapper({ background: 'Transparent' }).background).toBe('#2e3436');

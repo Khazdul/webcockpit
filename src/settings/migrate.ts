@@ -341,6 +341,7 @@ export function migrateGroup(raw: unknown): GroupSettings {
     away: oneOf(g.away, GROUP_AWAY_MODES, d.away),
     fight: bool(g.fight, d.fight),
     colors: { hp: colorSetting(c.hp), mana: colorSetting(c.mana), mp: colorSetting(c.mp) },
+    tokens: bool(g.tokens, d.tokens),
   };
 }
 
@@ -366,7 +367,7 @@ export function migrateCharacter(raw: unknown): CharacterSettings {
     flags: bool(so.flags, d.stones.flags),
     sanctuary: bool(so.sanctuary, d.stones.sanctuary),
   };
-  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height, pollEvery, pollOn, stones };
+  return { fetchInfo: bool(c.fetchInfo, d.fetchInfo), height, pollEvery, pollOn, stones, shareLook: bool(c.shareLook, d.shareLook) };
 }
 
 /**
@@ -558,6 +559,9 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
     tileset: oneOf(x.tileset, TILESET_IDS, d.tileset),
     background: isNamedMapBg(bg) ? bg : d.background,
     backgroundBefore: rememberedBg(x.backgroundBefore),
+    // Stage 80 (additive, no version): on unless stored off.
+    tokens: bool(x.tokens, true),
+    tokenHp: bool(x.tokenHp, true),
   };
 }
 

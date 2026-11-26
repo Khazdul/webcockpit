@@ -156,6 +156,8 @@ export interface GroupSettings {
   /** The fight card on top while you fight (ADR 0122 addendum); off by default (owner, 2026-11-05). */
   fight: boolean;
   colors: GroupVitalColors;
+  /** Members drawn with their look's round token (stage 80, ADR 0169); off: the marker icons. */
+  tokens: boolean;
 }
 
 /** Longest channel name kept in `CommSettings.filters`. */
@@ -225,6 +227,12 @@ export interface CharacterSettings {
   pollOn: CharacterPollOn;
   /** The stones shown at the bottom of Status and Stats. */
   stones: CharacterStones;
+  /**
+   * Show my look to other MUME Cockpit players (stage 80, ADR 0169): the
+   * character's race, subrace, sex and library token go to the directory.
+   * Own images are never sent.
+   */
+  shareLook: boolean;
 }
 
 /** Options → Panes → Communication and the Comm gear (ADR 0134). */
@@ -424,6 +432,10 @@ export interface MapperSettings {
    * without one; `''`: none remembered.
    */
   backgroundBefore: string;
+  /** You and the group members as round tokens at 20 CSS px a room and more (stage 80, ADR 0169). */
+  tokens: boolean;
+  /** The HP arc round a hurt member's token. */
+  tokenHp: boolean;
 }
 
 /**
@@ -821,13 +833,14 @@ export function defaultSettings(): Settings {
       pollEvery: 10,
       pollOn: { mood: true, position: true, equipment: true, affects: true, herblore: true },
       stones: { buffs: true, debuffs: true, herblores: true, flags: true, sanctuary: true },
+      shareLook: true,
     },
     comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), npcs: false, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true, balloons: false },
     windows: { profile: null, scripts: null },
     phone: defaultPhoneSettings(),
@@ -862,7 +875,7 @@ export function phoneDefaultSettings(): Settings {
 
 /** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, no fight card (owner), Auto colours. */
 export function defaultGroupSettings(): GroupSettings {
-  return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
+  return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' }, tokens: true };
 }
 
 /**
