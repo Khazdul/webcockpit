@@ -176,9 +176,8 @@ For the night run:
     improvise a design that fits the phone's and the tablet's look, for
     the owner to judge afterwards (§10).
 23. **No login to MUME in the night.** Test data only.
-24. **One-line rows grow with the height too** (§8). *Proposed, not yet
-    confirmed by the owner when this was written: see "Owner feedback".
-    If nothing is written there, build it as §8 says.*
+24. **One-line rows grow with the height too** (§8), so that the pane
+    is filled at every height. Confirmed by the owner.
 
 ## What exists today (checked 2026-11-26)
 
@@ -701,8 +700,7 @@ tablet e2e are green.
 
 ## Tasks
 
-- [x] Brainstorm, mockup rounds 1 and 2, the owner's decisions 1–23.
-- [ ] Decision 24 confirmed by the owner (otherwise as §8).
+- [x] Brainstorm, mockup rounds 1 and 2, the owner's decisions 1–24.
 - [ ] A. The library, the look model, the picker, the Character pane
 - [ ] B. Map tokens
 - [ ] C. Group tokens and the scaling rows

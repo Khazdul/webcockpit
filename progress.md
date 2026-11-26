@@ -205,8 +205,7 @@ with no stage of their own. Remove a line when it is done.
   unattended night run (parts A–F, staging allowed, production and MUME
   login not), with the kickoff prompt at its end. `intent.md` has
   Goal 16.
-- Next: the owner starts the night run with the kickoff prompt. Open:
-  decision 24 (one-line rows grow too) is proposed, not confirmed.
+- Next: the owner starts the night run with the kickoff prompt.
 - Nothing in `src/` changed. No release.
 
 ### 2026-11-26 — README: the Lua editor picture, the screenshot script
