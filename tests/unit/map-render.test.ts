@@ -1,7 +1,8 @@
 // Stage 9 P1: the pure parts of the map renderer (mesh builders,
 // connection geometry, text layout, scene geometry). The WebGL side is
 // covered by tests/e2e/map-render.spec.ts.
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DIR, DIR_COUNT, DOOR_FLAG, EXIT_FLAG, type MapData, buildIndexes } from '../../src/map/model';
 import { readMm2 } from '../../src/map/mm2';
@@ -400,5 +401,87 @@ describe.skipIf(!existsSync(ARDA))('arda.mm2 meshes', () => {
     expect(conns.reduce((n, l) => n + l.doorNames.length, 0)).toBeGreaterThan(0);
     expect(marks.reduce((n, l) => n + l.texts.length, 0)).toBe(614);
     expect(t3 - t0).toBeLessThan(3000);
+  });
+});
+
+// Stage 80 part B (ADR 0171): with tokens off, below 20 px a room and in
+// the far style, buildScene gives exactly the geometry it gave before the
+// stage. The golden file was written by this test on the commit before the
+// token renderer (WC_SCENE_GOLDEN=write npx vitest run tests/unit/map-render.test.ts).
+describe('scene geometry without tokens (stage 80)', () => {
+  const GOLDEN = new URL('./map-scene-golden.json', import.meta.url);
+  const font = existsSync(FONT) ? parseFnt(readFileSync(FONT, 'utf8')) : null;
+  // A strip of rooms on layer 0, two on layer 1, one far away.
+  const map = makeMap([
+    { pos: [0, 0, 0] },
+    { pos: [1, 0, 0] },
+    { pos: [2, 0, 0] },
+    { pos: [0, 1, 0] },
+    { pos: [0, 0, 1] },
+    { pos: [1, 1, 1] },
+    { pos: [60, 40, 0] },
+  ]);
+  const members = [
+    { id: 2, room: 0, text: 'Thorin', color: 0x00c0ff, npc: false },
+    { id: 3, room: 0, text: 'Eowyn', color: 0xff40a0, npc: false },
+    { id: 4, room: 0, text: 'Glorfindel', color: 0x40ff40, npc: false },
+    { id: 5, room: 0, text: 'a trained horse', color: 0xffa040, npc: true },
+    { id: 6, room: 2, text: 'Bilbo', color: 0xa040ff, npc: false },
+    { id: 7, room: 4, text: 'Strider', color: 0x40ffff, npc: false },
+    { id: 8, room: 6, text: 'Faraway', color: 0xff4040, npc: false },
+    { id: 9, room: null, text: 'Nowhere', color: 0x808080, npc: false },
+  ];
+  const face = (hp: number | null) => ({ look: { k: 'drawn' as const, portrait: 'human', sex: 'male' as const }, hp });
+  const tokens = {
+    hp: true,
+    self: face(0.5),
+    members: new Map(members.map((m, i) => [m.id, face(i % 2 ? 0.3 : 1)] as const)),
+    colors: { ok: 0x3fd062, low: 0xff8c2a, critical: 0xff4d4d },
+  };
+  const scenes = {
+    group: { ...EMPTY_SCENE, room: 0, located: true, path: [1, 2], members },
+    lost: { ...EMPTY_SCENE, room: 1, located: false, members },
+    away: { ...EMPTY_SCENE, room: 3, located: true, members, marks: [{ rooms: [2, 5], color: 0xff40ff, alpha: 0.8, arrows: true, label: 'Here' }] },
+    alone: { ...EMPTY_SCENE, room: null, located: false, members },
+  };
+  // Zooms: far (0.3), boxes below 20 px a room (0.44: 19.4 px), tokens (1, 2.5); DPR 1 and 2.
+  const views = [
+    { zoom: 0.3, dpr: 1 },
+    { zoom: 0.44, dpr: 2 },
+    { zoom: 1, dpr: 1 },
+    { zoom: 2.5, dpr: 2 },
+  ];
+  const plain = (g: ReturnType<typeof buildScene>) => ({
+    roomSel: g.roomSel,
+    tris: g.tris.data,
+    arrows: g.arrows.data,
+    points: g.points.data,
+    path: g.pathQuads.data,
+    names: g.names.data,
+  });
+  // Each case's geometry as a SHA-256 of its JSON (the file stays small; a mismatch names the case).
+  const digest = (g: ReturnType<typeof plain>) => createHash('sha256').update(JSON.stringify(g)).digest('hex');
+  const run = (withTokens: boolean, below20Only: boolean) => {
+    const out: Record<string, string> = {};
+    for (const [name, scene] of Object.entries(scenes)) {
+      for (const v of views) {
+        if (below20Only && pxPerRoom(v.zoom, 0) >= 20) continue;
+        const view = { ...defaultView(), x: 0.5, y: 0.5, zoom: v.zoom };
+        const s = withTokens ? { ...scene, tokens } : scene;
+        out[`${name}@${v.zoom}x${v.dpr}`] = digest(plain(buildScene(s, { map, view, w: 640, h: 400, dpr: v.dpr, font })));
+      }
+    }
+    return out;
+  };
+
+  it.skipIf(!font)('is the geometry from before the stage, with tokens off and with tokens below 20 px or far', () => {
+    const now = run(false, false);
+    if (process.env.WC_SCENE_GOLDEN === 'write') writeFileSync(GOLDEN, `${JSON.stringify(now, null, 1)}\n`);
+    const golden = JSON.parse(readFileSync(GOLDEN, 'utf8')) as typeof now;
+    expect(Object.keys(golden).length).toBe(16);
+    expect(now).toEqual(golden);
+    const low = run(true, true);
+    expect(Object.keys(low).length).toBe(8);
+    for (const [k, g] of Object.entries(low)) expect(g, k).toEqual(golden[k]);
   });
 });
