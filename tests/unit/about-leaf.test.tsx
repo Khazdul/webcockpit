@@ -48,7 +48,7 @@ describe('aboutSections', () => {
   it('groups key/value rows and keeps the paragraphs', () => {
     const kv = (id: string) => secs.find((s) => s.id === id)!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
     expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Community', 'Phone']);
-    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'TinTin++', 'Fonts', 'Libraries']);
+    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'Tokens', 'TinTin++', 'Fonts', 'Libraries']);
     expect(kv('mume')).toEqual(['Website', 'Discord']);
     const mume = secs.find((s) => s.id === 'mume')!.blocks;
     expect(mume.map((b) => ('p' in b ? 'p' : 'kv'))).toEqual(['p', 'p', 'p', 'p', 'kv']);
@@ -95,6 +95,7 @@ describe('aboutTokens', () => {
       ['mume.org/help/basics', 'https://mume.org/help/basics'],
       ['docs.mume.org/wiki/guides', 'https://docs.mume.org/wiki/guides'],
       ['github.com/MUME/MMapper', 'https://github.com/MUME/MMapper'],
+      ['github.com/Sunnyl75/Character-Tokens-v3.0', 'https://github.com/Sunnyl75/Character-Tokens-v3.0'],
       ['tintin.mudhalla.net', 'https://tintin.mudhalla.net'],
       ['fonts/README.md', '/app/fonts/README.md'],
       ['abuse@mumecockpit.com', 'mailto:abuse@mumecockpit.com'],
@@ -226,7 +227,7 @@ describe('About: the leaf', () => {
     const mail = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a[href^="mailto:"]')];
     expect(mail.map((a) => [a.textContent, a.target])).toEqual([['abuse@mumecockpit.com', '']]);
     const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a:not([href="/privacy"]):not([href^="mailto:"])')];
-    expect(links).toHaveLength(13);
+    expect(links).toHaveLength(14); // + the token library (stage 80)
     for (const a of links) {
       expect(a.target).toBe('_blank');
       expect(a.rel).toBe('noopener noreferrer');

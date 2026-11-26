@@ -62,6 +62,14 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+# The token library (stage 80, ADR 0170): ids never change once shipped
+# (scripts/tokens.md), so a picture never changes. The manifest grows with a
+# new picture: the client asks for it with the release's version in the
+# query (`tokens.json?v=0.24.0`), which is a URL of its own in every cache.
+/tokens/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
 # The page and the update check's manifest (ADR 0025): always revalidated.
 /
   ! Cache-Control

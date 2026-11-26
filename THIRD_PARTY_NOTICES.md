@@ -4,7 +4,9 @@ WebCockpit is GPL-2.0-or-later (ADR 0027). It ships the following
 third-party material, each under its own GPL-compatible licence, except
 the bundled map data (`public/map/arda.mm2`), which has no licence, and
 the alternative map tilesets (`public/map/tilesets/`), which come with
-their author's own terms (see "Map assets").
+their author's own terms (see "Map assets"), and the token library
+(`public/tokens/`), which is used by the creator's permission (see
+"Character tokens").
 
 ## MMapper-derived code
 
@@ -172,6 +174,20 @@ lookup. Lucida is a trademark of its owner.
 - **Lua** 5.4, compiled into wasmoon's `glue.wasm` — MIT License,
   Copyright (C) 1994-2023 Lua.org, PUC-Rio (https://www.lua.org/license.html,
   MIT, GPL-compatible).
+
+## Character tokens (`public/tokens/`)
+
+- **Character-Tokens-v3.0** by **Sunnyl75**
+  (https://github.com/Sunnyl75/Character-Tokens-v3.0, folder `Tokens/`):
+  125 head-and-shoulders pictures of MUME characters, mounts and mobs,
+  scaled to 256 and 128 px and saved as WebP by `scripts/tokens.ts`
+  (stage 80, ADR 0170); otherwise unmodified. The repository has no
+  licence file. The creator asked the WebCockpit owner (on Discord,
+  November 2026) to add the set to the client; the owner keeps that
+  message as the written permission to use the pictures in WebCockpit.
+  **These pictures are not under WebCockpit's GPL**, and WebCockpit's
+  licence grants no rights in them. The set's README says they were made
+  by prompting ChatGPT.
 
 ## Map assets (`public/map/`)
 

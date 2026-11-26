@@ -62,7 +62,7 @@ describe('About text', () => {
 
   it('keeps the key/value rows of What is inside, Credits, MUME and Getting started as tables', () => {
     expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Community', 'Phone']);
-    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'TinTin++', 'Fonts', 'Libraries']);
+    expect(kv('credits')).toEqual(['MUME', 'Cockpit', 'MMapper', 'Tilesets', 'Tokens', 'TinTin++', 'Fonts', 'Libraries']);
     expect(kv('mume')).toEqual(['Website', 'Discord']);
     expect(kv('start')).toEqual(['Newcomers', 'First steps', 'Basics', 'Guides']);
     expect(kv('pvp')).toEqual([]);
@@ -93,7 +93,7 @@ describe('About text', () => {
         'mailto:abuse@mumecockpit.com',
       ]),
     );
-    expect(links).toHaveLength(14);
+    expect(links).toHaveLength(15); // + the token library (stage 80)
     expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual([
       'pray to the tower hills',
       'help newbie',

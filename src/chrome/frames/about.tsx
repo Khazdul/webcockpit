@@ -111,6 +111,7 @@ CREDITS
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
   Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
+  Tokens          The library of character tokens is by Sunnyl75, added at the creator's request: github.com/Sunnyl75/Character-Tokens-v3.0. The pictures are not under WebCockpit's licence.
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
   Fonts           The terminal fonts, Cinzel and Cormorant Garamond are each under their own licence, listed in fonts/README.md. Lucida Console is used only when installed and is not part of WebCockpit.
   Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
@@ -121,7 +122,7 @@ Your game goes straight from this browser to MUME: nothing you type in the game,
 An account keeps your user name and your things, encrypted so that the site cannot read them. A run you share is public: anyone with the link can watch it, and one in the Hall of Fame is listed in the Community. Stars, comments and notes show your account name. The privacy page has the details: what is kept, for how long, and how to remove it. To report abuse, or to have something removed, write to abuse@mumecockpit.com.
 
 LICENCE
-WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). The fonts, libraries and map assets it ships keep their own licences and terms; the map's room texts belong to MUME.
+WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). The fonts, libraries, map assets and token pictures it ships keep their own licences and terms; the map's room texts belong to MUME.
 
 MUME is run by its own team; WebCockpit is an independent client and is not made or endorsed by MUME.
 
