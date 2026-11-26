@@ -1,6 +1,6 @@
 # Stage 79 — Balloon smoothness
 
-**Status: building (2026-11-26).**
+**Status: built and merged (2026-11-26); the owner: a considerable improvement, acceptable; what remains is open.**
 
 ## The owner's report (2026-11-26)
 
@@ -110,4 +110,22 @@ cannot show. If the parts are what jerks, the next step is the rig's
 cost in Firefox (the SVG is rasterised again each frame its parts move).
 
 ## Owner feedback
+
+**2026-11-26, after comparing the branch with main:** a considerable
+improvement. Small jerks can still be felt now and then, harder to notice
+than before and hard to place; perhaps most just after the balloon has
+come to rest, and just as it starts to move again at a low, growing
+speed. Acceptable as it is; better still would be a plus. Merged.
+
+What the main session checked after that (mains power, headed Firefox,
+scale 2, one balloon, the branch): the main thread lost no frame in four
+flights; a balloon moved by its animation is drawn between pixels (no
+snapping; `snap3` in the session, the animation's time stepped by 40 ms);
+WebRender's own overlay (`compositor.mjs`, now seen working) showed 61 fps
+and 2.4 ms of CPU per frame (max 3.0) during the leave. So nothing
+measured on mains explains the jerks that remain. Not ruled out: the
+parts inside on battery (the main thread paints them at half rate there,
+and they move most at exactly those two moments: the sign's kick as the
+balloon stops, the swing as it leaves); the move from the front layer to
+the sky layer at the start of the leave (the rig is rasterised again).
 
