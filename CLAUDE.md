@@ -68,6 +68,22 @@ learned (`docs/decisions/`), and real session logs as test material.
   crashed", "Target crashed"), look at `df -h /tmp` first
   (`tests/setup/clean-tmp.ts`).
 
+## Measuring smoothness (lessons of 2026-11-26, stage 79)
+
+- Frame rates from a real window depend on the laptop's power: on
+  battery Firefox loses frames that it keeps on mains. Note
+  `cat /sys/class/power_supply/BAT*/status` with every headed number, and
+  never compare a run on battery with one on mains.
+- A locked screen halves every headed frame rate; check `LockedHint`.
+- A page's rAF counts the main thread's frames, not the compositor's.
+  Headless Firefox is software WebRender and its screenshots are at CSS
+  scale whatever the device scale.
+- The tools are in `notes/research/balloons/pacing/`.
+- The owner's dev server on 5173 keeps the version it was started with:
+  `about.spec` and `cloud-stats.spec` fail against it after a release
+  until it is restarted. A full e2e run rewrites screenshots under
+  `docs/stages/img/`: restore them (`git checkout -- docs/stages/img`).
+
 ## Language
 
 - Conversation with the owner: Swedish.
