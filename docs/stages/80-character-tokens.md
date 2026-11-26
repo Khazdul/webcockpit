@@ -7,10 +7,10 @@ The creator of a set of MUME token pictures asked for them to be
 integrated. This file is the spec. Nothing is built yet.
 
 **Status: proposed** (2026-11-26). The brainstorm is held and the
-direction is decided (below). The mockup
-`notes/research/token-mockups/round1.html`
-(<https://claude.ai/artifact/To2Mc4dySwQQv9MtUa76R8>) is waiting for the
-owner. The
+direction is decided (below). Mockup round 1
+(`notes/research/token-mockups/round1.html`,
+<https://claude.ai/artifact/To2Mc4dySwQQv9MtUa76R8>) is answered
+(decisions 7–14). Round 2 is waiting for the owner. The
 points under "Open, the owner's" are decided from it. Building starts in
 a new session after the owner's go, part by part, each part stopping for
 the owner.
@@ -38,6 +38,27 @@ the owner.
 5. **Tokens for group members can be switched off.**
 6. A click on a group member's token changes that member's look, from
    the library or from the player's own images.
+
+After mockup round 1 (2026-11-26):
+
+7. **The HP arc is variant C**: outside the ring, only when the member
+   is hurt, in Group's colours (green, orange from 45 %, red from 25 %).
+8. **Several in one room: the fan.** Your token whole in the centre, the
+   others small along the room's lower edge, at most three and then `+n`.
+9. **One-line Group rows get the small token.**
+10. **Group tokens are round**, and the hue rings are thinner than in
+    round 1, in Group and on the map (the owner: they sting the eye).
+    The width is chosen from round 2.
+11. **Group rows follow the pane's height** so that the pane is filled
+    and tokens grow when there is room: free scaling above a minimum
+    height if it works, otherwise two larger modes. Round 2 shows it.
+12. **The directory is approved as §9 describes it**: reporting is the
+    default with a switch, and players without an account report too.
+13. **The licence**: the creator's Discord message asking the owner to
+    add the set is the written permission. The owner keeps a copy of it.
+14. **50 own images per account**, each with a size limit (§3).
+15. **Tokens are on by default**, in Group (`group.tokens`) and on the
+    map (`mapper.tokens`). Each has its switch in the pane's gear.
 
 ## What exists today (checked 2026-11-26)
 
@@ -95,10 +116,12 @@ Which look a character gets, the first that applies:
   files (counted 2026-11-26: Men 20, Elves 13, Dwarves 4, Hobbits 15,
   Orcs 15, Trolls 8, other 13, mounts 15, mobs 22) of 256×256 with alpha, named `Race-Sex-Class-Variant`,
   `Mount-…`, `Mob-…`. Made by prompting ChatGPT (the README says so).
-- **Before it ships: a licence.** The repository has none. The creator
-  asked for the integration; the owner asks them to add a licence file
-  (CC BY 4.0 is the suggestion) or to give the permission in writing. The
-  set is credited in About and in `THIRD_PARTY_NOTICES.md`.
+- **Permission** (decision 13): the repository has no licence file. The
+  creator asked the owner on Discord to add the set, and the owner takes
+  that message as the written permission. It covers use in WebCockpit.
+  The set is credited in About and in `THIRD_PARTY_NOTICES.md`, which
+  says that these pictures are not under the client's GPL. If the
+  repository gets a licence later, the notice follows it.
 - `scripts/tokens.ts` builds `public/tokens/` from a checkout of the set:
   - `p/<id>.webp`, 256 px, for the portrait frame;
   - `t/<id>.webp`, 96 px, for tokens and the picker's grid;
@@ -118,14 +141,19 @@ Which look a character gets, the first that applies:
   links to the login.
 - The player picks a file. The browser shows a square crop with pan and
   zoom and a circle that marks the token's cut. The result is encoded to
-  WebP 256×256, quality stepped down until it is at most 40 KB. The
+  WebP 256×256, quality stepped down until it is at most 30 KB. The
   original never leaves the browser. Formats: what the browser decodes.
-- **One shelf of at most 12 images per account** (`looks.ownImages`
-  in the account limits, so the owner can change it). An image on the
+- **One shelf of at most 50 images per account** (decision 14;
+  `lookImages` and `lookImageMaxBytes` in the account limits, so the
+  owner can change them). An image on the
   shelf can be the look of your own character or of any group member. A
   full shelf asks the player to remove an image first. Removing an image
   that is in use puts those characters back on automatic.
-- Worst case 12 × 40 KB = 480 KB of the account's 2 MB.
+- Worst case 50 × 30 KB = 1.5 MB. That would eat the account's 2 MB for
+  small items, so own images get **a budget of their own** (`lookBytes`,
+  1.5 MB) and do not count against the 2 MB. The server checks the
+  count, the size of each and the budget (413 `too_many_items`,
+  `item_too_large`, `storage_full`, as for other items).
 - **An own image is never shown to anyone else.** No moderation is
   needed. Others see row 3 of the table.
 
@@ -144,7 +172,7 @@ Two new sync kinds (the server treats them like the others, encrypted):
 - Logged out, `looks` lives in the device's space (ADR 0150) with library
   and automatic looks only. The two spaces never mix (§7.0 rule 7).
 - The switches are ordinary settings: `character.shareLook` (on),
-  `group.tokens`, `mapper.tokens` (on), `mapper.tokenHp`.
+  `group.tokens` (on), `mapper.tokens` (on), `mapper.tokenHp` (on).
 
 ### 5. The picker
 
@@ -156,7 +184,7 @@ page.
 - A preview column: the portrait in its frame, the token on a piece of
   map, the token in a Group row. It follows the selection live.
 - Tabs: **Automatic**, **Library** (chips for people, sex, mounts, mobs;
-  a search field), **My images** (the shelf, `n of 12`, Add image, the
+  a search field), **My images** (the shelf, `n of 50`, Add image, the
   crop step).
 - For your own character: the switch "Show my look to other WebCockpit
   players", with the note that an own image is never sent.
@@ -181,11 +209,13 @@ popup gets a "Look…" row for that case.
   and in the far style, today's boxes are drawn.
 - The off-screen arrows, the layer arrows, the prespam line and the name
   labels of away members stay as they are.
-- **HP arc** (`mapper.tokenHp`): a thin arc round the token that follows
-  the member's HP, your own from `Char.Vitals`. Variants A, B and C are in
-  the mockup. No arc when the HP is unknown.
-- **Several in one room**: variants A (fan) and B (grid) are in the
-  mockup. Your own token is always whole and on top.
+- **HP arc** (`mapper.tokenHp`, decision 7): a thin arc outside the ring
+  that follows the member's HP, your own from `Char.Vitals`. It is drawn
+  only below full HP, and not when the HP is unknown.
+- **Several in one room** (decision 8): the fan. Your own token is whole
+  and on top; the others are small discs along the lower edge in group
+  order, at most three, then `+n`. A room without you shows its first
+  member whole and the others the same way.
 - **Renderer**: one atlas texture of 1024×1024 with 128 px cells (64
   looks, the least recently used leaves). All tokens are drawn as
   instanced quads in one call; the circle, the ring and the arc are made
@@ -205,7 +235,16 @@ popup gets a "Look…" row for that case.
   start of a row: two rows high in the two-line layout, with the member's
   hue ring (new in Group: the same hue as on the map, sent from the map's
   table so both agree).
-- The one-line layout: see the open points.
+- The one-line layout has a small token of the row's height (decision
+  9). At that size it is a coloured dot that ties the row to the map.
+- **Rows follow the pane's height** (decision 11; the numbers are set
+  from round 2): every row has the same height, the pane's height shared
+  between the members and held between a minimum and a maximum. The
+  token's diameter follows the row. Below the two-line minimum today's
+  rule holds (one-line rows, then `↓ n more`). This replaces
+  `groupLayout`'s two fixed layouts and needs an addendum to ADR 0122.
+- What the marker icon said (player or NPC; ally, neutral or enemy) must
+  still be readable with tokens on. Round 2 proposes how.
 - A click on a token opens the picker for that member. The row's tooltip
   stays. Nothing else in a row becomes clickable.
 - NPC members match the library by name words (`tokens.json`): "a trained
@@ -299,46 +338,44 @@ what it stores (with the privacy reasoning above).
 
 ## Open, the owner's
 
-From the mockup:
+From mockup round 2 (`notes/research/token-mockups/round2.html`,
+<https://claude.ai/artifact/JFxTxh2v35UDhktAcJMye7>):
 
-1. The HP arc: variant A (outside the ring), B (the ring is the HP), C
-   (only when hurt), or none.
-2. Several in one room: A (fan) or B (grid).
-3. One-line Group rows: a small token or today's marker icon.
-4. The token's shape in Group: round as on the map, or a rounded square
-   as the portrait frame.
-5. `group.tokens` on or off by default.
+1. The ring's width and strength (R1–R4).
+2. Group rows: free scaling or fixed modes, the bars at large sizes, and
+   the largest token.
+3. What replaces the marker icon's meaning.
 
-What the mockup showed, to weigh with the points above:
+What round 2 proposes and showed:
 
-- Five in one room at the default 44 px leaves 9 px (fan) or 13 px
-  (grid) of picture for the others. Below about 12 px only the ring's
-  colour reads. Pictures in a shared room need about 64 px a room.
-- Arc A takes 4–5 px of radius at every size, and a green or orange arc
-  beside a ring of the same hue is hard to tell apart. Arc B keeps the
-  largest picture; its lost part is weak on dark ground.
-- The arc's colours follow Group's thresholds (green, orange from 45 %,
-  red from 25 %), so the map and the pane agree.
-- In a Group row the token takes the marker icon's place, so the row no
-  longer shows player or NPC, and ally, neutral or enemy, by its marker.
-  Something else has to carry that if it matters.
-- A one-line row's token is 12 px: a coloured dot that ties the row to
-  the map, not a picture.
+- Row steps: under 34 px a row, today's rule (one-line rows of 17 px
+  with a 13 px token, then `↓ n more`); 34–51 px, the name line and the
+  three bars side by side; 52–76 px, the bars as three full lines with
+  numbers; the row stops at 76 px (token 68 px). The token is the row
+  minus 8 px.
+- A dead zone: ten members stay on one-line rows until the pane is
+  371 px high, with empty room below. One-line rows could scale too.
+- 52 px is tight for three bar lines (56 would be easier), and rows
+  near 76 px are sparse: the name stays in the terminal's size.
+- Muted rings bring neighbouring hues closer, and a thin ring weakens
+  the tie between a row and its token on the map.
+- The marker's meaning: the NPC tag stays, and a member of an enemy
+  race gets a small red dot on the token. On one-line rows the tag does
+  not fit.
+
+What round 1 showed, kept for the build:
+
+- Five in one room at the default 44 px leaves about 9 px of picture for
+  the others in the fan. Below about 12 px only the ring's colour reads.
+  Pictures in a shared room need about 64 px a room.
 - Library tokens are cut-out busts: in the portrait frame they sit on a
   backing and do not fill it as the engraved drawing does. The two
   styles are visibly different side by side.
 
-From the spec:
-
-6. The directory's three privacy points in §9. In particular: is it
-   right that players without an account report too?
-7. The licence: the owner asks the creator.
-8. Twelve own images per account: enough?
-
 ## Tasks
 
-- [ ] The owner looks at the mockup and decides the open points.
-- [ ] The licence of the token set.
+- [x] Mockup round 1; the owner's decisions 7–14.
+- [ ] Mockup round 2; the owner decides the open points.
 - [ ] Parts A–E, each with its task list when it starts.
 
 ## Test guide
