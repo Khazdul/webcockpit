@@ -1,6 +1,6 @@
 # Stage 79 — Balloon smoothness
 
-**Status: built and merged (2026-11-26); the owner: a considerable improvement, acceptable; what remains is open.**
+**Status: done, released 0.23.2 (2026-11-26). The owner: a considerable improvement, acceptable; stop here. Round 2 stays on its branch.**
 
 ## The owner's report (2026-11-26)
 
@@ -183,3 +183,4 @@ making the rig itself cheap for Firefox to draw (its filtered layers as
 bitmaps made once, or a cheaper noise than `feTurbulence`): a stage of
 its own, with the look at stake. Not started; the owner's call.
 
+**The owner, same day:** stop here as recommended, and publish. Released 0.23.2.
