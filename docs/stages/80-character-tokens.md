@@ -54,8 +54,8 @@ done, what is done works, and the log says plainly what is missing.
 - **No production.** No version tag, no production deploy, no production
   migration, no change of a production flag to on. The release is the
   owner's, after his test.
-- **No login to MUME** and no connection to the real game. Test with the
-  test server and recorded GMCP (`tests/fixtures`, `bench/ws-server.ts`).
+- **No login to MUME** and no connection to the real game. Test with
+  the fixtures the tests already use (see "Test material").
 - Nothing under `/home/ole/MUME` is changed (CLAUDE.md).
 - Do not touch the owner's dev server on port 5173, and do not run e2e
   against it: use a port of your own (`WC_E2E_PORT`).
@@ -82,10 +82,9 @@ done, what is done works, and the log says plainly what is missing.
 - Verify what an agent reports before building on it: read the diff, run
   the tests yourself, look at a screenshot of the real client. An agent's
   "done" is a claim.
-- Look at the result as the owner will: after parts A, C, D and F take
-  screenshots of the real client (Playwright, the test server's group
-  fixture) and compare them with the mockup. Fix what does not match
-  before going on.
+- Look at the result as the owner will: after parts A, B, C and F take
+  screenshots of the real client (Playwright, "Test material") and
+  compare them with the mockup. Fix what does not match before going on.
 - `main` is never left red. If a part cannot be finished, back it out or
   leave it behind its setting turned off by default, and say so in the
   log.
@@ -108,8 +107,9 @@ half a part on `main` is not.
   (CLAUDE.md, "Sessions and traceability").
 - A note in the log: the owner's dev server on 5173 must be restarted to
   show the new version.
-- No release. `CHANGELOG`/release notes for the next version are drafted
-  where the project keeps them, not published.
+- No release and no version bump. The project has no changelog file:
+  draft the release notes for the next version in this file, under
+  "Release notes (draft)".
 
 ## Words
 
@@ -186,8 +186,9 @@ For the night run:
   `portraitOf(race, subrace)` and `game.sex` (`src/panes/portrait.ts`,
   `portraits/`, `character-dom.ts`, `character.ts` near line 396). A
   raster override path exists (`public/portraits/<id>-<sex>.webp`) and no
-  file uses it. The portrait has no click today. Portraits are off in
-  replays (`__WC_REPLAY__`).
+  file uses it. The portrait has no click today. Portraits are off only
+  in the `__WC_REPLAY__` bundle (the exported HTML and the share frame);
+  the in-app log player and the `?fixture=` feed show them.
 - The player's race and subrace come from `Char.StatusVars`
   (`src/gmcp/char.ts`, kinds in `src/gmcp/race.ts`). The sex comes from
   the `info` line and is remembered per character in `localStorage`
@@ -199,8 +200,14 @@ For the night run:
   sex. Yourself is not a row in Group.
 - The Group pane: `src/panes/group.ts`, `group-model.ts`, `group.css`
   (ADR 0122, ADR 0120). `groupLayout` picks two lines per member when
-  `2n ≤ rows`, else one line, else one line and `↓ n more`. Rows are
-  keyed DOM elements patched in place. No click listeners.
+  they fit beside the fight card, else one line, else one line and
+  `↓ n more`. The fight card has two forms tied to that: a card of 4
+  rows with two-line rows, a strip of 1 row with one-line rows. The pane
+  is sized in whole terminal cells (`PaneShell` gives `cols` and `rows`;
+  a row is `--cell-h`, 17 px at the default font only). Rows are keyed
+  DOM elements patched in place. No click listeners. On the phone and
+  the tablet the Group and Character views are these same panes in the
+  strip, and the lens is the same Map pane.
 - The map: WebGL2 on an OffscreenCanvas in a worker (ADR 0020).
   `src/map/render/characters.ts` draws the player and each group member
   as a quad tinted with a hue (`src/map/group.ts`, MMapper's golden
@@ -214,9 +221,16 @@ For the night run:
   (`popups/mapper-settings.tsx`, ADR 0118) is the nearest thing to an
   image picker. Dialogs: the look kit (`src/chrome/kit/look-overlay.tsx`).
   Pane popups: `src/panes/popup-menu.ts`.
-- The app's CSP has `img-src 'self' data:` and `connect-src 'self'`
-  (`scripts/csp.ts`). `blob:` image URLs are not allowed. There is no
-  service worker.
+- The app's CSP has `img-src 'self' data:` and `connect-src 'self'
+  wss://mume.org https://mume.org` (`scripts/csp.ts`, `public/_headers`).
+  `blob:` image URLs are not allowed. There is no service worker.
+- The hue of a group member is state, not a function: the map worker's
+  `GroupTable` hands out golden-angle hues in arrival order and reuses
+  released ones, and it gets Group events only while the Map pane is
+  shown. Nothing about the group flows from the worker to the main
+  thread, and the worker does not get `Char.Vitals`.
+- A pane is plain DOM and cannot open a dialog of the look kit (Preact)
+  today: `PaneContext` has no port for it.
 - The cloud: one Worker with D1 and R2 (`worker/`, `wrangler.jsonc`,
   spec §7). Sync items are encrypted, at most 1 MB each, 2 MB and 2 000
   items per account; the kinds are a closed list (`SYNC_KINDS`,
@@ -250,15 +264,26 @@ Which look a character gets, the first that applies:
   every fallback. The Character pane, the Group pane and the map all ask
   it; none of them has rules of its own.
 - An unknown sex is male, as today.
-- Bear form: with the automatic look the picture follows the race, so a
-  Beorning who changes shape gets the bear (whatever `portraitOf` gives
-  for it today; if there is no engraved bear, the library's `bear-m` or
-  `bear-f`). A chosen look does not change with the form.
+- Bear form: `raceKind` maps a bear to `beorning`, and there is no
+  engraved bear. The automatic look shows the Beorning drawing in both
+  forms, as today, and the directory stores `beorning`. The library's
+  bear pictures can be chosen like any other.
 - A missing or broken image falls back one row down, silently.
-- Replays and shared replays show no looks (as portraits today).
-- An own image that is chosen while logged in is not available logged
-  out: the look then falls to row 3 until the player logs in again. The
-  choice itself is kept.
+- **Where looks are drawn.** There are three kinds of replay:
+  1. the `__WC_REPLAY__` bundle (exported HTML, the share frame): no
+     looks. It has no network and inlines every import, so the resolver
+     is a stub there that never fetches `tokens.json` (as
+     `src/panes/portraits/index.ts` does with `IN_REPLAY`);
+  2. the in-app log player (`PaneContext.player`): no looks;
+  3. the dev feed through the live app (`/?fixture=…`, `/?replay`,
+     where `conn.state` has `replay: true`): looks are drawn, rows 1, 3,
+     4 and 5 only. The tests and the screenshots use this.
+  The directory is silent whenever `conn.replay` is true or
+  `apiAllowed()` is false (`src/cloud/config.ts`).
+- Logged out, the device's own `looks` apply; the account's are in the
+  account (§7.0 rule 7). An `own` reference whose image is missing (not
+  pulled yet, or removed on another device) falls to row 3 and is left
+  as it is.
 
 ### 2. The library
 
@@ -272,16 +297,18 @@ Which look a character gets, the first that applies:
 - **Permission** (decision 13): the repository has no licence file. The
   creator asked the owner on Discord to add the set, and the owner takes
   that message as the written permission. It covers use in WebCockpit.
-  Credit the set in About (the credits page of stage 47) and in
-  `THIRD_PARTY_NOTICES.md`, which says that these pictures are not under
-  the client's GPL and names the source and the creator's GitHub name.
+  Credit the set in About's CREDITS section
+  (`src/chrome/frames/about.tsx`) and in `THIRD_PARTY_NOTICES.md`, which
+  says that these pictures are not under the client's GPL and names the
+  source and the creator's GitHub name.
 - The downloaded files are untrusted data: keep them in a directory of
   their own in the scratchpad, and read them only with the image tool.
 - `scripts/tokens.ts` builds `public/tokens/` from a checkout of the set
   (ImageMagick is installed as `magick`; `cwebp` is not; `sharp` is not
   a dependency: add nothing heavy for a script that runs by hand):
   - `p/<id>.webp`, 256 px, for the portrait frame;
-  - `t/<id>.webp`, 96 px, for tokens and the picker's grid;
+  - `t/<id>.webp`, 128 px, for tokens (the atlas cell's size) and the
+    picker's grid;
   - `tokens.json`: id, label, group (`character`, `mount`, `mob`,
     `other`), race (a `RaceKind` or null), sex, tags, and for mounts and
     mobs the name words they match.
@@ -293,7 +320,12 @@ Which look a character gets, the first that applies:
   picker opens or when a look needs it. A picture loads when it is shown.
   Because of the CSP, pictures are `'self'` URLs or `data:`, never
   `blob:`.
-- Budget: `public/tokens/` under 3 MB, the manifest under 25 KB.
+- Budget: `public/tokens/` under 4 MB, the manifest under 25 KB.
+- Ids never change, so `/tokens/*` gets a long cache rule in
+  `public/_headers` (it is `max-age=0` by default).
+- No unit test may need ImageMagick, the network or a GPU: CI runs all
+  of vitest before a deploy. The manifest test reads the committed
+  files only.
 - Dwarves are the thin side (4 pictures). A new file is a new id.
 - A library token is a cut-out bust on transparency. In the portrait
   frame and in a token it sits on the backing the mockup uses (a
@@ -311,19 +343,30 @@ Which look a character gets, the first that applies:
   never leaves the browser. Formats: what the browser decodes; an
   animated file gives its first frame. A file that cannot be decoded
   gives a plain message in the dialog.
-- **One shelf of at most 50 images per account** (decision 14;
-  `lookImages` = 50 and `lookImageMaxBytes` = 30 720 in the account
-  limits, so the owner can change them per account and in general).
+- **One shelf of at most 50 images per account** (decision 14), as
+  account limits so the owner can change them per account and in
+  general: `lookImages` = 50, `lookImageMaxBytes`, `lookBytes`.
+- **The server's numbers are blob bytes, not WebP bytes.** A sync body
+  is canonical JSON, so the image travels as base64 inside it, and the
+  server sees only the encrypted blob. Give the `lookImage` kind
+  `compress: true` (the gzip path Comm uses), which should bring the
+  blob back to within a few percent of the WebP. Then: the client aims
+  at 30 720 bytes of WebP, `lookImageMaxBytes` = 32 768, `lookBytes` =
+  1 638 400. **Measure it** with a real 30 720-byte image through the
+  worker test. If the blob is larger than 32 768, drop the gzip and use
+  42 000 and 2 100 000, and write which it became in the ADR.
 - An image on the shelf can be the look of your own character or of any
   group member. A full shelf asks the player to remove an image first.
   Removing an image that is in use puts those characters back on
   automatic, after the dialog has said how many use it.
-- Worst case 50 × 30 KB = 1.5 MB. That would eat the account's 2 MB for
-  small items, so own images get **a budget of their own** (`lookBytes`,
-  1.5 MB) and do not count against the 2 MB or the 2 000 items. The
+- Fifty images would eat the account's 2 MB for small items, so own
+  images get **a budget of their own** and do not count against the
+  2 MB or the 2 000 items. Usage is two counters on the account today
+  (`item_count`, `item_bytes`), checked in `write()` for every kind, so
+  this needs new counters and a D1 migration ("Build notes", N1). The
   server checks the count, the size of each and the budget (413
-  `too_many_items`, `item_too_large`, `storage_full`, as for other
-  items), and the client says which it was.
+  `too_many_items`, `item_too_large`, `storage_full`), and the client
+  says which it was.
 - **An own image is never shown to anyone else.** No moderation is
   needed. Others see row 3 of the table.
 - An own image is shown from a `data:` URL made from the decrypted bytes
@@ -336,26 +379,47 @@ both are added to `SYNC_KINDS`):
 
 | Kind | Items | Content |
 |---|---|---|
-| `lookImage` | one per own image | the WebP bytes and a label |
-| `looks` | one per account | `{ names: { [name]: { look: LookRef, at: number } } }` |
+| `lookImage` | one per own image | `{id, label, webp (base64), created}` |
+| `looks` | one per account | `{ names: { [name]: { look: LookRef, at: number, own?: true } } }` |
 
 - `looks` holds your own characters and the members you assigned, all by
-  character name (lower case). Merged per name, the newest `at` wins; a
-  reset to automatic is an entry too (so that it wins over an older
-  choice on another device). At most 500 names; the oldest member
-  assignments go first, your own characters never.
+  character name (lower case). `own` is set when the choice was made for
+  the character being played. Local key: the constant `looks`. Policy:
+  `merge` (as Comm), per name, the newest `at` wins; a reset to
+  automatic is an entry too (so that it wins over an older choice on
+  another device). At most 500 names. The prune must be the same on
+  every device, or two devices push at each other for ever: entries
+  without `own`, by `at` ascending and then by name, go first; `own`
+  entries never.
+- `lookImage`: the local key is a random image id; policy last writer.
+- A pulled `looks` or `lookImage` is applied at once, also during play
+  (as Comm is), so that a second device shows the change without a
+  visit to the start page.
+- Creating an account moves the device's `looks` in (`COPIED`,
+  `src/cloud/space/spaces.ts`). A login copies nothing.
 - Logged out, `looks` lives in the device's space (ADR 0150) with library
   and automatic looks only. The two spaces never mix (§7.0 rule 7).
 - The sync engine's rules hold (ADR 0146, 0151, 0152): follow how
   `timers` and `scriptData` were added in stage 62.
 - New settings, each added to the type, the defaults and `migrate.ts`:
   `character.shareLook` (on), `group.tokens` (on), `mapper.tokens` (on),
-  `mapper.tokenHp` (on).
+  `mapper.tokenHp` (on). **Do not bump `SETTINGS_VERSION`**: these are
+  additive fields, and a bump makes older clients refuse the synced
+  settings. (`group` is part of `ViewSnapshot`, so `group.tokens` lands
+  in run captures; harmless, replays draw no looks.)
 
 ### 5. The picker
 
 One dialog (the look kit's `Dialog`), opened by a click on the portrait in
-the Character pane or on a token in the Group pane.
+the Character pane or on a token in the Group pane. A pane cannot open
+one today: add `openLook?: (who: {name: string, self: boolean}) => void`
+to `PaneContext`, absent in the player and in tests (like `statsView`
+and `openInfo`), and give the focus back with `focusGame`.
+
+**Naming**: "look" is already the design kit's word in the code
+(`src/chrome/kit/look*.tsx`, `look-tokens.css`, `tests/e2e/look.ts`).
+Put the feature in `src/looks/`, with a CSS prefix of its own
+(`wc-lk-`), and name its e2e files `looks-*.spec.ts`.
 
 - Title `Look for <Name>`.
 - A preview column: the portrait in its frame, the token on a piece of
@@ -365,8 +429,9 @@ the Character pane or on a token in the Group pane.
   your own character, decision 20), **Library** (chips for people, sex,
   mounts, mobs, with counts; a search field), **My images** (the shelf
   as a scrolling grid, `n of 50`, Add image, the crop step, remove).
-- For your own character: the switch "Show my look to other WebCockpit
-  players", with the note that an own image is never sent.
+- For your own character: the switch "Show my look to other MUME
+  Cockpit players" (the owner: every text a player reads says MUME
+  Cockpit, the client's name in its UI, never WebCockpit), with the note that an own image is never sent.
 - For a member: "Reset to automatic", a line that says where the current
   look comes from (your choice, shared by the player, automatic from the
   player's race, unknown player, matched by name), and under the
@@ -406,56 +471,109 @@ picker, in every size.
   and on top; the others are small discs along the lower edge in group
   order, at most three, then a `+n` disc. A room without you shows its
   first member whole and the others the same way. Sizes as the mockup.
+- **Who owns what.** The main thread owns the hues and the looks: one
+  `GroupTable` in `GameState` (`src/gmcp/state.ts`), fed every
+  `Group.*`, so that the Group pane has hues with the map hidden too. A
+  new message to the worker, sent only on change (a new `t`, never a
+  changed field: `src/map/protocol.ts`):
+  `{t:'tokens', on, hp, self:{look, hp}, members:[{id, color, look, hp}], colors}`.
+  `hp` is a fraction or null. `colors` are Group's HP colours resolved
+  for the theme (`groupVitals`, `vitalColor`, `signalColors` in
+  `group-model.ts`; the base colour is a setting, not a fixed green).
+  The worker uses the given colour for a member id when it has one, and
+  its own table otherwise, so that tokens off draws exactly what it
+  drew before.
 - **Renderer** (your call in the details; these are the rules): one
-  atlas texture (1024×1024 with 128 px cells gives 64 looks, the least
-  recently used leaves). All tokens of a frame are drawn in one draw
-  call; the circle, the ring, the outline and the arc are made in the
-  fragment shader, with edges smoothed by the pixel's size so that they
-  hold at every zoom and device scale. Images are decoded in the worker
-  with `createImageBitmap`; the main thread sends library URLs or the
-  bytes of an own image, and never anything per frame. Engraved drawings
-  are baked once on the main thread (they need the DOM) and sent as
-  bitmaps. The atlas has mipmaps or the draw picks a fitting size: a
-  256 px picture shown at 20 px must not shimmer when the map moves.
-- **Cost rule** (intent Goal 1, spec §1.3): with tokens on, a map frame
-  has at most one more draw call than today and allocates nothing per
-  frame. Add a token scene (you and eight members, five in one room) to
-  the map bench, run it before and after, and write both numbers in the
-  ADR. The existing benches must not move beyond their noise.
+  token texture, either an atlas (1024×1024 with 128 px cells) or, as
+  the tiles already are, a `TEXTURE_2D_ARRAY` of 64 layers of 128 px
+  with mipmaps, which avoids bleeding between cells. The least recently
+  used look leaves. All tokens of a frame are drawn in one instanced
+  draw call (`drawArraysInstanced` is already used); the circle, the
+  ring, the outline and the arc are made in the fragment shader, with
+  edges smoothed by the pixel's size so that they hold at every zoom
+  and device scale. A 256 px picture shown at 20 px must not shimmer
+  when the map moves. The `+n` disc needs glyphs: the names' font batch
+  or cells drawn once.
+- **Getting pictures to the worker.** Library tokens: the worker
+  fetches `${BASE_URL}tokens/t/<id>.webp` itself (outside the map's
+  asset root; `connect-src 'self'` allows it) and decodes with
+  `createImageBitmap`. Own images: the bytes, sent once. Engraved
+  drawings need the DOM: bake once per (id, sex) at 128 px on the main
+  thread, off the game path and one at a time (each bake runs SVG
+  filters), and send `createImageBitmap(canvas)` as a transferable.
+  Never `fetch` a `data:` URL in the worker (`src/map/assets.ts` says
+  why). Nothing is sent per frame.
+- **Context loss**: `webglcontextrestored` builds a new renderer. The
+  worker keeps the decoded sources or asks the main thread for them
+  again.
+- An unlocated player keeps today's far marker. The 20 px rule is
+  `pxPerRoom(zoom, view.layer) >= 20`.
+- **Cost rule** (intent Goal 1, spec §1.3): frames are drawn on demand
+  and the scene's geometry is rebuilt when the scene or the view
+  changes. With tokens on: at most one more draw call than today, and
+  no allocation on a frame whose scene and view are unchanged. Prove
+  the draw count in a unit test with a wrapped GL. Add a token scene
+  (you and eight members, five in one room) to the `map` section of
+  `bench/browser-bench.ts` (its feed is generated by
+  `tests/fixtures/map-demo.gen.ts`), run it before and after, and write
+  both numbers in the ADR with the laptop's power state
+  (`cat /sys/class/power_supply/BAT*/status`): never compare a run on
+  battery with one on mains (CLAUDE.md). The existing benches must not
+  move beyond their noise.
+- **Tokens off is today's map.** No e2e stores a baseline picture, so:
+  before part B, on the commit before it, save reference PNGs of fixed
+  `debugScene` scenes with members into the scratchpad
+  (`WC_MAP_SHOT_DIR`, `tests/e2e/map-render.spec.ts`); after B, compare
+  them with tokens off. Add a unit test that `buildScene` gives the
+  same geometry with tokens off (`tests/unit/map-render.test.ts`).
 - The phone lens follows the same pixel rule.
 
 ### 8. The Group pane
 
 - With `group.tokens` on, the token takes the marker icon's place at the
   start of a row, round, with the R3 ring in the member's hue. The hue
-  is the map's: one source for both (move or share `src/map/group.ts`'s
-  hue so that the pane and the worker cannot disagree).
+  comes from the `GroupTable` in `GameState` (§7), the same the map is
+  sent.
 - **Rows follow the pane's height** (decisions 11, 17, 18, 24). Every
-  row has the same height `h` = the pane's free height shared between
+  row has the same height `h`: the pane's free height shared between
   the members, held to the steps below. What is left over stays empty at
-  the bottom. The fight card and the overflow row keep their heights and
-  are taken off first. The text keeps the terminal's font size.
+  the bottom. The text keeps the terminal's font size.
+- **The steps are in cells, not in fixed pixels.** The pane's free
+  height is `rows × cell.h` (`ctx.cells.get().h`). The mockup's numbers
+  are for a 17 px cell; with a larger font every step grows with it, or
+  text would be cut. With `c` = the cell's height:
 
-  | Row height | Layout | Token |
-  |---|---|---|
-  | under 17 px a member | one-line rows of 17 px, then `↓ n more` (today's rule) | 13 px |
-  | 17–33 px | one line, growing: name, icons, mini bars | `h` − 4 px |
-  | 34–55 px | two lines: the name line, then the three bars side by side (today's two-line row), the bars 5 → 8 px thick | `h` − 8 px |
-  | 56–76 px | the name line, then HP, mana and moves as three full lines with `value/max` to the right; a member with no mana has two lines | `h` − 8 px |
-  | above 76 px | the row stops at 76 px | 68 px |
+  | Row height `h` | At 17 px | Layout | Token |
+  |---|---|---|---|
+  | members do not fit at `c` each | | one-line rows of `c`, then `↓ n more` (today's rule) | `c` − 4 px |
+  | `c` ≤ h < 2`c` | 17–33 px | one line, growing: name, icons, mini bars | `h` − 4 px |
+  | 2`c` ≤ h < 3.3`c` | 34–55 px | two lines: the name line, then the three bars side by side (today's two-line row), the bars growing from 5 to 8 px | `h` − 8 px |
+  | 3.3`c` ≤ h ≤ 4.5`c` | 56–76 px | the name line, then HP, mana and moves as three full lines with `value/max` to the right; a member with no mana has two lines | `h` − 8 px, at most 68 px |
+  | above 4.5`c` | | the row stops at 4.5`c` | 68 px |
 
-  The mockup switches to three lines at 52 px, which was tight; 56 px is
-  the number. A bar whose `max` is unknown shows no numbers.
-- Heights are in CSS px from the pane's content box, not in whole
-  terminal rows: the rows no longer sit on the cell grid, the frame and
-  the text size still do. This replaces `groupLayout`'s two fixed
-  layouts. Write an addendum to ADR 0122. With `group.tokens` off the
-  rows scale the same way, with the marker icon at its normal size.
+  Only the token's cap of 68 px is absolute (decision 18). The pure
+  function is `groupRows(n, fight, heightPx, cellH)`.
+- **The fight card and the overflow row**: take the card (4 cells) off
+  the height first. If the rows then get less than 2 cells each, use the
+  strip (1 cell) instead and compute again. The overflow row is 1 cell.
+  The phone's own fight card (`src/phone/fight-card.ts`) is not touched.
+- **Numbers**: players carry numbers, NPCs only band words, and a
+  word-only update can clear `value` while `max` stays. Show `value/max`
+  only when both are known; otherwise the band word in the same place,
+  so that the row's width does not change.
+- **The HP arc and the bar agree**: use `vitalPct`
+  (`src/gmcp/group.ts`). The arc is drawn when `pct !== null && pct <
+  1`; an estimate from a band word counts as known, as for the bar.
+- The rows no longer sit on the cell grid; the frame and the text size
+  still do. This replaces `groupLayout`'s two fixed layouts. Write an
+  addendum to ADR 0122. With `group.tokens` off the rows scale the same
+  way, with the marker icon at its normal size.
 - No layout shift while playing: a row's height changes only when the
   member count or the pane's size changes, never with a vitals update.
 - A click on a token opens the picker for that member. The token is a
   button (focusable, with a label). The row's tooltip stays. Nothing else
-  in a row becomes clickable.
+  in a row becomes clickable. Where the token is smaller than a finger
+  (one-line rows on the phone), the row's leading area is the target.
 - The NPC tag stays where two lines or more are shown (decision 19). No
   other mark replaces the marker icon.
 - NPC members match the library by name words (`tokens.json`): "a
@@ -473,42 +591,73 @@ The only part where something readable leaves the browser.
 look_dir(name PK,            -- lower case, as MUME writes it
          race, subrace, sex, -- kinds from src/gmcp/race.ts; 'male'|'female'|null
          token,              -- a library id or null
-         owner,              -- hash of the account id, or of the device id when logged out
+         owner,              -- a keyed hash of the account id, or of the look key when logged out
          updated)
 ```
 
-- **Report**: `PUT /api/look` `{name, race, subrace, sex, token}` with
-  the device id (as the heartbeat) and the session when logged in. Sent
-  when the character's name and race are known after login to the game,
-  and again when the race, the sex or the look changes (the sex may come
-  later, from the info poll). At most once per character and session
-  unless something changed. The token is sent only for a library look;
-  automatic and own images send `null`. Race and subrace are sent as
-  kinds, never as MUME's text.
+- **Two route families**, because the session cookie only travels to
+  `/api/u/*` and the client cannot read it:
+  - logged out: `PUT /api/look` and `DELETE /api/look`, body
+    `{key, name, race, subrace, sex, token}`, `credentials: 'omit'`,
+    `X-WC: 1`, same Origin (copy the view route in `worker/pub.ts`);
+  - logged in: `PUT /api/u/look` and `DELETE /api/u/look` through
+    `accountApi`, with no key in the body;
+  - `POST /api/look/find` `{names: [...]}` is anonymous,
+    `credentials: 'omit'`.
+- **The key is not the statistics' device id.** The heartbeat's id is
+  promised never to be tied to a character or an account
+  (`src/cloud/beat.ts`, the privacy text). Reports use a random id of
+  their own (`localStorage` `wc.lookKey`), made when first needed and
+  used for nothing else.
+- **The owner** of a row is `HMAC(AUTH_PEPPER, "wc-look|d|" + key)`
+  logged out and `HMAC(AUTH_PEPPER, "wc-look|a|" + account.id)` logged
+  in (`hmac`, `toB64url` in `worker/bytes.ts`; the pattern of
+  `worker/attempts.ts`). No pepper: 503. The first reporter owns a name.
+  Another owner's report is refused (409) while the row is fresher than
+  30 days, so a name cannot be taken over to show a wrong picture. A row
+  not refreshed for 180 days is removed by the daily Cron (`runCron`,
+  `worker/stats.ts`).
+- **Login takes the rows over without linking the two**: just before a
+  login the logged-out client sends `DELETE /api/look` with its key,
+  and after it the client reports through `/api/u/look`. Deleting an
+  account deletes its rows (`worker/deletion.ts`, `deletionBatch`).
+- **A 409 is remembered for the session** and not retried. It happens
+  to the second device of a logged-out player, whose switch then
+  removes nothing: the picker says "shared from another device or
+  account" there.
+- **Report** is sent when the character's name and race are known after
+  login to the game, and again when the race, the sex or the look
+  changes (the sex may come later, from the info poll). At most once
+  per character and session unless something changed. The token is
+  sent only for a library look; automatic and own images send `null`.
+  Race and subrace are sent as kinds, never as MUME's text.
 - **Everyone reports, accounts or not** (decision 12), unless
-  `character.shareLook` is off. Turning it off sends `DELETE /api/look`,
-  which removes the owner's rows. Never in dev, e2e or replays.
-- **Ask**: `POST /api/look/find` `{names: [...]}`, at most 40 names,
-  answers the rows it has. Sent when the group gets a name the client has
-  no fresh answer for, gathered for a moment so that a `Group.Set` is one
-  call. Answers are cached in memory and in `localStorage` for 24 hours,
-  a miss for 1 hour, at most 300 names. NPC members are never asked for.
-  The server keeps no log of who asked for whom, and the answer has no
-  `owner`.
-- **Whose row it is**: the first reporter owns a name. Another owner's
-  report is refused (409) while the row is fresher than 30 days, so a
-  name cannot be taken over to show a wrong picture. A player who logs
-  in to an account takes the device's rows over to the account. A row
-  not refreshed for 180 days is removed by the nightly Cron.
+  `character.shareLook` is off. Turning it off sends the `DELETE`,
+  which removes the owner's rows. Never in dev, e2e, replays or under
+  webdriver (`apiAllowed()`).
+- **Ask** is sent when the group gets a name the client has no fresh
+  answer for, gathered for a moment so that a `Group.Set` is one call,
+  at most 40 names. Answers are cached in memory and in `localStorage`
+  for 24 hours, a miss for 1 hour, at most 300 names. NPC members are
+  never asked for. The server keeps no log of who asked for whom, and
+  the answer has no `owner`.
 - **Validation**: the name is 2–20 letters; every other field is checked
   against the known kinds and the manifest's ids (the worker has the id
   list from the build). Free text is never stored, so the directory
   cannot carry a message or a link.
-- **Limits**: report 30 an hour per device and address, at most 20 names
-  per owner; find 60 a minute per address. In `/api/config` like the
-  others, with the rate limiting binding.
+- **Limits**: report, 30 an hour per owner and per hashed address, as
+  counters in the `attempt` table (`worker/attempts.ts`; the rate
+  limiting binding only knows 10 and 60 seconds); at most 20 names per
+  owner. Find, 60 a minute per address with a new binding
+  `LOOK_LIMITER` (namespace ids 5909 production, 5910 staging; also in
+  `worker/test/wrangler.jsonc`, `worker/env.d.ts`, `worker/runtime.ts`).
+  The numbers are constants in `shared/cloud/api.ts`, not in
+  `/api/config`.
 - **Admin**: the count of rows on `/admin`, and removal of a row by name
-  (audit log, ADR 0157).
+  (audit log, ADR 0157: log it as `look.remove` and add `look` to the
+  moderation pattern in `kindOf`, `worker/auditlog.ts`). Removal is the
+  only remedy when a stranger holds a name that was never reported;
+  say so in the ADR.
 - **Flag**: `FLAG_LOOKS` (§7.0 rule 5): on in staging, **off in
   production** until the owner opens it. Off: no report, no ask, and
   members follow rows 1, 4 and 5 of the table. Everything else in this
@@ -525,19 +674,32 @@ construction"):
   the war. A name is normally known only to those who met the character.
 - The service sees which names a client asks for, that is, who is in a
   group with whom, for the moment of the request. It is not stored.
+- A logged-in player's row is tied to the account by a hash that only
+  the service's secret can make. A logged-out player's row is tied to
+  the look key, not to the statistics' device id.
 - The owner approved this (decisions 3 and 12). `intent.md` has the goal
   (Goal 16) and the constraint's wording since 2026-11-26. The privacy
-  text (`/privacy`) and "What the site knows" in About say what is sent,
-  what is stored, for how long, and how to turn it off and remove it.
-  The switch is in the picker and in Settings.
+  text gets a section of its own, shown with the flag
+  (`src/chrome/frames/privacy-looks.ts`, beside `privacy-accounts.ts`;
+  bump `PRIVACY_UPDATED`), and "no character name is ever sent" in the
+  existing text is reworded to be true. It and "WHAT THE SITE KNOWS" in
+  About say what is sent, what is stored, for how long, and how to turn
+  it off and remove it. The switch is in the picker and in Settings.
 
 ### 10. Phone and tablet
 
 Decision 22: the basics are in, and the design is yours to propose.
 
-- The rules are the same everywhere: the resolver, the token in the
-  lens by the pixel rule, tokens in the phone's and the tablet's group
-  view, the HP arc.
+- The Group and Character views on the phone and the tablet are the
+  cockpit's own panes in the strip, and the lens is the same Map pane:
+  tokens, the arc and the scaling rows come with parts B and C. Of the
+  lens's four zoom levels only the closest (about 30 px a room) passes
+  the 20 px rule.
+- New on the phone: the picker page, the switches in
+  `src/phone/settings-page.tsx`, and a tap target for small tokens (§8).
+- There is no tablet e2e project: the projects are `firefox`,
+  `chromium` and `phone`, and the tablet tests are
+  `tests/e2e/phone-tablet*.spec.ts` in the phone project.
 - The picker on the phone is a page in the phone's look, not the desktop
   dialog made small: read how the phone's settings pages and the phone
   Character card are built (`src/phone/`, stages 51–56, ADR 0166's phone
@@ -650,7 +812,18 @@ are green.
 - The client: report, ask, the cache, the switch, the take-over at
   login.
 - The privacy text, "What the site knows", the spec §7 section.
-- Deploy to staging and `test:prod` there.
+- Deploy to staging:
+  1. `git push origin main` (the workflow builds the pushed branch);
+  2. `gh workflow run deploy.yml -f environment=staging -f action=deploy`,
+     then `gh run watch <id> --exit-status`. CI runs the typecheck, all
+     of vitest with the worker tests, the build and the smoke test
+     first; a slow worker test stopped a deploy once (stage 66);
+  3. `WC_PROD_URL=https://staging.mumecockpit.com npm run test:prod`.
+     It runs under webdriver, where the client makes no API call, so it
+     proves the site and not the looks;
+  4. check the three routes on staging with `curl` (report, find,
+     delete, a refused takeover), with a made-up name that is removed
+     again. The owner's own two-browser test is in the test guide.
 
 Done when: worker tests for every route, the owner rule (first owner,
 refusal, the 30 days, the take-over), validation of every field,
@@ -660,21 +833,26 @@ and library token, and sees the neutral silhouette for a third name;
 with the flag off no call is made (a test checks the requests); with
 `shareLook` off nothing is reported and the rows are removed; nothing
 is awaited in the game path; staging is deployed with the migration
-applied and `test:prod` is green there; production's flag is off in
-`wrangler.jsonc`.
+applied, `test:prod` is green there and the `curl` checks passed;
+production's flag is off in `wrangler.jsonc`. The two-character e2e
+drives a live connection without MUME (`tests/e2e/mume-login-mock.ts`)
+against the local worker; a fixture replay must never report.
 
 ### F. Phone and tablet
 
-§10. Done when: tokens show in the lens and in the phone's and tablet's
-group views; the picker page works by touch in the phone and tablet e2e
-projects; the screenshots are in the test guide; the existing phone and
-tablet e2e are green.
+§10. Done when: tokens show in the lens at its closest level and in the
+phone's and tablet's group views; the picker page works by touch in the
+phone project, with a tablet test beside the other tablet tests; the
+screenshots are in the test guide; the existing phone and tablet e2e are
+green.
 
 ### At the end
 
 - The full unit, e2e (5 workers, alone), worker and `test:prod` runs,
   and `npm run typecheck`, all green; the benches run and compared.
-- `npm run build:site` passes (it has the checks and the smoke test).
+- `npm run build:site -- --target staging` passes (it has the checks
+  and the smoke test). A plain `build:site` refuses, rightly: 0.23.2 is
+  live with another commit, and the version is not bumped tonight.
 - A last look at the real client against the mockup, on desktop, phone
   and tablet sizes, in Chromium and in Firefox.
 - The documents below, the test guide, the log.
@@ -692,11 +870,111 @@ tablet e2e are green.
   and a short section for looks and tokens where the panes are specified.
 - **`intent.md`**: Goal 16 and the constraint's sentence are already in
   (2026-11-26). Do not change the intent further.
-- **The privacy text and About**, the manual or help pages that describe
-  the Character, Group and Map panes, and `README.md` only if a sentence
-  there became wrong (the pictures in it are the owner's to renew).
-- **`THIRD_PARTY_NOTICES.md`** and the credits page.
+- **The privacy text and About** (`src/chrome/frames/privacy-text.ts`,
+  `privacy-looks.ts`, `about.tsx`: "WHAT IS INSIDE" for the panes,
+  "WHAT THE SITE KNOWS", "CREDITS"). There are no help pages for the
+  panes. Tests read these texts (`tests/unit/about-leaf.test.tsx`,
+  `chrome-frames.test.tsx`, `public-text.test.ts`,
+  `tests/e2e/about.spec.ts`, `phone-credits-about.spec.ts`).
+  `README.md` only if a sentence there became wrong (its pictures are
+  the owner's to renew).
+- **`THIRD_PARTY_NOTICES.md`**.
 - **`progress.md`**: the stage table and the session log.
+
+## Test material
+
+There is no test server with a group. The tests drive the panes like
+this:
+
+- **Panes**: the dev feed through the live app,
+  `/?fixture=gmcp-demo.log&speed=0`, plus
+  `window.__wc.app.bus.emit('gmcp', …)` (the `emit()` helper in
+  `tests/e2e/group-pane.spec.ts`; `tests/e2e/map-render.spec.ts` for the
+  map and `debugScene`). Looks are drawn here (§1, kind 3).
+- **A live connection without MUME**: `tests/e2e/mume-login-mock.ts`
+  (e2e) and `scripts/lib/mume-feed.ts` (screenshots).
+- **The bench**: `bench/ws-server.ts`.
+- **The local worker and two contexts**: `scripts/dev-cloud.ts`,
+  `playwright.sync-worker.config.ts` (add `looks` to `WC_DEV_FLAGS`),
+  the helpers in `tests/e2e/sync-pages.ts` (`syncNow`, `logIn`,
+  `getIdb`). The second Playwright project shares the first one's local
+  D1: character names in the looks e2e are unique per project and
+  letters only, and each context gets its own `CF-Connecting-IP` (as
+  `tests/e2e-worker/sync-worker.spec.ts` does).
+- **A stubbed API in the normal e2e**: `?cloudtest` and `page.route`
+  (`tests/e2e/cloud-stats.spec.ts`).
+
+## Build notes (from a review against the code, 2026-11-26)
+
+Read-only findings of a review of this spec. They were not run; check
+each against the code as you reach it.
+
+**N1. What two new sync kinds touch** (part D; follow how stage 62
+added `timers`):
+
+- Worker and contract: migration `worker/migrations/0009_looks.sql`
+  (additive, as spec §7.11 asks: `look_count` and `look_bytes` on
+  `account`, and `look_dir` for part E, so that staging gets one
+  migration); `worker/sync.ts` (`put` caps the body by kind, `write()`
+  picks the counters and limits by kind, `UsageRow` and its SELECTs);
+  `worker/accounts.ts` `usageOf`; `AccountUsage`, `SyncUsage`,
+  `AccountLimits`, `DEFAULT_ACCOUNT_LIMITS`, `SYNC_KINDS` and
+  `SYNC_KINDS_OPEN` in `shared/cloud/api.ts`; `worker/limits.ts`
+  `BYTE_LIMITS`; `worker/admin/limits.ts` labels; `worker/panel.ts`.
+- Client: `src/cloud/config.ts` (the new limit keys go in an optional
+  list like `COMMUNITY_LIMIT_KEYS`, never in `LIMIT_KEYS`);
+  `src/cloud/sync/types.ts` `ItemRecords`; `src/cloud/sync/items.ts`
+  (two `KindSpec`s, `ITEM_SPECS`, `SYNC_SPECS` with `lookImage` before
+  `looks`); `src/cloud/space/local.ts` (list, put and remove for both:
+  an adapter that lists none of a kind makes the engine delete every
+  pulled item of it); `src/core/db.ts` (`DB_VERSION` 11 with stores
+  `looks` and `lookImages`; never edit an old upgrade step);
+  `src/cloud/space/notify.ts` `WRITTEN_KINDS`; `unsynced-words.ts`;
+  `spaces.ts` `COPIED` and `LOCKING_SPECS`; `runtime.ts` `inUse`.
+- Tests and fakes that list the kinds: `tests/unit/cloud-sync-model.ts`,
+  `cloud-sync-items.test.ts`, `cloud-space-kinds.test.ts`,
+  `cloud-contract.test.ts`, `admin-page-accounts.test.ts`,
+  `map-db.test.ts`, `spaces.test.ts`; `worker/test/sync.test.ts`;
+  `tests/e2e/cloud-account-fake.ts`; `scripts/lib/cloud-fakes.ts`.
+- The 4 MB page of `changes` is no problem: a full pull becomes two
+  answers.
+
+**N2. What the flag `looks` touches**: `FlagName` and `FLAG_NAMES`
+(`shared/cloud/api.ts`); `flagDefault` (`worker/flags.ts`);
+`worker/runtime.ts` `Env`; `worker/env.d.ts`; `wrangler.jsonc`
+(`"FLAG_LOOKS": false` at the top level, `true` under `env.staging`);
+`worker/test/wrangler.jsonc`; `WC_DEV_FLAGS`; the tests that list
+flags (`worker/test/admin.test.ts`, `worker/test/helpers.ts`,
+`tests/unit/admin-page-flags.test.ts`, `cloud-config.test.ts`).
+
+**N3. Tests that will break on purpose** (update them and say why):
+
+- Part A: `tests/unit/character-portrait.test.ts`, `pane-gear.test.tsx`,
+  `phone-settings.test.ts`, `settings.test.ts`,
+  `new-user-defaults.test.ts`; `tests/e2e/character-gear-fit.spec.ts`
+  (the gear popup must still fit with one more row).
+- Part C: `tests/unit/group-pane.test.ts`, `panes-gmcp.test.ts`,
+  `panes-rowdiff.test.ts`, `group-no-mana.test.ts`;
+  `tests/e2e/group-pane.spec.ts`, `gmcp-panes.spec.ts`.
+- Parts B, D, E: `tests/unit/panes-map.test.ts` and `map-worker.test.ts`
+  if the protocol or the scene types change; the lists in N1 and N2.
+
+**N4. Patterns to copy**: an anonymous route with a client id,
+`worker/pub.ts` (the view route) and the UUID check in
+`worker/stats.ts`; the Cron's pruning, `runCron` in `worker/stats.ts`
+with its test; admin routes in `worker/panel.ts`, `sealedBatch` in
+`worker/auditlog.ts`, the page code in `worker/admin/`, the harness
+`tests/unit/admin-page-harness.ts`. `magick` reads and writes WebP.
+The next ADR number is 0169.
+
+**N5. Old tabs**: a tab still on 0.23.2 treats the new kinds as newer
+and leaves them, and loses its stores when a new tab upgrades
+IndexedDB (both are existing, intended behaviour). An old client that
+rewrites the settings drops `character.shareLook`. Note it under
+"Decided in the night".
+
+**N6. A removal race**: one device removes an image while another
+assigns it. The resolver's silent fallback covers it.
 
 ## Tasks
 
@@ -715,6 +993,10 @@ Written by the night run for what was built. It must say: what to
 restart (the dev server on 5173), what to open, the steps for each part,
 how to test shared looks with two browsers on staging, the phone and
 tablet screenshots, and what feedback is wanted.
+
+## Release notes (draft)
+
+(the night run writes here)
 
 ## Decided in the night
 

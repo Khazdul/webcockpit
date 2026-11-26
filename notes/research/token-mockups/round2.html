@@ -438,7 +438,7 @@ h3.t-mh { margin: 26px 0 12px; }
 </defs></svg>
 
 <main class="page">
-  <span class="eyebrow">WebCockpit · Character tokens · runda 2</span>
+  <span class="eyebrow">MUME Cockpit · Character tokens · runda 2</span>
   <h1>Tunnare ringar och rader som växer</h1>
   <p class="lede">Runda 2 handlar om två saker. Ringarna runt token stack i ögonen, så här finns fyra tjocklekar att jämföra, och valet styr både Group-panelerna och kartan på sidan. Och raderna i Group-panelen följer nu panelens höjd, så att token blir större när det finns plats. Det du valde i runda 1 är inbyggt.</p>
   <div class="t-done">
@@ -545,8 +545,8 @@ wimpy 150: you flee below the arrow"><span class="b hp" style="height:18px"><i s
             </div>
           </div>
           <div class="pk-foot">
-            <div class="pk-share" id="pkShare"><button class="t-sw" role="switch" aria-checked="true" id="swShare" aria-label="Show my look to other WebCockpit players"></button>
-              <div><b>Show my look to other WebCockpit players</b><span class="d" id="shareNote"></span></div></div>
+            <div class="pk-share" id="pkShare"><button class="t-sw" role="switch" aria-checked="true" id="swShare" aria-label="Show my look to other MUME Cockpit players"></button>
+              <div><b>Show my look to other MUME Cockpit players</b><span class="d" id="shareNote"></span></div></div>
             <div class="pk-btns"><span class="pk-said" id="pkSaid" role="status"></span><button class="pk-b" id="pkReset" hidden>Reset to automatic</button><button class="pk-b" id="pkCancel">Cancel</button><button class="pk-b go" id="pkUse">Use this look</button></div>
           </div>
         </div>
@@ -679,10 +679,10 @@ const hueC = (h) => `hsl(${h} 100% 50%)`;
 const ME = { n: 'Rasta', c: YOU, auto: { t: 'por', k: 'orc' }, autoTxt: 'Follows your race and sex (Tarkhnarb Orc, male)', hp: 69, ma: 84, mv: 80, pos: 'standing', sts: [], player: 1 };
 const MEMBERS = [
   { n: 'Glorfindel', c: hueC(198), auto: { t: 'lib', k: 'Elf-F-Noldor' }, autoTxt: 'Shared by Glorfindel: the library token Elf-F-Noldor', src: 'Delat av spelaren: bibliotekets Elf-F-Noldor', hp: 28, ma: 80, mv: 64, pos: 'standing', sts: ['wound'], player: 1 },
-  { n: 'Thorin', c: hueC(335), auto: { t: 'por', k: 'dwarf' }, autoTxt: 'Follows what Thorin shares (Dwarf, male)', src: 'WebCockpit-användare utan eget val: graverad dvärg, man, efter delad ras och kön', hp: 100, ma: 40, mv: 85, pos: 'standing', sts: ['sanct'], player: 1 },
-  { n: 'Eowyn', c: hueC(113), auto: { t: 'por', k: 'woman' }, autoTxt: 'Follows what Eowyn shares (Rohirrim, female)', src: 'WebCockpit-användare: graverad kvinna (Rohirrim), efter delad ras och kön', hp: 62, ma: 90, mv: 70, pos: 'riding', sts: [], player: 1 },
+  { n: 'Thorin', c: hueC(335), auto: { t: 'por', k: 'dwarf' }, autoTxt: 'Follows what Thorin shares (Dwarf, male)', src: 'MUME Cockpit-användare utan eget val: graverad dvärg, man, efter delad ras och kön', hp: 100, ma: 40, mv: 85, pos: 'standing', sts: ['sanct'], player: 1 },
+  { n: 'Eowyn', c: hueC(113), auto: { t: 'por', k: 'woman' }, autoTxt: 'Follows what Eowyn shares (Rohirrim, female)', src: 'MUME Cockpit-användare: graverad kvinna (Rohirrim), efter delad ras och kön', hp: 62, ma: 90, mv: 70, pos: 'riding', sts: [], player: 1 },
   { n: 'Bilbo', c: hueC(250), auto: { t: 'por', k: 'neutral' }, look: { t: 'lib', k: 'Hobbit-M-Warrior' }, autoTxt: 'Bilbo does not share a look: the neutral figure', src: 'Ditt eget val för namnet: bibliotekets Hobbit-M-Warrior', hp: 45, ma: 70, mv: 30, pos: 'resting', sts: [], player: 1, away: 'Bree-road' },
-  { n: 'Strider', c: hueC(28), auto: { t: 'por', k: 'neutral' }, autoTxt: 'Strider does not share a look: the neutral figure', src: 'Använder inte WebCockpit: neutral silhuett', hp: 90, ma: 55, mv: 95, pos: 'standing', sts: [], player: 1, away: 'Old East Road' },
+  { n: 'Strider', c: hueC(28), auto: { t: 'por', k: 'neutral' }, autoTxt: 'Strider does not share a look: the neutral figure', src: 'Använder inte MUME Cockpit: neutral silhuett', hp: 90, ma: 55, mv: 95, pos: 'standing', sts: [], player: 1, away: 'Old East Road' },
   { n: 'trained horse', c: hueC(165), auto: { t: 'lib', k: 'Mount-Trained-Horse' }, autoTxt: 'Matched by name: the library token Mount-Trained-Horse', src: 'NPC, matchad på namnet: bibliotekets Mount-Trained-Horse', hp: 100, ma: null, mv: 80, pos: 'standing', sts: [], player: 0 },
 ];
 const ALL = [ME, ...MEMBERS];

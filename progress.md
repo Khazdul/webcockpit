@@ -205,6 +205,9 @@ with no stage of their own. Remove a line when it is done.
   unattended night run (parts A–F, staging allowed, production and MUME
   login not), with the kickoff prompt at its end. `intent.md` has
   Goal 16.
+- The spec was reviewed against the code by a separate agent and its
+  findings are folded in (routes, limits in blob bytes, the hue's owner,
+  cell-based row steps, test material, build notes).
 - Next: the owner starts the night run with the kickoff prompt.
 - Nothing in `src/` changed. No release.
 
