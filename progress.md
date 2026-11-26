@@ -82,6 +82,7 @@
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's; the help text goes out with 0.23.0 | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Done (2026-11-25, the owner's closing test passed; ADR 0166 with addenda 1–47); released 0.23.0; open checks under Loose ends | `docs/stages/77-character-pane.md` |
 | 78 | The Character pane film | Built (round 3 is the film, 2026-11-26); the upload is the owner's | `docs/stages/78-character-film.md` |
+| 79 | Balloon smoothness | Building (the flight moves to the compositor) | `docs/stages/79-balloon-smoothness.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
