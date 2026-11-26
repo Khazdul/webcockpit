@@ -1009,7 +1009,8 @@ assigns it. The resolver's silent fallback covers it.
 ## Tasks
 
 - [x] Brainstorm, mockup rounds 1 and 2, the owner's decisions 1–24.
-- [ ] A. The library, the look model, the picker, the Character pane
+- [x] A. The library, the look model, the picker, the Character pane
+  (2026-11-27 night: `f17cbcec`…`c518830f`; unit 6283, full e2e 2150 passed)
 - [ ] B. Map tokens
 - [ ] C. Group tokens and the scaling rows
 - [ ] D. Own images
