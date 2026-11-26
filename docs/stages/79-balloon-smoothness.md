@@ -129,3 +129,24 @@ and they move most at exactly those two moments: the sign's kick as the
 balloon stops, the swing as it leaves); the move from the front layer to
 the sky layer at the start of the leave (the rig is rasterised again).
 
+**Same day, on battery (the owner unplugged it for this):** with the
+flight on the compositor one balloon costs the main thread almost
+nothing (`phases.mjs`, headed Firefox, five flights: no long frame during
+the rise, the read or the leave), except one: **a 33 ms frame at the very
+frame the balloon changes layer** (front → sky, a reparent), in five
+flights of five. That is the second of the two moments the owner named.
+`layer.mjs` does only that change during the read: the reparent gives a
+34 ms frame (5 of 6); the same change of paint order by `z-index` (the
+cockpit `isolation: isolate`, the back canvas at −2, the balloon's layer
+from auto to −1) gives none (3 of 3), and the balloon is drawn. Round 2
+builds the layer change that way.
+
+## Round 2: the layer change without a reparent
+
+- [ ] Each balloon keeps its place in the tree for its whole flight; it
+      goes under the game text by a change of `z-index`, not by moving.
+- [ ] The paint order is the same as before in every phase (under every
+      pane, over the text while arriving and readable, under it after;
+      over the weather's back canvas always).
+- [ ] `phases.mjs` on battery: no long frame at the layer change.
+
