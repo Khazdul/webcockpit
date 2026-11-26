@@ -86,7 +86,28 @@ The look and the flight must not change: same path, same timings.
 
 ## Test guide (for the owner)
 
-To be written when built.
+Not merged: the build is on branch `stage-79-balloon-smoothness`, served
+at <http://localhost:5231/?replay> (a dev server of its own). The present
+code is at the owner's own server, <http://localhost:5173/?replay>.
+
+1. Open both in Firefox, side by side or one after the other, same
+   window size. In each: Settings → Weather effects on, Balloons on.
+2. Type `#weather balloon great`, and `#weather balloon burst`. Watch the
+   whole flight: the rise, the rest at the readable spot, the leave.
+3. Do it once on battery and once docked (the 4K screen).
+
+Wanted: is the branch smoother than the present code, the same, or
+worse; and, where it still jerks, whether it is the whole balloon that
+jerks or the parts inside it (the lean, the sign, the ropes, the flame).
+
+What the main session measured after the build (headed Firefox, on
+battery, a half-screen window at scale 2, four balloons): the main
+thread paints at 29 fps on the branch and on main alike (57 with the
+rigs hidden; Chromium 55 with the rigs). So on battery the parts inside
+still update at half rate; the branch can only have made the whole
+balloon's motion independent of that, which numbers from the page
+cannot show. If the parts are what jerks, the next step is the rig's
+cost in Firefox (the SVG is rasterised again each frame its parts move).
 
 ## Owner feedback
 

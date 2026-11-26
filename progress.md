@@ -82,7 +82,7 @@
 | 76 | The balloon film | Built (round 4 is the film); the upload is the owner's; the help text goes out with 0.23.0 | `docs/stages/76-balloon-film.md` |
 | 77 | The Character pane as a card | Done (2026-11-25, the owner's closing test passed; ADR 0166 with addenda 1–47); released 0.23.0; open checks under Loose ends | `docs/stages/77-character-pane.md` |
 | 78 | The Character pane film | Built (round 3 is the film, 2026-11-26); the upload is the owner's | `docs/stages/78-character-film.md` |
-| 79 | Balloon smoothness | Building (the flight moves to the compositor) | `docs/stages/79-balloon-smoothness.md` |
+| 79 | Balloon smoothness | Built on branch `stage-79-balloon-smoothness` (not merged); the owner's comparison is next | `docs/stages/79-balloon-smoothness.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
@@ -182,6 +182,22 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-26 — Stage 79: balloon smoothness (built on a branch, not merged)
+
+- **Done:** the owner's report (subtle jerks, Firefox, high resolution)
+  measured: the picture is sub-pixel smooth; on mains Firefox holds 60
+  fps fullscreen at scale 2 with four balloons; on battery it paints at
+  29–40. The flight moved to the compositor (one Web Animation per
+  balloon, keyframes 4 s ahead; ADR 0168) on `stage-79-balloon-smoothness`:
+  unit 6241 passed, balloons e2e 22 passed, a blocked main thread no
+  longer stops a balloon (`stall.mjs`).
+- **Next:** the owner compares the branch (port 5231) with main (stage
+  file, test guide); then merge, or first the rig's raster cost in Firefox.
+- **Open:** on battery the main thread still paints the rig's parts at 29
+  fps with four balloons, branch and main alike; whether Firefox with the
+  GPU runs the flight on its compositor is reasoned, not observed.
+- **Commits:** 6ac8bf64 (main); c7fdb158…11652c54 and this one (branch).
 
 ### 2026-11-26 — Stage 78: the Character pane film
 
