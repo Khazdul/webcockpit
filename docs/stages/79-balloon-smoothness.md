@@ -150,3 +150,17 @@ builds the layer change that way.
       over the weather's back canvas always).
 - [ ] `phases.mjs` on battery: no long frame at the layer change.
 
+**Round 2, built on branch `stage-79-round-2`, not merged (same day).**
+A layer per balloon, the layer change by `z-index` (the cockpit isolated
+only while balloons are loaded); unit 6243 passed, the balloon, weather,
+windows and layout e2e 48 per browser. The change of layer by itself now
+costs no frame, but the 33 ms frame at the glide's start is still there
+on battery in every flight: with the SVG filters off, or the rig hidden,
+it is gone, so it is the filtered rig rasterised again as the leave
+begins (the shrinking that starts there, or the parts starting to swing:
+not settled, the laptop went back on mains during that run). Not merged:
+no gain shown yet, and it changes one stacking order (a bar popup open
+during a pane drag is over the drag shield). The addendum to ADR 0168 and
+`variants.mjs` are on the branch. Next, on battery:
+`variants.mjs firefox control,still,control,still headed`.
+

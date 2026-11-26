@@ -194,8 +194,12 @@ with no stage of their own. Remove a line when it is done.
   longer stops a balloon (`stall.mjs`).
 - **Owner:** a considerable improvement; small jerks remain now and then
   (after it stops, as it starts to leave); acceptable. Merged to main.
-- **Next:** if wanted, the rig's raster cost in Firefox (the parts inside
-  on battery) and the layer change at the leave; a release.
+- **Round 2 (branch `stage-79-round-2`, not merged):** the layer change
+  without a reparent (a layer per balloon, `z-index`). On battery one 33
+  ms frame remains at the glide's start; it is the filtered rig rasterised
+  again there, not the layer change (stage file, end).
+- **Next:** on battery, tell the shrinking from the swinging
+  (`variants.mjs` on the branch); then the rig's raster in Firefox; a release.
 - **Open:** on battery the main thread still paints the rig's parts at 29
   fps with four balloons, branch and main alike; whether Firefox with the
   GPU runs the flight on its compositor is reasoned, not observed.
