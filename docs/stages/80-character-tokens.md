@@ -1030,7 +1030,39 @@ tablet screenshots, and what feedback is wanted.
 
 ## Decided in the night
 
-(the night run writes here)
+- A: The picker's CSS prefix is `wc-looks-`, not `wc-lk-`: `wc-lk-` is
+  already the look kit's own prefix (hundreds of classes), and the spec
+  wanted one of the feature's own (ADR 0169).
+- A: The library's "All" chip shows the whole library, mounts and mobs
+  too (125, as the mockup's); the grid is ordered Men, Elves, Dwarves,
+  Hobbits, Orcs, Trolls, the rest, mounts, mobs. The search matches the
+  start of a word of the id or a tag ("elf f noldor", "hors").
+- A: The four named pictures (Bladorfat, Newman, Sunny, Tarannon) are in
+  "Other" with no race or sex; Black Númenóreans and the two bears are
+  characters (race `numenorean`, `beorning`) and also show under "Other".
+- A: The manifest is fetched as `tokens.json?v=<release>`, and all of
+  `/tokens/*` is cached a year as immutable: a changed picture must get a
+  new id (ADR 0170).
+- A: DB_VERSION is 11 now, with the stores `looks` and `lookImages` (the
+  latter empty until part D), so staging and production get one upgrade.
+  A 0.23.2 tab loses its stores when a new tab upgrades (N5, intended).
+- A: The picker's map bit is the player's tileset preview scene (Shimrod
+  shows its summer one) with the token on it; the Group row is a static
+  two-line row with your current vitals.
+- A: The Character gear has the "Look…" row (every card size) and the
+  switch "Show my look to other MUME Cockpit players" too, so it is not
+  only inside the picker. Settings → panes and the phone's settings page
+  get theirs with parts E and F.
+- A: Keys in the picker: Tab and Shift+Tab walk everything in it, ← → move
+  between the tabs, the arrows walk the grid by its columns, ↓ or Enter
+  in the search goes into the grid, Enter or Space picks, Enter on the
+  picture already picked uses it, Esc cancels. No letter keys.
+- A: Without the pane's border, the name over the portrait stays the
+  pane's grip: only the frame below the name opens the picker there.
+- A: The phone has no picker yet (no `openLook` on the phone): the
+  portrait there has no click until part F.
+- A: The `info` line in bear form ("You are a male Bear.") sets the sex
+  whichever form GMCP reported last; nothing clears it.
 
 ## Owner feedback
 
