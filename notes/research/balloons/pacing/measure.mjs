@@ -19,7 +19,7 @@ await page.evaluate(() => {
   const tr = (window.__tr = []);
   const loop = (ts) => {
     const b = document.querySelector('.wc-balloon');
-    tr.push([ts, performance.now(), b ? b.style.transform : '']);
+    tr.push([ts, performance.now(), b ? b.style.transform || 'anim' : '']);
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -53,7 +53,7 @@ stats('14-end', seg(14, 999));
 const pos = up.map((f) => { const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(f[2]); return m ? [f[0], +m[1], +m[2]] : null; }).filter(Boolean);
 let dupl = 0;
 for (let i = 1; i < pos.length; i++) if (pos[i][1] === pos[i - 1][1] && pos[i][2] === pos[i - 1][2]) dupl++;
-console.log(`  frames whose written position equals the frame before: ${dupl} of ${pos.length}`);
+console.log(pos.length ? `  frames whose written position equals the frame before: ${dupl} of ${pos.length}` : '  no transform written per frame: the flight is an animation (stage 79)');
 if (errors.length) console.log('PAGE ERRORS', errors);
 { const per = []; for (let i = 1; i < up.length; i++) { const s = Math.floor((up[i][0] - t0) / 1000); per[s] = (per[s] ?? 0) + (up[i][0] - up[i - 1][0] > 20 ? Math.round((up[i][0] - up[i - 1][0]) / 16.67) - 1 : 0); } console.log('  PERSEC ' + per.map((v) => String(v ?? 0).padStart(2)).join(' ')); }
 
