@@ -164,3 +164,22 @@ during a pane drag is over the drag shield). The addendum to ADR 0168 and
 `variants.mjs` are on the branch. Next, on battery:
 `variants.mjs firefox control,still,control,still headed`.
 
+**Later the same day, on battery again** (`variants.mjs` on the round 2
+branch, headed Firefox, one balloon per flight). The long frame at the
+glide's start comes in about half the flights and no single cause
+removes it: the parts frozen 2 of 2 with it; no shrinking 0 of 2; no
+`rig-off` 1 of 2; no shrinking and no `rig-off` 1 of 1; unchanged 2 of 4.
+Only the filters off (or the rig hidden) removes it every time. Four
+balloons at once on battery (main-thread frames, the flight itself is the
+compositor's): 41.8 and 41.9 fps; filters off 50.0 and 50.5; the rig
+hidden 60.1. So the filters are about half of what the rig costs Firefox
+there, its plain SVG raster the other half. One balloon, the usual case,
+loses the main thread a frame at the launch (below the screen's edge) and
+sometimes one at the glide, nothing else.
+
+Where it stands: round 1 is merged and is the gain. Round 2 stays on its
+branch (no gain shown that the eye could have). Going further means
+making the rig itself cheap for Firefox to draw (its filtered layers as
+bitmaps made once, or a cheaper noise than `feTurbulence`): a stage of
+its own, with the look at stake. Not started; the owner's call.
+

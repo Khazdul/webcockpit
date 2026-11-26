@@ -198,8 +198,11 @@ with no stage of their own. Remove a line when it is done.
   without a reparent (a layer per balloon, `z-index`). On battery one 33
   ms frame remains at the glide's start; it is the filtered rig rasterised
   again there, not the layer change (stage file, end).
-- **Next:** on battery, tell the shrinking from the swinging
-  (`variants.mjs` on the branch); then the rig's raster in Firefox; a release.
+- **On battery again:** the long frame at the glide comes in about half
+  the flights whatever is switched off, except the filters; four balloons
+  42 fps, filters off 50, rig hidden 60 (main-thread frames).
+- **Next:** the owner's call: stop here (round 1 is the gain), or a stage
+  for a rig that is cheap for Firefox to draw; a release.
 - **Open:** on battery the main thread still paints the rig's parts at 29
   fps with four balloons, branch and main alike; whether Firefox with the
   GPU runs the flight on its compositor is reasoned, not observed.
