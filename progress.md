@@ -194,7 +194,8 @@ with no stage of their own. Remove a line when it is done.
   are replaced by fifteen JPEGs, all frames of the film takes
   (`film2-a`, `film2-b`, `character-tour`, `balloons-fountain`,
   `devices-phone`), so no game text is invented.
-- **Next:** the owner reads it on GitHub after the push.
+- **Next:** nothing; pushed, and the owner has read it on GitHub: looks
+  good.
 - **Open:** no fog, Lua editor or standalone HTML player picture (not
   in the film material). `scripts/screenshots.ts` still writes the old
   PNG set.
