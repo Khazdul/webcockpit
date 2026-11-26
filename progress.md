@@ -213,7 +213,11 @@ with no stage of their own. Remove a line when it is done.
   (`src/panes/portraits/bears.ts`, not wired; preview published); the
   wiring is in part A of the spec.
 - Next: the owner starts the night run with the kickoff prompt.
-- Nothing in `src/` changed. No release.
+- The owner approved the bears. In `src/` only the unwired
+  `portraits/bears.ts` is new. No release, nothing pushed (`main` is
+  ahead of origin; the night run pushes).
+- Commits: `b2110429`, `f2b2ce93`, `b810123a`, `880ca54f`, `3ea00134`,
+  `3d8f3159` and this one.
 
 ### 2026-11-26 — README: the Lua editor picture, the screenshot script
 

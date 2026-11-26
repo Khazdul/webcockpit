@@ -280,8 +280,8 @@ Which look a character gets, the first that applies:
     `bear` to the id union, to `PORTRAIT_GROUP` and to `CHUNKS` in
     `index.ts`, and type the export as a `PortraitSet`. The female in
     the module wears the heather band; `alternatives.cord` exists only
-    for the preview page: remove it when wiring, unless "Owner
-    feedback" says the owner chose it. Wiring them is
+    for the preview page: remove it when wiring (the owner approved
+    the heather band). Wiring them is
     part A: `raceKind` keeps giving `beorning` for a bear (the age
     factor, the balloon and the race line depend on it); the portrait's
     choice gets the form from the race word itself (`race` is "Bear").
@@ -1034,7 +1034,9 @@ tablet screenshots, and what feedback is wanted.
 
 ## Owner feedback
 
-(none yet)
+- 2026-11-26: the two bears are approved as drawn ("Kör på dessa"). The
+  female keeps the heather band: remove `alternatives.cord` when
+  wiring.
 
 ## The kickoff prompt
 
