@@ -1,7 +1,10 @@
 // A balloon's flight (stage 69, ADR 0159; round 2 of 2026-11-17): pure
-// functions of the layout, a seed and the time since the notice. No DOM;
-// balloons.ts samples `flightAt` once per frame and writes the result as a
-// transform and an opacity.
+// functions of the layout, a seed and the time since the notice. No DOM.
+// Since stage 79 (ADR 0168) balloons.ts hands the whole flight to the
+// browser's compositor as one Web Animation whose keyframes are `flightAt`
+// sampled every KEYFRAME_DT (`flightKeys`); each frame it samples
+// `flightAt` only for the parts inside (the lean, the swing, the phase).
+// Without Web Animations it writes the transform and the opacity per frame.
 //
 // It moves like a hot-air balloon (owner, round 2): never fast, and its
 // velocity is continuous over the whole flight: every phase hands the next
@@ -470,6 +473,94 @@ export function flightAt(p: FlightPlan, t: number): FlightFrame {
   // is the mockup's 1.2° at 1.6 rad/s, not the old plank's 2.5° at 2.1.)
   const swing = clamp(-(vx - vxBefore) * 0.05 + kick + 1.2 * Math.sin(t * 1.6 + p.sway.p2), -16, 16) - tilt * 0.6;
   return { phase, x: b.x + sw.x, y: b.y + sw.y, scale: b.s, opacity: b.o, tilt, swing, front: phase === 'arrive' || phase === 'read' };
+}
+
+// --------------------------------------------------------------- keyframes
+
+// The flight as keyframes for a compositor animation (stage 79, ADR 0168):
+// `flightAt` sampled every KEYFRAME_DT, linear between two samples. The
+// path's acceleration is small (the arrival brakes at some tens of px/s²,
+// the leave turns at A_MAX at most), so the chord is within a few
+// hundredths of a px of the curve (unit tested: under 0.1 px, the scaled
+// foot of the balloon included).
+
+/** The spacing of the flight's keyframes, s. */
+export const KEYFRAME_DT = 1 / 30;
+
+/** One keyframe: `flightAt` at `t`. x, y: the balloon's top centre, px. */
+export interface FlightKey {
+  t: number;
+  x: number;
+  y: number;
+  scale: number;
+  opacity: number;
+}
+
+export interface FlightKeys {
+  /** When the animation ends, s: the flight's end, or the end of a hurried fade. */
+  end: number;
+  /** Ascending in `t`, the first at 0, the last at `end`. */
+  keys: FlightKey[];
+}
+
+/** A fade out on top of the flight's own opacity (balloons.ts, too many up): from `at`, over `over` s; the flight ends with it. */
+export interface HurryFade {
+  at: number;
+  over: number;
+}
+
+/**
+ * The keyframes of a whole flight: every KEYFRAME_DT from 0 to its end,
+ * plus the moments where the opacity turns a corner. With `fade` the
+ * opacity also falls to nothing from `fade.at` and the keyframes end
+ * there. A changed plan (`extendRead`) or a fade gives the same values up
+ * to the time of the change, so an animation given the new keyframes at
+ * that time does not jump.
+ */
+export function flightKeys(p: FlightPlan, fade?: HurryFade | null): FlightKeys {
+  const total = flightTotal(p);
+  const end = fade ? Math.min(total, fade.at + fade.over) : total;
+  const want: number[] = [];
+  if (p.reduced) want.push(0, REDUCED_IN, total - REDUCED_OUT);
+  else for (let i = 0; i * KEYFRAME_DT < end; i++) want.push(i * KEYFRAME_DT);
+  if (fade) want.push(fade.at);
+  want.sort((a, b) => a - b);
+  const ts: number[] = [];
+  for (const t of want) if (t >= 0 && t < end - 1e-6 && (!ts.length || t - ts.at(-1)! > 1e-6)) ts.push(t);
+  ts.push(end);
+  const keys = ts.map((t): FlightKey => {
+    // the last sample is the flight's own last moment, not the 'done' frame after it
+    const f = flightAt(p, Math.min(t, total - 1e-9));
+    const out = !fade ? 1 : t >= fade.at + fade.over ? 0 : clamp(1 - (t - fade.at) / fade.over, 0, 1);
+    return { t, x: f.x, y: f.y, scale: f.scale, opacity: f.opacity * out };
+  });
+  return { end, keys };
+}
+
+/** The keyframes' value at `t`: linear between two, as the browser plays them (tests). */
+export function keysAt(k: FlightKeys, t: number): FlightKey {
+  const a = k.keys;
+  let lo = 0, hi = a.length - 1;
+  if (t <= a[0]!.t) return { ...a[0]!, t };
+  if (t >= a[hi]!.t) return { ...a[hi]!, t };
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1;
+    if (a[m]!.t <= t) lo = m;
+    else hi = m;
+  }
+  const p = a[lo]!, q = a[hi]!, u = (t - p.t) / (q.t - p.t);
+  return { t, x: lerp(p.x, q.x, u), y: lerp(p.y, q.y, u), scale: lerp(p.scale, q.scale, u), opacity: lerp(p.opacity, q.opacity, u) };
+}
+
+/**
+ * The wrapper's transform for a balloon `bw` wide with its top centre at
+ * (x, y) (origin top centre, balloons.css). The same shape in every
+ * keyframe, so the browser interpolates function by function; a
+ * thousandth of a px, and five decimals of scale (0.004 px at the
+ * balloon's foot).
+ */
+export function flightTransform(bw: number, f: { x: number; y: number; scale: number }): string {
+  return `translate3d(${(f.x - bw / 2).toFixed(3)}px, ${f.y.toFixed(3)}px, 0) scale(${f.scale.toFixed(5)})`;
 }
 
 // ------------------------------------------------------------------ burner

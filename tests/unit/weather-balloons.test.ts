@@ -8,9 +8,14 @@ import type { RunEvent } from '../../src/runs/events';
 import { KillRater } from '../../src/runs/kill-rating';
 import { ACHIEVEMENT_MAX, FACE_LABEL, type KillNotice, SAMPLE_BURST, bestFace, noticeOf, raterFor, signFor, signOf } from '../../src/weather/balloons/feed';
 import {
+  type FlightKeys,
   type FlightPlan,
   type LaneGeom,
   BURN_BLAST_IN,
+  KEYFRAME_DT,
+  flightKeys,
+  flightTransform,
+  keysAt,
   BURN_LEAD,
   BURN_MIN,
   BURN_STILL,
@@ -323,6 +328,116 @@ describe('flight', () => {
     expect(p.read0.x - (RIG_SIZE.w * p.scale) / 2).toBeGreaterThanOrEqual(8);
     expect(p.read0.x + (RIG_SIZE.w * p.scale) / 2).toBeLessThanOrEqual(692);
     expect(p.read0.y + RIG_SIZE.h * p.scale).toBeLessThanOrEqual(NARROW.protect.fadeTop);
+  });
+});
+
+describe('the flight as keyframes (stage 79, ADR 0168: the compositor plays them)', () => {
+  const plan = (seed: number, g = WIDE) => planFlight(seed, g, RIG_SIZE.w, RIG_SIZE.h);
+  /** The farthest any point of the balloon's box is from where `flightAt` puts it, px (the origin is the top centre). */
+  const off = (p: FlightPlan, k: FlightKeys, t: number): number => {
+    const a = keysAt(k, t), f = flightAt(p, t), ds = Math.abs(a.scale - f.scale);
+    return Math.max(Math.abs(a.x - f.x) + (p.bw / 2) * ds, Math.abs(a.y - f.y) + p.bh * ds);
+  };
+
+  it('every 1/30 s from the launch to the end, in order', () => {
+    const p = plan(3), k = flightKeys(p);
+    expect(k.end).toBe(flightTotal(p));
+    expect(k.keys[0]!.t).toBe(0);
+    expect(k.keys.at(-1)!.t).toBe(k.end);
+    for (let i = 1; i < k.keys.length; i++) {
+      const dt = k.keys[i]!.t - k.keys[i - 1]!.t;
+      expect(dt).toBeGreaterThan(1e-6);
+      expect(dt).toBeLessThanOrEqual(KEYFRAME_DT + 1e-9);
+    }
+    expect(k.keys.length).toBe(Math.ceil(k.end / KEYFRAME_DT) + 1);
+    for (const s of k.keys) for (const v of [s.x, s.y, s.scale, s.opacity]) expect(Number.isFinite(v)).toBe(true);
+  });
+
+  it('linear between two keyframes is within 0.1 px of the flight, for the whole balloon and the whole flight', () => {
+    let worst = 0, fade = 0;
+    for (const g of [WIDE, NARROW, PHONE]) {
+      for (let seed = 1; seed <= 60; seed++) {
+        const p = plan(seed, g);
+        if (seed % 3 === 0) extendRead(p, p.ta + 1);
+        const k = flightKeys(p), end = k.end - 1e-6;
+        // off the keyframes' grid: 7 moments in each gap
+        for (let t = 0; t < end; t += KEYFRAME_DT / 7.3) {
+          worst = Math.max(worst, off(p, k, t));
+          fade = Math.max(fade, Math.abs(keysAt(k, t).opacity - flightAt(p, t).opacity));
+        }
+      }
+    }
+    expect(worst).toBeLessThan(0.1);
+    expect(fade).toBeLessThan(0.005);
+  });
+
+  it('the same shape of transform in every keyframe (the browser interpolates function by function), to a thousandth of a px', () => {
+    const p = plan(9), k = flightKeys(p);
+    const shape = /^translate3d\(-?\d+\.\d{3}px, -?\d+\.\d{3}px, 0\) scale\(\d\.\d{5}\)$/;
+    for (const s of k.keys) expect(flightTransform(p.bw, s)).toMatch(shape);
+    // the balloon's left edge at scale 1, its top
+    expect(flightTransform(204, { x: 500, y: 300.25, scale: 0.5 })).toBe('translate3d(398.000px, 300.250px, 0) scale(0.50000)');
+  });
+
+  it('a joined kill changes nothing before now: the keyframes agree up to its time, so the animation does not jump', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const p = plan(seed);
+      // while it arrives, while it is readable, and in the blast's second
+      for (const t of [2.2, p.ta + 0.5, p.ta + p.read - 0.5]) {
+        const q = structuredClone(p);
+        const before = flightKeys(q);
+        expect(canJoin(q, t)).toBe(true);
+        extendRead(q, t);
+        const after = flightKeys(q);
+        expect(after.end).toBeCloseTo(before.end + (q.read - p.read), 9);
+        expect(flightTransform(q.bw, keysAt(after, t))).toBe(flightTransform(q.bw, keysAt(before, t)));
+        expect(keysAt(after, t).opacity).toBe(keysAt(before, t).opacity);
+        // and every keyframe up to now is the same one
+        const n = before.keys.findIndex((s) => s.t > t);
+        expect(after.keys.slice(0, n)).toEqual(before.keys.slice(0, n));
+        // after it the new plan's flight
+        expect(off(q, after, t + 6)).toBeLessThan(0.1);
+      }
+    }
+  });
+
+  it('a hurried fade: the same path, the opacity down to nothing over the fade, and the keyframes end there', () => {
+    for (const at of [1.3, 7.777, 20.01]) {
+      const p = plan(6), whole = flightKeys(p), k = flightKeys(p, { at, over: 1.5 });
+      expect(k.end).toBeCloseTo(at + 1.5, 9);
+      expect(k.keys.at(-1)!.t).toBe(k.end);
+      expect(k.keys.at(-1)!.opacity).toBe(0);
+      expect(k.keys.some((s) => s.t === at)).toBe(true);
+      // nothing changes at the moment it starts
+      // (to the chord: the fade adds a keyframe at its start, exactly on the path)
+      const a = keysAt(k, at), b = keysAt(whole, at);
+      expect(Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), p.bh * Math.abs(a.scale - b.scale))).toBeLessThan(0.02);
+      expect(a.opacity).toBeCloseTo(b.opacity, 4);
+      for (let t = 0; t < k.end; t += 0.0931) {
+        expect(off(p, k, t)).toBeLessThan(0.1);
+        const out = Math.min(1, Math.max(0, 1 - (t - at) / 1.5));
+        expect(keysAt(k, t).opacity).toBeCloseTo(flightAt(p, t).opacity * out, 2);
+      }
+    }
+    // a fade that would outlast the flight ends with the flight
+    const p = plan(6), tot = flightTotal(p);
+    expect(flightKeys(p, { at: tot - 0.5, over: 1.5 }).end).toBe(tot);
+  });
+
+  it('prefers-reduced-motion: four keyframes, one transform, the fade in and out', () => {
+    const p = planFlight(4, WIDE, RIG_SIZE.w, RIG_SIZE.h, { reduced: true });
+    const k = flightKeys(p), tot = flightTotal(p);
+    expect(k.keys.map((s) => s.t)).toEqual([0, 0.4, tot - 0.6, tot]);
+    expect(new Set(k.keys.map((s) => flightTransform(p.bw, s))).size).toBe(1);
+    expect(k.keys.map((s) => +s.opacity.toFixed(6))).toEqual([0, 1, 1, 0]);
+    for (let t = 0; t < tot; t += 0.05) expect(keysAt(k, t).opacity).toBeCloseTo(flightAt(p, t).opacity, 6);
+    // a joined kill: it stays longer, nothing else
+    const before = keysAt(k, 2);
+    extendRead(p, 2);
+    const after = keysAt(flightKeys(p), 2);
+    expect([after.x, after.y, after.scale]).toEqual([before.x, before.y, before.scale]);
+    expect(after.opacity).toBeCloseTo(before.opacity, 9);
+    expect(flightKeys(p).end).toBeCloseTo(tot + READ_EXTEND, 9);
   });
 });
 
