@@ -21,11 +21,13 @@
 //   0019, and the share frame) has no files beside it and asks for none;
 //   it shows no Character pane today, and carries no drawings either
 //   (portraits/index.ts).
+// - Bear form (stage 80): `race` "Bear" gives the id `bear`, drawn for the
+//   character's sex like the others.
 // - Dev server only: `?portrait=<id or race words>` shows that portrait
 //   whatever the race, and `?sex=female` (or `male`) that sex whatever the
 //   character's (to look at all of them; the stage's test guide).
 
-import { type RaceKind, SUBRACE_RACE, type SubraceKind, raceKind, subraceKind } from '../gmcp/race';
+import { type RaceKind, SUBRACE_RACE, type SubraceKind, raceKind, raceWords, subraceKind } from '../gmcp/race';
 import type { PortraitId, Sex } from './portraits/types';
 
 export type { PortraitId, Sex };
@@ -33,7 +35,7 @@ export type { PortraitId, Sex };
 /** The races' portraits (the fallbacks) in the mockup's order, each followed by its subraces', and the neutral figure. */
 const RACE_ORDER: readonly RaceKind[] = ['human', 'elf', 'halfelf', 'dwarf', 'hobbit', 'beorning', 'orc', 'troll', 'numenorean'];
 export const PORTRAIT_IDS: readonly PortraitId[] = [
-  ...RACE_ORDER.flatMap((r): PortraitId[] => [r, ...(Object.keys(SUBRACE_RACE) as SubraceKind[]).filter((s) => SUBRACE_RACE[s] === r)]),
+  ...RACE_ORDER.flatMap((r): PortraitId[] => [r, ...(Object.keys(SUBRACE_RACE) as SubraceKind[]).filter((s) => SUBRACE_RACE[s] === r), ...(r === 'beorning' ? (['bear'] as const) : [])]),
   'neutral',
 ];
 
@@ -69,8 +71,17 @@ export function portraitImage(id: PortraitId, sex: Sex = 'male', have: ReadonlyS
   return file === null ? null : `${base}portraits/${file}.webp`;
 }
 
+/**
+ * A Beorning in bear form (stage 80, ADR 0169): MUME sends `race` "Bear"
+ * and no subrace while the form lasts. The form is read from the race word
+ * alone; `raceKind` still says `beorning` (the age factor, the balloon and
+ * the race line depend on it).
+ */
+export const isBearForm = (race: string | null | undefined): boolean => raceWords(race).some((w) => w === 'bear' || w === 'bears');
+
 /** The portrait for a race and subrace, with no `?portrait=`. */
-function portraitFor(race: string | null | undefined, subrace?: string | null): PortraitId {
+export function portraitFor(race: string | null | undefined, subrace?: string | null): PortraitId {
+  if (isBearForm(race)) return 'bear';
   return subraceKind(race, subrace) ?? raceKind(race, subrace) ?? 'neutral';
 }
 
@@ -81,6 +92,9 @@ const FORCED: PortraitId | null = (() => {
   if (!p) return null;
   return isPortraitId(p) ? p : portraitFor(p);
 })();
+
+/** The dev server's `?portrait=` is in force (a chosen look is not shown then). */
+export const PORTRAIT_FORCED = FORCED !== null;
 
 /** The portrait for a race and subrace (either may be missing). */
 export function portraitOf(race: string | null | undefined, subrace?: string | null): PortraitId {

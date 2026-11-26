@@ -49,8 +49,9 @@ describe('portraitOf', () => {
       ['Half-elven', null, 'halfelf'],
       ['Elf', 'Half-Elf', 'halfelf'],
       ['Half-elf', 'Half-Elven', 'halfelf'],
-      ['Bear', null, 'beorning'],
-      ['Bears', '', 'beorning'],
+      // Bear form (stage 80): its own drawing; raceKind still says beorning.
+      ['Bear', null, 'bear'],
+      ['Bears', '', 'bear'],
       ['Man', 'Beorning', 'beorning'],
       ['Beorning', null, 'beorning'],
       ['Man', 'Dúnadan', 'dunadan'],
@@ -106,8 +107,9 @@ describe('the drawings', () => {
   const sizes = ['large', 'medium'] as const;
 
   it('one per id in a lazy chunk, both sexes and sizes, a standalone still SVG in the 200 square', async () => {
-    expect(PORTRAIT_IDS).toHaveLength(28);
-    expect(new Set(PORTRAIT_IDS).size).toBe(28);
+    // 28 peoples' ids and the bear (stage 80).
+    expect(PORTRAIT_IDS).toHaveLength(29);
+    expect(new Set(PORTRAIT_IDS).size).toBe(29);
     for (const sub of Object.keys(SUBRACE_RACE)) expect(isPortraitId(sub), sub).toBe(true);
     for (const id of PORTRAIT_IDS) {
       expect(PORTRAIT_GROUP[id], id).toBeDefined();
@@ -145,7 +147,7 @@ describe('the drawings', () => {
         seen.set(svg, `${id} ${sex}`);
       }
     }
-    expect(seen.size).toBe(55);
+    expect(seen.size).toBe(57);
   });
 
   it('the Medium drawing is its own, and the pixel buckets climb by about a quarter', async () => {

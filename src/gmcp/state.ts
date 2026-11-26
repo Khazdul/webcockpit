@@ -68,6 +68,7 @@ import { GroupModel } from './group';
 import type { InfoAnswer, PollAnswer } from './info-answer';
 import { InfoModel, SHIELDS_GMCP_KEY, parseShields } from './info-model';
 import { type InfoRead, TypedInfoReader } from './info-typed';
+import { raceKind } from './race';
 import { SEX_LINE_START, type Sex, SexMemory, parseSexLine } from './sex';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
@@ -311,7 +312,10 @@ export class GameState {
     const subrace = this.char.statusVars.get('subrace');
     const own = { race: typeof race === 'string' ? race : null, subrace: typeof subrace === 'string' ? subrace : null };
     if (own.race === null && own.subrace === null) return;
-    const sex = parseSexLine(text, own);
+    let sex = parseSexLine(text, own);
+    // A Beorning's `info` names the form it is in ("a male Bear.", stage 80):
+    // the same character and sex whichever form GMCP last reported.
+    if (sex === null && raceKind(own.race, own.subrace) === 'beorning') sex = parseSexLine(text, { race: 'Bear', subrace: 'Beorning' });
     if (sex !== null) this.applySex(sex);
   }
 

@@ -1,7 +1,7 @@
-// The bear's portraits: a Beorning who has changed shape (prepared, not
-// wired: nothing asks for the id `bear` yet; a later session decides when
-// the card shows it). The same engraving as the peoples' (notes/research/
-// portraits/style.md), on the same parts: head units, the eye line at y=0,
+// The bear's portraits: a Beorning who has changed shape (stage 80, ADR
+// 0169): the card shows the id `bear` while `Char.StatusVars` says the race
+// is "Bear" (src/panes/portrait.ts), by the character's sex. The same
+// engraving as the peoples' (notes/research/portraits/style.md), on the same parts: head units, the eye line at y=0,
 // light from the viewer's upper right, the ink pen for the coat and the
 // soft pen for the muzzle and the eyes.
 //
@@ -21,12 +21,12 @@
 // Medium (about 40 px, and the round tokens below that): the head sits lower
 // and smaller than at Large so that both ears stay inside the inscribed circle.
 
-import type { Draw } from './types';
+import type { Draw, PortraitSet } from './types';
 import { dark, hatch, light } from '../../art/engrave';
-import { type Ctx, INK, baseDefs, braid, ctx, lg, mass, mix, n, pen, shade, strands, svg, thick, wx } from './parts';
+import { type Ctx, INK, baseDefs, ctx, lg, mass, mix, n, pen, shade, strands, svg, thick, wx } from './parts';
 
-/** What the she-bear wears: the heather band, or the Beorning woman's own thong and amber bead with a braid in the ruff. */
-type Adorn = 'none' | 'heather' | 'cord';
+/** What the she-bear wears: the heather band (the owner chose it over a thong and bead, 2026-11-26). */
+type Adorn = 'none' | 'heather';
 
 /** One bear: everything a sex changes. */
 interface Spec {
@@ -215,22 +215,12 @@ const heather = (c: Ctx, s: Spec): string => {
   }
   return out;
 };
-/** The Beorning woman's own: her thong and amber bead (men.ts `face`), and a small braid in the ruff on the lit side. */
-const cord = (c: Ctx, s: Spec): string => {
-  const w = s.ruff, [x0, y0] = band(-1, w), [x1, y1] = band(1, w);
-  const d = `M${x0},${y0}Q0,${n(86 + 30)} ${x1},${y1}`;
-  return `<path d="${d}" fill="none" stroke="${INK}" stroke-width="3.6"/><path d="${d}" fill="none" stroke="#8a6a3a" stroke-width="2"/>` +
-    `<circle cx="0" cy="88" r="6.4" fill="#c98a2c" stroke-width="1"/><path d="M-1.5,84.5q3.5,-.6 4.6,2.4" fill="none" stroke="#f6dc9a" stroke-width="1.1" opacity=".9"/>` +
-    braid(c, n(60 * w), 40, 6, .95, [s.fur[0], mix(s.fur[1], s.fur[2], .6), s.sheen], '#b09048');
-};
-
 // ---- the whole bear ----
 const draw = (s: Spec): Draw => (o) => {
   const c = ctx(o), z = ZOOM[o.size];
   const big = (body: string, soft = false): string => pen(c, `<g transform="translate(0,${z.dy}) scale(${z.k})">${body}</g>`, soft);
   const body = big(back(c, s)) + big(ruff(c, s)) + (s.adorn === 'heather' ? big(heather(c, s), true) : '') +
-    big(ears(c, s)) + big(head(c, s)) + big(muzzle(c, s), true) + big(brows(c, s)) + big(eyesOf(c, s), true) +
-    (s.adorn === 'cord' ? big(cord(c, s)) : '');
+    big(ears(c, s)) + big(head(c, s)) + big(muzzle(c, s), true) + big(brows(c, s)) + big(eyesOf(c, s), true);
   return svg(c, defs(c, s), thick(body, 1 / z.k).replaceAll(c.url('p'), c.url('P')).replaceAll(c.url('q'), c.url('Q')));
 };
 
@@ -245,18 +235,7 @@ const SOW: Spec = {
 
 const pair = (m: Spec, f: Spec): Draw => { const dm = draw(m), df = draw(f); return (o) => (o.sex === 'female' ? df(o) : dm(o)); };
 
-/**
- * The module's drawings, in the peoples' shape (a `portraits` record of
- * `Draw` by id, both sexes behind one id). `bear` is no `PortraitId` yet
- * (types.ts: the ids come from src/gmcp/race.ts), so this is not a
- * `PortraitSet` and index.ts does not load it: wiring the bear's form adds
- * the id there.
- */
-export const portraits: Readonly<Record<'bear', Draw>> = {
+/** The bear's drawings (both sexes behind the one id), the form a Beorning takes (stage 80, ADR 0169). */
+export const portraits: PortraitSet = {
   bear: pair(BOAR, SOW),
-};
-
-/** The she-bear's other adornment, for the owner to choose from (notes/research/portraits/bears.html): not the module's drawing. */
-export const alternatives: Readonly<Record<'cord', Draw>> = {
-  cord: draw({ ...SOW, adorn: 'cord' }),
 };

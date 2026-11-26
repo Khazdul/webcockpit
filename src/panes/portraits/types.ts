@@ -9,8 +9,8 @@
 import type { RaceKind, SubraceKind } from '../../gmcp/race';
 import type { Sex } from '../../gmcp/sex';
 
-/** A portrait: a subrace's (`subraceKind`), a race's (`raceKind`), or the neutral figure. */
-export type PortraitId = SubraceKind | RaceKind | 'neutral';
+/** A portrait: a subrace's (`subraceKind`), a race's (`raceKind`), a Beorning's bear form (stage 80), or the neutral figure. */
+export type PortraitId = SubraceKind | RaceKind | 'bear' | 'neutral';
 
 /** The character's sex (src/gmcp/sex.ts). Not known yet: the card asks for `male` (ADR 0166 addendum 12). */
 export type { Sex };

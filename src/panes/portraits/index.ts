@@ -19,7 +19,7 @@ import type { Draw, PortraitId, PortraitSet, PortraitSize, Sex } from './types';
 
 export type { PortraitId, Sex, PortraitSize };
 
-type Group = 'men' | 'elves' | 'dwarves' | 'hobbits' | 'orcs' | 'trolls' | 'dark';
+type Group = 'men' | 'elves' | 'dwarves' | 'hobbits' | 'orcs' | 'trolls' | 'dark' | 'bears';
 
 /** The chunk each id's drawing lives in. */
 export const PORTRAIT_GROUP: Readonly<Record<PortraitId, Group>> = {
@@ -28,6 +28,7 @@ export const PORTRAIT_GROUP: Readonly<Record<PortraitId, Group>> = {
   eriadorian: 'men',
   rohirrim: 'men',
   beorning: 'men',
+  bear: 'bears',
   elf: 'elves',
   noldo: 'elves',
   sinda: 'elves',
@@ -65,6 +66,7 @@ const CHUNKS: Readonly<Record<Group, () => Promise<{ portraits: PortraitSet }>>>
   orcs: () => import('./orcs'),
   trolls: () => import('./trolls'),
   dark: () => import('./dark'),
+  bears: () => import('./bears'),
 };
 
 /** The drawing of `id` (its chunk loaded once; the module system caches it), or null when it has none. */
