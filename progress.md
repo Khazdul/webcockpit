@@ -205,6 +205,7 @@ with no stage of their own. Remove a line when it is done.
   unit 6241 passed, full e2e 2113 passed and 23 failed under load on
   battery, all 23 pass alone (two of them only against a fresh dev
   server: the owner's on 5173 still says 0.22.0), `build:site` 36/36.
+  `v0.23.2` = `f31e9a53`, deploy green, the live `release.json` says 0.23.2.
 - **Next:** nothing owed. If ever wanted: a rig that is cheap for Firefox
   to draw (a stage of its own); `stage-79-round-2` waits on that.
 - **Open:** on battery the main thread still paints the rig's parts at 29
