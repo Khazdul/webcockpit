@@ -86,9 +86,9 @@ The look and the flight must not change: same path, same timings.
 
 ## Test guide (for the owner)
 
-Not merged: the build is on branch `stage-79-balloon-smoothness`, served
-at <http://localhost:5231/?replay> (a dev server of its own). The present
-code is at the owner's own server, <http://localhost:5173/?replay>.
+(As it was for the comparison, before the merge: the build on branch
+`stage-79-balloon-smoothness` at port 5231, the code before it at the
+owner's own server, port 5173. Since the merge 5173 serves the build.)
 
 1. Open both in Firefox, side by side or one after the other, same
    window size. In each: Settings → Weather effects on, Balloons on.
