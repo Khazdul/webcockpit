@@ -1,0 +1,602 @@
+1790535600000000 GMCP Char.Name {"name":"Rasta","fullname":"Rasta Fari the Wanderer"}
+1790535600000000 Reconnecting.
+1790535600000000 GMCP Char.StatusVars {"name":"Rasta","fullname":"Rasta Fari the Wanderer","race":"Man","subrace":"Dunadan","subclass":"warrior","level":25}
+1790535600000000 GMCP Char.Vitals {"hp":140,"maxhp":140}
+1790535600000000 GMCP Group.Set [{"id":1,"type":"you","name":"Rasta","label":0,"mapid":10599315,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":2,"type":"ally","name":"Thorin","label":0,"mapid":10599315,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":3,"type":"ally","name":"Eowyn","label":0,"mapid":10599315,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":4,"type":"ally","name":"Glorfindel","label":0,"mapid":10599315,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":5,"type":"npc","name":"a trained horse","label":"HORSE","mapid":10599315,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":6,"type":"ally","name":"Bilbo","label":0,"mapid":8483210,"room":"Bazaar","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":7,"type":"ally","name":"Strider","label":0,"mapid":9545381,"room":"Old East Road","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":8,"type":"ally","name":"Faramir","label":0,"mapid":1963579,"room":"Brightly Lit Bakery","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"},{"id":9,"type":"ally","name":"Gimli","label":0,"mapid":17027001,"room":"Shielded Balcony","hp":140,"maxhp":140,"hp-string":"Healthy","mana":90,"maxmana":90,"mana-string":"Full","mp":110,"maxmp":110,"mp-string":"Rested"}]
+1790535600000000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535600000000 [32mOld East Road[0m
+1790535600000000 Exits: north, south, east, west.
+1790535600000000 
+1790535600000000 *=>
+1790535601000000 > n
+1790535601150000 GMCP Event.Moved {"dir":"north"}
+1790535601150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535601150000 [32mOld East Road[0m
+1790535601150000 Exits: north, south, east, west.
+1790535601150000 
+1790535601150000 *=>
+1790535601750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535601750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535601750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535601750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535601750000 GMCP Group.Update {"id":3,"hp":57}
+1790535601750000 > n
+1790535601900000 GMCP Event.Moved {"dir":"north"}
+1790535601900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535601900000 [32mOld East Road[0m
+1790535601900000 Exits: north, south, east.
+1790535601900000 
+1790535601900000 *=>
+1790535602500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535602500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535602500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535602500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535602500000 GMCP Group.Update {"id":6,"hp":94}
+1790535602500000 > n
+1790535602650000 GMCP Event.Moved {"dir":"north"}
+1790535602650000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535602650000 [32mSign of the Prancing Pony Inn[0m
+1790535602650000 Exits: north, south, east, west.
+1790535602650000 
+1790535602650000 *=>
+1790535603250000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535603250000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535603250000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535603250000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535603250000 GMCP Group.Update {"id":3,"hp":131}
+1790535603250000 GMCP Char.Vitals {"hp":109,"maxhp":140}
+1790535603250000 > s
+1790535603400000 GMCP Event.Moved {"dir":"south"}
+1790535603400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535603400000 [32mOld East Road[0m
+1790535603400000 Exits: north, south, east.
+1790535603400000 
+1790535603400000 *=>
+1790535604000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535604000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535604000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535604000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535604000000 GMCP Group.Update {"id":6,"hp":48}
+1790535604000000 > s
+1790535604150000 GMCP Event.Moved {"dir":"south"}
+1790535604150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535604150000 [32mOld East Road[0m
+1790535604150000 Exits: north, south, east, west.
+1790535604150000 
+1790535604150000 *=>
+1790535604750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535604750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535604750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535604750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535604750000 GMCP Group.Update {"id":3,"hp":85}
+1790535604750000 > s
+1790535604900000 GMCP Event.Moved {"dir":"south"}
+1790535604900000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535604900000 [32mOld East Road[0m
+1790535604900000 Exits: north, south, east, west.
+1790535604900000 
+1790535604900000 *=>
+1790535605500000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535605500000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535605500000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535605500000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535605500000 GMCP Group.Update {"id":6,"hp":122}
+1790535605500000 GMCP Char.Vitals {"hp":78,"maxhp":140}
+1790535605500000 > n
+1790535605650000 GMCP Event.Moved {"dir":"north"}
+1790535605650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535605650000 [32mOld East Road[0m
+1790535605650000 Exits: north, south, east, west.
+1790535605650000 
+1790535605650000 *=>
+1790535606250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535606250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535606250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535606250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535606250000 GMCP Group.Update {"id":3,"hp":39}
+1790535606250000 > n
+1790535606400000 GMCP Event.Moved {"dir":"north"}
+1790535606400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535606400000 [32mOld East Road[0m
+1790535606400000 Exits: north, south, east.
+1790535606400000 
+1790535606400000 *=>
+1790535607000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535607000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535607000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535607000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535607000000 GMCP Group.Update {"id":6,"hp":76}
+1790535607000000 > n
+1790535607150000 GMCP Event.Moved {"dir":"north"}
+1790535607150000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535607150000 [32mSign of the Prancing Pony Inn[0m
+1790535607150000 Exits: north, south, east, west.
+1790535607150000 
+1790535607150000 *=>
+1790535607750000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535607750000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535607750000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535607750000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535607750000 GMCP Group.Update {"id":3,"hp":113}
+1790535607750000 GMCP Char.Vitals {"hp":47,"maxhp":140}
+1790535607750000 > s
+1790535607900000 GMCP Event.Moved {"dir":"south"}
+1790535607900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535607900000 [32mOld East Road[0m
+1790535607900000 Exits: north, south, east.
+1790535607900000 
+1790535607900000 *=>
+1790535608500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535608500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535608500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535608500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535608500000 GMCP Group.Update {"id":6,"hp":30}
+1790535608500000 > s
+1790535608650000 GMCP Event.Moved {"dir":"south"}
+1790535608650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535608650000 [32mOld East Road[0m
+1790535608650000 Exits: north, south, east, west.
+1790535608650000 
+1790535608650000 *=>
+1790535609250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535609250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535609250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535609250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535609250000 GMCP Group.Update {"id":3,"hp":67}
+1790535609250000 > s
+1790535609400000 GMCP Event.Moved {"dir":"south"}
+1790535609400000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535609400000 [32mOld East Road[0m
+1790535609400000 Exits: north, south, east, west.
+1790535609400000 
+1790535609400000 *=>
+1790535610000000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535610000000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535610000000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535610000000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535610000000 GMCP Group.Update {"id":6,"hp":104}
+1790535610000000 GMCP Char.Vitals {"hp":116,"maxhp":140}
+1790535610000000 > n
+1790535610150000 GMCP Event.Moved {"dir":"north"}
+1790535610150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535610150000 [32mOld East Road[0m
+1790535610150000 Exits: north, south, east, west.
+1790535610150000 
+1790535610150000 *=>
+1790535610750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535610750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535610750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535610750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535610750000 GMCP Group.Update {"id":3,"hp":21}
+1790535610750000 > n
+1790535610900000 GMCP Event.Moved {"dir":"north"}
+1790535610900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535610900000 [32mOld East Road[0m
+1790535610900000 Exits: north, south, east.
+1790535610900000 
+1790535610900000 *=>
+1790535611500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535611500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535611500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535611500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535611500000 GMCP Group.Update {"id":6,"hp":58}
+1790535611500000 > n
+1790535611650000 GMCP Event.Moved {"dir":"north"}
+1790535611650000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535611650000 [32mSign of the Prancing Pony Inn[0m
+1790535611650000 Exits: north, south, east, west.
+1790535611650000 
+1790535611650000 *=>
+1790535612250000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535612250000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535612250000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535612250000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535612250000 GMCP Group.Update {"id":3,"hp":95}
+1790535612250000 GMCP Char.Vitals {"hp":85,"maxhp":140}
+1790535612250000 > s
+1790535612400000 GMCP Event.Moved {"dir":"south"}
+1790535612400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535612400000 [32mOld East Road[0m
+1790535612400000 Exits: north, south, east.
+1790535612400000 
+1790535612400000 *=>
+1790535613000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535613000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535613000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535613000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535613000000 GMCP Group.Update {"id":6,"hp":132}
+1790535613000000 > s
+1790535613150000 GMCP Event.Moved {"dir":"south"}
+1790535613150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535613150000 [32mOld East Road[0m
+1790535613150000 Exits: north, south, east, west.
+1790535613150000 
+1790535613150000 *=>
+1790535613750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535613750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535613750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535613750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535613750000 GMCP Group.Update {"id":3,"hp":49}
+1790535613750000 > s
+1790535613900000 GMCP Event.Moved {"dir":"south"}
+1790535613900000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535613900000 [32mOld East Road[0m
+1790535613900000 Exits: north, south, east, west.
+1790535613900000 
+1790535613900000 *=>
+1790535614500000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535614500000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535614500000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535614500000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535614500000 GMCP Group.Update {"id":6,"hp":86}
+1790535614500000 GMCP Char.Vitals {"hp":54,"maxhp":140}
+1790535614500000 > n
+1790535614650000 GMCP Event.Moved {"dir":"north"}
+1790535614650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535614650000 [32mOld East Road[0m
+1790535614650000 Exits: north, south, east, west.
+1790535614650000 
+1790535614650000 *=>
+1790535615250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535615250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535615250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535615250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535615250000 GMCP Group.Update {"id":3,"hp":123}
+1790535615250000 > n
+1790535615400000 GMCP Event.Moved {"dir":"north"}
+1790535615400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535615400000 [32mOld East Road[0m
+1790535615400000 Exits: north, south, east.
+1790535615400000 
+1790535615400000 *=>
+1790535616000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535616000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535616000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535616000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535616000000 GMCP Group.Update {"id":6,"hp":40}
+1790535616000000 > n
+1790535616150000 GMCP Event.Moved {"dir":"north"}
+1790535616150000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535616150000 [32mSign of the Prancing Pony Inn[0m
+1790535616150000 Exits: north, south, east, west.
+1790535616150000 
+1790535616150000 *=>
+1790535616750000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535616750000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535616750000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535616750000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535616750000 GMCP Group.Update {"id":3,"hp":77}
+1790535616750000 GMCP Char.Vitals {"hp":123,"maxhp":140}
+1790535616750000 > s
+1790535616900000 GMCP Event.Moved {"dir":"south"}
+1790535616900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535616900000 [32mOld East Road[0m
+1790535616900000 Exits: north, south, east.
+1790535616900000 
+1790535616900000 *=>
+1790535617500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535617500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535617500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535617500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535617500000 GMCP Group.Update {"id":6,"hp":114}
+1790535617500000 > s
+1790535617650000 GMCP Event.Moved {"dir":"south"}
+1790535617650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535617650000 [32mOld East Road[0m
+1790535617650000 Exits: north, south, east, west.
+1790535617650000 
+1790535617650000 *=>
+1790535618250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535618250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535618250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535618250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535618250000 GMCP Group.Update {"id":3,"hp":31}
+1790535618250000 > s
+1790535618400000 GMCP Event.Moved {"dir":"south"}
+1790535618400000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535618400000 [32mOld East Road[0m
+1790535618400000 Exits: north, south, east, west.
+1790535618400000 
+1790535618400000 *=>
+1790535619000000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535619000000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535619000000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535619000000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535619000000 GMCP Group.Update {"id":6,"hp":68}
+1790535619000000 GMCP Char.Vitals {"hp":92,"maxhp":140}
+1790535619000000 > n
+1790535619150000 GMCP Event.Moved {"dir":"north"}
+1790535619150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535619150000 [32mOld East Road[0m
+1790535619150000 Exits: north, south, east, west.
+1790535619150000 
+1790535619150000 *=>
+1790535619750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535619750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535619750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535619750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535619750000 GMCP Group.Update {"id":3,"hp":105}
+1790535619750000 > n
+1790535619900000 GMCP Event.Moved {"dir":"north"}
+1790535619900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535619900000 [32mOld East Road[0m
+1790535619900000 Exits: north, south, east.
+1790535619900000 
+1790535619900000 *=>
+1790535620500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535620500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535620500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535620500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535620500000 GMCP Group.Update {"id":6,"hp":22}
+1790535620500000 > n
+1790535620650000 GMCP Event.Moved {"dir":"north"}
+1790535620650000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535620650000 [32mSign of the Prancing Pony Inn[0m
+1790535620650000 Exits: north, south, east, west.
+1790535620650000 
+1790535620650000 *=>
+1790535621250000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535621250000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535621250000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535621250000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535621250000 GMCP Group.Update {"id":3,"hp":59}
+1790535621250000 GMCP Char.Vitals {"hp":61,"maxhp":140}
+1790535621250000 > s
+1790535621400000 GMCP Event.Moved {"dir":"south"}
+1790535621400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535621400000 [32mOld East Road[0m
+1790535621400000 Exits: north, south, east.
+1790535621400000 
+1790535621400000 *=>
+1790535622000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535622000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535622000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535622000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535622000000 GMCP Group.Update {"id":6,"hp":96}
+1790535622000000 > s
+1790535622150000 GMCP Event.Moved {"dir":"south"}
+1790535622150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535622150000 [32mOld East Road[0m
+1790535622150000 Exits: north, south, east, west.
+1790535622150000 
+1790535622150000 *=>
+1790535622750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535622750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535622750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535622750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535622750000 GMCP Group.Update {"id":3,"hp":133}
+1790535622750000 > s
+1790535622900000 GMCP Event.Moved {"dir":"south"}
+1790535622900000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535622900000 [32mOld East Road[0m
+1790535622900000 Exits: north, south, east, west.
+1790535622900000 
+1790535622900000 *=>
+1790535623500000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535623500000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535623500000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535623500000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535623500000 GMCP Group.Update {"id":6,"hp":50}
+1790535623500000 GMCP Char.Vitals {"hp":130,"maxhp":140}
+1790535623500000 > n
+1790535623650000 GMCP Event.Moved {"dir":"north"}
+1790535623650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535623650000 [32mOld East Road[0m
+1790535623650000 Exits: north, south, east, west.
+1790535623650000 
+1790535623650000 *=>
+1790535624250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535624250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535624250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535624250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535624250000 GMCP Group.Update {"id":3,"hp":87}
+1790535624250000 > n
+1790535624400000 GMCP Event.Moved {"dir":"north"}
+1790535624400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535624400000 [32mOld East Road[0m
+1790535624400000 Exits: north, south, east.
+1790535624400000 
+1790535624400000 *=>
+1790535625000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535625000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535625000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535625000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535625000000 GMCP Group.Update {"id":6,"hp":124}
+1790535625000000 > n
+1790535625150000 GMCP Event.Moved {"dir":"north"}
+1790535625150000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535625150000 [32mSign of the Prancing Pony Inn[0m
+1790535625150000 Exits: north, south, east, west.
+1790535625150000 
+1790535625150000 *=>
+1790535625750000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535625750000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535625750000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535625750000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535625750000 GMCP Group.Update {"id":3,"hp":41}
+1790535625750000 GMCP Char.Vitals {"hp":99,"maxhp":140}
+1790535625750000 > s
+1790535625900000 GMCP Event.Moved {"dir":"south"}
+1790535625900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535625900000 [32mOld East Road[0m
+1790535625900000 Exits: north, south, east.
+1790535625900000 
+1790535625900000 *=>
+1790535626500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535626500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535626500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535626500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535626500000 GMCP Group.Update {"id":6,"hp":78}
+1790535626500000 > s
+1790535626650000 GMCP Event.Moved {"dir":"south"}
+1790535626650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535626650000 [32mOld East Road[0m
+1790535626650000 Exits: north, south, east, west.
+1790535626650000 
+1790535626650000 *=>
+1790535627250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535627250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535627250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535627250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535627250000 GMCP Group.Update {"id":3,"hp":115}
+1790535627250000 > s
+1790535627400000 GMCP Event.Moved {"dir":"south"}
+1790535627400000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535627400000 [32mOld East Road[0m
+1790535627400000 Exits: north, south, east, west.
+1790535627400000 
+1790535627400000 *=>
+1790535628000000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535628000000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535628000000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535628000000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535628000000 GMCP Group.Update {"id":6,"hp":32}
+1790535628000000 GMCP Char.Vitals {"hp":68,"maxhp":140}
+1790535628000000 > n
+1790535628150000 GMCP Event.Moved {"dir":"north"}
+1790535628150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535628150000 [32mOld East Road[0m
+1790535628150000 Exits: north, south, east, west.
+1790535628150000 
+1790535628150000 *=>
+1790535628750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535628750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535628750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535628750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535628750000 GMCP Group.Update {"id":3,"hp":69}
+1790535628750000 > n
+1790535628900000 GMCP Event.Moved {"dir":"north"}
+1790535628900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535628900000 [32mOld East Road[0m
+1790535628900000 Exits: north, south, east.
+1790535628900000 
+1790535628900000 *=>
+1790535629500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535629500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535629500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535629500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535629500000 GMCP Group.Update {"id":6,"hp":106}
+1790535629500000 > n
+1790535629650000 GMCP Event.Moved {"dir":"north"}
+1790535629650000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535629650000 [32mSign of the Prancing Pony Inn[0m
+1790535629650000 Exits: north, south, east, west.
+1790535629650000 
+1790535629650000 *=>
+1790535630250000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535630250000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535630250000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535630250000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535630250000 GMCP Group.Update {"id":3,"hp":23}
+1790535630250000 GMCP Char.Vitals {"hp":137,"maxhp":140}
+1790535630250000 > s
+1790535630400000 GMCP Event.Moved {"dir":"south"}
+1790535630400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535630400000 [32mOld East Road[0m
+1790535630400000 Exits: north, south, east.
+1790535630400000 
+1790535630400000 *=>
+1790535631000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535631000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535631000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535631000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535631000000 GMCP Group.Update {"id":6,"hp":60}
+1790535631000000 > s
+1790535631150000 GMCP Event.Moved {"dir":"south"}
+1790535631150000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535631150000 [32mOld East Road[0m
+1790535631150000 Exits: north, south, east, west.
+1790535631150000 
+1790535631150000 *=>
+1790535631750000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535631750000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535631750000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535631750000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535631750000 GMCP Group.Update {"id":3,"hp":97}
+1790535631750000 > s
+1790535631900000 GMCP Event.Moved {"dir":"south"}
+1790535631900000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535631900000 [32mOld East Road[0m
+1790535631900000 Exits: north, south, east, west.
+1790535631900000 
+1790535631900000 *=>
+1790535632500000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535632500000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535632500000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535632500000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535632500000 GMCP Group.Update {"id":6,"hp":134}
+1790535632500000 GMCP Char.Vitals {"hp":106,"maxhp":140}
+1790535632500000 > n
+1790535632650000 GMCP Event.Moved {"dir":"north"}
+1790535632650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535632650000 [32mOld East Road[0m
+1790535632650000 Exits: north, south, east, west.
+1790535632650000 
+1790535632650000 *=>
+1790535633250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535633250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535633250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535633250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535633250000 GMCP Group.Update {"id":3,"hp":51}
+1790535633250000 > n
+1790535633400000 GMCP Event.Moved {"dir":"north"}
+1790535633400000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535633400000 [32mOld East Road[0m
+1790535633400000 Exits: north, south, east.
+1790535633400000 
+1790535633400000 *=>
+1790535634000000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535634000000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535634000000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535634000000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535634000000 GMCP Group.Update {"id":6,"hp":88}
+1790535634000000 > n
+1790535634150000 GMCP Event.Moved {"dir":"north"}
+1790535634150000 GMCP Room.Info {"id":15496063,"area":"Bree","name":"Sign of the Prancing Pony Inn","desc":"This wide space has become the natural travelling hub of Bree. From the north\nmusic flows, and the pleasant smell of fresh food beckons. The Old East Road\ncomes from the west and continues south through the village. The Prancing Pony\nInn lies to the north.\n","environment":"city","exits":{"n":{"id":11103264},"s":{"id":9545381,"flags":["road"]},"e":{"flags":["road"]},"w":{"id":13430693,"flags":["road"]}}}
+1790535634150000 [32mSign of the Prancing Pony Inn[0m
+1790535634150000 Exits: north, south, east, west.
+1790535634150000 
+1790535634150000 *=>
+1790535634750000 GMCP Group.Update {"id":2,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535634750000 GMCP Group.Update {"id":3,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535634750000 GMCP Group.Update {"id":4,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535634750000 GMCP Group.Update {"id":5,"mapid":15496063,"room":"Sign of the Prancing Pony Inn"}
+1790535634750000 GMCP Group.Update {"id":3,"hp":125}
+1790535634750000 GMCP Char.Vitals {"hp":75,"maxhp":140}
+1790535634750000 > s
+1790535634900000 GMCP Event.Moved {"dir":"south"}
+1790535634900000 GMCP Room.Info {"id":9545381,"area":"Bree","name":"Old East Road","desc":"The Old East Road travels north and south here, and is about three yards wide.\nThis nicely maintained road goes into the trade district in Bree. Several houses\non either side flank the road, their colours contrasting the white gravel and\nsand used to make an entirely flat road.\n","environment":"city","exits":{"n":{"id":15496063,"flags":["road"]},"s":{"id":4878120,"flags":["road"]},"e":{"id":8483210}}}
+1790535634900000 [32mOld East Road[0m
+1790535634900000 Exits: north, south, east.
+1790535634900000 
+1790535634900000 *=>
+1790535635500000 GMCP Group.Update {"id":2,"mapid":9545381,"room":"Old East Road"}
+1790535635500000 GMCP Group.Update {"id":3,"mapid":9545381,"room":"Old East Road"}
+1790535635500000 GMCP Group.Update {"id":4,"mapid":9545381,"room":"Old East Road"}
+1790535635500000 GMCP Group.Update {"id":5,"mapid":9545381,"room":"Old East Road"}
+1790535635500000 GMCP Group.Update {"id":6,"hp":42}
+1790535635500000 > s
+1790535635650000 GMCP Event.Moved {"dir":"south"}
+1790535635650000 GMCP Room.Info {"id":4878120,"area":"Bree","name":"Old East Road","desc":"Slightly narrowing to the north and wider towards the south, the road passes\nbetween houses on either side. White sand with stones of marbled white and black\nmake the road surface nicely packed over years of use. From the west a constant\nsmell of baked goods fills the street.\n","environment":"city","exits":{"n":{"id":9545381,"flags":["road"]},"s":{"id":10599315,"flags":["road"]},"e":{"id":15299102},"w":{"id":1963579}}}
+1790535635650000 [32mOld East Road[0m
+1790535635650000 Exits: north, south, east, west.
+1790535635650000 
+1790535635650000 *=>
+1790535636250000 GMCP Group.Update {"id":2,"mapid":4878120,"room":"Old East Road"}
+1790535636250000 GMCP Group.Update {"id":3,"mapid":4878120,"room":"Old East Road"}
+1790535636250000 GMCP Group.Update {"id":4,"mapid":4878120,"room":"Old East Road"}
+1790535636250000 GMCP Group.Update {"id":5,"mapid":4878120,"room":"Old East Road"}
+1790535636250000 GMCP Group.Update {"id":3,"hp":79}
+1790535636250000 > s
+1790535636400000 GMCP Event.Moved {"dir":"south"}
+1790535636400000 GMCP Room.Info {"id":10599315,"area":"Bree","name":"Old East Road","desc":"The street of white sand and gravel widens towards the south, coming to a large\nbend. Houses align the street both to the east and west, with about six yards\nbetween them. A dark and narrow alley winds its way west between some of the\nshops, contrasting the bright blue and pretty shop to the east.\n","environment":"city","exits":{"n":{"id":4878120,"flags":["road"]},"s":{"id":1108641,"flags":["road"]},"e":{"id":9512230},"w":{"id":14742156}}}
+1790535636400000 [32mOld East Road[0m
+1790535636400000 Exits: north, south, east, west.
+1790535636400000 
+1790535636400000 *=>
+1790535637000000 GMCP Group.Update {"id":2,"mapid":10599315,"room":"Old East Road"}
+1790535637000000 GMCP Group.Update {"id":3,"mapid":10599315,"room":"Old East Road"}
+1790535637000000 GMCP Group.Update {"id":4,"mapid":10599315,"room":"Old East Road"}
+1790535637000000 GMCP Group.Update {"id":5,"mapid":10599315,"room":"Old East Road"}
+1790535637000000 GMCP Group.Update {"id":6,"hp":116}
+1790535637000000 GMCP Char.Vitals {"hp":44,"maxhp":140}

@@ -1,4 +1,6 @@
-// Generates tests/fixtures/map-demo.log, the map tracking demo (ADR 0020):
+// Generates tests/fixtures/map-demo.log, the map tracking demo (ADR 0020),
+// and tests/fixtures/map-tokens.log, the map bench's token scene (stage 80,
+// at the end of this file):
 //
 //   node tests/fixtures/map-demo.gen.ts
 //
@@ -229,3 +231,52 @@ spam(['north', 'north']); // 26970 → 26971 Hill Road
 writeFileSync(new URL('./map-demo.log', import.meta.url), out.join(''));
 console.log(`map-demo.log: ${out.length} lines, ${t.toFixed(1)} s, ${route.length} arrivals, final room ${here}`);
 console.log(`ROUTE = [${route.join(', ')}]`);
+
+// ------------------------------------------------------ the token scene
+// tests/fixtures/map-tokens.log (stage 80 part B, ADR 0171: the map bench's
+// token scene): you and eight members. Four walk with you all the way (five
+// in one room: the fan and its +1), three wait in rooms around the road, one
+// is far away. The party walks the Old East Road north and back, eight
+// times, and HP goes down and up on the way.
+
+out.length = 0;
+t = 0;
+const PARTY = [
+  { id: 2, type: 'ally', name: 'Thorin', label: 0 },
+  { id: 3, type: 'ally', name: 'Eowyn', label: 0 },
+  { id: 4, type: 'ally', name: 'Glorfindel', label: 0 },
+  { id: 5, type: 'npc', name: 'a trained horse', label: 'HORSE' },
+  { id: 6, type: 'ally', name: 'Bilbo', label: 0 },
+  { id: 7, type: 'ally', name: 'Strider', label: 0 },
+  { id: 8, type: 'ally', name: 'Faramir', label: 0 },
+  { id: 9, type: 'ally', name: 'Gimli', label: 0 },
+];
+const WAIT: Record<number, number> = { 6: 26963, 7: 26434, 8: 26964, 9: 27001 };
+const hpOf = (hp: number) => ({ hp, maxhp: 140, 'hp-string': 'Healthy', mana: 90, maxmana: 90, 'mana-string': 'Full', mp: 110, maxmp: 110, 'mp-string': 'Rested' });
+gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta Fari the Wanderer' });
+line('Reconnecting.');
+gmcp('Char.StatusVars', { name: 'Rasta', fullname: 'Rasta Fari the Wanderer', race: 'Man', subrace: 'Dunadan', subclass: 'warrior', level: 25 });
+gmcp('Char.Vitals', { hp: 140, maxhp: 140 });
+here = 26432;
+gmcp('Group.Set', [
+  { id: 1, type: 'you', name: 'Rasta', label: 0, mapid: serverId(here), room: map.names[here], ...hpOf(140) },
+  ...PARTY.map((m) => {
+    const r = WAIT[m.id] ?? here;
+    return { ...m, mapid: serverId(r), room: map.names[r], ...hpOf(140) };
+  }),
+]);
+arrive(here, null);
+wait(1);
+let step = 0;
+for (let lap = 0; lap < 8; lap++) {
+  for (const dir of ['north', 'north', 'north', 'south', 'south', 'south']) {
+    go(dir);
+    step++;
+    for (const m of PARTY) if (WAIT[m.id] === undefined) gmcp('Group.Update', { id: m.id, mapid: serverId(here), room: map.names[here] });
+    // Someone is hurt and heals: Eowyn and Bilbo by turns, you every third step.
+    gmcp('Group.Update', { id: step % 2 ? 3 : 6, hp: 20 + ((step * 37) % 120) });
+    if (step % 3 === 0) gmcp('Char.Vitals', { hp: 40 + ((step * 23) % 100), maxhp: 140 });
+  }
+}
+writeFileSync(new URL('./map-tokens.log', import.meta.url), out.join(''));
+console.log(`map-tokens.log: ${out.length} lines, ${t.toFixed(1)} s, final room ${here}`);

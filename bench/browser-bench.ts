@@ -22,6 +22,10 @@
 // - script:         500 user rules through the display pipeline (< 0.2 ms
 //                   per line); key → send with an alias and a macro
 // - map load:       main-thread tasks while the map turns on (ADR 0020)
+// - map tokens:     frame → paint with the map on and the token scene of
+//                   tests/fixtures/map-tokens.log (you and eight members,
+//                   five in one room) fed on the timer, tokens off and on
+//                   (stage 80 part B, ADR 0171)
 // Owner-geometry checks (bench/owner.ts, bench/input-load.ts, bench/soak.ts):
 // - caret:          visible blinking caret, isolated lines 150–450 ms apart:
 //                   median receipt → rendered ≤ 4 ms; idle ≤ 5 frames/s
@@ -202,6 +206,11 @@ const mapGmcp = readFileSync(new URL('../tests/fixtures/map-demo.log', import.me
   .split('\n')
   .filter((l) => /^\d+ \x1bGMCP /.test(l));
 const mapFeedText = mapGmcp.map((l, i) => `${1_790_000_000_000_000 + i * 10_000}${l.slice(l.indexOf(' '))}`).join('\n') + '\n';
+// The token scene (stage 80, ADR 0171): its GMCP lines on the same timer.
+const tokenGmcp = readFileSync(new URL('../tests/fixtures/map-tokens.log', import.meta.url), 'utf8')
+  .split('\n')
+  .filter((l) => /^\d+ \x1bGMCP /.test(l));
+const tokenFeedText = tokenGmcp.map((l, i) => `${1_790_000_000_000_000 + i * 10_000}${l.slice(l.indexOf(' '))}`).join('\n') + '\n';
 const burstMapText = (() => {
   const out: string[] = [];
   let k = 0;
@@ -228,8 +237,8 @@ const MAP_CONTENT = '.wc-pane-map .wc-pane-content';
  * budgets), and a fourth of 200 rooms that lasts until unmarked (ADR 0077
  * §B).
  */
-async function open(t: Target, map: boolean): Promise<Page> {
-  const page = await openBench(t, base, { settings: mapSetting(map) });
+async function open(t: Target, map: boolean, extra?: Record<string, unknown>): Promise<Page> {
+  const page = await openBench(t, base, { settings: { ...mapSetting(map), ...extra } });
   if (map) {
     await O.waitMap(page);
     await page.evaluate(() => {
@@ -247,8 +256,8 @@ async function open(t: Target, map: boolean): Promise<Page> {
 }
 
 /** The GMCP feed running (needs connectFake first). */
-async function startMapFeed(page: Page): Promise<void> {
-  await page.evaluate((t) => window.__wcBench!.loadFeed(t), mapFeedText);
+async function startMapFeed(page: Page, feed = mapFeedText): Promise<void> {
+  await page.evaluate((t) => window.__wcBench!.loadFeed(t), feed);
   await page.evaluate((ms) => window.__wcBench!.startFeed(ms), MAP_FEED_MS);
   await pause(500);
 }
@@ -257,12 +266,14 @@ interface MapTail {
   fed: number;
   located: string | null;
   room: string | null;
+  /** What the map drew as tokens last (`data-map-tokens`: tokens/plus discs/arcs), null without tokens. */
+  tokens?: string | null;
 }
 
 async function mapTail(page: Page): Promise<MapTail> {
   const fed = await page.evaluate(() => window.__wcBench!.stopFeed());
   const c = page.locator(MAP_CONTENT);
-  return { fed, located: await c.getAttribute('data-map-located'), room: await c.getAttribute('data-map-room') };
+  return { fed, located: await c.getAttribute('data-map-located'), room: await c.getAttribute('data-map-room'), tokens: await c.getAttribute('data-map-tokens') };
 }
 
 /**
@@ -373,10 +384,11 @@ async function benchScript(t: Target) {
   return { alias: stats(alias), macro: stats(macro), rules };
 }
 
-async function benchFramePaint(t: Target, map: boolean) {
-  const page = await open(t, map);
+/** `tokens`: the token scene's feed with `mapper.tokens` set so (stage 80); absent: the map-demo feed. */
+async function benchFramePaint(t: Target, map: boolean, tokens?: boolean) {
+  const page = await open(t, map, tokens === undefined ? undefined : { mapper: { tokens } });
   await page.evaluate(() => window.__wcBench!.connectFake());
-  if (map) await startMapFeed(page);
+  if (map) await startMapFeed(page, tokens === undefined ? mapFeedText : tokenFeedText);
   const WARM = 10;
   const total = await page.evaluate(([text, k]) => window.__wcBench!.loadFrames(text!, 1, k!), [logText, scaled(400, 80) + WARM] as const);
   // Warm-up: the first frames after page load pay for JIT and first layout.
@@ -518,7 +530,7 @@ interface Row {
   scroll?: Scroll;
   burst?: Burst;
   script?: Awaited<ReturnType<typeof benchScript>>;
-  map?: { key?: Key; paint?: Paint; scroll?: Scroll; burst?: Burst; burstOff?: Burst; load?: Awaited<ReturnType<typeof benchMapLoad>> };
+  map?: { key?: Key; paint?: Paint; scroll?: Scroll; burst?: Burst; burstOff?: Burst; load?: Awaited<ReturnType<typeof benchMapLoad>>; tokens?: Paint; tokensOff?: Paint };
   caret?: import('./owner').CaretResult;
   play?: import('./owner').PlayResult;
   colour?: import('./owner').ColourResult;
@@ -562,6 +574,12 @@ async function budgetsAndMap(t: Target, row: Row, withMap: boolean): Promise<voi
   };
   [row.key, m.key] = await pair('key → send', () => benchKey(t, false), () => benchKey(t, true), keyShow, false);
   [row.paint, m.paint] = await pair('frame → paint', () => benchFramePaint(t, false), () => benchFramePaint(t, true), paintShow, true);
+  if (withMap) {
+    // The token scene (stage 80, ADR 0171): tokens off, on.
+    const tokShow = (p: Paint) => `${paintShow(p)}; drawn ${p.tail?.tokens ?? 'n/a'}`;
+    m.tokensOff = await step('frame → paint (map on, token scene, tokens off)', () => benchFramePaint(t, true, false), tokShow);
+    m.tokens = await step('frame → paint (map on, token scene, tokens on)', () => benchFramePaint(t, true, true), tokShow);
+  }
   [row.scroll, m.scroll] = await pair('scrollback', () => benchScrollback(t, false), () => benchScrollback(t, true), scrollShow, false);
   row.burst = await step('burst (map off)', () => benchBurst(t, false, logText), burstShow);
   if (withMap) {
@@ -738,6 +756,23 @@ function mapTables(rs: Row[]): void {
     out.push('| Budget | Measure | ' + heads.join(' | ') + ' |');
     out.push('|---|---|' + heads.map(() => '---|').join(''));
     out.push(...lines, '');
+  }
+  const withTokens = withMap.filter((r) => r.map?.tokens || r.map?.tokensOff);
+  if (withTokens.length) {
+    out.push(
+      `### Token scene (stage 80, ADR 0171)`,
+      '',
+      `Map on, ${tokenGmcp.length} GMCP lines of \`tests/fixtures/map-tokens.log\` (you and eight members, five in one room, walking; HP changing) fed every ${MAP_FEED_MS} ms, with \`mapper.tokens\` off and on; text frames as in Frame → paint. "Drawn" is the map's \`data-map-tokens\` at the end (tokens / +n discs / arcs).`,
+      '',
+    );
+    const th = withTokens.flatMap((r) => [`${r.browser} tokens off`, `${r.browser} tokens on`]);
+    out.push('| Measure | ' + th.join(' | ') + ' |', '|---|' + th.map(() => '---|').join(''));
+    const trow = (measure: string, cell: (p: Paint) => string) =>
+      out.push(`| ${measure} | ${withTokens.flatMap((r) => [opt1(r.map?.tokensOff, cell) ?? '—', opt1(r.map?.tokens, cell) ?? '—']).join(' | ')} |`);
+    trow('late frames (ours); painted median / p95 / max (ms)', (p) => `${p.late} (${p.lateOurs}); ${f1(p.toPaintMedian)} / ${f1(p.toPaintP95)} / ${f1(p.toPaintMax)}`);
+    trow('flush script median / max (ms)', (p) => `${f2(p.scriptMedian)} / ${f2(p.scriptMax)}`);
+    trow('frame interval median (ms); feed lines; drawn', (p) => `${f1(p.interval)}; ${p.tail?.fed ?? '—'}; ${p.tail?.tokens ?? '—'}`);
+    out.push('');
   }
   table(withMap, 'Map on', [
     ['Tracking', 'feed frames delivered in key / paint / scroll; map located at the end', (r) =>
