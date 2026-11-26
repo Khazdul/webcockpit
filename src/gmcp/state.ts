@@ -30,6 +30,10 @@
 //                     is …`), installed into the script engine's system
 //                     store (never in the profile): `installRules(system)`
 //   MSSP            → clock.syncMssp (`mssp(vars)`, from the Session)
+//   group hues      → `game.groupTable` (src/map/group.ts, stage 80, ADR
+//                     0171): MMapper's member table and golden-angle hues,
+//                     fed every Group.* whether the map is shown or not; the
+//                     map's tokens and the Group pane take their hues from it
 //   conn.state      → a new connection (`connecting`) and a live
 //                     `disconnected` reset char and group (Inv §2.1); after
 //                     a replay ends the state stays until the next
@@ -65,6 +69,7 @@ import { CharModel } from './char';
 import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
+import { GroupTable, PLAYER_COLOR } from '../map/group';
 import type { InfoAnswer, PollAnswer } from './info-answer';
 import { InfoModel, SHIELDS_GMCP_KEY, parseShields } from './info-model';
 import { type InfoRead, TypedInfoReader } from './info-typed';
@@ -98,6 +103,8 @@ export interface GameStateOptions {
 export class GameState {
   readonly char = new CharModel();
   readonly group = new GroupModel();
+  /** The members' hues (MMapper's table, stage 80): the map and the Group pane share them. */
+  readonly groupTable = new GroupTable(PLAYER_COLOR);
   readonly clock: ClockModel;
   /** The info poll's last answer (Stats and Lore, stage 77). */
   readonly info = new InfoModel();
@@ -222,7 +229,8 @@ export class GameState {
       }
       if (p === 'char.vitals' && this.group.apply(pkg, data)) this.emit('group');
     } else if (p.startsWith('group.') || p === 'room.info') {
-      if (this.group.apply(pkg, data)) {
+      const hues = p !== 'room.info' && this.groupTable.apply(pkg, data);
+      if (this.group.apply(pkg, data) || hues) {
         if (p !== 'room.info') this.noteGroup();
         this.emit('group');
       }
@@ -250,6 +258,7 @@ export class GameState {
   resetCharacter(): void {
     this.char.reset();
     this.group.reset();
+    this.groupTable.clear();
     this.pollListsWound = this.pollListsPoison = false;
     const infoGone = this.info.reset();
     this.sex = this.sexOf = null;

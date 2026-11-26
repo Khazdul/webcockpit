@@ -8,6 +8,9 @@
 // Group mates on the map (ADR 0020 "Group mates", research
 // notes/research/mmapper-rendering.md §7). Pure; runs in the map worker.
 // The app's GroupModel (src/gmcp/group.ts) is separate and unchanged.
+// Since stage 80 the main thread keeps one table too (`GameState.groupTable`,
+// fed every Group.*): its hues go to the worker with the tokens and win
+// there (ADR 0171), so the Group pane and the map agree with the map hidden.
 //
 // Ported from MMapper 26.06.0 (GPL-2.0-or-later): group/mmapper2group.cpp
 // (member table by Group.* id, Group.Set/Add/Update/Remove), group/
@@ -125,6 +128,22 @@ export class GroupTable {
   /** True when `id` is in the table. */
   has(id: number): boolean {
     return this.byId.has(id);
+  }
+
+  /** The entry for `id` (not a copy: do not change it), or undefined. */
+  get(id: number): Readonly<GroupTableEntry> | undefined {
+    return this.byId.get(id);
+  }
+
+  /** The member's colour (0xRRGGBB), or null when `id` is not in the table. */
+  colorOf(id: number): number | null {
+    const e = this.byId.get(id);
+    return e ? hslColor(e.hue) : null;
+  }
+
+  /** The entries in table order, not copies (do not change them). */
+  values(): IterableIterator<Readonly<GroupTableEntry>> {
+    return this.byId.values();
   }
 
   /** The entries in table order, as copies (the replay export's state fold, tests). */

@@ -32,6 +32,7 @@ import { capitalise } from '../gmcp/char';
 import { foldName, type GroupFight, type Member, type StatusFlag, STATUS_FLAGS, type Vital, vitalPct } from '../gmcp/group';
 import type { GroupSettings, Settings } from '../settings/types';
 import { type TimerCell, countdownText, exactText } from '../timers/entry';
+import { type VitalTone, vitalTone } from '../gmcp/vital-tone';
 import { type IconName, positionIcon, STATUS_ICON } from './icons';
 import { type GroupColors, resolveColor, signalColors } from './palette';
 
@@ -122,10 +123,16 @@ export interface FightView {
 
 /** The colour of a vital bar at `pct` (0–1): the setting's, orange at ≤ 45 %, red at ≤ 25 %. */
 export function vitalColor(base: string, pct: number | null, light: boolean): string {
+  const tone = vitalTone(pct);
+  if (tone === 'ok') return base;
   const sig = signalColors(light);
-  if (pct !== null && pct <= 0.25) return sig.vitalCritical;
-  if (pct !== null && pct <= 0.45) return sig.vitalLow;
-  return base;
+  return tone === 'critical' ? sig.vitalCritical : sig.vitalLow;
+}
+
+/** The HP colours by tone for a side (the map tokens' arc, stage 80 §7): Group's HP bar colour, orange, red. */
+export function hpToneColors(s: Readonly<Settings>, light: boolean): Record<VitalTone, string> {
+  const sig = signalColors(light);
+  return { ok: groupVitals(s, light).hp, low: sig.vitalLow, critical: sig.vitalCritical };
 }
 
 /** One vital's bar and tooltip. */
