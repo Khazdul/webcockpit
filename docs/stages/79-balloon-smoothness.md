@@ -55,21 +55,34 @@ The look and the flight must not change: same path, same timings.
 
 ## Tasks
 
-- [ ] `flight.ts`: keyframes for a plan (pure, unit tested): times,
+- [x] `flight.ts`: keyframes for a plan (pure, unit tested): times,
       transform parts and opacity sampled from `flightAt`; the sampling
-      error against `flightAt` under 0.1 px.
-- [ ] `balloons.ts`: one animation per balloon; its clock is the
+      error against `flightAt` under 0.1 px. (`flightKeys`: every 1/12 s
+      on a fixed grid, over a span; about 0.035 px.)
+- [x] `balloons.ts`: one animation per balloon; its clock is the
       balloon's `t` (hidden page: paused; `extendRead`, the hurry fade:
-      rebuilt at the same time, no jump); the layer change, `rest`, the
-      inner frame hook and `list()` as before; where `Element.animate` is
-      missing (unit tests), the present per-frame writes.
-- [ ] Reduced motion: unchanged behaviour (fade in, stay, fade out).
-- [ ] Unit and e2e tests updated (the e2e reads the wrapper's inline
-      transform today).
+      the same animation gets new keyframes at the same time, no jump);
+      the layer change, `rest`, the inner frame hook and `list()` as
+      before; without Web Animations (`compositor: false`; the unit
+      tests run both), the present per-frame writes.
+- [x] Few keyframes at a time (not in the plan; ADR 0168 "What Firefox
+      does with many keyframes"): the next 4 s, renewed 2 s before they
+      run out. A whole flight's 2000 keyframes cost Firefox more than
+      the change saved.
+- [x] Reduced motion: unchanged behaviour (fade in, stay, fade out).
+- [x] Unit and e2e tests updated; a new e2e holds the balloon's box
+      against `flightAt` (at most 0.03 px off, a joined kill moves it by
+      0) in Chromium and Firefox.
 - [ ] Measured: `measure.mjs` headed fullscreen, Firefox and Chromium,
       one and four balloons; with the CPU held back (a CPU quota on the
-      browser) before and after.
-- [ ] ADR 0168; ADR 0159's cost notes point to it.
+      browser) before and after. **Not done as planned:** the screen
+      was locked during the build, so the headed runs are void (30 fps
+      with and without the change). Done instead, headless: the CPU
+      quota runs and `stall.mjs` (a blocked main thread no longer stops
+      the balloon, both browsers). The owner's case (Firefox with the
+      GPU, on battery) is still to be measured: `measure.mjs` and
+      `compositor.mjs` with the screen unlocked.
+- [x] ADR 0168; ADR 0159's cost notes point to it.
 
 ## Test guide (for the owner)
 

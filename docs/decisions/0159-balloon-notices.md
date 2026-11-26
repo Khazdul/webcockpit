@@ -425,6 +425,9 @@ is gone (below, "Removals").
     e2e (under every pane in every phase, both browsers) passes. The
     fallback the owner had accepted (flattening the lean where ADR 0135's
     watch sees a slow compositor) is not needed and not built.
+- **Stage 79 (2026-11-26):** the whole balloon's transform and opacity
+  are no longer written per frame: the flight is a compositor animation
+  (ADR 0168); the frame loop keeps the parts inside.
 
 ## Addendum: the setting's help (2026-11-22, the owner's feedback on the film)
 
