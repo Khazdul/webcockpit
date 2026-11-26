@@ -4,9 +4,9 @@
 // (and the round-2 notices never joining), the cap, frames only while a
 // balloon is up, and the skins (SVG goblin, raster layers).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_BALLOONS, pinBox, startBalloons } from '../../src/weather/balloons/balloons';
+import { HURRY_FADE, MAX_BALLOONS, pinBox, startBalloons } from '../../src/weather/balloons/balloons';
 import { MOODS, SAMPLE_KILLS, SAMPLE_MOMENTS, signFor } from '../../src/weather/balloons/feed';
-import type { LaneGeom } from '../../src/weather/balloons/flight';
+import { type LaneGeom, READ_EXTEND, flightAt, flightKeys, flightTotal, flightTransform } from '../../src/weather/balloons/flight';
 import { passenger as dwarf } from '../../src/weather/balloons/passengers/dwarf';
 import { PASSENGER_IDS, loadPassenger } from '../../src/weather/balloons/passenger';
 import { type RigCtx, createRig } from '../../src/weather/balloons/rig';
@@ -58,10 +58,10 @@ function cockpit(): HTMLElement {
   return root;
 }
 
-describe('balloons', () => {
+describe.each([['on the compositor (stage 79)', true], ['written per frame', false]] as const)('balloons, the flight %s', (_, compositor) => {
   it('the sky layer right after the back canvas (under the text), the front layer right after the game pane (over the text, under the input row and the panes); both gone on destroy', () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     const kids = [...root.children].map((e) => e.className);
     expect(kids).toEqual(['wc-weather-layer wc-weather-back', 'wc-balloons wc-balloons-sky', 'wc-game', 'wc-balloons wc-balloons-front', 'wc-input-slot', 'wc-pane']);
     b.destroy();
@@ -70,7 +70,7 @@ describe('balloons', () => {
 
   it('a kill rises in the front layer, joins while readable, then moves to the sky and is gone; no frames after', () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
     const front = root.querySelector('.wc-balloons-front')!, sky = root.querySelector('.wc-balloons-sky')!;
     b.show(SAMPLE_KILLS.good[0]!);
     expect(front.children).toHaveLength(1);
@@ -95,7 +95,7 @@ describe('balloons', () => {
 
   it('names from the game are text, never markup', () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     b.show({ name: '<img src=x onerror=alert(1)>', xp: 10, face: 'poor' });
     expect(root.querySelector('.rig-title img')).toBeNull();
     expect(root.querySelector('.rig-title')!.textContent).toBe('<img src=x onerror=alert(1)>');
@@ -104,7 +104,7 @@ describe('balloons', () => {
 
   it('round 2: a level up, a death and an achievement each rise alone, never joined with kills or each other; a kill joins the newest kill balloon', () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     b.show(SAMPLE_KILLS.good[0]!);
     run(1);
     b.show(SAMPLE_MOMENTS.levelup);
@@ -133,7 +133,7 @@ describe('balloons', () => {
 
   it(`at most ${MAX_BALLOONS} up: the oldest fades out where it flies, beyond it goes at once`, () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     for (let i = 0; i < MAX_BALLOONS + 3; i++) {
       b.show(SAMPLE_MOMENTS.levelup);
       run(0.5);
@@ -158,7 +158,7 @@ describe('balloons', () => {
       const s = this.style;
       return rect({ left: parseFloat(s.left) || 0, top: parseFloat(s.top) || 0, width: parseFloat(s.width) || 0, height: parseFloat(s.height) || 0 });
     });
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     const boxes = (): string[] => [...root.querySelectorAll<HTMLElement>('.wc-balloons')].map((l) => [l.style.left, l.style.top, l.style.width, l.style.height].join(' '));
     expect(boxes()).toEqual(['0px 32px 1920px 1048px', '0px 32px 1920px 1048px']);
     box = { left: 0, top: 0, width: 1280, height: 720 };
@@ -171,7 +171,7 @@ describe('balloons', () => {
 
   it('no frames while the page is hidden', () => {
     const root = cockpit();
-    const b = startBalloons({ root, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    const b = startBalloons({ root, compositor, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
     frames = [];
     document.dispatchEvent(new Event('visibilitychange'));
@@ -180,6 +180,136 @@ describe('balloons', () => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(frames).toHaveLength(1);
+    b.destroy();
+  });
+});
+
+describe('the flight on the compositor (stage 79, ADR 0168)', () => {
+  const SHAPE = /^translate3d\(-?\d+\.\d{3}px, -?\d+\.\d{3}px, 0\) scale\(\d\.\d{5}\)$/;
+  const hide = (hidden: boolean): void => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+  const duration = (a: Animation): number => Number((a.effect as KeyframeEffect).getTiming().duration);
+
+  it('one animation per balloon, its keyframes the plan; the frame loop writes no transform and reads its clock from it', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    b.show(SAMPLE_KILLS.good[0]!);
+    const { el, anim, plan } = b.flights()[0]!;
+    expect(el.getAnimations()).toEqual([anim]);
+    expect(anim!.playState).toBe('running');
+    expect(duration(anim!)).toBeCloseTo(flightTotal(plan) * 1000, 6);
+    const kf = (anim!.effect as KeyframeEffect).getKeyframes();
+    expect(kf.length).toBe(flightKeys(plan).keys.length);
+    expect(kf[0]!.offset).toBe(0);
+    expect(kf.at(-1)!.offset).toBe(1);
+    for (const k of kf) expect(String(k.transform)).toMatch(SHAPE);
+    expect(kf[90]!.transform).toBe(flightTransform(plan.bw, flightAt(plan, 3)));
+    run(2);
+    expect(Number(anim!.currentTime)).toBeCloseTo(2000, 6);
+    expect(b.flights()[0]!.t).toBeCloseTo(2, 6);
+    expect(el.style.transform).toBe('');
+    expect(el.style.opacity).toBe('');
+    b.destroy();
+    expect(anim!.playState).toBe('idle');
+  });
+
+  it('a joined kill: the same animation with the longer plan\'s keyframes, its clock untouched', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    b.show(SAMPLE_KILLS.good[0]!);
+    run(3);
+    const { el, anim, plan } = b.flights()[0]!;
+    const d0 = duration(anim!), t0 = anim!.currentTime, before = (anim!.effect as KeyframeEffect).getKeyframes();
+    b.show(SAMPLE_KILLS.superb[0]!);
+    expect(b.list()[0]!.count).toBe(2);
+    expect(b.flights()[0]!.anim).toBe(anim);
+    expect(el.getAnimations()).toEqual([anim]);
+    expect(anim!.currentTime).toBe(t0);
+    expect(anim!.playState).toBe('running');
+    expect(duration(anim!)).toBeCloseTo(d0 + READ_EXTEND * 1000, 6);
+    // every keyframe up to now says what it said (at its own time: the offsets are shares of a longer flight)
+    const after = (anim!.effect as KeyframeEffect).getKeyframes();
+    for (let i = 0; i <= 90; i++) expect(after[i]!.transform).toBe(before[i]!.transform);
+    expect(after[90]!.offset! * duration(anim!)).toBeCloseTo(before[90]!.offset! * d0, 6);
+    // and the flight ends when the longer plan does
+    run(flightTotal(plan) - 3 - 0.2);
+    expect(b.list()).toHaveLength(1);
+    run(0.5);
+    expect(b.list()).toHaveLength(0);
+    expect(anim!.playState).toBe('idle');
+    b.destroy();
+  });
+
+  it('a hidden page pauses the clock; shown again it goes on from where it was (a finished one is not played again)', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    b.show(SAMPLE_KILLS.good[0]!);
+    run(2);
+    const anim = b.flights()[0]!.anim!;
+    hide(true);
+    expect(anim.playState).toBe('paused');
+    // a balloon launched while hidden waits too
+    b.show(SAMPLE_MOMENTS.levelup);
+    expect(b.flights()[1]!.anim!.playState).toBe('paused');
+    now += 60_000;
+    expect(b.flights().map((f) => +f.t.toFixed(3))).toEqual([2, 0]);
+    hide(false);
+    expect(b.flights().map((f) => f.anim!.playState)).toEqual(['running', 'running']);
+    run(1);
+    expect(b.flights().map((f) => +f.t.toFixed(3))).toEqual([3, 1]);
+    b.destroy();
+  });
+
+  it('too many up: the oldest\'s animation gets the fade folded into its opacity and ends with it', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin });
+    for (let i = 0; i < MAX_BALLOONS; i++) {
+      b.show(SAMPLE_MOMENTS.levelup);
+      run(0.5);
+    }
+    const old = b.flights()[0]!, t = old.t;
+    const before = (old.anim!.effect as KeyframeEffect).getKeyframes();
+    b.show(SAMPLE_MOMENTS.levelup);
+    expect(b.flights()[0]!.anim).toBe(old.anim);
+    expect(Number(old.anim!.currentTime) / 1000).toBeCloseTo(t, 6);
+    expect(duration(old.anim!)).toBeCloseTo((t + HURRY_FADE) * 1000, 6);
+    const kf = (old.anim!.effect as KeyframeEffect).getKeyframes();
+    expect(Number(kf.at(-1)!.opacity)).toBe(0);
+    expect(kf[30]!.transform).toBe(before[30]!.transform);
+    run(HURRY_FADE + 0.2);
+    expect(b.flights()).toHaveLength(MAX_BALLOONS);
+    expect(old.anim!.playState).toBe('idle');
+    b.destroy();
+  });
+
+  it('reduced motion: the same machinery, one transform and the fade', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: true, geometry: () => GEOM, reducedMotion: () => true, skin: dwarfSkin });
+    b.show(SAMPLE_KILLS.good[0]!);
+    const { anim, plan } = b.flights()[0]!;
+    const kf = (anim!.effect as KeyframeEffect).getKeyframes();
+    expect(kf.map((k) => Number(k.opacity))).toEqual([0, 1, 1, 0]);
+    expect(new Set(kf.map((k) => k.transform)).size).toBe(1);
+    run(1);
+    expect(b.list()[0]).toMatchObject({ phase: 'read', front: true, reduced: true });
+    run(flightTotal(plan));
+    expect(b.list()).toHaveLength(0);
+    b.destroy();
+  });
+
+  it('without Web Animations (compositor: false): the frame loop writes the same transform, no animation', () => {
+    const root = cockpit();
+    const b = startBalloons({ root, compositor: false, geometry: () => GEOM, reducedMotion: () => false, skin: dwarfSkin, random: () => 0.3 });
+    b.show(SAMPLE_KILLS.good[0]!);
+    const { el, anim, plan } = b.flights()[0]!;
+    expect(anim).toBeNull();
+    expect(el.getAnimations()).toHaveLength(0);
+    run(2);
+    expect(b.flights()[0]!.t).toBeCloseTo(2, 6);
+    expect(el.style.transform).toBe(flightTransform(plan.bw, flightAt(plan, b.flights()[0]!.t)));
+    expect(el.style.opacity).toBe('1');
     b.destroy();
   });
 });

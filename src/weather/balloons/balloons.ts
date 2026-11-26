@@ -20,11 +20,22 @@
 //
 // A balloon moves from the front layer to the sky once, when its glide
 // starts. Cost: one requestAnimationFrame loop while a balloon is up and
-// the page is shown; per balloon and frame one transform, an opacity when
-// it changes and the skin's own parts. Nothing on the text path; no
-// layout read per frame (the flight plans with the skin's fixed size and
-// the weather's last measured geometry; the rig measures a sign's text
-// once, when it is set).
+// the page is shown; per balloon and frame the skin's own parts. Nothing
+// on the text path; no layout read per frame (the flight plans with the
+// skin's fixed size and the weather's last measured geometry; the rig
+// measures a sign's text once, when it is set).
+//
+// Stage 79 (ADR 0168): the flight is the compositor's. The whole balloon's
+// transform (translate, scale) and opacity are one Web Animation per
+// balloon, its keyframes the plan sampled (flight.ts `flightKeys`), so the
+// browser moves an already rasterised balloon at every vsync whatever the
+// main thread does. The animation's time is the balloon's clock: the frame
+// loop reads it for the parts inside (the lean, the swing, the burner, the
+// layer change, the rest, the end). A hidden page pauses it. A joined kill
+// and a hurried fade change the plan from now on: the same animation gets
+// the new keyframes in the same task, its clock untouched, so nothing
+// jumps. Without Web Animations (`compositor: false`) the frame loop
+// writes the transform and the opacity itself, from the same `flightAt`.
 //
 // Stage 75: the passengers. Each passenger is a lazy chunk of its own
 // (passenger.ts `loadPassenger`); the sign faces load with the balloons
@@ -37,7 +48,7 @@
 
 import './balloons.css';
 import { type Notice, isKillNotice, kindOf, signFor } from './feed';
-import { BURN_STILL, type FlightPlan, type LaneGeom, burnStep, burnTarget, canJoin, extendRead, flightAt, planFlight } from './flight';
+import { BURN_STILL, type FlightPlan, type LaneGeom, burnStep, burnTarget, canJoin, extendRead, flightAt, flightKeys, flightTransform, planFlight } from './flight';
 import { addSignFonts, removeSignFonts } from './fonts';
 import { type PassengerId, loadPassenger } from './passenger';
 import { type Rig, type RigCtx, type SkyMode, createRig } from './rig';
@@ -89,6 +100,12 @@ export interface BalloonsHost {
   reducedMotion?: () => boolean;
   /** Flight seeds (default Math.random; tests). */
   random?: () => number;
+  /**
+   * The flight as a compositor animation (stage 79, ADR 0168). Default:
+   * wherever the browser has Web Animations; false: the frame loop writes
+   * the transform and the opacity (very old browsers, tests).
+   */
+  compositor?: boolean;
 }
 
 export interface BalloonInfo {
@@ -119,13 +136,30 @@ export interface Balloons {
   idle(): Promise<void>;
   /** The balloons up now, oldest first (tests, dev). */
   list(): BalloonInfo[];
+  /** The balloons up now with their flights, oldest first (tests, dev): where `flightAt(plan, t)` says each one is. */
+  flights(): FlightView[];
   destroy(): void;
+}
+
+export interface FlightView {
+  /** The whole balloon (`.wc-balloon`). */
+  el: HTMLElement;
+  plan: FlightPlan;
+  /** Its clock now, s since the notice. */
+  t: number;
+  /** The flight's animation (null: the frame loop writes the transform). */
+  anim: Animation | null;
 }
 
 interface Flight {
   skin: BalloonSkin;
   plan: FlightPlan;
+  /** Seconds since the notice, as of the last frame (`clock` for now). */
   t: number;
+  /** The flight on the compositor: its time is the balloon's clock (null: `t` is counted per frame). */
+  anim: Animation | null;
+  /** When the animation ends, s. */
+  end: number;
   /** When too many are up: the time it began to fade out (null: not fading). */
   fadeAt: number | null;
   notices: Notice[];
@@ -214,24 +248,66 @@ export function startBalloons(host: BalloonsHost): Balloons {
   const ready = new Map<PassengerId, Rig>();
   const who = (o?: ShowOpts): PassengerId => o?.passenger ?? host.passenger?.() ?? 'goblin';
 
+  // ---- the flight on the compositor (stage 79, ADR 0168)
+  const composited = host.compositor ?? (typeof doc.createElement('div').animate === 'function' && typeof win.KeyframeEffect?.prototype.setKeyframes === 'function');
+
+  /**
+   * The flight's animation from the plan as it is now: made at the launch,
+   * and given new keyframes when the plan changes (a joined kill, a hurried
+   * fade). The animation and its time stay, and the new keyframes agree
+   * with the old up to now (flight.ts `flightKeys`), so nothing jumps.
+   */
+  const animate = (f: Flight): void => {
+    const k = flightKeys(f.plan, f.fadeAt === null ? null : { at: f.fadeAt, over: HURRY_FADE });
+    const frames = k.keys.map((s) => ({ offset: s.t / k.end, transform: flightTransform(f.plan.bw, s), opacity: s.opacity.toFixed(4) }));
+    f.end = k.end;
+    const effect = f.anim?.effect as KeyframeEffect | null | undefined;
+    if (effect) {
+      effect.setKeyframes(frames);
+      effect.updateTiming({ duration: k.end * 1000 });
+      return;
+    }
+    // forwards: the last frame stays until the frame loop takes the balloon away
+    f.anim = f.skin.el.animate(frames, { duration: k.end * 1000, fill: 'forwards' });
+    // (cancelling it rejects `finished`: nobody waits for it)
+    f.anim.finished.catch(() => {});
+    if (doc.hidden) f.anim.pause();
+  };
+
+  /** The balloon's time now, s: its animation's, else as of the last frame. */
+  const clock = (f: Flight): number => {
+    const a = f.anim;
+    if (!a) return f.t;
+    if (a.playState === 'finished') return Math.max(f.t, f.end);
+    return a.currentTime === null ? f.t : Math.max(f.t, Number(a.currentTime) / 1000);
+  };
+
+  /** Takes a balloon away. */
+  const drop = (f: Flight): void => {
+    f.anim?.cancel();
+    f.skin.destroy();
+  };
+
   const place = (f: Flight): void => {
     const fr = flightAt(f.plan, f.t);
     f.phase = fr.phase;
     if (fr.phase === 'done') return;
+    if (f.anim?.playState === 'finished' || (f.fadeAt !== null && f.t - f.fadeAt >= HURRY_FADE)) {
+      f.phase = 'done';
+      return;
+    }
     if (fr.front !== f.front) {
       f.front = fr.front;
       (fr.front ? front : sky).append(f.skin.el);
     }
     f.x = fr.x;
-    const el = f.skin.el;
-    el.style.transform = `translate3d(${(fr.x - f.plan.bw / 2).toFixed(1)}px, ${fr.y.toFixed(1)}px, 0) scale(${fr.scale.toFixed(4)})`;
-    const out = f.fadeAt === null ? 1 : 1 - (f.t - f.fadeAt) / HURRY_FADE;
-    if (out <= 0) {
-      f.phase = 'done';
-      return;
+    if (!f.anim) {
+      const el = f.skin.el;
+      el.style.transform = flightTransform(f.plan.bw, fr);
+      const out = f.fadeAt === null ? 1 : 1 - (f.t - f.fadeAt) / HURRY_FADE;
+      const o = Math.round(fr.opacity * out * 100) / 100;
+      if (o !== f.opacity) el.style.opacity = String((f.opacity = o));
     }
-    const o = Math.round(fr.opacity * out * 100) / 100;
-    if (o !== f.opacity) el.style.opacity = String((f.opacity = o));
     if (!f.resting) {
       const p = f.plan, leave = f.t - p.ta - p.read;
       if (!p.reduced && leave >= REST_AFTER.min && (fr.scale <= p.scale * REST_AFTER.shrunk || leave >= REST_AFTER.max)) {
@@ -250,11 +326,14 @@ export function startBalloons(host: BalloonsHost): Balloons {
     last = now;
     for (let i = 0; i < flights.length; i++) {
       const f = flights[i]!;
-      f.t += dt;
-      f.burn = f.plan.reduced ? BURN_STILL : burnStep(f.burn, burnTarget(f.plan, f.t), dt);
+      // One clock: the animation's time where there is one (the burner's step is what it moved by).
+      const t = f.anim ? clock(f) : f.t + dt;
+      const step = t - f.t;
+      f.t = t;
+      f.burn = f.plan.reduced ? BURN_STILL : burnStep(f.burn, burnTarget(f.plan, f.t), step);
       place(f);
       if (f.phase === 'done') {
-        f.skin.destroy();
+        drop(f);
         flights.splice(i--, 1);
       }
     }
@@ -267,10 +346,15 @@ export function startBalloons(host: BalloonsHost): Balloons {
   };
 
   const onVis = (): void => {
+    // The clock stands still while the page is hidden. (Only a running
+    // animation is paused and only a paused one played: `play()` on a
+    // finished one would start the flight again.)
     if (doc.hidden) {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0;
+      for (const f of flights) if (f.anim?.playState === 'running') f.anim.pause();
     } else {
+      for (const f of flights) if (f.anim?.playState === 'paused') f.anim.play();
       last = win.performance.now();
       schedule();
     }
@@ -279,10 +363,13 @@ export function startBalloons(host: BalloonsHost): Balloons {
 
   const launch = (k: Notice, make: SkinFactory, passenger: string): void => {
     // Too many up: the oldest fades out where it flies (the very oldest goes at once beyond the cap).
-    while (flights.length >= MAX_BALLOONS + 1) flights.shift()!.skin.destroy();
+    while (flights.length >= MAX_BALLOONS + 1) drop(flights.shift()!);
     if (flights.length >= MAX_BALLOONS) {
       const old = flights.find((f) => f.fadeAt === null);
-      if (old) old.fadeAt = old.t;
+      if (old) {
+        old.fadeAt = clock(old);
+        if (old.anim) animate(old);
+      }
     }
     const near = flights.filter((f) => f.phase === 'arrive' || f.phase === 'read' || f.phase === 'glide').map((f) => f.x);
     const notices = [k];
@@ -292,10 +379,11 @@ export function startBalloons(host: BalloonsHost): Balloons {
     const skin = make(doc, { sign, reduced: rm });
     skin.el.classList.add('wc-balloon');
     const plan = planFlight(Math.floor(random() * 2 ** 32), host.geometry(), skin.size.w, skin.size.h, { reduced: rm, avoidX: near });
-    const f: Flight = { skin, plan, t: 0, fadeAt: null, notices, front: null, x: plan.start.x, phase: 'arrive', opacity: -1, burn: plan.reduced ? BURN_STILL : 1, passenger, resting: false };
+    const f: Flight = { skin, plan, t: 0, anim: null, end: 0, fadeAt: null, notices, front: null, x: plan.start.x, phase: 'arrive', opacity: -1, burn: plan.reduced ? BURN_STILL : 1, passenger, resting: false };
     skin.setMood(sign.mood);
     skin.setSign(sign, false);
     flights.push(f);
+    if (composited) animate(f);
     place(f);
     if (!raf) last = win.performance.now();
     schedule();
@@ -308,9 +396,13 @@ export function startBalloons(host: BalloonsHost): Balloons {
     // it); those three always rise alone.
     let top: Flight | undefined;
     if (isKillNotice(n)) for (let i = flights.length - 1; i >= 0 && !top; i--) if (isKillNotice(flights[i]!.notices[0]!)) top = flights[i];
-    if (!top || top.fadeAt !== null || !canJoin(top.plan, top.t)) return false;
+    if (!top || top.fadeAt !== null) return false;
+    // by its clock now, not the last frame's: the compositor may be ahead of a busy main thread
+    const t = clock(top);
+    if (!canJoin(top.plan, t)) return false;
     top.notices.push(n);
-    extendRead(top.plan, top.t);
+    extendRead(top.plan, t);
+    if (top.anim) animate(top);
     const s = signFor(top.notices);
     top.skin.setMood(s.mood);
     top.skin.setSign(s, true);
@@ -378,6 +470,9 @@ export function startBalloons(host: BalloonsHost): Balloons {
     list() {
       return flights.map((f) => ({ phase: f.phase, front: !!f.front, kind: kindOf(f.notices[0]!), count: f.notices.length, face: signFor(f.notices).mood, passenger: f.passenger, rest: f.resting, reduced: f.plan.reduced }));
     },
+    flights() {
+      return flights.map((f) => ({ el: f.skin.el, plan: f.plan, t: clock(f), anim: f.anim }));
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -385,7 +480,7 @@ export function startBalloons(host: BalloonsHost): Balloons {
       doc.removeEventListener('visibilitychange', onVis);
       ro?.disconnect();
       win.removeEventListener('resize', pin);
-      for (const f of flights.splice(0)) f.skin.destroy();
+      for (const f of flights.splice(0)) drop(f);
       for (const r of made.splice(0)) r.destroy();
       if (fonts) removeSignFonts(doc);
       sky.remove();

@@ -303,10 +303,17 @@ test('stage 75: reduced motion: the rig\'s still form at the readable spot', asy
   await expect(r).toHaveClass(/rig-rm/);
   await expect(r).toHaveClass(/rig-at/);
   await expect(r).toHaveClass(/rig-still/);
-  const at = () => r.evaluate((e) => (e.parentElement as HTMLElement).style.transform);
+  // where the whole balloon is (stage 79: its flight is an animation, so its box says it, not an inline transform)
+  const box = (e: Element): string => {
+    const b = e.parentElement!.getBoundingClientRect();
+    return [b.left, b.top, b.width, b.height].map((v) => v.toFixed(2)).join(' ');
+  };
+  const at = () => r.evaluate(box);
   const t0 = await at();
   await page.waitForTimeout(1000);
   expect(await at()).toBe(t0);
+  // its flight's animation only fades it: one transform in every keyframe
+  expect(await r.evaluate((e) => e.parentElement!.getAnimations().map((a) => new Set((a.effect as KeyframeEffect).getKeyframes().map((k) => k.transform)).size))).toEqual([1]);
   // no running animation anywhere in it
   expect(await r.evaluate((e) => e.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length)).toBe(0);
   // Changed mid-session (stage 75 review): the next balloon flies and lives, the still one stays still.
@@ -315,8 +322,9 @@ test('stage 75: reduced motion: the rig\'s still form at the readable spot', asy
   const moving = page.locator('.wc-balloon > .rig[data-kind="levelup"]');
   await expect(moving).toHaveCount(1);
   await expect(moving).not.toHaveClass(/rig-rm/);
-  const y0 = await moving.evaluate((e) => (e.parentElement as HTMLElement).style.transform);
-  await expect.poll(() => moving.evaluate((e) => (e.parentElement as HTMLElement).style.transform)).not.toBe(y0);
+  const y0 = await moving.evaluate(box);
+  await expect.poll(() => moving.evaluate(box)).not.toBe(y0);
+  expect(await at()).toBe(t0);
   await expect(r).toHaveClass(/rig-rm/);
   // and back: the next one is still again
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -438,5 +446,106 @@ test('stage 75: the race the game sends picks the passenger, per balloon', async
     await expect(sign, race).toHaveCount(1);
     await expect(sign.locator(`xpath=ancestor::div[contains(@class,"rig ")][1]`), race).toHaveClass(new RegExp(`\\b${CSS_ID[id]}-v\\b`));
   }
+  expect(errors).toEqual([]);
+});
+
+test('stage 79: the flight is one compositor animation per balloon; the balloon is where the plan says, also right after a joined kill and while it leaves', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true, balloons: true } }));
+  await expect(layers(page)).toHaveCount(2);
+  // the flight's pure functions, as the page has them
+  await page.addScriptTag({ type: 'module', content: `import * as m from '/src/weather/balloons/flight.ts'; window.__flight = m;` });
+  await page.waitForFunction(() => '__flight' in window);
+
+  /**
+   * In one task: the oldest balloon's clock and its box, against `flightAt`
+   * for that time (the wrapper's origin is its top centre). `join`: a kill
+   * joins its sign first, in the same task. `seek`: its clock is set first.
+   */
+  const probe = (o: { join?: boolean; seek?: 'leave' } = {}) =>
+    page.evaluate(async (o) => {
+      type Flight = typeof import('../../src/weather/balloons/flight');
+      const m = (window as unknown as { __flight: Flight }).__flight;
+      const b = (await window.__wc!.app.weather!.controller!.balloons())!;
+      const rect = (el: Element) => {
+        const r = el.getBoundingClientRect(), l = el.parentElement!.getBoundingClientRect();
+        return { left: r.left - l.left, top: r.top - l.top, width: r.width };
+      };
+      let f = b.flights()[0]!;
+      const anim = f.anim!;
+      if (o.seek) {
+        // ten seconds into the leave: behind the text, smaller
+        anim.currentTime = (f.plan.ta + f.plan.read + 10) * 1000;
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      }
+      const before = rect(f.el), t0 = anim.currentTime, read0 = f.plan.read;
+      if (o.join) b.show({ name: 'a joined kill', xp: 1200, face: 'good' });
+      f = b.flights()[0]!;
+      const t = Number(anim.currentTime) / 1000, at = rect(f.el), fr = m.flightAt(f.plan, t), w = f.el.offsetWidth;
+      return {
+        t,
+        phase: fr.phase,
+        scale: fr.scale / f.plan.scale,
+        count: b.list()[0]!.count,
+        front: f.el.parentElement!.classList.contains('wc-balloons-front'),
+        // the animation: one, the same, running; nothing written inline
+        anims: f.el.getAnimations().length,
+        same: f.el.getAnimations()[0] === anim && f.anim === anim,
+        state: anim.playState,
+        inline: f.el.style.transform + f.el.style.opacity,
+        clockKept: anim.currentTime === t0,
+        longer: f.plan.read - read0,
+        duration: Number(anim.effect!.getComputedTiming().endTime) / 1000 - m.flightTotal(f.plan),
+        // how far the box is from the plan, and from where it was before the join, px
+        off: Math.max(Math.abs(at.left - (fr.x - (w * fr.scale) / 2)), Math.abs(at.top - fr.y), Math.abs(at.width - f.plan.bw * fr.scale)),
+        jump: Math.max(Math.abs(at.left - before.left), Math.abs(at.top - before.top), Math.abs(at.width - before.width)),
+        opacity: Math.abs(Number(getComputedStyle(f.el).opacity) - fr.opacity),
+      };
+    }, o);
+  const ok = { anims: 1, same: true, state: 'running', inline: '', clockKept: true };
+
+  await type(page, '#weather balloon good');
+  await expect(balloon(page)).toHaveCount(1);
+  // arriving, at its fastest
+  const seen = [];
+  for (const wait of [700, 900, 900]) {
+    await page.waitForTimeout(wait);
+    seen.push(await probe());
+  }
+  expect(seen.map((s) => s.phase)).toEqual(['arrive', 'arrive', 'arrive']);
+  expect(seen[2]!.t).toBeGreaterThan(seen[1]!.t + 0.5);
+  expect(seen[1]!.t).toBeGreaterThan(seen[0]!.t + 0.5);
+  // a kill joins: the same animation and clock, the plan longer, and the balloon exactly where it was
+  const joined = await probe({ join: true });
+  expect(joined).toMatchObject({ ...ok, count: 2, front: true });
+  expect(joined.longer).toBeCloseTo(0.7, 6);
+  expect(joined.jump).toBe(0);
+  seen.push(joined);
+  // the command's burst: four more kills on the sign in two seconds
+  await type(page, '#weather balloon burst');
+  await page.waitForTimeout(800);
+  seen.push(await probe());
+  await expect.poll(async () => (await probe()).count).toBe(6);
+  seen.push(await probe());
+  // while it leaves: in the sky layer, shrunk, still the same animation
+  const leaving = await probe({ seek: 'leave' });
+  expect(leaving).toMatchObject({ ...ok, front: false });
+  expect(['glide', 'drift']).toContain(leaving.phase);
+  expect(leaving.scale).toBeLessThan(0.99);
+  seen.push(leaving);
+  await page.waitForTimeout(600);
+  const later = await probe();
+  expect(later.t).toBeGreaterThan(leaving.t + 0.4);
+  seen.push(later);
+  for (const s of seen) {
+    expect(s, JSON.stringify(s)).toMatchObject(ok);
+    expect(Math.abs(s.duration), JSON.stringify(s)).toBeLessThan(1e-6);
+    // within a twentieth of a px of the plan (the keyframes' chord and the browser's own rounding)
+    expect(s.off, JSON.stringify(s)).toBeLessThan(0.05);
+    expect(s.opacity, JSON.stringify(s)).toBeLessThan(0.002);
+  }
+  console.log(`stage 79: off the plan by at most ${Math.max(...seen.map((s) => s.off)).toFixed(4)} px at t = ${seen.map((s) => s.t.toFixed(2)).join(', ')} s`);
   expect(errors).toEqual([]);
 });
