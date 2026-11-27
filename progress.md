@@ -209,7 +209,9 @@ with no stage of their own. Remove a line when it is done.
   passed; `build:site --target staging` passed. Staging deployed at
   `afc7290d` (run 45938802933, migration 0009 applied), `test:prod` on
   staging 36 passed, the route checks (`scripts/staging-looks-curl.sh`)
-  all as expected. Production untouched, `FLAG_LOOKS` false there.
+  all as expected. Staging deployed again at the end with part F
+  (`325c16c`, run 45947606750), `test:prod` there 36 passed. Production
+  untouched, `FLAG_LOOKS` false there.
 - Benches (mains, `Full`, screen not locked): part B's before/after of
   the map and its token scene are in ADR 0171. At the end, budgets and map
   again: all as after B except Chromium's scrollback flush, 1.4 → 6.1 ms;
