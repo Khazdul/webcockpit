@@ -1017,7 +1017,9 @@ assigns it. The resolver's silent fallback covers it.
   before the stage too, 2 of 5 at 726af9d7)
 - [x] C. Group tokens and the scaling rows (`9cad7e84`…`ae614268`; unit 6312,
   full e2e 2162 passed, 2 failed under load and pass alone)
-- [ ] D. Own images
+- [x] D. Own images (`476ab9b0`…`f1838179`; unit 6339, sync-worker 8 passed,
+  full e2e 2166 passed, 4 failed under load and pass alone; `looks-bear`
+  fails only under load, 20 of 20 alone)
 - [ ] E. The directory, staging
 - [ ] F. Phone and tablet
 - [ ] The end checks, the documents, the test guide, the log
