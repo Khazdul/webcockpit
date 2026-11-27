@@ -83,12 +83,18 @@
 | 77 | The Character pane as a card | Done (2026-11-25, the owner's closing test passed; ADR 0166 with addenda 1–47); released 0.23.0; open checks under Loose ends | `docs/stages/77-character-pane.md` |
 | 78 | The Character pane film | Built (round 3 is the film, 2026-11-26); the upload is the owner's | `docs/stages/78-character-film.md` |
 | 79 | Balloon smoothness | Done, released 0.23.2 (the owner: a considerable improvement, acceptable; round 2 stays on its branch) | `docs/stages/79-balloon-smoothness.md` |
-| 80 | Looks: portraits you choose, tokens on the map and in Group | Approved for building (2026-11-26): the spec and the night run brief are written; nothing built | `docs/stages/80-character-tokens.md` |
+| 80 | Looks: portraits you choose, tokens on the map and in Group | Owner testing (built in the night run 2026-11-27, parts A–F; on staging, not released; ADRs 0169–0173, 0122 addendum) | `docs/stages/80-character-tokens.md` |
 
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Loose ends
 
+- Stage 80: `phone-own-keyboard-editors.spec.ts:218` (the phone's Lua
+  editor on our keys) fails now and then, alone too, also before the
+  stage (2 of 5 at 726af9d7). `looks-own.spec.ts:193` fails about 1 in 5
+  alone (part F's agent saw it before its own commits too). `test:prod`
+  against production expects the flag `looks` and fails until the
+  release that carries it.
 - **Verify when grouped with a troll** (stage 77 H9 step 5, parked by the
   owner 2026-11-25): a troll member's row in Group shows HP and moves
   only, no mana bar (`noMana`, ADR 0166 point 198; built from the run
@@ -183,6 +189,38 @@ with no stage of their own. Remove a line when it is done.
   refuse that in a worktree.
 
 ## Session log
+
+### 2026-11-27 — Stage 80 built in the night run (parts A–F)
+
+- Built by subagents one part at a time, each verified in the main
+  session (typecheck, all of vitest, full e2e at 5 workers alone,
+  failures rerun alone, screenshots against mockup round 2): A the library
+  (125 tokens, `scripts/tokens.ts`), the look model, the picker, the
+  Character pane, bear form; B map tokens (texture array, one instanced
+  draw, the fan, the HP arc; tokens off pixel-equal to before); C Group
+  tokens and rows that follow the pane's height; D own images and the two
+  sync kinds (migration 0009, a budget of their own); E the directory of
+  shared looks (routes, owner rule, limits, flag, privacy text); F the
+  picker as a phone and tablet page.
+- Main-session fixes: Settings → Mapper's tokens as one row (two rows broke
+  ADR 0118's height rule); `looks-bear` waits for a settled portrait.
+- Tested: unit 6414 passed; last full e2e 2187 passed, 5 failed under
+  load, all pass alone except the known flake; `test:sync-worker` 10
+  passed; `build:site --target staging` passed. Staging deployed at
+  `afc7290d` (run 45938802933, migration 0009 applied), `test:prod` on
+  staging 36 passed, the route checks (`scripts/staging-looks-curl.sh`)
+  all as expected. Production untouched, `FLAG_LOOKS` false there.
+- Benches (mains, `Full`, screen not locked): part B's before/after of
+  the map and its token scene are in ADR 0171. At the end, budgets and map
+  again: all as after B except Chromium's scrollback flush, 1.4 → 6.1 ms;
+  726af9d7 (before the stage) run back to back gave 6.1 too, and HEAD
+  5.9, so it is the machine's state, not the stage.
+- **The owner's dev server on 5173 must be restarted** to show the stage.
+- Next: the owner's test (stage file, "Test guide"), his verdict on the
+  phone and tablet screenshots, then the release (notes drafted in the
+  stage file) and whether `FLAG_LOOKS` goes on in production.
+- Open: see Loose ends (two flaky e2e, `test:prod` and the flag).
+- Commits: `f17cbcec` … this one (about 40), ADRs 0169–0173.
 
 ### 2026-11-26 — Stage 80 proposed: looks, tokens, the shared directory
 

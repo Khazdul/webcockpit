@@ -6,10 +6,10 @@ token on the map and in the Group pane, and group members get tokens too.
 The creator of a set of MUME token pictures asked for them to be
 integrated. This file is the spec and the brief for the build.
 
-**Status: approved for building** (2026-11-26). The brainstorm and two
-mockup rounds are held and every point is decided (below). It is built in
-one unattended night run (the owner's wish), parts A–F in order, without
-stopping for the owner between parts. Nothing is built yet.
+**Status: built, owner testing** (the night run of 2026-11-26/27, parts
+A–F, all done; on `main` and on staging; not released). The brainstorm
+and two mockup rounds were held and every point was decided (below). The
+test guide is under "Test guide".
 
 ## How to read this file (for the session that builds it)
 
@@ -1026,19 +1026,161 @@ assigns it. The resolver's silent fallback covers it.
   36 passed, the route checks of `scripts/staging-looks-curl.sh` all as
   expected and the test name removed again; production's `FLAG_LOOKS` is
   false)
-- [ ] F. Phone and tablet
-- [ ] The end checks, the documents, the test guide, the log
+- [x] F. Phone and tablet (`1b89052c`…`9119e9c7`; phone project 651 passed,
+  1 known flake; screenshots `docs/stages/img/80-f-*.png`)
+- [x] The end checks, the documents, the test guide, the log
 
 ## Test guide
 
-Written by the night run for what was built. It must say: what to
-restart (the dev server on 5173), what to open, the steps for each part,
-how to test shared looks with two browsers on staging, the phone and
-tablet screenshots, and what feedback is wanted.
+Built in the night of 2026-11-26/27, parts A–F. Everything is on `main`
+(pushed) and on staging. Nothing is released; production has the flag
+`looks` off and has not been deployed.
+
+### Before you start
+
+- **Restart your dev server on 5173** (`npm run dev`): it still serves the
+  version it was started with and knows nothing of this stage.
+- Desktop: <http://localhost:5173/> (your own characters, real MUME), or
+  the demo feed <http://localhost:5173/?fixture=gmcp-demo.log&speed=0>
+  (Rasta and a group, no login). Staging: <https://staging.mumecockpit.com>.
+
+### 1. Your look (part A), desktop
+
+1. Open the Character pane. The portrait has a pointer cursor and the
+   tooltip "Click to choose a look". Click it.
+2. The dialog "Look for <Name>": the preview column (portrait, a bit of
+   map, a Group row) on the left, the tabs Automatic, Library, My images.
+3. Library: try the chips (Men, Elves …, Male/Female, Mounts, Mobs), the
+   search ("noldor", "hors"), the arrows in the grid. Pick one: the pane
+   behind shows it at once.
+4. Cancel: the old look comes back. Pick again and "Use this look":
+   kept, also after a reload.
+5. Make the card compact (no portrait): the gear has "Look…", which opens
+   the same dialog.
+6. Automatic puts the engraved drawing back.
+7. A Beorning: in bear form the drawing is the bear (by your sex), and
+   back again. Only for the automatic look.
+
+### 2. Map tokens (part B)
+
+1. Open the Map at zoom 1 or closer: you are a round token with a muted
+   yellow ring; group members are tokens in their hues. Zoom out below
+   about 20 px a room (and in the far style): today's boxes, unchanged.
+2. Several in one room: the fan (your token whole, the others small
+   along the lower edge, at most three, then `+n`).
+3. A hurt member (or you) has a thin HP arc outside the ring, green,
+   orange from 45 %, red from 25 %; none at full HP.
+4. Settings → Mapper → Tokens: Off | On | With HP arc (one row, see
+   "Decided in the night"). The map's gear has the same row.
+
+### 3. Group tokens and the scaling rows (part C)
+
+1. With a group: each row starts with a round token; the rows grow with
+   the pane's height (one line → two lines → the name and three full bars
+   with numbers), the token up to 68 px. Drag the pane's height and watch
+   the steps; what is left over stays empty at the bottom.
+2. Vitals change: no row moves.
+3. Click a member's token: "Look for <member>", with the source line and
+   "Reset to automatic". Pick a library picture: it shows in the row and
+   on the map. An NPC horse gets the horse by itself.
+4. Group's gear → Tokens off: the marker icons are back, rows still scale.
+
+### 4. Own images (part D), needs an account
+
+Own images need an account. On localhost the account service does not
+run, so test this on **staging** (make a test account there; staging's
+accounts are separate from production's).
+
+1. Look dialog → My images: logged out it shows the login card.
+2. Logged in: Add image, pick a photo; crop (drag, wheel, + −); the circle
+   is the token's cut. Save image: it is on the shelf (`n of 50`), and as
+   portrait and token.
+3. Open the same account in a second browser: the image and the look come
+   over within a sync (a few seconds).
+4. Remove an image in use: the dialog says how many use it; they go back
+   to automatic.
+
+### 5. Shared looks between two players (part E), staging, two browsers
+
+The directory is on in staging only. It needs two of your characters in
+one MUME group, each in its own browser (Firefox and Chromium, or one in a
+private window), both on <https://staging.mumecockpit.com>.
+
+1. In browser 1 log in to MUME with character A and pick a library look.
+   In browser 2 log in with character B and leave it automatic (or pick
+   another).
+2. Group them in the game. A's Group pane and map show B with B's race
+   and sex drawing (or B's library token), and the other way round. A
+   member who does not use MUME Cockpit stays the neutral figure.
+3. In A: Look dialog → switch "Show my look to other MUME Cockpit
+   players" off. B keeps its answer cached for a while; reload B and it
+   asks again and sees A as the neutral figure.
+4. Logged out and logged in both report; a login takes the rows over.
+5. `/admin` on staging: Flags and limits has a "Shared looks" card with
+   the count and removal by name.
+6. The privacy page has the new "Shared looks" section; About's "What the
+   site knows" says what is sent.
+
+### 6. Phone and tablet (part F)
+
+Open the phone layout (a phone, or the browser's device mode). Tap the
+Character portrait, a Group token (on one-line rows the start of the row
+is the target), or Settings → Character → Look → "Look…". The picker is a
+page in the phone's look with Cancel and "Use this look" at its foot;
+Back cancels. The screenshots for your verdict (Goal 12), in
+`docs/stages/img/`:
+
+| Picture | What it shows |
+|---|---|
+| `80-f-phone-auto.png`, `-paper`, `-land`; `80-f-tablet-auto.png`, `-land` | The Automatic tab and the share switch |
+| `80-f-phone-lib.png`, `-paper`, `-land`; `80-f-tablet-lib.png`, `-land` | The Library, Men, a knight picked live |
+| `80-f-phone-lib-search.png`, `80-f-tablet-lib-search.png` | Chips and a search typed on our keyboard |
+| `80-f-phone-mine-login.png`, `80-f-tablet-mine-login.png` | My images logged out |
+| `80-f-phone-mine-shelf.png`, `80-f-tablet-mine-shelf.png` | The shelf in an account |
+| `80-f-phone-crop.png`, `-land`; `80-f-tablet-crop.png`, `-land` | The crop step (drag and pinch) |
+| `80-f-phone-member.png`, `80-f-tablet-member.png` | The picker for a group member |
+| `80-f-phone-group.png`, `-paper`, `-land`; `80-f-tablet-group.png`, `-land` | The Group view with tokens and arcs |
+| `80-f-phone-lens.png`, `-land`; `80-f-tablet-lens.png`, `-land` | The lens at its closest level |
+| `80-f-phone-settings-look.png`, `-paper`; `80-f-tablet-settings-look.png` | Settings → Character → Look |
+
+### Feedback wanted
+
+- The picker: desktop dialog, phone page, tablet page. A yes or no on the
+  phone and tablet design (Goal 12).
+- Map tokens: the size (0.8 room), the fan, the arc's thickness.
+- Group rows: do the steps feel right at your usual pane height? The
+  1 px arc on the smallest one-line tokens is hard to see: keep it there
+  or drop it?
+- The neutral figure for players with no shared look: good enough?
+- The Mapper row "Off | On | With HP arc" instead of two switches.
+- Shared looks on staging: did both browsers see each other? Whether
+  `FLAG_LOOKS` goes on in production with the release is your call.
+- Anything under "Decided in the night" you want otherwise.
 
 ## Release notes (draft)
 
-(the night run writes here)
+**Looks: choose your character's picture, and see your group as tokens.**
+
+- Click the portrait in the Character pane (or "Look…" in its gear) to
+  choose a look: the engraved drawing for your race and sex (as before),
+  one of 125 pictures from Sunnyl75's community token set, or, with an
+  account, an image of your own (up to 50, cropped in the browser, never
+  shown to anyone else).
+- The map draws you and your group as round tokens in their colours, with
+  a thin HP arc when someone is hurt, and several in one room as a fan.
+  Settings → Mapper → Tokens.
+- The Group pane has tokens too, and its rows grow with the pane's
+  height, up to three full bars with numbers. Click a member's token to
+  choose their look for yourself.
+- Beornings in bear form are drawn as a bear.
+- Shared looks: MUME Cockpit players in one group see each other's race,
+  sex and library look. The client reports your character's name, race,
+  subrace, sex and library token to the service; own images are never
+  sent. Turn it off in the look dialog or the settings, which removes your
+  entry. The privacy page says what is stored and for how long. (Behind
+  the `looks` flag: say here whether it is on with the release.)
+- Phone and tablet: the look picker as a page, tokens in the Group view
+  and in the lens at its closest level.
 
 ## Decided in the night
 
@@ -1254,6 +1396,13 @@ tablet screenshots, and what feedback is wanted.
 - F: The screenshots are `docs/stages/img/80-f-*.png`, made by
   `node scripts/looks-shots.ts` (the phone at 390 × 844, device scale 2; the
   tablet at 820 × 1180, scale 1 to keep the files small).
+
+- Main session: `phone-own-keyboard-editors.spec.ts:218` fails now and
+  then; it did so before the stage too (2 of 5 runs at 726af9d7), so it is
+  under Loose ends, not fixed tonight.
+- Main session: `tests/e2e-prod/site-root.spec.ts` expects the flag
+  `looks` in `/api/config`: `test:prod` against production fails until
+  the release that carries it is deployed (E above).
 
 ## Owner feedback
 
