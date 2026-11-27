@@ -9,8 +9,8 @@
 //   │  (frame)        Automatic: one card, the engraved drawing  │
 //   │ TOKEN ON MAP    Library: chips (people, sex, mounts, mobs, │
 //   │  (map bit)        with counts), a search, the grid         │
-//   │ IN GROUP        My images: the account card (part D)       │
-//   │  (a row)                                                   │
+//   │ IN GROUP        My images: the shelf and the crop step, or │
+//   │  (a row)          the login card logged out (part D)       │
 //   │ [switch] Show my look to other MUME Cockpit players        │
 //   │                    Reset to automatic · Cancel · Use this look │
 //   └────────────────────────────────────────────────────────────┘
@@ -27,8 +27,8 @@
 // - The CSS prefix is `wc-looks-` (`wc-lk-` is the look kit's own).
 
 import type { VNode } from 'preact';
-import { render } from 'preact';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { createContext, render } from 'preact';
+import { useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'preact/hooks';
 import type { GameState } from '../gmcp/state';
 import type { Sex } from '../gmcp/sex';
 import { Dialog, type DialogButton } from '../chrome/kit/look-overlay';
@@ -43,7 +43,11 @@ import { SELF_COLOR, ringCss } from './ring';
 import type { LooksStore } from './store';
 import { AUTO, type LookRef, lookName, sameLook } from './types';
 import { type LibFilter, RACE_CHIPS, filterLibrary, libraryCounts } from './filter';
+import { MineTab, type MineKeys } from './mine';
 import './picker.css';
+
+/** An own image's `data:` URL for the previews (the picker's looks store). */
+const OwnSrc = createContext<(id: string) => string | null>(() => null);
 
 export interface LookPickerTarget {
   name: string;
@@ -58,6 +62,8 @@ export interface LookPickerOptions {
   focusInput(): void;
   /** The dialog closed (Cancel, Use, Esc). */
   onClose?(): void;
+  /** True when the page may be left for the start page's Log in (no game connected); absent: always. */
+  canLeave?(): boolean;
 }
 
 export interface LookPickerHandle {
@@ -76,6 +82,7 @@ const TABS: readonly { id: Tab; label: string }[] = [
 /** A look's picture for the preview: its URL (a library file, or a baked drawing) and how it sits. */
 function usePicture(look: Look, big: boolean): { src: string | null; lib: boolean } {
   const doc = typeof document !== 'undefined' ? document : null;
+  const ownSrc = useContext(OwnSrc);
   const [baked, setBaked] = useState<{ key: string; src: string | null } | null>(null);
   const key = look.kind === 'drawn' ? `${look.portrait}|${look.sex}|${big}` : '';
   useEffect(() => {
@@ -91,6 +98,7 @@ function usePicture(look: Look, big: boolean): { src: string | null; lib: boolea
     };
   }, [key]);
   if (look.kind === 'lib') return { src: tokenUrl(look.id, big ? 'p' : 't'), lib: true };
+  if (look.kind === 'own') return { src: ownSrc(look.id), lib: false };
   if (look.kind === 'drawn') return { src: baked?.key === key ? baked.src : null, lib: false };
   return { src: null, lib: false };
 }
@@ -150,7 +158,7 @@ function Preview(p: { look: Look; name: string; ring: string; hp: number; mana: 
 
 /** Everything in the dialog a key may focus, in document order. */
 function focusables(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>('button, input')].filter(
+  return [...root.querySelectorAll<HTMLElement>('button, input, .wc-looks-croparea')].filter(
     (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-disabled') !== 'true' && el.getClientRects().length > 0,
   );
 }
@@ -188,6 +196,10 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
   const [at, setAt] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const closed = useRef(false);
+  const mineKeys = useRef<MineKeys | null>(null);
+  // The shelf's changes (an image added, removed or pulled) show at once.
+  const [, bump] = useReducer((n: number, _: number) => n + 1, 0);
+  useEffect(() => looks.subscribe(() => bump(0)), []);
 
   useEffect(() => {
     let live = true;
@@ -217,9 +229,10 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
   };
   finishRef.current = finish;
 
+  const ownImages = looks.ownIds();
   const input = who.self
-    ? { race: v.race, subrace: v.subrace, sex, library }
-    : { name: member?.name ?? who.name, npc: member?.type === 'npc', library };
+    ? { race: v.race, subrace: v.subrace, sex, library, ownImages }
+    : { name: member?.name ?? who.name, npc: member?.type === 'npc', library, ownImages };
   const shown: Look = who.self ? resolveSelf({ ...(input as Parameters<typeof resolveSelf>[0]), choice: sel }) : resolveMember({ ...(input as Parameters<typeof resolveMember>[0]), choice: sel });
   const auto: Look = who.self ? autoSelf(input as Parameters<typeof autoSelf>[0]) : autoMember(input as Parameters<typeof autoMember>[0]);
   const ring = who.self ? ringCss(SELF_COLOR) : ringCss(0x8fb7ff);
@@ -235,7 +248,10 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     if (!root) return false;
     const doc = root.ownerDocument;
     const cur = doc.activeElement instanceof HTMLElement && root.contains(doc.activeElement) ? doc.activeElement : null;
-    const field = cur?.tagName === 'INPUT';
+    // The search field (the crop's zoom slider keeps its own arrows).
+    const field = cur?.tagName === 'INPUT' && (cur as HTMLInputElement).type === 'search';
+    // My images: the crop's picture and zoom (MineTab).
+    if (cur && mineKeys.current?.(cur, e, nk)) return true;
     const go = (el: HTMLElement | undefined): void => {
       if (!el) return;
       el.focus({ preventScroll: false });
@@ -304,6 +320,7 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     : sourceLine(auto, library);
 
   return (
+    <OwnSrc.Provider value={(id) => looks.ownSrc(id)}>
     <Dialog title={`Look for ${name}`} dlg="look" width={780} at={at} buttons={buttons} onCancel={() => finish(false)}>
       <div class="wc-looks" ref={ref}>
         <div class="wc-looks-body">
@@ -338,7 +355,18 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
                 </>
               )}
               {tab === 'lib' && <LibraryTab lib={lib} filter={filter} setFilter={setFilter} sel={sel} ring={ring} choose={choose} />}
-              {tab === 'mine' && <MineTab />}
+              {tab === 'mine' && (
+                <MineTab
+                  looks={looks}
+                  sel={sel}
+                  choose={choose}
+                  keys={mineKeys}
+                  {...(p.canLeave ? { canLeave: p.canLeave } : {})}
+                  onRemoved={(id) => {
+                    if (sel.src === 'own' && sel.id === id) setSel(AUTO);
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -361,6 +389,7 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
         )}
       </div>
     </Dialog>
+    </OwnSrc.Provider>
   );
 });
 
@@ -455,21 +484,6 @@ function LibraryTab(p: {
         {tokens.length} pictures in the community library, by Sunnyl75.
       </p>
     </>
-  );
-}
-
-function MineTab(): VNode {
-  return (
-    <div class="wc-looks-mine">
-      <div class="wc-looks-out">
-        <span class="wc-looks-sub">Coming soon</span>
-        <p>
-          <b>Your own images need an account.</b>
-        </p>
-        <p>You will be able to add up to 50 pictures of your own here. They are kept in your account, so they follow you to your other devices, and they are only ever shown to you.</p>
-        <p>The library and the automatic drawings work without one.</p>
-      </div>
-    </div>
   );
 }
 

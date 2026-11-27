@@ -84,12 +84,13 @@ export function tokenState(i: TokenStateInput): TokenState {
   const s = i.settings;
   const sv = game.char.statusVars;
   const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
-  const selfIn = { mode: 'live' as const, choice: looks.lookFor(game.char.name), race: str(sv.get('race')), subrace: str(sv.get('subrace')), sex: game.sex, library };
+  const ownImages = looks.ownIds();
+  const selfIn = { mode: 'live' as const, choice: looks.lookFor(game.char.name), race: str(sv.get('race')), subrace: str(sv.get('subrace')), sex: game.sex, library, ownImages };
   const self = face(resolveSelf(selfIn), autoSelf(selfIn), selfHp(game));
   const members: TokenMember[] = [];
   for (const e of game.groupTable.values()) {
     const npc = e.type === 'npc';
-    const mi = { mode: 'live' as const, name: e.name, npc, choice: looks.lookFor(e.name), library };
+    const mi = { mode: 'live' as const, name: e.name, npc, choice: looks.lookFor(e.name), library, ownImages };
     const m = game.group.get(e.id);
     const hp = m ? vitalPct('hp', m.hp).pct : null;
     members.push({ id: e.id, color: game.groupTable.colorOf(e.id) ?? 0, ...face(resolveMember(mi), autoMember(mi), hp) });

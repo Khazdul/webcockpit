@@ -641,7 +641,12 @@ function useAccountAddress(openAccount: (opens: OwnerView['opens']) => void): vo
     const view = value === 'published' ? 'published' : 'account';
     preloadAccountChunk();
     void watchAccountState().then(
-      (st) => (st.enabled === true && accountState().name !== null ? openAccount(view) : endArrival()),
+      (st) => {
+        if (st.enabled !== true) return endArrival();
+        // `?account=login` (the look picker's My images, stage 80): Log in when nobody is, else the Account page.
+        if (accountState().name === null) return value === 'login' ? openAccount('login') : endArrival();
+        openAccount(view);
+      },
       () => endArrival(),
     );
   }, []);

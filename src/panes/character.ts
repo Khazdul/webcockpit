@@ -373,8 +373,14 @@ export class CharacterPane extends PaneShell {
     const { ctx } = this;
     const portrait = portraitOf(race, subrace);
     const looks = ctx.looks;
-    const l = resolveSelf({ mode: looks && !PORTRAIT_FORCED ? 'live' : 'none', choice: looks?.lookFor(name) ?? null, race, subrace, sex, library: libraryNow() });
-    const image = l.kind === 'lib' ? { src: tokenUrl(l.id, 'p'), art: 'lib' as const, look: `lib:${l.id}` } : null;
+    const l = resolveSelf({ mode: looks && !PORTRAIT_FORCED ? 'live' : 'none', choice: looks?.lookFor(name) ?? null, race, subrace, sex, library: libraryNow(), ownImages: looks?.ownIds() ?? null });
+    const own = l.kind === 'own' ? (looks?.ownSrc(l.id) ?? null) : null;
+    const image =
+      l.kind === 'lib'
+        ? { src: tokenUrl(l.id, 'p'), art: 'lib' as const, look: `lib:${l.id}` }
+        : own
+          ? { src: own, art: 'own' as const, look: `own:${(l as { id: string }).id}:${own.length}:${own.slice(-16)}` }
+          : null;
     return { portrait, image, lookable: !!ctx.openLook && !ctx.player && name !== null };
   }
 

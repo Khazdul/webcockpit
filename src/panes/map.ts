@@ -525,6 +525,8 @@ export class MapPane extends PaneShell {
             this.client?.tokens(st);
           },
           answer: (key, a) => this.client?.tokenImage(key, a),
+          // Own images (part D, ADR 0172): their bytes, sent once (the worker keeps the decoded picture).
+          ownBytes: async (id) => looks.images?.bytes(id) ?? null,
         });
       }
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));

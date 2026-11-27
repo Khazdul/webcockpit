@@ -196,7 +196,7 @@ function drawnSrc(doc: Document, l: Extract<Look, { kind: 'drawn' }>): Promise<s
 }
 
 /** Paints `look` into the token's disc; a picture that cannot load falls to `alt` (then the type icon). */
-function paintToken(doc: Document, disc: HTMLElement, look: Look, alt: Look | null, icon: IconView): void {
+function paintToken(doc: Document, disc: HTMLElement, look: Look, alt: Look | null, icon: IconView, ownSrc: string | null = null): void {
   disc.replaceChildren();
   disc.className = 'wc-gp-tkd';
   disc.dataset.look = lookKey(look);
@@ -227,7 +227,18 @@ function paintToken(doc: Document, disc: HTMLElement, look: Look, alt: Look | nu
     });
     return;
   }
-  if (look.kind === 'own') return fail();
+  if (look.kind === 'own') {
+    // An own image (part D): its `data:` URL, the whole square cut round.
+    if (!ownSrc) return fail();
+    disc.classList.add('is-own');
+    const img = el(doc, 'img', '');
+    img.alt = '';
+    img.draggable = false;
+    img.addEventListener('error', fail, { once: true });
+    img.src = ownSrc;
+    disc.append(img);
+    return;
+  }
   // The type icon (an NPC no picture matches).
   disc.classList.add('is-icon');
   disc.style.color = icon.color;
@@ -257,7 +268,7 @@ function tokenEl(doc: Document, v: MemberView, t: TokenView, d: number, upd: Upd
   tk.style.setProperty('--d', `${d}px`);
   tk.style.setProperty('--c', t.ring);
   const disc = el(doc, 'span', 'wc-gp-tkd');
-  paintToken(doc, disc, t.look, t.alt, v.marker);
+  paintToken(doc, disc, t.look, t.alt, v.marker, t.src ?? null);
   tk.append(disc);
   // The arc: a dark track and the HP from 12 o'clock, clockwise, outside the ring and its outline.
   const aw = arcWidth(d);

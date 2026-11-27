@@ -369,10 +369,12 @@ export interface TokenView {
   ring: string;
   /** The button's label. */
   label: string;
+  /** An own image's `data:` URL (part D), when `look` is one. */
+  src?: string | null;
 }
 
 export interface TokenEnv {
-  looks: { lookFor(name: string | null | undefined): LookRef | null } | null;
+  looks: { lookFor(name: string | null | undefined): LookRef | null; ownIds?(): ReadonlySet<string> | null; ownSrc?(id: string): string | null } | null;
   library: Library | null;
   /** The member's hue (`GameState.groupTable`), 0xRRGGBB, or null. */
   hue: (id: number) => number | null;
@@ -383,9 +385,12 @@ const NO_HUE = 0x8c8c8c;
 
 /** A member's token. */
 export function tokenView(m: Member, env: TokenEnv): TokenView {
-  const input = { mode: 'live' as const, name: m.name, npc: m.type === 'npc', choice: env.looks?.lookFor(m.name) ?? null, library: env.library };
+  const input = { mode: 'live' as const, name: m.name, npc: m.type === 'npc', choice: env.looks?.lookFor(m.name) ?? null, library: env.library, ownImages: env.looks?.ownIds?.() ?? null };
   const name = m.name || m.label || '?';
-  return { look: resolveMember(input), alt: autoMember(input), ring: ringCss(env.hue(m.id) ?? NO_HUE), label: `Look for ${name}` };
+  const look = resolveMember(input);
+  const out: TokenView = { look, alt: autoMember(input), ring: ringCss(env.hue(m.id) ?? NO_HUE), label: `Look for ${name}` };
+  if (look.kind === 'own') out.src = env.looks?.ownSrc?.(look.id) ?? null;
+  return out;
 }
 
 /** What a look draws, as a short key (signatures, `data-look`). */
@@ -403,7 +408,7 @@ export function lookKey(l: Look): string {
 }
 
 /** What a token's structure depends on (its arc is set in place). */
-export const tokenSig = (t: TokenView): string => `${lookKey(t.look)}|${lookKey(t.alt)}|${t.ring}|${t.label}`;
+export const tokenSig = (t: TokenView): string => `${lookKey(t.look)}|${lookKey(t.alt)}|${t.ring}|${t.label}${t.src ? `|${t.src.length}:${t.src.slice(-16)}` : ''}`;
 
 /**
  * The fight card's view, or null without an opponent. The tank's side is

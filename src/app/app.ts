@@ -116,6 +116,8 @@ import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
 import { type LookTarget, type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { LooksStore } from '../looks/store';
+import { OwnImages } from '../looks/images';
+import { currentSpace } from '../core/space';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip, STRIP_CELLS } from '../ui/clock-strip';
 import { MenuBar } from '../menubar/menubar';
@@ -452,7 +454,8 @@ export class App {
     );
     const cells = opts.cells;
     const openDb = lazyDb(player ? null : opts.paneDb);
-    this.looks = player ? null : new LooksStore({ openDb, now });
+    // Own images only in an account's space (stage 80 part D, ADR 0172): logged out none is shown anywhere.
+    this.looks = player ? null : new LooksStore({ openDb, now, images: new OwnImages({ openDb, now, enabled: currentSpace().kind === 'account' }) });
     this.game = new GameState({
       now,
       storage: player ? null : opts.clockStorage === undefined ? defaultLocalStorage() : opts.clockStorage,
@@ -755,6 +758,8 @@ export class App {
     if (this.disposed) return;
     this.disposed = true;
     this.weather?.dispose();
+    this.looks?.images?.dispose();
+    this.looks?.dispose();
     this.loadToken++;
     // While the recorder still listens: what is held goes out.
     this.infoPoll?.dispose();

@@ -378,7 +378,124 @@
 .wc-looks-it[aria-pressed="true"] .wc-looks-n { color: var(--lks-lamp-hot); }
 .wc-looks-empty { color: var(--lks-dim); padding: 22px 6px; grid-column: 1 / -1; text-align: center; }
 
-/* My images: the account card (the shelf comes with own images, part D). */
+/* My images (part D, ADR 0172): the shelf, the crop step, the login card logged out. */
+.wc-looks-mine { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.wc-looks-shelfbox { flex: 1 1 250px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.wc-looks-shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 8px;
+  max-height: 214px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 3px;
+  margin: -3px;
+}
+
+.wc-looks-slot {
+  all: unset;
+  box-sizing: border-box;
+  aspect-ratio: 1;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.12);
+  background: rgb(0 0 0 / 0.25);
+}
+
+.wc-looks-it.wc-looks-slot { padding: 0; gap: 0; flex-direction: unset; }
+.wc-looks-slot.is-full { cursor: pointer; overflow: hidden; box-shadow: 0 0 0 1px #000; }
+.wc-looks-slot.is-full > img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.wc-looks-slot.is-full[aria-pressed="true"] { background: rgb(0 0 0 / 0.25); box-shadow: 0 0 0 2px var(--lks-lamp); }
+.wc-looks-slot.is-full[data-refused]::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b5a;
+  box-shadow: 0 0 0 1.5px #000;
+}
+
+.wc-looks-slot.is-full:focus, .wc-looks-slot.is-add:focus { outline: 2px solid var(--lks-lamp); outline-offset: 2px; }
+.wc-looks-slot.is-add {
+  cursor: pointer;
+  border: 1px dashed rgb(233 207 159 / 0.5);
+  box-shadow: none;
+  color: var(--lks-lamp);
+  font: 600 10px/1.2 var(--lks-mono);
+  text-align: center;
+  align-content: center;
+  gap: 3px;
+}
+
+.wc-looks-slot.is-add svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; margin: 0 auto; }
+.wc-looks-slot.is-add:hover { background: rgb(233 207 159 / 0.08); }
+.wc-looks-slot.is-add[data-full] { opacity: 0.55; }
+.wc-looks-count { display: flex; justify-content: space-between; gap: 10px; color: var(--lks-dim); font-size: 12px; }
+.wc-looks-count b { color: var(--lks-ink); }
+.wc-looks-rm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--lks-ink-dim); }
+.wc-looks-rmname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.wc-looks-rm.is-ask { color: var(--lks-ink); }
+.wc-looks-rmb { display: flex; gap: 8px; margin-left: auto; }
+.wc-looks-msg { margin: 0; font-size: 12px; color: #f0a58f; }
+
+.wc-looks-b {
+  all: unset;
+  cursor: pointer;
+  font: 600 13px/1 var(--lks-mono);
+  padding: 9px 13px;
+  border-radius: 6px;
+  color: var(--lks-ink);
+  box-shadow: inset 0 0 0 1px rgb(233 207 159 / 0.3);
+  background: rgb(255 255 255 / 0.03);
+  white-space: nowrap;
+}
+
+.wc-looks-b:hover { background: rgb(255 255 255 / 0.08); }
+.wc-looks-b:focus { outline: 2px solid var(--lks-lamp); outline-offset: 2px; }
+.wc-looks-b.is-go { background: linear-gradient(180deg, #f2dcae, #d2ad6a); color: #1b160d; box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgb(255 255 255 / 0.5); }
+.wc-looks-b.is-go:hover { filter: brightness(1.08); }
+.wc-looks-b.is-small { padding: 7px 9px; font-size: 12px; }
+.wc-looks-b[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+
+/* The crop step (the mockup's "Crop image"). */
+.wc-looks-crop { display: flex; flex-direction: column; gap: 12px; width: 290px; max-width: 100%; margin: 0 auto; }
+.wc-looks-croparea {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+  box-shadow: 0 0 0 1px #000, 0 0 0 2px rgb(233 207 159 / 0.3);
+  cursor: grab;
+  touch-action: none;
+}
+
+.wc-looks-croparea:active { cursor: grabbing; }
+.wc-looks-croparea:focus { outline: 2px solid var(--lks-lamp); outline-offset: 3px; }
+.wc-looks-croparea > canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.wc-looks-cut { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgb(255 255 255 / 0.9); box-shadow: 0 0 0 200px rgb(0 0 0 / 0.5); pointer-events: none; }
+.wc-looks-cn { position: absolute; width: 12px; height: 12px; border: 2px solid #fff; pointer-events: none; }
+.wc-looks-cn.is-a { left: 3px; top: 3px; border-right: 0; border-bottom: 0; }
+.wc-looks-cn.is-b { right: 3px; top: 3px; border-left: 0; border-bottom: 0; }
+.wc-looks-cn.is-c { left: 3px; bottom: 3px; border-right: 0; border-top: 0; }
+.wc-looks-cn.is-d { right: 3px; bottom: 3px; border-left: 0; border-top: 0; }
+.wc-looks-zoom { display: flex; align-items: center; gap: 8px; color: var(--lks-dim); }
+.wc-looks-zoom svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; flex: none; }
+.wc-looks-zoomr { flex: 1 1 auto; min-width: 0; accent-color: var(--lks-lamp); }
+.wc-looks-zoomr:focus { outline: 2px solid var(--lks-lamp); outline-offset: 2px; }
+.wc-looks-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--lks-dim); font-size: 12px; }
+.wc-looks-meta b { color: var(--lks-ink); font-weight: 600; white-space: nowrap; }
+.wc-looks-cropbtns { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* My images logged out: the account card. */
 .wc-looks-out {
   border-radius: 8px;
   padding: 12px;

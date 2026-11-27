@@ -674,6 +674,11 @@ export class Shell {
       game: app.game,
       focusInput: () => app.input.focus(),
       onClose: () => (this.lookPicker = null),
+      // My images' Log in leaves the page for the start page: not while a game is connected (stage 80 part D).
+      canLeave: () => {
+        const conn = app.status.get().conn;
+        return app.status.get().replay || conn === 'idle' || conn === 'disconnected';
+      },
     });
   }
 
