@@ -6,12 +6,14 @@ import { GameState } from '../../src/gmcp/state';
 import { createPaneContext } from '../../src/panes/context';
 import { GroupPane } from '../../src/panes/group';
 import {
-  FIGHT_ROWS,
+  FIGHT_CELLS,
+  type GroupRows,
   type MemberEnv,
   barView,
   fightSig,
   fightView,
-  groupLayout,
+  groupRows,
+  groupSteps,
   memberSig,
   memberView,
   positionView,
@@ -51,14 +53,108 @@ function model(): GroupModel {
   return g;
 }
 
-describe('groupLayout', () => {
-  it('two lines when everything fits, else one line, else the first ones and more', () => {
-    expect(groupLayout(3, false, 6)).toEqual({ lines: 2, fightRows: 0, shown: 3, more: 0 });
-    expect(groupLayout(3, true, 6 + FIGHT_ROWS)).toEqual({ lines: 2, fightRows: FIGHT_ROWS, shown: 3, more: 0 });
-    expect(groupLayout(4, false, 6)).toEqual({ lines: 1, fightRows: 0, shown: 4, more: 0 });
-    expect(groupLayout(3, true, 6)).toEqual({ lines: 1, fightRows: 1, shown: 3, more: 0 });
-    expect(groupLayout(9, true, 6)).toEqual({ lines: 1, fightRows: 1, shown: 4, more: 5 });
-    expect(groupLayout(0, false, 0)).toEqual({ lines: 2, fightRows: 0, shown: 0, more: 0 });
+// Stage 80 §8: the scaling rows replace groupLayout's two fixed layouts
+// on purpose (one-line rows grow, two-line rows grow, three lines with the
+// numbers from 3.3 cells). The old cases that still hold are kept below.
+describe('groupRows', () => {
+  const C = 17;
+  const pick = (r: GroupRows) => [r.step, r.lines, r.h, r.token, r.shown, r.more];
+
+  it('the steps for a 17 px cell are the spec table (34, 56, 76)', () => {
+    expect(groupSteps(17)).toEqual({ two: 34, three: 56, top: 76 });
+    expect(groupSteps(20)).toEqual({ two: 40, three: 66, top: 90 });
+    expect(groupSteps(16)).toEqual({ two: 32, three: 53, top: 72 });
+  });
+
+  it('one member: every step and its edges, from the smallest pane to a tall one', () => {
+    const at = (h: number) => pick(groupRows(1, false, h, C));
+    expect(at(0)).toEqual(['crowded', 1, 17, 13, 0, 1]);
+    expect(at(16)).toEqual(['crowded', 1, 17, 13, 0, 1]);
+    expect(at(17)).toEqual(['one', 1, 17, 13, 1, 0]);
+    expect(at(20)).toEqual(['one', 1, 20, 16, 1, 0]);
+    expect(at(33)).toEqual(['one', 1, 33, 29, 1, 0]);
+    expect(at(34)).toEqual(['two', 2, 34, 26, 1, 0]);
+    expect(at(55)).toEqual(['two', 2, 55, 47, 1, 0]);
+    expect(at(56)).toEqual(['three', 3, 56, 48, 1, 0]);
+    expect(at(76)).toEqual(['three', 3, 76, 68, 1, 0]);
+    expect(at(77)).toEqual(['top', 3, 76, 68, 1, 0]);
+    expect(at(600)).toEqual(['top', 3, 76, 68, 1, 0]);
+  });
+
+  it('the bars grow from 5 to 8 px over two lines and from 5 to 9 px over three', () => {
+    const bar = (h: number) => groupRows(1, false, h, C).bar;
+    expect([bar(34), bar(45), bar(55)]).toEqual([5, 6.5, 8]);
+    expect([bar(56), bar(66), bar(76), bar(300)]).toEqual([5, 7, 9, 9]);
+    // One line keeps its mini bars.
+    expect(bar(20)).toBe(0);
+  });
+
+  it('3 members', () => {
+    const at = (h: number) => pick(groupRows(3, false, h, C));
+    expect(at(50)).toEqual(['crowded', 1, 17, 13, 1, 2]);
+    expect(at(51)).toEqual(['one', 1, 17, 13, 3, 0]);
+    expect(at(101)).toEqual(['one', 1, 33, 29, 3, 0]);
+    expect(at(102)).toEqual(['two', 2, 34, 26, 3, 0]);
+    expect(at(167)).toEqual(['two', 2, 55, 47, 3, 0]);
+    expect(at(168)).toEqual(['three', 3, 56, 48, 3, 0]);
+    expect(at(230)).toEqual(['three', 3, 76, 68, 3, 0]);
+    expect(at(231)).toEqual(['top', 3, 76, 68, 3, 0]);
+  });
+
+  it('6 members', () => {
+    const at = (h: number) => pick(groupRows(6, false, h, C));
+    expect(at(17)).toEqual(['crowded', 1, 17, 13, 0, 6]);
+    expect(at(101)).toEqual(['crowded', 1, 17, 13, 4, 2]);
+    expect(at(102)).toEqual(['one', 1, 17, 13, 6, 0]);
+    expect(at(203)).toEqual(['one', 1, 33, 29, 6, 0]);
+    expect(at(204)).toEqual(['two', 2, 34, 26, 6, 0]);
+    expect(at(336)).toEqual(['three', 3, 56, 48, 6, 0]);
+    expect(at(462)).toEqual(['top', 3, 76, 68, 6, 0]);
+  });
+
+  it('10 members', () => {
+    const at = (h: number) => pick(groupRows(10, false, h, C));
+    expect(at(169)).toEqual(['crowded', 1, 17, 13, 8, 2]);
+    expect(at(170)).toEqual(['one', 1, 17, 13, 10, 0]);
+    expect(at(339)).toEqual(['one', 1, 33, 29, 10, 0]);
+    expect(at(340)).toEqual(['two', 2, 34, 26, 10, 0]);
+    expect(at(560)).toEqual(['three', 3, 56, 48, 10, 0]);
+    expect(at(1000)).toEqual(['top', 3, 76, 68, 10, 0]);
+  });
+
+  it('20 members', () => {
+    const at = (h: number) => pick(groupRows(20, false, h, C));
+    expect(at(68)).toEqual(['crowded', 1, 17, 13, 3, 17]);
+    expect(at(339)).toEqual(['crowded', 1, 17, 13, 18, 2]);
+    expect(at(340)).toEqual(['one', 1, 17, 13, 20, 0]);
+    expect(at(680)).toEqual(['two', 2, 34, 26, 20, 0]);
+    expect(at(1120)).toEqual(['three', 3, 56, 48, 20, 0]);
+  });
+
+  it('the fight: the card (4 cells) first, the strip (1 cell) when the rows would get less than 2 cells', () => {
+    const r = (n: number, h: number) => groupRows(n, true, h, C);
+    expect(r(3, 6 * C + FIGHT_CELLS * C)).toMatchObject({ fight: 'card', step: 'two', h: 34 });
+    // A pixel less: the strip, and the rows computed again (here still two lines).
+    expect(r(3, 6 * C + FIGHT_CELLS * C - 1)).toMatchObject({ fight: 'strip', step: 'two', h: 50 });
+    expect(r(3, 6 * C)).toMatchObject({ fight: 'strip', step: 'one', h: 28, shown: 3 });
+    // groupLayout's crowded case holds: 9 members in 6 cells, the strip, 4 shown and 5 more.
+    expect(r(9, 6 * C)).toMatchObject({ fight: 'strip', step: 'crowded', shown: 4, more: 5 });
+    // No members: the card when it fits.
+    expect(r(0, 4 * C)).toMatchObject({ fight: 'card', shown: 0, more: 0 });
+    expect(r(0, 3 * C)).toMatchObject({ fight: 'strip', shown: 0, more: 0 });
+    expect(groupRows(3, false, 6 * C, C).fight).toBeNull();
+  });
+
+  it('the steps are in cells: a larger font grows every step; only the token cap is absolute', () => {
+    const c = 20;
+    expect(pick(groupRows(1, false, 39, c))).toEqual(['one', 1, 39, 35, 1, 0]);
+    expect(pick(groupRows(1, false, 40, c))).toEqual(['two', 2, 40, 32, 1, 0]);
+    expect(pick(groupRows(1, false, 66, c))).toEqual(['three', 3, 66, 58, 1, 0]);
+    expect(pick(groupRows(1, false, 90, c))).toEqual(['three', 3, 90, 68, 1, 0]);
+    expect(groupRows(1, false, 90, c).bar).toBe(10.5);
+    // A crowded row is a cell; at a fractional cell too.
+    expect(groupRows(5, false, 40, 17.5)).toMatchObject({ step: 'crowded', h: 17.5, shown: 1, more: 4 });
+    expect(groupRows(2, false, 35, 17.5)).toMatchObject({ step: 'one', h: 17.5, shown: 2 });
   });
 });
 

@@ -727,7 +727,7 @@ describe('the Spells and Group sub-page (stage 52)', () => {
       'toggle:Soonest first',
     ]);
     expect(TIMER_GROUPS_GROUP.rows.map((r) => r.label)).toEqual(['Herblores', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies']);
-    expect(GROUP_GROUP.rows.map((r) => `${r.kind}:${r.label}`)).toEqual(['toggle:Show players', 'pick:NPC visibility', 'pick:Away members', 'toggle:Fight card in the pane']);
+    expect(GROUP_GROUP.rows.map((r) => `${r.kind}:${r.label}`)).toEqual(['toggle:Show players', 'pick:NPC visibility', 'pick:Away members', 'toggle:Fight card in the pane', 'toggle:Tokens']);
   });
 
   it('every row reads and writes the desktop gear\'s key, with a value of its set', () => {

@@ -216,6 +216,9 @@ export function GroupSettings(): VNode {
       <Row label="Fight card" help="The tank against your opponent, on top while you fight">
         <Toggle label="Fight card" on={g.fight} onChange={(fight) => setGroup(settings, { fight })} />
       </Row>
+      <Row label="Tokens" help="Each member's look as a round picture; click one to change it">
+        <Toggle label="Tokens" on={g.tokens} onChange={(tokens) => setGroup(settings, { tokens })} />
+      </Row>
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Bar colours</div>
       {VITAL_COLOR_ROWS.map((r) => (

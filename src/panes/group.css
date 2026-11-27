@@ -19,6 +19,9 @@
    * here never lays out or repaints anything outside it. */
   contain: strict;
   --gp-row: var(--cell-h, 17px);
+  /* Every member row's height and the bars' thickness (groupRows, set per layout by the pane). */
+  --gp-h: var(--gp-row);
+  --gp-bar: max(4px, calc(var(--gp-row) * 0.3));
   --gp-hover: color-mix(in srgb, var(--gp-text, #ccc) 7%, transparent);
   /* Frosted glass: the lamp's frost on the card backing, a lit top edge, a
    * faint rim and a small shadow under it. One flat colour (the mockup's
@@ -63,22 +66,41 @@
 
 /* ------------------------------------------------------------ members */
 
-.wc-gp-m2 {
+.wc-gp-m2,
+.wc-gp-m3 {
   display: flex;
+  align-items: stretch;
+  height: var(--gp-h);
+}
+
+/* The lines beside the token (or alone, the marker in the name line). */
+.wc-gp-body {
+  display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  height: calc(var(--gp-row) * 2);
+  min-width: 0;
+}
+
+/* The token's column: the token in its middle (stage 80 §8). */
+.wc-gp-lead {
+  display: grid;
+  flex: none;
+  place-items: center;
+  margin-right: calc(var(--cell-w, 9px) * 0.6);
 }
 
 /* The member's card: behind the row's content (the row is its own
  * stacking context), a pixel in from the top and two from the bottom of
  * the row's cells. */
 .wc-gp-m2,
+.wc-gp-m3,
 .wc-gp-m1 {
   position: relative;
   isolation: isolate;
 }
 
 .wc-gp-m2::before,
+.wc-gp-m3::before,
 .wc-gp-m1::before {
   content: '';
   position: absolute;
@@ -98,12 +120,14 @@
 
 /* The name line sits a pixel lower, clear of the card's lit top edge (no
  * layout: a relative offset). */
-.wc-gp-m2 > .wc-gp-l1 {
+.wc-gp-body > .wc-gp-l1 {
   position: relative;
+  flex: none;
   top: 1px;
 }
 
 .wc-gp-m2:hover::before,
+.wc-gp-m3:hover::before,
 .wc-gp-m1:hover::before {
   background: var(--gp-card-hover);
 }
@@ -277,6 +301,163 @@
   transition: transform 0.4s;
 }
 
+/* Two lines: the bars take the height under the name line, as thick as the layout says. */
+.wc-gp-body > .wc-gp-bars {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.wc-gp-body > .wc-gp-bars .wc-gp-trk {
+  height: var(--gp-bar);
+}
+
+/* Three lines: HP, mana and moves under each other, full width, with their numbers. */
+.wc-gp-body > .wc-gp-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-evenly;
+  gap: 0;
+  padding-bottom: 2px;
+}
+
+.wc-gp-stack > .wc-gp-bar {
+  flex: none;
+  gap: calc(var(--cell-w, 9px) * 0.6);
+  height: auto;
+}
+
+.wc-gp-stack .wc-gp-trk {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+/* `value/max`, or the band word in the same place: a fixed width, so the bar never moves. */
+.wc-gp-num {
+  flex: none;
+  width: 9ch;
+  overflow: hidden;
+  color: var(--gp-label);
+  font-size: 0.76em;
+  line-height: 1;
+  text-align: right;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ tokens */
+
+/* A member's token (stage 80 §8): round, the R3 ring (1 px of the
+ * member's hue, muted, `--c`, and a dark outline), the look on its backing;
+ * a button when it opens the look picker. */
+.wc-gp-tk {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--d);
+  height: var(--d);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  appearance: none;
+}
+
+button.wc-gp-tk {
+  cursor: pointer;
+}
+
+button.wc-gp-tk:focus-visible {
+  outline: 2px solid var(--lamp, #e9cf9f);
+  outline-offset: 3px;
+}
+
+button.wc-gp-tk:hover > .wc-gp-tkd {
+  filter: brightness(1.2);
+}
+
+.wc-gp-tkd {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #3a2222, #120c0c 72%);
+  box-shadow: 0 0 0 1px var(--c), 0 0 0 2px #000;
+}
+
+.wc-gp-tkd > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wc-gp-tkd.is-por > img {
+  transform: scale(1.2);
+  transform-origin: 50% 12%;
+}
+
+/* A library token is a cut-out bust: on the mockup's grey-brown, so dark figures hold. */
+.wc-gp-tkd.is-lib {
+  background: radial-gradient(circle at 50% 38%, #6f685b, #2a2620 78%);
+}
+
+.wc-gp-tkd.is-lib > img {
+  transform: scale(1.12);
+  transform-origin: 50% 8%;
+}
+
+/* An NPC no picture matches: its type icon in the disc. */
+.wc-gp-tkd.is-icon {
+  display: grid;
+  place-items: center;
+  background: #1a1c20;
+}
+
+.wc-gp-tkd.is-icon > svg {
+  width: 62%;
+  height: 62%;
+}
+
+/* The HP arc: outside the ring and its outline, below full HP (the map's rule). */
+.wc-gp-arc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: visible;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.wc-gp-arct {
+  stroke: rgb(0 0 0 / 0.78);
+}
+
+.wc-gp-row.is-away .wc-gp-tk {
+  opacity: 0.5;
+}
+
+/* A one-line row's token is smaller than a finger: on a touch screen the
+ * row's leading area takes the tap (stage 80 §8). */
+@media (pointer: coarse) {
+  .wc-gp-m1 button.wc-gp-tk::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: calc(var(--cell-w, 9px) * -0.4);
+    width: 44px;
+    height: var(--gp-h);
+    transform: translateY(-50%);
+  }
+}
+
 .wc-gp-row.is-away .wc-gp-name,
 .wc-gp-row.is-away .wc-gp-bars,
 .wc-gp-row.is-away .wc-gp-mini,
@@ -290,7 +471,11 @@
   grid-template-columns: auto minmax(0, 1fr) auto minmax(4em, 30%);
   align-items: center;
   gap: calc(var(--cell-w, 9px) * 0.7);
-  height: var(--gp-row);
+  height: var(--gp-h);
+}
+
+.wc-gp-m1 > .wc-gp-mk.has-tk {
+  height: var(--gp-h);
 }
 
 .wc-gp-mini {

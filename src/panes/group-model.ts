@@ -4,11 +4,13 @@
 // text. Pure (no DOM, no clock: `now` is passed in), unit tested in Node;
 // the pane (group.ts) turns it into DOM.
 //
-// - Layout: rows are whole cells. A two-line member is 2 rows, a one-line
-//   member 1 row; the fight card 3 rows and half a row of gap, counted as
-//   4 (a 1-row strip in one-line mode). Two lines when every shown member
-//   fits that way, else one line; still too many: the first ones and
-//   `↓ N more members` (`groupLayout`).
+// - Layout (`groupRows`, stage 80 §8): every member row has the same
+//   height, the pane's free height shared between the members and held to
+//   steps in cells: one line (growing), two lines, three lines with the
+//   numbers, at most 4.5 cells. Too many for a cell each: one-line rows
+//   of a cell, the first ones and `↓ N more members`. The fight card (3
+//   cells and half a cell of gap, counted as 4) or its 1-cell strip comes
+//   off the height first.
 // - Markers: a player is the person icon in its relation colour (ally,
 //   neutral), an enemy race the horned helm, an NPC a diamond plus its
 //   label as a tag.
@@ -33,41 +35,107 @@ import { foldName, type GroupFight, type Member, type StatusFlag, STATUS_FLAGS, 
 import type { GroupSettings, Settings } from '../settings/types';
 import { type TimerCell, countdownText, exactText } from '../timers/entry';
 import { type VitalTone, vitalTone } from '../gmcp/vital-tone';
+import type { Library } from '../looks/library';
+import { type Look, autoMember, resolveMember } from '../looks/resolve';
+import { ringCss } from '../looks/ring';
+import type { LookRef } from '../looks/types';
 import { type IconName, positionIcon, STATUS_ICON } from './icons';
 import { type GroupColors, resolveColor, signalColors } from './palette';
 
 // ------------------------------------------------------------------ layout
 
-/** Rows of the fight card in two-line mode (names, bars, numbers, and a gap). */
-export const FIGHT_ROWS = 4;
+/** Cells the fight card takes off the height (3 lines and half a line of gap, counted as 4). */
+export const FIGHT_CELLS = 4;
+/** Cells the one-line fight strip takes. */
+export const STRIP_CELLS = 1;
 
 /** Icons a one-line row shows before `+n`. */
 export const COMPACT_ICONS = 3;
 
-export interface GroupLayout {
-  /** 2: two lines per member; 1: one line. */
-  lines: 1 | 2;
-  /** Rows the fight zone takes (0: no fight). */
-  fightRows: number;
+/** The largest token, CSS px (stage 80 decision 18: the one absolute number). */
+export const TOKEN_MAX = 68;
+
+/**
+ * The step a row height falls in (stage 80 §8):
+ * - `crowded`: the members do not fit at a cell each: one-line rows of a
+ *   cell, the first ones and `↓ n more`;
+ * - `one`: one line, growing (c ≤ h < 2c);
+ * - `two`: the name line and the bars side by side (2c ≤ h < 3.3c);
+ * - `three`: the name line and HP, mana, moves as full lines with their
+ *   numbers (3.3c ≤ h ≤ 4.5c);
+ * - `top`: as `three`, the row held at 4.5c (the rest of the pane is empty).
+ */
+export type GroupStep = 'crowded' | 'one' | 'two' | 'three' | 'top';
+
+export interface GroupRows {
+  step: GroupStep;
+  /** Lines a member row draws. */
+  lines: 1 | 2 | 3;
+  /** Every member row's height, CSS px. */
+  h: number;
+  /** The fight's form: the card (4 cells), the strip (1 cell), or none. */
+  fight: 'card' | 'strip' | null;
   /** Members shown (the first ones). */
   shown: number;
-  /** Members not shown (the `↓ N more members` row), 0 when all fit. */
+  /** Members not shown (the `↓ N more members` row, 1 cell), 0 when all fit. */
   more: number;
+  /** The token's diameter, CSS px. */
+  token: number;
+  /** A bar's thickness, CSS px (two and three lines; one line keeps its mini bars). */
+  bar: number;
+}
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * Math.max(0, Math.min(1, t));
+const half = (x: number): number => Math.round(x * 2) / 2;
+
+/** The row heights where the steps start for a cell `c` px high: two lines, three lines, the top (whole px). */
+export function groupSteps(c: number): { two: number; three: number; top: number } {
+  return { two: Math.ceil(2 * c - 1e-6), three: Math.round(3.3 * c), top: Math.floor(4.5 * c + 1e-6) };
 }
 
 /**
- * How `n` members (and the fight, if any) are drawn in `rows` rows: two
- * lines each when all fit that way, else one line; still too many, the
- * first `rows − fight − 1` and a `↓ N more` row.
+ * How `n` members (and the fight, if any) are drawn in `heightPx` of a
+ * pane whose cell is `cellH` px high (stage 80 §8, ADR 0122 addendum):
+ * every row the same height, the pane's free height shared between the
+ * members, held to the steps (in cells: the text keeps the terminal's
+ * size, so with a larger font every step grows with it). What is left
+ * over stays empty at the bottom. The fight card (4 cells) comes off the
+ * height first; if the rows then get less than 2 cells each, the strip (1
+ * cell) instead. The bars grow from 5 to 8 px over the two-line step and
+ * from 5 to 9 px over the three-line one (at a 17 px cell; with the cell).
  */
-export function groupLayout(n: number, fight: boolean, rows: number): GroupLayout {
-  if (fight && FIGHT_ROWS + 2 * n <= rows) return { lines: 2, fightRows: FIGHT_ROWS, shown: n, more: 0 };
-  if (!fight && 2 * n <= rows) return { lines: 2, fightRows: 0, shown: n, more: 0 };
-  const fightRows = fight ? 1 : 0;
-  const room = Math.max(0, rows - fightRows);
-  if (n <= room) return { lines: 1, fightRows, shown: n, more: 0 };
-  const shown = Math.max(0, room - 1);
-  return { lines: 1, fightRows, shown, more: n - shown };
+export function groupRows(n: number, fight: boolean, heightPx: number, cellH: number): GroupRows {
+  const c = cellH > 0 ? cellH : 17;
+  const H = Math.max(0, heightPx);
+  const st = groupSteps(c);
+  let form: GroupRows['fight'] = null;
+  let free = H;
+  if (fight) {
+    const card = H - FIGHT_CELLS * c;
+    if (card >= 0 && (n === 0 || card / n >= st.two)) {
+      form = 'card';
+      free = card;
+    } else {
+      form = 'strip';
+      free = Math.max(0, H - STRIP_CELLS * c);
+    }
+  }
+  const scale = c / 17;
+  const raw = n > 0 ? free / n : Infinity;
+  if (raw < c) {
+    const room = Math.floor(free / c + 1e-6);
+    const shown = n <= room ? n : Math.max(0, room - 1);
+    return { step: 'crowded', lines: 1, h: c, fight: form, shown, more: n - shown, token: Math.max(0, c - 4), bar: 0 };
+  }
+  const h = Math.max(c, Math.min(st.top, Math.floor(raw + 1e-6)));
+  if (h < st.two) return { step: 'one', lines: 1, h, fight: form, shown: n, more: 0, token: h - 4, bar: 0 };
+  if (h < st.three) {
+    const bar = half(lerp(5, 8, (h - st.two) / Math.max(1, st.three - 1 - st.two)) * scale);
+    return { step: 'two', lines: 2, h, fight: form, shown: n, more: 0, token: h - 8, bar };
+  }
+  const bar = half(lerp(5, 9, (h - st.three) / Math.max(1, st.top - st.three)) * scale);
+  const step: GroupStep = Math.floor(raw + 1e-6) > st.top ? 'top' : 'three';
+  return { step, lines: 3, h, fight: form, shown: n, more: 0, token: Math.min(TOKEN_MAX, h - 8), bar };
 }
 
 // ------------------------------------------------------------------ views
@@ -94,6 +162,8 @@ export interface BarView {
   est: boolean;
   title: string;
   tip: string;
+  /** The numbers at the end of a three-line bar: `value/max` when both are known, else the band word (or nothing). */
+  num: string;
 }
 
 export interface MemberView {
@@ -113,6 +183,10 @@ export interface MemberView {
   statuses: IconView[];
   position: IconView | null;
   bars: BarView[];
+  /** The HP fraction (`vitalPct`: a band-word estimate counts), or null: the token's arc. */
+  hp: number | null;
+  /** The HP arc's colour (the HP bar's). */
+  arc: string;
 }
 
 export interface FightView {
@@ -152,7 +226,8 @@ export function barView(kind: VitalKind, v: Vital, base: string, light: boolean)
     title = `${name} · ${v.word ?? ''}`.trim();
     tip = `About ${p}%.`;
   }
-  return { kind, pct: p, color: pct === null ? '' : vitalColor(base, pct, light), est: pct !== null && !known, title, tip: tip || title };
+  const num = known ? `${v.value}/${v.max}` : (v.word ?? '');
+  return { kind, pct: p, color: pct === null ? '' : vitalColor(base, pct, light), est: pct !== null && !known, title, tip: tip || title, num };
 }
 
 const POSITION_TITLE: Readonly<Record<string, string>> = {
@@ -270,8 +345,65 @@ export function memberView(m: Member, env: MemberEnv): MemberView {
     position: positionView(m.position, m.ride, c),
     // A member MUME sends no mana for (a troll or an NPC, stage 77 H9 and its follow-up): no mana bar, HP and moves take the width.
     bars: VITAL_KINDS.filter((k) => k !== 'mana' || !m.noMana).map((k) => barView(k, m[k], env.vitals[k], env.light)),
+    ...hpArc(m, env),
   };
 }
+
+function hpArc(m: Member, env: Pick<MemberEnv, 'vitals' | 'light'>): { hp: number | null; arc: string } {
+  const hp = vitalPct('hp', m.hp).pct;
+  return { hp, arc: hp === null ? '' : vitalColor(env.vitals.hp, hp, env.light) };
+}
+
+/** The HP arc is drawn when the HP is known and below full (the map's rule, stage 80 §8). */
+export const arcShown = (hp: number | null): hp is number => hp !== null && hp < 1;
+
+// ------------------------------------------------------------------ tokens
+
+/** A member's token (stage 80 §8): what to draw, its fallback, the ring. */
+export interface TokenView {
+  /** The look to draw (src/looks/resolve.ts). */
+  look: Look;
+  /** The automatic look: where a picture that cannot load falls to. */
+  alt: Look;
+  /** The R3 ring's colour (the member's hue, muted). */
+  ring: string;
+  /** The button's label. */
+  label: string;
+}
+
+export interface TokenEnv {
+  looks: { lookFor(name: string | null | undefined): LookRef | null } | null;
+  library: Library | null;
+  /** The member's hue (`GameState.groupTable`), 0xRRGGBB, or null. */
+  hue: (id: number) => number | null;
+}
+
+/** A grey for a member the hue table does not know (yet). */
+const NO_HUE = 0x8c8c8c;
+
+/** A member's token. */
+export function tokenView(m: Member, env: TokenEnv): TokenView {
+  const input = { mode: 'live' as const, name: m.name, npc: m.type === 'npc', choice: env.looks?.lookFor(m.name) ?? null, library: env.library };
+  const name = m.name || m.label || '?';
+  return { look: resolveMember(input), alt: autoMember(input), ring: ringCss(env.hue(m.id) ?? NO_HUE), label: `Look for ${name}` };
+}
+
+/** What a look draws, as a short key (signatures, `data-look`). */
+export function lookKey(l: Look): string {
+  switch (l.kind) {
+    case 'lib':
+      return `lib:${l.id}`;
+    case 'own':
+      return `own:${l.id}`;
+    case 'drawn':
+      return `drawn:${l.portrait}:${l.portrait === 'neutral' ? '-' : l.sex}`;
+    default:
+      return 'icon';
+  }
+}
+
+/** What a token's structure depends on (its arc is set in place). */
+export const tokenSig = (t: TokenView): string => `${lookKey(t.look)}|${lookKey(t.alt)}|${t.ring}|${t.label}`;
 
 /**
  * The fight card's view, or null without an opponent. The tank's side is
@@ -320,14 +452,15 @@ const iconSig = (v: IconView): string =>
   v.ring && v.ring.frac !== null ? `${v.icon}:${v.color}:timed` : `${v.icon}:${v.color}:${v.title}:${v.tip}:${v.ring ? 'u' : ''}`;
 
 /**
- * What a member row's structure depends on (lines, the elements drawn and
+ * What a member row's structure depends on (the layout's key: lines, row
+ * height and token size; the elements drawn and
  * their fixed texts and tooltips). The bars and a timed sanctuary's time
  * and ring are values the pane sets in place: equal signatures, the built
  * row stays.
  */
-export function memberSig(v: MemberView, lines: 1 | 2, gold: string): string {
+export function memberSig(v: MemberView, layout: string | number, gold: string): string {
   return [
-    lines,
+    layout,
     gold,
     v.name,
     v.title,

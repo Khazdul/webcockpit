@@ -580,6 +580,14 @@ export const GROUP_GROUP: SettingsGroup = {
       get: (s) => s.group.fight,
       set: (fight) => ({ group: { fight } }),
     },
+    {
+      kind: 'toggle',
+      id: 'group-tokens',
+      // Each member's look as a round token (stage 80 §8).
+      label: 'Tokens',
+      get: (s) => s.group.tokens,
+      set: (tokens) => ({ group: { tokens } }),
+    },
   ],
 };
 
