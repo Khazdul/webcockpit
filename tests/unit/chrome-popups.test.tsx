@@ -651,7 +651,7 @@ describe('Settings popup tabs', () => {
     const on0 = t.s().panes.map.on;
     click(map.querySelector('.wc-ck-tg[aria-label="Show map pane"]'));
     expect(t.s().panes.map.on).toBe(!on0);
-    click(map.querySelector('.wc-ck-sg[data-value="off"]'));
+    click(map.querySelector('[aria-label="Room info on hover"] .wc-ck-sg[data-value="off"]'));
     expect(t.s().mapper.hover).toBe('off');
     click(map.querySelector('[aria-label="Hover text size"] .wc-ck-sg[data-value="large"]'));
     expect(t.s().mapper.hoverSize).toBe('large');
@@ -663,12 +663,17 @@ describe('Settings popup tabs', () => {
     expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).not.toBe('');
     // The order (ADR 0118): Background colour and Map file before the tileset picker, which is last.
     const order = [...map.querySelectorAll('.wc-ck-row > .wc-ck-l, .wc-sp-thead > .wc-ck-l')].map((l) => l.firstChild!.textContent);
-    // Stage 80 part B: the two token switches after Room notes.
-    expect(order).toEqual(['Show map pane', 'Room notes', 'Tokens', 'HP arc on tokens', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
-    map.querySelector<HTMLButtonElement>('[aria-label="Tokens"]')!.click();
-    expect(t.s().mapper.tokens).toBe(false);
-    map.querySelector<HTMLButtonElement>('[aria-label="HP arc on tokens"]')!.click();
+    // Stage 80 part B: the token row (Off|On|With HP arc) after Room notes.
+    expect(order).toEqual(['Show map pane', 'Room notes', 'Tokens', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    click(map.querySelector('[aria-label="Tokens"] .wc-ck-sg[data-value="on"]'));
+    expect(t.s().mapper.tokens).toBe(true);
     expect(t.s().mapper.tokenHp).toBe(false);
+    click(map.querySelector('[aria-label="Tokens"] .wc-ck-sg[data-value="off"]'));
+    expect(t.s().mapper.tokens).toBe(false);
+    expect(t.s().mapper.tokenHp).toBe(false);
+    click(map.querySelector('[aria-label="Tokens"] .wc-ck-sg[data-value="hp"]'));
+    expect(t.s().mapper.tokens).toBe(true);
+    expect(t.s().mapper.tokenHp).toBe(true);
     expect(map.querySelector('.wc-sp-mapper')!.lastElementChild!.classList.contains('wc-sp-tileset')).toBe(true);
     // Without a map store, import says so.
     click(map.querySelector('.wc-sp-import'));

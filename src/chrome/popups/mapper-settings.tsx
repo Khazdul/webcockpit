@@ -4,8 +4,9 @@
 //
 //   Show map pane            [toggle]     panes.map.on
 //   Room notes               [toggle]     mapper.notes (ADR 0077)
-//   Tokens                   [toggle]     mapper.tokens (stage 80, ADR 0171)
-//   HP arc on tokens         [toggle]     mapper.tokenHp (dim while tokens are off)
+//   Tokens                   Off|On|With HP arc   mapper.tokens, mapper.tokenHp
+//                            (stage 80, ADR 0171; one row so the page stays
+//                            under Appearance's height, ADR 0118)
 //   Room info on hover       Off|Minimal|Full       mapper.hover (ADR 0080)
 //   Hover text size          Small|Medium|Large     mapper.hoverSize
 //   Background colour        [dropdown]   mapper.background (ADR 0085)
@@ -53,6 +54,21 @@ export const HOVER_CHOICES: readonly Choice<MapHoverMode>[] = [
   { value: 'minimal', label: 'Minimal' },
   { value: 'full', label: 'Full' },
 ];
+
+/** The two token settings as one choice: off, on, on with the HP arc. */
+export type TokenMode = 'off' | 'on' | 'hp';
+export const TOKEN_CHOICES: readonly Choice<TokenMode>[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'on', label: 'On' },
+  { value: 'hp', label: 'With HP arc' },
+];
+export function tokenMode(m: { tokens: boolean; tokenHp: boolean }): TokenMode {
+  return !m.tokens ? 'off' : m.tokenHp ? 'hp' : 'on';
+}
+/** Off leaves the arc's setting as it is, so On|With HP arc comes back as it was. */
+export function tokenPatch(mode: TokenMode): { tokens: boolean; tokenHp?: boolean } {
+  return mode === 'off' ? { tokens: false } : { tokens: true, tokenHp: mode === 'hp' };
+}
 
 export const HOVER_SIZE_CHOICES: readonly Choice<MapHoverSize>[] = [
   { value: 'small', label: 'Small' },
@@ -163,10 +179,7 @@ export function MapperSettings(): VNode {
         <Toggle label="Room notes" on={m.notes} onChange={(notes) => settings.update({ mapper: { notes } })} />
       </Row>
       <Row label="Tokens">
-        <Toggle label="Tokens" on={m.tokens} onChange={(tokens) => settings.update({ mapper: { tokens } })} />
-      </Row>
-      <Row label="HP arc on tokens" dim={!m.tokens}>
-        <Toggle label="HP arc on tokens" on={m.tokenHp} onChange={(tokenHp) => settings.update({ mapper: { tokenHp } })} />
+        <Segmented label="Tokens" value={tokenMode(m)} options={TOKEN_CHOICES} onChange={(mode) => settings.update({ mapper: tokenPatch(mode) })} />
       </Row>
       <Row label="Room info on hover">
         <Segmented label="Room info on hover" value={m.hover} options={HOVER_CHOICES} onChange={(hover) => settings.update({ mapper: { hover } })} />

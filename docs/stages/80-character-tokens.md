@@ -1011,7 +1011,10 @@ assigns it. The resolver's silent fallback covers it.
 - [x] Brainstorm, mockup rounds 1 and 2, the owner's decisions 1–24.
 - [x] A. The library, the look model, the picker, the Character pane
   (2026-11-27 night: `f17cbcec`…`c518830f`; unit 6283, full e2e 2150 passed)
-- [ ] B. Map tokens
+- [x] B. Map tokens (`e85f5c5f`…`e58ad71a`, Mapper row fix after the full e2e;
+  unit 6304, full e2e 2150 passed, 4 failed: settings-popup:191 fixed,
+  account-pages:739 passes alone, phone-own-keyboard-editors:218 flaky
+  before the stage too, 2 of 5 at 726af9d7)
 - [ ] C. Group tokens and the scaling rows
 - [ ] D. Own images
 - [ ] E. The directory, staging
@@ -1092,6 +1095,11 @@ tablet screenshots, and what feedback is wanted.
   pixel-equal to the commit before the stage (726af9d7, rerun in a
   worktree; the first baseline's `far-chromium` was taken before the
   worker had redrawn and differed from a rerun of the same commit).
+
+- B (main session): Settings → Mapper has one "Tokens" row, Off | On |
+  With HP arc, instead of two switches: two rows made the page 10 px
+  taller than Appearance (ADR 0118's rule). The settings stay two fields;
+  Off keeps the arc's setting for when tokens come back.
 
 ## Owner feedback
 
