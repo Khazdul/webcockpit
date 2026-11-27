@@ -143,8 +143,11 @@ const EDITOR_SEL = '[data-okb-kind="editor"]';
 /** What the keyboard types in on a page: a text field, or a code editor's content element. */
 type PageField = TextField | HTMLElement;
 
-/** Where a page's fields live: the start page and the menu's overlay (not the cockpit, whose keyboard is the layer's). */
-const PAGE_SCOPE = '.wc-chrome, .wc-overlay';
+/**
+ * Where a page's fields live: the start page and the menu's overlay (not the cockpit, whose keyboard is the layer's),
+ * and a page of the phone's menu that says so (`data-okb-page`: the look page's search, stage 80 part F).
+ */
+const PAGE_SCOPE = '.wc-chrome, .wc-overlay, [data-okb-page]';
 
 export interface PageKeyboardPlan {
   landscape: boolean;

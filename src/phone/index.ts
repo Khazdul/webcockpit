@@ -74,7 +74,7 @@ import type { PhoneGameHide } from '../layout/phone-game';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
-import { type MenuFrame, PhoneMenu, type PhoneNoticesView } from './menu-sheet';
+import { type LookPageRender, type MenuFrame, PhoneMenu, type PhoneNoticesView } from './menu-sheet';
 import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
@@ -112,7 +112,7 @@ import type { AppStatusView } from '../app/status';
 import type { SettingsStore } from '../settings';
 import type { LiveRuns } from '../runs/live';
 
-export type { MenuFrame } from './menu-sheet';
+export type { LookPageRender, LookPageWho, MenuFrame } from './menu-sheet';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -262,6 +262,10 @@ export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
   onMenuClose?(): void;
   /** The client notices (ADR 0025) for the menu sheet's status line. Absent: none. */
   notices?: PhoneNoticesView | undefined;
+  /** The look picker's page (stage 80 part F; the chrome chunk's, handed in by the shell). Absent: no look page. */
+  lookPage?: LookPageRender | undefined;
+  /** Your character's name for the Character settings' "Look…" row; null before the game named it. */
+  lookSelf?: (() => string | null) | undefined;
   /**
    * Stage 53 (ADR 0138): the command line as the keyboard of our own
    * types in it. That keyboard is the layout's only one.
@@ -623,6 +627,8 @@ class Layer {
         },
         fits: (size) => this.sizeFits(size),
         notices: live.notices,
+        lookPage: live.lookPage,
+        lookSelf: live.lookSelf,
       });
       // The way to the menu while the cockpit shows "Window too small" (the
       // command row with the menu key is hidden and inert then): shown by

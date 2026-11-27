@@ -654,7 +654,9 @@ describe('the Character sub-page (stage 77 F1, F2a)', () => {
 
   it('stage 80 part E: its Look group has the gear’s switch, character.shareLook', () => {
     const d = defaultSettings();
-    const [row] = CHARACTER_LOOK_GROUP.rows;
+    // (Part F put the "Look…" row, which opens the look page, before it.)
+    expect(CHARACTER_LOOK_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['look:character-look-open', 'toggle:character-share-look']);
+    const row = CHARACTER_LOOK_GROUP.rows[1];
     if (row?.kind !== 'toggle') throw new Error('row kind');
     expect(row.label).toBe('Show my look to other MUME Cockpit players');
     expect(row.get(d)).toBe(true);
@@ -826,5 +828,63 @@ describe('the Spells and Group sub-page (stage 52)', () => {
     expect(col().scrollTop).toBe(321);
     act(() => void menu.back());
     expect(menu.showing).toBe('sheet');
+  });
+});
+
+describe('the look page (stage 80 part F)', () => {
+  /** A stand-in for the chrome's page: its who, and a key that closes it. */
+  const lookPage: NonNullable<PhoneMenuDeps['lookPage']> = ({ who, done }) => (
+    <div data-page="look" data-who={`${who.name}:${who.self}`}>
+      <button type="button" data-btn="USE" onClick={done} />
+    </div>
+  );
+
+  it('openLook shows it for the name; its done and Esc close the menu', () => {
+    const { menu, calls } = setup(STATUS, undefined, { lookPage });
+    act(() => menu.openLook({ name: 'Dori', self: false }));
+    expect(menu.showing).toBe('look');
+    expect(menu.host.querySelector('[data-page="look"]')?.getAttribute('data-who')).toBe('Dori:false');
+    tap(menu.host.querySelector('[data-btn="USE"]'));
+    expect(menu.isOpen).toBe(false);
+    expect(calls.closed).toBe(1);
+    act(() => menu.openLook({ name: 'Dori', self: false }));
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(menu.isOpen).toBe(false);
+  });
+
+  it('without a look page openLook does nothing and the Character settings have no "Look…" row', () => {
+    const { menu } = setup();
+    act(() => menu.openLook({ name: 'Rasta', self: true }));
+    expect(menu.isOpen).toBe(false);
+    act(() => menu.openSettings());
+    tap(menu.host.querySelector('[data-row="character-fetch"]'));
+    expect(menu.host.querySelector('[data-row="character-share-look"]')).not.toBeNull();
+    expect(menu.host.querySelector('[data-row="character-look-open"]')).toBeNull();
+  });
+
+  it('the "Look…" row opens it over the Character page for your character; Back returns there', () => {
+    let name: string | null = null;
+    const { menu } = setup(STATUS, undefined, { lookPage, lookSelf: () => name });
+    act(() => menu.openSettings());
+    tap(menu.host.querySelector('[data-row="character-fetch"]'));
+    const row = () => menu.host.querySelector('[data-row="character-look-open"]');
+    // Before the game named the character: dimmed, and a tap does nothing.
+    expect(row()?.getAttribute('aria-disabled')).toBe('true');
+    expect(row()?.textContent).toContain('No character yet');
+    tap(row());
+    expect(menu.host.querySelector('[data-page="look"]')).toBeNull();
+    name = 'Rasta';
+    // (Back to the settings and in again: the page reads the name as it draws.)
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    tap(menu.host.querySelector('[data-row="character-fetch"]'));
+    expect(row()?.getAttribute('aria-disabled')).toBeNull();
+    tap(row());
+    expect(menu.host.querySelector('[data-page="look"]')?.getAttribute('data-who')).toBe('Rasta:true');
+    // Esc (the back gesture's way) goes back one level: the Character page.
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(menu.host.querySelector('[data-page="sub:character"]')).not.toBeNull();
+    tap(row());
+    tap(menu.host.querySelector('[data-btn="USE"]'));
+    expect(menu.host.querySelector('[data-page="sub:character"]')).not.toBeNull();
   });
 });

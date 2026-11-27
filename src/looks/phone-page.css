@@ -1,0 +1,615 @@
+/* The look picker as a phone page (stage 80 part F; phone-page.tsx). The
+ * page, the band, the hood, the column, the groups and the switch rows are
+ * the phone's settings pages' own (phone.css); this file sizes the
+ * picker's pieces (picker.css, `wc-looks-*`) for a finger: every key 44 px
+ * or more, a chip 36 px with a 4 px margin of its own that takes the tap
+ * too. The colours are the phone's tokens (`--ph-*`), so Paper follows. */
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph {
+  --lks-ink: var(--ph-text);
+  --lks-ink-dim: var(--ph-body);
+  --lks-dim: var(--ph-dim);
+  --lks-faint: var(--ph-chev);
+  --lks-lamp: var(--ph-grip);
+  --lks-lamp-hot: var(--ph-hood-text);
+  --lks-mono: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font: 14px/1.4 var(--lks-mono);
+  color: var(--ph-text);
+  text-align: left;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-col {
+  padding-bottom: 20px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The preview: the portrait, a bit of map and a Group row, side by side. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-prev {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 8px;
+  background: var(--ph-card);
+  box-shadow: var(--ph-card-lip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-pv {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-pv.is-row {
+  flex: 1 1 110px;
+  min-width: 0;
+  align-self: stretch;
+  justify-content: space-between;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-pv > .wc-looks-sub {
+  align-self: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-frame {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-mapbit {
+  width: 84px;
+  height: 84px;
+  background-size: 126px 126px;
+  background-position: -21px -21px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-row {
+  width: 100%;
+  height: 40px;
+  margin-top: 22px;
+}
+
+/* The tabs: one segmented row across the column. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 10px;
+  background: var(--ph-card);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph-tabs > button {
+  height: 44px;
+  border-radius: 7px;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph-tabs > button[aria-selected="true"] {
+  color: var(--ph-text);
+  font-weight: 700;
+  background: var(--ph-key);
+  box-shadow: inset 0 0 0 1px var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Automatic: the card. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-auto {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: left;
+  background: var(--ph-card);
+  box-shadow: inset 0 0 0 1px var(--ph-card-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-auto[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-autoimg {
+  width: 68px;
+  height: 68px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-d,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-hint {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-hint {
+  padding: 0 4px;
+}
+
+/* Library: the chips wrap; each takes a finger with its margin. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chips {
+  gap: 8px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chips + .wc-looks-chips {
+  margin-top: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip {
+  position: relative;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 18px;
+  font-size: 13px;
+  color: var(--ph-body);
+  background: var(--ph-card);
+  box-shadow: inset 0 0 0 1px var(--ph-card-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip > i {
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip[aria-pressed="true"] {
+  color: var(--ph-ink);
+  background: var(--ph-grip);
+  box-shadow: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip[aria-pressed="true"] > i {
+  color: var(--ph-ink);
+  opacity: 0.7;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-sep {
+  height: 24px;
+  margin: 0 2px;
+  background: var(--ph-card-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-search {
+  height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+  color: var(--ph-text);
+  background: var(--ph-card);
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 8px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-search::placeholder {
+  color: var(--ph-dim);
+}
+
+/* The grid scrolls with the page (no scroller inside a scroller on a phone). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-grid {
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+  max-height: none;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-it {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 96px;
+  padding: 8px 2px 6px;
+  border-radius: 8px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-it[aria-pressed="true"] {
+  background: var(--ph-key);
+  box-shadow: inset 0 0 0 1.5px var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-it .wc-looks-tk {
+  --d: 56px !important;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-n {
+  font-size: 11px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-it[aria-pressed="true"] .wc-looks-n {
+  color: var(--ph-hood-text);
+}
+
+/* My images: the shelf scrolls with the page too; its slots are 64 px and more. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-mine {
+  display: block;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-shelf {
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 10px;
+  max-height: none;
+  overflow: visible;
+  margin: 0;
+  padding: 2px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-it.wc-looks-slot {
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-slot.is-add {
+  border: 1px dashed var(--ph-grip);
+  color: var(--ph-hood-text);
+  font-size: 11px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-count,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-rm,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-msg,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-meta {
+  font-size: 13px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-msg {
+  color: var(--ph-danger);
+}
+
+/* The picker's own keys (Log in, Remove, the crop's Back and Save): 44 px. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-b {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ph-text);
+  background: var(--ph-key);
+  box-shadow: inset 0 0 0 1px var(--ph-key-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph .wc-looks-b.is-go {
+  color: var(--ph-ink);
+  background: var(--ph-grip);
+  box-shadow: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-out {
+  max-width: none;
+  padding: 14px;
+  gap: 10px;
+  background: var(--ph-card);
+  box-shadow: inset 0 0 0 1px var(--ph-card-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-out p {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-out p b {
+  color: var(--ph-text);
+}
+
+/* The crop step: the square as wide as the phone gives (up to 300 px), the zoom a finger's height. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-crop {
+  width: 100%;
+  max-width: 340px;
+  gap: 14px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-croparea {
+  width: min(300px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-zoom {
+  height: 44px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-zoom svg {
+  width: 20px;
+  height: 20px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-zoomr {
+  height: 44px;
+  margin: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-cropbtns > .wc-looks-b {
+  flex: 1 1 0;
+}
+
+/* Sharing and Reset: the settings pages' groups and rows. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-share {
+  margin: 6px 0 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-share .wc-ph-srow-t {
+  white-space: normal;
+  line-height: 18px;
+  padding: 8px 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-reset {
+  margin-top: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-reset .wc-ph-srow {
+  justify-content: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-reset .wc-ph-srow-t {
+  flex: none;
+  color: var(--ph-hood-text);
+}
+
+/* The foot: Cancel and Use this look, always in reach. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-foot {
+  flex: none;
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph-key {
+  flex: 1 1 0;
+  height: 48px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ph-key-text);
+  background: var(--ph-key);
+  box-shadow: inset 0 0 0 1px var(--ph-key-edge);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph-key.is-go {
+  color: var(--ph-ink);
+  background: var(--ph-grip);
+  box-shadow: none;
+}
+
+/* Our keyboard up for the search (keyboard-pages.ts): the page ends above it. */
+html.wc-phone.wc-okb-pg .wc-cockpit[data-phone-game] .wc-looks-ph {
+  bottom: var(--wc-okb-page-h, 0px);
+}
+
+html.wc-phone.wc-okb-pg .wc-cockpit[data-phone-game] .wc-looks-ph-foot {
+  display: none;
+}
+
+/* A tablet-size window (the settings pages' 720 px column, phone.css): a
+ * wider column here, and in landscape the preview stands beside the tabs. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-ph-col {
+    padding-left: max(16px, calc((100% - 800px) / 2));
+    padding-right: max(16px, calc((100% - 800px) / 2));
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-foot {
+    padding-left: max(16px, calc((100% - 800px) / 2));
+    padding-right: max(16px, calc((100% - 800px) / 2));
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-it .wc-looks-tk {
+    --d: 64px !important;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 600px) and (orientation: landscape) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-ph-col,
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-foot {
+    padding-left: max(16px, calc((100% - 960px) / 2));
+    padding-right: max(16px, calc((100% - 960px) / 2));
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-body {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-prev {
+    position: sticky;
+    top: 0;
+    flex: 0 0 190px;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-frame {
+    width: 150px;
+    height: 150px;
+    border-radius: 13px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-mapbit {
+    width: 132px;
+    height: 132px;
+    background-size: 198px 198px;
+    background-position: -33px -33px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-pv.is-row {
+    flex: none;
+    width: 100%;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-row {
+    margin-top: 0;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-main {
+    flex: 1 1 auto;
+  }
+}
+
+/* A phone (not a tablet): each row of chips is one line that scrolls sideways, edge to edge. */
+@media not ((min-width: 600px) and (min-height: 600px)) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: -4px -16px;
+    padding: 4px 16px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chip,
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-sep {
+    flex: none;
+  }
+}
+
+/* A phone on its side: little height. Cancel and Use go up into the band, and the preview
+ * (the portrait and the map, without the Group row) stands left of the tabs. */
+@media (orientation: landscape) and (max-height: 599px) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-foot {
+    position: absolute;
+    top: -49px;
+    right: 0;
+    height: 48px;
+    box-sizing: border-box;
+    width: min(420px, 60%);
+    padding: 2px max(8px, env(safe-area-inset-right, 0px)) 2px 0;
+    gap: 8px;
+    background: none;
+    border: 0;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-looks-ph-key {
+    height: 44px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-col {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-body {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-prev {
+    position: sticky;
+    top: 0;
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-pv.is-row {
+    display: none;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph-main {
+    flex: 1 1 auto;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-chips {
+    margin: -4px 0;
+    padding: 4px 0;
+  }
+}
+
+/* Our keyboard stands at the app box's bottom at z 200, under the phone's menu (z 400 in the
+ * cockpit): over the look page it comes above it. */
+html.wc-phone:has(.wc-looks-ph) .wc-okb-page {
+  z-index: 450;
+}
+
+/* The search's own clear key (our keyboard has its backspace). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-search::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* The crop step on a phone on its side: the square left, its controls beside it. */
+@media (orientation: landscape) and (max-height: 599px) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-crop {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    column-gap: 16px;
+    row-gap: 10px;
+    max-width: none;
+    margin: 0;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-crop > .wc-looks-croparea {
+    grid-column: 1;
+    grid-row: 1 / span 6;
+    width: 220px;
+    margin: 0;
+  }
+
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-crop > :not(.wc-looks-croparea) {
+    grid-column: 2;
+  }
+}
+
+/* The preview's Group row is the pane's dark row on Paper too: its name keeps the light ink. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-looks-ph .wc-looks-row-b > b {
+  color: #e6e2d8;
+}

@@ -662,6 +662,14 @@ export class Shell {
   async openLook(who: LookTarget): Promise<void> {
     const app = this.appRef;
     if (!app?.looks || !this.inCockpit) return;
+    // The phone's game layout (a phone, a tablet): the look page in the phone's menu (stage 80 part F).
+    if (this.phoneGame) {
+      const layer = this.phoneLayer ?? (await this.phoneLayerP);
+      // (A page of the ESC menu's overlay has the screen.)
+      if (!layer || !this.inCockpit || this.appRef !== app || this.menu?.isOpen) return;
+      layer.menu.openLook(who);
+      return;
+    }
     const chrome = await this.loadChrome();
     if (!this.inCockpit || this.appRef !== app) return;
     this.popups?.close(false);
@@ -680,6 +688,25 @@ export class Shell {
         return app.status.get().replay || conn === 'idle' || conn === 'disconnected';
       },
     });
+  }
+
+  /** The phone's look page for the menu (stage 80 part F): the chrome's page over this app's looks. */
+  private lookPageFor(app: App, chrome: ChromeModule): import('../phone').LookPageRender {
+    const looks = app.looks!;
+    // One services object for the page's life: a new one per render would re-render every consumer.
+    let services: ChromeServices | null = null;
+    return ({ who, done }) =>
+      chrome.phoneLookPage((services ??= this.services()), {
+        who,
+        looks,
+        game: app.game,
+        focusInput: () => {},
+        done,
+        canLeave: () => {
+          const conn = app.status.get().conn;
+          return app.status.get().replay || conn === 'idle' || conn === 'disconnected';
+        },
+      });
   }
 
   /** The look picker, while it is open. */
@@ -958,6 +985,8 @@ export class Shell {
         ...(device().phone
           ? {
               openMenuAt: (target: MenuTarget) => void this.openMenu(target),
+              // The look page (stage 80 part F); the desktop dialog where the phone's layout is not up (`?phone=1` on a large window).
+              openLook: (who: LookTarget) => void this.openLook(who),
               // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
               mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
                 this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
@@ -1031,6 +1060,8 @@ export class Shell {
               // Exit session, confirmed in the phone's own sheet (stage 52), with the run's rating.
               exit: () => void this.exitSession(),
               runs: app.runs,
+              // The look page (stage 80 part F): the chrome chunk's, in the phone's menu.
+              ...(app.looks ? { lookPage: this.lookPageFor(app, chrome), lookSelf: () => app.game.timers.characterName ?? null } : {}),
               // The client notices (ADR 0025) in the sheet's status line, as the command row's.
               ...(notices ? { notices: { get: () => noticeIndicators(notices.get(), CLIENT_VERSION), subscribe: (fn: () => void) => notices.subscribe(fn) } } : {}),
               onMenuClose: () => {

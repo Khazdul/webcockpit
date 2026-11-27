@@ -3513,3 +3513,10 @@ html.wc-phone .wc-player-box[data-docked] .wc-pc-sw {
   height: 40px;
   font-size: 13px;
 }
+
+/* The share switch's row (stage 80): its long name wraps rather than being cut. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow[data-row="character-share-look"] > .wc-ph-srow-t {
+  padding: 8px 0;
+  line-height: 18px;
+  white-space: normal;
+}

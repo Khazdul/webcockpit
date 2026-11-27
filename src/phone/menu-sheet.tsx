@@ -36,7 +36,7 @@
 // closes and cannot type behind the scrim either.
 
 import { type VNode, render } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { NoticeIndicator } from '../app/notices';
 import type { AppStatusState, AppStatusView } from '../app/status';
 import type { LiveRuns } from '../runs/live';
@@ -49,6 +49,19 @@ import { PHONE_THEMES, canStep, stepSize, themeOf } from './text-settings';
 
 /** The existing pages the sheet leads to (the shell opens them at their frame). */
 export type MenuFrame = 'profile' | 'scripts';
+
+/** Whose look the look page sets (stage 80 part F). */
+export interface LookPageWho {
+  name: string;
+  self: boolean;
+}
+
+/**
+ * The look picker's page (the chrome chunk's `phoneLookPage`, handed in by
+ * the shell): a node for the menu's surface. `done` is called once, when it
+ * closed itself (Cancel, Use this look, its Back).
+ */
+export type LookPageRender = (o: { who: LookPageWho; done(): void }) => VNode;
 
 export interface PhoneMenuDeps {
   /** The element the menu's host is appended to (the cockpit). */
@@ -82,6 +95,10 @@ export interface PhoneMenuDeps {
   notices?: PhoneNoticesView | undefined;
   /** Reloads the page (the update notice while the link is down). Absent: `location.reload()`. */
   reload?(): void;
+  /** The look page (stage 80 part F). Absent: none, and the Character settings have no "Look…" row. */
+  lookPage?: LookPageRender | undefined;
+  /** Your character's name for that row; null before the game named it. */
+  lookSelf?: (() => string | null) | undefined;
 }
 
 /** The client notices as the status line shows them, and a call on every change. */
@@ -94,7 +111,8 @@ type View =
   | { at: 'closed' }
   | { at: 'sheet' }
   | { at: 'settings'; from: 'sheet' | 'game'; focus?: string }
-  | { at: 'exit'; from: 'sheet' | 'game' };
+  | { at: 'exit'; from: 'sheet' | 'game' }
+  | { at: 'look'; who: LookPageWho; n: number };
 
 /** Presses never move the DOM focus. */
 const keepFocus = (e: MouseEvent): void => e.preventDefault();
@@ -345,11 +363,29 @@ function Surface(p: {
         <MenuSheet s={s} st={st} notes={notes} deps={deps} close={() => p.menu.close()} openSettings={() => p.menu.openSettings('sheet')} openExit={() => p.menu.openExit('sheet')} />
       ) : view.at === 'exit' ? (
         <ExitSheet runs={deps.runs} exit={() => deps.exit()} cancel={() => p.menu.back()} keysRef={p.keysRef} />
-      ) : (
-        <SettingsPage s={s} settings={deps.settings} fits={deps.fits} focus={view.focus} onBack={() => p.menu.back()} backRef={p.backRef} />
-      )}
+      ) : view.at === 'look' && deps.lookPage ? (
+        // (Keyed by the open: a second open for another name starts afresh.)
+        <LookHost key={view.n} render={deps.lookPage} who={view.who} done={() => p.menu.close()} />
+      ) : view.at === 'settings' ? (
+        <SettingsPage
+          s={s}
+          settings={deps.settings}
+          fits={deps.fits}
+          focus={view.focus}
+          onBack={() => p.menu.back()}
+          backRef={p.backRef}
+          {...(deps.lookPage ? { lookPage: deps.lookPage, lookSelf: () => deps.lookSelf?.() ?? null } : {})}
+        />
+      ) : null}
     </div>
   );
+}
+
+/** The look page as the menu shows it: one node from the render, kept for the page's life (a re-render of the surface keeps its state). */
+function LookHost(p: { render: LookPageRender; who: LookPageWho; done(): void }): VNode {
+  const done = useRef(p.done);
+  done.current = p.done;
+  return p.render({ who: p.who, done: () => done.current() });
 }
 
 /** The phone's menu: the sheet and the settings page, in one host over the cockpit. */
@@ -374,7 +410,7 @@ export class PhoneMenu {
     return this.view.at !== 'closed';
   }
 
-  /** What is shown: `closed`, `sheet`, `settings` or `exit`. */
+  /** What is shown: `closed`, `sheet`, `settings`, `exit` or `look`. */
   get showing(): View['at'] {
     return this.view.at;
   }
@@ -391,6 +427,19 @@ export class PhoneMenu {
   openSettings(from: 'sheet' | 'game' = 'game', focus?: string): void {
     this.show({ at: 'settings', from, ...(focus ? { focus } : {}) });
   }
+
+  /**
+   * Opens the look page for `who` (stage 80 part F: a tap on the Character
+   * card's portrait or a Group token). Its Back, Cancel, Esc and the back
+   * gesture close it back to the game. No-op without a look page.
+   */
+  openLook(who: LookPageWho): void {
+    if (!this.deps.lookPage) return;
+    this.show({ at: 'look', who, n: ++this.looksOpened });
+  }
+
+  /** How many look pages were opened (each open is a new page). */
+  private looksOpened = 0;
 
   /**
    * Opens the Exit session confirmation (the sheet's Exit session, `#exit`);
@@ -434,8 +483,18 @@ export class PhoneMenu {
     // Never on to the command line: no typing, no send, no macro.
     e.stopImmediatePropagation();
     const plain = !(e.ctrlKey || e.altKey || e.metaKey);
+    // A field of the menu's own (the look page's search) is typed in from a physical keyboard; Esc still goes back.
+    const t = e.target as HTMLElement | null;
+    const field = t !== null && this.host.contains(t) && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+    // Esc in such a field lets go of it (the keyboard folds), and the page stays.
+    if (field && plain && e.type === 'keydown' && e.key === 'Escape') {
+      e.preventDefault();
+      t.blur();
+      return;
+    }
+    const own = field && e.key !== 'Escape';
     // The browser's own keys (F5, F12, Ctrl+R …) keep working.
-    if (plain && !/^F\d{1,2}$/.test(e.key)) e.preventDefault();
+    if (plain && !own && !/^F\d{1,2}$/.test(e.key)) e.preventDefault();
     if (plain && e.type === 'keydown' && e.key === 'Escape' && !e.repeat) this.back();
     else if (plain && e.type === 'keydown') this.keysRef.current?.(e);
   };

@@ -29,6 +29,7 @@
 import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
+import type { LookPageRender } from './menu-sheet';
 import { canWakeLock } from './wake-lock';
 import { canVibrate } from './haptics';
 import { okbLayout } from './keyboard-model';
@@ -125,6 +126,12 @@ export type SettingsRow =
       /** Whether a tap would change anything. */
       enabled(s: S): boolean;
       run(s: S): SettingsPatch;
+    }
+  | {
+      /** A row that opens the look page for your character (stage 80 part F). Absent where the page has no look page; dimmed before the game named the character. */
+      kind: 'look';
+      id: string;
+      label: string;
     }
   | {
       /** A row that opens a sub-page (`SETTINGS_PAGES`). */
@@ -657,11 +664,12 @@ export const CHARACTER_STONES_GROUP: SettingsGroup = {
   caption: 'Flags: poisoned, blind, snared, wounded, hungry, thirsty.',
 };
 
-/** Character: your look shared with other players (stage 80 part E; the Character gear's switch, the picker's too). */
+/** Character: your look (stage 80 part F: the look page) and its sharing with other players (part E; the picker's switch too). */
 export const CHARACTER_LOOK_GROUP: SettingsGroup = {
   id: 'character-look',
   title: 'Look',
   rows: [
+    { kind: 'look', id: 'character-look-open', label: 'Look…' },
     {
       kind: 'toggle',
       id: 'character-share-look',
@@ -753,8 +761,10 @@ function Row(p: {
   pick(row: SettingsRow): void;
   /** Opens a sub-page (a `link` row). */
   open(page: string): void;
+  /** Opens the look page (a `look` row): null while there is no character to set it for. */
+  look: (() => void) | null;
   fits(size: number): boolean;
-}): VNode {
+}): VNode | null {
   const { row, s } = p;
   const { Seg, Toggle } = phoneControls();
   switch (row.kind) {
@@ -836,6 +846,27 @@ function Row(p: {
         >
           <span class="wc-ph-srow-t">{row.label}</span>
           <span class="wc-ph-srow-v">{row.value(s)}</span>
+        </button>
+      );
+    }
+    case 'look': {
+      const look = p.look;
+      return (
+        <button
+          type="button"
+          class="wc-ph-srow is-pick is-action"
+          data-row={row.id}
+          tabIndex={-1}
+          aria-disabled={look ? undefined : 'true'}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            look?.();
+          }}
+        >
+          <span class="wc-ph-srow-t">{row.label}</span>
+          {!look && <span class="wc-ph-srow-v">No character yet</span>}
+          <PhIcon d={ICON_CHEVRON} small class="wc-ph-chev" />
         </button>
       );
     }
@@ -931,10 +962,14 @@ export interface SettingsPageProps {
   onBack(): void;
   /** Tells the caller how Back is handled now: a pick list open takes it first. */
   backRef: { current: (() => boolean) | null };
+  /** The look page (a `look` row opens it over the page; Back returns here). Absent: no `look` row. */
+  lookPage?: LookPageRender;
+  /** Your character's name for the look page; null before the game named it. */
+  lookSelf?: () => string | null;
 }
 
 /** What the column shows over the page itself: a sub-page, or a pick list. */
-type Level = { at: 'sub'; page: SettingsSubPage } | { at: 'pick'; row: Extract<SettingsRow, { kind: 'pick' }> };
+type Level = { at: 'sub'; page: SettingsSubPage } | { at: 'pick'; row: Extract<SettingsRow, { kind: 'pick' }> } | { at: 'look'; name: string };
 
 /**
  * The settings page: an iron band with Back, the hood, and the groups in a
@@ -971,6 +1006,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
     setLevels(levels.slice(0, -1));
   };
   const top = levels[levels.length - 1] ?? null;
+  const selfName = p.lookSelf?.() ?? null;
   const sub = [...levels].reverse().find((l): l is Extract<Level, { at: 'sub' }> => l.at === 'sub')?.page ?? null;
   // Esc and the back gesture ask here first.
   p.backRef.current = () => {
@@ -986,7 +1022,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
     <section key={g.id} class="wc-ph-grp" data-group={g.id}>
       <span class="wc-ph-grp-t">{g.title}</span>
       <div class="wc-ph-card">
-        {rowsShown(g).map((row) => (
+        {rowsShown(g).filter((row) => row.kind !== 'look' || p.lookPage).map((row) => (
           <Row
             key={row.id}
             row={row}
@@ -997,6 +1033,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
               const page = SETTINGS_PAGES[id];
               if (page) push({ at: 'sub', page });
             }}
+            look={selfName ? () => push({ at: 'look', name: selfName }) : null}
             fits={(size) => p.fits?.(size) ?? true}
           />
         ))}
@@ -1004,11 +1041,13 @@ export function SettingsPage(p: SettingsPageProps): VNode {
       {g.caption && <span class="wc-ph-cap">{g.caption}</span>}
     </section>
   );
+  // The look page stands over the whole page; its Back, Cancel and Use come back here.
+  if (top?.at === 'look' && p.lookPage) return p.lookPage({ who: { name: top.name, self: true }, done: pop });
   const title = sub ? sub.title : 'Settings';
   // Where Back leads: out of a list to its page, out of a sub-page to the settings.
   const backTo = !top ? 'Back' : levels.length > 1 && sub ? `Back to ${sub.title}` : 'Back to settings';
   return (
-    <div class="wc-ph-page" role="dialog" aria-label={title} data-page={!top ? 'settings' : top.at === 'pick' ? `pick:${top.row.id}` : `sub:${top.page.id}`}>
+    <div class="wc-ph-page" role="dialog" aria-label={title} data-page={!top ? 'settings' : top.at === 'pick' ? `pick:${top.row.id}` : top.at === 'sub' ? `sub:${top.page.id}` : 'look'}>
       <div class="wc-ph-band">
         <button
           type="button"
