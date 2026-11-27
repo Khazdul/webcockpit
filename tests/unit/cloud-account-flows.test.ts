@@ -78,7 +78,7 @@ let server: FakeAccountServer;
 let storage: MemoryStorage;
 
 /** A device: a browser on the server, an IndexedDB of its own, the flows over both. (All devices of a test share one localStorage.) */
-function device(o: { enabled?: boolean; works?: boolean; tabOf?: Device; store?: (base: AccountStore) => AccountStore; timeoutMs?: number } = {}): Device {
+function device(o: { enabled?: boolean; works?: boolean; tabOf?: Device; store?: (base: AccountStore) => AccountStore; timeoutMs?: number; beforeLogin?: () => Promise<void> } = {}): Device {
   // `tabOf`: another tab of the same browser (its cookie jar and its IndexedDB).
   const browser = o.tabOf?.browser ?? server.browser();
   const factory = o.tabOf?.factory ?? new IDBFactory();
@@ -103,6 +103,7 @@ function device(o: { enabled?: boolean; works?: boolean; tabOf?: Device; store?:
     enabled,
     label: () => 'Firefox on Linux',
     now: () => server.now(),
+    ...(o.beforeLogin ? { beforeLogin: o.beforeLogin } : {}),
   });
   return { flows, browser, store, factory, kdfRuns: () => runs, kdf, wire };
 }
@@ -266,6 +267,15 @@ describe('log in', () => {
     expect(await open(keysB.dataKey, 'k', 'i', blob)).toEqual(utf8('x'));
     expect(await opaqueId(keysB.idKey, 'k', 'i')).toBe(await opaqueId(keysA.idKey, 'k', 'i'));
     expect(server.saw(PASSWORD)).toBe(false);
+  });
+
+  it('stage 80 part E: the device’s shared looks are released just before the login is sent', async () => {
+    await registered(device());
+    const order: string[] = [];
+    const d = device({ beforeLogin: async () => void order.push('release') });
+    const r = await d.flows.startLogin('olev', PASSWORD).submit({ onStep: (s) => order.push(s) });
+    expect(r.ok).toBe(true);
+    expect(order).toEqual(['checking', 'deriving', 'sending', 'release', 'saving']);
   });
 
   it('a wrong password and an unknown name are the same answer, and end the flow', async () => {
