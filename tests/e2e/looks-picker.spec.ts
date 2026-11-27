@@ -176,11 +176,11 @@ test('keys: tabs by arrows, the grid by arrows, Enter picks and uses, Esc cancel
   await expect(field(page)).toBeFocused();
 });
 
-test('My images says it needs an account (own images come later)', async ({ page }) => {
+test('My images logged out is the login card (part D: looks-own.spec.ts has the shelf)', async ({ page }) => {
   await demo(page);
   await openPicker(page);
   await tab(page, 'mine').click();
-  await expect(dlg(page).locator('.wc-looks-out')).toContainText('Your own images need an account.');
+  await expect(dlg(page).locator('.wc-looks-out')).toContainText('Log in to use your own images.');
 });
 
 test('the compact card reaches the picker through the gear', async ({ page }) => {
