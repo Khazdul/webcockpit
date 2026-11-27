@@ -1167,6 +1167,47 @@ tablet screenshots, and what feedback is wanted.
   `look_dir.owner` (a keyed hash, not the account id); part E must delete an
   account's rows with it in `worker/deletion.ts`.
 
+- E: Migration 0009 was not changed (never pushed; `look_dir` as part D made
+  it). The library ids reach the Worker as `shared/cloud/look-tokens.ts`,
+  written by `scripts/tokens.ts` with the manifest; a unit test holds it
+  equal to `tokens.json`, another the race and subrace lists to `race.ts`.
+- E: All three public routes (`PUT`/`DELETE /api/look`, `POST /api/look/find`)
+  want JSON, `X-WC: 1` and the site's Origin (find too, so another site's
+  page cannot use a visitor's address to ask); `API_LIMITER` applies to them
+  as to `/api/pub/*`. The `curl` checks must send the Origin and `X-WC`.
+- E: Errors: `409 look_owned` (another owner, fresher than 30 days), `409
+  too_many_names` (the owner's 20 names), `400 bad_request` for any field,
+  `429 rate_limited`, `503 looks_not_configured` without AUTH_PEPPER (find
+  still answers), `404` with the flag off. The client remembers either 409
+  for the session; only `look_owned` makes the picker say "Shared from
+  another device or account".
+- E: The look key is a random UUID v4 (`crypto.randomUUID`), made at the
+  first report; a logged-out DELETE without a key in the browser is not sent.
+- E: The take-over is done before a registration and a recovery too, not
+  only a login: Create account moves the device's looks in, and the
+  account's report would otherwise be refused for 30 days by the device's
+  own row. A login that then fails has removed the device's rows; the next
+  report in the game puts them back.
+- E: A failure is tried once more after five minutes (a newer change sends
+  at once); a failed ask waits five minutes per name. 401 on `/api/u/look`
+  (a lost session) is a failure like any other, silent.
+- E: The admin's part sits on Flags and limits (a "Shared looks" card: the
+  count, a name to look up, Remove with a note), not a view of its own; the
+  routes are `GET`/`DELETE /api/admin/look/<name>`.
+- E: The Settings switch: desktop Settings has no Character page (the
+  Character gear has the switch since part A), so the phone's Character
+  settings page got a "Look" group with it; part F may restyle it.
+- E: The privacy section shows with the flag `looks`, with or without
+  `accounts`; the base text's sentence now says what the heartbeat holds
+  ("The heartbeat holds nothing you type, no character… name"), which is
+  true with the flag on, and points to Shared looks when it shows. About's
+  "What the site knows" says "Where the site has shared looks on, …" (About
+  is one static text, and production's flag is off). The new texts say MUME
+  Cockpit for the client where the player reads it; the rest of About and
+  the privacy page still say WebCockpit, as before (not renamed tonight).
+- E: The fixture replay and the in-app log player never call the directory;
+  the dev feed through the live app still draws looks (rows 1, 4, 5).
+
 ## Owner feedback
 
 - 2026-11-26: the two bears are approved as drawn ("Kör på dessa"). The

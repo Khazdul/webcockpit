@@ -270,6 +270,23 @@ Mapped to Inv §2.1 and §10.
 | UI messages | Inv §2.4 | Structured messages from the system and scripts. |
 | Clock | Inv §2.5 | On desktop and tablet at the left end of the menu bar: a sun or moon in a ring of the period left, `~` after it while synced to the hour only, the countdown in its tooltip (stage 31a, ADR 0099). On the phone the input clock strip with the countdown text. Syncs from MSSP and game text. |
 
+**Looks and tokens** (stage 80, `docs/stages/80-character-tokens.md`;
+ADRs 0169–0173). A *look* is the picture of a character: the engraved
+drawing for its race, subrace and sex (the default), a picture of the
+token library shipped with the client (`public/tokens/`, ADR 0170), or
+one of the player's own images (account only, ADR 0172). One pure
+resolver (`src/looks/resolve.ts`) gives every pane its look: for
+yourself your choice, then the drawing, then the neutral figure; for a
+member your assignment, then the directory's library token (§7.14),
+then the drawing for the directory's race and sex, then an NPC's
+library match by name, then the neutral figure or the type icon. The
+Character pane shows it as the portrait (a click opens the picker), the
+Group pane as a round token at the start of each row (rows that follow
+the pane's height, ADR 0122 addendum), the map as round tokens with an
+HP arc and a fan for several in one room (ADR 0171); each has its
+switch in the pane's gear. No looks in the replay bundle or the log
+player.
+
 ### 2.5 Start page (launcher)
 
 Mapped to Inv §3.
@@ -1243,6 +1260,17 @@ exports, backups) reads the current space, never both.
 Limits: 1 MB per item, 2 MB of small items per account, 2 000 items
 (100 accounts at the limit are 200 MB of D1's free 500 MB).
 
+**Looks** (stage 80, ADR 0172): two more kinds, both open without a
+flag. `looks`, one item (`{names: {[name]: {look, at, own?}}}`, policy
+`merge`, the newest `at` per name, at most 500 names), counts against
+the small items. `lookImage`, one per own image (`{id, label, webp,
+created}`, gzipped, last writer), has a budget of its own: 50 images,
+32 768 bytes of blob each and 1 638 400 in all per account
+(`lookImages`, `lookImageMaxBytes`, `lookBytes`; the account's
+`look_count` and `look_bytes`), not counted against the 2 MB or the
+2 000 items. Create account moves the device's `looks` in; a login
+copies nothing. An own image is never shown to anyone else.
+
 ### 7.5 Runs in the cloud
 
 ADR 0146, "Runs".
@@ -1475,9 +1503,12 @@ ADR 0148, "The admin page".
 | Notes on the board | 5 a day per account, 250 characters |
 | Reports | 30 a day per account |
 | Views of a log | once a UTC day per device and per address (an IPv6 /56 is one) |
+| Shared looks: reports | 30 an hour per owner and per address (hashed, daily pepper; the `attempt` table), PUT and DELETE alike; at most 20 names per owner (§7.14) |
+| Shared looks: `find` | 60 a minute per address (the binding `LOOK_LIMITER`), at most 40 names a call |
 
 Limits live in `/api/config` and per account (`limits` column), so
-the owner changes them without a release.
+the owner changes them without a release. The shared looks' limits are
+constants in `shared/cloud/api.ts` (`LOOK_*`), not in `/api/config`.
 
 ### 7.11 Data model (D1)
 
@@ -1507,7 +1538,12 @@ flag(name, value)                            -- server flags set from /admin
 attempt(key, start, count, until)            -- login, recovery and registration
                                              -- limits; key: a kind and an HMAC
 admin_log(ts, who, action, target, note)
+look_dir(name PK, race, subrace, sex, token, owner, updated)
+     INDEX (owner), INDEX (updated)          -- shared looks (§7.14); owner a keyed hash
 ```
+
+`account` has `look_count` and `look_bytes` too (migration 0009, the
+own images' budget, §7.4).
 
 Small item blobs (≤ 1 MB) are in D1; run bodies and payloads in R2.
 Migrations are numbered SQL files, applied by the release workflow
@@ -1658,3 +1694,67 @@ Not planned; listed so they are not forgotten (intent Non-goals):
 - A "move this device's things to the account" row on the Account
   page, for a player with things on a second device (today: export
   logged out, import logged in).
+
+### 7.14 Shared looks
+
+Stage 80 part E, ADR 0173 (`docs/stages/80-character-tokens.md` §9;
+intent Goal 16). So that group members who use the client see each
+other with the right picture, every client reports its character's
+race, subrace, sex and library token (also when the player chose
+nothing), accounts or not, unless the switch `character.shareLook`
+("Show my look to other MUME Cockpit players": the picker, the
+Character gear, the phone's Character settings) is off; and asks for
+the group's players. The only part where something readable about a
+character leaves the browser; the privacy page has a section of its own
+for it, shown with the flag.
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `PUT /api/look` | logged out: `{key, name, race, subrace, sex, token}`, `credentials: 'omit'` | stores the row (204); `409 look_owned` / `too_many_names` |
+| `DELETE /api/look` | logged out: `{key}` | removes every row of the key (204) |
+| `PUT /api/u/look` | the session (`accountApi`): the report without `key` | as above, owned by the account |
+| `DELETE /api/u/look` | the session, no body | removes the account's rows (204) |
+| `POST /api/look/find` | anonymous: `{names}`, at most 40, `credentials: 'omit'` | `{looks: {[name]: {race, subrace, sex, token}}}`, no owner, no time; a name without a row is absent |
+| `GET`, `DELETE /api/admin/look/<name>` | the admin (Access) | the row; its removal, logged as `look.remove` |
+
+- **Rules.** The public routes want JSON, `X-WC: 1` and the site's own
+  Origin (the view route's rule). The name is 2–20 letters, stored in
+  lower case; race and subrace are the kinds of `src/gmcp/race.ts`
+  (a subrace only beside its race), never MUME's text; sex `male`,
+  `female` or null; the token a library id from the build's list
+  (`shared/cloud/look-tokens.ts`, generated with the manifest) or
+  null. No free text is stored.
+- **The owner** of a row is `HMAC(AUTH_PEPPER, "wc-look|d|" + key)`
+  logged out (the key: `localStorage` `wc.lookKey`, a random UUID of
+  its own, never the statistics' device id) and
+  `HMAC(AUTH_PEPPER, "wc-look|a|" + account id)` logged in. Without
+  the pepper the writes answer 503 `looks_not_configured`. The first
+  reporter owns a name; another owner is refused (409) while the row is
+  fresher than 30 days, and may take a staler row over. At most 20
+  names per owner. The daily cron removes rows not refreshed for 180
+  days; deleting an account removes its rows.
+- **Login** takes the rows over without tying the two: just before a
+  login (and a registration and a recovery) the client sends
+  `DELETE /api/look` with its key, and afterwards reports through
+  `/api/u/look`.
+- **The client** reports when the name and the race are known, and
+  again when the race, the sex or the stored look changes; at most once
+  per character, space and session otherwise. The token only for a
+  library look. Bear form is reported as a Beorning, so a change of
+  form sends nothing. A 409 is remembered for the session (the picker
+  then says the look is shared from another device or account). It asks
+  for the group's players (never NPCs) gathered for a moment, at most
+  40 names a call, and caches the answers in memory and in
+  `localStorage` (`wc.lookDir`): 24 hours for a row, 1 hour for a
+  miss, at most 300 names. Everything runs on idle time and nothing on
+  the game path waits for it (§7.0 rule 1); a failure is silent and
+  tried once again after five minutes. Silent in any replay, without
+  the API (`apiAllowed()`) and with the flag off.
+- **Flag** `looks` (§7.0 rule 5): on in staging, off in production
+  until the owner opens it. Off: the routes answer 404, the client
+  makes no request, and members follow their assignment, the NPC
+  match or the neutral figure. Everything else of stage 80 works with
+  the flag off and with the service down.
+- **Admin**: the count of rows on the Flags and limits view, a row by
+  name and its removal (the only remedy when a stranger holds a name
+  its player never reported; ADR 0173).
