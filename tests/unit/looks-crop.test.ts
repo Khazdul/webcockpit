@@ -9,6 +9,7 @@ import {
   ZOOM_MAX,
   cropClamp,
   cropPan,
+  cropPinch,
   cropRect,
   cropScale,
   cropStart,
@@ -48,6 +49,24 @@ describe('the crop', () => {
     const k = cropScale(z);
     expect((60 - z.x) / k).toBeCloseTo(60 / cropScale(s), 6);
     expect(cropRect(z, 240).dw).toBe(480);
+  });
+
+  it('a pinch (part F): the zoom follows the fingers’ spread, the picture follows their midpoint', () => {
+    const s = cropStart(300, 300, 240);
+    // Spread from 40 to 80 px apart about the centre: twice the zoom, nothing moved.
+    const z = cropPinch(s, { x: -20, y: 0 }, { x: 20, y: 0 }, { x: -40, y: 0 }, { x: 40, y: 0 });
+    expect(z.zoom).toBe(2);
+    expect(z).toMatchObject({ x: 0, y: 0 });
+    // The same spread about a point 30 px right: the picture's point under it stays under it.
+    const a = cropPinch(s, { x: 10, y: 0 }, { x: 50, y: 0 }, { x: -10, y: 0 }, { x: 70, y: 0 });
+    expect((30 - a.x) / cropScale(a)).toBeCloseTo((30 - s.x) / cropScale(s), 6);
+    // The two fingers moved together without spreading: a pan, the zoom kept.
+    const p = cropPinch(z, { x: -20, y: 0 }, { x: 20, y: 0 }, { x: -10, y: 15 }, { x: 30, y: 15 });
+    expect(p.zoom).toBe(2);
+    expect(p).toMatchObject({ x: 10, y: 15 });
+    // Held to the limits.
+    expect(cropPinch(s, { x: -10, y: 0 }, { x: 10, y: 0 }, { x: -200, y: 0 }, { x: 200, y: 0 }).zoom).toBe(ZOOM_MAX);
+    expect(cropPinch(s, { x: -50, y: 0 }, { x: 50, y: 0 }, { x: -1, y: 0 }, { x: 1, y: 0 }).zoom).toBe(1);
   });
 
   it('a square that is the whole picture draws the whole picture', () => {

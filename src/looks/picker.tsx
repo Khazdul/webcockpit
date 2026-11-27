@@ -36,6 +36,7 @@ import { lookFrame } from '../chrome/kit/look';
 import { FrameStack, useKeyLayer } from '../chrome/kit/stack';
 import { type ChromeServices, ServicesCtx, useServices, useSettings } from '../chrome/kit/hooks';
 import { portraitArt } from '../panes/portraits';
+import { ownFieldAttrs } from '../core/own-keyboard';
 import { isLight } from '../theme/color';
 import { type Library, type LibraryEntry, loadLibrary, tokenUrl } from './library';
 import { type Look, autoMember, autoSelf, resolveMember, resolveSelf } from './resolve';
@@ -47,7 +48,7 @@ import { MineTab, type MineKeys } from './mine';
 import './picker.css';
 
 /** An own image's `data:` URL for the previews (the picker's looks store). */
-const OwnSrc = createContext<(id: string) => string | null>(() => null);
+export const OwnSrc = createContext<(id: string) => string | null>(() => null);
 
 export interface LookPickerTarget {
   name: string;
@@ -72,15 +73,15 @@ export interface LookPickerHandle {
   dispose(): void;
 }
 
-type Tab = 'auto' | 'lib' | 'mine';
-const TABS: readonly { id: Tab; label: string }[] = [
+export type Tab = 'auto' | 'lib' | 'mine';
+export const TABS: readonly { id: Tab; label: string }[] = [
   { id: 'auto', label: 'Automatic' },
   { id: 'lib', label: 'Library' },
   { id: 'mine', label: 'My images' },
 ];
 
 /** A look's picture for the preview: its URL (a library file, or a baked drawing) and how it sits. */
-function usePicture(look: Look, big: boolean): { src: string | null; lib: boolean } {
+export function usePicture(look: Look, big: boolean): { src: string | null; lib: boolean } {
   const doc = typeof document !== 'undefined' ? document : null;
   const ownSrc = useContext(OwnSrc);
   const [baked, setBaked] = useState<{ key: string; src: string | null } | null>(null);
@@ -104,7 +105,7 @@ function usePicture(look: Look, big: boolean): { src: string | null; lib: boolea
 }
 
 /** A round token (the R3 ring) of `d` px. */
-function Token(p: { look: Look; d: number; ring: string }): VNode {
+export function Token(p: { look: Look; d: number; ring: string }): VNode {
   const pic = usePicture(p.look, p.d > 60);
   return (
     <span class={'wc-looks-tk' + (pic.lib ? ' is-lib' : ' is-por')} style={{ '--d': `${p.d}px`, '--c': p.ring }}>
@@ -114,7 +115,7 @@ function Token(p: { look: Look; d: number; ring: string }): VNode {
 }
 
 /** The Automatic card's picture: the mockup's framed square. */
-function AutoImg(p: { look: Look }): VNode {
+export function AutoImg(p: { look: Look }): VNode {
   const pic = usePicture(p.look, true);
   return <span class={'wc-looks-autoimg' + (pic.lib ? ' is-lib' : '')}>{pic.src && <img src={pic.src} alt="" draggable={false} />}</span>;
 }
@@ -178,7 +179,45 @@ interface FrameProps extends LookPickerOptions {
   done(): void;
 }
 
-const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
+/** What the picker's two faces (the desktop dialog, the phone's page) share: the selection and what follows from it. */
+export interface PickerModel {
+  who: LookPickerTarget;
+  looks: LooksStore;
+  base: LookRef;
+  sel: LookRef;
+  setSel(l: LookRef): void;
+  tab: Tab;
+  setTab(t: Tab): void;
+  filter: LibFilter;
+  setFilter(f: LibFilter): void;
+  lib: Library | null | 'failed';
+  library: Library | null;
+  /** The look shown for the selection, and the automatic one. */
+  shown: Look;
+  auto: Look;
+  ring: string;
+  name: string;
+  /** The map's tileset (the preview's bit of map). */
+  tileset: string;
+  /** Your vitals as fractions, for the preview's Group row. */
+  hp: number;
+  mana: number | null;
+  mv: number;
+  autoTitle: string;
+  autoText: string;
+  /** The share switch (your own character only). */
+  shareOn: boolean;
+  shareNote: string;
+  toggleShare(): void;
+  /** The crop's keys (desktop). */
+  mineKeys: { current: MineKeys | null };
+  /** Closes: `keep` stores the selection, else the look the picker opened with stays. */
+  finish(keep: boolean): void;
+  closed: { current: boolean };
+}
+
+/** The picker's state for `p.who`; `p.done` is called once when it closes. */
+export function usePickerModel(p: LookPickerOptions & { done(): void }): PickerModel {
   const { settings } = useServices();
   const s = useSettings();
   const { who, looks, game } = p;
@@ -193,8 +232,6 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
   const [tab, setTab] = useState<Tab>(base.src === 'lib' ? 'lib' : base.src === 'own' ? 'mine' : 'auto');
   const [filter, setFilter] = useState<LibFilter>({ race: 'all', sex: null, kind: null, q: '' });
   const [lib, setLib] = useState<Library | null | 'failed'>(null);
-  const [at, setAt] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
   const closed = useRef(false);
   const mineKeys = useRef<MineKeys | null>(null);
   // The shelf's changes (an image added, removed or pulled) show at once.
@@ -215,11 +252,11 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     if (closed.current) return;
     looks.preview(who.name, sameLook(sel, base) ? null : sel);
   }, [sel]);
+  // Unmounted without Cancel or Use (the phone's Back, a dispose): the look it opened with stays.
   useEffect(() => () => {
     if (!closed.current) looks.preview(who.name, null);
   }, []);
 
-  const finishRef = useRef<(keep: boolean) => void>(() => {});
   const finish = (keep: boolean): void => {
     if (closed.current) return;
     closed.current = true;
@@ -227,7 +264,6 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     else looks.preview(who.name, null);
     p.done();
   };
-  finishRef.current = finish;
 
   const ownImages = looks.ownIds();
   const input = who.self
@@ -241,6 +277,51 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     return x.value !== null && x.max ? Math.max(0, Math.min(1, x.value / x.max)) : 1;
   };
   const name = who.self ? (v.name ?? who.name) : who.name;
+  const autoTitle = auto.kind === 'drawn' ? (auto.portrait === 'neutral' ? 'Neutral figure' : 'Engraved drawing') : auto.kind === 'lib' ? (library?.byId.get(auto.id)?.label ?? auto.id) : 'The marker icon';
+  const autoText = who.self
+    ? auto.kind === 'drawn' && auto.portrait === 'neutral'
+      ? 'Your race is not known yet. It follows your race and sex once the game has said them.'
+      : `Follows your race and sex (${v.raceLine ?? 'unknown'}, ${sex})`
+    : sourceLine(auto, library);
+  return {
+    who,
+    looks,
+    base,
+    sel,
+    setSel,
+    tab,
+    setTab,
+    filter,
+    setFilter,
+    lib,
+    library,
+    shown,
+    auto,
+    ring,
+    name,
+    tileset: s.mapper.tileset,
+    hp: vit('hp'),
+    mana: v.mana ? vit('mana') : null,
+    mv: vit('mp'),
+    autoTitle,
+    autoText,
+    shareOn: s.character.shareLook,
+    shareNote: shareNote(s.character.shareLook, sel, library, looks.shareRefused(name)),
+    toggleShare: () => settings.update({ character: { shareLook: !s.character.shareLook } }),
+    mineKeys,
+    finish,
+    closed,
+  };
+}
+
+const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
+  const m = usePickerModel(p);
+  const { who, looks, sel, setSel, tab, setTab, filter, setFilter, lib, shown, auto, ring, name, mineKeys, autoTitle, autoText } = m;
+  const [at, setAt] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const finishRef = useRef<(keep: boolean) => void>(() => {});
+  const finish = m.finish;
+  finishRef.current = finish;
 
   // Keys: the dialog's ring (see the file header).
   useKeyLayer((e, nk) => {
@@ -312,19 +393,12 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
     { id: 'USE', label: 'Use this look', primary: true, run: () => finish(true) },
   ];
 
-  const autoTitle = auto.kind === 'drawn' ? (auto.portrait === 'neutral' ? 'Neutral figure' : 'Engraved drawing') : auto.kind === 'lib' ? (library?.byId.get(auto.id)?.label ?? auto.id) : 'The marker icon';
-  const autoText = who.self
-    ? auto.kind === 'drawn' && auto.portrait === 'neutral'
-      ? 'Your race is not known yet. It follows your race and sex once the game has said them.'
-      : `Follows your race and sex (${v.raceLine ?? 'unknown'}, ${sex})`
-    : sourceLine(auto, library);
-
   return (
     <OwnSrc.Provider value={(id) => looks.ownSrc(id)}>
     <Dialog title={`Look for ${name}`} dlg="look" width={780} at={at} buttons={buttons} onCancel={() => finish(false)}>
       <div class="wc-looks" ref={ref}>
         <div class="wc-looks-body">
-          <Preview look={shown} name={name} ring={ring} hp={vit('hp')} mana={v.mana ? vit('mana') : null} mv={vit('mp')} />
+          <Preview look={shown} name={name} ring={ring} hp={m.hp} mana={m.mana} mv={m.mv} />
           <div class="wc-looks-main">
             <div class="wc-looks-tabs" role="tablist" aria-label="Where the look comes from">
               {TABS.map((t) => (
@@ -377,13 +451,13 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
               class="wc-looks-sw"
               role="switch"
               tabIndex={-1}
-              aria-checked={s.character.shareLook ? 'true' : 'false'}
+              aria-checked={m.shareOn ? 'true' : 'false'}
               aria-label="Show my look to other MUME Cockpit players"
-              onClick={() => settings.update({ character: { shareLook: !s.character.shareLook } })}
+              onClick={m.toggleShare}
             />
             <div>
               <b>Show my look to other MUME Cockpit players</b>
-              <span class="wc-looks-d">{shareNote(s.character.shareLook, sel, library, looks.shareRefused(name))}</span>
+              <span class="wc-looks-d">{m.shareNote}</span>
             </div>
           </div>
         )}
@@ -419,7 +493,7 @@ function sourceLine(l: Look, library: Library | null): string {
   }
 }
 
-function LibraryTab(p: {
+export function LibraryTab(p: {
   lib: Library | null | 'failed';
   filter: LibFilter;
   setFilter(f: LibFilter): void;
@@ -456,6 +530,7 @@ function LibraryTab(p: {
         type="search"
         placeholder="Search the library"
         aria-label="Search the library"
+        {...ownFieldAttrs()}
         value={f.q}
         onInput={(e) => setFilter({ ...f, q: (e.currentTarget as HTMLInputElement).value })}
       />

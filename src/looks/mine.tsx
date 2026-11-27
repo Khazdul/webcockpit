@@ -23,7 +23,7 @@ import { LOOK_IMAGES_MAX, LOOK_IMAGE_TARGET_BYTES } from '../../shared/cloud/api
 import type { NavKey } from '../chrome/kit/nav';
 import { onSyncView, syncView } from '../cloud/sync-view';
 import type { FullReason } from '../cloud/sync/types';
-import { type CropState, cropClamp, cropPan, cropRect, cropStart, cropZoom, decodeFile, encodeSquare, imageLabel, ZOOM_MAX } from './crop';
+import { type CropPoint, type CropState, cropClamp, cropPan, cropPinch, cropRect, cropStart, cropZoom, decodeFile, encodeSquare, imageLabel, ZOOM_MAX } from './crop';
 import type { LooksStore } from './store';
 import type { LookRef } from './types';
 
@@ -301,7 +301,8 @@ function CropStep(p: {
     const c = canvas.current;
     if (!c) return;
     const dpr = c.ownerDocument.defaultView?.devicePixelRatio || 1;
-    const side = Math.round(VIEW * dpr);
+    // (The view's size on screen: the phone's page draws it larger than VIEW.)
+    const side = Math.round((area.current?.clientWidth || VIEW) * dpr);
     if (c.width !== side) c.width = c.height = side;
     const g = c.getContext('2d');
     if (!g) return;
@@ -345,17 +346,28 @@ function CropStep(p: {
   };
   useEffect(() => () => void (p.keys.current = null), []);
 
-  // Drag to move; two fingers pinch.
+  // Drag to move; two fingers pinch (the picture follows their midpoint too).
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const pinch = useRef<{ d: number; zoom: number } | null>(null);
+  const pinch = useRef<{ st: CropState; a: CropPoint; b: CropPoint } | null>(null);
+  /** A pointer's place in view px from the view's centre. */
+  const inView = (p: { x: number; y: number }): CropPoint => {
+    const r = area.current?.getBoundingClientRect();
+    const k = r && r.width ? VIEW / r.width : 1;
+    return r ? { x: (p.x - r.left - r.width / 2) * k, y: (p.y - r.top - r.height / 2) * k } : { x: 0, y: 0 };
+  };
+  const pinchStart = (): void => {
+    const [a, b] = [...pointers.current.values()];
+    pinch.current = { st: latest.current.st, a: inView(a!), b: inView(b!) };
+  };
   const down = (e: PointerEvent): void => {
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      /* a pointer the browser no longer has (gone already): its moves still reach the area */
+    }
     (e.currentTarget as HTMLElement).focus({ preventScroll: true });
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()];
-      pinch.current = { d: Math.hypot(a!.x - b!.x, a!.y - b!.y) || 1, zoom: latest.current.st.zoom };
-    }
+    if (pointers.current.size === 2) pinchStart();
   };
   const move = (e: PointerEvent): void => {
     const prev = pointers.current.get(e.pointerId);
@@ -364,8 +376,8 @@ function CropStep(p: {
     const s = latest.current.st;
     if (pointers.current.size >= 2 && pinch.current) {
       const [a, b] = [...pointers.current.values()];
-      const d = Math.hypot(a!.x - b!.x, a!.y - b!.y);
-      set(cropZoom(s, pinch.current.zoom * (d / pinch.current.d)));
+      const p0 = pinch.current;
+      set(cropPinch(p0.st, p0.a, p0.b, inView(a!), inView(b!)));
       return;
     }
     const r = area.current?.getBoundingClientRect();
@@ -374,7 +386,9 @@ function CropStep(p: {
   };
   const up = (e: PointerEvent): void => {
     pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinch.current = null;
+    // A third finger lifted: the two left go on from here.
+    if (pointers.current.size >= 2) pinchStart();
+    else pinch.current = null;
   };
   const wheel = (e: WheelEvent): void => {
     e.preventDefault();

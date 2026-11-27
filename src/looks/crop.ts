@@ -67,6 +67,28 @@ export function cropZoom(s: CropState, zoom: number, ax = 0, ay = 0): CropState 
   return cropClamp({ ...s, zoom: z, x: ax + (s.x - ax) * f, y: ay + (s.y - ay) * f });
 }
 
+/** A point in the view, view px from its centre. */
+export interface CropPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Two fingers (stage 80 part F): from `s` when they came down at `a0`, `b0`
+ * to `a1`, `b1` now (view px from the view's centre). The zoom follows the
+ * distance between them, and the picture's point under their midpoint
+ * follows the midpoint, so the picture moves with the fingers as well.
+ */
+export function cropPinch(s: CropState, a0: CropPoint, b0: CropPoint, a1: CropPoint, b1: CropPoint): CropState {
+  const d0 = Math.hypot(a0.x - b0.x, a0.y - b0.y) || 1;
+  const d1 = Math.hypot(a1.x - b1.x, a1.y - b1.y);
+  const z = Math.min(ZOOM_MAX, Math.max(1, s.zoom * (d1 / d0)));
+  const f = z / s.zoom;
+  const m0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
+  const m1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
+  return cropClamp({ ...s, zoom: z, x: m1.x + (s.x - m0.x) * f, y: m1.y + (s.y - m0.y) * f });
+}
+
 /** Where the picture is drawn on a square of `side` px (the view's canvas, or the encoded 256). */
 export function cropRect(s: CropState, side: number): { dx: number; dy: number; dw: number; dh: number } {
   const f = side / s.view;
