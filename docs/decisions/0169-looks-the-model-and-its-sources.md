@@ -89,3 +89,47 @@ match for NPCs). If each pane decided by itself they would drift.
   `ownImages` and `replace`s the record from a pull; part E passes `dir`.
 - An old tab (0.23.2) loses its stores when a new tab upgrades the
   database to 11 (existing behaviour, N5).
+
+## Addendum (stage 80 part F, 2026-11-27): the picker on the phone and the tablet
+
+- **One model, two faces.** `usePickerModel` (`src/looks/picker.tsx`)
+  holds what both pickers share: the selection and its live preview,
+  the tab, the library filter, the resolved and the automatic look, the
+  texts (source line, share note), Cancel and Use. The desktop
+  `PickerFrame` adds its dialog, its key ring and its buttons; the
+  phone's `PhoneLookPage` (`src/looks/phone-page.tsx`, the chrome chunk)
+  adds the phone's page. `LibraryTab` and `MineTab` (with the crop step)
+  are the same components; `phone-page.css` sizes them for a finger
+  (every key 44 px or more; a chip 36 px with a 4 px margin that takes
+  the tap too) and maps the picker's colours to the phone's tokens, so
+  Paper follows.
+- **Where it lives.** The page is a view of the phone layer's menu
+  (`PhoneMenu.openLook`, `view.at === 'look'`, in the menu's surface over
+  the cockpit, the settings pages' look: the iron band with Back, the
+  hood, the column that scrolls, a foot with Cancel and "Use this look").
+  The phone chunk imports nothing of the chrome: the shell hands the
+  layer a render function (`lookPage`, built on the chrome's
+  `phoneLookPage`) with the app's looks store and game state. Reached by
+  `AppUi.openLook` on the phone branch too (the Character card's
+  portrait, a Group token), and by the Character settings' "Look…" row
+  (a settings row kind `look`, shown only where there is a look page,
+  dimmed until the game named the character), which opens it as a level
+  of the settings page, so Back returns there. Where the phone flag is on
+  but the phone's game layout is not (`?phone=1` on a large window) the
+  desktop dialog opens.
+- **Back.** The band's Back, Esc and the back gesture cancel (the
+  preview is dropped when the page unmounts without Use); Cancel and Use
+  as on the desktop.
+- **The tablet** gets the same page (ADR 0140: the phone's layout, minor
+  changes only), not a sheet: the library needs the height, and the
+  tablet's other pages are full pages too. Its column is up to 800 px
+  (960 in landscape, where the preview stands beside the tabs).
+- **The search field** is the one text field: it is marked for our own
+  keyboard (`ownFieldAttrs`), and the pages' keyboard takes fields in
+  `[data-okb-page]` as well as `.wc-chrome` and `.wc-overlay`; over the
+  look page it stands above the menu (z 450), the page ends above it and
+  its foot gives way. Esc in the field lets go of it instead of closing
+  the page. The menu lets a hardware keyboard type in the field.
+- **The crop by touch**: a two-finger pinch zooms about the fingers'
+  midpoint and follows it (`cropPinch`, pure, unit-tested); the view's
+  canvas is drawn at its size on screen (the phone's is 300 px).
