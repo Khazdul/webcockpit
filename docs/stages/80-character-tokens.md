@@ -1205,6 +1205,9 @@ tablet screenshots, and what feedback is wanted.
   is one static text, and production's flag is off). The new texts say MUME
   Cockpit for the client where the player reads it; the rest of About and
   the privacy page still say WebCockpit, as before (not renamed tonight).
+- E: `tests/e2e-prod/site-root.spec.ts` lists the flag `looks` now: `test:prod`
+  against production fails on that line until a release carries it (the
+  Worker answers every flag of FLAG_NAMES, off or on).
 - E: The fixture replay and the in-app log player never call the directory;
   the dev feed through the live app still draws looks (rows 1, 4, 5).
 
