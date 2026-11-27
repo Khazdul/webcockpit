@@ -17,11 +17,12 @@ import {
   aboutTokens,
   atPrivacyPath,
 } from '../../src/chrome/frames/about';
-import { LOGIN_TURNSTILE_AFTER, REPORTS_TO_HIDE, SESSION_SECONDS } from '../../shared/cloud/api';
+import { LOGIN_TURNSTILE_AFTER, LOOK_KEEP_DAYS, LOOK_OWNED_DAYS, REPORTS_TO_HIDE, SESSION_SECONDS } from '../../shared/cloud/api';
 import { KEEP_VIEWS_DAYS } from '../../worker/pub';
 import { PRIVACY_ACCOUNTS, PRIVACY_ACCOUNTS_NAV, withAccounts } from '../../src/chrome/frames/privacy-accounts';
 import { PRIVACY_NAV, PRIVACY_TEXT } from '../../src/chrome/frames/privacy-text';
 import { PRIVACY_COMMUNITY, PRIVACY_COMMUNITY_NAV, PRIVACY_SHARE, PRIVACY_SHARE_NAV, withShare } from '../../src/chrome/frames/privacy-share';
+import { PRIVACY_LOOKS, PRIVACY_LOOKS_NAV, withLooks } from '../../src/chrome/frames/privacy-looks';
 import { BEAT_MINUTES, BEAT_STATES } from '../../shared/cloud/api';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
@@ -532,3 +533,65 @@ describe('privacy: the community section (stage 65)', () => {
     expect(PRIVACY_COMMUNITY).toMatch(/Random Runes +A note on the board is public: it is shown with your account name.*with or without an account/);
   });
 });
+
+// ------------------------------------------------------------ shared looks (stage 80 part E)
+
+describe("the privacy page's shared looks section (flag `looks`)", () => {
+  const acc = withAccounts(PRIVACY_TEXT, PRIVACY_NAV);
+  const sh = withShare(acc.text, acc.nav, { community: true });
+  const all = withLooks(sh.text, sh.nav);
+  const alone = withLooks(PRIVACY_TEXT, PRIVACY_NAV);
+
+  it('comes before Who runs it, after the share links and the community; with or without accounts', () => {
+    for (const { text, nav } of [all, alone]) {
+      const ids = aboutSections(text, nav).map((x) => x.id);
+      expect(ids.indexOf('looks')).toBe(ids.indexOf('who') - 1);
+      const letters = nav.map((n) => n.letter);
+      expect(new Set(letters).size).toBe(letters.length);
+      for (const n of nav) expect(n.nav.toLowerCase()).toContain(n.letter);
+    }
+    expect(nav(all).indexOf('community')).toBeLessThan(nav(all).indexOf('looks'));
+    expect(all.nav.find((n) => n.id === 'looks')).toBe(PRIVACY_LOOKS_NAV);
+  });
+
+  it('the heartbeat’s sentence speaks of the heartbeat only, and points to the section', () => {
+    expect(PRIVACY_TEXT).toContain('The heartbeat holds nothing you type, no character, profile or account name and no password, and it carries no cookie.');
+    expect(PRIVACY_TEXT).not.toContain('is ever sent to the site');
+    expect(alone.text).toContain('and it carries no cookie. What is sent for shared looks is said under Shared looks.');
+    expect(all.text).toContain('With an account, what is sent besides is said under Accounts.');
+    expect(all.text).toContain('What is sent for shared looks is said under Shared looks.');
+  });
+
+  it('a paragraph and the rows: what is sent, tied to, kept, who can see it, limits, removing it', () => {
+    const sec = aboutSections(all.text, all.nav).find((x) => x.id === 'looks')!;
+    expect(sec.title).toBe('SHARED LOOKS');
+    expect(sec.blocks.filter((b) => 'p' in b)).toHaveLength(1);
+    expect(sec.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []))).toEqual(['What is sent', 'Tied to', 'What is kept', 'Who can see it', 'Limits', 'Removing it']);
+  });
+
+  it('says the figures and names the Worker and the client keep to', () => {
+    expect(LOOK_OWNED_DAYS).toBe(30);
+    expect(LOOK_KEEP_DAYS).toBe(180);
+    expect(PRIVACY_LOOKS).toContain('for 30 days after the last report');
+    expect(PRIVACY_LOOKS).toContain('not refreshed for 180 days');
+    expect(PRIVACY_LOOKS).toContain('wc.lookKey');
+    expect(PRIVACY_LOOKS).toContain('not the heartbeat');
+    expect(PRIVACY_LOOKS).toContain('Your own images are never sent');
+    expect(PRIVACY_LOOKS).toContain('Show my look to other MUME Cockpit players');
+    expect(PRIVACY_LOOKS).not.toContain('WebCockpit');
+    expect(aboutTokens(PRIVACY_LOOKS)).toContainEqual({ link: 'abuse@mumecockpit.com', href: 'mailto:abuse@mumecockpit.com' });
+  });
+
+  it('About’s What the site knows: what is sent, kept, for how long, and how to turn it off', () => {
+    const knows = aboutSections(ABOUT_TEXT).find((x) => x.id === 'knows')!;
+    const p = knows.blocks.map((b) => ('p' in b ? b.p : '')).join(' ');
+    expect(p).not.toContain('no character name');
+    expect(p).toContain("your character's name with its race, subrace, sex and the library picture you chose");
+    expect(p).toContain('180 days');
+    expect(p).toContain('Show my look to other MUME Cockpit players');
+    expect(p).toContain('removed at once');
+  });
+});
+
+const nav = (x: { nav: LeafNavOf }): string[] => x.nav.map((n) => n.id);
+type LeafNavOf = ReturnType<typeof withLooks>['nav'];

@@ -38,7 +38,7 @@ const INTRO_ACCOUNTS = 'is kept in this browser only, unless you choose to have 
 const REMOVE_EXPORT = 'so export what you want to keep first.';
 const REMOVE_EXPORT_ACCOUNTS = 'so export what you want to keep first, unless an account keeps it.';
 const REMOVE_ACCOUNT = '\nTo remove an account and everything in it, use Delete account on the Account page.';
-const BEAT_NOTHING = 'Nothing you type, no character, profile or account name and no password is ever sent to the site. The heartbeat carries no cookie.';
+const BEAT_NOTHING = 'The heartbeat holds nothing you type, no character, profile or account name and no password, and it carries no cookie.';
 const BEAT_NOTHING_ACCOUNTS =
   'The heartbeat holds nothing you type, no character, profile or account name and no password, and it carries no cookie. With an account, what is sent besides is said under Accounts.';
 

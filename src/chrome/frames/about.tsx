@@ -117,7 +117,9 @@ CREDITS
   Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
 
 WHAT THE SITE KNOWS
-Your game goes straight from this browser to MUME: nothing you type in the game, no character name and no MUME password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. No IP address is kept, and who is online is never shown.
+Your game goes straight from this browser to MUME: nothing you type in the game and no MUME password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. No IP address is kept, and who is online is never shown.
+
+Where the site has shared looks on, so that players in one group who use MUME Cockpit see each other with the right picture, your client sends the site your character's name with its race, subrace, sex and the library picture you chose (never one of your own images), and asks for the looks of the players in your group. The site keeps a name's look until it has not been sent for 180 days, and anyone who knows the name can ask for it. Turn off "Show my look to other MUME Cockpit players" in the look picker or the Character pane's settings, and what you sent is removed at once.
 
 An account keeps your user name and your things, encrypted so that the site cannot read them. A run you share is public: anyone with the link can watch it, and one in the Hall of Fame is listed in the Community. Stars, comments and notes show your account name. The privacy page has the details: what is kept, for how long, and how to remove it. To report abuse, or to have something removed, write to abuse@mumecockpit.com.
 
@@ -348,15 +350,23 @@ export const PrivacyFrame = lookFrame(function PrivacyFrame(): VNode {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      if (!(await accountsEnabled())) return;
-      const m = await import('./privacy-accounts');
-      let next = { ...m.withAccounts(PRIVACY_TEXT, PRIVACY_NAV), sub: m.PRIVACY_ACCOUNTS_UPDATED };
-      // With the flag `share` too (stage 64): what a share link makes public.
-      if (await flagOn('share')) {
-        const sh = await import('./privacy-share');
-        next = { ...sh.withShare(next.text, next.nav, { community: await flagOn('gallery') }), sub: sh.PRIVACY_SHARE_UPDATED };
+      let next: { text: string; nav: LeafNav; sub: string } | null = null;
+      if (await accountsEnabled()) {
+        const m = await import('./privacy-accounts');
+        next = { ...m.withAccounts(PRIVACY_TEXT, PRIVACY_NAV), sub: m.PRIVACY_ACCOUNTS_UPDATED };
+        // With the flag `share` too (stage 64): what a share link makes public.
+        if (await flagOn('share')) {
+          const sh = await import('./privacy-share');
+          next = { ...sh.withShare(next.text, next.nav, { community: await flagOn('gallery') }), sub: sh.PRIVACY_SHARE_UPDATED };
+        }
       }
-      if (alive) setPage(next);
+      // With the flag `looks` (stage 80 part E, with or without accounts): what shared looks send and keep.
+      if (await flagOn('looks')) {
+        const lk = await import('./privacy-looks');
+        const base = next ?? { text: PRIVACY_TEXT, nav: PRIVACY_NAV };
+        next = { ...lk.withLooks(base.text, base.nav), sub: lk.PRIVACY_LOOKS_UPDATED };
+      }
+      if (next && alive) setPage(next);
     })().catch(() => {});
     return () => {
       alive = false;

@@ -6,12 +6,14 @@
 // Keep it true to what the code does: the five fields of `Beat`
 // (shared/cloud/api.ts), when they are sent (src/cloud/beat.ts) and how
 // long the server keeps what (worker/, ADR 0147). Change PRIVACY_UPDATED
-// with the text.
+// with the text. The sentence on what the heartbeat holds speaks of the
+// heartbeat only (stage 80 part E): shared looks send a character's name,
+// said in their own section (privacy-looks.ts) when the flag is on.
 
 import type { LeafNav } from './about';
 
 /** Shown under the wordmark at the head of the page. */
-export const PRIVACY_UPDATED = 'Last changed 19 November 2026';
+export const PRIVACY_UPDATED = 'Last changed 27 November 2026';
 
 export const PRIVACY_TEXT = `WebCockpit runs in your browser. Your game goes straight from the browser to MUME, and what you set up here (settings, profiles, scripts, maps and recorded runs) is kept in this browser only. This page says what the site itself learns, and what it does with it.
 
@@ -23,7 +25,7 @@ While the page is open and on screen, or in the game, it sends the site a small 
   Browser         The family only: Firefox, Chrome, Safari, Edge, Samsung Internet or other.
   State           On the start page, playing, or watching a replay.
 
-Nothing you type, no character, profile or account name and no password is ever sent to the site. The heartbeat carries no cookie.
+The heartbeat holds nothing you type, no character, profile or account name and no password, and it carries no cookie.
 
 WHY
 To know how many people use WebCockpit: how many are online now, how many each day, and how that changes over time. Who is online is never shown, to anyone. Counting this way is in the site's legitimate interest, and it is kept so small that it says nothing about you.
