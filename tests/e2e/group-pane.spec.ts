@@ -105,7 +105,8 @@ test('away members: the room name, or dimmed only from the gear', async ({ page 
 test('hovering the HP bar shows its numbers; an icon shows its meaning', async ({ page, browserName }) => {
   await group(page);
   const tip = page.locator('.wc-ptip');
-  await expect(pane(page).locator('.wc-gp-m2')).toHaveCount(3);
+  // Two lines or more (the rows follow the height, stage 80 part C: three here).
+  await expect(pane(page).locator('.wc-gp-m2, .wc-gp-m3')).toHaveCount(3);
   await pane(page).locator('[data-key="m3"] .wc-gp-bar[data-kind="hp"]').hover();
   await expect(tip).toBeVisible();
   await expect(tip).toContainText('HP 37/158 · 23%');

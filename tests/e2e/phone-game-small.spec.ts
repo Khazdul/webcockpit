@@ -349,7 +349,8 @@ for (const sc of SCREENS) {
       await expect(pg).toHaveAttribute('data-page', 'sub:timers-group');
       const back = (await pg.locator('.wc-ph-back').boundingBox())!;
       const rows = await pg.locator('[data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row!));
-      expect(rows.at(-1)).toBe('group-fight');
+      // The Group section ends with the Tokens switch (stage 80 part C).
+      expect(rows.at(-1)).toBe('group-tokens');
       for (const id of rows) {
         const el = pg.locator(`[data-row="${id}"]`);
         await el.scrollIntoViewIfNeeded();

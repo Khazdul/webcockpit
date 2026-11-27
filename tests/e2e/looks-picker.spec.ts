@@ -37,12 +37,24 @@ test('a normal start loads nothing from /tokens/', async ({ page }) => {
   await demo(page);
   await expect(disc(page)).toHaveAttribute('data-look', 'auto');
   await page.waitForTimeout(500);
+  // The demo's group has two NPCs, matched by name in the Group pane (stage 80 part C): their
+  // looks need the manifest and their two pictures (the Group pane and the map's tokens), and nothing else loads.
+  expect(asked.map((u) => new URL(u).pathname).sort()).toEqual(['/tokens/t/mob-dog-little.webp', '/tokens/t/mob-mercenary.webp', '/tokens/tokens.json']);
+  // With the tokens off (Group's and the map's) a normal start loads nothing from /tokens/.
+  await page.evaluate(() => window.__wc!.settings.update({ group: { tokens: false }, mapper: { tokens: false } }));
+  await page.waitForTimeout(300);
+  asked.length = 0;
+  await page.reload();
+  await page.waitForFunction(() => window.__wc?.app !== undefined);
+  await expect.poll(() => page.evaluate(() => window.__wc!.app.game.char.view().name)).toBe('Rasta');
+  await page.waitForTimeout(500);
   expect(asked).toEqual([]);
   // The picker asks for the manifest; the pictures only when shown.
   await openPicker(page);
   await tab(page, 'lib').click();
   await expect(item(page, 'elf-f-noldor')).toBeVisible();
   expect(asked.some((u) => u.includes('/tokens/tokens.json?v='))).toBe(true);
+  await page.evaluate(() => window.__wc!.settings.reset());
 });
 
 test('the portrait opens the picker: filter, search, pick live, cancel puts the old look back', async ({ page }) => {
