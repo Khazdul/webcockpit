@@ -9,6 +9,24 @@ const disc = (page: Page) => page.locator('.wc-pane-character .wc-cc-disc');
 const emit = (page: Page, pkg: string, data: unknown) =>
   page.evaluate(([p, d]) => window.__wc!.app.bus.emit('gmcp', { pkg: p as string, key: (p as string).toLowerCase(), data: d }), [pkg, data] as const);
 const photo = (page: Page) => disc(page).locator('img.wc-cc-photo').getAttribute('src');
+/**
+ * The portrait once it has settled: under load the pane may still resize
+ * after the first bake (the bake follows the frame's size), so a picture
+ * counts only when it is the same twice, half a second apart.
+ */
+async function settled(page: Page): Promise<string | null> {
+  let last = await photo(page);
+  await expect
+    .poll(async () => {
+      await page.waitForTimeout(500);
+      const now = await photo(page);
+      const same = now === last;
+      last = now;
+      return same;
+    }, { timeout: 15_000 })
+    .toBe(true);
+  return last;
+}
 
 test('the Beorning becomes the bear and the Beorning again', async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 960 });
@@ -19,7 +37,7 @@ test('the Beorning becomes the bear and the Beorning again', async ({ page }) =>
   await emit(page, 'Char.StatusVars', { race: 'Man', subrace: 'Beorning' });
   await expect(disc(page)).toHaveAttribute('data-portrait', 'beorning');
   await expect(disc(page)).toHaveAttribute('data-art', 'drawn');
-  const man = await photo(page);
+  const man = await settled(page);
   await emit(page, 'Char.StatusVars', { race: 'Bear', subrace: null });
   await expect(disc(page)).toHaveAttribute('data-portrait', 'bear');
   await expect.poll(() => photo(page)).not.toBe(man);
@@ -27,7 +45,7 @@ test('the Beorning becomes the bear and the Beorning again', async ({ page }) =>
   await expect(disc(page)).toHaveAttribute('data-sex', 'male');
   await emit(page, 'Char.StatusVars', { race: 'Man', subrace: 'Beorning' });
   await expect(disc(page)).toHaveAttribute('data-portrait', 'beorning');
-  await expect.poll(() => photo(page)).toBe(man);
+  await expect.poll(() => photo(page), { timeout: 15_000 }).toBe(man);
 });
 
 test('the token on the map changes with the form too', async ({ page }) => {
