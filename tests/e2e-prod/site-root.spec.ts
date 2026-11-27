@@ -127,7 +127,7 @@ test('the API: health says the release, config has the flags, admin is closed, t
   // (no database): the value is the server's, only its shape is checked.
   const body = (await config.json()) as { flags: Record<string, unknown>; turnstileSiteKey: unknown; limits: unknown; time: unknown };
   const { flags } = body;
-  expect(Object.keys(flags)).toEqual(['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume', 'discord']);
+  expect(Object.keys(flags)).toEqual(['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume', 'discord', 'looks']);
   for (const v of Object.values(flags)) expect(typeof v).toBe('boolean');
   // Stage 60: what the account pages need before a login.
   expect(typeof body.turnstileSiteKey).toBe('string');
