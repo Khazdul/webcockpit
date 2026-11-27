@@ -1216,6 +1216,45 @@ tablet screenshots, and what feedback is wanted.
 - E: The fixture replay and the in-app log player never call the directory;
   the dev feed through the live app still draws looks (rows 1, 4, 5).
 
+- F: The picker on the phone is a page of the phone's menu, in the settings
+  pages' look: the iron band with Back, the hood "Look for <Name>", a column
+  that scrolls, and a foot with Cancel and "Use this look" that is always in
+  reach. Under the hood a card with the live preview (portrait, a bit of
+  map, the Group row), then the three tabs as one 44 px segmented row, then
+  the tab. Back, Esc and the back gesture cancel. ADR 0169's addendum.
+- F: The library's grid scrolls with the page, not in a box of its own (no
+  scroller inside a scroller on a phone); the chips are 36 px high with a
+  4 px margin that takes the tap too (44 px), and on a phone each row of
+  chips is one line that scrolls sideways (wrapped they took five rows).
+- F: The tablet shows the same page, not a sheet (ADR 0140: the phone's
+  layout; the library needs the height, and the tablet's other pages are
+  full pages): its column is up to 800 px, and on its side (960 px) the
+  preview stands left of the tabs. A phone on its side puts Cancel and Use
+  up in the band and the preview (without the Group row) left of the tabs;
+  the crop step there has the square left and its controls beside it.
+- F: The Character settings' Look group got a "Look…" row first (the page
+  opens over the settings and Back returns there); dimmed with "No
+  character yet" before the game named you. The share switch's long name
+  now wraps there instead of being cut.
+- F: The search field types with our keyboard (as every phone field, ADR
+  0139); the keyboard stands over the page, the page ends above it and its
+  foot gives way meanwhile. Esc on our keyboard (or a hardware one) in the
+  field folds the keyboard and keeps the page; elsewhere Esc cancels.
+- F: The pinch in the crop now zooms about the fingers' midpoint and follows
+  it (the desktop's touch too); the phone's crop square is 300 px.
+- F: The portrait and the Group tokens on the phone and the tablet open the
+  page (the shell's `openLook`, phone branch). One-line Group rows take the
+  tap on the row's start (part C's 44 px area), tested. Where the phone flag
+  is on without the phone's layout (`?phone=1` on a large window) the
+  desktop dialog opens.
+- F: Tokens in the lens: at the closest level (z1, some 30–34 px a room)
+  tokens, from z2 (about 17 px) the boxes: nothing to fix, tested. The
+  demo's members carry no map room, so the screenshots of the lens show
+  your token only; the fan and the arc are the map tests' (part B).
+- F: The screenshots are `docs/stages/img/80-f-*.png`, made by
+  `node scripts/looks-shots.ts` (the phone at 390 × 844, device scale 2; the
+  tablet at 820 × 1180, scale 1 to keep the files small).
+
 ## Owner feedback
 
 - 2026-11-26: the two bears are approved as drawn ("Kör på dessa"). The
