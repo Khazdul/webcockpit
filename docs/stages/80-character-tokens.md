@@ -1064,6 +1064,34 @@ tablet screenshots, and what feedback is wanted.
   portrait there has no click until part F.
 - A: The `info` line in bear form ("You are a male Bear.") sets the sex
   whichever form GMCP reported last; nothing clears it.
+- B: A lone token fills 0.8 room (the spec), not the mockup's 0.84; the
+  fan keeps the mockup's sizes. With the HP arc on, the arc's room is
+  kept round every token (as the mockup does), so a token does not grow or
+  shrink when its HP changes; with the arc off the pictures are a little
+  larger.
+- B: In the fan your token is drawn last, over the small ones (the spec's
+  "whole and on top"); the mockup drew the small ones over it.
+- B: The texture is a `TEXTURE_2D_ARRAY` of 64 layers of 128 px with
+  mipmaps (no bleeding between cells), made with the first token, so
+  tokens off costs nothing on the GPU (ADR 0171).
+- B: The arc's colours are Group's HP colours for the side of the map's
+  background (dark on the default map: the Group pane's dark side), not
+  the Group pane's own side: the arc is drawn on the map.
+- B: The main thread's hues win on the map also with tokens off (the same
+  hues as before when the map was shown from the start; better ones when
+  it was turned on mid-session). Without looks (the log player, the
+  replay bundle) the worker gets no tokens message and draws exactly as
+  before.
+- B: An NPC whose name matches no library picture is a token with the
+  disc and the ring only (no type icon on the map). The manifest is loaded
+  once there is an NPC member to match and tokens are on.
+- B: The worker reports what it drew as `data-map-tokens` (tokens / +n
+  discs / arcs) and the pane `data-map-self-look`, for the tests.
+- B: `map-render.spec.ts` now sets `mapper.tokens` off: it is the box
+  renderer's reference. With tokens off its 14 screenshots are
+  pixel-equal to the commit before the stage (726af9d7, rerun in a
+  worktree; the first baseline's `far-chromium` was taken before the
+  worker had redrawn and differed from a rerun of the same commit).
 
 ## Owner feedback
 
