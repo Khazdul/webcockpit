@@ -1128,6 +1128,43 @@ tablet screenshots, and what feedback is wanted.
   their race: in the dev feed every player member is the silhouette unless
   you assign a look.
 
+- D: The measured blob of a real 30 686-byte WebP (256 × 256, noisy) is
+  30 986 bytes (gzip of the base64 in the JSON, sealed): gzip stays, and the
+  limits are `lookImageMaxBytes` 32 768 and `lookBytes` 1 638 400 (ADR 0172).
+- D: `looks` counts against the small items (one item, a few KB); only
+  `lookImage` has the budget of its own. Both kinds are open without a flag.
+- D: A look chosen and an own image added or removed start the 5 s sync also
+  during play (they are the player's own acts, like a profile's edit); a
+  pulled change is taken in at once, also during play.
+- D: The crop step is inside the My images tab (Back / Save image under
+  it), not a second dialog; the dialog's Cancel and "Use this look" stay. The
+  meta line shows the file's size at the current crop, as the mockup's
+  "256 × 256 · 23 KB". Zoom is 1–4× (the slider 100–400).
+- D: Keys in the crop: the arrows move the picture (Shift: 32 px), + and −
+  zoom; on the slider the arrows zoom. Touch: drag, and a basic two-finger
+  pinch (part F polishes it).
+- D: The shelf shows empty slots up to the limit (the mockup's), the chosen
+  image's name with a Remove button under the count; Remove asks once, with
+  who uses the image ("2 characters use this image (Glorfindel, Rasta). They
+  go back to automatic.").
+- D: An image the account refuses (413) stays on the device with a red dot
+  on its slot and a plain line of why ("“x” is not in your account: it is
+  larger than the account takes for one image. It stays on this device.");
+  the start page then says the sync needs attention, as for any refused item.
+- D: The login card's Log in goes to the start page's Log in (a page load
+  to `?account=login`); while a game is connected it says "Leave the game
+  first, then log in from the start page." instead.
+- D: The image's label is the file's name without its extension (at most 60
+  characters); it shows as the slot's tooltip.
+- D (N5): a tab still on 0.23.2 treats `lookImage` and `looks` as newer kinds
+  and leaves them, and loses its stores when a new tab upgrades IndexedDB
+  (both existing, intended behaviour); an old client that rewrites the
+  settings drops `character.shareLook`.
+- D: Migration 0009 also creates part E's `look_dir` table (as §9), with
+  indexes on `owner` and `updated`. The deletion guard test lists
+  `look_dir.owner` (a keyed hash, not the account id); part E must delete an
+  account's rows with it in `worker/deletion.ts`.
+
 ## Owner feedback
 
 - 2026-11-26: the two bears are approved as drawn ("Kör på dessa"). The
