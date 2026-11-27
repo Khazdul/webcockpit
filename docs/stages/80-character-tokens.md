@@ -1100,6 +1100,32 @@ tablet screenshots, and what feedback is wanted.
   With HP arc, instead of two switches: two rows made the page 10 px
   taller than Appearance (ADR 0118's rule). The settings stay two fields;
   Off keeps the arc's setting for when tokens come back.
+- C: The step edges are whole pixels: two lines from `ceil(2c)`, three
+  from `round(3.3c)` (56 at a 17 px cell, as §8's table; 3.3 × 17 is 56.1),
+  the top at `floor(4.5c)` (76). The bars grow 5 → 8 px over two lines and
+  5 → 9 px over three (the mockup's), scaled by `c / 17`; one-line rows keep
+  today's mini bars, only the row and the token grow.
+- C: Three-line numbers are 0.76 em in a fixed 9-character column (the
+  longest band word, "unwearied", is 9), not the mockup's 9 → 11 px that
+  grows with the row: "the text keeps the terminal's size".
+- C: When the fight strip replaces the card, the rows are computed again
+  and may be two lines under the strip (the spec's "compute again").
+- C: An NPC no library picture matches shows the type icon (the diamond)
+  inside the round disc with its ring, so every member has a token to
+  click; the map draws the disc and ring only (part B).
+- C: The HP arc on one-line tokens reaches a pixel past the row (into the
+  air between the cards) rather than shrinking the token below `h − 4`.
+- C: The token keeps the marker's tooltip, with "Click to choose a look."
+  added when it opens the picker. Without `openLook` (the phone until part
+  F, the log player) it is a plain picture, not a button.
+- C: The touch target for one-line tokens is a 44 px wide hit area over the
+  row's start under `@media (pointer: coarse)`; it starts working on the
+  phone when part F gives the phone `openLook`.
+- C: The Tokens switch is in Group's gear (desktop Settings has no Group
+  page) and on the phone's Spells and Group settings page.
+- C: Players show the neutral silhouette until the directory (part E) knows
+  their race: in the dev feed every player member is the silhouette unless
+  you assign a look.
 
 ## Owner feedback
 

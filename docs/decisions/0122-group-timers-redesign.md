@@ -362,3 +362,66 @@ before the release. Kept, measured against main's cell-grid panes:
   "Show yourself" option stands. The Timers pane's content is to be
   explored inside the Character pane (ADR 0166 addendum 15); the Timers
   pane itself stays.
+
+## Addendum (stage 80 part C, 2026-11-27): rows that follow the height, tokens
+
+The owner's decisions 9–11, 16–19 and 24 (`docs/stages/80-character-tokens.md`
+§8). This replaces "Rows are two lines when every member fits that way,
+else one line" above, and the fixed layouts of `groupLayout`.
+
+- **One pure function**, `groupRows(n, fight, heightPx, cellH)`
+  (`src/panes/group-model.ts`, unit tested for 1, 3, 6, 10 and 20 members
+  and every step's edges). Every member row has the same height `h`: the
+  pane's free height (`rows × cell.h`) shared between the members, held to
+  steps **in cells** (`c`), so that a larger font grows every step:
+
+  | `h` | at a 17 px cell | row | token |
+  |---|---|---|---|
+  | members do not fit at `c` each | | one line of `c`, then `↓ n more` (the old rule) | `c` − 4 |
+  | `c` ≤ h < 2`c` | 17–33 | one line, growing | `h` − 4 |
+  | 2`c` ≤ h < 3.3`c` | 34–55 | the name line, the three bars side by side, 5 → 8 px thick | `h` − 8 |
+  | 3.3`c` ≤ h ≤ 4.5`c` | 56–76 | the name line, HP, mana, moves as full lines with numbers, bars 5 → 9 px | `h` − 8, at most 68 |
+  | above | | held at 4.5`c`; the rest of the pane stays empty | 68 |
+
+  The step edges are whole pixels: `ceil(2c)`, `round(3.3c)` (56 at 17 px,
+  as the spec's table), `floor(4.5c)`. `h` is `floor(free / n)`, never
+  below a cell. The bar thicknesses scale with `c / 17`; only the token's
+  68 px cap is absolute.
+- **The fight**: the card (3 cells and half a cell of gap, counted as 4)
+  comes off the height first; if the rows would then get less than 2
+  cells each, the strip (1 cell) instead, and the rows are computed again
+  (so the strip can sit over two-line rows). The overflow row is 1 cell.
+- **The DOM follows** with two custom properties on the content, `--gp-h`
+  (every member row's height) and `--gp-bar` (the bars' thickness), and
+  `data-step` for the tests. A row's signature carries the layout's key
+  (lines, `h`, the token size), so a change of the member count or the
+  pane's size rebuilds the rows; a vitals update changes values in place
+  only and never a height (an e2e measures every row, token, track and
+  number before and after an update).
+- **Three lines**: `value/max` only when both are known, otherwise the
+  band word, in a right-aligned column 9 characters wide at 0.76 em (the
+  longest band words are 9 letters), so a word-only update that clears the
+  value moves nothing. The text keeps the terminal's size; the small
+  numbers are a fixed fraction of it, not a size that grows with the row.
+- **Tokens** (`group.tokens`, on by default; only where looks are drawn, so
+  not in the log player): the token takes the marker icon's place, round,
+  the R3 ring (1 px of the member's hue from `GameState.groupTable`, muted
+  25 % toward grey, and a dark outline), on the library's grey-brown
+  backing or the drawing's dark red one. The look comes from the one
+  resolver (`resolveMember`); an NPC no library picture matches shows its
+  type icon in the disc. A picture that fails falls to the automatic look.
+  Engraved drawings are baked once per (portrait, sex) at the largest
+  token's size, never per row or per update.
+- **The HP arc** as on the map: `vitalPct`, drawn when `pct !== null &&
+  pct < 1`, outside the ring, in the HP bar's colour (orange from 45 %, red
+  from 25 %), 3.5 % of the token wide and at least 1 px, on a dark track.
+  On one-line rows it reaches a pixel past the row, into the air between
+  the cards.
+- **The click**: with `ctx.openLook` the token is a `<button>` labelled
+  "Look for <name>" that opens the picker for the member; nothing else in
+  a row is clickable, and the marker's tooltip stays on the token. On a
+  touch screen (`pointer: coarse`) a one-line row's token has a 44 px wide
+  hit area over the row's leading part.
+- **Tokens off**: the marker icons as before (in the name line from two
+  lines), the rows still scale. The NPC tag shows where two lines or more
+  do.
