@@ -1020,7 +1020,12 @@ assigns it. The resolver's silent fallback covers it.
 - [x] D. Own images (`476ab9b0`…`f1838179`; unit 6339, sync-worker 8 passed,
   full e2e 2166 passed, 4 failed under load and pass alone; `looks-bear`
   fails only under load, 20 of 20 alone)
-- [ ] E. The directory, staging
+- [x] E. The directory, staging (`7430d1d6`…`b356748a`; unit 6410, sync-worker
+  10 passed, full e2e 2178 passed, 2 known flakes; staging deployed at
+  `afc7290d` with 0009 applied (run 45938802933), `test:prod` on staging
+  36 passed, the route checks of `scripts/staging-looks-curl.sh` all as
+  expected and the test name removed again; production's `FLAG_LOOKS` is
+  false)
 - [ ] F. Phone and tablet
 - [ ] The end checks, the documents, the test guide, the log
 
