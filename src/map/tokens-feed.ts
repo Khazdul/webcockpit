@@ -90,7 +90,7 @@ export function tokenState(i: TokenStateInput): TokenState {
   const members: TokenMember[] = [];
   for (const e of game.groupTable.values()) {
     const npc = e.type === 'npc';
-    const mi = { mode: 'live' as const, name: e.name, npc, choice: looks.lookFor(e.name), library, ownImages };
+    const mi = { mode: 'live' as const, name: e.name, npc, choice: looks.lookFor(e.name), library, ownImages, dir: npc ? null : looks.dirFor(e.name) };
     const m = game.group.get(e.id);
     const hp = m ? vitalPct('hp', m.hp).pct : null;
     members.push({ id: e.id, color: game.groupTable.colorOf(e.id) ?? 0, ...face(resolveMember(mi), autoMember(mi), hp) });

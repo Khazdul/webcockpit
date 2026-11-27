@@ -36,7 +36,7 @@ import type { GroupSettings, Settings } from '../settings/types';
 import { type TimerCell, countdownText, exactText } from '../timers/entry';
 import { type VitalTone, vitalTone } from '../gmcp/vital-tone';
 import type { Library } from '../looks/library';
-import { type Look, autoMember, resolveMember } from '../looks/resolve';
+import { type DirectoryLook, type Look, autoMember, resolveMember } from '../looks/resolve';
 import { ringCss } from '../looks/ring';
 import type { LookRef } from '../looks/types';
 import { type IconName, positionIcon, STATUS_ICON } from './icons';
@@ -374,7 +374,13 @@ export interface TokenView {
 }
 
 export interface TokenEnv {
-  looks: { lookFor(name: string | null | undefined): LookRef | null; ownIds?(): ReadonlySet<string> | null; ownSrc?(id: string): string | null } | null;
+  looks: {
+    lookFor(name: string | null | undefined): LookRef | null;
+    ownIds?(): ReadonlySet<string> | null;
+    ownSrc?(id: string): string | null;
+    /** The directory's row for the name (stage 80 part E). */
+    dirFor?(name: string | null | undefined): DirectoryLook | null;
+  } | null;
   library: Library | null;
   /** The member's hue (`GameState.groupTable`), 0xRRGGBB, or null. */
   hue: (id: number) => number | null;
@@ -385,7 +391,8 @@ const NO_HUE = 0x8c8c8c;
 
 /** A member's token. */
 export function tokenView(m: Member, env: TokenEnv): TokenView {
-  const input = { mode: 'live' as const, name: m.name, npc: m.type === 'npc', choice: env.looks?.lookFor(m.name) ?? null, library: env.library, ownImages: env.looks?.ownIds?.() ?? null };
+  const npc = m.type === 'npc';
+  const input = { mode: 'live' as const, name: m.name, npc, choice: env.looks?.lookFor(m.name) ?? null, library: env.library, ownImages: env.looks?.ownIds?.() ?? null, dir: npc ? null : (env.looks?.dirFor?.(m.name) ?? null) };
   const name = m.name || m.label || '?';
   const look = resolveMember(input);
   const out: TokenView = { look, alt: autoMember(input), ring: ringCss(env.hue(m.id) ?? NO_HUE), label: `Look for ${name}` };

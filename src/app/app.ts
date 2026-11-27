@@ -116,6 +116,8 @@ import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
 import { type LookTarget, type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { LooksStore } from '../looks/store';
+import { attachDirectory } from '../looks/directory-feed';
+import { pageDirectory } from '../looks/directory-app';
 import { OwnImages } from '../looks/images';
 import { currentSpace } from '../core/space';
 import { OutputPane } from '../ui/output-pane';
@@ -494,6 +496,13 @@ export class App {
     }
     this.settings = opts.settings ?? new SettingsStore({ factory: null, storage: null, win: null });
     this.profiles = opts.profiles ?? null;
+    // Shared looks (stage 80 part E, ADR 0173): your report and the members'
+    // asks, on idle time; silent in a replay, without the API or the flag.
+    if (this.looks) {
+      const dir = pageDirectory(() => this.session.isReplay);
+      this.looks.directory = dir;
+      this.unsubs.push(attachDirectory({ game: this.game, looks: this.looks, dir, settings: this.settings }));
+    }
     // Before the cockpit, so the recorder sees its first `view.size`.
     const recOpts: RecorderOptions = player
       ? { openStore: () => Promise.reject(new Error('player: no capture')), locks: null, win: null }

@@ -26,6 +26,7 @@
 import { STORE, idbDone, idbRequest } from '../core/db';
 import { noteStored, onSynced } from '../core/store-events';
 import type { OwnImages } from './images';
+import type { DirectoryLook } from './resolve';
 import { AUTO, type LookRef, lookName, lookRef, sameLook } from './types';
 
 export const LOOKS_KEY = 'looks';
@@ -221,6 +222,24 @@ export class LooksStore {
     this.doc = pruneLooks(doc);
     this.changed();
     void this.save();
+  }
+
+  /** The directory of shared looks (part E), set by the app; null: none (the flag off, a replay, tests). */
+  directory: { lookup(name: string | null | undefined): DirectoryLook | null; refused(name: string | null | undefined): boolean } | null = null;
+
+  /** The directory's row for a member's name (the resolver's `dir`), or null. */
+  dirFor(name: string | null | undefined): DirectoryLook | null {
+    return this.directory?.lookup(name) ?? null;
+  }
+
+  /** Your character's report was refused this session: another device or account shares the name. */
+  shareRefused(name: string | null | undefined): boolean {
+    return this.directory?.refused(name) ?? false;
+  }
+
+  /** The directory's answers changed: the panes draw again. */
+  directoryChanged(): void {
+    this.changed();
   }
 
   /** The ids of the own images on the shelf (the resolver's `ownImages`), or null without a shelf. */

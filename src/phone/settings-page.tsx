@@ -657,6 +657,22 @@ export const CHARACTER_STONES_GROUP: SettingsGroup = {
   caption: 'Flags: poisoned, blind, snared, wounded, hungry, thirsty.',
 };
 
+/** Character: your look shared with other players (stage 80 part E; the Character gear's switch, the picker's too). */
+export const CHARACTER_LOOK_GROUP: SettingsGroup = {
+  id: 'character-look',
+  title: 'Look',
+  rows: [
+    {
+      kind: 'toggle',
+      id: 'character-share-look',
+      label: 'Show my look to other MUME Cockpit players',
+      get: (s) => s.character.shareLook,
+      set: (shareLook) => ({ character: { shareLook } }),
+    },
+  ],
+  caption: 'Your race, sex and a library token. Your own images are never sent.',
+};
+
 export interface SettingsSubPage {
   id: string;
   title: string;
@@ -666,7 +682,7 @@ export interface SettingsSubPage {
 /** The sub-pages a `link` row opens, by id. */
 export const SETTINGS_PAGES: Readonly<Record<string, SettingsSubPage>> = {
   'timers-group': { id: 'timers-group', title: 'Spells and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
-  character: { id: 'character', title: 'Character', groups: [CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP] },
+  character: { id: 'character', title: 'Character', groups: [CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP, CHARACTER_LOOK_GROUP] },
 };
 
 /** The rows of a group that are there on this device. */

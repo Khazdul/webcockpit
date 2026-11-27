@@ -232,7 +232,7 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
   const ownImages = looks.ownIds();
   const input = who.self
     ? { race: v.race, subrace: v.subrace, sex, library, ownImages }
-    : { name: member?.name ?? who.name, npc: member?.type === 'npc', library, ownImages };
+    : { name: member?.name ?? who.name, npc: member?.type === 'npc', library, ownImages, dir: member?.type === 'npc' ? null : looks.dirFor(member?.name ?? who.name) };
   const shown: Look = who.self ? resolveSelf({ ...(input as Parameters<typeof resolveSelf>[0]), choice: sel }) : resolveMember({ ...(input as Parameters<typeof resolveMember>[0]), choice: sel });
   const auto: Look = who.self ? autoSelf(input as Parameters<typeof autoSelf>[0]) : autoMember(input as Parameters<typeof autoMember>[0]);
   const ring = who.self ? ringCss(SELF_COLOR) : ringCss(0x8fb7ff);
@@ -383,7 +383,7 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
             />
             <div>
               <b>Show my look to other MUME Cockpit players</b>
-              <span class="wc-looks-d">{shareNote(s.character.shareLook, sel, library)}</span>
+              <span class="wc-looks-d">{shareNote(s.character.shareLook, sel, library, looks.shareRefused(name))}</span>
             </div>
           </div>
         )}
@@ -393,8 +393,10 @@ const PickerFrame = lookFrame(function PickerFrame(p: FrameProps): VNode {
   );
 });
 
-function shareNote(on: boolean, sel: LookRef, library: Library | null): string {
+function shareNote(on: boolean, sel: LookRef, library: Library | null, refused = false): string {
   if (!on) return 'Off: nothing about your character is sent. Others see the neutral figure.';
+  // A 409 this session (spec §9): the name's row is another device's or account's, which this switch cannot remove.
+  if (refused) return 'Shared from another device or account: what others see is set there.';
   if (sel.src === 'own') return 'Your own image is never sent. Others see your automatic drawing.';
   if (sel.src === 'lib') return `Others see the library token ${library?.byId.get(sel.id)?.label ?? sel.id}.`;
   return 'Others see the automatic drawing for your race and sex. Your own images are never sent.';

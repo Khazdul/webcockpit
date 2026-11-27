@@ -18,6 +18,7 @@ import {
   CHARACTER_FETCH_GROUP,
   CHARACTER_POLL_ON_NAMES,
   CHARACTER_STONES_GROUP,
+  CHARACTER_LOOK_GROUP,
   CHARACTER_STONE_NAMES,
   GROUP_AWAY_OPTIONS,
   GROUP_GROUP,
@@ -648,7 +649,16 @@ describe('the Character sub-page (stage 77 F1, F2a)', () => {
     expect(CHARACTER_EVERY_OPTIONS).toEqual(CHARACTER_POLL_EVERY_CHOICES);
     expect(CHARACTER_POLL_ON_NAMES).toEqual(CHARACTER_POLL_ON_ROWS);
     expect(CHARACTER_STONE_NAMES).toEqual(CHARACTER_STONE_ROWS.map(({ key, label }) => ({ key, label })));
-    expect(SETTINGS_PAGES.character!.groups).toEqual([CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP]);
+    expect(SETTINGS_PAGES.character!.groups).toEqual([CHARACTER_FETCH_GROUP, CHARACTER_STONES_GROUP, CHARACTER_LOOK_GROUP]);
+  });
+
+  it('stage 80 part E: its Look group has the gear’s switch, character.shareLook', () => {
+    const d = defaultSettings();
+    const [row] = CHARACTER_LOOK_GROUP.rows;
+    if (row?.kind !== 'toggle') throw new Error('row kind');
+    expect(row.label).toBe('Show my look to other MUME Cockpit players');
+    expect(row.get(d)).toBe(true);
+    expect(row.set(false, d)).toEqual({ character: { shareLook: false } });
   });
 
   it('its rows read and patch character.pollEvery and character.pollOn', () => {

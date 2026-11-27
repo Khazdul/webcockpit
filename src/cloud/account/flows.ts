@@ -212,6 +212,12 @@ export interface FlowDeps {
   now: () => number;
   /** The session was lost (stage 61): the account's copy on this device is removed or kept locked. */
   lost?: (reason: SessionEndReason | null) => void;
+  /**
+   * Just before a login, a registration or a recovery (stage 80 part E): the
+   * device's shared looks are removed, so the account can report the names
+   * after it (src/looks/directory-app.ts). Never rejects.
+   */
+  beforeLogin?: () => Promise<void>;
 }
 
 export interface AccountFlows {
@@ -309,6 +315,7 @@ export function defaultFlowDeps(): FlowDeps {
     label: () => deviceLabel(globalThis.navigator?.userAgent ?? ''),
     now: () => Date.now(),
     lost: (reason) => void import('../space/flows').then((m) => m.sessionLost(reason)).catch(() => {}),
+    beforeLogin: () => import('../../looks/directory-app').then((m) => m.releaseDeviceLooks()).catch(() => {}),
   };
 }
 
@@ -540,6 +547,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         const made = prepared;
         cancelledIf(o);
         step(o, 'sending');
+        await deps.beforeLogin?.();
         const label = deps.label();
         let account: Account | null = null;
         // The earlier try may have made the account. Its password key
@@ -617,6 +625,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         const { authKey, kek } = derived;
         cancelledIf(o);
         step(o, 'sending');
+        await deps.beforeLogin?.();
         const r = await api.login({ name, authKey, label: deps.label(), ...(o.turnstile ? { turnstile: o.turnstile } : {}) });
         if (!r.ok) {
           // From now on the server wants a token with every try (a token works once: a new one each time).
@@ -673,6 +682,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           const rk = await c.deriveRecoveryLogin(name, code);
           recoveryAuth = rk.recoveryAuth;
           step(o, 'checking');
+          await deps.beforeLogin?.();
           const first = await api.recover({ name, recoveryAuth, turnstile: o.turnstile });
           if (!first.ok) {
             if (first.code === 'invalid_recovery') end();
