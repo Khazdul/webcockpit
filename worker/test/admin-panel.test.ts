@@ -58,6 +58,8 @@ describe('GET /api/admin/accounts', () => {
       runBytes: 0,
       pubs: 1,
       pubBytes: 500,
+      lookImages: 0,
+      lookBytes: 0,
       bytes: 500,
       sessions: 1,
       ownLimits: false,

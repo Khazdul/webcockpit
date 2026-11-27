@@ -17,9 +17,16 @@
 //   a test) it works in memory.
 // - A preview (`preview`): the picker shows its selection live in the panes
 //   without storing it; Cancel clears it, "Use this look" stores it.
+// - Sync (part D, ADR 0172): a save merges the record into what is stored
+//   (one transaction), so a pulled change the sync wrote meanwhile is never
+//   overwritten; a pulled change is read again at once, also during play
+//   (`onSynced`). The own images (`images`, src/looks/images.ts) ride along:
+//   a change of the shelf is a change of the looks for the panes.
 
 import { STORE, idbDone, idbRequest } from '../core/db';
-import { type LookRef, lookName, lookRef, sameLook } from './types';
+import { noteStored, onSynced } from '../core/store-events';
+import type { OwnImages } from './images';
+import { AUTO, type LookRef, lookName, lookRef, sameLook } from './types';
 
 export const LOOKS_KEY = 'looks';
 export const LOOKS_MAX = 500;
@@ -97,7 +104,12 @@ export interface LooksStoreOptions {
   /** The current space's database (`PaneContext.openDb`); rejects: in memory. */
   openDb?: (() => Promise<IDBDatabase>) | null;
   now?: () => number;
+  /** The own images (part D); absent: none (logged out, tests). */
+  images?: OwnImages | null;
 }
+
+/** A doc as it is stored (plain objects: a structured clone keeps no prototype anyway). */
+const plain = (doc: LooksDoc): LooksDoc => ({ names: { ...doc.names } });
 
 export class LooksStore {
   private doc: LooksDoc = emptyLooks();
@@ -109,19 +121,26 @@ export class LooksStore {
   readonly ready: Promise<void>;
   /** Bumped on every change (stored or previewed): panes key their renders on it. */
   version = 0;
+  /** The own images (null: none, logged out). */
+  readonly images: OwnImages | null;
+  private readonly offs: (() => void)[] = [];
 
   constructor(o: LooksStoreOptions = {}) {
     this.now = o.now ?? Date.now;
     this.openDb = o.openDb ?? null;
+    this.images = o.images ?? null;
     this.ready = this.load();
+    if (this.images) this.offs.push(this.images.subscribe(() => this.changed()));
+    if (this.openDb) this.offs.push(onSynced((kind) => kind === 'looks' && void this.load()));
   }
 
+  /** Reads the stored record (at start, and after the sync wrote it). */
   private async load(): Promise<void> {
     if (!this.openDb) return;
     try {
       const db = await this.openDb();
       const raw = await idbRequest(db.transaction(STORE.looks, 'readonly').objectStore(STORE.looks).get(LOOKS_KEY));
-      // A choice made before the read finished is kept over the stored one.
+      // A choice made before the read finished is kept over the stored one (newest `at` wins).
       this.doc = mergeLooks(parseLooks(raw), this.doc);
       this.changed();
     } catch {
@@ -129,13 +148,22 @@ export class LooksStore {
     }
   }
 
+  /** Writes the record, merged into what is stored (a pulled change written meanwhile stays). */
   private async save(): Promise<void> {
     if (!this.openDb) return;
     try {
       const db = await this.openDb();
       const tx = db.transaction(STORE.looks, 'readwrite');
-      tx.objectStore(STORE.looks).put(this.doc, LOOKS_KEY);
-      await idbDone(tx);
+      const done = idbDone(tx);
+      const os = tx.objectStore(STORE.looks);
+      const merged = mergeLooks(parseLooks(await idbRequest(os.get(LOOKS_KEY))), this.doc);
+      os.put(plain(merged), LOOKS_KEY);
+      await done;
+      noteStored('looks');
+      if (Object.keys(merged.names).some((k) => merged.names[k] !== this.doc.names[k])) {
+        this.doc = mergeLooks(this.doc, merged);
+        this.changed();
+      }
     } catch {
       // Kept in memory.
     }
@@ -193,6 +221,44 @@ export class LooksStore {
     this.doc = pruneLooks(doc);
     this.changed();
     void this.save();
+  }
+
+  /** The ids of the own images on the shelf (the resolver's `ownImages`), or null without a shelf. */
+  ownIds(): ReadonlySet<string> | null {
+    return this.images?.ids() ?? null;
+  }
+
+  /** An own image as a `data:` URL, or null. */
+  ownSrc(id: string): string | null {
+    return this.images?.src(id) ?? null;
+  }
+
+  /** The names whose stored look is the own image `id`. */
+  usersOf(id: string): string[] {
+    return Object.keys(this.doc.names)
+      .filter((k) => {
+        const l = this.doc.names[k]!.look;
+        return l.src === 'own' && l.id === id;
+      })
+      .sort();
+  }
+
+  /** Takes an own image off the shelf; the characters that used it go back to automatic (a reset is an entry). */
+  async removeImage(id: string): Promise<void> {
+    const users = this.usersOf(id);
+    if (users.length) {
+      const at = this.now();
+      let doc = this.doc;
+      for (const n of users) doc = withLook(doc, n, AUTO, at);
+      this.doc = doc;
+      this.changed();
+      void this.save();
+    }
+    await this.images?.remove(id);
+  }
+
+  dispose(): void {
+    for (const off of this.offs.splice(0)) off();
   }
 
   subscribe(fn: () => void): () => void {

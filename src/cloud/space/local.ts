@@ -42,6 +42,15 @@
 //               records of the removed pieces as listed; a put of a day
 //               not kept is dropped.
 //
+// The looks (stage 80, ADR 0172):
+//
+//   lookImage   one row per own image (store `lookImages`, keyPath `id`),
+//               the item's body as it is (`lookImageFields`).
+//   looks       the one record under `looks` (src/looks/store.ts), an item
+//               once it has a name. A put is merged into what is stored
+//               (`mergeLooks`: per name the newest `at`), so a choice made
+//               since the scan is kept and pushed next.
+//
 // The last-writer kinds settings and scriptData skip a put or remove over
 // a value changed since the engine's scan (`list(kind, {scan})`): the
 // player's change is then pushed at the next round.
@@ -80,7 +89,8 @@ import { parseHeader, withHeaderName } from '../../scripts/header';
 import { SETTINGS_KEY } from '../../settings/store';
 import { type TimersRecord, TimersArchive } from '../../timers/archive';
 import { deviceType } from '../device-info';
-import { COMM_DAY_PATTERN, ITEM_SPECS, itemHashes, runItemMeta } from '../sync/items';
+import { COMM_DAY_PATTERN, ITEM_SPECS, itemHashes, lookImageFields, looksBody, runItemMeta } from '../sync/items';
+import { LOOKS_KEY, mergeLooks, parseLooks } from '../../looks/store';
 import type { Body, CommItem, CommPieceRecord, LocalBatch, LocalItem, LocalItems, RunItem, SettingsItem, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
 import type { RunCloudRow, RunCloudStore, RunRows } from '../runs/types';
 import type { RunChunk, RunMeta } from '../../capture/store';
@@ -406,6 +416,27 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
       const recs = await new TimersArchive(await open()).list();
       return recs.filter((r) => r.character !== '').map((r): LocalItem => ({ key: r.character, body: r as unknown as Body }));
     }
+    if (kind === 'lookImage') {
+      const t = await tx(open, [STORE.lookImages], 'readonly');
+      const done = idbDone(t);
+      const rows = (await idbRequest(t.objectStore(STORE.lookImages).getAll())) as unknown[];
+      await done;
+      const out: LocalItem[] = [];
+      for (const r of rows) {
+        const it = lookImageFields(r);
+        if (it) out.push({ key: it.id, body: it as unknown as Body });
+      }
+      return out;
+    }
+    if (kind === 'looks') {
+      const t = await tx(open, [STORE.looks], 'readonly');
+      const done = idbDone(t);
+      const raw = await idbRequest(t.objectStore(STORE.looks).get(LOOKS_KEY));
+      await done;
+      if (raw === undefined) return [];
+      const body = looksBody(raw);
+      return Object.keys(body.names).length ? [{ key: LOOKS_KEY, body: body as unknown as Body }] : [];
+    }
     if (kind === 'comm') {
       const db = await open();
       const cache = commCacheOf(db);
@@ -477,6 +508,32 @@ export function idbLocalItems(open: OpenDb, hooks: LocalHooks = {}, o: LocalOpti
     }
     if (kind === 'timers') {
       await new TimersArchive(await open()).write({ put: batch.put as unknown as TimersRecord[], remove: batch.remove });
+      return undefined;
+    }
+    if (kind === 'lookImage') {
+      const t = await tx(open, [STORE.lookImages], 'readwrite');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.lookImages);
+      for (const key of batch.remove) os.delete(key);
+      for (const b of batch.put) {
+        const it = lookImageFields(b);
+        if (it) os.put(it);
+      }
+      await done;
+      return undefined;
+    }
+    if (kind === 'looks') {
+      const t = await tx(open, [STORE.looks], 'readwrite');
+      const done = idbDone(t);
+      const os = t.objectStore(STORE.looks);
+      if (batch.remove.includes(LOOKS_KEY)) os.delete(LOOKS_KEY);
+      const put = batch.put.find((b) => b !== undefined);
+      if (put) {
+        // Merged into what is stored now: a choice made since the scan stays (and is pushed at the next round).
+        const cur = await idbRequest(os.get(LOOKS_KEY));
+        os.put(looksBody(mergeLooks(parseLooks(cur), parseLooks(put))), LOOKS_KEY);
+      }
+      await done;
       return undefined;
     }
     if (kind === 'comm') {

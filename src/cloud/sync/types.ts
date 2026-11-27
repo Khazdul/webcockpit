@@ -12,6 +12,7 @@ import type { ScriptDataRecord } from '../../scripts/library';
 import type { Settings } from '../../settings/types';
 import type { ExportDoc } from '../../share/edits';
 import type { TimersRecord } from '../../timers/archive';
+import type { LookEntry } from '../../looks/store';
 
 // --- Items ---
 
@@ -82,6 +83,28 @@ export interface RunItem {
 /** A session's export doc (ADR 0153): local key `sessionId`, the `ExportDoc` as stored (normalised). */
 export type ExportDocItem = ExportDoc;
 
+/**
+ * An own image (stage 80, ADR 0172): local key `id`, a random id
+ * (base64url of 16 bytes). `webp` is the picture's bytes in base64: a WebP
+ * of 256 × 256, or a JPEG where the browser cannot make WebP (the bytes
+ * say which). `label` is the file's name, cut. Account only.
+ */
+export interface LookImageItem {
+  id: string;
+  label: string;
+  webp: string;
+  created: number;
+}
+
+/**
+ * The chosen looks of an account (stage 80, ADR 0169, ADR 0172): one item,
+ * local key `looks`; by character name in lower case. Merged per name, the
+ * newest `at` winning (`mergeLooks`, src/looks/store.ts).
+ */
+export interface LooksItem {
+  names: Record<string, LookEntry>;
+}
+
 /** The record type of each kind the engine syncs. */
 export interface ItemRecords {
   profile: ProfileItem;
@@ -92,6 +115,8 @@ export interface ItemRecords {
   comm: CommItem;
   run: RunItem;
   exportDoc: ExportDocItem;
+  lookImage: LookImageItem;
+  looks: LooksItem;
 }
 
 /** The kinds with a body format in this client. */

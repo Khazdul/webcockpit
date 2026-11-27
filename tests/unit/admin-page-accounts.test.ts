@@ -134,6 +134,9 @@ describe('the admin page: one account', () => {
       ['votesPerHour', '', '60', false],
       ['notesPerDay', '0', '5', true],
       ['listingsPerDay', '', '10', false],
+      ['lookImages', '', '50', false],
+      ['lookImageMaxBytes', '', '32 KB', false],
+      ['lookBytes', '', '1,600 KB', false],
     ]);
     expect(cells(t).map((r) => [r[0], r[1], r[3]]).slice(0, 4)).toEqual([
       ['Small items', '2,000', '204'],

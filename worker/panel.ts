@@ -68,14 +68,14 @@ const SORT_SQL: Record<AdminAccountSort, string> = {
   created: 'a.created',
   seen: 'a.last_seen',
   items: 'a.item_count',
-  bytes: '(a.item_bytes + a.run_bytes + a.pub_bytes)',
+  bytes: '(a.item_bytes + a.run_bytes + a.pub_bytes + a.look_bytes)',
   runs: 'runs',
   pubs: 'a.pub_count',
   state: 'a.state',
 };
 
 /** A row's columns: `?1` is now (live sessions). Run bodies and sessions counted by a subquery on their key's prefix. */
-const ROW_SQL = `SELECT a.id, a.name, a.created, a.last_seen, a.state, a.item_count, a.item_bytes, a.run_bytes, a.pub_count, a.pub_bytes,
+const ROW_SQL = `SELECT a.id, a.name, a.created, a.last_seen, a.state, a.item_count, a.item_bytes, a.run_bytes, a.pub_count, a.pub_bytes, a.look_count, a.look_bytes,
   a.limits IS NOT NULL AS own,
   (SELECT COUNT(*) FROM run_body r WHERE r.account = a.id) AS runs,
   (SELECT COUNT(*) FROM session s WHERE s.account = a.id AND s.expires > ?1) AS sessions
@@ -92,6 +92,8 @@ interface ListRow {
   run_bytes: number;
   pub_count: number;
   pub_bytes: number;
+  look_count: number;
+  look_bytes: number;
   own: number;
   runs: number;
   sessions: number;
@@ -109,7 +111,9 @@ function accountRowOf(r: ListRow): AdminAccountRow {
     runBytes: r.run_bytes,
     pubs: r.pub_count,
     pubBytes: r.pub_bytes,
-    bytes: r.item_bytes + r.run_bytes + r.pub_bytes,
+    lookImages: r.look_count,
+    lookBytes: r.look_bytes,
+    bytes: r.item_bytes + r.run_bytes + r.pub_bytes + r.look_bytes,
     sessions: r.sessions,
     ownLimits: r.own !== 0,
   };
@@ -133,7 +137,7 @@ async function accounts(_request: Request, _env: Env, db: D1, url: URL, now: num
       .prepare(`${ROW_SQL} ${where} ORDER BY ${SORT_SQL[sort]} ${dir === 'asc' ? 'ASC' : 'DESC'}, a.name_key ASC LIMIT ?5 OFFSET ?6`)
       .bind(...binds, ADMIN_ACCOUNTS_PAGE, (page - 1) * ADMIN_ACCOUNTS_PAGE),
     db.prepare(`SELECT COUNT(*) AS n FROM account a ${where}`).bind(...binds),
-    db.prepare('SELECT COUNT(*) AS accounts, COALESCE(SUM(item_bytes + run_bytes + pub_bytes), 0) AS bytes FROM account'),
+    db.prepare('SELECT COUNT(*) AS accounts, COALESCE(SUM(item_bytes + run_bytes + pub_bytes + look_bytes), 0) AS bytes FROM account'),
   ]);
   const t = totals?.results[0] ?? {};
   return json({

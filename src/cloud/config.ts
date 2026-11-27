@@ -52,6 +52,8 @@ export function apiAllowed(): boolean {
 const LIMIT_KEYS = ['items', 'itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes', 'sharedRuns'] as const;
 
 const COMMUNITY_LIMIT_KEYS = ['commentsPerHour', 'votesPerHour', 'notesPerDay', 'listingsPerDay'] as const;
+/** Stage 80 (ADR 0172): the own images' limits, kept only when the server sends them (never required). */
+const LOOK_LIMIT_KEYS = ['lookImages', 'lookImageMaxBytes', 'lookBytes'] as const;
 
 /** The longest site key kept (Cloudflare's are about 24 characters). */
 const SITE_KEY_MAX = 100;
@@ -81,8 +83,8 @@ export function parseConfig(data: unknown): Config {
     const l = limits as Record<string, unknown>;
     const whole = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
     if (LIMIT_KEYS.every((k) => whole(l[k]))) {
-      // The stage 65 limits (ADR 0155) only when the server sends them: an older one does not.
-      out.limits = Object.fromEntries([...LIMIT_KEYS, ...COMMUNITY_LIMIT_KEYS].filter((k) => whole(l[k])).map((k) => [k, l[k]])) as unknown as NonNullable<Config['limits']>;
+      // The stage 65 limits (ADR 0155) and stage 80's only when the server sends them: an older one does not.
+      out.limits = Object.fromEntries([...LIMIT_KEYS, ...COMMUNITY_LIMIT_KEYS, ...LOOK_LIMIT_KEYS].filter((k) => whole(l[k])).map((k) => [k, l[k]])) as unknown as NonNullable<Config['limits']>;
     }
   }
   if (typeof time === 'number' && Number.isFinite(time) && time > 0) out.time = time;

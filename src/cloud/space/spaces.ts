@@ -3,6 +3,7 @@
 // account, handing an account's things back to the device, dropping a
 // space. The flows (flows.ts) put these together; the runtime syncs.
 
+import { LOOKS_KEY } from '../../looks/store';
 import { NAME_PATTERN } from '../../../shared/cloud/api.ts';
 import { STORE, idbDone, idbRequest, markDbGone, openDeviceDb, openWebcockpitDb, randomId } from '../../core/db';
 import {
@@ -132,7 +133,7 @@ export async function accountNameOf(nameKey: string): Promise<string> {
 }
 
 /** What `prepareAccountSpace` copies from the device besides its settings. */
-const COPIED = [STORE.scriptData, STORE.comm, STORE.timers] as const;
+const COPIED = [STORE.scriptData, STORE.comm, STORE.timers, STORE.looks] as const;
 
 /**
  * Makes an account's space ready (ADR 0150): the database (`fresh`: a
@@ -200,7 +201,7 @@ export async function prepareAccountSpace(name: string, o: { fresh: boolean; dev
     settings.keys.forEach((k, i) => st.put(settings!.values[i], k));
     if (seed) meta.put(seed, META.settingsSeed);
   }
-  // Create account: the device's script data, Comm history and timers, as the account's own (the device keeps its).
+  // Create account: the device's script data, Comm history, timers and looks (stage 80), as the account's own (the device keeps its).
   for (const [n, list] of rows) {
     const os = t.objectStore(n);
     if ((await idbRequest(os.count())) > 0) continue;
@@ -208,6 +209,8 @@ export async function prepareAccountSpace(name: string, o: { fresh: boolean; dev
       if (n === STORE.comm) {
         const { seq: _seq, ...rest } = r as { seq?: number };
         os.add(rest);
+      } else if (n === STORE.looks) {
+        os.put(r, LOOKS_KEY); // out-of-line keys: its one record (src/looks/store.ts)
       } else os.put(r);
     }
   }

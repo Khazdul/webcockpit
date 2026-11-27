@@ -237,7 +237,8 @@ export class PageSync implements Runtime {
           this.runs?.kick();
           return;
         }
-        if (kind === 'profile' || kind === 'script' || !inPlay()) this.soon();
+        // A look chosen and an own image added or removed are the player's own acts, as a profile's edit (stage 80, ADR 0172).
+        if (kind === 'profile' || kind === 'script' || kind === 'looks' || kind === 'lookImage' || !inPlay()) this.soon();
       }),
     );
     this.offs.push(

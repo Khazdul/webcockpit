@@ -33,6 +33,9 @@ export const LIMITS_JS = String.raw`
     ['votesPerHour', 'Votes an hour', 'n', null],
     ['notesPerDay', 'Notes a day', 'n', null],
     ['listingsPerDay', 'Hall of Fame listings a day', 'n', null],
+    ['lookImages', 'Own images', 'n', 'lookImages'],
+    ['lookImageMaxBytes', 'One own image', 'b', null],
+    ['lookBytes', 'Own images, bytes', 'b', 'lookBytes'],
   ];
   var LIMIT_MAX = 20;
   var UNITS = { b: 1, kb: KIB, mb: MIB, gb: GIB };

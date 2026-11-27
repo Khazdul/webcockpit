@@ -253,7 +253,22 @@ export interface AccountLimits {
   notesPerDay: number;
   /** Stage 65: runs an account lists for the first time in a UTC day (listing one again is free). */
   listingsPerDay: number;
+  /**
+   * Stage 80 (ADR 0172): own images (the sync kind `lookImage`), count. Own
+   * images have a budget of their own: they count against neither `items`
+   * nor `itemBytes`, and the other kinds not against these three.
+   */
+  lookImages: number;
+  /** Stage 80: one own image's blob, bytes (the blob, not the WebP: gzip of the base64 in the JSON, sealed). */
+  lookImageMaxBytes: number;
+  /** Stage 80: all own images' blobs together, bytes. */
+  lookBytes: number;
 }
+
+/** Own images on an account's shelf by default (stage 80, the owner's decision 14). */
+export const LOOK_IMAGES_MAX = 50;
+/** The WebP the client aims at for one own image, bytes (stage 80 §3; the blob is a little larger, ADR 0172). */
+export const LOOK_IMAGE_TARGET_BYTES = 30 * 1024;
 
 export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = {
   items: 2000,
@@ -267,12 +282,18 @@ export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = {
   votesPerHour: 60,
   notesPerDay: 5,
   listingsPerDay: 10,
+  lookImages: LOOK_IMAGES_MAX,
+  lookImageMaxBytes: 32 * 1024,
+  lookBytes: LOOK_IMAGES_MAX * 32 * 1024,
 };
 
 export interface AccountUsage {
   items: number;
   itemBytes: number;
   runBytes: number;
+  /** Stage 80 (ADR 0172): live own images and their blobs' bytes; absent from a Worker before it. */
+  lookImages?: number;
+  lookBytes?: number;
 }
 
 export interface AccountSession {
@@ -436,16 +457,21 @@ export const OTHER_SESSIONS = 'others';
  * (ADR 0152) `settings` (one per device type), `scriptData` (per script
  * name), `comm` (per UTC day, gzipped before it is sealed) and `timers`
  * (per character). Stage 63 (ADR 0153) `run` and `exportDoc`, open only
- * while the flag `runs` is on (off: `kind_closed`). The server reads none
- * of them: the limits and the endpoints are the same for every kind.
+ * while the flag `runs` is on (off: `kind_closed`). Stage 80 (ADR 0172)
+ * `lookImage` (one per own image, gzipped) and `looks` (one per account).
+ * The server reads none of them: the endpoints are the same for every
+ * kind, and so are the limits but for `lookImage`, which has a budget of
+ * its own (`lookImages`, `lookImageMaxBytes`, `lookBytes`).
  */
-export const SYNC_KINDS = ['profile', 'script', 'scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers'] as const;
+export const SYNC_KINDS = ['profile', 'script', 'scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers', 'lookImage', 'looks'] as const;
 export type SyncKind = (typeof SYNC_KINDS)[number];
 /**
  * The kinds the server accepts whatever the flags. With the flag `runs` on
  * it accepts `run` and `exportDoc` as well (worker/sync.ts `openKinds`).
  */
-export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script', 'settings', 'scriptData', 'comm', 'timers'];
+export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script', 'settings', 'scriptData', 'comm', 'timers', 'lookImage', 'looks'];
+/** The kind of the own images (stage 80, ADR 0172): counted against the look limits, not the small items'. */
+export const LOOK_IMAGE_KIND: SyncKind = 'lookImage';
 
 /** An item id: the opaque id of ADR 0145 (base64url of 16 bytes, 22 characters). */
 export const SYNC_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
@@ -474,6 +500,9 @@ export interface SyncUsage {
   itemBytes: number;
   /** Run bodies stored (and reserved by a PUT in flight), bytes (stage 63; absent from a Worker before it). */
   runBytes?: number;
+  /** Live own images (`lookImage`) and their bytes, counted apart from `items` and `itemBytes` (stage 80, ADR 0172; absent before it). */
+  lookImages?: number;
+  lookBytes?: number;
 }
 
 /**
@@ -1335,7 +1364,10 @@ export interface AdminAccountRow {
   runBytes: number;
   pubs: number;
   pubBytes: number;
-  /** itemBytes + runBytes + pubBytes. */
+  /** Own images (stage 80, ADR 0172) and their bytes. */
+  lookImages: number;
+  lookBytes: number;
+  /** itemBytes + runBytes + pubBytes + lookBytes. */
   bytes: number;
   /** Live sessions. */
   sessions: number;

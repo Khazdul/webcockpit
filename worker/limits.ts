@@ -13,7 +13,7 @@ export const LIMITS_CACHE_MS = 30_000;
 /** A limit may be set from 0 to this many times its built-in value (a typo of a zero cannot hand out 50 GB). */
 export const LIMIT_FACTOR = 20;
 /** The limits counted in bytes (the log's notes show them as KB / MB / GB). */
-export const BYTE_LIMITS: ReadonlySet<keyof AccountLimits> = new Set(['itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes']);
+export const BYTE_LIMITS: ReadonlySet<keyof AccountLimits> = new Set(['itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes', 'lookImageMaxBytes', 'lookBytes']);
 export const LIMIT_NAMES = Object.keys(DEFAULT_ACCOUNT_LIMITS) as (keyof AccountLimits)[];
 
 const cache = new WeakMap<D1, { at: number; rows: Partial<AccountLimits> }>();

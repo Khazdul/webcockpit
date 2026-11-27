@@ -26,6 +26,9 @@ const ACCOUNT_COLUMNS: Record<string, string> = {
   'vote.account': 'deleted (out of the sums)',
   'comment.account': 'deleted (counts adjusted)',
   'note.account': 'deleted',
+  // Stage 80 (migration 0009): not the account's id but a keyed hash of it (HMAC with AUTH_PEPPER);
+  // no route writes a row before part E, which deletes an account's rows with it (worker/deletion.ts).
+  'look_dir.owner': 'a keyed hash, not the id: deleted with the account from stage 80 part E',
 };
 
 /** A column whose name says it may hold an account id. */

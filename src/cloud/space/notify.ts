@@ -13,17 +13,21 @@
 // `scriptData` (the library reloads),
 // `timers` and `comm` (nothing to follow: the hub reads at `Char.Name`,
 // the Comm pane at open).
+//
+// Stage 80 (ADR 0172): `looks` and `lookImage` are taken in at once, also
+// during play (`noteSynced`: the looks store and the own images read again).
 
 import { type Space, spaceId } from '../../core/space';
 import { DEFAULT_PROFILE } from '../../profiles/names';
 import type { ProfileStore } from '../../profiles/store';
 import type { ScriptLibrary } from '../../scripts/library';
 import type { SettingsStore } from '../../settings/store';
+import { noteSynced } from '../../core/store-events';
 import type { ProfileChanges } from './local';
 
-export type WrittenKind = 'profile' | 'script' | 'settings' | 'scriptData' | 'timers' | 'comm';
+export type WrittenKind = 'profile' | 'script' | 'settings' | 'scriptData' | 'timers' | 'comm' | 'looks' | 'lookImage';
 
-const WRITTEN_KINDS: readonly string[] = ['profile', 'script', 'settings', 'scriptData', 'timers', 'comm'];
+const WRITTEN_KINDS: readonly string[] = ['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'looks', 'lookImage'];
 
 export interface SyncWrite {
   kind: WrittenKind;
@@ -95,6 +99,10 @@ export function resetChannelsForTests(): void {
 /** Brings this page's caches up to a write of the sync (here or in another tab). Never rejects. */
 export async function applyWritten(host: CacheHost, w: SyncWrite): Promise<void> {
   try {
+    if (w.kind === 'looks' || w.kind === 'lookImage') {
+      noteSynced(w.kind);
+      return;
+    }
     if (w.kind === 'script' || w.kind === 'scriptData') {
       await host.scripts?.reload();
       return;

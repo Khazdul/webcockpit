@@ -175,18 +175,18 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     const cookie = await signUp('alice');
     const id = idOf(1);
     const w = await written(await put(cookie, 'profile', id, 0, blob(100)));
-    expect(w).toEqual({ rev: 1, seq: 1, usage: { items: 1, itemBytes: 100, runBytes: 0 } });
+    expect(w).toEqual({ rev: 1, seq: 1, usage: { items: 1, itemBytes: 100, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     const c = await changes(cookie);
     expect(c).toEqual({
       items: [{ kind: 'profile', id, rev: 1, seq: 1, deleted: false, size: 100, updated: NOW, blob: toB64url(blob(100)) }],
       cursor: 1,
       more: false,
-      usage: { items: 1, itemBytes: 100, runBytes: 0 },
+      usage: { items: 1, itemBytes: 100, runBytes: 0, lookImages: 0, lookBytes: 0 },
       limits: DEFAULT_ACCOUNT_LIMITS,
     });
     expect(fromB64url(c.items[0]?.blob as string)).toEqual(blob(100));
     // The Account page counts it.
-    expect((await account(cookie)).usage).toEqual({ items: 1, itemBytes: 100, runBytes: 0 });
+    expect((await account(cookie)).usage).toEqual({ items: 1, itemBytes: 100, runBytes: 0, lookImages: 0, lookBytes: 0 });
   });
 
   it('an update on the right rev; a stale rev is 409 with the current item; If-Match 0 on an existing item too', async () => {
@@ -194,7 +194,7 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     const id = idOf(1);
     await written(await put(cookie, 'script', id, 0, blob(10, 1)));
     const w = await written(await put(cookie, 'script', id, 1, blob(20, 2), { now: NOW + MIN }));
-    expect(w).toEqual({ rev: 2, seq: 2, usage: { items: 1, itemBytes: 20, runBytes: 0 } });
+    expect(w).toEqual({ rev: 2, seq: 2, usage: { items: 1, itemBytes: 20, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     const current: SyncItem = { kind: 'script', id, rev: 2, seq: 2, deleted: false, size: 20, updated: NOW + MIN, blob: toB64url(blob(20, 2)) };
     for (const base of [1, 0, 3, 99]) {
       const res = await put(cookie, 'script', id, base, blob(30, 3));
@@ -249,7 +249,7 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     const id = idOf(1);
     await written(await put(cookie, 'profile', id, 0, blob(50)));
     const d = await written(await del(cookie, 'profile', id, 1, { now: NOW + MIN }));
-    expect(d).toEqual({ rev: 2, seq: 2, usage: { items: 0, itemBytes: 0, runBytes: 0 } });
+    expect(d).toEqual({ rev: 2, seq: 2, usage: { items: 0, itemBytes: 0, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     const tomb: SyncItem = { kind: 'profile', id, rev: 2, seq: 2, deleted: true, size: 0, updated: NOW + MIN };
     expect((await changes(cookie)).items).toEqual([tomb]);
     expect(await db.prepare('SELECT blob FROM item').first()).toEqual({ blob: null });
@@ -263,7 +263,7 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
       expect(await res.json()).toEqual({ error: 'conflict', current: tomb });
     }
     // A write on the tombstone's rev brings it back (an edit beats a delete, client side).
-    expect(await written(await put(cookie, 'profile', id, 2, blob(7)))).toEqual({ rev: 3, seq: 3, usage: { items: 1, itemBytes: 7, runBytes: 0 } });
+    expect(await written(await put(cookie, 'profile', id, 2, blob(7)))).toEqual({ rev: 3, seq: 3, usage: { items: 1, itemBytes: 7, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     // Tombstones stay for good: the daily cron leaves them.
     await written(await del(cookie, 'profile', id, 3));
     await runCron(realEnv, DAILY_CRON, T('2028-01-01T00:10:00Z'));
@@ -278,7 +278,7 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     }
     const ch = await changes(cookie, '?since=0');
     expect(ch.items.map((x) => [x.kind, x.id, x.rev, x.size, x.blob])).toEqual(kinds.map((k, i) => [k, idOf(i + 1), 1, 20 + i, toB64url(blob(20 + i, i))]));
-    expect(ch.usage).toEqual({ items: 4, itemBytes: 20 + 21 + 22 + 23, runBytes: 0 });
+    expect(ch.usage).toEqual({ items: 4, itemBytes: 20 + 21 + 22 + 23, runBytes: 0, lookImages: 0, lookBytes: 0 });
     // A stale write conflicts as for any kind; a write on the rev replaces; a delete makes a tombstone.
     expect((await put(cookie, 'comm', idOf(3), 0, blob(5))).status).toBe(409);
     expect(await written(await put(cookie, 'comm', idOf(3), 1, blob(30, 9)))).toMatchObject({ rev: 2, seq: 5 });
@@ -366,7 +366,7 @@ describe('the limits', () => {
     expect(await written(await put(cookie, 'profile', idOf(1), 1, blob(55)))).toMatchObject({ usage: { itemBytes: 95 } });
     expect(await errorOf(await put(cookie, 'profile', idOf(1), 2, blob(56)))).toBe('storage_full');
     expect(await written(await del(cookie, 'profile', idOf(2), 1))).toMatchObject({ usage: { items: 1, itemBytes: 55 } });
-    expect((await changes(cookie)).usage).toEqual({ items: 1, itemBytes: 55, runBytes: 0 });
+    expect((await changes(cookie)).usage).toEqual({ items: 1, itemBytes: 55, runBytes: 0, lookImages: 0, lookBytes: 0 });
   });
 
   it('live items: at most `items`, else 413 too_many_items; tombstones do not count', async () => {
@@ -461,7 +461,7 @@ describe('GET /api/u/sync/changes', () => {
     const results = await Promise.all([1, 2, 3, 4, 5, 6].map((n) => put(cookie, n % 2 ? 'profile' : 'script', idOf(n), 0, blob(n))));
     const seqs = (await Promise.all(results.map(written))).map((w) => w.seq).sort((a, b) => a - b);
     expect(seqs).toEqual([1, 2, 3, 4, 5, 6]);
-    expect((await changes(cookie)).usage).toEqual({ items: 6, itemBytes: 21, runBytes: 0 });
+    expect((await changes(cookie)).usage).toEqual({ items: 6, itemBytes: 21, runBytes: 0, lookImages: 0, lookBytes: 0 });
     // Two writes on the same base: one wins, the other gets the winner.
     const [a, b] = await Promise.all([put(cookie, 'profile', idOf(1), 1, blob(2, 7)), put(cookie, 'profile', idOf(1), 1, blob(3, 8))]);
     const statuses = [a?.status, b?.status].sort();
@@ -484,7 +484,7 @@ describe('accounts are apart', () => {
       expect(res.status).toBe(409);
       expect(await res.json()).toMatchObject({ current: { rev: 0, deleted: true } });
     }
-    expect(await written(await put(bob, 'profile', id, 0, blob(4, 3)))).toEqual({ rev: 1, seq: 1, usage: { items: 1, itemBytes: 4, runBytes: 0 } });
+    expect(await written(await put(bob, 'profile', id, 0, blob(4, 3)))).toEqual({ rev: 1, seq: 1, usage: { items: 1, itemBytes: 4, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     expect((await changes(alice)).items).toEqual([expect.objectContaining({ rev: 1, size: 10, blob: toB64url(blob(10, 1)) })]);
     expect((await changes(bob)).items).toEqual([expect.objectContaining({ rev: 1, size: 4, blob: toB64url(blob(4, 3)) })]);
   });

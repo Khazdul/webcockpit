@@ -43,7 +43,7 @@ describe('the admin page: default limits', () => {
     const t = $('.defaults-sec table.limits', view());
     expect(cells(t).slice(0, 4).map((r) => r.slice(0, 2))).toEqual([['Small items', '2,000'], ['Small items, bytes', '2 MB'], ['One small item', '1 MB'], ['Runs, bytes', '50 MB']]);
     const inputs = Array.from(t.querySelectorAll<HTMLInputElement>('input'));
-    expect(inputs.length).toBe(11);
+    expect(inputs.length).toBe(14); // with stage 80's three own-image limits
     expect(inputs.filter((i) => i.value).map((i) => [i.name, i.value, i.classList.contains('own')])).toEqual([['runBytes', '100 MB', true]]);
     expect(buttonIn(view(), 'Back to built in').disabled).toBe(false);
   });

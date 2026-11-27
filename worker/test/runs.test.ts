@@ -198,7 +198,7 @@ describe('PUT, GET and DELETE /api/u/runs/<id>', () => {
     const acc = await accountId('alice');
     const id = idOf(1);
     const w = await ok<RunBodyWritten>(await put(cookie, id, body(1000)));
-    expect(w).toEqual({ size: 1000, usage: { items: 0, itemBytes: 0, runBytes: 1000 } });
+    expect(w).toEqual({ size: 1000, usage: { items: 0, itemBytes: 0, runBytes: 1000, lookImages: 0, lookBytes: 0 } });
     expect(await r2Keys()).toEqual([`u/${acc}/${id}`]);
     expect(await stored(`u/${acc}/${id}`)).toEqual(body(1000));
 
@@ -212,15 +212,15 @@ describe('PUT, GET and DELETE /api/u/runs/<id>', () => {
     expect(head.status).toBe(200);
     expect(head.headers.get('content-length')).toBe('1000');
 
-    expect(await list(cookie)).toEqual({ bodies: [{ id, size: 1000, created: NOW }], usage: { items: 0, itemBytes: 0, runBytes: 1000 }, limits: DEFAULT_ACCOUNT_LIMITS });
+    expect(await list(cookie)).toEqual({ bodies: [{ id, size: 1000, created: NOW }], usage: { items: 0, itemBytes: 0, runBytes: 1000, lookImages: 0, lookBytes: 0 }, limits: DEFAULT_ACCOUNT_LIMITS });
 
     const d = await ok<RunBodyWritten>(await call('DELETE', runPath(id), undefined, { cookie }));
-    expect(d).toEqual({ size: 0, usage: { items: 0, itemBytes: 0, runBytes: 0 } });
+    expect(d).toEqual({ size: 0, usage: { items: 0, itemBytes: 0, runBytes: 0, lookImages: 0, lookBytes: 0 } });
     expect(await r2Keys()).toEqual([]);
     expect(await count('run_body')).toBe(0);
     expect(await errorOf(await call('GET', runPath(id), undefined, { cookie }))).toEqual({ error: 'not_found' });
     // A delete of none is 200 too, and changes nothing.
-    expect(await ok<RunBodyWritten>(await call('DELETE', runPath(idOf(9)), undefined, { cookie }))).toEqual({ size: 0, usage: { items: 0, itemBytes: 0, runBytes: 0 } });
+    expect(await ok<RunBodyWritten>(await call('DELETE', runPath(idOf(9)), undefined, { cookie }))).toEqual({ size: 0, usage: { items: 0, itemBytes: 0, runBytes: 0, lookImages: 0, lookBytes: 0 } });
   });
 
   it('GET of a body that is not there is 404 not_found', async () => {
@@ -276,7 +276,7 @@ describe('PUT, GET and DELETE /api/u/runs/<id>', () => {
     expect(res.status).toBe(413);
     expect(await res.json()).toEqual({ error: 'quota', used: 70, limit: 100, size: 31 });
     expect(await r2Keys()).toHaveLength(1);
-    expect(await ok<RunBodyWritten>(await put(cookie, idOf(2), body(30)))).toEqual({ size: 30, usage: { items: 0, itemBytes: 0, runBytes: 100 } });
+    expect(await ok<RunBodyWritten>(await put(cookie, idOf(2), body(30)))).toEqual({ size: 30, usage: { items: 0, itemBytes: 0, runBytes: 100, lookImages: 0, lookBytes: 0 } });
   });
 
   it('two parallel PUTs at the limit: only one passes, and the counter holds just it', async () => {
@@ -306,7 +306,7 @@ describe('PUT, GET and DELETE /api/u/runs/<id>', () => {
     await ok(await put(cookie, idOf(1), body(60, 1)));
     await ok(await put(cookie, idOf(2), body(30, 2)));
     // Grow by 10 to exactly the limit.
-    expect(await ok<RunBodyWritten>(await put(cookie, idOf(2), body(40, 3), { now: NOW + MIN }))).toEqual({ size: 40, usage: { items: 0, itemBytes: 0, runBytes: 100 } });
+    expect(await ok<RunBodyWritten>(await put(cookie, idOf(2), body(40, 3), { now: NOW + MIN }))).toEqual({ size: 40, usage: { items: 0, itemBytes: 0, runBytes: 100, lookImages: 0, lookBytes: 0 } });
     expect(await stored(`u/${acc}/${idOf(2)}`)).toEqual(body(40, 3));
     // Grow by 1 more: no room.
     expect(await errorOf(await put(cookie, idOf(2), body(41)))).toEqual({ error: 'quota', used: 100, limit: 100, size: 41 });
@@ -425,11 +425,11 @@ describe('the run bytes in every usage, and the limit', () => {
     const w = await ok<SyncWritten>(
       await call('PUT', `/api/u/sync/items/run/${idOf(1)}`, undefined, { cookie, headers: { 'content-type': 'application/octet-stream', 'if-match': '0' }, body: body(10) }),
     );
-    expect(w.usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123 });
+    expect(w.usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123, lookImages: 0, lookBytes: 0 });
     const ch = await ok<SyncChanges>(await call('GET', '/api/u/sync/changes', undefined, { cookie }));
-    expect(ch.usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123 });
-    expect((await account(cookie)).usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123 });
-    expect((await list(cookie)).usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123 });
+    expect(ch.usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123, lookImages: 0, lookBytes: 0 });
+    expect((await account(cookie)).usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123, lookImages: 0, lookBytes: 0 });
+    expect((await list(cookie)).usage).toEqual({ items: 1, itemBytes: 10, runBytes: 123, lookImages: 0, lookBytes: 0 });
   });
 
   it('RUN_BYTES_LIMIT sets the default runBytes: /api/config, the account, the list and the quota; an account’s own limit wins', async () => {

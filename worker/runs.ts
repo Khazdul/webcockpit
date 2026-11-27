@@ -88,9 +88,9 @@ function idOf(c: RunsCtx): string | null {
   return SYNC_ID_PATTERN.test(id) ? id : null;
 }
 
-type UsageRow = Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes'>;
+type UsageRow = Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes' | 'look_count' | 'look_bytes'>;
 
-const USAGE_SQL = 'SELECT item_count, item_bytes, run_bytes FROM account WHERE id = ?1';
+const USAGE_SQL = 'SELECT item_count, item_bytes, run_bytes, look_count, look_bytes FROM account WHERE id = ?1';
 
 /** The FixedLengthStream of the Workers runtime (absent under Node, where the bytes are read first). */
 type FixedLength = new (length: number) => { readable: ReadableStream; writable: WritableStream };

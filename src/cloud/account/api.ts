@@ -175,14 +175,25 @@ export function parseParams(v: unknown): AuthParams | undefined {
 const SESSION_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const LIMIT_KEYS = ['items', 'itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes', 'sharedRuns'] as const;
 const USAGE_KEYS = ['items', 'itemBytes', 'runBytes'] as const;
+const LOOK_USAGE_KEYS = ['lookImages', 'lookBytes'] as const;
 
 const COMMUNITY_LIMIT_KEYS = ['commentsPerHour', 'votesPerHour', 'notesPerDay', 'listingsPerDay'] as const;
+/** Stage 80 (ADR 0172): the own images' limits, the defaults from a Worker before them. */
+const LOOK_LIMIT_KEYS = ['lookImages', 'lookImageMaxBytes', 'lookBytes'] as const;
 
-/** The stage 65 limits of `v`, each the default when it is not a whole number. */
-function communityLimits(v: unknown): Pick<AccountLimits, (typeof COMMUNITY_LIMIT_KEYS)[number]> {
+/** The stage 65 and stage 80 limits of `v`, each the default when it is not a whole number. */
+function communityLimits(v: unknown): Pick<AccountLimits, (typeof COMMUNITY_LIMIT_KEYS)[number] | (typeof LOOK_LIMIT_KEYS)[number]> {
   const o = isObject(v) ? v : {};
-  const pick = (k: (typeof COMMUNITY_LIMIT_KEYS)[number]): number => (whole(o[k]) ? o[k] : DEFAULT_ACCOUNT_LIMITS[k]);
-  return { commentsPerHour: pick('commentsPerHour'), votesPerHour: pick('votesPerHour'), notesPerDay: pick('notesPerDay'), listingsPerDay: pick('listingsPerDay') };
+  const pick = (k: (typeof COMMUNITY_LIMIT_KEYS)[number] | (typeof LOOK_LIMIT_KEYS)[number]): number => (whole(o[k]) ? o[k] : DEFAULT_ACCOUNT_LIMITS[k]);
+  return {
+    commentsPerHour: pick('commentsPerHour'),
+    votesPerHour: pick('votesPerHour'),
+    notesPerDay: pick('notesPerDay'),
+    listingsPerDay: pick('listingsPerDay'),
+    lookImages: pick('lookImages'),
+    lookImageMaxBytes: pick('lookImageMaxBytes'),
+    lookBytes: pick('lookBytes'),
+  };
 }
 
 function numbersOf<K extends string>(v: unknown, keys: readonly K[]): Record<K, number> | undefined {
@@ -210,7 +221,10 @@ export function parseAccount(v: unknown): Account | undefined {
   const { name, created, state } = v;
   if (typeof name !== 'string' || !NAME_PATTERN.test(name) || !whole(created)) return undefined;
   if (state !== 'active' && state !== 'suspended') return undefined;
-  const usage: AccountUsage | undefined = numbersOf(v.usage, USAGE_KEYS);
+  const base = numbersOf(v.usage, USAGE_KEYS);
+  // Stage 80's look usage only when the Worker sends it.
+  const looks = base && numbersOf(v.usage, LOOK_USAGE_KEYS);
+  const usage: AccountUsage | undefined = base && (looks ? { ...base, ...looks } : base);
   // The limits of stage 65 (ADR 0155) are the defaults when an older Worker leaves them out.
   const known = numbersOf(v.limits, LIMIT_KEYS);
   const limits: AccountLimits | undefined = known && { ...communityLimits(v.limits), ...known };

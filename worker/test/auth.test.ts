@@ -324,7 +324,7 @@ describe('POST /api/auth/register', () => {
       name: 'Alice',
       created: NOW,
       state: 'active',
-      usage: { items: 0, itemBytes: 0, runBytes: 0 },
+      usage: { items: 0, itemBytes: 0, runBytes: 0, lookImages: 0, lookBytes: 0 },
       limits: DEFAULT_ACCOUNT_LIMITS,
       sessions: [{ id: expect.stringMatching(/^[A-Za-z0-9_-]{16}$/), label: 'Firefox on Linux', created: NOW, lastUsed: NOW, current: true }],
       prefs: { galleryNotice: true, rulesAccepted: false },

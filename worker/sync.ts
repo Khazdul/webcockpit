@@ -23,11 +23,18 @@
 // Tombstones count against neither: a delete, and a write that does not
 // grow, are always let through.
 //
+// Own images (kind `lookImage`, stage 80, ADR 0172) have a budget of their
+// own: `account.look_count` and `look_bytes` (migration 0009) against
+// `lookImages` and `lookBytes`, one blob at most `lookImageMaxBytes`, the
+// same three 413 codes. They count against neither `items` nor
+// `itemBytes`, and the other kinds not against them.
+//
 // The kinds open are SYNC_KINDS_OPEN, and with the flag `runs` on also
 // `run` and `exportDoc` (stage 63, ADR 0153): openKinds(). The usage
 // answered has the account's run bytes too (worker/runs.ts keeps them).
 import {
   type AccountLimits,
+  LOOK_IMAGE_KIND,
   SYNC_ID_PATTERN,
   SYNC_KINDS,
   SYNC_KINDS_OPEN,
@@ -149,6 +156,17 @@ interface UsageRow {
   item_count: number;
   item_bytes: number;
   run_bytes: number;
+  look_count: number;
+  look_bytes: number;
+}
+
+const USAGE_COLUMNS = 'seq, item_count, item_bytes, run_bytes, look_count, look_bytes';
+
+/** The counters and the limits a write of `kind` is held to: the own images' for `lookImage`, the small items' for every other kind. */
+export function budgetOf(kind: SyncKind, limits: AccountLimits): { count: 'item_count' | 'look_count'; bytes: 'item_bytes' | 'look_bytes'; items: number; itemBytes: number; itemMaxBytes: number } {
+  return kind === LOOK_IMAGE_KIND
+    ? { count: 'look_count', bytes: 'look_bytes', items: limits.lookImages, itemBytes: limits.lookBytes, itemMaxBytes: limits.lookImageMaxBytes }
+    : { count: 'item_count', bytes: 'item_bytes', items: limits.items, itemBytes: limits.itemBytes, itemMaxBytes: limits.itemMaxBytes };
 }
 
 const ITEM_COLUMNS = 'kind, id, rev, seq, deleted, size, updated, blob';
@@ -205,7 +223,7 @@ async function put(c: SyncCtx): Promise<Response> {
   const type = (c.request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
   if (type !== 'application/octet-stream') return error('bad_request', 400);
   const limits = limitsOf((c.auth as Authed).account, c.env);
-  const blob = await readBytesCapped(c.request, limits.itemMaxBytes);
+  const blob = await readBytesCapped(c.request, budgetOf(target.kind, limits).itemMaxBytes);
   if (blob === null) {
     // A conflict is answered before a 413 (the client resolves it first).
     const conflict = await conflictOf(c, target, base);
@@ -244,17 +262,20 @@ async function conflictOf(c: SyncCtx, t: Target, base: number): Promise<Response
  *                            account does not have (a base rev > 0, or any
  *                            delete) the current item is a tombstone of
  *                            rev 0 (as built, stage 61 C)
- *   413 too_many_items, storage_full (after a conflict)
+ *   413 too_many_items, storage_full (after a conflict), against the
+ *       kind's budget (budgetOf)
  *
  * A delete of an item that is already a tombstone at `base` writes
  * nothing and answers its rev and seq as they are.
  */
 async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<ArrayBuffer> | null, limits: AccountLimits): Promise<Response> {
   const accountId = (c.auth as Authed).account.id;
+  // The counters this kind counts against (their names are ours, never the request's).
+  const b = budgetOf(t.kind, limits);
   for (let round = 0; round < WRITE_ROUNDS; round++) {
     const [curRes, accRes] = await c.db.batch<Record<string, unknown>>([
       c.db.prepare(`SELECT ${ITEM_COLUMNS} FROM item WHERE account = ?1 AND kind = ?2 AND id = ?3`).bind(accountId, t.kind, t.id),
-      c.db.prepare('SELECT seq, item_count, item_bytes, run_bytes FROM account WHERE id = ?1').bind(accountId),
+      c.db.prepare(`SELECT ${USAGE_COLUMNS} FROM account WHERE id = ?1`).bind(accountId),
     ]);
     const cur = (curRes?.results[0] ?? null) as ItemRow | null;
     const acc = (accRes?.results[0] ?? null) as UsageRow | null;
@@ -270,8 +291,8 @@ async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<Array
     const size = blob?.length ?? 0;
     const dCount = (blob ? 1 : 0) - (live ? 1 : 0);
     const dBytes = size - (live ? cur.size : 0);
-    if (dCount > 0 && acc.item_count + dCount > limits.items) return error('too_many_items', 413);
-    if (dBytes > 0 && acc.item_bytes + dBytes > limits.itemBytes) return error('storage_full', 413);
+    if (dCount > 0 && acc[b.count] + dCount > b.items) return error('too_many_items', 413);
+    if (dBytes > 0 && acc[b.bytes] + dBytes > b.itemBytes) return error('storage_full', 413);
 
     const rev = base + 1;
     const results = await c.db.batch<UsageRow>([
@@ -284,22 +305,22 @@ async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<Array
            SELECT ?1, ?2, ?3, ?4, a.seq + 1, ?5, ?6, ?7, ?8 FROM account a
            WHERE a.id = ?1
              AND COALESCE((SELECT rev FROM item WHERE account = ?1 AND kind = ?2 AND id = ?3), 0) = ?9
-             AND (?10 <= 0 OR a.item_count + ?10 <= ?11)
-             AND (?12 <= 0 OR a.item_bytes + ?12 <= ?13)
+             AND (?10 <= 0 OR a.${b.count} + ?10 <= ?11)
+             AND (?12 <= 0 OR a.${b.bytes} + ?12 <= ?13)
            ON CONFLICT (account, kind, id) DO UPDATE SET
              rev = excluded.rev, seq = excluded.seq, deleted = excluded.deleted,
              size = excluded.size, updated = excluded.updated, blob = excluded.blob`,
         )
-        .bind(accountId, t.kind, t.id, rev, blob ? 0 : 1, size, c.now, blob, base, dCount, limits.items, dBytes, limits.itemBytes),
+        .bind(accountId, t.kind, t.id, rev, blob ? 0 : 1, size, c.now, blob, base, dCount, b.items, dBytes, b.itemBytes),
       // The account's counter and usage, only when the item holds exactly
       // this write (its rev, and the seq the account is about to have).
       c.db
         .prepare(
-          `UPDATE account SET seq = seq + 1, item_count = item_count + ?2, item_bytes = item_bytes + ?3
+          `UPDATE account SET seq = seq + 1, ${b.count} = ${b.count} + ?2, ${b.bytes} = ${b.bytes} + ?3
            WHERE id = ?1 AND EXISTS (SELECT 1 FROM item WHERE account = ?1 AND kind = ?4 AND id = ?5 AND rev = ?6 AND seq = account.seq + 1)`,
         )
         .bind(accountId, dCount, dBytes, t.kind, t.id, rev),
-      c.db.prepare('SELECT seq, item_count, item_bytes, run_bytes FROM account WHERE id = ?1').bind(accountId),
+      c.db.prepare(`SELECT ${USAGE_COLUMNS} FROM account WHERE id = ?1`).bind(accountId),
     ]);
     const after = results[2]?.results[0];
     if (results[0]?.meta.changes === 1 && results[1]?.meta.changes === 1 && after) {

@@ -13,6 +13,8 @@ export const SMALL_KIND_WORDS = [
   ['scriptData', 'script data'],
   ['comm', 'Comm history'],
   ['timers', 'timers'],
+  ['looks', 'looks'],
+  ['lookImage', 'own images'],
 ] as const satisfies readonly (readonly [Unsynced['kind'], string])[];
 
 /** The names of the small kinds among `list`, in order, each once ("settings", "script data", "Comm history"; `timers` too unless left out). */

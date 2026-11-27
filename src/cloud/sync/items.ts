@@ -19,7 +19,8 @@ import { runMetaProblem } from '../../runs/lines';
 import { SETTINGS_VERSION } from '../../settings/types';
 import { normalizeExportDoc } from '../../share/edits';
 import { toBase64Url } from '../crypto/base64url';
-import type { Body, CommItem, CommPieceRecord, ExportDocItem, ItemKind, ProfileItem, RunItem, ScriptDataItem, ScriptItem, SettingsItem, TimersItem } from './types';
+import { LOOKS_KEY, mergeLooks, parseLooks } from '../../looks/store';
+import type { Body, CommItem, CommPieceRecord, ExportDocItem, ItemKind, LookImageItem, LooksItem, ProfileItem, RunItem, ScriptDataItem, ScriptItem, SettingsItem, TimersItem } from './types';
 
 /**
  * How a conflict on the kind is settled (ADR 0146's table): `keepBoth`
@@ -389,6 +390,67 @@ export const exportDocSpec: KindSpec = {
   },
 };
 
+// --- Looks (stage 80, ADR 0172) ---
+
+export const LOOK_IMAGE_VERSION = 1;
+export const LOOKS_VERSION = 1;
+
+/** An own image's id: random, base64url of 16 bytes. */
+export const LOOK_IMAGE_ID = /^[A-Za-z0-9_-]{22}$/;
+/** The longest label kept (the file's name, cut). */
+export const LOOK_LABEL_MAX = 60;
+/** The most base64 an own image's body holds (a 48 KB picture: far over the server's limit of a blob). */
+export const LOOK_IMAGE_B64_MAX = 64 * 1024;
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** A clean own image record from anything, or null (the adapter's and the decoder's rule). */
+export function lookImageFields(x: unknown): LookImageItem | null {
+  if (!isObj(x)) return null;
+  const { id, label, webp, created } = x;
+  if (!isStr(id) || !LOOK_IMAGE_ID.test(id) || !isStr(label) || label.length > LOOK_LABEL_MAX || !isTime(created)) return null;
+  if (!isStr(webp) || webp.length === 0 || webp.length > LOOK_IMAGE_B64_MAX || webp.length % 4 !== 0 || !BASE64.test(webp)) return null;
+  return { id, label, webp, created };
+}
+
+/** `lookImage`: one item per own image, `{id, label, webp, created}`; last writer; gzipped (the base64 back to about the picture's size). */
+export const lookImageSpec: KindSpec = {
+  kind: 'lookImage',
+  version: LOOK_IMAGE_VERSION,
+  policy: 'lastWriter',
+  compress: true,
+  key: (b) => (b as unknown as LookImageItem).id,
+  decode(raw) {
+    const r = checkVersion(raw, LOOK_IMAGE_VERSION);
+    if ('refused' in r) return r.refused;
+    const body = lookImageFields(r.fields);
+    return body ? { ok: true, body: body as unknown as Body } : UNREADABLE;
+  },
+};
+
+/** A looks record as a plain body (`parseLooks`' names have no prototype). */
+export function looksBody(raw: unknown): LooksItem {
+  const names: LooksItem['names'] = {};
+  for (const [k, e] of Object.entries(parseLooks(raw).names)) names[k] = e;
+  return { names };
+}
+
+/** `looks`: one item per account (local key `looks`), merged per name, the newest `at` winning. */
+export const looksSpec: KindSpec = {
+  kind: 'looks',
+  version: LOOKS_VERSION,
+  policy: 'merge',
+  key: () => LOOKS_KEY,
+  decode(raw) {
+    const r = checkVersion(raw, LOOKS_VERSION);
+    if ('refused' in r) return r.refused;
+    if (!isObj(r.fields.names)) return UNREADABLE;
+    return { ok: true, body: looksBody(r.fields) as unknown as Body };
+  },
+  merge(local, remote) {
+    return looksBody(mergeLooks(parseLooks(local), parseLooks(remote))) as unknown as Body;
+  },
+};
+
 /** Every kind this client syncs, by kind. */
 export const ITEM_SPECS: Readonly<Record<ItemKind, KindSpec>> = {
   profile: profileSpec,
@@ -399,13 +461,16 @@ export const ITEM_SPECS: Readonly<Record<ItemKind, KindSpec>> = {
   comm: commSpec,
   run: runSpec,
   exportDoc: exportDocSpec,
+  lookImage: lookImageSpec,
+  looks: looksSpec,
 };
 
 /**
  * The kinds the app syncs without the flag `runs`, in the order a sync
- * handles them (ADR 0152): profile, script, settings, scriptData, timers, comm.
+ * handles them (ADR 0152, ADR 0172): profile, script, settings, scriptData,
+ * timers, comm, lookImage, looks (an image before the looks that name it).
  */
-export const SYNC_SPECS: readonly KindSpec[] = [profileSpec, scriptSpec, settingsSpec, scriptDataSpec, timersSpec, commSpec];
+export const SYNC_SPECS: readonly KindSpec[] = [profileSpec, scriptSpec, settingsSpec, scriptDataSpec, timersSpec, commSpec, lookImageSpec, looksSpec];
 
 /** The kinds of runs in the cloud (ADR 0153), after the others: run, exportDoc. */
 export const RUN_SPECS: readonly KindSpec[] = [runSpec, exportDocSpec];

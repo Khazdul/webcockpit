@@ -92,11 +92,23 @@ export class ServerModel {
     let items = 0;
     let itemBytes = 0;
     for (const it of this.items.values()) {
-      if (it.deleted) continue;
+      if (it.deleted || it.kind === 'lookImage') continue;
       items++;
       itemBytes += it.size;
     }
     return this.runsFlag ? { items, itemBytes, runBytes: this.runBytes } : { items, itemBytes };
+  }
+
+  /** Stage 80 (ADR 0172): the own images' count and bytes, apart from the small items'. */
+  lookUsage(): { lookImages: number; lookBytes: number } {
+    let lookImages = 0;
+    let lookBytes = 0;
+    for (const it of this.items.values()) {
+      if (it.deleted || it.kind !== 'lookImage') continue;
+      lookImages++;
+      lookBytes += it.size;
+    }
+    return { lookImages, lookBytes };
   }
 
   /** The bytes of the bodies stored (tests: equals `runBytes` when nothing is in flight). */
@@ -220,11 +232,19 @@ export class ServerModel {
     const cur = this.items.get(this.key(k, id));
     const rev = cur?.rev ?? 0;
     if (ifMatch !== rev) return { status: 409, body: { error: 'conflict', current: cur ? { ...cur } : this.tombstone0(k, id) } };
-    if (blob.length > this.limits.itemMaxBytes) return { status: 413, body: { error: 'item_too_large' } };
-    const u = this.usage();
     const live = cur && !cur.deleted;
-    if (!live && u.items + 1 > this.limits.items) return { status: 413, body: { error: 'too_many_items' } };
-    if (u.itemBytes - (live ? cur.size : 0) + blob.length > this.limits.itemBytes) return { status: 413, body: { error: 'storage_full' } };
+    if (k === 'lookImage') {
+      // The own images' budget of their own (worker/sync.ts `budgetOf`).
+      if (blob.length > this.limits.lookImageMaxBytes) return { status: 413, body: { error: 'item_too_large' } };
+      const l = this.lookUsage();
+      if (!live && l.lookImages + 1 > this.limits.lookImages) return { status: 413, body: { error: 'too_many_items' } };
+      if (l.lookBytes - (live ? cur.size : 0) + blob.length > this.limits.lookBytes) return { status: 413, body: { error: 'storage_full' } };
+    } else {
+      if (blob.length > this.limits.itemMaxBytes) return { status: 413, body: { error: 'item_too_large' } };
+      const u = this.usage();
+      if (!live && u.items + 1 > this.limits.items) return { status: 413, body: { error: 'too_many_items' } };
+      if (u.itemBytes - (live ? cur.size : 0) + blob.length > this.limits.itemBytes) return { status: 413, body: { error: 'storage_full' } };
+    }
     const item: SyncItem = { kind: k, id, rev: rev + 1, seq: ++this.seq, deleted: false, size: blob.length, updated: this.time++, blob: toBase64Url(blob) };
     this.items.set(this.key(k, id), item);
     return { status: 200, body: { rev: item.rev, seq: item.seq, usage: this.usage() } };

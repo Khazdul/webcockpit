@@ -96,8 +96,8 @@ describe('the small kinds', () => {
   const timers = { character: 'Gandalf', savedAt: 5, state: { v: 1, groups: [] } };
   const msg = (ts: number, text: string, character = 'Gandalf') => ({ character, ts, channel: 'tell', talker: 'Frodo', talkerType: null, destination: null, text });
 
-  it('are synced in the order profile, script, settings, scriptData, timers, comm; none has names', () => {
-    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm']);
+  it('are synced in the order profile, script, settings, scriptData, timers, comm (then stage 80 lookImage, looks); none has names', () => {
+    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'lookImage', 'looks']);
     for (const sp of [settingsSpec, scriptDataSpec, timersSpec, commSpec]) {
       expect(sp.version).toBe(1);
       expect(sp.names).toBeUndefined();
@@ -208,9 +208,9 @@ describe('the run kinds', () => {
   const doc = { sessionId: 'r1', schema: 1, title: 'A fight', format: 'text', excludes: [[5, 9]], comments: [{ beforeUs: 6, text: 'here' }] };
 
   it('come after the others, last writer, v 1, no names; SYNC_SPECS is unchanged without the flag', () => {
-    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm']);
+    expect(SYNC_SPECS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'lookImage', 'looks']);
     expect(RUN_SPECS).toEqual([runSpec, exportDocSpec]);
-    expect(SYNC_SPECS_WITH_RUNS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'run', 'exportDoc']);
+    expect(SYNC_SPECS_WITH_RUNS.map((x) => x.kind)).toEqual(['profile', 'script', 'settings', 'scriptData', 'timers', 'comm', 'lookImage', 'looks', 'run', 'exportDoc']);
     expect(ITEM_SPECS.run).toBe(runSpec);
     expect(ITEM_SPECS.exportDoc).toBe(exportDocSpec);
     for (const sp of RUN_SPECS) {

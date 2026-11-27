@@ -46,6 +46,9 @@ export interface AccountRow {
   item_bytes: number;
   /** The bytes of the account's run bodies, reserved before they are stored (worker/runs.ts; migration 0004). */
   run_bytes: number;
+  /** Live own images (`lookImage` items) and their bytes, apart from `item_count` and `item_bytes` (worker/sync.ts; migration 0009, ADR 0172). */
+  look_count: number;
+  look_bytes: number;
   /** The account's live published runs and their payload bytes (worker/pub.ts; migration 0005). */
   pub_count: number;
   pub_bytes: number;
@@ -55,7 +58,7 @@ export interface AccountRow {
 }
 
 export const ACCOUNT_COLUMNS =
-  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, pub_count, pub_bytes, gallery_seen, reactions_seen';
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes, run_bytes, look_count, look_bytes, pub_count, pub_bytes, gallery_seen, reactions_seen';
 
 /**
  * Names nobody can register, besides those of deleted accounts
@@ -207,8 +210,8 @@ export async function accountByKey(db: D1, nameKey: string): Promise<AccountRow 
 }
 
 /** The account's usage as the server counts it. */
-export function usageOf(row: Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes'>): AccountUsage {
-  return { items: row.item_count, itemBytes: row.item_bytes, runBytes: row.run_bytes };
+export function usageOf(row: Pick<AccountRow, 'item_count' | 'item_bytes' | 'run_bytes' | 'look_count' | 'look_bytes'>): AccountUsage {
+  return { items: row.item_count, itemBytes: row.item_bytes, runBytes: row.run_bytes, lookImages: row.look_count, lookBytes: row.look_bytes };
 }
 
 /** The account as its owner sees it, with its live sessions; `idHash` is the asking session's. */

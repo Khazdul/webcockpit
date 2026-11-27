@@ -750,6 +750,7 @@ describe('the small kinds', () => {
       },
     });
     await counted.sync();
-    expect(yields).toHaveLength(5 + 2);
+    // Between the kinds (eight since stage 80's lookImage and looks) and between the two pushes.
+    expect(yields).toHaveLength(SYNC_SPECS.length - 1 + 2);
   });
 });

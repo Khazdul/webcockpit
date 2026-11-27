@@ -178,6 +178,8 @@ export function row(over: Partial<AdminAccountRow> = {}): AdminAccountRow {
     runBytes: 172 * MB,
     pubs: 15,
     pubBytes: 6_600_000,
+    lookImages: 0,
+    lookBytes: 0,
     bytes: 0.7 * MB + 172 * MB + 6_600_000,
     sessions: 2,
     ownLimits: false,

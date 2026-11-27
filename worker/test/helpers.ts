@@ -29,7 +29,7 @@ export function at(now: number, fetch?: Deps['fetch']): Deps {
 export const T = (iso: string): number => Date.parse(iso);
 
 export async function emptyTables(): Promise<void> {
-  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end', 'run_body', 'r2_sweep', 'publication', 'pub_view', 'report', 'vote', 'comment', 'note', 'mume_cache', 'limit_default', 'discord_post', 'discord_state'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(['presence', 'device_day', 'stat_sample', 'stat_daily', 'flag', 'account', 'reserved_name', 'session', 'attempt', 'item', 'session_end', 'run_body', 'r2_sweep', 'publication', 'pub_view', 'report', 'vote', 'comment', 'note', 'mume_cache', 'limit_default', 'discord_post', 'discord_state', 'look_dir'].map((t) => db.prepare(`DELETE FROM ${t}`)));
   await emptyAdminLog();
   forgetFlags(db);
   forgetLimitDefaults(db);
