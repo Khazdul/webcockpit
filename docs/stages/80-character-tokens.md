@@ -1015,7 +1015,8 @@ assigns it. The resolver's silent fallback covers it.
   unit 6304, full e2e 2150 passed, 4 failed: settings-popup:191 fixed,
   account-pages:739 passes alone, phone-own-keyboard-editors:218 flaky
   before the stage too, 2 of 5 at 726af9d7)
-- [ ] C. Group tokens and the scaling rows
+- [x] C. Group tokens and the scaling rows (`9cad7e84`…`ae614268`; unit 6312,
+  full e2e 2162 passed, 2 failed under load and pass alone)
 - [ ] D. Own images
 - [ ] E. The directory, staging
 - [ ] F. Phone and tablet
