@@ -111,6 +111,16 @@ describe('report', () => {
     expect(r.dir.refused('Glorfindel')).toBe(false);
   });
 
+  it('a 409 for the owner’s 20 names is not sent again either, but is not "shared from elsewhere"', async () => {
+    const r = rig({ answer: () => ({ status: 409, body: { error: 'too_many_names' } }) });
+    r.dir.report(me);
+    await r.settle();
+    r.dir.report({ ...me, sex: 'female' });
+    await r.settle();
+    expect(r.calls).toHaveLength(1);
+    expect(r.dir.refused('rasta')).toBe(false);
+  });
+
   it('a failure is silent and tried once again later, not in a loop', async () => {
     let fail = true;
     const r = rig({ answer: () => (fail ? null : { status: 204 }) });

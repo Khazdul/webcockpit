@@ -100,8 +100,8 @@ export class LookDirectory {
   private gathering = false;
   /** What was last sent per `space|name`, as a signature. */
   private readonly sent = new Map<string, string>();
-  /** `space|name` refused with a 409 this session. */
-  private readonly refusedNames = new Set<string>();
+  /** `space|name` refused with a 409 this session: `true` when another owner holds it (`look_owned`), `false` for the owner's 20 names. */
+  private readonly refusedNames = new Map<string, boolean>();
   /** The report to send (the newest), and whether a send or a retry is under way. */
   private want: { space: LookSpace; r: SelfReport } | null = null;
   private unshareWanted: LookSpace | null = null;
@@ -225,7 +225,7 @@ export class LookDirectory {
 
   /** Whether `name`'s report was refused this session (another device or account shares it). */
   refused(name: string | null | undefined): boolean {
-    return !!name && this.refusedNames.has(`${this.o.space()}|${name.toLowerCase()}`);
+    return !!name && this.refusedNames.get(`${this.o.space()}|${name.toLowerCase()}`) === true;
   }
 
   /** Reports your character (sent on idle time when it differs from what was sent). */
@@ -259,7 +259,7 @@ export class LookDirectory {
    */
   async releaseDevice(): Promise<void> {
     for (const k of [...this.sent.keys()]) if (k.startsWith('device|')) this.sent.delete(k);
-    for (const k of [...this.refusedNames]) if (k.startsWith('device|')) this.refusedNames.delete(k);
+    for (const k of [...this.refusedNames.keys()]) if (k.startsWith('device|')) this.refusedNames.delete(k);
     const key = this.storedKey();
     if (!key || !(await this.allowed())) return;
     await this.call('DELETE', '/api/look', { key }, 'omit');
@@ -295,7 +295,8 @@ export class LookDirectory {
         const key = `${w.space}|${w.r.name}`;
         if (res && res.status === 204) this.sent.set(key, sig);
         else if (res && res.status === 409) {
-          this.refusedNames.add(key);
+          const code = ((await res.json().catch(() => null)) as { error?: unknown } | null)?.error;
+          this.refusedNames.set(key, code !== 'too_many_names');
           this.emit();
         } else {
           if (this.want === w) return this.retryLater();

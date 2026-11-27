@@ -21,7 +21,7 @@
 import type { LeafNav } from './about';
 
 /** The page's date while the share links section shows. */
-export const PRIVACY_SHARE_UPDATED = 'Last changed 25 November 2026';
+export const PRIVACY_SHARE_UPDATED = 'Last changed 27 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_SHARE = `SHARE LINKS

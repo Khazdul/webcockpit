@@ -14,7 +14,7 @@
 import type { LeafNav } from './about';
 
 /** The page's date while the account section shows. */
-export const PRIVACY_ACCOUNTS_UPDATED = 'Last changed 19 November 2026';
+export const PRIVACY_ACCOUNTS_UPDATED = 'Last changed 27 November 2026';
 
 /** The section, in About's format (one line per paragraph and per row). */
 export const PRIVACY_ACCOUNTS = `ACCOUNTS
