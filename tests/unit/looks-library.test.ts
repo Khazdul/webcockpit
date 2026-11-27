@@ -96,3 +96,17 @@ describe('the token library (public/tokens)', () => {
     expect(headers).toMatch(/^\/tokens\/\*\n {2}! Cache-Control\n {2}Cache-Control: public, max-age=31536000, immutable$/m);
   });
 });
+
+describe('the Worker’s list of library ids (shared/cloud/look-tokens.ts, stage 80 part E)', () => {
+  it('is the manifest’s ids, sorted', async () => {
+    const { LOOK_TOKEN_IDS } = await import('../../shared/cloud/look-tokens');
+    expect([...LOOK_TOKEN_IDS]).toEqual(manifest.tokens.map((t) => t.id).sort());
+  });
+
+  it('the directory’s kinds are race.ts’s', async () => {
+    const { LOOK_RACES, LOOK_SUBRACES } = await import('../../shared/cloud/api');
+    const { SUBRACE_RACE } = await import('../../src/gmcp/race');
+    expect([...LOOK_RACES].sort()).toEqual([...RACE_KINDS].sort());
+    expect(LOOK_SUBRACES).toEqual(SUBRACE_RACE);
+  });
+});

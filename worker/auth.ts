@@ -18,6 +18,7 @@
 //                                          the run bodies (worker/runs.ts; flag `runs` as well)
 //   /api/u/pub*, POST /api/u/report        published runs and reports (worker/pub.ts,
 //                                          worker/reports.ts; flag `share` as well)
+//   PUT and DELETE /api/u/look             the account's shared looks (worker/lookdir.ts; flag `looks` as well)
 //   /api/u/pub/<id>/vote|comments, /api/u/comments/<id>, /api/u/runes[/<id>],
 //   /api/u/community/news|seen             the community (worker/community.ts; flags
 //                                          `share` and `gallery`, Random Runes `runes` too)
@@ -78,6 +79,7 @@ import { loadLimitDefaults } from './limits.ts';
 import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
 import { communityUserRoute } from './community.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
+import { LOOK_USER_PATH, LOOK_USER_ROUTE, accountLookOwner } from './lookdir.ts';
 import { REPORT_PATH, isPubPath, pubRoute } from './pub.ts';
 import { report } from './reports.ts';
 import { isRunsPath, runsRoute } from './runs.ts';
@@ -490,7 +492,7 @@ async function remove(c: Ctx): Promise<Response> {
   const proven = await passwordAgain(c, row, b.authKey);
   if (proven instanceof Response) return proven;
   // One transaction (worker/deletion.ts), guarded by the proven password.
-  const results = await c.db.batch(deletionBatch(c.db, row, proven.hash, c.now));
+  const results = await c.db.batch(deletionBatch(c.db, row, proven.hash, c.now, [], await accountLookOwner(c.env.AUTH_PEPPER ?? '', row.id)));
   const { deleted, pubs } = deletedBy(results);
   if (!deleted) return error('invalid_login', 401);
   await proven.done();
@@ -526,6 +528,7 @@ function routeOf(path: string): Record<string, Handler> | undefined {
   if (isSyncPath(path)) return syncRoute(path);
   if (isRunsPath(path)) return runsRoute(path);
   if (isPubPath(path)) return pubRoute(path);
+  if (path === LOOK_USER_PATH) return LOOK_USER_ROUTE;
   if (path.startsWith(SESSIONS_PREFIX)) return path.length > SESSIONS_PREFIX.length ? ROUTES[SESSIONS_PREFIX] : undefined;
   return Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined;
 }
@@ -571,6 +574,7 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
   // The flags `sync` and `runs` close their paths as `accounts` closes them all.
   if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
   if (isRunsPath(path) && !(await flags(env, now)).runs) return error('not_found', 404);
+  if (path === LOOK_USER_PATH && !(await flags(env, now)).looks) return error('not_found', 404);
   const community = communityUserRoute(path);
   if (community) {
     const on = await flags(env, now);

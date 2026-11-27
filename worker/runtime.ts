@@ -112,6 +112,10 @@ export interface Env {
   FLAG_MUME?: boolean | string;
   /** The default of the flag `discord` (stage 72, ADR 0161): the cron posts newly listed Hall of Fame logs to the webhook. Off in both environments. */
   FLAG_DISCORD?: boolean | string;
+  /** The default of the flag `looks` (stage 80 part E, spec §7.14): the directory of shared looks. On in staging, off in production. */
+  FLAG_LOOKS?: boolean | string;
+  /** The limit on `POST /api/look/find`, keyed by address (LOOK_FIND_PER_MINUTE). Without it: no limit. */
+  LOOK_LIMITER?: RateLimiter;
   /** R2 `webcockpit` / `webcockpit-staging`: the run bodies (stage 63). Without it the run endpoints answer 503. */
   FILES?: R2;
   /** The default `runBytes` limit of an account, in bytes (a whole number). Unset: DEFAULT_ACCOUNT_LIMITS. */

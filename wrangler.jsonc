@@ -63,6 +63,12 @@
     // (production only, `wrangler secret put DISCORD_WEBHOOK_URL`), never
     // here; without it nothing is posted or deleted.
     "FLAG_DISCORD": false,
+    // The directory of shared looks (stage 80 part E, spec §7.14, ADR 0173):
+    // a character's race, subrace, sex and library token, reported and asked
+    // for by the client. Off in production until the owner's go-ahead after
+    // his test on staging. It needs AUTH_PEPPER (the rows' owners are keyed
+    // hashes): without it the routes answer 503.
+    "FLAG_LOOKS": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -119,7 +125,10 @@
     { "name": "AUTH_LIMITER", "namespace_id": "5905", "simple": { "limit": 10, "period": 60 } },
     // GET /api/gallery?q= (a search), keyed by address, besides API_LIMITER:
     // a text no one asked in the last minute reads every listed run.
-    { "name": "SEARCH_LIMITER", "namespace_id": "5907", "simple": { "limit": 20, "period": 60 } }
+    { "name": "SEARCH_LIMITER", "namespace_id": "5907", "simple": { "limit": 20, "period": 60 } },
+    // POST /api/look/find (stage 80 part E), keyed by address: a group's
+    // client asks once per new member, gathered (LOOK_FIND_PER_MINUTE).
+    { "name": "LOOK_LIMITER", "namespace_id": "5909", "simple": { "limit": 60, "period": 60 } }
   ],
   // The usage statistics (worker/stats.ts): a sample every 5 minutes; the
   // roll-up of the previous day and pruning at 00:10 UTC.
@@ -140,6 +149,8 @@
         "FLAG_MUME": true,
         // Off; staging has no DISCORD_WEBHOOK_URL and never posts (ADR 0161).
         "FLAG_DISCORD": false,
+        // Shared looks (see the top level): on in staging.
+        "FLAG_LOOKS": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
@@ -170,7 +181,8 @@
         { "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } },
         { "name": "API_LIMITER", "namespace_id": "5904", "simple": { "limit": 120, "period": 60 } },
         { "name": "AUTH_LIMITER", "namespace_id": "5906", "simple": { "limit": 10, "period": 60 } },
-        { "name": "SEARCH_LIMITER", "namespace_id": "5908", "simple": { "limit": 20, "period": 60 } }
+        { "name": "SEARCH_LIMITER", "namespace_id": "5908", "simple": { "limit": 20, "period": 60 } },
+        { "name": "LOOK_LIMITER", "namespace_id": "5910", "simple": { "limit": 60, "period": 60 } }
       ],
       "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] }
     }

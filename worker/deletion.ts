@@ -19,11 +19,12 @@ const STILL = 'EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?2)';
 
 /**
  * The batch that deletes the account `row`. `extra` statements (bound by
- * the caller) go before the account row's delete. The first statement
+ * the caller) go before the account row's delete; `lookOwner` (stage 80)
+ * names the account's rows of the looks directory. The first statement
  * reads the account's live publications (their payloads go after the
  * transaction); `deletedBy` reads the results.
  */
-export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, hash: string, now: number, extra: D1Statement[] = []): D1Statement[] {
+export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, hash: string, now: number, extra: D1Statement[] = [], lookOwner: string | null = null): D1Statement[] {
   const pubWhere = `account = ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?2 AND auth_hash = ?3)`;
   return [
     // The live runs only: a pending one's object may still be on its way to
@@ -58,6 +59,10 @@ export function deletionBatch(db: D1, row: Pick<AccountRow, 'id' | 'name_key'>, 
     // suspended), its comments (the counts adjusted) and notes, and the
     // reports on them handled.
     ...deletionStatements(db, STILL, row.id, hash, now),
+    // Stage 80 part E: the account's rows of the directory of shared looks,
+    // owned by `lookOwner` (lookdir.ts `accountLookOwner`: a keyed hash of
+    // the id; null without AUTH_PEPPER, when no row can have been written).
+    ...(lookOwner ? [db.prepare(`DELETE FROM look_dir WHERE owner = ?3 AND ${STILL}`).bind(row.id, hash, lookOwner)] : []),
     ...extra,
     db.prepare('DELETE FROM account WHERE id = ?1 AND auth_hash = ?2').bind(row.id, hash),
   ];

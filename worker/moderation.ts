@@ -35,6 +35,7 @@ import { sameSite } from './auth.ts';
 import { type LogLine, sealedBatch } from './auditlog.ts';
 import { hmac, sha256, toB64url, utf8 } from './bytes.ts';
 import { stateChange } from './community.ts';
+import { accountLookOwner } from './lookdir.ts';
 import { afterDeletion, deletedBy, deletionBatch } from './deletion.ts';
 import { ended } from './sessions.ts';
 import { dropObjects, keyOf, payloadResponse, pubMeta, pubWithSender, textOf, tombstones } from './pub.ts';
@@ -282,8 +283,10 @@ async function accountAction(request: Request, env: Env, db: D1, url: URL, now: 
   if (action === 'delete') {
     // The name typed (in any case) is the confirmation.
     if (typeof b.confirm !== 'string' || b.confirm.toLowerCase() !== row.name_key) return error('confirm_required', 400);
+    // Stage 80 part E: its shared looks go too (their owner is a keyed hash of the id).
+    const lookOwner = (env.AUTH_PEPPER ?? '').length >= 16 ? await accountLookOwner(env.AUTH_PEPPER ?? '', row.id) : null;
     // The log entry holds only while the account does (the batch's guard).
-    const results = await sealedBatch(env, db, lineOf(now, who, 'account.delete', row.name, note), (entry) => deletionBatch(db, row, row.auth_hash, now, [entry]), {
+    const results = await sealedBatch(env, db, lineOf(now, who, 'account.delete', row.name, note), (entry) => deletionBatch(db, row, row.auth_hash, now, [entry], lookOwner), {
       where: 'EXISTS (SELECT 1 FROM account WHERE id = ?8 AND auth_hash = ?9)',
       binds: [row.id, row.auth_hash],
     });

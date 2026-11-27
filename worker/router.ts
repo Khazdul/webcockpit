@@ -22,6 +22,11 @@
 //   /api/pub/<id>[/payload|/view|/comments]
 //                             a published run, public (worker/pub.ts; flag `share`;
 //                             the comments `gallery` too)
+//   PUT and DELETE /api/look, POST /api/look/find
+//                             the directory of shared looks (worker/lookdir.ts;
+//                             flag `looks`); /api/u/look is the account's
+//   GET, DELETE /api/admin/look/<name>
+//                             a row of it, and its removal (worker/lookdir-admin.ts)
 //   GET  /api/gallery, /api/community, /api/runes
 //                             the community, public (worker/community.ts; flags
 //                             `share` and `gallery`, the board `runes` too)
@@ -56,6 +61,8 @@ import { isModerationPath, moderationRoute, whoOf } from './moderation.ts';
 import { afterWrite, communityPublic, isCommunityPublicPath, listedTimes } from './community.ts';
 import { isPreviewPath, previewImage, watchHtml } from './og.ts';
 import { isPublicPubPath, publicPub } from './pub.ts';
+import { isLookPublicPath, lookPublic } from './lookdir.ts';
+import { lookAdminRoute } from './lookdir-admin.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
 
 export { API_HEADERS } from './runtime.ts';
@@ -241,6 +248,8 @@ export function adminRoute(path: string): Record<string, Handler> | undefined {
   const panel = panelRoute(path);
   const moderation = isModerationPath(path) ? moderationRoute(path) : undefined;
   if (panel || moderation) return { ...moderation, ...panel };
+  const look = lookAdminRoute(path);
+  if (look) return look;
   if (path.startsWith('/api/admin/flags/') && path.length > '/api/admin/flags/'.length) return ADMIN_ROUTES['/api/admin/flags/'];
   return undefined;
 }
@@ -283,6 +292,7 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
   // (accountApi loads the default limits after its rate limit, before any handler checks one.)
   if (isAccountPath(path)) return written(url, deps, await accountApi(request, env, url, deps));
   if (isPublicPubPath(path)) return publicPub(request, env, url, deps);
+  if (isLookPublicPath(path)) return lookPublic(request, env, url, deps);
   if (isCommunityPublicPath(path)) return communityPublic(request, env, url, deps);
   return dispatch(request, env, url, deps, Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined);
 }

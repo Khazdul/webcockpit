@@ -162,7 +162,7 @@ export async function verifyChain(env: Pick<Env, 'AUTH_PEPPER'>, rows: LogRecord
 
 /** The actions of a kind of the Log view's filter. */
 export function kindOf(action: string): AdminLogKind | null {
-  if (/^(pub|comment|note)\./.test(action)) return 'moderation';
+  if (/^(pub|comment|note|look)\./.test(action)) return 'moderation';
   if (action === 'account.limits' || action === 'limits.default') return 'limits';
   if (action.startsWith('account.')) return 'accounts';
   if (action.startsWith('flag.')) return 'flags';

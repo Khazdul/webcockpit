@@ -255,6 +255,7 @@ describe('the admin page', () => {
       runes: { value: false, default: false, override: null },
       mume: { value: true, default: true, override: null },
       discord: { value: false, default: false, override: null },
+      looks: { value: true, default: true, override: null },
     });
   });
 

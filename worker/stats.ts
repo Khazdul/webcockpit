@@ -31,6 +31,8 @@ import { sweepCommunity } from './community.ts';
 import { sweepPubs } from './pub.ts';
 import { sweepPrefixes } from './runs.ts';
 import { pruneSessions } from './sessions.ts';
+import { pruneLookDir } from './lookdir.ts';
+import { lookCount } from './lookdir-admin.ts';
 
 // --- The beat ---
 
@@ -363,6 +365,8 @@ export async function runCron(env: Env, cron: string, time: number, deps?: Deps)
       await sweepPrefixes(env, time);
       await sweepPubs(env, time);
       await sweepCommunity(env, time);
+      // Stage 80 part E: directory rows not refreshed for 180 days.
+      await pruneLookDir(db, time);
     }
   } else {
     try {
@@ -467,6 +471,7 @@ export async function adminStats(env: Env, db: D1, now: number): Promise<AdminSt
     split,
     usage,
     flags: await adminFlags(env, now),
+    looks: await lookCount(db),
   };
 }
 

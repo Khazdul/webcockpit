@@ -27,11 +27,13 @@ declare namespace Cloudflare {
     FLAG_RUNES: boolean;
     FLAG_MUME: boolean;
     FLAG_DISCORD: boolean;
+    FLAG_LOOKS: boolean;
     /** The default run storage per account, bytes; unset: DEFAULT_ACCOUNT_LIMITS.runBytes. */
     RUN_BYTES_LIMIT?: number | string;
     API_LIMITER: RateLimit;
     AUTH_LIMITER: RateLimit;
     SEARCH_LIMITER: RateLimit;
+    LOOK_LIMITER: RateLimit;
     TURNSTILE_SITE_KEY: string;
     TURNSTILE_HOSTNAMES?: string;
     /** Secrets, set outside the repository (`wrangler secret put`, or the dashboard). */

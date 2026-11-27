@@ -18,8 +18,11 @@ export interface ApiError {
  * `discord` (stage 72, ADR 0161): the cron posts newly listed Hall of Fame
  * logs to MUME's Discord #log-status (with the secret DISCORD_WEBHOOK_URL);
  * off by default, the kill switch. The client does not use it.
+ * `looks` (stage 80 part E, spec §7.14): the directory of shared looks
+ * (`/api/look*`, `/api/u/look`); on in staging, off in production until the
+ * owner opens it. Off: no report and no ask, and the routes answer 404.
  */
-export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes' | 'mume' | 'discord';
+export type FlagName = 'stats' | 'accounts' | 'sync' | 'runs' | 'share' | 'gallery' | 'runes' | 'mume' | 'discord' | 'looks';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -88,7 +91,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume', 'discord'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync', 'runs', 'share', 'gallery', 'runes', 'mume', 'discord', 'looks'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
@@ -146,6 +149,8 @@ export interface AdminStats {
     limits: { requests: number; rowsWritten: number; rowsRead: number };
   };
   flags: Record<FlagName, AdminFlag>;
+  /** Rows in the directory of shared looks (stage 80 part E). */
+  looks: number;
 }
 
 // --- Accounts (spec §7.2, §7.10, ADR 0145) ---
@@ -1579,4 +1584,93 @@ export interface AdminLogPage {
   next: number | null;
   total: number;
   chain: AdminLogChain | null;
+}
+
+// --- Shared looks: the directory (stage 80 part E, spec §7.14, ADR 0173) ---
+//
+// One row per character name: the race and subrace kinds, the sex and a
+// library token, never free text. Reported by the client of the character
+// (logged out with a look key of its own, logged in through the account),
+// asked for by the clients of its group members. The flag `looks`.
+//
+//   PUT    /api/look          LookReport with `key`            → 204; 409 owned
+//   DELETE /api/look          { key }                          → 204 (the key's rows go)
+//   PUT    /api/u/look        LookReport without `key`         → 204; 409 owned
+//   DELETE /api/u/look        (no body)                        → 204 (the account's rows go)
+//   POST   /api/look/find     { names: string[] } (≤ 40)       → LookFindAnswer
+
+/** A character name as the directory keeps it: 2–20 letters (stored in lower case). */
+export const LOOK_NAME_PATTERN = /^[A-Za-z]{2,20}$/;
+/** The race kinds a report may carry (src/gmcp/race.ts `RaceKind`; a unit test keeps them in step). */
+export const LOOK_RACES = ['numenorean', 'halfelf', 'elf', 'dwarf', 'hobbit', 'troll', 'beorning', 'orc', 'human'] as const;
+/** The subrace kinds (src/gmcp/race.ts `SubraceKind`), each with its race kind. */
+export const LOOK_SUBRACES = {
+  dunadan: 'human',
+  eriadorian: 'human',
+  rohirrim: 'human',
+  noldo: 'elf',
+  sinda: 'elf',
+  silvan: 'elf',
+  fallohide: 'hobbit',
+  harfoot: 'hobbit',
+  stoor: 'hobbit',
+  longbeard: 'dwarf',
+  firebeard: 'dwarf',
+  broadbeam: 'dwarf',
+  tarkhnarb: 'orc',
+  morruhk: 'orc',
+  zaugurz: 'orc',
+  cavetroll: 'troll',
+  hilltroll: 'troll',
+  mountaintroll: 'troll',
+} as const satisfies Record<string, (typeof LOOK_RACES)[number]>;
+export type LookRace = (typeof LOOK_RACES)[number];
+export type LookSubrace = keyof typeof LOOK_SUBRACES;
+export const LOOK_SEXES = ['male', 'female'] as const;
+export type LookSex = (typeof LOOK_SEXES)[number];
+/** A logged-out client's look key (`localStorage` `wc.lookKey`): a random UUID, used for nothing else. */
+export const LOOK_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** `PUT /api/look` (with `key`) and `PUT /api/u/look` (without). Every field is present; null is "not known" (a token: an automatic look or an own image). */
+export interface LookReport {
+  key?: string;
+  name: string;
+  race: LookRace | null;
+  subrace: LookSubrace | null;
+  sex: LookSex | null;
+  token: string | null;
+}
+
+/** A directory row as `find` answers it: no owner, no time. */
+export interface LookRow {
+  race: LookRace | null;
+  subrace: LookSubrace | null;
+  sex: LookSex | null;
+  token: string | null;
+}
+
+/** `POST /api/look/find` → the names found, by lower-case name; a name not in it has no row. */
+export interface LookFindAnswer {
+  looks: Record<string, LookRow>;
+}
+
+/** The most names one `find` asks for. */
+export const LOOK_FIND_MAX = 40;
+/** `find`s per address a minute (the binding LOOK_LIMITER). */
+export const LOOK_FIND_PER_MINUTE = 60;
+/** Reports (PUT and DELETE) an hour, per owner and per hashed address (the `attempt` table). */
+export const LOOK_REPORTS_PER_HOUR = 30;
+/** The most names one owner holds. */
+export const LOOK_NAMES_PER_OWNER = 20;
+/** Another owner's report is refused (409 `look_owned`) while the row is fresher than this. */
+export const LOOK_OWNED_DAYS = 30;
+/** The daily cron removes a row not refreshed for this long. */
+export const LOOK_KEEP_DAYS = 180;
+/** The longest body of a look route. */
+export const LOOK_MAX_BODY_BYTES = 2048;
+
+/** `GET /api/admin/look/<name>` → the row as the admin sees it (no owner: a hash says nothing). */
+export interface AdminLookRow extends LookRow {
+  name: string;
+  updated: number;
 }

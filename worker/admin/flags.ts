@@ -1,7 +1,8 @@
 // The admin page's "Flags and limits" view (stage 66, ADR 0157; the
 // owner's pick 4b): today's flags and their switches (stage 59), and the
 // default limits for every account, edited without a release. An account
-// with a limit of its own keeps it.
+// with a limit of its own keeps it. Stage 80 part E: the directory of
+// shared looks (its rows' count, a row by name and its removal).
 
 export const FLAGS_CSS = `.flags { width: auto; min-width: 28em; }
 .flags-sec, .defaults-sec { margin-bottom: 24px; }
@@ -35,7 +36,50 @@ export const FLAGS_JS = String.raw`
     var dbody = el('div');
     dbody.append(el('p', 'Loading…', 'muted'));
     dsec.append(dbody);
-    root.append(fsec, dsec);
+    var lsec = el('section', null, 'card looks-sec');
+    lsec.append(el('h3', 'Shared looks'));
+    var lcount = el('p', '…', 'muted');
+    lcount.id = 'looks-count';
+    var lname = el('input');
+    lname.type = 'text';
+    lname.id = 'look-name';
+    lname.maxLength = 20;
+    lname.setAttribute('aria-label', 'Character name');
+    lname.placeholder = 'Character name';
+    var lout = el('div');
+    var lmsg = el('p', '', 'err');
+    lmsg.setAttribute('role', 'alert');
+    var lfind = button('Look up', '', function () {
+      lmsg.textContent = '';
+      lout.replaceChildren();
+      var name = lname.value.trim();
+      if (!/^[A-Za-z]{2,20}$/.test(name)) {
+        lmsg.textContent = 'A character name is 2 to 20 letters.';
+        return;
+      }
+      api('/api/admin/look/' + encodeURIComponent(name)).then(function (r) {
+        var line = [r.race || 'race unknown', r.subrace || '', r.sex || 'sex unknown', r.token ? 'token ' + r.token : 'no token'].filter(Boolean).join(' · ');
+        var rm = button('Remove', 'danger', function () {
+          confirmModal({
+            title: 'Remove ' + r.name + ' from the directory?',
+            body: [el('p', 'The row goes now. The player’s client reports again when it next plays, and the name is then its own.')],
+            ok: 'Remove',
+            done: r.name + ' removed from the directory.',
+            after: rerender,
+            run: function (note) { return write('DELETE', '/api/admin/look/' + encodeURIComponent(r.name), withNote({}, note)); },
+          });
+        });
+        var row = el('p');
+        row.append(el('b', r.name), document.createTextNode(' — ' + line + ' · updated ' + utc(r.updated) + ' UTC '), rm);
+        lout.replaceChildren(row);
+      }, function (e) {
+        lmsg.textContent = /not_found|404/.test(String(e.message)) ? 'No row for that name.' : 'Could not read it: ' + e.message;
+      });
+    });
+    var lform = el('div', null, 'acts');
+    lform.append(lname, lfind);
+    lsec.append(lcount, el('p', 'What a player’s client reported for a character name (race, sex, a library token). Removal is the remedy when a stranger holds a name its player never reported; it goes to the admin log.', 'muted small'), lform, lmsg, lout);
+    root.append(fsec, dsec, lsec);
 
     function loadFlags() {
       return api('/api/admin/stats').then(function (s) {
@@ -56,6 +100,7 @@ export const FLAGS_JS = String.raw`
           tr.append(el('td', name), el('td', f.value ? 'on' : 'off'), el('td', (f.default ? 'on' : 'off') + (f.override === null ? '' : ' (overridden)')), td);
           ftbody.append(tr);
         });
+        lcount.textContent = (typeof s.looks === 'number' ? s.looks : 0) + ' names in the directory.';
       }, function (e) {
         fmsg.textContent = 'Could not read the flags: ' + e.message;
       });

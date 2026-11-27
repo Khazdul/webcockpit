@@ -25,6 +25,8 @@
     "FLAG_SYNC": true,
     // On in both real environments (ADR 0155, addendum of 2026-11-17).
     "FLAG_MUME": true,
+    // On, as in staging (stage 80 part E): the directory's tests.
+    "FLAG_LOOKS": true,
     // Test values of what are secrets on a real Worker; the Turnstile pair
     // is Cloudflare's published test keys (the tests stub siteverify).
     "AUTH_PEPPER": "test-pepper-not-a-secret-0123456789",
@@ -42,6 +44,7 @@
     { "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } },
     { "name": "API_LIMITER", "namespace_id": "2", "simple": { "limit": 100000, "period": 60 } },
     { "name": "AUTH_LIMITER", "namespace_id": "3", "simple": { "limit": 100000, "period": 60 } },
-    { "name": "SEARCH_LIMITER", "namespace_id": "4", "simple": { "limit": 100000, "period": 60 } }
+    { "name": "SEARCH_LIMITER", "namespace_id": "4", "simple": { "limit": 100000, "period": 60 } },
+    { "name": "LOOK_LIMITER", "namespace_id": "5", "simple": { "limit": 100000, "period": 60 } }
   ]
 }
