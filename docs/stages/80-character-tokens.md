@@ -1029,8 +1029,11 @@ assigns it. The resolver's silent fallback covers it.
 - [x] F. Phone and tablet (`1b89052c`…`9119e9c7`; phone project 651 passed,
   1 known flake; screenshots `docs/stages/img/80-f-*.png`)
 - [x] The end checks, the documents, the test guide, the log
-- [ ] G. Owner feedback 2026-11-28: the map's NPC visibility; the HP arcs
-  follow every source of HP
+- [x] G. Owner feedback 2026-11-28: the map's NPC visibility; the HP arcs
+  follow every source of HP (`2ab5f481`…`976d9cb4`; unit 6416, full e2e
+  2191 passed, 5 failed under load: all pass alone except the known flakes
+  `looks-own:193`, 2 of 5 alone both before and after G, and
+  `phone-own-keyboard-editors:218`)
 
 ## Test guide
 

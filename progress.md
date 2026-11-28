@@ -190,6 +190,23 @@ with no stage of their own. Remove a line when it is done.
 
 ## Session log
 
+### 2026-11-28 — Stage 80 part G, the owner's feedback
+
+- The owner tested: steps 1–4 OK, 6 (phone, tablet) OK; 5 waits for the
+  deploy. Two changes asked for, built as part G by a subagent and
+  verified here (screenshots, typecheck, unit 6416, full e2e 2191 passed,
+  failures pass alone but the known flakes).
+- The map has its own NPC visibility (`mapper.npcMode`, Off | Labeled |
+  All, default Labeled), in Settings → Mapper and the map's gear; Show
+  map pane and Room notes share a row to keep the page under Appearance.
+- The HP arcs: no client fault found; every source moves them (new
+  live-path e2e). NPCs' HP comes from MUME only as rare words, mostly
+  after `group`. A hidden `group` with the poll is the owner's call.
+  Fixed on the way: your own `Group.Update` became a nameless member in
+  the map's group table.
+- **Next:** the owner's answer on the hidden `group`; release, then step 5.
+- **Commits:** 2c169d39…976d9cb4 and this one.
+
 ### 2026-11-27 — Stage 80 built in the night run (parts A–F)
 
 - Built by subagents one part at a time, each verified in the main
