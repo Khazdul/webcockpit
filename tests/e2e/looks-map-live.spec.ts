@@ -1,9 +1,12 @@
 // The map's group on the live path (stage 80 part G, ADR 0171 addendum),
 // against the login mock (the telnet, the GMCP, the hidden poll), the
-// player located in the bundled arda.mm2: the HP arcs follow every source
-// of HP: yours from the hidden info poll and `Char.Vitals`, a member's
-// from `Group.Update` (a number, an NPC's band word) and from the fight
-// card's `buffer-hits`, each without a `group` command in between.
+// player located in the bundled arda.mm2:
+// - the HP arcs follow every source of HP: yours from the hidden info poll
+//   and `Char.Vitals`, a member's from `Group.Update` (a number, an NPC's
+//   band word) and from the fight card's `buffer-hits`, each without a
+//   `group` command in between;
+// - `mapper.npcMode` hides grouped NPCs (none, the unlabeled, or none
+//   hidden), and the fan's `+n` counts only what is shown.
 // The worker reports what it drew in `data-map-tokens` (tokens/plus/arcs)
 // and the arcs' HP fractions summed in thousandths in `data-map-token-hp`.
 import { type Page, expect, test } from '@playwright/test';
@@ -91,5 +94,41 @@ test('the arcs follow the poll, Char.Vitals, Group.Update and buffer-hits withou
   // Thorin's number while the fight goes on.
   play(m, gmcp('Group.Update', { id: 2, hp: 90, 'hp-string': 'fine' }), PROMPT);
   await expect.poll(() => hp(page)).toBe('1380');
+  expect(errors).toEqual([]);
+});
+
+const pony = (id: number) => ({ id, type: 'npc', name: 'pony', label: 0, mapid: ROOM, room: 'Old East Road', 'hp-string': 'healthy', 'mana-string': 0, 'mp-string': 'unwearied' });
+
+test('NPC visibility on the map: labeled by default, all, off, and the +n of the fan', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const m = await login(page);
+  const npcMode = (mode: string) => page.evaluate((v) => window.__wc!.settings.update({ mapper: { npcMode: v as 'off' | 'labeled' | 'all' } }), mode);
+  expect(await page.evaluate(() => window.__wc!.settings.get().mapper.npcMode)).toBe('labeled');
+  // You, Thorin, the labeled horse and three unlabeled ponies in one room.
+  play(
+    m,
+    gmcp('Char.StatusVars', { name: 'Rasta', race: 'Man', subrace: 'Dunadan' }),
+    gmcp('Char.Vitals', { hp: 200, maxhp: 200, 'hp-string': 'healthy', position: 'standing' }),
+    gmcp('Group.Set', [{ id: 1, type: 'you', waiting: false }, ally(2, 'Thorin', 100), horse, pony(4), pony(5), pony(6)]),
+    gmcp('Room.Info', { id: ROOM, area: 'Bree', name: 'Old East Road', exits: {} }),
+    `\x1b[32mOld East Road\x1b[0m\r\nExits: north, south, east, west.\r\n\r\n${PROMPT}`,
+  );
+  // Labeled (the default): you whole, Thorin and the horse small; no ponies.
+  await expect.poll(() => drawn(page), { timeout: 20_000 }).toBe('3/0/0');
+  // All: you, three small ones and a +2 disc.
+  await npcMode('all');
+  await expect.poll(() => drawn(page)).toBe('4/1/0');
+  // Off: you and Thorin.
+  await npcMode('off');
+  await expect.poll(() => drawn(page)).toBe('2/0/0');
+  // The Group pane's choice is its own.
+  expect(await page.evaluate(() => window.__wc!.settings.get().group.npcMode)).toBe('labeled');
+  // A label given to a pony shows it again (Labeled).
+  await npcMode('labeled');
+  await expect.poll(() => drawn(page)).toBe('3/0/0');
+  play(m, gmcp('Group.Update', { id: 4, label: 'PO' }), PROMPT);
+  await expect.poll(() => drawn(page)).toBe('4/0/0');
   expect(errors).toEqual([]);
 });

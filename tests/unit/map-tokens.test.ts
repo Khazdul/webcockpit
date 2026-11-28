@@ -447,6 +447,38 @@ describe('the worker side', () => {
     c.handle({ t: 'tokenImage', key: 'drawn:human:male', failed: true });
   });
 
+  it('leaves out the NPCs the map setting hides, tokens or boxes (stage 80 part G)', () => {
+    const { c, scenes } = core();
+    const npcs: Scene = {
+      ...EMPTY_SCENE,
+      room: 0,
+      located: true,
+      members: [
+        { id: 2, room: 0, text: 'Thorin', color: 1, npc: false },
+        { id: 3, room: 0, text: 'HORSE', color: 2, npc: true, labeled: true },
+        { id: 4, room: 0, text: 'pony', color: 3, npc: true, labeled: false },
+      ],
+    };
+    c.handle({ t: 'debugScene', scene: npcs });
+    // Before the first `npcs`: all, the scene as it came.
+    expect(scenes.at(-1)).toBe(npcs);
+    const ids = () => scenes.at(-1)!.members.map((m) => m.id);
+    c.handle({ t: 'npcs', mode: 'labeled' });
+    expect(ids()).toEqual([2, 3]);
+    expect(scenes.at(-1)!.tokens).toBeUndefined();
+    c.handle({ t: 'npcs', mode: 'off' });
+    expect(ids()).toEqual([2]);
+    // With tokens the faces come on top of the same filter.
+    c.handle(msg(true));
+    expect(ids()).toEqual([2]);
+    expect(scenes.at(-1)!.tokens).toBeDefined();
+    c.handle({ t: 'npcs', mode: 'all' });
+    expect(ids()).toEqual([2, 3, 4]);
+    const n = scenes.length;
+    c.handle({ t: 'npcs', mode: 'all' });
+    expect(scenes.length).toBe(n);
+  });
+
   it('asks the main thread for a drawing with tokenArt', () => {
     const { c, out } = core();
     expect(c.tokenImages.image(drawn('hobbit'))).toBeNull();

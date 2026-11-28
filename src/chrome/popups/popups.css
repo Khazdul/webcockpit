@@ -744,6 +744,16 @@
   color: var(--sf-dim);
 }
 
+/* Two rows side by side (Mapper: Show map pane, Room notes; stage 80 part G). */
+.wc-sp-pair {
+  display: flex;
+}
+
+.wc-sp-pair > .wc-ck-row {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .wc-sp-maprow .wc-ck-help {
   white-space: normal;
 }

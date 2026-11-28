@@ -1098,19 +1098,23 @@ describe('SettingsStore', () => {
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a full hover, and clamps stored values', () => {
     // A new player: Shimrod on a transparent map (ADR 0092); a stored mapper keeps the MMapper look.
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
-    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
-    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
+    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
     expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
     expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
-    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true });
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' });
     // Transparent (ADR 0085 addendum) is kept, as a choice and remembered.
     expect(migrateMapper({ background: 'transparent', backgroundBefore: 'transparent' })).toMatchObject({ background: 'transparent', backgroundBefore: 'transparent' });
     expect(migrateMapper({ background: 'Transparent' }).background).toBe('#2e3436');
     expect(migrateMapper({ hover: 'minimal' }).hover).toBe('minimal');
+    // Stage 80 part G: the map's NPC visibility, labeled unless stored otherwise.
+    expect(migrateMapper({ npcMode: 'all' }).npcMode).toBe('all');
+    expect(migrateMapper({ npcMode: 'off' }).npcMode).toBe('off');
+    expect(migrateMapper({ npcMode: 'some' }).npcMode).toBe('labeled');
   });
 
   it('keeps a named map background, normalised, and drops anything else (ADR 0085, round 3)', () => {

@@ -562,6 +562,8 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
     // Stage 80 (additive, no version): on unless stored off.
     tokens: bool(x.tokens, true),
     tokenHp: bool(x.tokenHp, true),
+    // Stage 80 part G (additive, no version): the labeled NPCs unless stored otherwise.
+    npcMode: oneOf(x.npcMode, GROUP_NPC_MODES, d.npcMode),
   };
 }
 

@@ -663,8 +663,16 @@ describe('Settings popup tabs', () => {
     expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).not.toBe('');
     // The order (ADR 0118): Background colour and Map file before the tileset picker, which is last.
     const order = [...map.querySelectorAll('.wc-ck-row > .wc-ck-l, .wc-sp-thead > .wc-ck-l')].map((l) => l.firstChild!.textContent);
-    // Stage 80 part B: the token row (Off|On|With HP arc) after Room notes.
-    expect(order).toEqual(['Show map pane', 'Room notes', 'Tokens', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    // Stage 80 part B: the token row (Off|On|With HP arc) after Room notes; part G: the NPC row after it,
+    // and Show map pane and Room notes share one row.
+    expect(order).toEqual(['Show map pane', 'Room notes', 'Tokens', 'NPC visibility', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    expect(map.querySelectorAll('.wc-sp-pair > .wc-ck-row')).toHaveLength(2);
+    expect(t.s().mapper.npcMode).toBe('labeled');
+    click(map.querySelector('[aria-label="NPC visibility"] .wc-ck-sg[data-value="all"]'));
+    expect(t.s().mapper.npcMode).toBe('all');
+    click(map.querySelector('[aria-label="NPC visibility"] .wc-ck-sg[data-value="off"]'));
+    expect(t.s().mapper.npcMode).toBe('off');
+    expect(t.s().group.npcMode).toBe('labeled');
     click(map.querySelector('[aria-label="Tokens"] .wc-ck-sg[data-value="on"]'));
     expect(t.s().mapper.tokens).toBe(true);
     expect(t.s().mapper.tokenHp).toBe(false);

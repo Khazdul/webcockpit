@@ -92,8 +92,12 @@
 //   loaded with the map client) tells the worker the tokens on change while
 //   the pane is shown, and bakes the drawings the worker asks for
 //   (`tokenArt`). Without it the worker draws today's boxes.
-//   `mapTokens` (dataset): `tokens/plus discs/arcs` the last frame drew;
-//   `mapSelfLook`: the key of your token's picture as last sent.
+//   `mapTokens` (dataset): `tokens/plus discs/arcs` the last frame drew,
+//   `mapTokenHp` the arcs' HP fractions summed in thousandths (an arc that
+//   moves changes it); `mapSelfLook`: the key of your token's picture as
+//   last sent.
+// - NPCs (stage 80 part G): `mapper.npcMode` goes to the worker (`npcs`) at
+//   start and on change; it hides grouped NPCs, tokens or boxes.
 
 import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
@@ -253,6 +257,8 @@ export class MapPane extends PaneShell {
     this.applyBackground();
     // Transparent follows the pane's background too (the theme, the pane's tint).
     this.own(ctx.settings.subscribe(() => this.applyBackground(true)));
+    // Which grouped NPCs the map draws (stage 80 part G).
+    this.own(ctx.settings.subscribe((next, prev) => next.mapper.npcMode !== prev.mapper.npcMode && this.client?.npcs(next.mapper.npcMode)));
 
     this.onResize(() => this.sync());
     this.own(ctx.cells.subscribe(() => this.sync()));
@@ -511,6 +517,7 @@ export class MapPane extends PaneShell {
         onMessage: this.onWorker,
       });
       if (this.lensZoom !== null) this.client.zoomTo(this.lensZoom);
+      this.client.npcs(this.ctx.settings.get().mapper.npcMode);
       const looks = this.ctx.looks;
       if (feed && looks) {
         this.tokens = new feed.TokenFeed({

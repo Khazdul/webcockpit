@@ -15,6 +15,8 @@ export interface SceneMember {
   /** 0xRRGGBB, from MMapper's colour generator. */
   color: number;
   npc: boolean;
+  /** An NPC with a label (MUME's non-empty `label`; stage 80 part G): absent counts as labeled. */
+  labeled?: boolean;
 }
 
 /** A script's map mark this frame (ADR 0057). */

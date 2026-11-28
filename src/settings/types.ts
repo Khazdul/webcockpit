@@ -436,6 +436,12 @@ export interface MapperSettings {
   tokens: boolean;
   /** The HP arc round a hurt member's token. */
   tokenHp: boolean;
+  /**
+   * Which grouped NPCs the map draws, tokens or boxes (stage 80 part G,
+   * ADR 0171 addendum): none, the labeled ones, or all. The Group pane's
+   * `group.npcMode` is a choice of its own.
+   */
+  npcMode: GroupNpcMode;
 }
 
 /**
@@ -840,7 +846,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '', tokens: true, tokenHp: true, npcMode: 'labeled' },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true, balloons: false },
     windows: { profile: null, scripts: null },
     phone: defaultPhoneSettings(),

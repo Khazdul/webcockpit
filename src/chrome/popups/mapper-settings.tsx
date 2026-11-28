@@ -2,11 +2,14 @@
 // component for Settings → Mapper and the map pane's gear popup (30c part
 // 2). The logic is in ../mapper-model.ts:
 //
-//   Show map pane            [toggle]     panes.map.on
-//   Room notes               [toggle]     mapper.notes (ADR 0077)
+//   Show map pane [toggle]   Room notes [toggle]
+//                            panes.map.on, mapper.notes (ADR 0077); one
+//                            row of two halves (stage 80 part G)
 //   Tokens                   Off|On|With HP arc   mapper.tokens, mapper.tokenHp
 //                            (stage 80, ADR 0171; one row so the page stays
 //                            under Appearance's height, ADR 0118)
+//   NPC visibility           Off|Labeled|All      mapper.npcMode (stage 80
+//                            part G: the Group pane's choice, for the map)
 //   Room info on hover       Off|Minimal|Full       mapper.hover (ADR 0080)
 //   Hover text size          Small|Medium|Large     mapper.hoverSize
 //   Background colour        [dropdown]   mapper.background (ADR 0085)
@@ -34,6 +37,7 @@ import { type CurrentMap, mapAssetBase } from '../../map/store';
 import { TILESET_CARDS, type TilesetFamily, chooseTileset, tilesetChoice, tilesetPreviewPath } from '../../map/tilesets';
 import type { MapHoverMode, MapHoverSize } from '../../settings';
 import { useServices, useSettings } from '../kit/hooks';
+import { NPC_MODE_CHOICES } from '../pane-options-model';
 import {
   BUNDLED_MAP,
   type MapFlash,
@@ -172,14 +176,20 @@ export function MapperSettings(): VNode {
   const bg = mapBgChoice(m.background);
   return (
     <div class="wc-sp-mapper">
-      <Row label="Show map pane">
-        <Toggle label="Show map pane" on={s.panes.map.on} onChange={(on) => settings.update({ panes: { map: { on } } })} />
-      </Row>
-      <Row label="Room notes">
-        <Toggle label="Room notes" on={m.notes} onChange={(notes) => settings.update({ mapper: { notes } })} />
-      </Row>
+      {/* Two switches share a row, so the page stays under Appearance's height (ADR 0118). */}
+      <div class="wc-sp-pair">
+        <Row label="Show map pane">
+          <Toggle label="Show map pane" on={s.panes.map.on} onChange={(on) => settings.update({ panes: { map: { on } } })} />
+        </Row>
+        <Row label="Room notes">
+          <Toggle label="Room notes" on={m.notes} onChange={(notes) => settings.update({ mapper: { notes } })} />
+        </Row>
+      </div>
       <Row label="Tokens">
         <Segmented label="Tokens" value={tokenMode(m)} options={TOKEN_CHOICES} onChange={(mode) => settings.update({ mapper: tokenPatch(mode) })} />
+      </Row>
+      <Row label="NPC visibility">
+        <Segmented label="NPC visibility" value={m.npcMode} options={NPC_MODE_CHOICES} onChange={(npcMode) => settings.update({ mapper: { npcMode } })} />
       </Row>
       <Row label="Room info on hover">
         <Segmented label="Room info on hover" value={m.hover} options={HOVER_CHOICES} onChange={(hover) => settings.update({ mapper: { hover } })} />

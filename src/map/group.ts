@@ -257,6 +257,7 @@ export class GroupTable {
         text: e.label.trim() !== '' ? e.label : e.name,
         color: hslColor(e.hue),
         npc: e.type === 'npc',
+        ...(e.type === 'npc' ? { labeled: e.label.trim() !== '' } : {}),
       });
     }
     return out;

@@ -140,7 +140,7 @@ describe('group mates (MMapper ColorGenerator, CGroupChar)', () => {
     ]);
     expect(t.members(resolve)).toEqual([
       { id: 2, room: 7, text: 'Gibur', color: hslColor(198), npc: false },
-      { id: 3, room: null, text: 'MERC', color: hslColor(335), npc: true },
+      { id: 3, room: null, text: 'MERC', color: hslColor(335), npc: true, labeled: true },
     ]);
     expect(t.apply('group.update', { id: 3, mapid: 100 })).toBe(true);
     expect(t.apply('Group.Update', { id: 3, hp: 5 })).toBe(false);
@@ -163,7 +163,10 @@ describe('group mates (MMapper ColorGenerator, CGroupChar)', () => {
     expect(t.apply('Group.Update', { id: 1, waiting: true })).toBe(false);
     expect(t.apply('Group.Update', { id: 1, waiting: false })).toBe(false);
     expect(t.size).toBe(2);
-    expect(t.members(() => null).map((m) => m.id)).toEqual([2, 4]);
+    expect(t.members(() => null).map((m) => [m.id, m.labeled])).toEqual([
+      [2, undefined],
+      [4, false],
+    ]);
     // The next member gets the hue after Gibur's and the pony's, as in MMapper.
     t.apply('Group.Add', { id: 5, type: 'ally', name: 'Dori' });
     expect(t.members(() => null).map((m) => m.color)).toEqual([hslColor(198), hslColor(335), hslColor(113)]);

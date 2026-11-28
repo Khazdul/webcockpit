@@ -20,6 +20,7 @@ import {
   type MapAsk,
   type MapEvent,
   type MapGmcpPackage,
+  type MapNpcMode,
   type MapSource,
   type MarkFocus,
   type MarkStyle,
@@ -97,6 +98,11 @@ export class MapClient {
   /** A new map background, `#rrggbb` (ADR 0085); `transparent`: the pane's colour, the empty space clear. */
   background(color: string, transparent = false): void {
     this.post(transparent ? { t: 'background', color, transparent } : { t: 'background', color });
+  }
+
+  /** Which grouped NPCs are drawn (`mapper.npcMode`, stage 80 part G). */
+  npcs(mode: MapNpcMode): void {
+    this.post({ t: 'npcs', mode });
   }
 
   resize(width: number, height: number, dpr: number): void {

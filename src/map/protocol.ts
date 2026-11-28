@@ -23,6 +23,9 @@ export type { RoomQuery } from './query';
 export type { RoomHoverInfo } from './hover';
 export type { RoomDetails, SearchHit, SearchQuery } from './search';
 
+/** Which grouped NPCs the map draws (the settings' `GroupNpcMode`). */
+export type MapNpcMode = 'off' | 'labeled' | 'all';
+
 /** Most rooms one mark takes by id (ADR 0077 §B; a query mark keeps QUERY_MAX). */
 export const MARK_ROOMS_MAX = 200;
 
@@ -331,6 +334,12 @@ export type MainToWorker =
   | { t: 'roomAt'; req: number; x: number; y: number; full: boolean }
   /** The tokens (stage 80, ADR 0171): sent only on change. */
   | ({ t: 'tokens' } & TokenState)
+  /**
+   * Which grouped NPCs are drawn, tokens or boxes (`mapper.npcMode`, stage
+   * 80 part G, ADR 0171 addendum): none, those with a label, or all. Until
+   * the first one the worker draws all (the map before the setting).
+   */
+  | { t: 'npcs'; mode: MapNpcMode }
   /**
    * A picture the worker asked for (`tokenArt`): a baked drawing as a
    * transferred ImageBitmap, an own image's bytes (part D), or `failed`

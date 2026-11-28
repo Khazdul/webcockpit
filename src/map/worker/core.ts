@@ -43,7 +43,10 @@
 // thread's hue for each member id it knows (else the tracker's own) and,
 // with tokens on, the faces. The pictures are TokenImages' (they outlive a
 // renderer rebuilt after a lost context): library tokens fetched here, the
-// rest asked of the main thread (`tokenArt` → `tokenImage`).
+// rest asked of the main thread (`tokenArt` → `tokenImage`). The `npcs`
+// message (stage 80 part G) leaves out the grouped NPCs the setting hides,
+// tokens or boxes, before the faces and the fan are made (so `+n` counts
+// only what is shown); all until it comes.
 //
 // Background (ADR 0085): `init.background` and later `background`
 // messages set the renderer's clear colour (kept for a rebuilt renderer
@@ -64,6 +67,7 @@ import {
   type MapAnswer,
   type MapAsk,
   type MapEvent,
+  type MapNpcMode,
   type MapSource,
   type MarkStyle,
   roomTints,
@@ -75,7 +79,7 @@ import {
 import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from '../progress';
 import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
-import type { Scene, SceneMark, SceneTokens } from '../scene';
+import type { Scene, SceneMark, SceneMember, SceneTokens } from '../scene';
 import { TokenImages } from './token-images';
 import { BACKGROUND, type RGBA, backgroundRgba } from '../render/palette';
 import { type Renderer, type TileStyle, createRenderer } from '../render/renderer';
@@ -196,6 +200,8 @@ export class MapWorkerCore {
   /** Its hues by member id, and the faces (with tokens on). */
   private tokenColors = new Map<number, number>();
   private sceneTokens: SceneTokens | null = null;
+  /** Which grouped NPCs are drawn (`npcs`, stage 80 part G): all until told. */
+  private npcMode: MapNpcMode = 'all';
   /** The scene `debugScene` set, drawn until the tracker's scene changes. */
   private debugBase: Scene | null = null;
   /** The token pictures (ADR 0171). */
@@ -295,6 +301,12 @@ export class MapWorkerCore {
         return;
       case 'tokens':
         this.setTokens(m);
+        return;
+      case 'npcs':
+        if (m.mode === this.npcMode || (m.mode !== 'off' && m.mode !== 'labeled' && m.mode !== 'all')) return;
+        this.npcMode = m.mode;
+        this.pushScene();
+        this.requestRender();
         return;
       case 'tokenImage':
         this.tokenImages.receive(m.key, m);
@@ -430,11 +442,13 @@ export class MapWorkerCore {
     this.requestRender();
   }
 
-  /** `base` with the main thread's hues and, with tokens on, the faces. */
+  /** `base` without the NPCs `npcMode` hides, with the main thread's hues and, with tokens on, the faces. */
   private decorate(base: Scene): Scene {
-    if (!this.tokenState) return base;
+    const mode = this.npcMode;
+    const hide = (x: SceneMember): boolean => x.npc && (mode === 'off' || x.labeled === false);
+    let members = mode !== 'all' && base.members.some(hide) ? base.members.filter((x) => !hide(x)) : base.members;
+    if (!this.tokenState) return members === base.members ? base : { ...base, members };
     const colors = this.tokenColors;
-    let members = base.members;
     if (colors.size > 0 && members.some((x) => colors.has(x.id) && colors.get(x.id) !== x.color)) {
       members = members.map((x) => {
         const c = colors.get(x.id);
