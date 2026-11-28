@@ -1029,6 +1029,8 @@ assigns it. The resolver's silent fallback covers it.
 - [x] F. Phone and tablet (`1b89052c`…`9119e9c7`; phone project 651 passed,
   1 known flake; screenshots `docs/stages/img/80-f-*.png`)
 - [x] The end checks, the documents, the test guide, the log
+- [ ] G. Owner feedback 2026-11-28: the map's NPC visibility; the HP arcs
+  follow every source of HP
 
 ## Test guide
 
@@ -1409,6 +1411,16 @@ Back cancels. The screenshots for your verdict (Goal 12), in
 - 2026-11-26: the two bears are approved as drawn ("Kör på dessa"). The
   female keeps the heather band: remove `alternatives.cord` when
   wiring.
+- 2026-11-28, after testing: steps 1–4 of the test guide are OK. Step 5
+  (shared looks, two browsers) not tested yet: after the deploy. Step 6
+  (phone and tablet) looks OK at a first look: the phone and tablet
+  design is approved (Goal 12). Two changes asked for:
+  1. The map always shows grouped NPCs. It should have the same choice as
+     the Group pane: NPC visibility Off | Labeled | All, default Labeled.
+  2. The HP arcs on the map seem to follow only the `group` command.
+     Every way the client learns your own HP (`Char.Vitals`, the hidden
+     poll) or a member's (`Group.Update`, the fight card's `buffer-hits`)
+     should move the arcs as far as possible.
 
 ## The kickoff prompt
 
