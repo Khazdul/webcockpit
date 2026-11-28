@@ -155,6 +155,26 @@ describe('group mates (MMapper ColorGenerator, CGroupChar)', () => {
     expect(t.size).toBe(3);
     expect(t.apply('Group.Remove', 42)).toBe(false);
   });
+
+  it('knows your id: a Group.Update for it is not a new member (stage 80 part G)', () => {
+    const t = new GroupTable();
+    t.apply('Group.Set', [{ id: 1, type: 'you', waiting: false }, { id: 2, type: 'ally', name: 'Gibur', label: 0 }, { id: 4, type: 'npc', name: 'pony', label: 0 }]);
+    // MUME's own flags for you, many times a minute.
+    expect(t.apply('Group.Update', { id: 1, waiting: true })).toBe(false);
+    expect(t.apply('Group.Update', { id: 1, waiting: false })).toBe(false);
+    expect(t.size).toBe(2);
+    expect(t.members(() => null).map((m) => m.id)).toEqual([2, 4]);
+    // The next member gets the hue after Gibur's and the pony's, as in MMapper.
+    t.apply('Group.Add', { id: 5, type: 'ally', name: 'Dori' });
+    expect(t.members(() => null).map((m) => m.color)).toEqual([hslColor(198), hslColor(335), hslColor(113)]);
+    // The id given to someone else: a member again.
+    expect(t.apply('Group.Add', { id: 1, type: 'ally', name: 'Nob' })).toBe(true);
+    expect(t.apply('Group.Update', { id: 1, mapid: 3 })).toBe(true);
+    expect(t.size).toBe(4);
+    // After a clear, an unknown id is added again.
+    t.clear();
+    expect(t.apply('Group.Update', { id: 1, name: 'Ori' })).toBe(true);
+  });
 });
 
 describe.skipIf(!HAS_ARDA)('locator and path on arda.mm2', () => {

@@ -25,7 +25,11 @@
 //   it; Group.Remove (a bare integer) releases the colour.
 // - `type: "you"` is the player: kept out of the table and never given a
 //   colour (MMapper keeps it as `self`; a quirk where a second "you" entry
-//   consumes a hue is not reproduced).
+//   consumes a hue is not reproduced). Its id is remembered, so a
+//   `Group.Update` for it (MUME sends your `waiting` flag that way, many
+//   times a minute) is yours, as MMapper finds `self` by id, and not an
+//   unknown id to add (stage 80 part G: it used to come back as a nameless
+//   member with a hue).
 // - `mapid` is MUME's server room id; the caller resolves it to a room.
 
 import type { SceneMember } from './scene';
@@ -116,6 +120,8 @@ const intId = (v: unknown): number | null => (typeof v === 'number' && Number.is
 export class GroupTable {
   private readonly byId = new Map<number, GroupTableEntry>();
   private readonly colors: ColorGenerator;
+  /** The `you` entry's id, or null. */
+  private selfId: number | null = null;
 
   constructor(playerColor = PLAYER_COLOR) {
     this.colors = new ColorGenerator(playerColor);
@@ -176,6 +182,7 @@ export class GroupTable {
 
   /** Forgets everything (disconnect). */
   clear(): boolean {
+    this.selfId = null;
     if (this.byId.size === 0) return false;
     for (const e of this.byId.values()) if (e.type !== 'you') this.colors.release(e.hue);
     this.byId.clear();
@@ -196,7 +203,11 @@ export class GroupTable {
     this.remove(id);
     const e: GroupTableEntry = { id, name: '', label: '', type: '', mapid: 0, hue: -1 };
     this.merge(e, o);
-    if (e.type === 'you') return true;
+    if (e.type === 'you') {
+      this.selfId = id;
+      return true;
+    }
+    if (id === this.selfId) this.selfId = null;
     e.hue = this.colors.next();
     this.byId.set(id, e);
     return true;
@@ -206,11 +217,14 @@ export class GroupTable {
     const id = intId(o.id);
     if (id === null) return false;
     const e = this.byId.get(id);
+    // Yours (your flags): nothing the map draws, unless it now says it is someone else.
+    if (!e && id === this.selfId && (typeof o.type !== 'string' || o.type === 'you')) return false;
     if (!e) return this.add(o);
     const before = `${e.name}\u0000${e.label}\u0000${e.type}\u0000${e.mapid}`;
     this.merge(e, o);
     if (e.type === 'you') {
       this.remove(id);
+      this.selfId = id;
       return true;
     }
     return before !== `${e.name}\u0000${e.label}\u0000${e.type}\u0000${e.mapid}`;
