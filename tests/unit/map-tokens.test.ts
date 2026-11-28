@@ -282,7 +282,7 @@ describe.skipIf(!HAS_ARDA)('the token draw on a wrapped WebGL2 (cost rule)', () 
     const on = r.drawCalls;
     console.info(`map draw calls at the rent room, zoom 1, you and eight members: boxes ${off}, tokens ${on}`);
     expect(on).toBeLessThanOrEqual(off + 1);
-    expect(r.tokenCounts).toEqual({ tokens: 8, plus: 1, arcs: 8 });
+    expect(r.tokenCounts).toMatchObject({ tokens: 8, plus: 1, arcs: 8 });
     // An unchanged frame: no buffer, no texture upload, the same draws.
     const before = { ...n };
     r.render(v);
@@ -402,7 +402,7 @@ describe('the worker side', () => {
       resize: () => {},
       render: () => {},
       dispose: () => {},
-      tokenCounts: { tokens: 3, plus: 0, arcs: 1 },
+      tokenCounts: { tokens: 3, plus: 0, arcs: 1, hp: 500 },
     };
     const canvas = { width: 0, height: 0, getContext: () => ({}) as WebGL2RenderingContext } as unknown as OffscreenCanvas;
     const c = new MapWorkerCore({
@@ -437,7 +437,7 @@ describe('the worker side', () => {
     expect(s.tokens?.hp).toBe(true);
     expect(c.tokenImages.lib).toBe('/t/');
     run();
-    expect(out.filter((m) => m.t === 'tokensDrawn')).toEqual([{ t: 'tokensDrawn', tokens: 3, plus: 0, arcs: 1 }]);
+    expect(out.filter((m) => m.t === 'tokensDrawn')).toEqual([{ t: 'tokensDrawn', tokens: 3, plus: 0, arcs: 1, hp: 500 }]);
     // Off: the boxes (no tokens), the hues still the main thread's.
     c.handle(msg(false));
     s = scenes.at(-1)!;

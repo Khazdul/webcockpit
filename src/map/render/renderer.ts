@@ -50,7 +50,7 @@ export interface Renderer {
   /** A token picture arrived: build the scene again at the next render. */
   tokensChanged?(): void;
   /** What the last scene build drew as tokens (tests): tokens, `+n` discs, HP arcs. */
-  readonly tokenCounts?: { tokens: number; plus: number; arcs: number };
+  readonly tokenCounts?: { tokens: number; plus: number; arcs: number; hp: number };
   /** False while tiles or the font are still loading (absent: nothing to load). */
   readonly complete?: boolean;
 }

@@ -391,10 +391,11 @@ export type WorkerToMain =
   | { t: 'answer'; req: number; answer: MapAnswer }
   /**
    * What the last frame drew as tokens (stage 80; tests and debugging):
-   * tokens with a picture or a disc, `+n` discs, HP arcs. Posted when it
-   * changed.
+   * tokens with a picture or a disc, `+n` discs, HP arcs, and the arcs' HP
+   * fractions summed in thousandths (`hp`: an arc that moves changes it).
+   * Posted when it changed.
    */
-  | { t: 'tokensDrawn'; tokens: number; plus: number; arcs: number }
+  | { t: 'tokensDrawn'; tokens: number; plus: number; arcs: number; hp: number }
   /** The worker needs a picture it cannot get itself (a drawing to bake, an own image): answered by `tokenImage`. */
   | { t: 'tokenArt'; key: string; look: TokenLook }
   /** A mark ended (its time ran out, `unmark`, or a map load). */

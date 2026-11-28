@@ -201,7 +201,7 @@ export class WebGLMapRenderer implements Renderer {
   /** Draw calls in the last render (tests). */
   drawCalls = 0;
   /** What the last scene build drew as tokens (tests, `tokensDrawn`). */
-  readonly tokenCounts = { tokens: 0, plus: 0, arcs: 0 };
+  readonly tokenCounts = { tokens: 0, plus: 0, arcs: 0, hp: 0 };
   private pw = 1;
   private ph = 1;
   private dpr = 1;
@@ -725,11 +725,14 @@ export class WebGLMapRenderer implements Renderer {
   private uploadTokens(g: SceneGeometry): void {
     const gl = this.gl;
     const c = this.tokenCounts;
-    c.tokens = c.plus = c.arcs = 0;
+    c.tokens = c.plus = c.arcs = c.hp = 0;
     for (const t of g.tokens) {
       if (t.plus > 0) c.plus++;
       else c.tokens++;
-      if (t.hp >= 0) c.arcs++;
+      if (t.hp >= 0) {
+        c.arcs++;
+        c.hp += Math.round(t.hp * 1000);
+      }
     }
     if (g.tokens.length === 0) {
       if (this.tokenMesh) this.tokenMesh.count = 0;
@@ -768,7 +771,7 @@ export class WebGLMapRenderer implements Renderer {
     const s = this.scene;
     if (s.room === null && s.members.length === 0) {
       const c = this.tokenCounts;
-      c.tokens = c.plus = c.arcs = 0;
+      c.tokens = c.plus = c.arcs = c.hp = 0;
       return;
     }
     if (!this.sceneMeshes || !this.sceneCurrent(view, cssW, cssH)) {

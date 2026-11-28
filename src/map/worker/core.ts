@@ -162,8 +162,8 @@ export class MapWorkerCore {
   private loadReq = -1;
   /** Frames drawn (tests, debugging). */
   frames = 0;
-  /** The last `tokensDrawn` posted (tokens, plus, arcs; -1: none yet). */
-  private readonly lastTokens = [-1, -1, -1];
+  /** The last `tokensDrawn` posted (tokens, plus, arcs, hp; -1: none yet). */
+  private readonly lastTokens = [-1, -1, -1, -1];
   readonly tracker = new Tracker();
   private persistIds = false;
   private lastStatus = '';
@@ -835,11 +835,12 @@ export class MapWorkerCore {
         const tc = this.renderer.tokenCounts;
         if (tc && this.tokenState) {
           const l = this.lastTokens;
-          if (l[0] !== tc.tokens || l[1] !== tc.plus || l[2] !== tc.arcs) {
+          if (l[0] !== tc.tokens || l[1] !== tc.plus || l[2] !== tc.arcs || l[3] !== tc.hp) {
             l[0] = tc.tokens;
             l[1] = tc.plus;
             l[2] = tc.arcs;
-            this.host.post({ t: 'tokensDrawn', tokens: tc.tokens, plus: tc.plus, arcs: tc.arcs });
+            l[3] = tc.hp;
+            this.host.post({ t: 'tokensDrawn', tokens: tc.tokens, plus: tc.plus, arcs: tc.arcs, hp: tc.hp });
           }
         }
         const d = this.drawnPending;

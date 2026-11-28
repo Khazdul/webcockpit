@@ -685,6 +685,7 @@ export class MapPane extends PaneShell {
         return;
       case 'tokensDrawn':
         this.content.dataset.mapTokens = `${m.tokens}/${m.plus}/${m.arcs}`;
+        this.content.dataset.mapTokenHp = String(m.hp);
         return;
       case 'roomAt':
         {
