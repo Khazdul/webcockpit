@@ -141,3 +141,61 @@ Chromium's burst with the map on was 74 222 lines/s in the token run's
 - Part D answers `tokenArt` for an own image with its bytes.
 - A token picture that changes needs a new id (the worker keeps decoded
   pictures by key for the page's life).
+
+## Addendum (stage 80 part G, 2026-11-28): NPC visibility and the HP arcs' sources
+
+The owner's feedback after testing: the map always showed grouped NPCs,
+and the HP arcs seemed to follow only the `group` command.
+
+- **NPC visibility** (`mapper.npcMode`: `off` | `labeled` | `all`, default
+  `labeled`; additive in `migrateMapper`, no version): the Group pane's
+  choice (`group.npcMode`) for the map, a setting of its own, so the map
+  and the pane can differ. "Labeled" is the Group model's rule: an NPC
+  with a non-empty string `label` (MUME sends `label: 0` without one).
+  Until now every grouped NPC reached the map: the worker's `GroupTable`
+  takes every `Group.*` entry, while only the Group model keeps unlabeled
+  NPCs on the side (`unlabeled()`). The scene members now carry `labeled`
+  (NPCs only), and the map pane sends the mode in a new message
+  `{t:'npcs', mode}` at start and on change. The worker's `decorate` leaves
+  the hidden NPCs out of every scene (the tracker's and `debugScene`)
+  before the hues, the faces and the fan are made, so it holds for tokens
+  and boxes alike, and the `+n` counts only what is shown. A worker that
+  never gets the message draws all, as before. No cost per frame: the
+  filter runs when a scene is handed to the renderer.
+- **The Mapper page** (ADR 0118: no taller than Appearance; 22 px to
+  spare before): the new row costs one row height, so Show map pane and
+  Room notes share one row of two halves (`.wc-sp-pair`). The page stays
+  at its height (515.6 px in Firefox, 515.8 in Chromium; Appearance
+  537.6). The map's gear shows the same component.
+- **The HP arcs.** Reproduced first, on the live path (the login mock:
+  telnet, GMCP, the hidden poll; `tests/e2e/looks-map-live.spec.ts`), with
+  a new debug field: `tokensDrawn.hp`, the arcs' HP fractions summed in
+  thousandths (`data-map-token-hp`), so a test sees an arc move and not
+  only appear. Every source moves the arcs without a `group` command: the
+  poll's `%z %Z` (yours), `Char.Vitals {hp}` alone (yours), a player's
+  `Group.Update {id, hp}`, an NPC's `Group.Update {id, hp-string}` (the
+  band's middle), and `buffer-hits` for the tank, also alone. Checked also
+  by playing two of the owner's real logs through the fixture player
+  (a solo run with fights, and a group run of 2026-09-29 with players and
+  NPCs): the arcs follow each Char.Vitals and each Group.Update. The feed,
+  its subscription, its JSON compare, the worker's scene push on a
+  `tokens` message and the per-build arc data were all as intended; no
+  change was needed there.
+- **What MUME sends** (the owner's run exports of 2026-11-17, 94 `group`
+  commands): a player member's HP comes as numbers all the time (1 366
+  `Group.Update` with `hp` not after a `group`, 37 after one). An NPC's HP
+  is only a band word and comes rarely: 33 word-only updates in all, 17 of
+  them within 0.3 s after a `group`. For example a labeled boar went to
+  "wounded", regenerated in silence for three minutes and was told as
+  "hurt" only after `gro`. So an NPC's arc moves when MUME tells: when it
+  tanks (`buffer-hits`), at the few updates it sends, and after `group`.
+  The client cannot know more without asking; a hidden `group` with the
+  info poll would, and is left to the owner (stage file, Decided in the
+  night).
+- **Found on the way** (`src/map/group.ts`): your own `Group.Update`
+  (MUME's `waiting` flag for the `you` id, many times a minute) came back
+  into the map's table as a nameless member with a hue, since the table
+  kept `you` out and took an update of an unknown id as an add. It was
+  never drawn (no `mapid`), but it took the next hue and sat in the
+  tokens message. The table now remembers the `you` id, as MMapper finds
+  `self` by id.

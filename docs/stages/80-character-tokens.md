@@ -1074,6 +1074,20 @@ Built in the night of 2026-11-26/27, parts A–F. Everything is on `main`
    orange from 45 %, red from 25 %; none at full HP.
 4. Settings → Mapper → Tokens: Off | On | With HP arc (one row, see
    "Decided in the night"). The map's gear has the same row.
+5. (Part G) NPC visibility on the map: Settings → Mapper → NPC visibility,
+   Off | Labeled | All, default Labeled; the map's gear has the same row
+   (Show map pane and Room notes now share one row). Group with a mount or
+   a pet and an NPC with a label: Labeled shows only the labeled ones, All
+   shows every grouped NPC, Off none, as tokens and as boxes (zoom out);
+   with five or more in your room the `+n` counts only what is shown. The
+   Group pane's own NPC visibility stays as you set it.
+6. (Part G) The arcs without `group`: get hurt and regenerate; your arc
+   follows each `Char.Vitals` (and the hidden poll while the card shows
+   Status, Stats or Lore). A player in the group: the arc follows MUME's
+   `Group.Update` numbers. An NPC: MUME tells its HP only as a word and
+   rarely, mostly after you type `group` (see the ADR 0171 addendum);
+   when it tanks, the fight card's word moves its arc. Tell us if an arc
+   stands still where the Group pane's bar moves.
 
 ### 3. Group tokens and the scaling rows (part C)
 
@@ -1405,6 +1419,22 @@ Back cancels. The screenshots for your verdict (Goal 12), in
 - Main session: `tests/e2e-prod/site-root.spec.ts` expects the flag
   `looks` in `/api/config`: `test:prod` against production fails until
   the release that carries it is deployed (E above).
+
+- G: The map's NPC visibility is a setting of its own (`mapper.npcMode`),
+  not the Group pane's: the two can differ. Default Labeled for everyone,
+  also for a stored profile (the map showed all grouped NPCs before).
+- G: To keep Settings → Mapper under Appearance's height (ADR 0118), Show
+  map pane and Room notes share one row; the new NPC row follows Tokens.
+- G: The arcs needed no fix: every source moves them (the live-path e2e,
+  two of your real logs played back). An NPC's HP comes from MUME only as
+  a word and rarely, mostly right after a `group` (your 2026-11-17 runs:
+  17 of 33 word updates within 0.3 s of a `group`), so its arc moves then,
+  when it tanks (`buffer-hits`) and at MUME's few updates. Sending a hidden
+  `group` with the info poll would keep NPC arcs current; not built, your
+  call.
+- G: Found on the way: your own `Group.Update` (the `waiting` flag) came
+  back into the map's group table as a nameless member that took a hue;
+  fixed (the table knows your id).
 
 ## Owner feedback
 
